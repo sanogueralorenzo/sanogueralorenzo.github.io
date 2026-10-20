@@ -3,7 +3,7 @@
 .landing { width: 100%; padding: clamp(14px, 3dvh, 24px) clamp(18px, 4vw, 24px); }
 .landing-spark { position: relative; width: 200px; height: clamp(98px, 14dvh, 124px); margin: 0 auto; border-radius: 50%; animation: landing-drift 9s ease-in-out infinite; }
 .landing-mark { position: relative; display: grid; place-items: center; width: 100%; height: 100%; }
-.landing-glow { position: absolute; inset: 10%; z-index: -1; border-radius: 50%; background: radial-gradient(ellipse closest-side, color-mix(in srgb, var(--user) 18%, transparent), color-mix(in srgb, var(--user) 10%, transparent) 55%, color-mix(in srgb, var(--user) 4%, transparent) 80%, transparent); animation: landing-breathe 12s ease-in-out infinite; pointer-events: none; }
+.landing-glow { position: absolute; inset: 0; z-index: -1; background: radial-gradient(circle farthest-corner, color-mix(in srgb, var(--user) 22%, transparent), color-mix(in srgb, var(--user) 14%, transparent) 45%, color-mix(in srgb, var(--user) 8%, transparent) 75%, color-mix(in srgb, var(--user) 5%, transparent)); animation: landing-breathe 12s ease-in-out infinite; pointer-events: none; }
 .landing-core, .landing-core-halo { grid-area: 1 / 1; border-radius: 50%; background: var(--user); }
 .landing-core { width: 16px; height: 16px; }
 .landing-core-halo { width: 36px; height: 36px; opacity: .06; }
@@ -12,7 +12,7 @@
 .is-landing .composer:focus-within { box-shadow: 0 0 0 1px color-mix(in srgb, var(--landing-accent, var(--clay)) 45%, var(--line)), 0 5px 24px #00000006; }
 .is-landing .composer textarea { padding-left: 0; }
 .is-landing .composer .mic-button { display: none; }
-@keyframes landing-breathe { 0%, 100% { transform: scale(.92); opacity: .9; } 50% { transform: scale(1); opacity: .6; } }
+@keyframes landing-breathe { 0%, 100% { transform: scale(1); opacity: .9; } 50% { transform: scale(1.06); opacity: .7; } }
 @keyframes landing-drift { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(3px, -2px); } 50% { transform: translate(-2px, 3px); } 75% { transform: translate(-4px, -1px); } }
 @media (prefers-reduced-motion: reduce) {
   .landing-spark, .landing-glow { animation: none; }
