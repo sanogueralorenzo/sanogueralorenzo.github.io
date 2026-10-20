@@ -53,7 +53,7 @@ async function fixture(t, { suggestion = null, empty = false } = {}) {
   t.after(async () => { await context.close(); await close(); assert.deepEqual(errors, []); });
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   if (!empty) await page.getByText("Reply 1", { exact: true }).waitFor();
-  else await page.getByRole("heading", { name: "Start with a spark.", exact: true }).waitFor();
+  else await page.locator(".landing-mark").waitFor();
   await page.evaluate(() => {
     window.originalComposer = document.querySelector("textarea");
     window.composerDetached = false;
@@ -189,18 +189,12 @@ test("failed sends restore the reply without overwriting newer typing", async t 
   await focused();
 });
 
-test("landing starting points stay editable and keep the composer mounted when work starts", async t => {
+test("minimal landing keeps its animation and the composer mounted when work starts", async t => {
   const { page, input, calls, focused } = await fixture(t, { empty: true });
-  await page.getByRole("button", { name: "Think it through", exact: true }).click();
-  assert.match(await input.inputValue(), /idea I'd like to think through/);
-  await focused();
-  assert.equal(calls.length, 0);
-  const spark = page.getByRole("button", { name: "Give me a starting point", exact: true });
-  await spark.click();
-  const first = await input.inputValue();
-  await spark.click();
-  assert.notEqual(await input.inputValue(), first);
-  await focused();
+  assert.equal((await page.locator(".landing").textContent()).trim(), "");
+  assert.equal(await page.locator(".landing button, .landing-prompts").count(), 0);
+  assert.notEqual(await page.locator(".landing-orbit-one").evaluate(node => getComputedStyle(node).animationName), "none");
+  assert.equal(await input.inputValue(), "");
   assert.equal(calls.length, 0);
   await page.emulateMedia({ reducedMotion: "reduce" });
   assert.equal(await page.locator(".landing-orbit-one").evaluate(node => getComputedStyle(node).animationName), "none");

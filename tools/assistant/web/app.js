@@ -15,7 +15,7 @@ const actions = createMessageActions({ state, api, render });
 const composer = createComposer({ state, api, render, loadSession, actions });
 const queued = createQueuedMessages({ state, api, render, composer });
 root.querySelector(".app-shell").append(composer.element);
-const landing = createLanding({ root, composer });
+const landing = createLanding({ root });
 const providers = createProviders({ state, root, api });
 root.querySelector(".topbar-end").innerHTML = providers.html();
 
@@ -105,7 +105,6 @@ function render() {
   const record = state.data.sessions.find((item) => item.id === state.selected);
   const isLanding = isHome && !state.data.messages.length;
   root.querySelector(".app-shell").classList.toggle("is-landing", isLanding);
-  landing.sync(isLanding);
   const topbar = root.querySelector(".topbar");
   topbar.classList.toggle("home-topbar", isHome);
   topbar.querySelector(".brand strong").textContent = isHome ? "Assistant" : record?.title || "Conversation";
@@ -158,7 +157,6 @@ root.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
   if (!button || button.disabled) return;
   try {
-    if (landing.handleClick(button)) return;
     if (await providers.handleClick(button)) return;
     if (await queued.handleClick(button)) return;
     if (composer.handleClick(button)) return;

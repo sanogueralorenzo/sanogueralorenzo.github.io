@@ -222,6 +222,5 @@ export function createComposer({ state, api, render, loadSession, actions }) {
       render();
     }
   });
-  function startPrompt(text) { change({ input: text, replyToId: null, edit: null, queuedEdit: null }, true); }
-  return { element, sync, selectView, editQueued, reconcile, handleClick, startPrompt };
+  return { element, sync, selectView, editQueued, reconcile, handleClick };
 }

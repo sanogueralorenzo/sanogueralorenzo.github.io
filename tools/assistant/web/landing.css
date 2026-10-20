@@ -1,6 +1,6 @@
 .is-landing .landing-scroll { display: flex; align-items: flex-end; justify-content: center; }
-.landing { width: min(680px, 100%); padding: 32px 24px 30px; text-align: center; }
-.landing-spark { --spark-x: 0px; --spark-y: 0px; position: relative; display: block; width: 240px; height: 180px; padding: 0; margin: 0 auto 20px; border: 0; border-radius: 50%; background: transparent; color: var(--graphite); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.landing { width: min(680px, 100%); padding: 32px 24px 30px; }
+.landing-spark { --spark-x: 0px; --spark-y: 0px; position: relative; width: 240px; height: 180px; margin: 0 auto; border-radius: 50%; }
 .landing-mark { position: relative; width: 100%; height: 100%; overflow: visible; transform: translate(var(--spark-x), var(--spark-y)); transition: transform .65s cubic-bezier(.2, .8, .2, 1); }
 .landing-glow { position: absolute; inset: 25px 45px; border-radius: 50%; background: radial-gradient(ellipse, color-mix(in srgb, var(--landing-accent, var(--clay)) 13%, transparent), transparent 70%); transform: scale(.9); transition: transform .6s, opacity .6s; }
 .landing-orbit { transform-origin: 120px 90px; stroke: var(--landing-accent, var(--clay)); stroke-width: 1.15; }
@@ -10,39 +10,25 @@
 .landing-satellite { fill: var(--landing-accent, var(--clay)); stroke: var(--canvas); stroke-width: 3; }
 .landing-core { fill: var(--user); animation: landing-breathe 5s ease-in-out infinite; transform-origin: center; }
 .landing-core-halo { fill: var(--user); opacity: .035; }
-.landing-spark-hint { position: absolute; right: 0; bottom: -2px; left: 0; color: var(--muted); font-size: 11px; opacity: 0; transform: translateY(4px); transition: opacity .25s, transform .25s; }
-.landing-spark:hover .landing-glow, .landing-spark:focus-visible .landing-glow { transform: scale(1.35); }
-.landing-spark:hover .landing-spark-hint, .landing-spark:focus-visible .landing-spark-hint { opacity: 1; transform: none; }
-.landing h1 { margin: 0; color: var(--graphite); font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif; font-size: clamp(38px, 5.5vw, 60px); line-height: 1.15; font-weight: 400; letter-spacing: -.045em; }
-.landing h1 em { color: var(--landing-accent, var(--clay)); font-weight: 400; }
-.landing p { margin: 19px 0 0; color: var(--muted); font-size: 15px; line-height: 1.75; letter-spacing: -.01em; }
-.is-landing .composer-area { padding: 0 24px; margin-bottom: clamp(60px, 16vh, 170px); }
+.landing-spark:hover .landing-glow { transform: scale(1.35); }
+.is-landing .composer-area { padding: 0 24px; margin-bottom: clamp(60px, 26vh, 260px); }
 .is-landing .composer { width: min(680px, 100%); min-height: 66px; padding: 13px 12px 12px 18px; border-radius: 23px; background: var(--input); box-shadow: 0 0 0 1px var(--line), 0 4px 18px #00000003; transition: box-shadow .2s; }
 .is-landing .composer:focus-within { box-shadow: 0 0 0 1px color-mix(in srgb, var(--landing-accent, var(--clay)) 45%, var(--line)), 0 5px 24px #00000006; }
 .is-landing .composer textarea { padding-left: 0; }
 .is-landing .composer .mic-button { display: none; }
-.landing-prompts { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 12px; margin: 17px auto 0; }
-.landing-prompts button { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 7px 10px; border: 1px solid transparent; border-radius: 20px; color: var(--muted); background: transparent; cursor: pointer; font-size: 12px; transition: color .2s, background .2s, border-color .2s, transform .2s; }
-.landing-prompts button svg { color: var(--landing-accent, var(--clay)); opacity: .8; }
-.landing-prompts button:hover, .landing-prompts button:focus-visible { color: var(--graphite); background: var(--input); border-color: var(--line); transform: translateY(-2px); }
 @keyframes landing-orbit-one { from { transform: rotate(-24deg) scaleX(.92); } to { transform: rotate(8deg) scaleX(1); } }
 @keyframes landing-orbit-two { from { transform: rotate(60deg) scaleX(1); } to { transform: rotate(95deg) scaleX(.88); } }
 @keyframes landing-orbit-three { from { transform: rotate(-76deg); } to { transform: rotate(-42deg); } }
 @keyframes landing-breathe { 0%, 100% { opacity: .85; } 50% { opacity: 1; } }
 @media (max-width: 520px) {
   .landing { padding: 20px 20px 28px; }
-  .landing-spark { width: 210px; height: 158px; margin-bottom: 22px; }
-  .landing p { font-size: 14px; margin-top: 17px; }
-  .is-landing .composer-area { padding: 0 18px; margin-bottom: clamp(46px, 12vh, 110px); }
+  .landing-spark { width: 210px; height: 158px; }
+  .is-landing .composer-area { padding: 0 18px; margin-bottom: clamp(46px, 24vh, 200px); }
   .is-landing .composer { padding-left: 15px; }
-  .landing-prompts { gap: 0; margin-top: 13px; }
-  .landing-prompts button { padding: 7px 8px; font-size: 11px; gap: 5px; }
 }
 @media (max-height: 650px) {
-  .landing-spark { width: 170px; height: 128px; margin-bottom: 10px; }
+  .landing-spark { width: 170px; height: 128px; }
   .landing { padding-top: 14px; padding-bottom: 20px; }
-  .landing h1 { font-size: 40px; }
-  .landing p { margin-top: 12px; font-size: 13px; }
   .is-landing .composer-area { margin-bottom: 30px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -50,7 +36,7 @@
   .landing-orbit-one { transform: rotate(-24deg); }
   .landing-orbit-two { transform: rotate(60deg); }
   .landing-orbit-three { transform: rotate(-76deg); }
-  .landing-mark, .landing-glow, .landing-spark-hint, .landing-prompts button { transition: none; }
+  .landing-mark, .landing-glow { transition: none; }
 }
 
 @media (prefers-color-scheme: dark) {
