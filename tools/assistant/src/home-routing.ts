@@ -35,6 +35,9 @@ export class HomeRouter {
   }
 
   async discover(message: HomeMessage): Promise<Route> {
+    if (!this.state.home.sessions.length) {
+      return { mode: "start", title: message.text.trim().replace(/\s+/g, " ").slice(0, 100) };
+    }
     const entries = this.state.data.entries;
     const recentExchanges = this.state.data.messages
       .slice(0, this.state.data.messages.findIndex((item) => item.id === message.id)).slice(-6)
