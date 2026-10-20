@@ -9,7 +9,6 @@ import { PiService, type PiOptions } from "./pi.ts";
 import { HomeRouter, type Route } from "./home-routing.ts";
 import { HomeDoc, State, now, assistantText, type HomeMessage, type Turn } from "./state.ts";
 import { PromptSuggestions } from "./prompt-suggestions.ts";
-import { hostedSearchLabel } from "./hosted-search.ts";
 import { cancelDelegations } from "./delegation.ts";
 
 type DispatchState = { phase: "route" } | { phase: "create"; route: Route } | { phase: "admit"; sessionId: string };
@@ -17,8 +16,6 @@ const clean = (text: string) => text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").rep
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 const replyPrompt = (text: string, reply?: { role: string; text: string }) => reply
   ? `In reply to this earlier ${reply.role} message:\n> ${reply.text.slice(0, 2000).replaceAll("\n", "\n> ")}\n\n${text}` : text;
-const toolLabels: Record<string, string> = { read: "Looking through files", grep: "Looking through files", find: "Looking through files", ls: "Looking through files",
-  edit: "Editing files", write: "Editing files", bash: "Running a command", computer_use: "Using your computer", working_directory: "Selecting a working directory", working_notes: "Updating working notes", delegate: "Starting delegated work", delegate_result: "Collecting delegated work", delegate_cancel: "Cancelling delegated work" };
 
 export class Assistant {
   readonly dataDir: string;
@@ -31,7 +28,6 @@ export class Assistant {
   private readonly dispatch: ReturnType<typeof Assistant.dispatchTask>;
   private readonly rootId: ConversationId;
   private readonly listeners = new Set<(event: unknown) => void>();
-  private readonly search = new Map<number, string>();
   private readonly finished = new Set<string>();
   private closing?: Promise<void>;
   private constructor(dataDir: string, cwd: string, pi: PiService, db: DatabaseSync, dispatch: ReturnType<typeof Assistant.dispatchTask>, rootId: ConversationId) {
@@ -55,7 +51,6 @@ export class Assistant {
       app = new Assistant(dataDir, cwd, pi, db, dispatch, root.id);
       await app.state.load(() => app.publish());
       for (const entry of app.snapshot().entries) for (const update of entry.updates) if (update.kind === "result") app.finished.add(update.id);
-      pi.onProviderEvent = (id, data) => { const label = hostedSearchLabel(data); if (label) { app.search.set(id, label); app.publish(); } };
       for (const record of app.state.home.sessions) if (record.paused) {
         const taskId = app.state.live(record.conversationId)?.run?.taskId;
         if (taskId) await pi.harness.abortTask(taskId, BACKGROUND_CONTEXT);
@@ -153,22 +148,17 @@ export class Assistant {
   subscribe(listener: (event: unknown) => void) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   private emit(event: unknown) { for (const listener of this.listeners) listener(event); }
   snapshot() { return this.state.data; }
-  activities() {
-    return this.snapshot().turns.filter((turn) => turn.status === "running").map((turn) => {
+  progress() {
+    return this.snapshot().turns.filter((turn) => turn.status === "running").flatMap((turn) => {
       const record = this.state.home.sessions.find((item) => item.id === turn.sessionId)!;
-      const live = this.state.live(record.conversationId);
-      const message = live?.generation?.message;
-      const thinking = message?.content.filter((part) => part.type === "thinking").map((part) => part.thinking).join("\n");
-      const tool = live?.tools?.find((item) => item.status !== "done");
-      const text = clean(this.search.get(record.conversationId) || assistantText(message || {}) || (tool && toolLabels[tool.name]) || thinking || "Working…").slice(-1200);
-      return { type: "homeActivity", sourceId: turn.sourceId, text };
+      const text = assistantText(this.state.live(record.conversationId)?.generation?.message || {});
+      return text ? [{ type: "progress", sourceId: turn.sourceId, text: clean(text).slice(-1200) }] : [];
     });
   }
   private publish() {
     const data = this.snapshot();
     this.emit({ type: "snapshot", data });
-    for (const activity of this.activities()) this.emit(activity);
-    for (const record of data.sessions) if (record.status !== "running") this.search.delete(record.conversationId);
+    for (const progress of this.progress()) this.emit(progress);
     for (const entry of data.entries) for (const update of entry.updates) if (update.kind === "result" && !this.finished.has(update.id)) {
       this.finished.add(update.id);
       const record = data.sessions.find((item) => item.id === entry.sessionId);
@@ -319,9 +309,8 @@ export class Assistant {
     const session = this.snapshot().sessions.find((session) => session.id === sessionId);
     if (!session) throw new Error("Conversation not found");
     const live = view ? view.docs["pi.live"] as LiveState | undefined : this.state.live(session.conversationId);
-    const activity = this.activities().find((item) => this.snapshot().turns.some((turn) => turn.sourceId === item.sourceId && turn.sessionId === sessionId));
     return { session: { ...session, status: session.paused ? "interrupted" : live?.run ? "running" : "idle" }, messages: this.state.transcript(sessionId, view), queue: this.snapshot().turns.filter((turn) => turn.sessionId === sessionId),
-      streaming: assistantText(live?.generation?.message || {}), activity: activity?.text || "" };
+      streaming: assistantText(live?.generation?.message || {}) };
   }
   async watchConversation(sessionId: string, send: (event: unknown) => Promise<void>) {
     const record = this.state.home.sessions.find((session) => session.id === sessionId);

@@ -26,7 +26,7 @@ const assets: Record<string, [string, string]> = {
   "/": ["index.html", "text/html"], "/app.js": ["app.js", "text/javascript"],
   "/app.css": ["app.css", "text/css"], "/view.js": ["view.js", "text/javascript"],
   "/message-actions.js": ["message-actions.js", "text/javascript"],
-  "/prompt-suggestions.js": ["prompt-suggestions.js", "text/javascript"],
+  "/composer.js": ["composer.js", "text/javascript"],
   "/queued-messages.js": ["queued-messages.js", "text/javascript"],
   "/providers.js": ["providers.js", "text/javascript"],
 };
@@ -66,7 +66,7 @@ export function createAssistantServer(app: Assistant) {
       });
       await send({ type: "snapshot", data: app.snapshot() });
       await sendProviders();
-      for (const activity of app.activities()) await send(activity);
+      for (const progress of app.progress()) await send(progress);
       attach();
       return;
     }

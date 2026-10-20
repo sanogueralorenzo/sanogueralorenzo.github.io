@@ -4,8 +4,8 @@ import type { JsonValue } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { lazyStream, type Models, type Model, type Api, type Context, type ModelsSimpleStreamOptions } from "@earendil-works/pi-ai";
 import { createCodingTools, createReadOnlyTools, formatSkillsForPrompt } from "@earendil-works/pi-coding-agent";
-import { AssistantEntry, createRegistry, defineExtension, defineTool, Harness, MemoryStorage, ProviderDoc, section,
-  type AnyTask, type Cursor, type Extension, type ModelRef, type Storage, type ToolRegistration } from "@earendil-works/pi-durable";
+import { AssistantEntry, createRegistry, defineExtension, defineTool, Harness, MemoryStorage, section,
+  type AnyTask, type Extension, type ModelRef, type Storage, type ToolRegistration } from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { assistantModels, Providers } from "./providers.ts";
 import { ComputerUseClient } from "./computer-use.ts";
@@ -54,7 +54,7 @@ export function roleExtension(role: AgentRole, extraTools: ToolRegistration[] = 
     }, { tag: false }), ...(role !== "coordinator" ? [workingNotesSection] : [])] });
 }
 
-export function providerModels(runtime: Models, report: (sessionId: string, data: unknown) => void = () => {}): Models {
+export function providerModels(runtime: Models): Models {
   const maxWorkRequests = 8;
   const active = new Set<Promise<void>>();
   return new Proxy(runtime, { get(target, key) {
@@ -94,10 +94,6 @@ export function providerModels(runtime: Models, report: (sessionId: string, data
               }
               return request;
             },
-            onProviderStreamEvent: async (data, selected) => {
-              if (options.sessionId) report(options.sessionId, data);
-              await options.onProviderStreamEvent?.(data, selected);
-            },
           });
         } finally { active.delete(occupied); release(); }
       })();
@@ -115,15 +111,12 @@ export class PiService {
   private readonly roles: Record<AgentRole, Extension>;
   private readonly computers: Map<number, ComputerUseClient>;
   private readonly computerClosures = new Set<Promise<void>>();
-  private readonly providerConversations = new Map<string, number>();
   private unsubscribe = () => {};
-  onProviderEvent: (conversationId: number, data: unknown) => void = () => {};
   private constructor(harness: Harness, models: Models, agentModels: Models, providers: Providers, fixedModel: ModelRef | undefined, roles: Record<AgentRole, Extension>, computers: Map<number, ComputerUseClient>) {
     this.harness = harness; this.models = models; this.agentModels = agentModels; this.providers = providers; this.fixedModel = fixedModel; this.roles = roles; this.computers = computers;
     this.unsubscribe = harness.subscribeCommits((publication) => {
       for (const change of publication.changes) {
         if (change.type !== "document" || !change.value || change.conversationId === undefined) continue;
-        if (change.record.kind === "pi.provider") this.providerConversations.set(String(change.value.sessionId), change.conversationId);
         if (change.record.kind === "pi.live" && !change.value.run) this.closeComputer(change.conversationId);
       }
     });
@@ -133,10 +126,7 @@ export class PiService {
     const runtime = options.models || await assistantModels(dataDir);
     const providers = new Providers(dataDir, runtime);
     let service: PiService | undefined;
-    const models = providerModels(runtime, (id, data) => {
-      const conversationId = service?.providerConversations.get(id);
-      if (conversationId !== undefined) service!.onProviderEvent(conversationId, data);
-    });
+    const models = providerModels(runtime);
     const computers = new Map<number, ComputerUseClient>();
     const computer = new ComputerUseClient().tool();
     const computerTool = defineTool({ ...computer,
@@ -156,17 +146,6 @@ export class PiService {
       models, registry, settings: { extensions: [], steeringMode: "one-at-a-time", followUpMode: "one-at-a-time", toolExecution: "parallel", progress: { partialIntervalMs: 16, outputIntervalMs: 16 } },
     }, BACKGROUND_CONTEXT);
     service = new PiService(harness, runtime, models, providers, options.model, roles, computers);
-    await harness.commit(async (tx) => {
-      let cursor: Cursor | undefined;
-      do {
-        const page = await tx.scanConversations({}, 256, cursor);
-        for (const conversation of page.items) {
-          const provider = await tx.doc(ProviderDoc, conversation.id);
-          service!.providerConversations.set(provider.sessionId, conversation.id);
-        }
-        cursor = page.next;
-      } while (cursor !== undefined);
-    }, BACKGROUND_CONTEXT);
     return service;
   }
   get model(): ModelRef { return this.fixedModel || this.providers.model; }

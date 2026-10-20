@@ -12,7 +12,8 @@
     "check": "tsc --noEmit",
     "test:delegation": "node --experimental-strip-types --test evals/delegation.test.mjs",
     "eval:suggestions": "node --experimental-strip-types evals/benchmark/cli.mjs run evals/benchmark/suites/suggestions.json --variants live",
-    "eval:benchmark": "node --experimental-strip-types evals/benchmark/cli.mjs"
+    "eval:benchmark": "node --experimental-strip-types evals/benchmark/cli.mjs",
+    "test:composer": "node --experimental-strip-types --test evals/composer.test.mjs"
   },
   "dependencies": {
     "@earendil-works/chord": "1.3.0",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
+    "playwright": "^1.62.1",
     "typescript": "^5.9.3"
   }
 }

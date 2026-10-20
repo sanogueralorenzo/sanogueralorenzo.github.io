@@ -1,25 +1,21 @@
 import { escapeHTML, icon, renderMarkdown, renderMessage } from "./view.js";
 import { createMessageActions } from "./message-actions.js";
-import { createPromptSuggestions } from "./prompt-suggestions.js";
-import { composerDraft, restoreComposerDraft, createQueuedMessages } from "./queued-messages.js";
+import { createComposer } from "./composer.js";
+import { createQueuedMessages } from "./queued-messages.js";
 import { createProviders } from "./providers.js";
 
 const root = document.querySelector("#app");
-const restoredDraft = sessionStorage.getItem("assistant-reload-draft") || "";
-const restoredReply = sessionStorage.getItem("assistant-reload-reply");
-const restoredEdit = JSON.parse(sessionStorage.getItem("assistant-reload-edit") || "null");
-const restoredQueuedEdit = JSON.parse(sessionStorage.getItem("assistant-reload-queued-edit") || "null");
-sessionStorage.removeItem("assistant-reload-draft");
-sessionStorage.removeItem("assistant-reload-reply");
-sessionStorage.removeItem("assistant-reload-edit");
-sessionStorage.removeItem("assistant-reload-queued-edit");
 const state = { data: { messages: [], entries: [], sessions: [], turns: [] }, selected: localStorage.getItem("assistant-view") || "home",
-  transcript: [], sessionRevision: 0, input: restoredDraft, replyToId: restoredReply, edit: restoredEdit, queuedEdit: restoredQueuedEdit, sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", liveProgress: {}, unseenReplies: new Map(), snapshotLoaded: false };
+  transcript: [], sessionRevision: 0, scroll: { home: 0 }, error: "", connected: false, streaming: "", liveProgress: {}, unseenReplies: new Map(), snapshotLoaded: false };
 let renderedView = state.selected;
-const actions = createMessageActions({ state, root, api, render });
-const suggestions = createPromptSuggestions({ state, root, api, render });
-const queued = createQueuedMessages({ state, root, api, render });
+let renderedContent;
+root.innerHTML = `<div class="app-shell"><header class="topbar"><div class="topbar-side"></div><div class="brand"><strong></strong></div><div class="topbar-side topbar-end"></div></header><div class="conversation-content"></div><div class="connection-error" hidden><span></span><button data-action="dismiss">Dismiss</button></div></div>`;
+const actions = createMessageActions({ state, api, render });
+const composer = createComposer({ state, api, render, loadSession, actions });
+const queued = createQueuedMessages({ state, api, render, composer });
+root.querySelector(".app-shell").append(composer.element);
 const providers = createProviders({ state, root, api });
+root.querySelector(".topbar-end").innerHTML = providers.html();
 
 async function api(path, method = "GET", body) {
   const response = await fetch(path, { method, headers: body ? { "content-type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
@@ -38,7 +34,7 @@ function messageStatus(message, entry) {
   return message.status === "routed" ? "queued" : message.status;
 }
 function activityPill(message, entry, className = "", showConversation = true) {
-  const progress = state.liveProgress[message.id] ?? entry?.updates.filter((update) => update.kind === "progress" && (update.sourceId || entry.sourceId) === message.id).at(-1)?.text;
+  const progress = state.liveProgress[message.id];
   const status = messageStatus(message, entry);
   const title = entry?.sessionId ? entry.title : status === "failed" ? "Routing failed" : "Choosing a conversation…";
   const detail = ({ routing: "", queued: "Queued", working: progress?.replace(/\s+/g, " ").trim() || "Working…",
@@ -86,11 +82,6 @@ function home() {
   return `<main class="home-scroll scroll-area"><div class="home-content">${content}</div></main>`;
 }
 function nearBottom(scroll) { return scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 40; }
-function resizeComposer(input = root.querySelector('[data-focus="composer"]')) {
-  if (!input) return;
-  input.style.height = "38px";
-  input.style.height = `${Math.min(input.scrollHeight, 144)}px`;
-}
 function homeBackButton() {
   const unread = [...state.unseenReplies.values()].some((sessionId) => sessionId !== state.selected);
   return `<button class="icon-button back-button ${unread ? "has-unread" : ""}" data-action="home" aria-label="${unread ? "Back to Home, new replies" : "Back to Home"}" title="${unread ? "Home · new replies" : "Home"}">${icon("back", 19)}</button>`;
@@ -99,96 +90,34 @@ function sessionView() {
   const record = state.data.sessions.find((item) => item.id === state.selected);
   const messages = state.transcript.length ? state.transcript.filter((message) => !message.reaction).map((message) => renderMessage(message,
     message.role === "assistant" && message.replyable ? actions.replyActions(message.id, state.selected) : "")).join("") : `<div class="empty-session"><span class="brand-mark">✳</span><p>How can I help?</p></div>`;
-  return `<main class="session-scroll scroll-area"><div class="transcript">${messages}${state.streaming ? renderMessage({ role: "assistant", text: state.streaming }) : ""}</div></main>${record?.status === "running" ? `<div class="activity-line"><i class="spinner"></i><span>${escapeHTML(state.activity || "Working")}</span></div>` : ""}${record?.status === "interrupted" ? `<div class="activity-line">⏸️ Stopped. Return to Home to continue.</div>` : ""}`;
+  return `<main class="session-scroll scroll-area"><div class="transcript">${messages}${state.streaming ? renderMessage({ role: "assistant", text: state.streaming }) : ""}</div></main>${record?.status === "running" ? `<div class="activity-line"><i class="spinner"></i><span>Working…</span></div>` : ""}${record?.status === "interrupted" ? `<div class="activity-line">⏸️ Stopped. Return to Home to continue.</div>` : ""}`;
 }
-function updateShell(html) {
-  const template = document.createElement("template");
-  template.innerHTML = html;
-  const shell = root.querySelector(".app-shell");
-  const fresh = template.content.firstElementChild;
-  const footer = shell.querySelector(".composer-area");
-  const children = [...fresh.children].filter((child) => !child.matches(".composer-area"));
-  for (const child of [...shell.children]) {
-    if (child !== footer && !children.some((next) => next.classList[0] === child.classList[0])) child.remove();
-  }
-  for (const child of children) {
-    const current = [...shell.children].find((item) => item.classList[0] === child.classList[0]);
-    if (!current) shell.insertBefore(child, footer);
-    else if (!current.isEqualNode(child)) current.replaceWith(child);
-  }
-  const composer = footer.querySelector("#composer");
-  const next = fresh.querySelector("#composer");
-  // Live updates must leave the textarea connected so typing and composition continue.
-  const input = composer.querySelector(".composer-input");
-  const nextInput = next.querySelector(".composer-input");
-  composer.className = next.className;
-  for (const child of [...composer.children]) {
-    if (child !== input && ![...next.children].some((item) => item.classList[0] === child.classList[0])) child.remove();
-  }
-  for (const child of [...next.children]) {
-    if (child === nextInput) continue;
-    const current = [...composer.children].find((item) => item.classList[0] === child.classList[0]);
-    if (current) { if (!current.isEqualNode(child)) current.replaceWith(child); }
-    else if (child.compareDocumentPosition(nextInput) & Node.DOCUMENT_POSITION_FOLLOWING) composer.insertBefore(child, input);
-    else composer.append(child);
-  }
-  const textarea = input.querySelector("textarea");
-  if (textarea.value !== state.input) textarea.value = state.input;
-}
-function render(force = false) {
+function render() {
   const old = root.querySelector(".scroll-area");
-  if (!force && state.selected === "home" && renderedView === "home" && old?.classList.contains("home-scroll") &&
-    !state.error && !root.querySelector(".connection-error")) {
-    const wasNearBottom = nearBottom(old);
-    const scrollTop = old.scrollTop;
-    const next = document.createElement("template");
-    next.innerHTML = home();
-    const current = old.querySelector(".home-content");
-    const fresh = next.content.querySelector(".home-content");
-    const children = [...fresh.children];
-    for (let i = 0; i < children.length; i++) {
-      const existing = current.children[i];
-      const updated = children[i];
-      const pill = existing?.querySelector(".activity-pill");
-      const nextPill = updated.querySelector(".activity-pill");
-      if (pill?.dataset.source && pill.dataset.source === nextPill?.dataset.source && pill.dataset.status === nextPill.dataset.status) {
-        const detail = pill.querySelector(".pill-detail");
-        const nextDetail = nextPill.querySelector(".pill-detail");
-        if (detail && nextDetail) detail.textContent = nextDetail.textContent;
-        pill.setAttribute("aria-label", nextPill.getAttribute("aria-label"));
-      }
-      if (!existing) current.append(updated);
-      else if (!existing.isEqualNode(updated)) existing.replaceWith(updated);
-    }
-    while (current.children.length > children.length) current.lastElementChild.remove();
-    old.scrollTop = wasNearBottom ? old.scrollHeight : scrollTop;
-    updateConnection();
-    return;
-  }
+  const sameView = state.selected === renderedView;
+  const scrollTop = old?.scrollTop;
+  const follow = !old || (sameView && nearBottom(old));
   if (old) state.scroll[renderedView] = old.scrollTop;
-  const focus = document.activeElement?.dataset?.focus;
-  const cursor = focus ? document.activeElement.selectionStart : null;
-  const selectionEnd = focus ? document.activeElement.selectionEnd : null;
-  const selectionDirection = focus ? document.activeElement.selectionDirection : null;
-  const providerFocus = providers.captureFocus();
   const isHome = state.selected === "home";
   const record = state.data.sessions.find((item) => item.id === state.selected);
-  const editing = isHome && state.edit;
-  const previewHTML = actions.preview();
-  const html = `<div class="app-shell"><header class="topbar${isHome ? " home-topbar" : ""}"><div class="topbar-side">${isHome ? "" : homeBackButton()}</div><div class="brand"><strong>${isHome ? "Assistant" : escapeHTML(record?.title || "Conversation")}</strong></div><div class="topbar-side topbar-end">${providers.html()}</div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area"><form class="composer ${isHome ? "" : "session-composer"} ${previewHTML ? "replying" : ""}" id="composer">${isHome ? "" : queued.composer()}${previewHTML}<div class="composer-input"><textarea data-focus="composer" rows="1" placeholder="Message" aria-label="Message">${escapeHTML(state.input)}</textarea><div class="prompt-suggestion" hidden><span></span></div></div><div class="composer-controls"><button type="button" class="composer-icon suggestion-action" data-action="accept-suggestion" title="Use suggested reply" aria-label="Use suggested reply" hidden><kbd>Tab</kbd></button><button type="button" class="composer-icon mic-button" title="Microphone — coming soon" aria-label="Microphone (coming soon)" disabled>${icon("mic", 18)}</button>${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></div>${editing ? `<div class="composer-hint edit-hint">Sending this will steer the conversation</div>` : ""}</form></footer></div>`;
-  if (!force && state.selected === renderedView && old) updateShell(html);
-  else root.innerHTML = html;
-  renderedView = state.selected;
-  const scroll = root.querySelector(".scroll-area");
-  if (scroll) scroll.scrollTop = state.scroll[state.selected] ?? scroll.scrollHeight;
-  const input = focus ? root.querySelector('[data-focus="composer"]') : null;
-  if (input && input !== document.activeElement) {
-    input.focus({ preventScroll: true });
-    if (cursor !== null) input.setSelectionRange(cursor, selectionEnd, selectionDirection);
+  const topbar = root.querySelector(".topbar");
+  topbar.classList.toggle("home-topbar", isHome);
+  topbar.querySelector(".brand strong").textContent = isHome ? "Assistant" : record?.title || "Conversation";
+  const back = isHome ? "" : homeBackButton();
+  const side = topbar.querySelector(".topbar-side");
+  if (side.innerHTML !== back) side.innerHTML = back;
+  const html = isHome ? home() : sessionView();
+  if (html !== renderedContent) {
+    root.querySelector(".conversation-content").innerHTML = html;
+    renderedContent = html;
   }
-  resizeComposer();
-  suggestions.sync();
-  providers.restoreFocus(providerFocus);
+  const scroll = root.querySelector(".scroll-area");
+  if (scroll) scroll.scrollTop = follow ? scroll.scrollHeight : sameView ? scrollTop : state.scroll[state.selected] ?? scroll.scrollHeight;
+  renderedView = state.selected;
+  const error = root.querySelector(".connection-error");
+  error.hidden = !state.error;
+  error.querySelector("span").textContent = state.error;
+  updateConnection();
 }
 async function loadSession() {
   if (state.selected === "home") return;
@@ -199,17 +128,14 @@ async function loadSession() {
     if (selected !== state.selected || revision !== state.sessionRevision) return;
     state.transcript = result.messages;
     state.streaming = result.streaming || "";
-    state.activity = result.activity || "";
     render();
   } catch (error) { state.error = error.message; render(); }
 }
 function select(id) {
   if (!id || id === state.selected) return;
   const unread = id === "home" ? new Set(state.unseenReplies.keys()) : null;
-  state.sessionDrafts[state.selected] = composerDraft(state);
-  state.selected = id;
+  composer.selectView(id);
   localStorage.setItem("assistant-view", id);
-  restoreComposerDraft(state, state.sessionDrafts[id]);
   state.error = "";
   state.transcript = [];
   state.streaming = "";
@@ -226,9 +152,9 @@ root.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
   if (!button || button.disabled) return;
   try {
-    if (button.dataset.action === "accept-suggestion") { suggestions.accept(); return; }
     if (await providers.handleClick(button)) return;
     if (await queued.handleClick(button)) return;
+    if (composer.handleClick(button)) return;
     if (await actions.handleClick(button)) return;
     if (button.dataset.action === "open") select(button.dataset.session);
     if (button.dataset.action === "home") select("home");
@@ -237,88 +163,9 @@ root.addEventListener("click", async (event) => {
     if (button.dataset.action === "resume") await api("/api/resume", "POST", { entryId: button.dataset.entry });
   } catch (error) { state.error = error.message; render(); }
 });
-root.addEventListener("input", (event) => {
-  if (event.target.matches('[data-focus="composer"]')) {
-    state.input = event.target.value;
-    suggestions.dismiss("draft");
-    resizeComposer(event.target);
-  }
-});
-root.addEventListener("keydown", (event) => {
-  if (!event.target.matches('[data-focus="composer"]') || event.isComposing) return;
-  if (event.key === "Tab" && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey && suggestions.accept()) {
-    event.preventDefault();
-  }
-  if (event.key === "Escape" && suggestions.escape()) event.preventDefault();
-  if (event.key === "Enter" && !event.shiftKey) {
-    event.preventDefault();
-    root.querySelector("#composer").requestSubmit();
-  }
-});
-root.addEventListener("submit", async (event) => {
-  if (event.target.id !== "composer") return;
-  event.preventDefault();
-  const composer = event.target.querySelector("textarea");
-  const text = composer.value.trim();
-  if (!text) return;
-  const selected = state.selected;
-  const queuedEdit = state.queuedEdit;
-  const submittedDraft = composerDraft(state);
-  const edit = selected === "home" ? state.edit : null;
-  const editOfId = edit?.id || null;
-  const replyToId = !edit ? state.replyToId : null;
-  const target = (replyToId || editOfId ? actions.replyTarget(replyToId || editOfId) : null) || (queuedEdit && { sessionId: queuedEdit.sessionId });
-  if ((replyToId || editOfId) && !target?.sessionId) { state.error = "This message is not in a conversation yet"; render(true); return; }
-  if (editOfId && text === target.text) { state.error = "Change the message before sending a revision"; render(true); return; }
-  if (editOfId && !state.data.turns.some((turn) => turn.sourceId === editOfId && turn.status === "running")) {
-    state.error = "This turn has finished. Cancel the edit and use Reply for a follow-up.";
-    render(true);
-    return;
-  }
-  suggestions.dismiss("sent");
-  if (queuedEdit) restoreComposerDraft(state, queuedEdit.previous);
-  else state.input = edit?.previousInput || "";
-  composer.value = "";
-  state.error = "";
-  if (selected === "home") {
-    const id = crypto.randomUUID();
-    if (!queuedEdit) { state.replyToId = edit?.previousReplyToId || null; state.queuedEdit = edit?.previousQueuedEdit || null; state.edit = null; }
-    state.data.messages.push({ id, text, createdAt: new Date().toISOString(), entryId: null, replyToId, editOfId, status: target ? "routed" : "routing" });
-    render(!!(replyToId || editOfId || queuedEdit));
-    try {
-      if (editOfId) await api("/api/turns", "POST", { id, sessionId: target.sessionId, text, mode: "steer", editOfId });
-      else if (target) await api("/api/turns", "POST", { id, sessionId: target.sessionId, text, mode: "followUp", replyToId });
-      else await api("/api/home", "POST", { id, text });
-    } catch (error) {
-      state.error = error.message;
-      restoreComposerDraft(state, { ...submittedDraft, input: text });
-      state.data.messages = state.data.messages.filter((item) => item.id !== id);
-      render(true);
-    }
-  } else {
-    if (!queuedEdit) state.replyToId = null;
-    render(!!(replyToId || queuedEdit));
-    try { await api("/api/turns", "POST", { sessionId: selected, text, mode: "followUp", replyToId }); await loadSession(); }
-    catch (error) { state.error = error.message; restoreComposerDraft(state, { ...submittedDraft, input: text }); render(); }
-  }
-});
-
 function connect() {
   const stream = new EventSource("/api/events");
-  let opened = false;
-  stream.onopen = () => {
-    if (opened) {
-      sessionStorage.setItem("assistant-reload-draft", root.querySelector("textarea")?.value || "");
-      if (state.replyToId) sessionStorage.setItem("assistant-reload-reply", state.replyToId);
-      if (state.edit) sessionStorage.setItem("assistant-reload-edit", JSON.stringify(state.edit));
-      if (state.queuedEdit) sessionStorage.setItem("assistant-reload-queued-edit", JSON.stringify(state.queuedEdit));
-      location.reload();
-      return;
-    }
-    opened = true;
-    state.connected = true;
-    updateConnection();
-  };
+  stream.onopen = () => { state.connected = true; updateConnection(); };
   stream.onerror = () => { state.connected = false; updateConnection(); };
   stream.onmessage = ({ data }) => {
     const event = JSON.parse(data);
@@ -326,33 +173,27 @@ function connect() {
       const previous = new Set(state.data.entries.flatMap((entry) => entry.updates.filter((update) => update.kind !== "progress").map((update) => update.id)));
       state.data = event.data;
       if (state.selected !== "home" && !state.data.sessions.some((session) => session.id === state.selected)) {
-        state.selected = "home";
+        composer.selectView("home");
         localStorage.setItem("assistant-view", "home");
         state.transcript = [];
       }
-      if (state.replyToId && (state.selected === "home" || state.transcript.length) && !actions.replyTarget(state.replyToId)) state.replyToId = null;
-      if (state.edit && !actions.replyTarget(state.edit.id)) state.edit = null;
+      composer.reconcile();
       if (state.snapshotLoaded) for (const entry of state.data.entries) for (const update of entry.updates) {
         if (update.kind !== "progress" && !previous.has(update.id) && state.selected !== "home" && entry.sessionId !== state.selected)
           state.unseenReplies.set(update.id, entry.sessionId);
       }
       state.snapshotLoaded = true;
-      render(!!(state.replyToId || state.edit) && !root.querySelector(".reply-preview"));
+      render();
     }
     if (event.type === "providers") providers.update(event.data);
     if (event.type === "conversation" && event.sessionId === state.selected) {
       state.sessionRevision++;
       state.transcript = event.messages;
       state.streaming = event.streaming;
-      state.activity = event.activity;
       render();
     }
-    if (event.type === "homeActivity") {
+    if (event.type === "progress") {
       state.liveProgress[event.sourceId] = event.text;
-      if (state.selected !== "home" && state.data.turns.some((turn) => turn.sessionId === state.selected && turn.sourceId === event.sourceId && turn.status === "running")) {
-        state.activity = event.text;
-        render();
-      }
       if (state.selected === "home") {
         const pill = [...root.querySelectorAll(".activity-pill")].find((item) => item.dataset.source === event.sourceId);
         if (pill?.dataset.status === "working") {
@@ -366,7 +207,7 @@ function connect() {
 }
 function updateConnection() {
   providers.sync();
-  suggestions.sync();
+  composer.sync(state.selected === "home" ? "" : queued.html());
 }
 render();
 connect();

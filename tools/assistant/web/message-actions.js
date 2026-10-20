@@ -2,7 +2,7 @@ import { escapeHTML, icon } from "./view.js";
 
 const approvalText = "Yes, go ahead.";
 
-export function createMessageActions({ state, root, api, render }) {
+export function createMessageActions({ state, api, render }) {
   const pending = new Set();
 
   function replyTarget(id) {
@@ -42,22 +42,6 @@ export function createMessageActions({ state, root, api, render }) {
     const active = state.data.turns.some((turn) => turn.sourceId === message.id && turn.status === "running");
     return active ? `<button type="button" class="reply-action" data-action="edit" data-edit="${escapeHTML(message.id)}" aria-label="Edit active message" title="Edit and steer">${icon("edit", 14)}</button>` : replyButton(message.id, sessionId);
   }
-  function preview() {
-    const editing = state.selected === "home" && state.edit;
-    const queuedEdit = state.queuedEdit;
-    const target = replyTarget(editing ? state.edit.id : state.replyToId) || (queuedEdit && {
-      role: state.data.sessions.find((session) => session.id === queuedEdit.sessionId)?.title || "Conversation",
-      text: queuedEdit.text,
-    });
-    if (!target) return "";
-    const action = editing ? "dismiss-edit" : queuedEdit ? "dismiss-queued-edit" : "dismiss-reply";
-    const label = editing || queuedEdit ? "Cancel edit" : "Cancel reply";
-    return `<div class="reply-preview">${quote(editing ? { role: "Editing message", text: target.text } : target, "reply-preview-text")}<button type="button" class="dismiss-reply" data-action="${action}" aria-label="${label}" title="${label}">${icon("close", 16)}</button></div>`;
-  }
-  function refreshComposer() {
-    render(true);
-    root.querySelector("textarea")?.focus();
-  }
   async function approve(button) {
     const replyToId = button.dataset.reply;
     if (pending.has(replyToId) || reactionTo(replyToId)) return;
@@ -80,48 +64,10 @@ export function createMessageActions({ state, root, api, render }) {
     }
   }
   async function handleClick(button) {
-    switch (button.dataset.action) {
-      case "thumbs-up":
-        await approve(button);
-        return true;
-      case "reply": {
-        const target = replyTarget(button.dataset.reply);
-        if (target?.sessionId) {
-          state.input = root.querySelector("textarea")?.value || "";
-          state.edit = null;
-          state.queuedEdit = null;
-          state.replyToId = button.dataset.reply;
-          refreshComposer();
-        }
-        return true;
-      }
-      case "edit": {
-        const message = state.data.messages.find((item) => item.id === button.dataset.edit);
-        if (message && state.data.turns.some((turn) => turn.sourceId === message.id && turn.status === "running")) {
-          state.edit = { id: message.id, previousInput: root.querySelector("textarea")?.value || "", previousReplyToId: state.replyToId, previousQueuedEdit: state.queuedEdit };
-          state.queuedEdit = null;
-          state.replyToId = null;
-          state.input = message.text;
-          refreshComposer();
-        }
-        return true;
-      }
-      case "dismiss-reply":
-        state.input = root.querySelector("textarea")?.value || "";
-        state.replyToId = null;
-        refreshComposer();
-        return true;
-      case "dismiss-edit":
-        state.input = state.edit?.previousInput || "";
-        state.replyToId = state.edit?.previousReplyToId || null;
-        state.queuedEdit = state.edit?.previousQueuedEdit || null;
-        state.edit = null;
-        refreshComposer();
-        return true;
-      default:
-        return false;
-    }
+    if (button.dataset.action !== "thumbs-up") return false;
+    await approve(button);
+    return true;
   }
 
-  return { replyTarget, quote, reactionTo, replyActions, requestAction, preview, handleClick };
+  return { replyTarget, quote, reactionTo, replyActions, requestAction, handleClick };
 }
