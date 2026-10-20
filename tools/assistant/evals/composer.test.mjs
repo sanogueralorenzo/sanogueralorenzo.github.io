@@ -9,12 +9,12 @@ let browser;
 before(async () => { browser = await chromium.launch({ channel: process.env.ASSISTANT_BROWSER_CHANNEL || "chrome" }); });
 after(async () => { await browser?.close(); });
 
-async function fixture(t, { suggestion = null } = {}) {
+async function fixture(t, { suggestion = null, empty = false } = {}) {
   const listeners = new Set();
   const watchers = new Map();
   const calls = [];
   const data = { messages: [], entries: [], sessions: [], turns: [] };
-  for (const id of ["1", "2"]) {
+  for (const id of empty ? [] : ["1", "2"]) {
     const createdAt = `2026-01-01T00:00:0${id}.000Z`;
     data.sessions.push({ id, title: `Conversation ${id}`, status: "idle" });
     data.messages.push({ id: `request-${id}`, entryId: `entry-${id}`, text: `Request ${id}`, createdAt, status: "routed" });
@@ -52,7 +52,8 @@ async function fixture(t, { suggestion = null } = {}) {
   page.on("pageerror", error => errors.push(error.message));
   t.after(async () => { await context.close(); await close(); assert.deepEqual(errors, []); });
   await page.goto(`http://127.0.0.1:${server.address().port}`);
-  await page.getByText("Reply 1", { exact: true }).waitFor();
+  if (!empty) await page.getByText("Reply 1", { exact: true }).waitFor();
+  else await page.getByRole("heading", { name: "Start with a spark.", exact: true }).waitFor();
   await page.evaluate(() => {
     window.originalComposer = document.querySelector("textarea");
     window.composerDetached = false;
@@ -185,6 +186,35 @@ test("failed sends restore the reply without overwriting newer typing", async t 
   await response;
   await page.getByText("Please retry", { exact: true }).waitFor();
   assert.equal(await input.inputValue(), "Newer draft");
+  await focused();
+});
+
+test("landing starting points stay editable and keep the composer mounted when work starts", async t => {
+  const { page, input, calls, focused } = await fixture(t, { empty: true });
+  await page.getByRole("button", { name: "Think it through", exact: true }).click();
+  assert.match(await input.inputValue(), /idea I'd like to think through/);
+  await focused();
+  assert.equal(calls.length, 0);
+  const spark = page.getByRole("button", { name: "Give me a starting point", exact: true });
+  await spark.click();
+  const first = await input.inputValue();
+  await spark.click();
+  assert.notEqual(await input.inputValue(), first);
+  await focused();
+  assert.equal(calls.length, 0);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  assert.equal(await page.locator(".landing-orbit-one").evaluate(node => getComputedStyle(node).animationName), "none");
+  await page.setViewportSize({ width: 390, height: 844 });
+  const fits = await input.evaluate(node => { const bounds = node.getBoundingClientRect(); return bounds.left >= 0 && bounds.right <= innerWidth && bounds.bottom <= innerHeight; });
+  assert.equal(fits, true);
+  await input.fill("Let's start");
+  const response = page.waitForResponse(response => response.url().endsWith("/api/home"));
+  await input.press("Enter");
+  await response;
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].text, "Let's start");
+  assert.equal(await page.locator(".landing").count(), 0);
+  assert.equal(await page.getByRole("navigation", { name: "Starting points" }).isVisible(), false);
   await focused();
 });
 

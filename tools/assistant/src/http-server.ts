@@ -29,6 +29,8 @@ const assets: Record<string, [string, string]> = {
   "/composer.js": ["composer.js", "text/javascript"],
   "/queued-messages.js": ["queued-messages.js", "text/javascript"],
   "/providers.js": ["providers.js", "text/javascript"],
+  "/landing.js": ["landing.js", "text/javascript"],
+  "/landing.css": ["landing.css", "text/css"],
 };
 
 export function createAssistantServer(app: Assistant) {

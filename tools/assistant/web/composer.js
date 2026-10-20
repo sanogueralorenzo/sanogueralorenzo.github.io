@@ -93,7 +93,7 @@ export function createComposer({ state, api, render, loadSession, actions }) {
   function paintSuggestion() {
     const hint = available();
     overlay.hidden = suggestionButton.hidden = !hint;
-    input.placeholder = hint ? "" : "Message";
+    input.placeholder = hint ? "" : state.selected === "home" && !state.data.messages.length ? "What would you like to do?" : "Message";
     if (!hint) { input.removeAttribute("aria-description"); return; }
     lastShown.set(state.selected, hint.text);
     overlay.querySelector("span").textContent = hint.text;
@@ -222,5 +222,6 @@ export function createComposer({ state, api, render, loadSession, actions }) {
       render();
     }
   });
-  return { element, sync, selectView, editQueued, reconcile, handleClick };
+  function startPrompt(text) { change({ input: text, replyToId: null, edit: null, queuedEdit: null }, true); }
+  return { element, sync, selectView, editQueued, reconcile, handleClick, startPrompt };
 }

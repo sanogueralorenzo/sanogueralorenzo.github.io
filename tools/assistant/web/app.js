@@ -3,6 +3,7 @@ import { createMessageActions } from "./message-actions.js";
 import { createComposer } from "./composer.js";
 import { createQueuedMessages } from "./queued-messages.js";
 import { createProviders } from "./providers.js";
+import { createLanding } from "./landing.js";
 
 const root = document.querySelector("#app");
 const state = { data: { messages: [], entries: [], sessions: [], turns: [] }, selected: localStorage.getItem("assistant-view") || "home",
@@ -14,6 +15,7 @@ const actions = createMessageActions({ state, api, render });
 const composer = createComposer({ state, api, render, loadSession, actions });
 const queued = createQueuedMessages({ state, api, render, composer });
 root.querySelector(".app-shell").append(composer.element);
+const landing = createLanding({ root, composer });
 const providers = createProviders({ state, root, api });
 root.querySelector(".topbar-end").innerHTML = providers.html();
 
@@ -60,7 +62,7 @@ function homeReply(update, entry, source, showConversation) {
   return `<section class="home-exchange" data-update="${escapeHTML(update.id)}"><div class="message-row assistant-row home-updates"><div class="replyable replyable-assistant">${actions.replyActions(update.id, entry.sessionId)}<button class="message-bubble assistant-bubble home-update ${update.quoteSource ? "with-context" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.quoteSource ? actions.quote(context, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button></div>${sourcePill}</div></section>`;
 }
 function home() {
-  if (!state.data.messages.length) return `<main class="home-scroll scroll-area"><div class="home-content"><div class="empty-home-chat"><span class="brand-mark">${icon("sparkle", 17)}</span><strong>How can I help?</strong><p>Ask me anything or give me a task.</p></div></div></main>`;
+  if (!state.data.messages.length) return landing.view();
   const edited = new Set(state.data.messages.map((message) => message.editOfId).filter(Boolean));
   const messages = new Map(state.data.messages.map((message) => [message.id, message]));
   const entries = new Map(state.data.entries.map((entry) => [entry.id, entry]));
@@ -101,6 +103,9 @@ function render() {
   if (old) state.scroll[renderedView] = old.scrollTop;
   const isHome = state.selected === "home";
   const record = state.data.sessions.find((item) => item.id === state.selected);
+  const isLanding = isHome && !state.data.messages.length;
+  root.querySelector(".app-shell").classList.toggle("is-landing", isLanding);
+  landing.sync(isLanding);
   const topbar = root.querySelector(".topbar");
   topbar.classList.toggle("home-topbar", isHome);
   topbar.querySelector(".brand strong").textContent = isHome ? "Assistant" : record?.title || "Conversation";
@@ -153,6 +158,7 @@ root.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
   if (!button || button.disabled) return;
   try {
+    if (landing.handleClick(button)) return;
     if (await providers.handleClick(button)) return;
     if (await queued.handleClick(button)) return;
     if (composer.handleClick(button)) return;
