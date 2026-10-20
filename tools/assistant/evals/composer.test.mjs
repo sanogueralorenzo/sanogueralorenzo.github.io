@@ -197,7 +197,7 @@ test("minimal landing keeps its animation and the composer mounted when work sta
   assert.equal(await input.inputValue(), "");
   assert.equal(calls.length, 0);
   await page.emulateMedia({ reducedMotion: "reduce" });
-  assert.equal(await page.locator(".landing-spark, .landing-core").evaluateAll(nodes => nodes.every(node => getComputedStyle(node).animationName === "none")), true);
+  assert.equal(await page.locator(".landing-spark, .landing-glow").evaluateAll(nodes => nodes.every(node => getComputedStyle(node).animationName === "none")), true);
   await page.setViewportSize({ width: 390, height: 844 });
   const fits = await input.evaluate(node => { const bounds = node.getBoundingClientRect(); return bounds.left >= 0 && bounds.right <= innerWidth && bounds.bottom <= innerHeight; });
   assert.equal(fits, true);

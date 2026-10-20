@@ -1,16 +1,16 @@
-.is-landing .landing-scroll { flex: 0 0 auto; margin-top: auto; display: flex; justify-content: center; }
+.is-landing .landing-scroll { flex: 0 0 auto; margin-top: auto; display: flex; justify-content: center; overflow: visible; }
 .landing { width: min(680px, 100%); padding: 24px; }
 .landing-spark { position: relative; width: 200px; height: 124px; margin: 0 auto; border-radius: 50%; animation: landing-drift 9s ease-in-out infinite; }
 .landing-mark { position: relative; width: 100%; height: 100%; overflow: visible; }
-.landing-glow { position: absolute; inset: 12px 22px; border-radius: 50%; background: radial-gradient(ellipse, color-mix(in srgb, var(--user) 16%, transparent), transparent 70%); }
-.landing-core { fill: var(--user); animation: landing-breathe 5s ease-in-out infinite; transform-origin: center; }
+.landing-glow { position: absolute; left: 50%; top: 50%; width: min(320px, 74vw); aspect-ratio: 4 / 3; border-radius: 50%; background: radial-gradient(ellipse, color-mix(in srgb, var(--user) 20%, transparent), color-mix(in srgb, var(--user) 8%, transparent) 35%, transparent 70%); transform: translate(-50%, -50%); animation: landing-breathe 12s ease-in-out infinite; pointer-events: none; }
+.landing-core { fill: var(--user); }
 .landing-core-halo { fill: var(--user); opacity: .06; }
 .is-landing .composer-area { padding: 0 24px; margin-bottom: auto; }
 .is-landing .composer { width: min(680px, 100%); min-height: 66px; padding: 13px 12px 12px 18px; border-radius: 23px; background: var(--input); box-shadow: 0 0 0 1px var(--line), 0 4px 18px #00000003; transition: box-shadow .2s; }
 .is-landing .composer:focus-within { box-shadow: 0 0 0 1px color-mix(in srgb, var(--landing-accent, var(--clay)) 45%, var(--line)), 0 5px 24px #00000006; }
 .is-landing .composer textarea { padding-left: 0; }
 .is-landing .composer .mic-button { display: none; }
-@keyframes landing-breathe { 0%, 100% { opacity: .85; } 50% { opacity: 1; } }
+@keyframes landing-breathe { 0%, 100% { transform: translate(-50%, -50%) scale(.88); opacity: .9; } 50% { transform: translate(-50%, -50%) scale(1.12); opacity: .6; } }
 @keyframes landing-drift { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(3px, -2px); } 50% { transform: translate(-2px, 3px); } 75% { transform: translate(-4px, -1px); } }
 @media (max-width: 520px) {
   .landing { padding: 20px; }
@@ -20,10 +20,11 @@
 }
 @media (max-height: 650px) {
   .landing-spark { width: 160px; height: 98px; }
+  .landing-glow { width: min(260px, 74vw); }
   .landing { padding-top: 14px; padding-bottom: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .landing-spark, .landing-core { animation: none; }
+  .landing-spark, .landing-glow { animation: none; }
 }
 
 @media (prefers-color-scheme: dark) {
