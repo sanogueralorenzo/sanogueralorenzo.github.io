@@ -7,7 +7,7 @@ export function createLanding({ root }) {
   let frame;
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
   function view() {
-    return `<main class="home-scroll scroll-area landing-scroll"><div class="landing" aria-hidden="true"><div class="landing-spark"><span class="landing-glow"></span><svg class="landing-mark" viewBox="0 0 240 180" fill="none" aria-hidden="true">${orbit("one", 81, 29)}${orbit("two", 76, 31)}${orbit("three", 70, 27)}<circle class="landing-core-halo" cx="120" cy="90" r="20"/><circle class="landing-core" cx="120" cy="90" r="6"/></svg></div></div></main>`;
+    return `<main class="home-scroll scroll-area landing-scroll"><div class="landing" aria-hidden="true"><div class="landing-spark"><span class="landing-glow"></span><svg class="landing-mark" viewBox="0 0 240 180" fill="none" aria-hidden="true">${orbit("one", 64, 23)}${orbit("two", 61, 25)}${orbit("three", 57, 22)}<circle class="landing-core-halo" cx="120" cy="90" r="20"/><circle class="landing-core" cx="120" cy="90" r="6"/></svg></div></div></main>`;
   }
   root.addEventListener("pointermove", (event) => {
     const spark = event.target.closest(".landing-spark");
