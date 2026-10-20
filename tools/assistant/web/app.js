@@ -15,7 +15,7 @@ const actions = createMessageActions({ state, api, render });
 const composer = createComposer({ state, api, render, loadSession, actions });
 const queued = createQueuedMessages({ state, api, render, composer });
 root.querySelector(".app-shell").append(composer.element);
-const landing = createLanding({ root });
+const landing = createLanding();
 const providers = createProviders({ state, root, api });
 root.querySelector(".topbar-end").innerHTML = providers.html();
 
