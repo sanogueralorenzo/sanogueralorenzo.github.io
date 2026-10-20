@@ -55,6 +55,7 @@ export function roleExtension(role: AgentRole, extraTools: ToolRegistration[] = 
 }
 
 export function providerModels(runtime: Models, report: (sessionId: string, data: unknown) => void = () => {}): Models {
+  const maxWorkRequests = 8;
   const active = new Set<Promise<void>>();
   return new Proxy(runtime, { get(target, key) {
     if (key !== "streamSimple") {
@@ -64,8 +65,8 @@ export function providerModels(runtime: Models, report: (sessionId: string, data
     return (model: Model<Api>, transcript: Context, options: ModelsSimpleStreamOptions = {}) => lazyStream(model, async () => {
       const tools = transcript.tools || transcript.messages.flatMap((message) => message.role === "system" ? message.toolsAdded || [] : []);
       const routing = tools.some((tool) => tool.name === "route_home");
-      // Keep one of the four inference slots available for Home while work is running.
-      while (active.size >= (routing ? 4 : 3)) {
+      // Reserve one additional inference slot for Home routing.
+      while (active.size >= (routing ? maxWorkRequests + 1 : maxWorkRequests)) {
         options.signal?.throwIfAborted();
         await new Promise<void>((resolve, reject) => {
           const abort = () => { cleanup(); reject(options.signal!.reason); };
