@@ -189,15 +189,13 @@ test("failed sends restore the reply without overwriting newer typing", async t 
   await focused();
 });
 
-test("minimal landing keeps its animation and the composer mounted when work starts", async t => {
+test("minimal landing stays static and keeps the composer mounted when work starts", async t => {
   const { page, input, calls, focused } = await fixture(t, { empty: true });
   assert.equal((await page.locator(".landing").textContent()).trim(), "");
   assert.equal(await page.locator(".landing button, .landing-prompts").count(), 0);
-  assert.notEqual(await page.locator(".landing-spark").evaluate(node => getComputedStyle(node).animationName), "none");
+  assert.equal(await page.locator(".landing-mark, .landing-glow").evaluateAll(nodes => nodes.every(node => getComputedStyle(node).animationName === "none")), true);
   assert.equal(await input.inputValue(), "");
   assert.equal(calls.length, 0);
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  assert.equal(await page.locator(".landing-spark, .landing-glow").evaluateAll(nodes => nodes.every(node => getComputedStyle(node).animationName === "none")), true);
   await page.setViewportSize({ width: 390, height: 844 });
   const fits = await input.evaluate(node => { const bounds = node.getBoundingClientRect(); return bounds.left >= 0 && bounds.right <= innerWidth && bounds.bottom <= innerHeight; });
   assert.equal(fits, true);
