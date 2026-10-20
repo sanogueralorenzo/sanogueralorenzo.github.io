@@ -26,7 +26,7 @@ export function createDelegation(getWorker: () => Extension, getHarness: () => H
   }
 
   const delegate = defineTool({ name: "delegate",
-    description: "Start a worker for a focused task and immediately return its delegationId. The worker inherits your available tools, model, and working directory and chooses how to complete the assignment. Supply the goal and enough context, continue independent work, then collect with delegate_result or cancel unneeded work with delegate_cancel.",
+    description: "Start a worker for a focused task and immediately return its delegationId. The worker has coding, shell, computer-use, and delegation tools and inherits your model and working directory. Supply the goal, relevant context, constraints, resource ownership, and a stopping condition. Continue independent work, then collect with delegate_result or cancel unneeded work with delegate_cancel.",
     parameters: Type.Object({ task: Type.String({ minLength: 1 }) }, { additionalProperties: false }), replay: "safe",
     execute: async (args, api, context) => {
       const delegationId = String(api.taskId);
@@ -39,8 +39,8 @@ export function createDelegation(getWorker: () => Extension, getHarness: () => H
         // The generation owns the child so this tool can finish while the child keeps working.
         const created = await tx.createConversation({ ownership: { kind: "task", taskId: run.taskId } });
         const worker = getWorker();
-        await configure(tx, created.id, { extensions: [...parent.extensions.filter(extension => extension.name !== worker.name), worker],
-          tools: parent.tools, instructions: null });
+        await configure(tx, created.id, { extensions: [...parent.extensions.filter(extension => extension.name !== "assistant-session" && extension.name !== worker.name), worker],
+          tools: null, modelTools: null, instructions: null });
         const record: Delegation = { conversationId: created.id, ownerTaskId: run.taskId, requestId: run.inputs[0], status: "outstanding" };
         saved.calls[delegationId] = record;
         return record;

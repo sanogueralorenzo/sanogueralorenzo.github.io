@@ -2,7 +2,7 @@
 
 ![Assistant Home with Reply and Go-ahead controls](docs/assistant.jpg)
 
-A local assistant built on Pi Durable. Home routes requests to persistent conversations. Each session agent chooses its workflow, delegates focused tasks when useful, and assesses the evidence returned. Workers inherit the parent's tools, model, and working directory, with separate conversations and private working notes. `working_notes` reads or replaces a compact, durable note of up to 6,000 characters; current notes appear in the agent's context. Outstanding work is collected before finishing or explicitly cancelled, including nested delegations. One inference slot stays available for Home routing. Conversations, notes, queues, and streamed progress survive service restarts. The browser follows Pi’s committed conversation views; streamed text and tool output use a 16 ms commit interval. Interrupted unsafe tools are reported instead of replayed.
+A local assistant built on Pi Durable. Home routes requests to persistent conversations. Each session agent uses read-only filesystem tools to plan, delegates execution to workers, and assesses the evidence returned. Workers have coding, shell, computer-use, and delegation tools and inherit the parent's model and working directory, with separate conversations and private working notes. `working_notes` reads or replaces a compact, durable note of up to 6,000 characters; current notes appear in the agent's context. Outstanding work is collected before finishing or explicitly cancelled, including nested delegations. One inference slot stays available for Home routing. Conversations, notes, queues, and streamed progress survive service restarts. The browser follows Pi’s committed conversation views; streamed text and tool output use a 16 ms commit interval. Interrupted unsafe tools are reported instead of replayed.
 
 Open `http://127.0.0.1:4180`. Reply quotes a selected message; thumbs-up sends “Yes, go ahead.” Queued messages support Edit, Delete, and Steer. Stop preserves waiting work; Continue resumes the stopped request before follow-ups. Tab accepts a saved, tool-free reply suggestion; Escape dismisses it or clears its quote.
 
@@ -22,7 +22,7 @@ Install Codex Computer Use in the desktop app for native app control. Assistant 
 
 State and transcripts live in `~/.assistant/durable.sqlite`; suggestions live in `~/.assistant/suggestions.db`. Provider credentials stay in `~/.assistant/auth.json`, with the selected provider and model in `~/.assistant/provider.json`. Pi manages the installation ID in `~/.assistant/settings.json`.
 
-Run `npm run check`. The [instruction benchmark](evals/benchmark/README.md) uses Durable for native agent integration. `npm run eval:suggestions` runs the tool-free suggestion trials with the saved Codex login.
+Run `npm run check` and `npm run test:delegation`. The [instruction benchmark](evals/benchmark/README.md) uses Durable for native agent integration. `npm run eval:suggestions` runs the tool-free suggestion trials with the saved Codex login.
 
 ## Headless
 

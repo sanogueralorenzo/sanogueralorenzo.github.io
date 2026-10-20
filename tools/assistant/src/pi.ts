@@ -18,8 +18,8 @@ import { workingDirectory, workingDirectoryHook } from "./working-directory.ts";
 const json = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
 function nativeTools(role: AgentRole, cwd: string): ToolRegistration[] {
-  const tools = role === "session" ? [...createCodingTools(cwd), ...createReadOnlyTools(cwd).filter((tool) => tool.name !== "read")]
-    : role === "coordinator" ? createReadOnlyTools(cwd) : [];
+  const tools = role === "worker" ? [...createCodingTools(cwd), ...createReadOnlyTools(cwd).filter((tool) => tool.name !== "read")]
+    : createReadOnlyTools(cwd);
   return tools.map((tool) => defineTool({ name: tool.name, description: tool.description, parameters: tool.parameters,
     replay: tool.name === "read" || ["grep", "find", "ls"].includes(tool.name) ? "safe" : "unsafe",
     executionMode: ["read", "grep", "find", "ls"].includes(tool.name) ? "parallel" : "sequential",
@@ -41,7 +41,7 @@ export function roleExtension(role: AgentRole, extraTools: ToolRegistration[] = 
       const cwd = (await api.agent(context)).cwd || process.cwd();
       return nativeTools(role, cwd).find((native) => native.name === tool.name)!.execute(args, api, context);
     } })), ...extraTools, ...(role !== "coordinator" ? [workingNotes, workingDirectory] : [])];
-  return defineExtension({ name: `assistant-${role}`, tools, hooks: role !== "coordinator" ? [workingDirectoryHook] : [], sections: [section("assistant", async ({ agent, conversationId }) => {
+  return defineExtension({ name: `assistant-${role}`, tools, hooks: role !== "coordinator" ? [workingDirectoryHook, ...delegationHooks] : [], sections: [section("assistant", async ({ agent, conversationId }) => {
       const cwd = agent.cwd || process.cwd();
       let resource = resources.get(conversationId);
       if (!resource || resource.cwd !== cwd) {
@@ -146,10 +146,9 @@ export class PiService {
       } });
     let roles: Record<AgentRole, Extension>;
     const delegation = createDelegation(() => roles.worker, () => service!.harness);
-    const session = roleExtension("session", [...delegation, computerTool]);
     roles = { coordinator: roleExtension("coordinator"),
-      session: defineExtension({ ...session, hooks: [...(session.hooks || []), ...delegationHooks] }),
-      worker: roleExtension("worker") };
+      session: roleExtension("session", delegation),
+      worker: roleExtension("worker", [...delegation, computerTool]) };
     const registry = createRegistry();
     for (const extension of [...Object.values(roles), ...(options.extensions || []), defineExtension({ name: "assistant-tasks", tasks: options.tasks })]) registry.install(extension);
     const harness = await Harness.open(options.storage || await openNodeSqliteStorage(join(dataDir, "durable.sqlite")), {

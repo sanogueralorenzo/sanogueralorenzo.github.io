@@ -6,7 +6,6 @@ import { createRegistry, defineExtension, defineTool, Harness, hook, MemoryStora
 import { roleExtension, providerModels } from "../../src/pi.ts";
 import { agentResources } from "../../src/agent-resources.ts";
 import { HomeRouter } from "../../src/home-routing.ts";
-import { ComputerUseClient } from "../../src/computer-use.ts";
 import { createDelegation } from "../../src/delegation.ts";
 import { workspacePath, workspaceSnapshot, recordAssistantMessage } from "./integration-workspace.mjs";
 import { hash } from "./suite.mjs";
@@ -50,7 +49,7 @@ export function roleToolBoundary(cwd, test, event) {
 
 function sessionFixtureTools(test, variant) {
   const unavailable = () => { throw new Error("External delegation is disabled in native role integration"); };
-  const definitions = [...createDelegation(unavailable, unavailable), new ComputerUseClient().tool()];
+  const definitions = createDelegation(unavailable, unavailable);
   const delegates = new Map();
   return definitions.map(definition => defineTool({ ...definition,
     execute: async (args, api) => {
@@ -143,8 +142,7 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
           ...(acceptedResult?.() && { control: { handoff: "" } }) };
       },
     }));
-    const inherited = role === "worker" ? roleExtension("session").tools : [];
-    const extension = roleExtension(role, [...inherited, ...tools], variant.sections);
+    const extension = roleExtension(role, tools, variant.sections);
     const boundary = defineExtension({ name: "benchmark-boundary", hooks: [hook(ToolTask, {
       beforeTool: call => {
         const blocked = roleToolBoundary(cwd, test, { toolName: call.name, input: call.arguments });
@@ -167,7 +165,7 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
     record.environment = { ...record.environment, runtime: "pi-durable", systemPrompt: normalize(prompt), systemPromptHash: hash(normalize(prompt)),
       promptSectionHashes: variant.sections.map(hash), sectionsPresent: variant.sections.map(section => prompt.includes(section)),
       resourceHash: hash({ skills, context, fixtureResources }), fixtureResources, tools: (await conversation.agent(BACKGROUND_CONTEXT)).tools.map(tool => tool.name), skills, context, files: before,
-      limitations: role === "session" ? ["Bash executes only exact authored whitelist commands; delegate and computer_use use fixture replies or explicit errors."] :
+      limitations: role === "session" ? ["Read-only session tools are native; delegation uses fixture replies or explicit errors."] :
         role === "coordinator" ? ["HomeRouter discovery uses one new message plus authored state and transcripts; routes are never committed to services."] : [] };
     for (const file of loader.getAgentsFiles().agentsFiles) record.trace.push({ role: "context", name: "project_instructions", text: normalize(file.content), path: normalize(file.path) });
     const callArguments = new Map();
