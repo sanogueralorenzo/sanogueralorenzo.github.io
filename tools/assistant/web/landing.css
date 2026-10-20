@@ -2,9 +2,9 @@
 .landing { width: min(680px, 100%); padding: 24px; }
 .landing-spark { position: relative; width: 200px; height: 124px; margin: 0 auto; border-radius: 50%; animation: landing-drift 9s ease-in-out infinite; }
 .landing-mark { position: relative; width: 100%; height: 100%; overflow: visible; }
-.landing-glow { position: absolute; inset: 24px 36px; border-radius: 50%; background: radial-gradient(ellipse, color-mix(in srgb, var(--landing-accent, var(--clay)) 8%, transparent), transparent 70%); }
+.landing-glow { position: absolute; inset: 12px 22px; border-radius: 50%; background: radial-gradient(ellipse, color-mix(in srgb, var(--user) 16%, transparent), transparent 70%); }
 .landing-core { fill: var(--user); animation: landing-breathe 5s ease-in-out infinite; transform-origin: center; }
-.landing-core-halo { fill: var(--user); opacity: .035; }
+.landing-core-halo { fill: var(--user); opacity: .06; }
 .is-landing .composer-area { padding: 0 24px; margin-bottom: auto; }
 .is-landing .composer { width: min(680px, 100%); min-height: 66px; padding: 13px 12px 12px 18px; border-radius: 23px; background: var(--input); box-shadow: 0 0 0 1px var(--line), 0 4px 18px #00000003; transition: box-shadow .2s; }
 .is-landing .composer:focus-within { box-shadow: 0 0 0 1px color-mix(in srgb, var(--landing-accent, var(--clay)) 45%, var(--line)), 0 5px 24px #00000006; }
