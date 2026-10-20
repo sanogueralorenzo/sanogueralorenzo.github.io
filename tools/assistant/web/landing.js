@@ -1,8 +1,13 @@
+function orbit(name, radiusX, radiusY) {
+  const path = `M${120 + radiusX} 90a${radiusX} ${radiusY} 0 1 1 ${-radiusX * 2} 0a${radiusX} ${radiusY} 0 1 1 ${radiusX * 2} 0Z`;
+  return `<g class="landing-orbit landing-orbit-${name}" style="--electron-path: path('${path}')"><ellipse class="landing-track" cx="120" cy="90" rx="${radiusX}" ry="${radiusY}"/><path class="landing-trail" d="${path}" pathLength="100"/><g class="landing-electron"><circle class="landing-electron-glow" r="7"/><circle class="landing-electron-dot" r="2.6"/></g></g>`;
+}
+
 export function createLanding({ root }) {
   let frame;
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
   function view() {
-    return `<main class="home-scroll scroll-area landing-scroll"><div class="landing" aria-hidden="true"><div class="landing-spark"><span class="landing-glow"></span><svg class="landing-mark" viewBox="0 0 240 180" fill="none" aria-hidden="true"><g class="landing-orbit landing-orbit-one"><ellipse cx="120" cy="90" rx="81" ry="29"/><circle class="landing-satellite" cx="201" cy="90" r="3"/></g><g class="landing-orbit landing-orbit-two"><ellipse cx="120" cy="90" rx="68" ry="32"/><circle class="landing-satellite" cx="52" cy="90" r="2.5"/></g><g class="landing-orbit landing-orbit-three"><ellipse cx="120" cy="90" rx="60" ry="28"/></g><circle class="landing-core-halo" cx="120" cy="90" r="20"/><circle class="landing-core" cx="120" cy="90" r="6"/></svg></div></div></main>`;
+    return `<main class="home-scroll scroll-area landing-scroll"><div class="landing" aria-hidden="true"><div class="landing-spark"><span class="landing-glow"></span><svg class="landing-mark" viewBox="0 0 240 180" fill="none" aria-hidden="true">${orbit("one", 81, 29)}${orbit("two", 76, 31)}${orbit("three", 70, 27)}<circle class="landing-core-halo" cx="120" cy="90" r="20"/><circle class="landing-core" cx="120" cy="90" r="6"/></svg></div></div></main>`;
   }
   root.addEventListener("pointermove", (event) => {
     const spark = event.target.closest(".landing-spark");

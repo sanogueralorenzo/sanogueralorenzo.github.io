@@ -1,13 +1,18 @@
 .is-landing .landing-scroll { display: flex; align-items: flex-end; justify-content: center; }
 .landing { width: min(680px, 100%); padding: 32px 24px 30px; }
-.landing-spark { --spark-x: 0px; --spark-y: 0px; position: relative; width: 240px; height: 180px; margin: 0 auto; border-radius: 50%; }
+.landing-spark { --spark-x: 0px; --spark-y: 0px; position: relative; width: 320px; height: 240px; margin: 0 auto; border-radius: 50%; }
 .landing-mark { position: relative; width: 100%; height: 100%; overflow: visible; transform: translate(var(--spark-x), var(--spark-y)); transition: transform .65s cubic-bezier(.2, .8, .2, 1); }
 .landing-glow { position: absolute; inset: 25px 45px; border-radius: 50%; background: radial-gradient(ellipse, color-mix(in srgb, var(--landing-accent, var(--clay)) 13%, transparent), transparent 70%); transform: scale(.9); transition: transform .6s, opacity .6s; }
-.landing-orbit { transform-origin: 120px 90px; stroke: var(--landing-accent, var(--clay)); stroke-width: 1.15; }
-.landing-orbit-one { opacity: .65; animation: landing-orbit-one 24s ease-in-out infinite alternate; }
-.landing-orbit-two { opacity: .4; animation: landing-orbit-two 19s ease-in-out infinite alternate; }
-.landing-orbit-three { opacity: .28; animation: landing-orbit-three 22s ease-in-out infinite alternate; }
-.landing-satellite { fill: var(--landing-accent, var(--clay)); stroke: var(--canvas); stroke-width: 3; }
+.landing-orbit { transform-origin: 120px 90px; stroke: var(--landing-accent, var(--clay)); stroke-width: 1; }
+.landing-orbit-one { --electron-duration: .72s; --electron-delay: -.24s; --electron-rest: 12%; animation: landing-orbit-one 6.8s linear infinite; }
+.landing-orbit-two { --electron-duration: .93s; --electron-delay: -.66s; --electron-rest: 62%; --electron-direction: reverse; animation: landing-orbit-two 8.3s linear infinite; }
+.landing-orbit-three { --electron-duration: .58s; --electron-delay: -.11s; --electron-rest: 80%; animation: landing-orbit-three 5.7s linear infinite; }
+.landing-track { opacity: .22; }
+.landing-trail { stroke-width: 1.7; stroke-linecap: round; stroke-dasharray: 18 82; opacity: .75; animation: landing-trail var(--electron-duration) linear infinite; }
+.landing-electron { offset-path: var(--electron-path); offset-rotate: 0deg; offset-distance: var(--electron-rest); animation: landing-electron var(--electron-duration) linear infinite; }
+.landing-trail, .landing-electron { animation-delay: var(--electron-delay); animation-direction: var(--electron-direction, normal); }
+.landing-electron-dot { fill: var(--landing-accent, var(--clay)); stroke: none; }
+.landing-electron-glow { fill: var(--landing-accent, var(--clay)); stroke: none; opacity: .12; }
 .landing-core { fill: var(--user); animation: landing-breathe 5s ease-in-out infinite; transform-origin: center; }
 .landing-core-halo { fill: var(--user); opacity: .035; }
 .landing-spark:hover .landing-glow { transform: scale(1.35); }
@@ -16,23 +21,25 @@
 .is-landing .composer:focus-within { box-shadow: 0 0 0 1px color-mix(in srgb, var(--landing-accent, var(--clay)) 45%, var(--line)), 0 5px 24px #00000006; }
 .is-landing .composer textarea { padding-left: 0; }
 .is-landing .composer .mic-button { display: none; }
-@keyframes landing-orbit-one { from { transform: rotate(-24deg) scaleX(.92); } to { transform: rotate(8deg) scaleX(1); } }
-@keyframes landing-orbit-two { from { transform: rotate(60deg) scaleX(1); } to { transform: rotate(95deg) scaleX(.88); } }
-@keyframes landing-orbit-three { from { transform: rotate(-76deg); } to { transform: rotate(-42deg); } }
+@keyframes landing-orbit-one { from { transform: rotate(-24deg); } to { transform: rotate(336deg); } }
+@keyframes landing-orbit-two { from { transform: rotate(60deg); } to { transform: rotate(-300deg); } }
+@keyframes landing-orbit-three { from { transform: rotate(-76deg); } to { transform: rotate(284deg); } }
+@keyframes landing-electron { from { offset-distance: 0%; } to { offset-distance: 100%; } }
+@keyframes landing-trail { from { stroke-dashoffset: 18; } to { stroke-dashoffset: -82; } }
 @keyframes landing-breathe { 0%, 100% { opacity: .85; } 50% { opacity: 1; } }
 @media (max-width: 520px) {
   .landing { padding: 20px 20px 28px; }
-  .landing-spark { width: 210px; height: 158px; }
+  .landing-spark { width: 260px; height: 195px; }
   .is-landing .composer-area { padding: 0 18px; margin-bottom: clamp(46px, 24vh, 200px); }
   .is-landing .composer { padding-left: 15px; }
 }
 @media (max-height: 650px) {
-  .landing-spark { width: 170px; height: 128px; }
+  .landing-spark { width: 220px; height: 165px; }
   .landing { padding-top: 14px; padding-bottom: 20px; }
   .is-landing .composer-area { margin-bottom: 30px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .landing-orbit, .landing-core { animation: none; }
+  .landing-orbit, .landing-electron, .landing-trail, .landing-core { animation: none; }
   .landing-orbit-one { transform: rotate(-24deg); }
   .landing-orbit-two { transform: rotate(60deg); }
   .landing-orbit-three { transform: rotate(-76deg); }
