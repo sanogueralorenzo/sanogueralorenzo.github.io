@@ -168,7 +168,7 @@ export class Assistant {
   async submitHome(text: string, id: string = randomUUID()) {
     await this.state.change(async (home, tx) => {
       if (home.messages.some((message) => message.id === id)) throw new Error("Request ID already exists");
-      home.entries.push({ id: randomUUID(), sourceId: id, title: "Choosing a conversation", sessionId: null, createdAt: now(), updatedAt: now() });
+      home.entries.push({ id: randomUUID(), sourceId: id, title: "", sessionId: null, createdAt: now(), updatedAt: now() });
       const entry = home.entries.at(-1)!;
       home.messages.push({ id, text, createdAt: now(), entryId: entry.id, status: "routing" });
       const taskId = await tx.createTask(this.dispatch, { sourceId: id, ...(home.lastDispatchTaskId !== undefined && { after: home.lastDispatchTaskId }) }, { conversationId: this.rootId, ownership: { kind: "conversation" } });

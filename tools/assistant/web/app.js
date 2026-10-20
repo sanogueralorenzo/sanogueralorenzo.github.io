@@ -34,16 +34,17 @@ function messageStatus(message, entry) {
   return message.status === "routed" ? "queued" : message.status;
 }
 function activityPill(message, entry, className = "", showConversation = true) {
+  if (!entry?.sessionId) return "";
   const progress = state.liveProgress[message.id];
   const status = messageStatus(message, entry);
-  const title = entry?.sessionId ? entry.title : status === "failed" ? "Routing failed" : "Choosing a conversation…";
-  const detail = ({ routing: "", queued: "Queued", working: progress?.replace(/\s+/g, " ").trim() || "Working…",
-    ready: "", failed: entry?.sessionId ? "Failed" : "", interrupted: "Continue" })[status] || "";
+  const title = entry.title;
+  const detail = ({ queued: "Queued", working: progress?.replace(/\s+/g, " ").trim() || "Working…",
+    ready: "", failed: "Failed", interrupted: "Continue" })[status] || "";
   if (!showConversation && status === "ready") return "";
-  const symbol = ["routing", "queued", "working"].includes(status) ? '<i class="spinner"></i>'
+  const symbol = ["queued", "working"].includes(status) ? '<i class="spinner"></i>'
     : status === "ready" ? icon("check", 14) : status === "interrupted" ? "⏸" : "⚠";
-  const action = status === "interrupted" && entry?.sessionId ? `data-action="resume" data-entry="${escapeHTML(entry.id)}"`
-    : entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : "disabled";
+  const action = status === "interrupted" ? `data-action="resume" data-entry="${escapeHTML(entry.id)}"`
+    : `data-action="open" data-session="${escapeHTML(entry.sessionId)}"`;
   return `<button type="button" class="activity-pill ${className}" data-source="${escapeHTML(message.id)}" data-status="${escapeHTML(status)}" ${action}
     aria-label="${escapeHTML(`${title}${detail ? `, ${detail}` : ""}`)}" title="${escapeHTML(title)}"><span class="pill-symbol" aria-hidden="true">${symbol}</span>${showConversation ? `<strong class="pill-title">${escapeHTML(title)}</strong>` : ""}${detail ? `<span class="pill-detail">${escapeHTML(detail)}</span>` : ""}</button>`;
 }
@@ -75,8 +76,8 @@ function home() {
   timeline.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   let previousSession;
   const content = timeline.map((item) => {
-    const showConversation = !item.sessionId || item.sessionId !== previousSession;
-    previousSession = item.sessionId;
+    const showConversation = item.sessionId && item.sessionId !== previousSession;
+    if (item.sessionId) previousSession = item.sessionId;
     return item.render(showConversation);
   }).join("");
   return `<main class="home-scroll scroll-area"><div class="home-content">${content}</div></main>`;
