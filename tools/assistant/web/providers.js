@@ -1,4 +1,4 @@
-import { escapeHTML } from "./view.js";
+import { escapeHTML, icon } from "./view.js";
 
 const excludedProviders = new Set(["openai-codex"]);
 
@@ -61,7 +61,7 @@ export function createProviders({ state, root, api }) {
       ? `<select id="provider-response" data-provider-response>${prompt.options.map(option => `<option value="${escapeHTML(option.id)}" ${response === option.id ? "selected" : ""}>${escapeHTML(option.label)}</option>`).join("")}</select>`
       : prompt ? `<input id="provider-response" data-provider-response type="${prompt.type === "secret" ? "password" : "text"}" value="${escapeHTML(response)}" placeholder="${escapeHTML(prompt.placeholder || "")}" autocomplete="off" autocapitalize="none" spellcheck="false" ${prompt.type === "text" ? "" : "required"} maxlength="16000">` : "";
     const form = prompt ? `<form id="provider-login-form"><label for="provider-response">${escapeHTML(prompt.message)}</label>${control}<button class="provider-primary" type="submit" ${busy ? "disabled" : ""}>Continue</button></form>` : '<p class="provider-waiting">Waiting for connection…</p>';
-    return `<div class="provider-login"><strong>Connect ${escapeHTML(name(login.provider))}</strong>${redirect ? '<p>Finish signing in in your browser.</p>' : login.message ? `<p>${escapeHTML(login.message)}</p>` : ""}${url ? `<a class="provider-login-link" href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">Open ${escapeHTML(name(login.provider))} sign-in ↗</a>` : ""}${login.userCode ? `<p class="provider-device-code">${escapeHTML(login.userCode)}</p>` : ""}${form}<button class="provider-text-button" type="button" data-action="providers-cancel" ${busy ? "disabled" : ""}>Cancel setup</button></div>`;
+    return `<div class="provider-login"><div class="provider-login-header"><button class="icon-button" type="button" data-action="providers-cancel" aria-label="Back to providers" title="Back to providers" ${busy ? "disabled" : ""}>${icon("chevron-left", 18)}</button><strong>Connect ${escapeHTML(name(login.provider))}</strong></div>${redirect ? '<p>Finish signing in in your browser.</p>' : login.message ? `<p>${escapeHTML(login.message)}</p>` : ""}${url ? `<a class="provider-login-link" href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">Open ${escapeHTML(name(login.provider))} sign-in ↗</a>` : ""}${login.userCode ? `<p class="provider-device-code">${escapeHTML(login.userCode)}</p>` : ""}${form}</div>`;
   }
   function listHTML(disabled) {
     const providers = visibleProviders(data.providers, query, filter);

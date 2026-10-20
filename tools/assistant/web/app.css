@@ -206,6 +206,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .provider-menu select, .provider-menu input { display: block; width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--canvas); color: var(--graphite); font: inherit; }
 .provider-login { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 15px; }
 .provider-login:first-child { border: 0; margin: 0; padding: 0; }
+.provider-login-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .provider-login p { line-height: 1.5; overflow-wrap: anywhere; }
 .provider-login form { margin-top: 14px; }
 .provider-login-link { color: var(--user); display: inline-block; margin: 3px 0; }
