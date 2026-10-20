@@ -24,7 +24,7 @@
       "id": "full",
       "files": [
         "../../../prompts/base.md",
-        "../../../prompts/session.md",
+        "../../../prompts/coordinator.md",
         "../variants/skill/available.md"
       ],
       "resources": {
@@ -35,7 +35,7 @@
       "id": "compact",
       "files": [
         "../../../prompts/base.md",
-        "../../../prompts/session.md",
+        "../../../prompts/coordinator.md",
         "../variants/skill/available.md"
       ],
       "resources": {
@@ -46,7 +46,7 @@
       "id": "minimal_control",
       "files": [
         "../../../prompts/base.md",
-        "../../../prompts/session.md",
+        "../../../prompts/coordinator.md",
         "../variants/skill/available.md"
       ],
       "resources": {

@@ -47,7 +47,7 @@ export function roleToolBoundary(cwd, test, event) {
   } catch (error) { return { block: true, reason: `Benchmark workspace boundary: ${error.message}. No action was executed.` }; }
 }
 
-function sessionFixtureTools(test, variant) {
+function coordinatorFixtureTools(test, variant) {
   const unavailable = () => { throw new Error("External delegation is disabled in native role integration"); };
   const definitions = createDelegation(unavailable, unavailable);
   const delegates = new Map();
@@ -81,9 +81,9 @@ function sessionFixtureTools(test, variant) {
 export async function runRoleIntegration(runtime, model, suite, job, options = {}) {
   const { test: authoredTest, variant, repeat, id } = job;
   const role = suite.config.role;
-  if (!["worker", "session", "coordinator"].includes(role)) throw new Error("Role integration requires worker, session, or coordinator");
-  if (role === "coordinator" && authoredTest.messages?.length !== 1)
-    throw new Error("Coordinator integration supports one new Home message per case; seed prior routed exchanges in homeState");
+  if (!["worker", "coordinator", "router"].includes(role)) throw new Error("Role integration requires worker, coordinator, or router");
+  if (role === "router" && authoredTest.messages?.length !== 1)
+    throw new Error("Router integration supports one new Home message per case; seed prior routed exchanges in homeState");
   const parent = resolve(options.workspaceDir || join(tmpdir(), "assistant-role-benchmark"));
   workspacePath(resolve(tmpdir()), parent);
   mkdirSync(parent, { recursive: true });
@@ -109,7 +109,7 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
       tools: payload.tools?.map(tool => tool.name || tool.type), instructionCharacters: payload.instructions?.length,
       instructionsHash: hash(normalize(payload.instructions || "")), sectionsPresent: variant.sections.map(section => payload.instructions?.includes(section) || false) };
     if (request.effort !== (variant.effort === "off" ? "none" : variant.effort) || request.tier !== "priority" ||
-      (role !== "coordinator" && !request.tools?.includes("web_search")) || (role === "coordinator" && request.tools?.includes("web_search")))
+      (role !== "router" && !request.tools?.includes("web_search")) || (role === "router" && request.tools?.includes("web_search")))
       throw new Error("Integration provider configuration differs from production");
     record.requests.push({ request });
     record.environment.firstCallSettings ||= request;
@@ -134,7 +134,7 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
   const nativeSession = async (customTools = [], acceptedResult) => {
     const loader = agentResources(cwd, role, variant.sections);
     await loader.reload();
-    const tools = (role === "session" ? sessionFixtureTools(test, variant) : customTools).map(tool => defineTool({
+    const tools = (role === "coordinator" ? coordinatorFixtureTools(test, variant) : customTools).map(tool => defineTool({
       name: tool.name, description: tool.description, parameters: tool.parameters,
       execute: async (args, api, context) => {
         const result = await tool.execute(args, api, context);
@@ -165,8 +165,8 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
     record.environment = { ...record.environment, runtime: "pi-durable", systemPrompt: normalize(prompt), systemPromptHash: hash(normalize(prompt)),
       promptSectionHashes: variant.sections.map(hash), sectionsPresent: variant.sections.map(section => prompt.includes(section)),
       resourceHash: hash({ skills, context, fixtureResources }), fixtureResources, tools: (await conversation.agent(BACKGROUND_CONTEXT)).tools.map(tool => tool.name), skills, context, files: before,
-      limitations: role === "session" ? ["Read-only session tools are native; delegation uses fixture replies or explicit errors."] :
-        role === "coordinator" ? ["HomeRouter discovery uses one new message plus authored state and transcripts; routes are never committed to services."] : [] };
+      limitations: role === "coordinator" ? ["Read-only coordinator tools are native; delegation uses fixture replies or explicit errors."] :
+        role === "router" ? ["HomeRouter discovery uses one new message plus authored state and transcripts; routes are never committed to services."] : [] };
     for (const file of loader.getAgentsFiles().agentsFiles) record.trace.push({ role: "context", name: "project_instructions", text: normalize(file.content), path: normalize(file.path) });
     const callArguments = new Map();
     harness.subscribeCommits(publication => {
@@ -188,7 +188,7 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
     return session;
   };
   try {
-    if (role === "coordinator") {
+    if (role === "router") {
       const data = structuredClone({ messages: [], entries: [], sessions: [], turns: [], ...test.homeState });
       const transcript = sessionId => {
         const file = data.sessions.find(session => session.id === sessionId)?.file;
@@ -205,11 +205,11 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
           const accepted = acceptedResult();
           if (accepted) { record.completed = true; delete record.error; return accepted; }
           if (record.error) throw new Error(record.error);
-          if (!record.text) throw new Error("Coordinator returned no answer");
+          if (!record.text) throw new Error("Router returned no answer");
           return record.text;
         } finally { sessions.delete(session); await session.harness.close(BACKGROUND_CONTEXT); }
       } };
-      const router = new HomeRouter({ data, transcript }, pi, cwd);
+      const router = new HomeRouter({ home: data, data, transcript }, pi, cwd);
       const routes = [];
       for (const [index, input] of test.messages.entries()) {
         if (input.role !== "user") throw new Error("Native role integration requires user messages, not fabricated assistant history");
@@ -243,7 +243,7 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
       record.environment ||= {};
       record.environment.filesAfter = after;
       record.state.unchanged = hash(before) === hash(after);
-      if (role === "session") record.state.finalFiles = Object.fromEntries(Object.keys(after).map(path => [path, normalize(readFileSync(workspacePath(cwd, path), "utf8"))]));
+      if (role === "coordinator") record.state.finalFiles = Object.fromEntries(Object.keys(after).map(path => [path, normalize(readFileSync(workspacePath(cwd, path), "utf8"))]));
       if (role === "worker" && !record.state.unchanged) record.agentFailure = "Read-only worker changed workspace files";
     } catch (error) { record.agentFailure = normalize(error.message); }
   }

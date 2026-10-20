@@ -40,8 +40,8 @@ export function roleExtension(role: AgentRole, extraTools: ToolRegistration[] = 
     execute: async (args, api, context) => {
       const cwd = (await api.agent(context)).cwd || process.cwd();
       return nativeTools(role, cwd).find((native) => native.name === tool.name)!.execute(args, api, context);
-    } })), ...extraTools, ...(role !== "coordinator" ? [workingNotes, workingDirectory] : [])];
-  return defineExtension({ name: `assistant-${role}`, tools, hooks: role !== "coordinator" ? [workingDirectoryHook, ...delegationHooks] : [], sections: [section("assistant", async ({ agent, conversationId }) => {
+    } })), ...extraTools, ...(role !== "router" ? [workingNotes, workingDirectory] : [])];
+  return defineExtension({ name: `assistant-${role}`, tools, hooks: role !== "router" ? [workingDirectoryHook, ...delegationHooks] : [], sections: [section("assistant", async ({ agent, conversationId }) => {
       const cwd = agent.cwd || process.cwd();
       let resource = resources.get(conversationId);
       if (!resource || resource.cwd !== cwd) {
@@ -51,7 +51,7 @@ export function roleExtension(role: AgentRole, extraTools: ToolRegistration[] = 
       const { loader } = resource;
       const files = loader.getAgentsFiles().agentsFiles.map((file) => `Project instructions (${file.path}):\n${file.content}`);
       return [loader.getSystemPrompt(), `Working directory: ${cwd}`, ...files, formatSkillsForPrompt(loader.getSkills().skills)].filter(Boolean).join("\n\n");
-    }, { tag: false }), ...(role !== "coordinator" ? [workingNotesSection] : [])] });
+    }, { tag: false }), ...(role !== "router" ? [workingNotesSection] : [])] });
 }
 
 export function providerModels(runtime: Models): Models {
@@ -137,8 +137,8 @@ export class PiService {
       } });
     let roles: Record<AgentRole, Extension>;
     const delegation = createDelegation(() => roles.worker, () => service!.harness);
-    roles = { coordinator: roleExtension("coordinator"),
-      session: roleExtension("session", delegation),
+    roles = { router: roleExtension("router"),
+      coordinator: roleExtension("coordinator", delegation),
       worker: roleExtension("worker", [...delegation, computerTool]) };
     const registry = createRegistry();
     for (const extension of [...Object.values(roles), ...(options.extensions || []), defineExtension({ name: "assistant-tasks", tasks: options.tasks })]) registry.install(extension);
@@ -149,12 +149,12 @@ export class PiService {
     return service;
   }
   get model(): ModelRef { return this.fixedModel || this.providers.model; }
-  agent(role: AgentRole, cwd: string) { return { model: this.model, thinkingLevel: role === "coordinator" ? "low" as const : "high" as const, cwd, extensions: [this.roles[role]] }; }
-  async utility(role: "coordinator", input: string, cwd: string, customTools: ToolRegistration[] = [], acceptedResult?: () => string | undefined) {
+  agent(role: AgentRole, cwd: string) { return { model: this.model, thinkingLevel: role === "router" ? "low" as const : "high" as const, cwd, extensions: [this.roles[role]] }; }
+  async utility(role: "router", input: string, cwd: string, customTools: ToolRegistration[] = [], acceptedResult?: () => string | undefined) {
     const tools = customTools.map((tool) => defineTool({ name: tool.name, description: tool.description, parameters: tool.parameters,
       execute: async (args, api, context) => {
         const result = await tool.execute(args, api, context);
-        // A reset ends this temporary coordinator even when its round also contains lookup tools.
+        // A reset ends this temporary router even when its round also contains lookup tools.
         return json({ ...result, ...(acceptedResult?.() && { control: { handoff: "" } }) });
       } }));
     const registry = createRegistry();
@@ -165,7 +165,7 @@ export class PiService {
       const root = await harness.root(BACKGROUND_CONTEXT, { agent: { model: this.model, thinkingLevel: "low", cwd, extensions: [extension] } });
       const settled = await (await root.submit({ type: "input", content: input }, BACKGROUND_CONTEXT)).wait(BACKGROUND_CONTEXT);
       if (acceptedResult?.()) return acceptedResult()!;
-      if (settled.status !== "done" || settled.type !== "input") throw new Error("Coordinator did not choose a destination");
+      if (settled.status !== "done" || settled.type !== "input") throw new Error("Router did not choose a destination");
       const entry = await root.commit((tx) => tx.entry(AssistantEntry, settled.answer), BACKGROUND_CONTEXT);
       return assistantText(entry?.model?.[0] || {});
     } finally { await harness.close(BACKGROUND_CONTEXT); }

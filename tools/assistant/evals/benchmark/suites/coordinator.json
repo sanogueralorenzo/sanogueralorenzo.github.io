@@ -24,14 +24,14 @@
       "id": "live",
       "files": [
         "../../../prompts/base.md",
-        "../../../prompts/coordinator.md"
+        "../../../prompts/router.md"
       ]
     },
     {
       "id": "compact_base",
       "files": [
         "../variants/common/base-compact.md",
-        "../../../prompts/coordinator.md"
+        "../../../prompts/router.md"
       ]
     },
     {

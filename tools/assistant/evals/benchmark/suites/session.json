@@ -25,14 +25,14 @@
       "id": "live",
       "files": [
         "../../../prompts/base.md",
-        "../../../prompts/session.md"
+        "../../../prompts/coordinator.md"
       ]
     },
     {
       "id": "compact_base",
       "files": [
         "../variants/common/base-compact.md",
-        "../../../prompts/session.md"
+        "../../../prompts/coordinator.md"
       ]
     },
     {

@@ -99,7 +99,7 @@ export class Assistant {
             if (!session) {
               const cwd = route.mode === "start" ? route.cwd?.trim() || homedir() : app.cwd;
               const created = await tx.createConversation({ ownership: { kind: "ownerless" } });
-              await configure(tx, created.id, app.pi.agent("session", cwd));
+              await configure(tx, created.id, app.pi.agent("coordinator", cwd));
               const record = { id: String(created.id), conversationId: created.id, title: route.mode === "start" ? clean(route.title.slice(0, 100)) : "Conversation", cwd, paused: false, createdAt: now() };
               home.sessions.push(record); session = home.sessions.at(-1)!;
             }

@@ -8,7 +8,7 @@ export function loadSuite(path, split) {
   const root = dirname(resolve(path));
   const config = readJSON(path);
   if (!config.id || !["suggestion", "agent"].includes(config.mode)) throw new Error("Suite needs an id and suggestion or agent mode");
-  if (config.execution === "role-integration" && (config.mode !== "agent" || !["coordinator", "session", "worker"].includes(config.role))) throw new Error("Native role integration needs an agent suite and coordinator, session, or worker role");
+  if (config.execution === "role-integration" && (config.mode !== "agent" || !["router", "coordinator", "worker"].includes(config.role))) throw new Error("Native role integration needs an agent suite and router, coordinator, or worker role");
   if (!["development", "challenge", "confirmation"].includes(split)) throw new Error("Unknown dataset split");
   const cases = (config.datasets[split] || []).flatMap(file => readJSON(resolve(root, file)));
   const seen = new Set();

@@ -33,6 +33,6 @@
     }
   ],
   "execution": "role-integration",
-  "role": "coordinator",
+  "role": "router",
   "timeoutMs": 120000
 }

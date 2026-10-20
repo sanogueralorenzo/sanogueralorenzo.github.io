@@ -30,11 +30,11 @@ async function fixture(t, respond) {
     models: runtime, model: { provider: model.provider, modelId: model.id }, storage: new MemoryStorage(),
   });
   t.after(async () => { await service.close(); rmSync(cwd, { recursive: true, force: true }); });
-  const session = await service.harness.root(context, { agent: service.agent("session", cwd) });
+  const session = await service.harness.root(context, { agent: service.agent("coordinator", cwd) });
   return { cwd, service, session };
 }
 
-test("sessions reject file writes, shell commands, and computer control", { timeout: 15000 }, async t => {
+test("coordinators reject file writes, shell commands, and computer control", { timeout: 15000 }, async t => {
   const { cwd, session } = await fixture(t, messages => messages.some(message => message.role === "toolResult")
     ? [text("Rejected execution")]
     : [toolCall("write", { path: "forbidden.txt", content: "unexpected" }),
@@ -96,7 +96,7 @@ test("workers execute and review with their own tools and collect nested work be
     assert.equal(agent.thinkingLevel, parent.thinkingLevel);
     if (record.id !== session.id) {
       assert.ok(["write", "edit", "bash", "computer_use", "delegate"].every(name => agent.tools.some(tool => tool.name === name)));
-      assert.equal(agent.extensions.some(extension => extension.name === "assistant-session"), false);
+      assert.equal(agent.extensions.some(extension => extension.name === "assistant-coordinator"), false);
       assert.ok([cwd, join(cwd, "target")].includes(agent.cwd));
       const workerTranscript = await conversation.context(context);
       assert.ok(workerTranscript.messages.filter(message => message.role === "toolResult").every(message => !message.isError));
