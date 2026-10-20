@@ -1,14 +1,15 @@
 .is-landing .landing-scroll { flex: 0 0 auto; margin-top: auto; display: flex; justify-content: center; }
 .landing { width: min(680px, 100%); padding: 24px; }
-.landing-spark { position: relative; width: 280px; height: 170px; margin: 0 auto; border-radius: 50%; animation: landing-drift 9s ease-in-out infinite; }
+.landing-spark { position: relative; width: 200px; height: 124px; margin: 0 auto; border-radius: 50%; animation: landing-drift 9s ease-in-out infinite; }
 .landing-mark { position: relative; width: 100%; height: 100%; overflow: visible; }
-.landing-glow { position: absolute; inset: 20px 40px; border-radius: 50%; background: radial-gradient(ellipse, color-mix(in srgb, var(--landing-accent, var(--clay)) 13%, transparent), transparent 70%); }
-.landing-orbit { transform-origin: 120px 90px; stroke: var(--landing-accent, var(--clay)); stroke-width: 1.8; }
+.landing-glow { position: absolute; inset: 24px 36px; border-radius: 50%; background: radial-gradient(ellipse, color-mix(in srgb, var(--landing-accent, var(--clay)) 8%, transparent), transparent 70%); }
+.landing-orbit { transform-origin: 120px 90px; stroke: var(--landing-accent, var(--clay)); stroke-width: 4; }
 .landing-orbit-one { --electron-duration: .72s; --electron-delay: -.24s; --electron-rest: 12%; animation: landing-orbit-one 6.8s linear infinite; }
 .landing-orbit-two { --electron-duration: .93s; --electron-delay: -.66s; --electron-rest: 62%; --electron-direction: reverse; animation: landing-orbit-two 8.3s linear infinite; }
 .landing-orbit-three { --electron-duration: .58s; --electron-delay: -.11s; --electron-rest: 80%; animation: landing-orbit-three 5.7s linear infinite; }
-.landing-track { opacity: .22; }
-.landing-trail { stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 18 82; opacity: .75; animation: landing-trail var(--electron-duration) linear infinite; }
+.landing-track, .landing-trail { vector-effect: non-scaling-stroke; }
+.landing-track { opacity: .32; }
+.landing-trail { stroke-width: 4.6; stroke-linecap: round; stroke-dasharray: 18 82; opacity: .9; animation: landing-trail var(--electron-duration) linear infinite; }
 .landing-electron { offset-path: var(--electron-path); offset-rotate: 0deg; offset-distance: var(--electron-rest); animation: landing-electron var(--electron-duration) linear infinite; }
 .landing-trail, .landing-electron { animation-delay: var(--electron-delay); animation-direction: var(--electron-direction, normal); }
 .landing-electron-dot { fill: var(--landing-accent, var(--clay)); stroke: none; }
@@ -29,12 +30,12 @@
 @keyframes landing-drift { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(3px, -2px); } 50% { transform: translate(-2px, 3px); } 75% { transform: translate(-4px, -1px); } }
 @media (max-width: 520px) {
   .landing { padding: 20px; }
-  .landing-spark { width: 240px; height: 145px; }
+  .landing-spark { width: 180px; height: 110px; }
   .is-landing .composer-area { padding: 0 18px; }
   .is-landing .composer { padding-left: 15px; }
 }
 @media (max-height: 650px) {
-  .landing-spark { width: 200px; height: 120px; }
+  .landing-spark { width: 160px; height: 98px; }
   .landing { padding-top: 14px; padding-bottom: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
