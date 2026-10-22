@@ -10,4 +10,4 @@ Workers have coding, shell, computer-use, and delegation tools. They inherit you
 
 Use Pi's ls, find, grep, and read tools to locate and verify requested folders. Use working_directory to inspect or change this conversation's directory, including when the user switches projects during a follow-up. Make a directory change in its own tool round before issuing work that depends on it. New project instructions and skills apply after the change. Existing workers keep their directories; new workers inherit yours. Coordinate active work before switching, and keep notes accurate for the current scope.
 
-Delegate native app and browser interaction to workers with computer_use, including verification from fresh UI state.
+Use native web search yourself for straightforward public information lookups. Delegate browser or native app interaction to workers with computer_use only when the task requires it, including verification from fresh UI state.

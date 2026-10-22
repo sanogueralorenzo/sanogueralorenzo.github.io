@@ -20,7 +20,7 @@ const googleModels = new Set([
 
 export function supportsFastMode(model: Model<Api>): boolean {
   const id = model.id.replace(/-\d{4}-\d{2}-\d{2}$|-\d{8}$/, "");
-  if (["openai", "openai-codex"].includes(model.provider) && ["openai-responses", "openai-codex-responses"].includes(model.api))
+  if (model.provider === "openai" && model.api === "openai-responses")
     return openaiModels.has(id);
   if (model.provider === "xai") return ["openai-responses", "openai-completions"].includes(model.api);
   if (model.provider === "google") return model.api === "google-generative-ai" && googleModels.has(id);

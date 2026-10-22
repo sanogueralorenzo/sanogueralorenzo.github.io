@@ -12,7 +12,7 @@ const data = readJSON(input);
 const cards = data.cards || blindCards(data);
 const policy = readFileSync(new URL("./judge.md", import.meta.url), "utf8");
 const runtime = await assistantModels();
-const model = runtime.getModel("openai-codex", "gpt-6-luna");
+const model = runtime.getModel("openai", "gpt-6-luna");
 if (!model) throw new Error("Judge model unavailable");
 const artifact = existsSync(output) ? readJSON(output) : { provenance: "Blinded model-assisted review; not independent human validation", inputHash: data.inputHash || hash(data), sourceHash: hash(data), policyHash: hash(policy), model: model.id, effort, reviews: [], usage: [], errors: [] };
 if (artifact.sourceHash !== hash(data) || artifact.policyHash !== hash(policy) || artifact.effort !== effort) throw new Error("Review resume inputs or policy changed");

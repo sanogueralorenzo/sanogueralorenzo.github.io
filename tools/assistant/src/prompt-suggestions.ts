@@ -53,7 +53,7 @@ export class PromptSuggestions {
       transport: "sse", maxRetries: 0, signal,
       onPayload: (payload) => {
         const request = fastModePayload(model, payload, this.fastEnabled(selected.provider));
-        if (selected.provider === "openai-codex") {
+        if (selected.provider === "openai") {
           const reasoning = (request as Record<string, unknown>).reasoning as { effort?: unknown } | undefined;
           if (reasoning?.effort !== "none") throw new Error("Suggestions require no reasoning");
         }

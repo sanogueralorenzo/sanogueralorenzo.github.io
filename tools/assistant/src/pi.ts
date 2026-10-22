@@ -15,6 +15,7 @@ import { createDelegation, delegationHooks } from "./delegation.ts";
 import { workingNotes, workingNotesSection } from "./working-notes.ts";
 import { workingDirectory, workingDirectoryHook } from "./working-directory.ts";
 import { fastModePayload } from "./fast-mode.ts";
+import { nativeSearchPayload, NativeSearchSources } from "./native-search.ts";
 
 const json = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
@@ -83,19 +84,21 @@ export function providerModels(runtime: Models, fastEnabled: (provider: string) 
       active.add(occupied);
       return (async function* () {
         try {
-          yield* target.streamSimple(model, transcript, { ...options,
+          const sources = new NativeSearchSources();
+          const stream = target.streamSimple(model, transcript, { ...options,
             onPayload: async (payload, selected) => {
-              let request = await options.onPayload?.(payload, selected) ?? payload;
-              if (model.provider === "openai-codex") {
-                if (!request || typeof request !== "object" || Array.isArray(request)) throw new Error("Unexpected Codex request payload");
-                const value = request as Record<string, unknown>;
-                const search = !routing;
-                const tools = (Array.isArray(value.tools) ? value.tools : []).filter(tool => tool?.type !== "web_search");
-                request = { ...value, tools: [...tools, ...(search ? [{ type: "web_search" }] : [])] };
-              }
+              const request = nativeSearchPayload(model, await options.onPayload?.(payload, selected) ?? payload, !routing);
               return fastModePayload(model, request, fastEnabled(model.provider));
             },
+            onProviderStreamEvent: async (event, selected) => {
+              sources.observe(event);
+              await options.onProviderStreamEvent?.(event, selected);
+            },
           });
+          for await (const event of stream) {
+            if (event.type === "done") sources.append(event.message);
+            yield event;
+          }
         } finally { active.delete(occupied); release(); }
       })();
     });

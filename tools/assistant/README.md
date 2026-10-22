@@ -6,6 +6,8 @@ A local assistant built on Pi Durable. The router sends Home requests to persist
 
 Open `http://127.0.0.1:4180`. Reply quotes a selected message; thumbs-up sends “Yes, go ahead.” Queued messages support Edit, Delete, and Steer. Stop preserves waiting work; Continue resumes the stopped request before follow-ups. The composer stays mounted during replies, navigation, and reconnects, with drafts saved per conversation. Tab accepts a saved, tool-free reply suggestion; Escape dismisses it or clears its quote.
 
+Conversations and workers use native web search with OpenAI, Anthropic, xAI, and the listed Gemini models. Public lookups use provider-hosted search first; browser interaction is a fallback for inaccessible content, authenticated sites, or tasks that require interaction. Home routing and reply suggestions do not receive search tools.
+
 When there are no saved conversations, the first Home message starts a session immediately, skipping the routing model. Later messages use Home routing, which has Pi's read-only filesystem tools to locate project folders. Ask to switch folders within a conversation; `working_directory` validates and saves the change and loads that folder's instructions and skills. Existing workers keep their directories; new workers inherit the updated one.
 
 ## Start

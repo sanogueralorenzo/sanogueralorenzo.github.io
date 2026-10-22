@@ -9,10 +9,11 @@ import { openaiProvider } from "@earendil-works/pi-ai/providers/openai";
 import { anthropicProvider } from "@earendil-works/pi-ai/providers/anthropic";
 import { googleProvider } from "@earendil-works/pi-ai/providers/google";
 import { xaiProvider } from "@earendil-works/pi-ai/providers/xai";
-import { Providers } from "../src/providers.ts";
+import { Providers, defaultModel } from "../src/providers.ts";
 import { providerModels } from "../src/pi.ts";
 import { fastModePayload, supportsFastMode } from "../src/fast-mode.ts";
 import { PromptSuggestions } from "../src/prompt-suggestions.ts";
+import { NativeSearchSources } from "../src/native-search.ts";
 
 function runtime() {
   const models = createModels({ authContext: {
@@ -39,7 +40,11 @@ test("fast preferences persist independently and require a connected provider", 
   const dir = mkdtempSync(join(tmpdir(), "assistant-providers-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const models = runtime();
+  const current = models.getProvider("openai");
+  models.setProvider({ ...current, id: "retired", name: "Retired provider (legacy)" });
   const providers = new Providers(dir, models);
+  assert.deepEqual(providers.model, defaultModel);
+  assert.equal(defaultModel.provider, "openai");
   assert.equal(providers.fastEnabled("openai"), false);
   await providers.setFastMode("openai", true);
   await providers.setFastMode("anthropic", true);
@@ -56,6 +61,7 @@ test("fast preferences persist independently and require a connected provider", 
   assert.equal(reopened.fastEnabled("xai"), true);
   assert.deepEqual(reopened.model, { provider: "openai", modelId: "gpt-6-luna" });
   const snapshot = await reopened.snapshot();
+  assert.ok(!snapshot.providers.some(provider => provider.id === "retired"));
   const anthropic = snapshot.providers.find(provider => provider.id === "anthropic");
   assert.equal(anthropic.fastSupported, true);
   assert.ok(anthropic.models.every(model => !Object.hasOwn(model, "fastSupported")));
@@ -77,6 +83,71 @@ test("fast preferences persist independently and require a connected provider", 
   } }));
   t.after(() => offline.close());
   await assert.rejects(offline.setFastMode("anthropic", true), /Connect Anthropic first/);
+});
+
+test("native search preserves client tools, skips Home routing, and stays out of suggestions", async t => {
+  const models = runtime();
+  const wrapped = providerModels(models);
+  const requests = [];
+  t.mock.method(globalThis, "fetch", capture(requests));
+  for (const [provider, id] of [["openai", "gpt-6-luna"], ["xai", "grok-4.7"],
+    ["anthropic", "claude-sonnet-5-5"], ["google", "gemini-3.8-flash"]]) {
+    const selected = models.getModel(provider, id);
+    const send = async routing => {
+      await wrapped.streamSimple(selected, {
+        messages: [{ role: "user", content: "Look up tomorrow's weather", timestamp: 0 }],
+        tools: [{ name: routing ? "route_home" : "read", description: "Fixture", parameters: { type: "object", properties: {} } }],
+      }, { maxRetries: 0 }).result();
+      return requests.at(-1).body;
+    };
+    const request = await send(false);
+    if (provider === "google") {
+      assert.equal(request.tools.filter(tool => tool.googleSearch).length, 1);
+      assert.equal(request.tools.flatMap(tool => tool.functionDeclarations || []).some(tool => tool.name === "read"), true);
+    } else {
+      assert.equal(request.tools.filter(tool => tool.type?.startsWith("web_search")).length, 1);
+      assert.equal(request.tools.some(tool => tool.name === "read"), true);
+      if (provider === "anthropic") assert.equal(request.tools.find(tool => tool.name === "web_search").type, "web_search_20250305");
+    }
+    const routing = await send(true);
+    assert.ok(!(routing.tools || []).some(tool => tool.googleSearch || tool.type?.startsWith("web_search")));
+  }
+});
+
+test("hosted search citations survive Pi normalization without browser calls", async t => {
+  const models = runtime();
+  const annotation = { type: "url_citation", url: "https://example.com/forecast", title: "Forecast" };
+  const item = { id: "message", type: "message", role: "assistant", content: [
+    { type: "output_text", text: "Rain tomorrow.", annotations: [annotation] },
+  ] };
+  const events = [
+    { type: "response.output_item.added", output_index: 0, item: { ...item, content: [] } },
+    { type: "response.output_text.delta", output_index: 0, content_index: 0, delta: "Rain tomorrow." },
+    { type: "response.output_text.annotation.added", annotation },
+    { type: "response.output_item.done", output_index: 0, item },
+    { type: "response.completed", response: { id: "response", status: "completed", output: [item] } },
+  ];
+  t.mock.method(globalThis, "fetch", async () => new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join(""),
+    { headers: { "content-type": "text/event-stream" } }));
+  const observed = [];
+  const answer = await providerModels(models).streamSimple(models.getModel("openai", "gpt-6-luna"), {
+    messages: [{ role: "user", content: "Tomorrow's weather?", timestamp: 0 }],
+  }, { maxRetries: 0, onProviderStreamEvent: event => { observed.push(event.type); } }).result();
+  assert.equal(answer.stopReason, "stop");
+  assert.equal(answer.content.some(part => part.type === "toolCall"), false);
+  const text = answer.content.filter(part => part.type === "text").map(part => part.text).join("");
+  assert.equal(text, "Rain tomorrow.\n\nSources: [Forecast](https://example.com/forecast)");
+  assert.equal(observed.length, events.length);
+});
+
+test("Claude citations and Gemini grounding retain safe source URLs without duplicates", () => {
+  const sources = new NativeSearchSources();
+  sources.observe({ delta: { citation: { type: "web_search_result_location", url: "https://example.com/claude", title: "Claude source" } } });
+  sources.observe({ candidates: [{ groundingMetadata: { groundingChunks: [{ web: { uri: "https://example.com/gemini", title: "Gemini source" } }] } }] });
+  sources.observe({ annotation: { url: "javascript:alert(1)", title: "Unsafe" } });
+  const answer = { stopReason: "stop", content: [{ type: "text", text: "Answer [Claude source](https://example.com/claude)" }] };
+  sources.append(answer);
+  assert.equal(answer.content.at(-1).text, "\n\nSources: [Gemini source](https://example.com/gemini)");
 });
 
 test("Pi serializes fast options for all four providers and preserves Anthropic betas", async t => {
@@ -110,12 +181,12 @@ test("Pi serializes fast options for all four providers and preserves Anthropic 
   assert.equal(standard.body.speed, undefined);
   assert.doesNotMatch(standard.headers.get("anthropic-beta"), /fast-mode-2026-02-01/);
   assert.match(standard.headers.get("anthropic-beta"), /mid-conversation-output-config/);
-  const codex = { provider: "openai-codex", api: "openai-codex-responses", id: "gpt-6-luna" };
-  assert.equal(fastModePayload(codex, {}, true).service_tier, "priority");
-  assert.equal(fastModePayload(codex, {}, false).service_tier, "default");
-  assert.equal(supportsFastMode({ ...codex, id: "gpt-6-luna-2026-09-01" }), true);
-  assert.equal(supportsFastMode({ ...codex, id: "gpt-6-unknown" }), false);
-  assert.equal(supportsFastMode({ ...codex, provider: "some-proxy" }), false);
+  const openai = { provider: "openai", api: "openai-responses", id: "gpt-6-luna" };
+  assert.equal(fastModePayload(openai, {}, true).service_tier, "priority");
+  assert.equal(fastModePayload(openai, {}, false).service_tier, "default");
+  assert.equal(supportsFastMode({ ...openai, id: "gpt-6-luna-2026-09-01" }), true);
+  assert.equal(supportsFastMode({ ...openai, id: "gpt-6-unknown" }), false);
+  assert.equal(supportsFastMode({ ...openai, provider: "some-proxy" }), false);
 });
 
 test("reply suggestions follow the current provider fast preference", async t => {
@@ -137,6 +208,7 @@ test("reply suggestions follow the current provider fast preference", async t =>
     fast = true;
     await suggestions.get("session", "reply", messages);
     assert.equal(requests.at(-1).body[field], on);
+    assert.ok(!(requests.at(-1).body.tools || []).some(tool => tool.googleSearch || tool.type?.startsWith("web_search")));
     fast = false;
     await suggestions.get("session", "reply", messages);
     assert.equal(requests.at(-1).body[field], off);

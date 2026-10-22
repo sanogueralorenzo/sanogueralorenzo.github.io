@@ -7,8 +7,8 @@ import { ModelRuntime, SettingsManager } from "@earendil-works/pi-coding-agent";
 import type { ModelRef } from "@earendil-works/pi-durable";
 import { supportsFastMode } from "./fast-mode.ts";
 
-export const defaultModel: ModelRef = { provider: "openai-codex", modelId: "gpt-6-luna" };
-const preferredModels: Record<string, string> = { "openai-codex": defaultModel.modelId, anthropic: "claude-sonnet-5-5" };
+export const defaultModel: ModelRef = { provider: "openai", modelId: "gpt-6-luna" };
+const preferredModels: Record<string, string> = { anthropic: "claude-sonnet-5-5" };
 // Pi's catalog has no release dates; keep each picker focused on the current lineup.
 const pickerModels: Record<string, string[]> = {
   openai: ["gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna"],
@@ -72,6 +72,7 @@ export class Providers {
   private changed() { for (const listener of this.listeners) listener(); }
   private catalog(): ProviderInfo[] {
     return this.models.getProviders().flatMap(provider => {
+      if (provider.name.endsWith(" (legacy)")) return [];
       const catalog = this.models.getModels(provider.id);
       const modelIds = pickerModels[provider.id];
       const models = modelIds ? modelIds.flatMap(id => catalog.filter(model => model.id === id))

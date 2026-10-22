@@ -51,7 +51,7 @@ if (command === "review" || command === "report") {
     if (run.fingerprint !== fingerprint) throw new Error("Resume inputs changed");
     saveJSON(out, run);
     const runtime = await assistantModels();
-    const model = runtime.getModel("openai-codex", run.model);
+    const model = runtime.getModel("openai", run.model);
     if (!model) throw new Error("Configured model unavailable");
     const complete = new Set(run.results.map(r => r.id));
     const pending = jobs.filter(job => !complete.has(job.id));
