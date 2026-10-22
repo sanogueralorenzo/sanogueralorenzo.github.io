@@ -194,7 +194,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .provider-choice > span:last-child { min-width: 0; }
 .provider-choice strong { font-weight: 550; overflow-wrap: anywhere; }
 .provider-check { width: 16px; color: #4aa96b; }
-.provider-fast { display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; margin-right: 5px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: white; cursor: pointer; }
+.provider-fast { display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; margin-right: 5px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: light-dark(black, white); cursor: pointer; }
 .provider-fast:hover:enabled { background: var(--line); }
 .provider-fast svg { fill: none; }
 .provider-fast[aria-pressed="true"] svg { fill: currentColor; }
