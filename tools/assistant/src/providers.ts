@@ -9,8 +9,13 @@ import { supportsFastMode } from "./fast-mode.ts";
 
 export const defaultModel: ModelRef = { provider: "openai-codex", modelId: "gpt-6-luna" };
 const preferredModels: Record<string, string> = { "openai-codex": defaultModel.modelId, anthropic: "claude-sonnet-5-5" };
-// Pi's catalog has no release dates; keep the OpenAI picker focused on these models.
-const openaiModelIds = ["gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna"];
+// Pi's catalog has no release dates; keep each picker focused on the current lineup.
+const pickerModels: Record<string, string[]> = {
+  openai: ["gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna"],
+  anthropic: ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"],
+  google: ["gemini-4-argon", "gemini-3.8-flash", "gemini-3.5-flash-lite"],
+  xai: ["grok-4.7"],
+};
 // These providers include cloud account, endpoint, or credential-chain setup.
 const cloudProviders = new Set(["amazon-bedrock", "azure", "google-vertex", "cloudflare-ai-gateway", "cloudflare-workers-ai"]);
 
@@ -68,7 +73,8 @@ export class Providers {
   private catalog(): ProviderInfo[] {
     return this.models.getProviders().flatMap(provider => {
       const catalog = this.models.getModels(provider.id);
-      const models = provider.id === "openai" ? openaiModelIds.flatMap(id => catalog.filter(model => model.id === id))
+      const modelIds = pickerModels[provider.id];
+      const models = modelIds ? modelIds.flatMap(id => catalog.filter(model => model.id === id))
         : [...catalog].sort((a, b) => a.name.localeCompare(b.name));
       if (!models.length) return [];
       const cloud = cloudProviders.has(provider.id);

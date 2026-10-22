@@ -62,6 +62,14 @@ test("fast preferences persist independently and require a connected provider", 
   const openai = snapshot.providers.find(provider => provider.id === "openai");
   assert.deepEqual(openai.models.map(model => model.id), ["gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna"]);
   assert.equal(openai.defaultModel, "gpt-6.1-sol");
+  assert.deepEqual(anthropic.models.map(model => model.id), ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]);
+  assert.equal(anthropic.defaultModel, "claude-sonnet-5-5");
+  const google = snapshot.providers.find(provider => provider.id === "google");
+  assert.deepEqual(google.models.map(model => model.id), ["gemini-4-argon", "gemini-3.8-flash", "gemini-3.5-flash-lite"]);
+  assert.equal(google.defaultModel, "gemini-4-argon");
+  const xai = snapshot.providers.find(provider => provider.id === "xai");
+  assert.deepEqual(xai.models.map(model => model.id), ["grok-4.7"]);
+  assert.equal(xai.defaultModel, "grok-4.7");
   assert.ok(snapshot.providers.filter(provider => ["xai", "google"].includes(provider.id)).every(provider => provider.fastSupported));
   await assert.rejects(reopened.setFastMode("unknown", true), /Choose a provider/);
   const offline = new Providers(dir, new Proxy(models, { get(target, key) {

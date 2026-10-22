@@ -20,7 +20,7 @@ npm start
 
 Install Codex Computer Use in the desktop app for native app control. Assistant automatically accepts its approval requests. `service/install.sh` starts Assistant after login on macOS; `service/uninstall.sh` removes the service.
 
-Connected OpenAI, Anthropic, xAI, and Google accounts show a lightning button to toggle fast mode, including existing conversations and reply suggestions on their next request. Fast mode starts off and costs more; model compatibility is handled automatically. Gemini priority requires an eligible paid account; older Claude Opus previews require fast-mode access. OpenAI's model picker shows GPT-6.1 Sol, GPT-6 Astra, and GPT-6 Luna because Pi's catalog has no release dates.
+Connected OpenAI, Anthropic, xAI, and Google accounts show a lightning button to toggle fast mode, including existing conversations and reply suggestions on their next request. Fast mode starts off and costs more; model compatibility is handled automatically. Gemini priority requires an eligible paid account; older Claude Opus previews require fast-mode access. Model pickers use a curated current lineup because Pi's catalog has no release dates: GPT-6.1 Sol, GPT-6 Astra, and GPT-6 Luna; Claude Fable 5.1 and Opus/Sonnet/Haiku 5.5; Gemini 4 Argon, 3.8 Flash, and 3.5 Flash-Lite; and Grok 4.7.
 
 State and transcripts live in `~/.assistant/durable.sqlite`; suggestions live in `~/.assistant/suggestions.db`. Provider credentials stay in `~/.assistant/auth.json`, with the selected provider and model in `~/.assistant/provider.json` and per-provider fast preferences in `~/.assistant/fast-mode.json`. Pi manages the installation ID in `~/.assistant/settings.json`.
 
