@@ -196,10 +196,9 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .provider-check { width: 16px; color: #4aa96b; }
 .provider-fast { display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; margin-right: 5px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
 .provider-fast:hover:enabled { background: var(--line); }
-.provider-fast[aria-pressed="true"], .model-fast.enabled { color: #b77a13; }
+.provider-fast[aria-pressed="true"] { color: #b77a13; }
 .provider-fast[aria-pressed="true"] svg { fill: currentColor; }
 .provider-fast:disabled { cursor: default; opacity: .45; }
-.model-fast { display: grid; place-items: center; margin-right: 13px; color: var(--muted); }
 .provider-text-button { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 7px; font-size: 12px; }
 .provider-text-button:hover { color: var(--graphite); }
 .provider-back { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: var(--graphite); font: inherit; }

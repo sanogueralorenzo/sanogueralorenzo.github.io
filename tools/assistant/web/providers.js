@@ -69,20 +69,19 @@ export function createProviders({ state, root, api }) {
     return `<input type="search" class="provider-search" data-provider-search aria-label="Search providers" placeholder="Search providers…" autocomplete="off" value="${escapeHTML(query)}"><div class="provider-filters" aria-label="Authentication filters">${filters.map(([id, label]) => `<button type="button" class="provider-filter" data-action="providers-filter" data-filter="${id}" aria-pressed="${filter === id}">${label}</button>`).join("")}</div><div class="provider-list">${providers.map(provider => {
       const active = data.selected.provider === provider.id && provider.connected;
       const method = provider.methods.find(method => method.id === (filter === "cloud" ? "api_key" : filter));
-      const fast = provider.fastSupported ? fastControl(provider, disabled) : "";
+      const fast = provider.connected && provider.fastSupported ? fastControl(provider, disabled) : "";
       return `<div class="provider-row"><button type="button" class="provider-choice" aria-current="${active}" data-action="${provider.connected ? "providers-models" : "providers-login"}" data-provider="${escapeHTML(provider.id)}" data-method="${escapeHTML(method?.id || "")}" ${disabled || (!provider.connected && !method) ? "disabled" : ""}><span class="provider-check" aria-hidden="true">${active ? "✓" : ""}</span><span><strong>${escapeHTML(provider.name)}</strong></span></button>${fast}</div>`;
     }).join("") || '<p class="provider-waiting provider-empty">No matching providers</p>'}</div>`;
   }
   function fastControl(provider, disabled) {
     const label = `${provider.name} fast mode`;
-    const detail = provider.connected ? `${provider.fastEnabled ? "Disable" : "Enable"} fast mode for supported models · Higher usage cost`
-      : "Fast mode available on supported models · Connect to enable · Higher usage cost";
-    return `<button type="button" class="provider-fast" data-action="providers-fast" data-provider="${escapeHTML(provider.id)}" aria-label="${escapeHTML(label)}" aria-pressed="${provider.fastEnabled}" title="${escapeHTML(detail)}" ${disabled || !provider.connected ? "disabled" : ""}>${icon("lightning", 17)}</button>`;
+    const detail = `${provider.fastEnabled ? "Disable" : "Enable"} fast mode · Higher usage cost`;
+    return `<button type="button" class="provider-fast" data-action="providers-fast" data-provider="${escapeHTML(provider.id)}" aria-label="${escapeHTML(label)}" aria-pressed="${provider.fastEnabled}" title="${escapeHTML(detail)}" ${disabled ? "disabled" : ""}>${icon("lightning", 17)}</button>`;
   }
   function modelsHTML(provider, disabled) {
     return `<button type="button" class="provider-text-button provider-back" data-action="providers-back" aria-label="Back to providers"><span aria-hidden="true">←</span><strong>${escapeHTML(provider.name)}</strong></button><div class="provider-list" aria-label="${escapeHTML(provider.name)} models">${provider.models.map(model => {
       const active = data.selected.provider === provider.id && data.selected.modelId === model.id;
-      return `<div class="provider-row"><button type="button" class="provider-choice" aria-current="${active}" data-action="providers-select" data-provider="${escapeHTML(provider.id)}" data-model="${escapeHTML(model.id)}" ${disabled ? "disabled" : ""}><span class="provider-check" aria-hidden="true">${active ? "✓" : ""}</span><span><strong>${escapeHTML(model.name)}</strong></span></button>${model.fastSupported ? `<span class="model-fast ${provider.fastEnabled ? "enabled" : ""}" role="img" aria-label="Fast mode ${provider.fastEnabled ? "enabled" : "available"}" title="Fast mode ${provider.fastEnabled ? "enabled" : "available"}">${icon("lightning", 15)}</span>` : ""}</div>`;
+      return `<div class="provider-row"><button type="button" class="provider-choice" aria-current="${active}" data-action="providers-select" data-provider="${escapeHTML(provider.id)}" data-model="${escapeHTML(model.id)}" ${disabled ? "disabled" : ""}><span class="provider-check" aria-hidden="true">${active ? "✓" : ""}</span><span><strong>${escapeHTML(model.name)}</strong></span></button></div>`;
     }).join("")}</div>${provider.canLogout ? `<div class="provider-footer"><button type="button" class="provider-text-button" data-action="providers-logout" data-provider="${escapeHTML(provider.id)}" ${disabled ? "disabled" : ""}>Disconnect</button></div>` : ""}`;
   }
   function html() {

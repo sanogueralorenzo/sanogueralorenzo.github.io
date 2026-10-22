@@ -9,6 +9,8 @@ import { supportsFastMode } from "./fast-mode.ts";
 
 export const defaultModel: ModelRef = { provider: "openai-codex", modelId: "gpt-6-luna" };
 const preferredModels: Record<string, string> = { "openai-codex": defaultModel.modelId, anthropic: "claude-sonnet-5-5" };
+// Pi's catalog has no release dates; keep the OpenAI picker focused on these models.
+const openaiModelIds = ["gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna"];
 // These providers include cloud account, endpoint, or credential-chain setup.
 const cloudProviders = new Set(["amazon-bedrock", "azure", "google-vertex", "cloudflare-ai-gateway", "cloudflare-workers-ai"]);
 
@@ -23,7 +25,7 @@ type Login = { id: string; provider: string; status: "pending" | "done" | "faile
   message?: string; url?: string; userCode?: string; prompt?: LoginPrompt };
 type ProviderInfo = { id: string; name: string; cloud: boolean; defaultModel: string;
   fastSupported: boolean; fastEnabled: boolean;
-  methods: { id: AuthType; label: string }[]; models: { id: string; name: string; fastSupported: boolean }[] };
+  methods: { id: AuthType; label: string }[]; models: { id: string; name: string }[] };
 export type ProviderSnapshot = { selected: ModelRef; providers: (ProviderInfo & { connected: boolean; canLogout: boolean })[]; login?: Login };
 
 export class Providers {
@@ -66,15 +68,17 @@ export class Providers {
   private catalog(): ProviderInfo[] {
     return this.models.getProviders().flatMap(provider => {
       const catalog = this.models.getModels(provider.id);
-      if (!catalog.length) return [];
+      const models = provider.id === "openai" ? openaiModelIds.flatMap(id => catalog.filter(model => model.id === id))
+        : [...catalog].sort((a, b) => a.name.localeCompare(b.name));
+      if (!models.length) return [];
       const cloud = cloudProviders.has(provider.id);
       const methods: ProviderInfo["methods"] = [];
       if (provider.auth.oauth?.login) methods.push({ id: "oauth", label: "Sign in" });
       if (provider.auth.apiKey?.login) methods.push({ id: "api_key", label: cloud ? "Cloud setup" : "API key" });
       return [{ id: provider.id, name: provider.name, cloud, methods,
         fastSupported: catalog.some(supportsFastMode), fastEnabled: this.fastEnabled(provider.id),
-        defaultModel: catalog.find(model => model.id === preferredModels[provider.id])?.id || catalog[0].id,
-        models: catalog.map(model => ({ id: model.id, name: model.name, fastSupported: supportsFastMode(model) })).sort((a, b) => a.name.localeCompare(b.name)) }];
+        defaultModel: models.find(model => model.id === preferredModels[provider.id])?.id || models[0].id,
+        models: models.map(model => ({ id: model.id, name: model.name })) }];
     }).sort((a, b) => a.name.localeCompare(b.name));
   }
   private definition(provider: string) {

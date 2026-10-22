@@ -76,13 +76,13 @@ async function fixture(t, { suggestion = null, empty = false,
 
 async function clickReply(page, id = "1") { await page.locator(`[data-action="reply"][data-reply="reply-${id}"]`).click(); }
 
-test("provider lightning toggles stay independent and show compatible models", async t => {
+test("only connected providers show lightning and model lists hide fast compatibility", async t => {
   const providerData = { selected: { provider: "openai", modelId: "gpt-6-luna" }, providers: [
     { id: "openai", name: "OpenAI", connected: true, fastSupported: true, fastEnabled: false,
-      methods: [{ id: "oauth" }], models: [{ id: "gpt-6-luna", name: "GPT-6 Luna", fastSupported: true }] },
+      methods: [{ id: "oauth" }], models: [{ id: "gpt-6-luna", name: "GPT-6 Luna" }] },
     { id: "anthropic", name: "Anthropic", connected: true, fastSupported: true, fastEnabled: false,
-      methods: [{ id: "oauth" }], models: [{ id: "claude-opus-5-5", name: "Claude Opus 5.5", fastSupported: true },
-        { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5", fastSupported: false }] },
+      methods: [{ id: "oauth" }], models: [{ id: "claude-opus-5-5", name: "Claude Opus 5.5" },
+        { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" }] },
     { id: "offline", name: "Offline", connected: false, fastSupported: true, fastEnabled: false,
       methods: [{ id: "oauth" }], models: [] },
     { id: "other", name: "Other", connected: true, fastSupported: false, fastEnabled: false,
@@ -92,7 +92,7 @@ test("provider lightning toggles stay independent and show compatible models", a
   await page.locator(".provider-trigger").click();
   const openai = page.getByRole("button", { name: "OpenAI fast mode", exact: true });
   const anthropic = page.getByRole("button", { name: "Anthropic fast mode", exact: true });
-  assert.equal(await page.getByRole("button", { name: "Offline fast mode", exact: true }).isDisabled(), true);
+  assert.equal(await page.getByRole("button", { name: "Offline fast mode", exact: true }).count(), 0);
   assert.equal(await page.getByRole("button", { name: "Other fast mode", exact: true }).count(), 0);
   await openai.click();
   await page.locator('.provider-fast[data-provider="openai"][aria-pressed="true"]:enabled').waitFor();
@@ -105,8 +105,9 @@ test("provider lightning toggles stay independent and show compatible models", a
   assert.deepEqual(calls, [{ provider: "openai", enabled: true }, { provider: "anthropic", enabled: true }, { provider: "openai", enabled: false }]);
   assert.deepEqual(providerData.selected, { provider: "openai", modelId: "gpt-6-luna" });
   await page.locator('[data-action="providers-models"][data-provider="anthropic"]').click();
-  assert.equal(await page.getByRole("img", { name: "Fast mode enabled", exact: true }).count(), 1);
-  assert.equal(await page.locator('.provider-row:has([data-model="claude-sonnet-5-5"]) .model-fast').count(), 0);
+  assert.equal(await page.getByRole("button", { name: "Claude Opus 5.5", exact: true }).count(), 1);
+  assert.equal(await page.getByRole("button", { name: "Claude Sonnet 5.5", exact: true }).count(), 1);
+  assert.equal(await page.locator('.provider-menu [aria-label*="Fast mode"], .provider-menu [title*="fast mode"], .provider-menu .provider-fast').count(), 0);
 });
 async function send(page, input, text) {
   await input.fill(text);
