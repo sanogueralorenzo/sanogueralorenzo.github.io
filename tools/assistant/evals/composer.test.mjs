@@ -9,7 +9,8 @@ let browser;
 before(async () => { browser = await chromium.launch({ channel: process.env.ASSISTANT_BROWSER_CHANNEL || "chrome" }); });
 after(async () => { await browser?.close(); });
 
-async function fixture(t, { suggestion = null, empty = false } = {}) {
+async function fixture(t, { suggestion = null, empty = false,
+  providerData = { selected: { provider: "fixture", modelId: "fixture" }, providers: [] } } = {}) {
   const listeners = new Set();
   const watchers = new Map();
   const calls = [];
@@ -25,7 +26,11 @@ async function fixture(t, { suggestion = null, empty = false } = {}) {
     snapshot: () => data,
     progress: () => [],
     subscribe: listener => { listeners.add(listener); return () => listeners.delete(listener); },
-    pi: { providers: { snapshot: async () => ({ selected: { provider: "fixture", modelId: "fixture" }, providers: [] }), subscribe: () => () => {} } },
+    pi: { providers: { snapshot: async () => providerData, subscribe: () => () => {},
+      setFastMode: async (provider, enabled) => {
+        calls.push({ provider, enabled });
+        providerData.providers.find(item => item.id === provider).fastEnabled = enabled;
+      } } },
     transcript: id => ({ messages: [{ id: `reply-${id}`, role: "assistant", text: `Reply ${id}`, replyable: true, completed: true }], streaming: "" }),
     watchConversation: async (id, send) => {
       watchers.set(id, send);
@@ -70,6 +75,39 @@ async function fixture(t, { suggestion = null, empty = false } = {}) {
 }
 
 async function clickReply(page, id = "1") { await page.locator(`[data-action="reply"][data-reply="reply-${id}"]`).click(); }
+
+test("provider lightning toggles stay independent and show compatible models", async t => {
+  const providerData = { selected: { provider: "openai", modelId: "gpt-6-luna" }, providers: [
+    { id: "openai", name: "OpenAI", connected: true, fastSupported: true, fastEnabled: false,
+      methods: [{ id: "oauth" }], models: [{ id: "gpt-6-luna", name: "GPT-6 Luna", fastSupported: true }] },
+    { id: "anthropic", name: "Anthropic", connected: true, fastSupported: true, fastEnabled: false,
+      methods: [{ id: "oauth" }], models: [{ id: "claude-opus-5-5", name: "Claude Opus 5.5", fastSupported: true },
+        { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5", fastSupported: false }] },
+    { id: "offline", name: "Offline", connected: false, fastSupported: true, fastEnabled: false,
+      methods: [{ id: "oauth" }], models: [] },
+    { id: "other", name: "Other", connected: true, fastSupported: false, fastEnabled: false,
+      methods: [{ id: "oauth" }], models: [] },
+  ] };
+  const { page, calls } = await fixture(t, { providerData });
+  await page.locator(".provider-trigger").click();
+  const openai = page.getByRole("button", { name: "OpenAI fast mode", exact: true });
+  const anthropic = page.getByRole("button", { name: "Anthropic fast mode", exact: true });
+  assert.equal(await page.getByRole("button", { name: "Offline fast mode", exact: true }).isDisabled(), true);
+  assert.equal(await page.getByRole("button", { name: "Other fast mode", exact: true }).count(), 0);
+  await openai.click();
+  await page.locator('.provider-fast[data-provider="openai"][aria-pressed="true"]:enabled').waitFor();
+  assert.equal(await anthropic.getAttribute("aria-pressed"), "false");
+  assert.equal(await openai.evaluate(button => document.activeElement === button), true);
+  await anthropic.click();
+  await page.locator('.provider-fast[data-provider="anthropic"][aria-pressed="true"]:enabled').waitFor();
+  await openai.click();
+  await page.locator('.provider-fast[data-provider="openai"][aria-pressed="false"]:enabled').waitFor();
+  assert.deepEqual(calls, [{ provider: "openai", enabled: true }, { provider: "anthropic", enabled: true }, { provider: "openai", enabled: false }]);
+  assert.deepEqual(providerData.selected, { provider: "openai", modelId: "gpt-6-luna" });
+  await page.locator('[data-action="providers-models"][data-provider="anthropic"]').click();
+  assert.equal(await page.getByRole("img", { name: "Fast mode enabled", exact: true }).count(), 1);
+  assert.equal(await page.locator('.provider-row:has([data-model="claude-sonnet-5-5"]) .model-fast').count(), 0);
+});
 async function send(page, input, text) {
   await input.fill(text);
   const response = page.waitForResponse(response => response.url().endsWith("/api/turns") && response.request().method() === "POST");

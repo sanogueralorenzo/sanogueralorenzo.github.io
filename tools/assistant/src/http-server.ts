@@ -80,6 +80,11 @@ export function createAssistantServer(app: Assistant) {
       const origin = req.headers.origin;
       if (origin && new URL(origin).host !== req.headers.host) return json(res, 403, { error: "Cross-origin request denied" });
       const request = await body(req);
+      if (url.pathname === "/api/providers/fast") {
+        if (typeof request.enabled !== "boolean") throw new Error("Choose whether fast mode is enabled");
+        await app.pi.providers.setFastMode(input(request.provider), request.enabled);
+        return json(res, 200, await app.pi.providers.snapshot());
+      }
       if (url.pathname === "/api/providers/select") {
         await app.pi.providers.select(input(request.provider), request.modelId === undefined ? undefined : input(request.modelId));
         return json(res, 200, await app.pi.providers.snapshot());

@@ -16,6 +16,7 @@ export function icon(name, size = 18) {
     trash: '<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/>',
     steer: '<path d="M5 3h14M12 21V7m-5 5 5-5 5 5"/>',
     file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
+    lightning: '<path d="m13 2-9 12h7l-1 8 10-12h-7l1-8Z"/>',
     grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
     mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>',
     pin: '<path d="m16 3 5 5-4 1-4 4-1 4-2-2-4 4"/><path d="m8 8 8 8"/>',

@@ -14,6 +14,7 @@ import { assistantText } from "./state.ts";
 import { createDelegation, delegationHooks } from "./delegation.ts";
 import { workingNotes, workingNotesSection } from "./working-notes.ts";
 import { workingDirectory, workingDirectoryHook } from "./working-directory.ts";
+import { fastModePayload } from "./fast-mode.ts";
 
 const json = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
@@ -54,7 +55,7 @@ export function roleExtension(role: AgentRole, extraTools: ToolRegistration[] = 
     }, { tag: false }), ...(role !== "router" ? [workingNotesSection] : [])] });
 }
 
-export function providerModels(runtime: Models): Models {
+export function providerModels(runtime: Models, fastEnabled: (provider: string) => boolean = () => false): Models {
   const maxWorkRequests = 8;
   const active = new Set<Promise<void>>();
   return new Proxy(runtime, { get(target, key) {
@@ -90,9 +91,9 @@ export function providerModels(runtime: Models): Models {
                 const value = request as Record<string, unknown>;
                 const search = !routing;
                 const tools = (Array.isArray(value.tools) ? value.tools : []).filter(tool => tool?.type !== "web_search");
-                request = { ...value, service_tier: "priority", tools: [...tools, ...(search ? [{ type: "web_search" }] : [])] };
+                request = { ...value, tools: [...tools, ...(search ? [{ type: "web_search" }] : [])] };
               }
-              return request;
+              return fastModePayload(model, request, fastEnabled(model.provider));
             },
           });
         } finally { active.delete(occupied); release(); }
@@ -126,7 +127,7 @@ export class PiService {
     const runtime = options.models || await assistantModels(dataDir);
     const providers = new Providers(dataDir, runtime);
     let service: PiService | undefined;
-    const models = providerModels(runtime);
+    const models = providerModels(runtime, provider => providers.fastEnabled(provider));
     const computers = new Map<number, ComputerUseClient>();
     const computer = new ComputerUseClient().tool();
     const computerTool = defineTool({ ...computer,

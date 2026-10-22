@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { AuthEvent, AuthInteraction, AuthPrompt, AuthType, Models } from "@earendil-works/pi-ai";
 import { ModelRuntime, SettingsManager } from "@earendil-works/pi-coding-agent";
 import type { ModelRef } from "@earendil-works/pi-durable";
+import { supportsFastMode } from "./fast-mode.ts";
 
 export const defaultModel: ModelRef = { provider: "openai-codex", modelId: "gpt-6-luna" };
 const preferredModels: Record<string, string> = { "openai-codex": defaultModel.modelId, anthropic: "claude-sonnet-5-5" };
@@ -21,13 +22,16 @@ type LoginPrompt = { id: string; type: AuthPrompt["type"]; message: string; plac
 type Login = { id: string; provider: string; status: "pending" | "done" | "failed" | "cancelled";
   message?: string; url?: string; userCode?: string; prompt?: LoginPrompt };
 type ProviderInfo = { id: string; name: string; cloud: boolean; defaultModel: string;
-  methods: { id: AuthType; label: string }[]; models: { id: string; name: string }[] };
+  fastSupported: boolean; fastEnabled: boolean;
+  methods: { id: AuthType; label: string }[]; models: { id: string; name: string; fastSupported: boolean }[] };
 export type ProviderSnapshot = { selected: ModelRef; providers: (ProviderInfo & { connected: boolean; canLogout: boolean })[]; login?: Login };
 
 export class Providers {
   readonly models: Models;
   private selected: ModelRef;
   private readonly path: string;
+  private readonly fastPath: string;
+  private fast: Record<string, boolean>;
   private readonly settings: SettingsManager;
   private login?: Login;
   private controller?: AbortController;
@@ -38,11 +42,25 @@ export class Providers {
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
     this.models = models;
     this.path = join(dataDir, "provider.json");
+    this.fastPath = join(dataDir, "fast-mode.json");
+    this.fast = existsSync(this.fastPath) ? JSON.parse(readFileSync(this.fastPath, "utf8")) : {};
     this.settings = SettingsManager.create(dataDir, dataDir, { projectTrusted: false });
     this.selected = existsSync(this.path) ? JSON.parse(readFileSync(this.path, "utf8")) as ModelRef : { ...defaultModel };
     if (existsSync(this.path)) this.validate(this.selected.provider, this.selected.modelId);
   }
   get model(): ModelRef { return { ...this.selected }; }
+  fastEnabled(provider: string): boolean { return this.fast[provider] === true; }
+  async setFastMode(provider: string, enabled: boolean) {
+    const definition = this.definition(provider);
+    if (!definition.fastSupported) throw new Error("This provider has no models that support fast mode");
+    if (!await this.models.checkAuth(provider)) throw new Error(`Connect ${definition.name} first`);
+    const fast = { ...this.fast, [provider]: enabled };
+    const temporary = `${this.fastPath}.${randomUUID()}.tmp`;
+    writeFileSync(temporary, JSON.stringify(fast), { mode: 0o600 });
+    renameSync(temporary, this.fastPath);
+    this.fast = fast;
+    this.changed();
+  }
   subscribe(listener: () => void) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   private changed() { for (const listener of this.listeners) listener(); }
   private catalog(): ProviderInfo[] {
@@ -54,8 +72,9 @@ export class Providers {
       if (provider.auth.oauth?.login) methods.push({ id: "oauth", label: "Sign in" });
       if (provider.auth.apiKey?.login) methods.push({ id: "api_key", label: cloud ? "Cloud setup" : "API key" });
       return [{ id: provider.id, name: provider.name, cloud, methods,
+        fastSupported: catalog.some(supportsFastMode), fastEnabled: this.fastEnabled(provider.id),
         defaultModel: catalog.find(model => model.id === preferredModels[provider.id])?.id || catalog[0].id,
-        models: catalog.map(model => ({ id: model.id, name: model.name })).sort((a, b) => a.name.localeCompare(b.name)) }];
+        models: catalog.map(model => ({ id: model.id, name: model.name, fastSupported: supportsFastMode(model) })).sort((a, b) => a.name.localeCompare(b.name)) }];
     }).sort((a, b) => a.name.localeCompare(b.name));
   }
   private definition(provider: string) {

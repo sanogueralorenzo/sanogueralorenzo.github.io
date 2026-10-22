@@ -3,6 +3,7 @@ import type { DatabaseSync } from "node:sqlite";
 import type { Models } from "@earendil-works/pi-ai";
 import type { ModelRef } from "@earendil-works/pi-durable";
 import { defaultModel } from "./providers.ts";
+import { fastModePayload } from "./fast-mode.ts";
 
 const systemPrompt = readFileSync(new URL("../prompts/suggestion.md", import.meta.url), "utf8");
 type Message = { role: string; text: string };
@@ -11,11 +12,14 @@ export class PromptSuggestions {
   private readonly runtime: Promise<Models>;
   private readonly db: DatabaseSync;
   private readonly model: (sessionId: string) => ModelRef | Promise<ModelRef>;
+  private readonly fastEnabled: (provider: string) => boolean;
   private readonly pending = new Map<string, Promise<string | null>>();
-  constructor(runtime: Promise<Models>, db: DatabaseSync, model: (sessionId: string) => ModelRef | Promise<ModelRef> = () => defaultModel) {
+  constructor(runtime: Promise<Models>, db: DatabaseSync, model: (sessionId: string) => ModelRef | Promise<ModelRef> = () => defaultModel,
+    fastEnabled: (provider: string) => boolean = () => false) {
     this.runtime = runtime;
     this.db = db;
     this.model = model;
+    this.fastEnabled = fastEnabled;
     db.exec("CREATE TABLE IF NOT EXISTS suggestions (session_id TEXT NOT NULL, reply_id TEXT NOT NULL, text TEXT, PRIMARY KEY (session_id, reply_id))");
   }
 
@@ -48,11 +52,11 @@ export class PromptSuggestions {
       // Omitting Pi's thinking level maps to native effort "none"; verify the provider payload below.
       transport: "sse", maxRetries: 0, signal,
       onPayload: (payload) => {
-        if (selected.provider !== "openai-codex") return payload;
-        if (typeof payload !== "object" || payload === null || Array.isArray(payload)) throw new Error("Unexpected suggestion payload");
-        const request = { ...payload as Record<string, unknown>, service_tier: "priority" };
-        const reasoning = (request as Record<string, unknown>).reasoning as { effort?: unknown } | undefined;
-        if (reasoning?.effort !== "none") throw new Error("Suggestions require no reasoning");
+        const request = fastModePayload(model, payload, this.fastEnabled(selected.provider));
+        if (selected.provider === "openai-codex") {
+          const reasoning = (request as Record<string, unknown>).reasoning as { effort?: unknown } | undefined;
+          if (reasoning?.effort !== "none") throw new Error("Suggestions require no reasoning");
+        }
         return request;
       },
     });

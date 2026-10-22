@@ -38,7 +38,7 @@ export class Assistant {
       if (!record) return pi.model;
       const conversation = await pi.harness.conversation(record.conversationId as ConversationId, BACKGROUND_CONTEXT);
       return (await conversation!.agent(BACKGROUND_CONTEXT)).model || pi.model;
-    });
+    }, provider => pi.providers.fastEnabled(provider));
   }
   static async open(dataDir: string, cwd: string, options: PiOptions = {}) {
     let app!: Assistant;

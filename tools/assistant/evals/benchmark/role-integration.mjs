@@ -151,7 +151,7 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
       },
     })] });
     const registry = createRegistry(); registry.install(extension); registry.install(boundary);
-    const harness = await Harness.open(new MemoryStorage(), { models: providerModels(observed), registry, settings: { toolExecution: "sequential", retry: { enabled: false } } }, BACKGROUND_CONTEXT);
+    const harness = await Harness.open(new MemoryStorage(), { models: providerModels(observed, () => true), registry, settings: { toolExecution: "sequential", retry: { enabled: false } } }, BACKGROUND_CONTEXT);
     const conversation = await harness.root(BACKGROUND_CONTEXT, { agent: {
       model: { provider: model.provider, modelId: model.id }, cwd, thinkingLevel: variant.effort, extensions: [extension, boundary],
       ...(role === "worker" && { tools: extension.tools.filter(tool => ["read", "grep", "find", "ls"].includes(tool.name)) }),
