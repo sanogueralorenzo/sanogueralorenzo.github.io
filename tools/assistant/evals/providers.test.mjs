@@ -85,7 +85,7 @@ test("fast preferences persist independently and require a connected provider", 
   await assert.rejects(offline.setFastMode("anthropic", true), /Connect Anthropic first/);
 });
 
-test("native search preserves client tools, skips Home routing, and stays out of suggestions", async t => {
+test("native search preserves client tools, skips routing and admission, and stays out of suggestions", async t => {
   const models = runtime();
   const wrapped = providerModels(models);
   const requests = [];
@@ -93,14 +93,14 @@ test("native search preserves client tools, skips Home routing, and stays out of
   for (const [provider, id] of [["openai", "gpt-6-luna"], ["xai", "grok-4.7"],
     ["anthropic", "claude-sonnet-5-5"], ["google", "gemini-3.8-flash"]]) {
     const selected = models.getModel(provider, id);
-    const send = async routing => {
+    const send = async toolName => {
       await wrapped.streamSimple(selected, {
         messages: [{ role: "user", content: "Look up tomorrow's weather", timestamp: 0 }],
-        tools: [{ name: routing ? "route_home" : "read", description: "Fixture", parameters: { type: "object", properties: {} } }],
+        tools: [{ name: toolName, description: "Fixture", parameters: { type: "object", properties: {} } }],
       }, { maxRetries: 0 }).result();
       return requests.at(-1).body;
     };
-    const request = await send(false);
+    const request = await send("read");
     if (provider === "google") {
       assert.equal(request.tools.filter(tool => tool.googleSearch).length, 1);
       assert.equal(request.tools.flatMap(tool => tool.functionDeclarations || []).some(tool => tool.name === "read"), true);
@@ -109,8 +109,10 @@ test("native search preserves client tools, skips Home routing, and stays out of
       assert.equal(request.tools.some(tool => tool.name === "read"), true);
       if (provider === "anthropic") assert.equal(request.tools.find(tool => tool.name === "web_search").type, "web_search_20250305");
     }
-    const routing = await send(true);
-    assert.ok(!(routing.tools || []).some(tool => tool.googleSearch || tool.type?.startsWith("web_search")));
+    for (const name of ["route_home", "admit_message"]) {
+      const routing = await send(name);
+      assert.ok(!(routing.tools || []).some(tool => tool.googleSearch || tool.type?.startsWith("web_search")));
+    }
   }
 });
 

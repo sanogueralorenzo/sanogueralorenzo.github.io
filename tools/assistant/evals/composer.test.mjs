@@ -252,8 +252,25 @@ test("minimal landing stays static and keeps the composer mounted when work star
 test("UI progress excludes tool activity and private reasoning", () => {
   const message = { role: "assistant", content: [{ type: "thinking", thinking: "Private reasoning" }, { type: "toolCall", name: "bash", arguments: { command: "secret" } }] };
   const app = { snapshot: () => ({ turns: [{ status: "running", sessionId: "1", sourceId: "request-1" }] }),
-    state: { home: { sessions: [{ id: "1", conversationId: 1 }] }, live: () => ({ generation: { message }, tools: [{ name: "bash", status: "running" }] }) } };
+    state: { home: { messages: [], sessions: [{ id: "1", conversationId: 1 }] }, live: () => ({ generation: { message }, tools: [{ name: "bash", status: "running" }] }) } };
   assert.deepEqual(Assistant.prototype.progress.call(app), []);
   message.content.push({ type: "text", text: "Checking the result" });
   assert.deepEqual(Assistant.prototype.progress.call(app), [{ type: "progress", sourceId: "request-1", text: "Checking the result" }]);
+});
+
+test("task dependencies name the prerequisite and concurrent progress stays tied to its request", async t => {
+  const { page, data, snapshot, emit } = await fixture(t);
+  data.sessions[0].status = "running";
+  data.turns.push({ id: "request-1", sourceId: "request-1", sessionId: "1", text: "Request 1", status: "running" },
+    { id: "queued", sourceId: "queued", sessionId: "1", text: "Dependent question", status: "queued", dependsOn: ["request-1"] });
+  data.messages.push({ id: "queued", entryId: "entry-1", text: "Dependent question", createdAt: "2026-01-02T00:00:00.000Z", status: "routed" });
+  snapshot();
+  await page.locator('.activity-pill[data-source="queued"]').waitFor();
+  assert.match(await page.locator('.activity-pill[data-source="queued"]').getAttribute("title"), /Waiting for: Request 1/);
+  await page.locator('.home-update[data-session="1"]').click();
+  await page.getByRole("region", { name: "Queued messages" }).waitFor();
+  assert.match(await page.locator(".queued-row").innerText(), /Waiting for: Request 1/);
+  emit({ type: "progress", sourceId: "request-1", text: "Checking the weather" });
+  await page.getByText("Checking the weather", { exact: true }).waitFor();
+  assert.equal(await page.locator(".assistant-bubble").filter({ hasText: "Checking the weather" }).locator(".message-context").innerText(), "Request 1");
 });

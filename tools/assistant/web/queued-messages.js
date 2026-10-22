@@ -11,7 +11,7 @@ export function createQueuedMessages({ state, api, render, composer }) {
   }
   function html() {
     const turns = state.data.turns.filter((turn) => turn.sessionId === state.selected && turn.status === "queued");
-    return turns.length ? `<section class="queued-card" aria-label="Queued messages"><h2>Queued follow-ups</h2>${turns.map((turn) => `<div class="queued-row"><span>${state.data.messages.find((message) => message.id === turn.sourceId)?.reaction ? "👍 Go ahead" : escapeHTML(turn.text)}</span>${controls(turn)}</div>`).join("")}</section>` : "";
+    return turns.length ? `<section class="queued-card" aria-label="Queued messages"><h2>Queued follow-ups</h2>${turns.map((turn) => `<div class="queued-row"><span>${state.data.messages.find((message) => message.id === turn.sourceId)?.reaction ? "👍 Go ahead" : escapeHTML(turn.text)}${turn.dependsOn?.length ? `<small>Waiting for: ${turn.dependsOn.map(id => escapeHTML(state.data.messages.find(message => message.id === id)?.text || "earlier task")).join("; ")}</small>` : ""}</span>${controls(turn)}</div>`).join("")}</section>` : "";
   }
   async function handleClick(button) {
     const action = button.dataset.action;

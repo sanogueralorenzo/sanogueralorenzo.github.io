@@ -20,7 +20,7 @@ import { nativeSearchPayload, NativeSearchSources } from "./native-search.ts";
 const json = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
 function nativeTools(role: AgentRole, cwd: string): ToolRegistration[] {
-  const tools = role === "worker" ? [...createCodingTools(cwd), ...createReadOnlyTools(cwd).filter((tool) => tool.name !== "read")]
+  const tools = role === "admission" ? [] : role === "worker" ? [...createCodingTools(cwd), ...createReadOnlyTools(cwd).filter((tool) => tool.name !== "read")]
     : createReadOnlyTools(cwd);
   return tools.map((tool) => defineTool({ name: tool.name, description: tool.description, parameters: tool.parameters,
     replay: tool.name === "read" || ["grep", "find", "ls"].includes(tool.name) ? "safe" : "unsafe",
@@ -42,8 +42,8 @@ export function roleExtension(role: AgentRole, extraTools: ToolRegistration[] = 
     execute: async (args, api, context) => {
       const cwd = (await api.agent(context)).cwd || process.cwd();
       return nativeTools(role, cwd).find((native) => native.name === tool.name)!.execute(args, api, context);
-    } })), ...extraTools, ...(role !== "router" ? [workingNotes, workingDirectory] : [])];
-  return defineExtension({ name: `assistant-${role}`, tools, hooks: role !== "router" ? [workingDirectoryHook, ...delegationHooks] : [], sections: [section("assistant", async ({ agent, conversationId }) => {
+    } })), ...extraTools, ...(!["router", "admission"].includes(role) ? [workingNotes, workingDirectory] : [])];
+  return defineExtension({ name: `assistant-${role}`, tools, hooks: !["router", "admission"].includes(role) ? [workingDirectoryHook, ...delegationHooks] : [], sections: [section("assistant", async ({ agent, conversationId }) => {
       const cwd = agent.cwd || process.cwd();
       let resource = resources.get(conversationId);
       if (!resource || resource.cwd !== cwd) {
@@ -53,7 +53,7 @@ export function roleExtension(role: AgentRole, extraTools: ToolRegistration[] = 
       const { loader } = resource;
       const files = loader.getAgentsFiles().agentsFiles.map((file) => `Project instructions (${file.path}):\n${file.content}`);
       return [loader.getSystemPrompt(), `Working directory: ${cwd}`, ...files, formatSkillsForPrompt(loader.getSkills().skills)].filter(Boolean).join("\n\n");
-    }, { tag: false }), ...(role !== "router" ? [workingNotesSection] : [])] });
+    }, { tag: false }), ...(!["router", "admission"].includes(role) ? [workingNotesSection] : [])] });
 }
 
 export function providerModels(runtime: Models, fastEnabled: (provider: string) => boolean = () => false): Models {
@@ -66,8 +66,8 @@ export function providerModels(runtime: Models, fastEnabled: (provider: string) 
     }
     return (model: Model<Api>, transcript: Context, options: ModelsSimpleStreamOptions = {}) => lazyStream(model, async () => {
       const tools = transcript.tools || transcript.messages.flatMap((message) => message.role === "system" ? message.toolsAdded || [] : []);
-      const routing = tools.some((tool) => tool.name === "route_home");
-      // Reserve one additional inference slot for Home routing.
+      const routing = tools.some((tool) => ["route_home", "admit_message"].includes(tool.name));
+      // Reserve one additional inference slot for routing and message admission.
       while (active.size >= (routing ? maxWorkRequests + 1 : maxWorkRequests)) {
         options.signal?.throwIfAborted();
         await new Promise<void>((resolve, reject) => {
@@ -141,7 +141,7 @@ export class PiService {
       } });
     let roles: Record<AgentRole, Extension>;
     const delegation = createDelegation(() => roles.worker, () => service!.harness);
-    roles = { router: roleExtension("router"),
+    roles = { router: roleExtension("router"), admission: roleExtension("admission"),
       coordinator: roleExtension("coordinator", delegation),
       worker: roleExtension("worker", [...delegation, computerTool]) };
     const registry = createRegistry();
@@ -153,8 +153,8 @@ export class PiService {
     return service;
   }
   get model(): ModelRef { return this.fixedModel || this.providers.model; }
-  agent(role: AgentRole, cwd: string) { return { model: this.model, thinkingLevel: role === "router" ? "low" as const : "high" as const, cwd, extensions: [this.roles[role]] }; }
-  async utility(role: "router", input: string, cwd: string, customTools: ToolRegistration[] = [], acceptedResult?: () => string | undefined) {
+  agent(role: AgentRole, cwd: string) { return { model: this.model, thinkingLevel: ["router", "admission"].includes(role) ? "low" as const : "high" as const, cwd, extensions: [this.roles[role]] }; }
+  async utility(role: "router" | "admission", input: string, cwd: string, customTools: ToolRegistration[] = [], acceptedResult?: () => string | undefined) {
     const tools = customTools.map((tool) => defineTool({ name: tool.name, description: tool.description, parameters: tool.parameters,
       execute: async (args, api, context) => {
         const result = await tool.execute(args, api, context);

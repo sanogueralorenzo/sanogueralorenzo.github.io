@@ -3,15 +3,15 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { defineDoc, watchEvents, type AgentEventStream, type ConversationId, type ConversationView, type DocumentState, type EntryRecord, type Harness, type LiveState, type TaskRecord, type TaskId, type SubmissionRecord, type Tx } from "@earendil-works/pi-durable";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 
-export type EntryStatus = "routing" | "queued" | "working" | "ready" | "failed" | "interrupted";
+export type EntryStatus = "routing" | "queued" | "working" | "ready" | "failed" | "interrupted" | "cancelled";
 export type HomeMessage = { id: string; text: string; createdAt: string; entryId: string | null; replyToId?: string; editOfId?: string; reaction?: "thumbs-up";
-  status: "routing" | "routed" | "failed"; submissionId?: number; taskId?: number; requestId?: string; mode?: "followUp" | "steer"; prompt?: string; error?: string };
+  status: "routing" | "routed" | "failed"; submissionId?: number; taskId?: number; requestId?: string; mode?: "followUp" | "steer"; prompt?: string; error?: string; withdrawn?: boolean; replacedBy?: string; workTaskId?: number; waitForRunId?: number; executionId?: number; dependsOn?: string[] };
 export type Update = { id: string; text: string; kind: "progress" | "result" | "error"; sourceId?: string; quoteSource?: boolean; createdAt: string };
 type SavedEntry = { id: string; sourceId: string; title: string; sessionId: string | null; createdAt: string; updatedAt: string };
 export type HomeEntry = SavedEntry & { status: EntryStatus; interruptedText?: string; interruptedSourceId?: string; updates: Update[] };
 type SavedSession = { id: string; conversationId: number; title: string; cwd: string; paused: boolean; createdAt: string };
 export type SessionRecord = SavedSession & { status: "idle" | "running" | "interrupted" };
-export type Turn = { id: string; sessionId: string; entryId: string | null; sourceId?: string; replyToId?: string; text: string; status: "queued" | "running"; createdAt: string };
+export type Turn = { id: string; sessionId: string; entryId: string | null; sourceId?: string; replyToId?: string; text: string; status: "queued" | "running"; createdAt: string; dependsOn?: string[] };
 export type Data = { messages: HomeMessage[]; entries: HomeEntry[]; sessions: SessionRecord[]; turns: Turn[] };
 export type HomeData = { messages: HomeMessage[]; entries: SavedEntry[]; sessions: SavedSession[]; lastDispatchTaskId?: number };
 export const HomeDoc = defineDoc<HomeData>({ kind: "assistant.home", version: 1, scope: "session", initial: () => ({ messages: [], entries: [], sessions: [] }) });
@@ -26,7 +26,7 @@ export class State {
   private homeState!: DocumentState<HomeData>;
   private readonly views = new Map<number, AttachedReplicatedState<ConversationView>>();
   private readonly observing = new Map<number, Promise<void>>();
-  private readonly streams: AgentEventStream[] = [];
+  private readonly streams = new Map<number, AgentEventStream>();
   private readonly submissions = new Map<number, SubmissionRecord>();
   // Home results survive context resets and compaction; the active transcript belongs to Pi's view.
   private readonly answers = new Map<number, EntryRecord>();
@@ -63,8 +63,8 @@ export class State {
             }
           }
         }
-        if (message.taskId !== undefined) {
-          const task = await tx.task(message.taskId as TaskId);
+        for (const id of [message.taskId, message.workTaskId]) if (id !== undefined) {
+          const task = await tx.task(id as TaskId);
           if (task) this.recordFailure(task);
         }
       }
@@ -79,7 +79,7 @@ export class State {
         this.views.set(conversationId, view);
         view.subscribe(() => this.invalidate());
         const stream = await watchEvents(this.harness, conversation.id, BACKGROUND_CONTEXT);
-        this.streams.push(stream);
+        this.streams.set(conversationId, stream);
         stream.start(async (events) => {
           let changed = false;
           for (const event of events) {
@@ -116,9 +116,18 @@ export class State {
     else return false;
     return true;
   }
+  async forget(conversationId: number) {
+    await this.observing.get(conversationId);
+    await this.streams.get(conversationId)?.stop();
+    this.streams.delete(conversationId);
+    this.views.get(conversationId)?.dispose();
+    this.views.delete(conversationId);
+    this.observing.delete(conversationId);
+    this.invalidate();
+  }
   async close() {
     await Promise.allSettled(this.observing.values());
-    await Promise.all(this.streams.map((stream) => stream.stop()));
+    await Promise.all([...this.streams.values()].map(stream => stream.stop()));
     for (const view of this.views.values()) view.dispose();
     this.homeState.dispose();
   }
@@ -134,7 +143,8 @@ export class State {
   get data(): Data {
     if (this.projection) return this.projection;
     const sessions = this.home.sessions.map((session): SessionRecord => ({ ...session,
-      status: session.paused ? "interrupted" : this.live(session.conversationId)?.run ? "running" : "idle" }));
+      status: session.paused ? "interrupted" : this.live(session.conversationId)?.run || this.home.messages.some(message =>
+        this.home.entries.find(entry => entry.id === message.entryId)?.sessionId === session.id && ["queued", "placed"].includes(this.submissionFor(message)?.status || "")) ? "running" : "idle" }));
     const turns: Turn[] = [];
     const entries = this.home.entries.map((entry): HomeEntry => {
       const messages = this.home.messages.filter((message) => message.entryId === entry.id);
@@ -143,11 +153,13 @@ export class State {
       let interrupted: HomeMessage | undefined;
       for (const message of messages) {
         const submission = this.submissionFor(message);
-        const error = message.error || (message.taskId !== undefined ? this.failures.get(message.taskId) : undefined);
-        if (submission?.status === "queued" || submission?.status === "placed") {
+        const error = message.error || (message.workTaskId !== undefined ? this.failures.get(message.workTaskId) : undefined) || (message.taskId !== undefined ? this.failures.get(message.taskId) : undefined);
+        if (message.replacedBy && !submission) {
+          status = "cancelled";
+        } else if (submission?.status === "queued" || submission?.status === "placed") {
           status = submission.status === "queued" ? "queued" : "working";
           turns.push({ id: message.id, sessionId: entry.sessionId!, entryId: entry.id, sourceId: message.id, replyToId: message.replyToId,
-            text: message.text, status: submission.status === "queued" ? "queued" : "running", createdAt: message.createdAt });
+            dependsOn: message.dependsOn, text: message.text, status: submission.status === "queued" ? "queued" : "running", createdAt: message.createdAt });
         } else if (submission?.status === "done" && submission.type === "input") {
           status = "ready";
           const answer = this.answers.get(submission.answer);
@@ -158,6 +170,8 @@ export class State {
             status = "failed";
             updates.set(`error-${message.id}`, { id: `error-${message.id}`, text: "Agent returned no final reply", kind: "error", sourceId: message.id, createdAt: message.createdAt });
           }
+        } else if (submission?.status === "unanswered" && submission.reason === "superseded") {
+          status = "cancelled";
         } else if (submission?.status === "unanswered" || error) {
           interrupted = submission?.status === "unanswered" && submission.reason === "aborted" ? message : undefined;
           status = interrupted ? "interrupted" : "failed";
@@ -166,7 +180,7 @@ export class State {
         } else if (message.status === "routed") {
           status = "queued";
           turns.push({ id: message.id, sessionId: entry.sessionId!, entryId: entry.id, sourceId: message.id, replyToId: message.replyToId,
-            text: message.text, status: "queued", createdAt: message.createdAt });
+            dependsOn: message.dependsOn, text: message.text, status: "queued", createdAt: message.createdAt });
         }
       }
       const values = [...updates.values()];
@@ -183,9 +197,12 @@ export class State {
     return ((view || this.view(record.conversationId))?.entries || []).flatMap((entry) => {
       const message = entry.model?.[0];
       if (!message || (message.role !== "user" && message.role !== "assistant")) return [];
+      const sourceId = entry.kind === "assistant.result" && entry.data && typeof entry.data === "object" && !Array.isArray(entry.data) ? entry.data.sourceId : undefined;
+      const source = typeof sourceId === "string" ? this.home.messages.find(item => item.id === sourceId) : undefined;
       const text = message.role === "assistant" ? assistantText(message) : messageText(message);
       return text.trim() ? [{ id: String(entry.id), role: message.role, text, replyable: message.role === "assistant" && message.stopReason !== "toolUse",
-        completed: message.role === "assistant" && message.stopReason === "stop", ...(reactions.has(entry.id) && { reaction: "thumbs-up" as const }) }] : [];
+        completed: message.role === "assistant" && message.stopReason === "stop",
+        ...(source && { request: source.text }), ...(reactions.has(entry.id) && { reaction: "thumbs-up" as const }) }] : [];
     });
   }
 }

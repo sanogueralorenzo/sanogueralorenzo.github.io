@@ -26,6 +26,7 @@ async function api(path, method = "GET", body) {
   return result;
 }
 function messageStatus(message, entry) {
+  if (message.replacedBy) return "cancelled";
   const turn = state.data.turns.find((item) => item.sourceId === message.id);
   if (turn) return turn.status === "running" ? "working" : "queued";
   if (entry?.status === "interrupted" && (entry.interruptedSourceId || entry.sourceId) === message.id) return "interrupted";
@@ -40,15 +41,17 @@ function activityPill(message, entry, className = "", showConversation = true) {
   const progress = state.liveProgress[message.id];
   const status = messageStatus(message, entry);
   const title = entry.title;
-  const detail = ({ queued: "Queued", working: progress?.replace(/\s+/g, " ").trim() || "Working…",
-    ready: "", failed: "Failed", interrupted: "Continue" })[status] || "";
+  const dependencies = state.data.turns.find(turn => turn.id === message.id)?.dependsOn || [];
+  const waiting = dependencies.map(id => state.data.messages.find(item => item.id === id)?.text).filter(Boolean);
+  const detail = ({ queued: waiting.length ? `Waiting for: ${waiting.join("; ")}` : "Queued", working: progress?.replace(/\s+/g, " ").trim() || "Working…",
+    ready: "", failed: "Failed", interrupted: "Continue", cancelled: "Cancelled" })[status] || "";
   if (!showConversation && status === "ready") return "";
   const symbol = ["queued", "working"].includes(status) ? '<i class="spinner"></i>'
-    : status === "ready" ? icon("check", 14) : status === "interrupted" ? "⏸" : "⚠";
+    : status === "cancelled" ? "■" : status === "ready" ? icon("check", 14) : status === "interrupted" ? "⏸" : "⚠";
   const action = status === "interrupted" ? `data-action="resume" data-entry="${escapeHTML(entry.id)}"`
     : `data-action="open" data-session="${escapeHTML(entry.sessionId)}"`;
   return `<button type="button" class="activity-pill ${className}" data-source="${escapeHTML(message.id)}" data-status="${escapeHTML(status)}" ${action}
-    aria-label="${escapeHTML(`${title}${detail ? `, ${detail}` : ""}`)}" title="${escapeHTML(title)}"><span class="pill-symbol" aria-hidden="true">${symbol}</span>${showConversation ? `<strong class="pill-title">${escapeHTML(title)}</strong>` : ""}${detail ? `<span class="pill-detail">${escapeHTML(detail)}</span>` : ""}</button>`;
+    aria-label="${escapeHTML(`${title}${detail ? `, ${detail}` : ""}`)}" title="${escapeHTML([title, detail].filter(Boolean).join(" · "))}"><span class="pill-symbol" aria-hidden="true">${symbol}</span>${showConversation ? `<strong class="pill-title">${escapeHTML(title)}</strong>` : ""}${detail ? `<span class="pill-detail">${escapeHTML(detail)}</span>` : ""}</button>`;
 }
 function homeRequest(message, entry, showConversation) {
   const turn = state.data.turns.find((item) => item.sourceId === message.id && item.status === "queued");
@@ -93,7 +96,9 @@ function sessionView() {
   const record = state.data.sessions.find((item) => item.id === state.selected);
   const messages = state.transcript.length ? state.transcript.filter((message) => !message.reaction).map((message) => renderMessage(message,
     message.role === "assistant" && message.replyable ? actions.replyActions(message.id, state.selected) : "")).join("") : `<div class="empty-session"><span class="brand-mark">✳</span><p>How can I help?</p></div>`;
-  return `<main class="session-scroll scroll-area"><div class="transcript">${messages}${state.streaming ? renderMessage({ role: "assistant", text: state.streaming }) : ""}</div></main>${record?.status === "running" ? `<div class="activity-line"><i class="spinner"></i><span>Working…</span></div>` : ""}${record?.status === "interrupted" ? `<div class="activity-line">⏸️ Stopped. Return to Home to continue.</div>` : ""}`;
+  const progress = state.data.turns.filter(turn => turn.sessionId === state.selected && turn.status === "running" && state.liveProgress[turn.sourceId])
+    .map(turn => renderMessage({ role: "assistant", request: turn.text, text: state.liveProgress[turn.sourceId] })).join("");
+  return `<main class="session-scroll scroll-area"><div class="transcript">${messages}${progress || (state.streaming ? renderMessage({ role: "assistant", text: state.streaming }) : "")}</div></main>${record?.status === "running" ? `<div class="activity-line"><i class="spinner"></i><span>Working…</span></div>` : ""}${record?.status === "interrupted" ? `<div class="activity-line">⏸️ Stopped. Return to Home to continue.</div>` : ""}`;
 }
 function render() {
   const old = root.querySelector(".scroll-area");
@@ -199,6 +204,7 @@ function connect() {
     }
     if (event.type === "progress") {
       state.liveProgress[event.sourceId] = event.text;
+      if (state.selected !== "home" && state.data.turns.some(turn => turn.sourceId === event.sourceId && turn.sessionId === state.selected)) render();
       if (state.selected === "home") {
         const pill = [...root.querySelectorAll(".activity-pill")].find((item) => item.dataset.source === event.sourceId);
         if (pill?.dataset.status === "working") {

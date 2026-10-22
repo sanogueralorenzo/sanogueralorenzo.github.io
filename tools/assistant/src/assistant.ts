@@ -4,12 +4,12 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { configure, defineTask, GenerationTask, InboxDoc, LiveDoc, UserEntry, type ConversationId, type ConversationView, type LiveState, type SubmissionId, type TaskId } from "@earendil-works/pi-durable";
+import { configure, defineTask, type ConversationId, type ConversationView, type SubmissionId, type TaskId } from "@earendil-works/pi-durable";
 import { PiService, type PiOptions } from "./pi.ts";
 import { HomeRouter, type Route } from "./home-routing.ts";
 import { HomeDoc, State, now, assistantText, type HomeMessage, type Turn } from "./state.ts";
 import { PromptSuggestions } from "./prompt-suggestions.ts";
-import { cancelDelegations } from "./delegation.ts";
+import { admitMessage, requestTask, enqueueRequest, cancelRequest, requestsInSession } from "./request-tasks.ts";
 
 type DispatchState = { phase: "route" } | { phase: "create"; route: Route } | { phase: "admit"; sessionId: string };
 const clean = (text: string) => text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
@@ -25,13 +25,14 @@ export class Assistant {
   readonly router: HomeRouter;
   readonly suggestions: PromptSuggestions;
   private readonly db: DatabaseSync;
+  readonly work: ReturnType<typeof requestTask>;
   private readonly dispatch: ReturnType<typeof Assistant.dispatchTask>;
   private readonly rootId: ConversationId;
   private readonly listeners = new Set<(event: unknown) => void>();
   private readonly finished = new Set<string>();
   private closing?: Promise<void>;
-  private constructor(dataDir: string, cwd: string, pi: PiService, db: DatabaseSync, dispatch: ReturnType<typeof Assistant.dispatchTask>, rootId: ConversationId) {
-    this.dataDir = dataDir; this.cwd = cwd; this.pi = pi; this.db = db; this.dispatch = dispatch; this.rootId = rootId;
+  private constructor(dataDir: string, cwd: string, pi: PiService, db: DatabaseSync, dispatch: ReturnType<typeof Assistant.dispatchTask>, work: ReturnType<typeof requestTask>, rootId: ConversationId) {
+    this.dataDir = dataDir; this.cwd = cwd; this.pi = pi; this.db = db; this.dispatch = dispatch; this.work = work; this.rootId = rootId;
     this.state = new State(pi.harness); this.router = new HomeRouter(this.state, pi, cwd);
     this.suggestions = new PromptSuggestions(Promise.resolve(pi.models), db, async (sessionId) => {
       const record = this.state.home.sessions.find(session => session.id === sessionId);
@@ -43,19 +44,20 @@ export class Assistant {
   static async open(dataDir: string, cwd: string, options: PiOptions = {}) {
     let app!: Assistant;
     const dispatch = Assistant.dispatchTask(() => app);
-    const pi = await PiService.open(dataDir, { ...options, tasks: [...(options.tasks || []), dispatch] });
+    const work = requestTask(() => app);
+    const pi = await PiService.open(dataDir, { ...options, tasks: [...(options.tasks || []), dispatch, work] });
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
     const db = new DatabaseSync(join(dataDir, "suggestions.db"));
     try {
       const root = await pi.harness.root(BACKGROUND_CONTEXT);
-      app = new Assistant(dataDir, cwd, pi, db, dispatch, root.id);
+      app = new Assistant(dataDir, cwd, pi, db, dispatch, work, root.id);
       await app.state.load(() => app.publish());
       for (const entry of app.snapshot().entries) for (const update of entry.updates) if (update.kind === "result") app.finished.add(update.id);
-      for (const record of app.state.home.sessions) if (record.paused) {
-        const taskId = app.state.live(record.conversationId)?.run?.taskId;
-        if (taskId) await pi.harness.abortTask(taskId, BACKGROUND_CONTEXT);
-        await cancelDelegations(pi.harness, record.conversationId as ConversationId, BACKGROUND_CONTEXT);
-        if (taskId) await pi.harness.waitForTask(taskId, BACKGROUND_CONTEXT);
+      for (const record of app.state.home.sessions) {
+        for (const source of requestsInSession(app, record.id)) {
+          if (!record.paused && source.executionId !== undefined && app.snapshot().turns.some(turn => turn.sourceId === source.id)) await app.state.observe(source.executionId);
+          if (record.paused) await cancelRequest(app, source.id);
+        }
       }
       pi.harness.resume();
       return app;
@@ -117,29 +119,50 @@ export class Assistant {
           const app = getApp();
           const message = app.state.home.messages.find((item) => item.id === task.input.sourceId);
           if (!message) { await runtime.commit(() => ({ status: "terminal", outcome: { status: "completed", result: null } }), context); return; }
-          const record = app.state.home.sessions.find((item) => item.id === task.state.checkpoint.sessionId)!;
+          const sessionId = task.state.checkpoint.sessionId;
+          const record = app.state.home.sessions.find((item) => item.id === sessionId)!;
           await app.state.observe(record.conversationId);
-          const conversation = (await runtime.conversation(record.conversationId as ConversationId, context))!;
-          // Admission is deduplicated by the saved request ID if the process closes before the metadata commit.
-          if (record.paused) {
-            await runtime.commit(async (tx) => {
-              const existing = await tx.submissionByRequest(record.conversationId as ConversationId, message.requestId || message.id);
-              const inbox = await tx.doc(InboxDoc, record.conversationId as ConversationId);
-              const queued = existing || await tx.createSubmission({ conversationId: record.conversationId as ConversationId, type: "input", status: "queued", requestId: message.requestId || message.id });
-              if (!existing) inbox.items.push({ id: queued.id, mode: "followUp", content: message.prompt || message.text });
-              const source = (await tx.doc(HomeDoc)).messages.find((item) => item.id === task.input.sourceId);
-              if (source) { source.submissionId = queued.id; source.mode = "followUp"; }
-              return { status: "terminal", outcome: { status: "completed", result: null } };
+          try {
+            // Admission is serialized briefly; execution never holds the dispatch chain.
+            const decision = await runtime.memo<Awaited<ReturnType<typeof admitMessage>>>("admission", context)
+              ?? await runtime.memo("admission", await admitMessage(app, message, sessionId), context);
+            await runtime.commit(async tx => {
+              const home = await tx.doc(HomeDoc);
+              const source = home.messages.find(item => item.id === task.input.sourceId)!;
+              if (source.submissionId !== undefined) return undefined;
+              source.dependsOn = decision.action === "start" ? decision.dependsOn : [];
+              if (decision.action !== "start") {
+                const target = home.messages.find(item => item.id === decision.targetId)!;
+                const receipt = await tx.submissionByRequest(record.conversationId as ConversationId, target.requestId || target.id);
+                const finished = receipt?.status === "done" || receipt?.status === "unanswered";
+                if (target.workTaskId !== undefined) source.waitForRunId = target.workTaskId;
+                if (decision.action === "revise") {
+                  for (const dependent of home.messages) if (dependent.dependsOn?.includes(decision.targetId)) {
+                    const pending = await tx.submissionByRequest(record.conversationId as ConversationId, dependent.requestId || dependent.id);
+                    if (pending?.status === "queued") dependent.dependsOn = dependent.dependsOn.map(id => id === decision.targetId ? source.id : id);
+                  }
+                }
+                if (!finished) {
+                  target.replacedBy = source.id;
+                  if (target.submissionId !== undefined) tx.settleSubmission(target.submissionId as SubmissionId, { status: "unanswered", reason: "superseded", detail: "Replaced by a newer request" });
+                }
+                if (decision.action === "cancel") source.prompt = finished
+                  ? `The requested task already finished before cancellation was admitted. Explain briefly; do not claim it was cancelled. Original message: ${source.text}`
+                  : `The requested task was cancelled. Acknowledge briefly. Original message: ${source.text}`;
+              }
+              await enqueueRequest(tx, app.work, source, sessionId);
+              return undefined;
             }, context);
-            return;
+            if (decision.action !== "start") await cancelRequest(app, decision.targetId);
+            await runtime.commit(() => ({ status: "terminal", outcome: { status: "completed", result: null } }), context);
+          } catch (error) {
+            if (context.abortSignal?.aborted) throw error;
+            await runtime.commit(async tx => {
+              const source = (await tx.doc(HomeDoc)).messages.find(item => item.id === task.input.sourceId);
+              if (source) { source.status = "failed"; source.error = errorText(error); }
+              return { status: "terminal", outcome: { status: "failed", error: { message: errorText(error) } } };
+            }, context);
           }
-          const submissionId = (await conversation.submit({ type: "input", content: message.prompt || message.text,
-            requestId: message.requestId || message.id, whenBusy: message.mode || "followUp" }, context)).id;
-          await runtime.commit(async (tx) => {
-            const source = (await tx.doc(HomeDoc)).messages.find((item) => item.id === task.input.sourceId);
-            if (source) source.submissionId = submissionId;
-            return { status: "terminal", outcome: { status: "completed", result: null } };
-          }, context);
         },
       },
       abort: async (_task, runtime, context) => { await runtime.commit(() => ({ status: "terminal", outcome: { status: "aborted" } }), context); },
@@ -151,7 +174,8 @@ export class Assistant {
   progress() {
     return this.snapshot().turns.filter((turn) => turn.status === "running").flatMap((turn) => {
       const record = this.state.home.sessions.find((item) => item.id === turn.sessionId)!;
-      const text = assistantText(this.state.live(record.conversationId)?.generation?.message || {});
+      const source = this.state.home.messages.find(item => item.id === turn.sourceId);
+      const text = assistantText(this.state.live(source?.executionId ?? record.conversationId)?.generation?.message || {});
       return text ? [{ type: "progress", sourceId: turn.sourceId, text: clean(text).slice(-1200) }] : [];
     });
   }
@@ -198,17 +222,12 @@ export class Assistant {
       if (mode !== "followUp" || !replyToId || referenced?.role !== "assistant") throw new Error("React to an assistant reply");
       text = "Yes, go ahead.";
     }
-    const active = this.snapshot().turns.filter((turn) => turn.sessionId === sessionId && turn.status === "running").at(-1);
+    const running = this.snapshot().turns.filter(turn => turn.sessionId === sessionId && turn.status === "running");
+    const active = editOfId ? running.find(turn => turn.sourceId === editOfId) : running.at(-1);
     if (editOfId && (mode !== "steer" || referenced?.role !== "user" || active?.sourceId !== editOfId)) throw new Error("This message is no longer active. Use Reply for a follow-up.");
     if (editOfId && text === referenced?.text) throw new Error("Change the message before sending a revision");
-    const entryId = mode === "steer" && active ? active.entryId : referenced?.entry?.id || this.state.home.entries.filter((entry) => entry.sessionId === sessionId).at(-1)?.id || randomUUID();
+    const entryId = randomUUID();
     return this.state.change(async (home, tx) => {
-      if (editOfId) {
-        const source = home.messages.find((message) => message.id === editOfId);
-        const live = await tx.doc(LiveDoc, record.conversationId as ConversationId);
-        const submission = source && await tx.submissionByRequest(record.conversationId as ConversationId, source.requestId || source.id);
-        if (!submission || !live.run?.inputs.includes(submission.id)) throw new Error("This message is no longer active. Use Reply for a follow-up.");
-      }
       if (reaction && home.messages.some((message) => message.reaction === reaction && message.replyToId === replyToId)) return { reacted: true };
       if (home.messages.some((message) => message.id === id)) throw new Error("Request ID already exists");
       if (!home.entries.some((entry) => entry.id === entryId)) home.entries.push({ id: entryId!, sourceId: id, title: record.title, sessionId, createdAt: now(), updatedAt: now() });
@@ -222,95 +241,87 @@ export class Assistant {
     });
   }
   async dequeue(sessionId: string, turnId: string): Promise<{ turn: Turn; message: HomeMessage; removedMessageId: string }> {
-    const turn = this.snapshot().turns.find((item) => item.id === turnId && item.sessionId === sessionId && item.status === "queued");
+    const turn = this.snapshot().turns.find(item => item.id === turnId && item.sessionId === sessionId && item.status === "queued");
     if (!turn) throw new Error("This message has already started or is no longer queued.");
-    const message = this.state.home.messages.find((item) => item.id === turn.sourceId)!;
-    if (message.submissionId === undefined) {
-      if (message.taskId) { await this.pi.harness.abortTask(message.taskId as TaskId, BACKGROUND_CONTEXT); await this.pi.harness.waitForTask(message.taskId as TaskId, BACKGROUND_CONTEXT); }
-      if (this.state.home.messages.find((item) => item.id === message.id)?.submissionId !== undefined) return this.dequeue(sessionId, turnId);
+    const source = this.state.home.messages.find(item => item.id === turnId)!;
+    // Abort dispatch first so admission cannot race withdrawal.
+    if (source.taskId !== undefined) {
+      await this.pi.harness.abortTask(source.taskId as TaskId, BACKGROUND_CONTEXT);
+      await this.pi.harness.waitForTask(source.taskId as TaskId, BACKGROUND_CONTEXT);
     }
-    return this.state.change(async (home, tx) => {
-      const source = home.messages.find((item) => item.id === message.id)!;
-      if (!source) throw new Error("This message has already started or is no longer queued.");
-      const record = home.sessions.find((item) => item.id === sessionId)!;
-      const submission = await tx.submissionByRequest(record.conversationId as ConversationId, source.requestId || source.id);
-      const inbox = await tx.doc(InboxDoc, record.conversationId as ConversationId);
-      if (submission) {
-        if (submission.status !== "queued") throw new Error("This message has already started or is no longer queued.");
-        inbox.items = inbox.items.filter((item) => item.id !== submission.id);
-      }
-      home.messages = home.messages.filter((item) => item.id !== source.id);
-      for (const item of home.messages) if (item.replyToId === source.id) {
-        delete item.replyToId; item.prompt = item.text;
-        const referenced = await tx.submissionByRequest(record.conversationId as ConversationId, item.requestId || item.id);
-        const queued = inbox.items.find((queued) => queued.id === referenced?.id);
-        if (queued && queued.mode !== "write") queued.content = item.text;
-      }
-      const entry = home.entries.find((item) => item.id === source.entryId);
-      const remaining = home.messages.filter((item) => item.entryId === source.entryId);
-      if (entry && !remaining.length) home.entries = home.entries.filter((item) => item.id !== entry.id);
-      else if (entry?.sourceId === source.id && remaining[0]) entry.sourceId = remaining[0].id;
-      if (submission) tx.settleSubmission(submission.id, { status: "unanswered", reason: "aborted" });
-      return { turn, message: JSON.parse(JSON.stringify(source)) as HomeMessage, removedMessageId: source.id };
+    const message = await this.state.change(async (home, tx) => {
+      const source = home.messages.find(item => item.id === turnId)!;
+      const record = home.sessions.find(item => item.id === sessionId)!;
+      const receipt = await tx.submissionByRequest(record.conversationId as ConversationId, source.requestId || source.id);
+      if (receipt && receipt.status !== "queued") throw new Error("This message has already started or is no longer queued.");
+      source.withdrawn = true;
+      if (receipt) tx.settleSubmission(receipt.id, { status: "unanswered", reason: "withdrawn" });
+      return JSON.parse(JSON.stringify(source)) as HomeMessage;
     });
+    await cancelRequest(this, turnId);
+    await this.state.change(home => {
+      home.messages = home.messages.filter(item => item.id !== turnId);
+      for (const item of home.messages) if (item.replyToId === turnId) { delete item.replyToId; item.prompt = item.text; }
+      home.entries = home.entries.filter(item => item.id !== message.entryId);
+    });
+    return { turn, message, removedMessageId: turnId };
   }
   async steerQueued(sessionId: string, turnId: string) {
-    return this.state.change(async (home, tx) => {
-      const source = home.messages.find((item) => item.id === turnId);
-      const record = home.sessions.find((item) => item.id === sessionId);
-      if (!source || !record || home.entries.find((entry) => entry.id === source.entryId)?.sessionId !== sessionId)
-        throw new Error("This message has already started or is no longer queued.");
-      const submission = await tx.submissionByRequest(record.conversationId as ConversationId, source.requestId || source.id);
-      if (submission && submission.status !== "queued") throw new Error("This message has already started or is no longer queued.");
-      const live = await tx.doc(LiveDoc, record.conversationId as ConversationId);
-      if (!live.run) throw new Error("There is no active work to steer. The message is still queued.");
-      if (submission) {
-        const inbox = await tx.doc(InboxDoc, record.conversationId as ConversationId);
-        const item = inbox.items.find((item) => item.id === submission.id);
-        if (!item || item.mode === "write") throw new Error("This message is no longer queued.");
-        item.mode = "steer";
-      }
-      source.mode = "steer";
-      const active = home.messages.filter((message) => message.submissionId !== undefined && live.run!.inputs.includes(message.submissionId as SubmissionId)).at(-1);
-      if (active) source.entryId = active.entryId;
-      return { steered: true };
-    });
+    const turn = this.snapshot().turns.find(item => item.id === turnId && item.sessionId === sessionId && item.status === "queued");
+    const active = this.snapshot().turns.filter(item => item.sessionId === sessionId && item.status === "running").at(-1);
+    if (!turn || !active) throw new Error("Choose a queued message and an active task to revise.");
+    const { message } = await this.dequeue(sessionId, turnId);
+    await this.submitSession(sessionId, message.text, "steer", { editOfId: active.sourceId });
+    return { steered: true };
   }
   async stop(sessionId: string) {
-    const record = this.state.home.sessions.find((item) => item.id === sessionId);
+    const record = this.state.home.sessions.find(item => item.id === sessionId);
     if (!record) throw new Error("Conversation not found");
-    const taskId = this.state.live(record.conversationId)?.run?.taskId;
-    if (!taskId) return cancelDelegations(this.pi.harness, record.conversationId as ConversationId, BACKGROUND_CONTEXT);
-    await this.state.change((home) => { home.sessions.find((item) => item.id === sessionId)!.paused = true; });
-    await this.pi.harness.abortTask(taskId, BACKGROUND_CONTEXT);
-    await cancelDelegations(this.pi.harness, record.conversationId as ConversationId, BACKGROUND_CONTEXT);
-    await this.pi.harness.waitForTask(taskId, BACKGROUND_CONTEXT);
+    const turns = this.snapshot().turns.filter(item => item.sessionId === sessionId);
+    if (!turns.length) return false;
+    await this.state.change(home => { home.sessions.find(item => item.id === sessionId)!.paused = true; });
+    // Drain dispatches before cancelling execution; no task can start after Stop returns.
+    for (const source of requestsInSession(this, sessionId)) if (source.taskId !== undefined) {
+      await this.pi.harness.abortTask(source.taskId as TaskId, BACKGROUND_CONTEXT);
+      await this.pi.harness.waitForTask(source.taskId as TaskId, BACKGROUND_CONTEXT);
+    }
+    await Promise.all(requestsInSession(this, sessionId).map(source => cancelRequest(this, source.id)));
+    await this.state.change(async (home, tx) => {
+      const messages = home.messages.filter(message => home.entries.find(entry => entry.id === message.entryId)?.sessionId === sessionId);
+      const receipts = await Promise.all(messages.map(message => tx.submissionByRequest(record.conversationId as ConversationId, message.requestId || message.id)));
+      if (receipts.some(receipt => receipt?.status === "unanswered" && receipt.reason === "aborted")) return;
+      const candidate = messages.find((message, index) => receipts[index]?.status === "queued" || (!receipts[index] && message.status === "routed"));
+      if (!candidate) { home.sessions.find(item => item.id === sessionId)!.paused = false; return; }
+      if (candidate.submissionId === undefined) await enqueueRequest(tx, this.work, candidate, sessionId);
+      tx.settleSubmission(candidate.submissionId as SubmissionId, { status: "unanswered", reason: "aborted" });
+    });
     return true;
   }
   async resume(entryId: string) {
-    const entry = this.snapshot().entries.find((item) => item.id === entryId);
+    const entry = this.snapshot().entries.find(item => item.id === entryId);
     if (!entry?.sessionId || entry.status !== "interrupted") throw new Error("This task is not interrupted");
+    const sessionId = entry.sessionId;
+    const queued = new Set(this.snapshot().turns.filter(item => item.sessionId === sessionId && item.status === "queued").map(item => item.sourceId));
     await this.state.change(async (home, tx) => {
-      const record = home.sessions.find((item) => item.id === entry.sessionId)!;
-      const source = home.messages.find((item) => item.id === entry.interruptedSourceId)!;
-      const live = await tx.doc(LiveDoc, record.conversationId as ConversationId);
-      if (live.run) throw new Error("This conversation is already running");
-      const requestId = `${source.id}:resume:${randomUUID()}`;
-      const prompt = `Continue the interrupted request in this conversation:\n${source.text}`;
-      const input = await tx.appendEntry(UserEntry, record.conversationId as ConversationId, { model: [{ role: "user", content: prompt, timestamp: Date.now() }] });
-      const submission = await tx.createSubmission({ conversationId: record.conversationId as ConversationId, requestId, type: "input", status: "placed", entry: input.id });
-      const taskId = await tx.createTask(GenerationTask, {}, { conversationId: record.conversationId as ConversationId, ownership: { kind: "conversation" } });
-      live.run = { taskId, inputs: [submission.id] };
-      record.paused = false; source.requestId = requestId; source.prompt = prompt; source.submissionId = submission.id;
+      const record = home.sessions.find(item => item.id === sessionId)!;
+      record.paused = false;
+      const source = home.messages.find(item => item.id === entry.interruptedSourceId)!;
+      source.requestId = `${source.id}:resume:${randomUUID()}`;
+      delete source.executionId;
       delete source.error;
+      await enqueueRequest(tx, this.work, source, sessionId);
+      for (const message of home.messages) if (queued.has(message.id)) {
+        if (message.submissionId === undefined) await enqueueRequest(tx, this.work, message, sessionId);
+        else message.workTaskId = await tx.createTask(this.work, { sourceId: message.id, sessionId }, { conversationId: record.conversationId as ConversationId, ownership: { kind: "conversation" } });
+      }
     });
+    this.pi.harness.resume();
   }
   transcript(sessionId: string, view?: ConversationView) {
     const session = this.snapshot().sessions.find((session) => session.id === sessionId);
     if (!session) throw new Error("Conversation not found");
-    const live = view ? view.docs["pi.live"] as LiveState | undefined : this.state.live(session.conversationId);
-    return { session: { ...session, status: session.paused ? "interrupted" : live?.run ? "running" : "idle" }, messages: this.state.transcript(sessionId, view), queue: this.snapshot().turns.filter((turn) => turn.sessionId === sessionId),
-      streaming: assistantText(live?.generation?.message || {}) };
+    return { session, messages: this.state.transcript(sessionId, view), queue: this.snapshot().turns.filter((turn) => turn.sessionId === sessionId),
+      streaming: this.progress().filter(item => this.snapshot().turns.some(turn => turn.sourceId === item.sourceId && turn.sessionId === sessionId)).map(item => item.text).join("\n\n") };
   }
   async watchConversation(sessionId: string, send: (event: unknown) => Promise<void>) {
     const record = this.state.home.sessions.find((session) => session.id === sessionId);
