@@ -117,11 +117,18 @@ export function renderMarkdown(value = "") {
   return blocks.join("");
 }
 
+export function renderQuote(target, className = "message-context") {
+  if (!target) return "";
+  const text = target.text.replace(/\s+/g, " ").trim();
+  const preview = text.length > 80 ? `${text.slice(0, 80).trimEnd()}…` : text;
+  return `<span class="${className}"><strong>${target.role}</strong><span>${escapeHTML(preview)}</span></span>`;
+}
+
 export function renderMessage(message, actions = "") {
   if (message.role === "notice") return `<div class="notice">${escapeHTML(message.text)}</div>`;
   const artifacts = (message.artifacts ?? []).map((artifact) => artifact.kind === "image"
     ? `<a class="artifact image-artifact" href="/v1/artifacts/${encodeURIComponent(artifact.id)}" target="_blank" rel="noreferrer"><img src="/v1/artifacts/${encodeURIComponent(artifact.id)}" alt="${escapeHTML(artifact.name)}"><span>${escapeHTML(artifact.name)}</span></a>`
     : `<a class="artifact file-artifact" href="/v1/artifacts/${encodeURIComponent(artifact.id)}" target="_blank" rel="noreferrer">${icon("file", 16)}<span>${escapeHTML(artifact.name)}</span></a>`).join("");
-  const bubble = `<div class="message-bubble ${message.role === "user" ? "user-bubble" : "assistant-bubble"}">${message.request ? `<blockquote class="message-context">${escapeHTML(message.request)}</blockquote>` : ""}${message.text ? `<div class="message-text markdown-content">${renderMarkdown(message.text)}</div>` : message.role === "assistant" && !artifacts ? '<span class="typing-dots"><i></i><i></i><i></i></span>' : ""}${artifacts}</div>`;
+  const bubble = `<div class="message-bubble ${message.role === "user" ? "user-bubble" : "assistant-bubble"}${message.request ? " with-context" : ""}">${message.request ? renderQuote({ role: "You", text: message.request }) : ""}${message.text ? `<div class="message-text markdown-content">${renderMarkdown(message.text)}</div>` : message.role === "assistant" && !artifacts ? '<span class="typing-dots"><i></i><i></i><i></i></span>' : ""}${artifacts}</div>`;
   return `<article class="message-row ${message.role === "user" ? "user-row" : "assistant-row"}">${actions ? `<div class="replyable replyable-assistant">${actions}${bubble}</div>` : bubble}</article>`;
 }

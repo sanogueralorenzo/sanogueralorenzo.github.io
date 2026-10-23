@@ -272,5 +272,9 @@ test("task dependencies name the prerequisite and concurrent progress stays tied
   assert.match(await page.locator(".queued-row").innerText(), /Waiting for: Request 1/);
   emit({ type: "progress", sourceId: "request-1", text: "Checking the weather" });
   await page.getByText("Checking the weather", { exact: true }).waitFor();
-  assert.equal(await page.locator(".assistant-bubble").filter({ hasText: "Checking the weather" }).locator(".message-context").innerText(), "Request 1");
+  const bubble = page.locator(".assistant-bubble").filter({ hasText: "Checking the weather" });
+  assert.equal(await bubble.locator(".message-context > span").innerText(), "Request 1");
+  const quote = await bubble.locator(".message-context").boundingBox();
+  const reply = await bubble.boundingBox();
+  assert.ok(quote.y < reply.y && quote.y + quote.height > reply.y, "the request quote overlaps the response's top edge");
 });

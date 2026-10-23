@@ -1,4 +1,4 @@
-import { icon } from "./view.js";
+import { icon, renderQuote } from "./view.js";
 
 const emptyDraft = () => ({ input: "", replyToId: null, edit: null, queuedEdit: null });
 const storageKey = "assistant-composer-drafts";
@@ -137,7 +137,7 @@ export function createComposer({ state, api, render, loadSession, actions }) {
       const editing = draft.edit || draft.queuedEdit;
       const action = draft.edit ? "dismiss-edit" : draft.queuedEdit ? "dismiss-queued-edit" : "dismiss-reply";
       const label = editing ? "Cancel edit" : "Cancel reply";
-      const html = `${actions.quote(draft.edit ? { role: "Editing message", text: target.text } : target, "reply-preview-text")}<button type="button" class="dismiss-reply" data-action="${action}" aria-label="${label}" title="${label}">${icon("close", 16)}</button>`;
+      const html = `${renderQuote(draft.edit ? { role: "Editing message", text: target.text } : target, "reply-preview-text")}<button type="button" class="dismiss-reply" data-action="${action}" aria-label="${label}" title="${label}">${icon("close", 16)}</button>`;
       if (preview.innerHTML !== html) preview.innerHTML = html;
     }
     const queue = element.querySelector(".composer-queue");

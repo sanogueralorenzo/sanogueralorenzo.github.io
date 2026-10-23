@@ -16,12 +16,6 @@ export function createMessageActions({ state, api, render }) {
     const reply = state.transcript.find((message) => message.id === id && message.role === "assistant");
     return reply ? { role: "Assistant", text: reply.text, sessionId: state.selected } : null;
   }
-  function quote(target, className) {
-    if (!target) return "";
-    const text = target.text.replace(/\s+/g, " ").trim();
-    const preview = text.length > 80 ? `${text.slice(0, 80).trimEnd()}…` : text;
-    return `<span class="${className}"><strong>${target.role}</strong><span>${escapeHTML(preview)}</span></span>`;
-  }
   function replyButton(id, sessionId) {
     return sessionId ? `<button type="button" class="reply-action" data-action="reply" data-reply="${escapeHTML(id)}" aria-label="Reply to message" title="Reply">${icon("reply", 14)}</button>` : "";
   }
@@ -69,5 +63,5 @@ export function createMessageActions({ state, api, render }) {
     return true;
   }
 
-  return { replyTarget, quote, reactionTo, replyActions, requestAction, handleClick };
+  return { replyTarget, reactionTo, replyActions, requestAction, handleClick };
 }

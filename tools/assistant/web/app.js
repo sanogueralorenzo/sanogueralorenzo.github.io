@@ -1,4 +1,4 @@
-import { escapeHTML, icon, renderMarkdown, renderMessage } from "./view.js";
+import { escapeHTML, icon, renderMarkdown, renderMessage, renderQuote } from "./view.js";
 import { createMessageActions } from "./message-actions.js";
 import { createComposer } from "./composer.js";
 import { createQueuedMessages } from "./queued-messages.js";
@@ -55,14 +55,14 @@ function activityPill(message, entry, className = "", showConversation = true) {
 }
 function homeRequest(message, entry, showConversation) {
   const turn = state.data.turns.find((item) => item.sourceId === message.id && item.status === "queued");
-  const request = `<button type="button" class="message-bubble user-bubble home-entry" ${entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : "disabled"}>${actions.quote(actions.replyTarget(message.replyToId), "message-context user-context")}<span class="entry-copy">${escapeHTML(message.text)}</span></button>`;
+  const request = `<button type="button" class="message-bubble user-bubble home-entry" ${entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : "disabled"}>${renderQuote(actions.replyTarget(message.replyToId), "message-context user-context")}<span class="entry-copy">${escapeHTML(message.text)}</span></button>`;
   return `<section class="home-exchange"><div class="message-row user-row home-requests"><div class="replyable replyable-user">${turn ? queued.controls(turn, true) : actions.requestAction(message, entry?.sessionId)}${request}</div>${activityPill(message, entry, "", showConversation)}</div></section>`;
 }
 function homeReply(update, entry, source, showConversation) {
   const reaction = actions.reactionTo(update.id);
   const sourcePill = reaction ? activityPill(reaction, entry, "reply-source-pill", showConversation) : showConversation && entry.sessionId ? `<button type="button" class="activity-pill reply-source-pill" data-action="open" data-session="${escapeHTML(entry.sessionId)}" aria-label="Open ${escapeHTML(entry.title)} conversation" title="${escapeHTML(entry.title)}"><span class="pill-symbol" aria-hidden="true">${icon("reply", 14)}</span><strong class="pill-title">${escapeHTML(entry.title)}</strong></button>` : "";
   const context = source.reaction ? actions.replyTarget(source.replyToId) : { role: "You", text: source.text };
-  return `<section class="home-exchange" data-update="${escapeHTML(update.id)}"><div class="message-row assistant-row home-updates"><div class="replyable replyable-assistant">${actions.replyActions(update.id, entry.sessionId)}<button class="message-bubble assistant-bubble home-update ${update.quoteSource ? "with-context" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.quoteSource ? actions.quote(context, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button></div>${sourcePill}</div></section>`;
+  return `<section class="home-exchange" data-update="${escapeHTML(update.id)}"><div class="message-row assistant-row home-updates"><div class="replyable replyable-assistant">${actions.replyActions(update.id, entry.sessionId)}<button class="message-bubble assistant-bubble home-update ${update.quoteSource ? "with-context" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.quoteSource ? renderQuote(context, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button></div>${sourcePill}</div></section>`;
 }
 function home() {
   if (!state.data.messages.length) return landing.view();
