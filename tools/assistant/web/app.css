@@ -221,6 +221,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .replyable-user { width: 100%; margin-left: auto; justify-content: flex-end; }
 .replyable-user > .home-entry { margin-left: 0; }
 .replyable-assistant { align-self: flex-start; }
+.replyable-assistant:has(> .with-context) { width: 100%; }
 .reply-action { width: 24px; height: 24px; flex: 0 0 24px; display: grid; place-items: center; border: 0; border-radius: 50%; color: var(--muted); background: transparent; opacity: 0; cursor: pointer; }
 .replyable:hover .reply-action, .replyable:focus-within .reply-action { opacity: 1; }
 .reply-action:hover, .reply-action:focus-visible { color: var(--graphite); }
@@ -236,7 +237,9 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .message-context > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .home-entry:has(.user-context), .message-bubble.with-context { position: relative; margin-top: 20px; padding-top: 33px; display: flex; flex-direction: column; align-items: flex-start; }
 .home-entry:has(.user-context) { min-width: min(280px, 100%); }
-.message-bubble.with-context { min-width: 110px; }
+.message-bubble.with-context { min-width: min(320px, 100%); }
+.replyable > .message-bubble.with-context { min-width: min(320px, calc(100% - 38px)); }
+.message-bubble.with-context > .message-context { max-width: min(440px, 100%); }
 .home-entry .user-context, .message-bubble.with-context > .message-context { position: absolute; top: -22px; left: 0; margin: 0; }
 .home-entry:disabled { opacity: 1; cursor: default !important; }
 .entry-copy { display: flex; flex-direction: column; gap: 4px; white-space: pre-wrap; }

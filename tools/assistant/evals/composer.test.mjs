@@ -277,4 +277,17 @@ test("task dependencies name the prerequisite and concurrent progress stays tied
   const quote = await bubble.locator(".message-context").boundingBox();
   const reply = await bubble.boundingBox();
   assert.ok(quote.y < reply.y && quote.y + quote.height > reply.y, "the request quote overlaps the response's top edge");
+  emit({ type: "conversation", sessionId: "1", messages: [{ id: "short-reply", role: "assistant", text: "1081", replyable: true,
+    request: "In the same release-comparison conversation, while that research runs, what is 47 times 23?" }], streaming: "" });
+  const shortReply = page.locator(".assistant-bubble").filter({ hasText: "1081" });
+  await shortReply.waitFor();
+  for (const colorScheme of ["light", "dark"]) for (const width of [1280, 390, 320]) {
+    await page.emulateMedia({ colorScheme });
+    await page.setViewportSize({ width, height: 844 });
+    const context = await shortReply.locator(".message-context").boundingBox();
+    const response = await shortReply.boundingBox();
+    assert.ok(context.width >= Math.min(300, width - 100), "short replies keep a readable quote width");
+    assert.ok(context.x >= 0 && context.x + context.width <= width, "the quote fits on smaller screens");
+    assert.ok(context.y < response.y && context.y + context.height > response.y, "the wider quote still overlaps the response");
+  }
 });
