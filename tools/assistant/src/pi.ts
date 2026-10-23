@@ -7,7 +7,7 @@ import { createCodingTools, createReadOnlyTools, formatSkillsForPrompt } from "@
 import { AssistantEntry, createRegistry, defineExtension, defineTool, Harness, MemoryStorage, section,
   type AnyTask, type Extension, type ModelRef, type Storage, type ToolRegistration } from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
-import { assistantModels, Providers } from "./providers.ts";
+import { assistantModels, Providers, utilityModel } from "./providers.ts";
 import { ComputerUseClient } from "./computer-use.ts";
 import { agentResources, type AgentRole } from "./agent-resources.ts";
 import { assistantText } from "./state.ts";
@@ -153,7 +153,10 @@ export class PiService {
     return service;
   }
   get model(): ModelRef { return this.fixedModel || this.providers.model; }
-  agent(role: AgentRole, cwd: string) { return { model: this.model, thinkingLevel: ["router", "dispatcher"].includes(role) ? "low" as const : "high" as const, cwd, extensions: [this.roles[role]] }; }
+  agent(role: AgentRole, cwd: string) {
+    const utility = ["router", "dispatcher"].includes(role);
+    return { model: utility ? utilityModel(this.model) : this.model, thinkingLevel: utility ? "low" as const : "high" as const, cwd, extensions: [this.roles[role]] };
+  }
   async utility(role: "router" | "dispatcher", input: string, cwd: string, customTools: ToolRegistration[] = [], acceptedResult?: () => string | undefined) {
     const tools = customTools.map((tool) => defineTool({ name: tool.name, description: tool.description, parameters: tool.parameters,
       execute: async (args, api, context) => {
@@ -166,7 +169,7 @@ export class PiService {
     registry.install(extension);
     const harness = await Harness.open(new MemoryStorage(), { models: this.agentModels, registry }, BACKGROUND_CONTEXT);
     try {
-      const root = await harness.root(BACKGROUND_CONTEXT, { agent: { model: this.model, thinkingLevel: "low", cwd, extensions: [extension] } });
+      const root = await harness.root(BACKGROUND_CONTEXT, { agent: { ...this.agent(role, cwd), extensions: [extension] } });
       const settled = await (await root.submit({ type: "input", content: input }, BACKGROUND_CONTEXT)).wait(BACKGROUND_CONTEXT);
       if (acceptedResult?.()) return acceptedResult()!;
       if (settled.status !== "done" || settled.type !== "input") throw new Error("Router did not choose a destination");

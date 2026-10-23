@@ -12,7 +12,7 @@ When there are no saved conversations, the first Home message starts a session i
 
 ## Start
 
-Requires Node 26+. Click the dot, choose Sign in, API key, or Cloud, then search for a provider to connect. Sign-in opens in a browser tab; the link remains available if pop-ups are blocked. Browser logins finish through Pi's callback listener. Code entry appears when required by the provider's login method. Click a connected provider to select a model or disconnect. The selection applies to new tasks; existing conversations keep their model.
+Requires Node 26+. Click the dot, choose Sign in, API key, or Cloud, then search for a provider to connect. Sign-in opens in a browser tab; the link remains available if pop-ups are blocked. Browser logins finish through Pi's callback listener. Code entry appears when required by the provider's login method. Click a connected provider to select a model or disconnect. The selection applies to new tasks; existing conversations keep their model. Router and dispatcher automatically use GPT-6 Luna, Claude Haiku 5.5, Gemini 3.5 Flash-Lite, or Grok 4.7 for those providers, all at low reasoning effort. Other providers use the selected model. This mapping applies with fast mode on or off.
 
 ```bash
 cd tools/assistant

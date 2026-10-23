@@ -1,19 +1,21 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import { createModels } from "@earendil-works/pi-ai";
+import { createModels, lazyStream } from "@earendil-works/pi-ai";
 import { openaiProvider } from "@earendil-works/pi-ai/providers/openai";
 import { anthropicProvider } from "@earendil-works/pi-ai/providers/anthropic";
 import { googleProvider } from "@earendil-works/pi-ai/providers/google";
 import { xaiProvider } from "@earendil-works/pi-ai/providers/xai";
-import { Providers, defaultModel } from "../src/providers.ts";
-import { providerModels } from "../src/pi.ts";
+import { Providers, defaultModel, utilityModel } from "../src/providers.ts";
+import { PiService, providerModels } from "../src/pi.ts";
 import { fastModePayload, supportsFastMode } from "../src/fast-mode.ts";
 import { PromptSuggestions } from "../src/prompt-suggestions.ts";
 import { NativeSearchSources } from "../src/native-search.ts";
+import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
+import { defineTool, MemoryStorage } from "@earendil-works/pi-durable";
 
 function runtime() {
   const models = createModels({ authContext: {
@@ -214,5 +216,92 @@ test("reply suggestions follow the current provider fast preference", async t =>
     fast = false;
     await suggestions.get("session", "reply", messages);
     assert.equal(requests.at(-1).body[field], off);
+  }
+});
+
+
+test("router and dispatcher use provider utility models at low effort with fast mode on or off", { timeout: 15000 }, async t => {
+  const dir = mkdtempSync(join(tmpdir(), "assistant-utility-models-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const catalog = runtime();
+  for (const [provider, modelId, expected] of [
+    ["openai", "gpt-6-astra", "gpt-6-luna"],
+    ["anthropic", "claude-fable-5-1", "claude-haiku-5-5"],
+    ["google", "gemini-4-argon", "gemini-3.5-flash-lite"],
+    ["xai", "grok-4.7", "grok-4.7"],
+    ["fixture", "custom-model", "custom-model"],
+  ]) for (const fast of [false, true]) {
+    const calls = [];
+    const models = {
+      getModel: (name, id) => name === "fixture" ? { ...catalog.getModel("openai", "gpt-6-luna"), provider: name, id } : catalog.getModel(name, id),
+      streamSimple: (selected, transcript, options) => lazyStream(selected, async () => (async function* () {
+        calls.push({ provider: selected.provider, modelId: selected.id, effort: options.reasoning });
+        const tools = transcript.tools || transcript.messages.flatMap(message => message.toolsAdded || []);
+        const name = tools.find(tool => ["route_home", "dispatch_message"].includes(tool.name)).name;
+        const message = { role: "assistant", content: [{ type: "toolCall", id: crypto.randomUUID(), name, arguments: {} }],
+          api: selected.api, provider: selected.provider, model: selected.id, stopReason: "toolUse", timestamp: Date.now(),
+          usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
+        yield { type: "done", reason: "toolUse", message };
+      })()),
+    };
+    const dataDir = join(dir, `${provider}-${fast}`);
+    mkdirSync(dataDir);
+    writeFileSync(join(dataDir, "fast-mode.json"), JSON.stringify({ [provider]: fast }));
+    const service = await PiService.open(dataDir, { models, model: { provider, modelId }, storage: new MemoryStorage() });
+    try {
+      for (const [role, name] of [["router", "route_home"], ["dispatcher", "dispatch_message"]]) {
+        const config = service.agent(role, dir);
+        assert.deepEqual(config.model, { provider, modelId: expected });
+        assert.equal(config.thinkingLevel, "low");
+        let accepted;
+        const choose = defineTool({ name, description: "Choose", parameters: { type: "object", properties: {} },
+          execute: async () => { accepted = "accepted"; return { output: [{ type: "text", text: accepted }] }; } });
+        assert.equal(await service.utility(role, "Classify this request", dir, [choose], () => accepted), "accepted");
+      }
+      assert.deepEqual(calls, Array.from({ length: 2 }, () => ({ provider, modelId: expected, effort: "low" })));
+      for (const role of ["coordinator", "worker"]) {
+        assert.deepEqual(service.agent(role, dir).model, { provider, modelId });
+        assert.equal(service.agent(role, dir).thinkingLevel, "high");
+      }
+      assert.deepEqual(service.model, { provider, modelId });
+    } finally { await service.close(); }
+  }
+});
+
+
+test("mapped utility models serialize low reasoning and respect each provider's fast compatibility", async t => {
+  const models = runtime();
+  let fast = false;
+  const wrapped = providerModels(models, () => fast);
+  const requests = [];
+  t.mock.method(globalThis, "fetch", capture(requests));
+  for (const selected of [
+    { provider: "openai", modelId: "gpt-6-astra" },
+    { provider: "anthropic", modelId: "claude-fable-5-1" },
+    { provider: "google", modelId: "gemini-4-argon" },
+    { provider: "xai", modelId: "grok-4.7" },
+  ]) for (const enabled of [false, true]) for (const name of ["route_home", "dispatch_message"]) {
+    fast = enabled;
+    const mapped = utilityModel(selected);
+    await wrapped.streamSimple(models.getModel(mapped.provider, mapped.modelId), {
+      messages: [{ role: "user", content: "Choose", timestamp: 0 }],
+      tools: [{ name, description: "Choose", parameters: { type: "object", properties: {} } }],
+    }, { reasoning: "low", maxRetries: 0 }).result();
+    const request = requests.at(-1).body;
+    if (selected.provider === "google") {
+      assert.equal(request.generationConfig.thinkingConfig.thinkingLevel, "LOW");
+      assert.equal(request.serviceTier, enabled ? "priority" : undefined);
+    } else {
+      assert.equal(request.model, mapped.modelId);
+      if (selected.provider === "anthropic") {
+        // Pi uses a per-message effort marker; the top-level value is a fixed cache prefix.
+        assert.equal(request.messages.filter(message => message.role === "system" && message.output_config).at(-1).output_config.effort, "low");
+        assert.equal(request.speed, undefined); // Haiku has no Opus fast mode.
+      } else {
+        assert.equal(request.reasoning.effort, "low");
+        assert.equal(request.service_tier, enabled ? "priority" : "default");
+      }
+    }
+    assert.ok(!(request.tools || []).some(tool => tool.googleSearch || tool.type?.startsWith("web_search")));
   }
 });

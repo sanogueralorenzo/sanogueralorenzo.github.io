@@ -8,6 +8,16 @@ import type { ModelRef } from "@earendil-works/pi-durable";
 import { supportsFastMode } from "./fast-mode.ts";
 
 export const defaultModel: ModelRef = { provider: "openai", modelId: "gpt-6-luna" };
+// Router and dispatcher use a focused model from the selected provider, independently of its fast-mode toggle.
+const utilityModels: Record<string, string> = {
+  openai: "gpt-6-luna",
+  anthropic: "claude-haiku-5-5",
+  google: "gemini-3.5-flash-lite",
+  xai: "grok-4.7",
+};
+export const utilityModel = (selected: ModelRef): ModelRef => ({
+  provider: selected.provider, modelId: utilityModels[selected.provider] || selected.modelId,
+});
 const preferredModels: Record<string, string> = { anthropic: "claude-sonnet-5-5" };
 // Pi's catalog has no release dates; keep each picker focused on the current lineup.
 const pickerModels: Record<string, string[]> = {
