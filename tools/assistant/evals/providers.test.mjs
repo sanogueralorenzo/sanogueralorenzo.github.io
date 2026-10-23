@@ -9,7 +9,7 @@ import { openaiProvider } from "@earendil-works/pi-ai/providers/openai";
 import { anthropicProvider } from "@earendil-works/pi-ai/providers/anthropic";
 import { googleProvider } from "@earendil-works/pi-ai/providers/google";
 import { xaiProvider } from "@earendil-works/pi-ai/providers/xai";
-import { Providers, defaultModel, utilityModel } from "../src/providers.ts";
+import { Providers, defaultModel, utilityAgent } from "../src/providers.ts";
 import { PiService, providerModels } from "../src/pi.ts";
 import { fastModePayload, supportsFastMode } from "../src/fast-mode.ts";
 import { PromptSuggestions } from "../src/prompt-suggestions.ts";
@@ -220,16 +220,16 @@ test("reply suggestions follow the current provider fast preference", async t =>
 });
 
 
-test("router and dispatcher use provider utility models at low effort with fast mode on or off", { timeout: 15000 }, async t => {
+test("router and dispatcher disable reasoning or use the provider minimum with fast mode on or off", { timeout: 15000 }, async t => {
   const dir = mkdtempSync(join(tmpdir(), "assistant-utility-models-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const catalog = runtime();
-  for (const [provider, modelId, expected] of [
-    ["openai", "gpt-6-astra", "gpt-6-luna"],
-    ["anthropic", "claude-fable-5-1", "claude-haiku-5-5"],
-    ["google", "gemini-4-argon", "gemini-3.5-flash-lite"],
-    ["xai", "grok-4.7", "grok-4.7"],
-    ["fixture", "custom-model", "custom-model"],
+  for (const [provider, modelId, expected, thinkingLevel] of [
+    ["openai", "gpt-6-astra", "gpt-6-luna", "off"],
+    ["anthropic", "claude-fable-5-1", "claude-haiku-5-5", "off"],
+    ["google", "gemini-4-argon", "gemini-3.5-flash-lite", "minimal"],
+    ["xai", "grok-4.7", "grok-4.7", "low"],
+    ["fixture", "custom-model", "custom-model", "low"],
   ]) for (const fast of [false, true]) {
     const calls = [];
     const models = {
@@ -252,13 +252,13 @@ test("router and dispatcher use provider utility models at low effort with fast 
       for (const [role, name] of [["router", "route_home"], ["dispatcher", "dispatch_message"]]) {
         const config = service.agent(role, dir);
         assert.deepEqual(config.model, { provider, modelId: expected });
-        assert.equal(config.thinkingLevel, "low");
+        assert.equal(config.thinkingLevel, thinkingLevel);
         let accepted;
         const choose = defineTool({ name, description: "Choose", parameters: { type: "object", properties: {} },
           execute: async () => { accepted = "accepted"; return { output: [{ type: "text", text: accepted }] }; } });
         assert.equal(await service.utility(role, "Classify this request", dir, [choose], () => accepted), "accepted");
       }
-      assert.deepEqual(calls, Array.from({ length: 2 }, () => ({ provider, modelId: expected, effort: "low" })));
+      assert.deepEqual(calls, Array.from({ length: 2 }, () => ({ provider, modelId: expected, effort: thinkingLevel === "off" ? undefined : thinkingLevel })));
       for (const role of ["coordinator", "worker"]) {
         assert.deepEqual(service.agent(role, dir).model, { provider, modelId });
         assert.equal(service.agent(role, dir).thinkingLevel, "high");
@@ -269,7 +269,7 @@ test("router and dispatcher use provider utility models at low effort with fast 
 });
 
 
-test("mapped utility models serialize low reasoning and respect each provider's fast compatibility", async t => {
+test("mapped utility models serialize disabled or minimum reasoning and respect each provider's fast compatibility", async t => {
   const models = runtime();
   let fast = false;
   const wrapped = providerModels(models, () => fast);
@@ -282,23 +282,24 @@ test("mapped utility models serialize low reasoning and respect each provider's 
     { provider: "xai", modelId: "grok-4.7" },
   ]) for (const enabled of [false, true]) for (const name of ["route_home", "dispatch_message"]) {
     fast = enabled;
-    const mapped = utilityModel(selected);
+    const { model: mapped, thinkingLevel } = utilityAgent(selected);
     await wrapped.streamSimple(models.getModel(mapped.provider, mapped.modelId), {
       messages: [{ role: "user", content: "Choose", timestamp: 0 }],
       tools: [{ name, description: "Choose", parameters: { type: "object", properties: {} } }],
-    }, { reasoning: "low", maxRetries: 0 }).result();
+    }, { ...(thinkingLevel === "off" ? {} : { reasoning: thinkingLevel }), maxRetries: 0 }).result();
     const request = requests.at(-1).body;
     if (selected.provider === "google") {
-      assert.equal(request.generationConfig.thinkingConfig.thinkingLevel, "LOW");
+      assert.equal(request.generationConfig.thinkingConfig.thinkingLevel, "MINIMAL");
       assert.equal(request.serviceTier, enabled ? "priority" : undefined);
     } else {
       assert.equal(request.model, mapped.modelId);
       if (selected.provider === "anthropic") {
-        // Pi uses a per-message effort marker; the top-level value is a fixed cache prefix.
-        assert.equal(request.messages.filter(message => message.role === "system" && message.output_config).at(-1).output_config.effort, "low");
+        assert.deepEqual(request.thinking, { type: "disabled" });
+        assert.equal(request.output_config, undefined);
+        assert.ok(!request.messages.some(message => message.output_config));
         assert.equal(request.speed, undefined); // Haiku has no Opus fast mode.
       } else {
-        assert.equal(request.reasoning.effort, "low");
+        assert.equal(request.reasoning.effort, selected.provider === "openai" ? "none" : "low");
         assert.equal(request.service_tier, enabled ? "priority" : "default");
       }
     }

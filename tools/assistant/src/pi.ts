@@ -7,7 +7,7 @@ import { createCodingTools, createReadOnlyTools, formatSkillsForPrompt } from "@
 import { AssistantEntry, createRegistry, defineExtension, defineTool, Harness, MemoryStorage, section,
   type AnyTask, type Extension, type ModelRef, type Storage, type ToolRegistration } from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
-import { assistantModels, Providers, utilityModel } from "./providers.ts";
+import { assistantModels, Providers, utilityAgent } from "./providers.ts";
 import { ComputerUseClient } from "./computer-use.ts";
 import { agentResources, type AgentRole } from "./agent-resources.ts";
 import { assistantText } from "./state.ts";
@@ -155,7 +155,7 @@ export class PiService {
   get model(): ModelRef { return this.fixedModel || this.providers.model; }
   agent(role: AgentRole, cwd: string) {
     const utility = ["router", "dispatcher"].includes(role);
-    return { model: utility ? utilityModel(this.model) : this.model, thinkingLevel: utility ? "low" as const : "high" as const, cwd, extensions: [this.roles[role]] };
+    return { ...(utility ? utilityAgent(this.model) : { model: this.model, thinkingLevel: "high" as const }), cwd, extensions: [this.roles[role]] };
   }
   async utility(role: "router" | "dispatcher", input: string, cwd: string, customTools: ToolRegistration[] = [], acceptedResult?: () => string | undefined) {
     const tools = customTools.map((tool) => defineTool({ name: tool.name, description: tool.description, parameters: tool.parameters,

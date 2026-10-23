@@ -2,22 +2,24 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { AuthEvent, AuthInteraction, AuthPrompt, AuthType, Models } from "@earendil-works/pi-ai";
+import type { AuthEvent, AuthInteraction, AuthPrompt, AuthType, Models, ModelThinkingLevel } from "@earendil-works/pi-ai";
 import { ModelRuntime, SettingsManager } from "@earendil-works/pi-coding-agent";
 import type { ModelRef } from "@earendil-works/pi-durable";
 import { supportsFastMode } from "./fast-mode.ts";
 
 export const defaultModel: ModelRef = { provider: "openai", modelId: "gpt-6-luna" };
 // Router and dispatcher use a focused model from the selected provider, independently of its fast-mode toggle.
-const utilityModels: Record<string, string> = {
-  openai: "gpt-6-luna",
-  anthropic: "claude-haiku-5-5",
-  google: "gemini-3.5-flash-lite",
-  xai: "grok-4.7",
+const utilityAgents: Record<string, { modelId: string; thinkingLevel: ModelThinkingLevel }> = {
+  openai: { modelId: "gpt-6-luna", thinkingLevel: "off" },
+  anthropic: { modelId: "claude-haiku-5-5", thinkingLevel: "off" },
+  // These models cannot disable thinking; explicitly request their lowest supported level.
+  google: { modelId: "gemini-3.5-flash-lite", thinkingLevel: "minimal" },
+  xai: { modelId: "grok-4.7", thinkingLevel: "low" },
 };
-export const utilityModel = (selected: ModelRef): ModelRef => ({
-  provider: selected.provider, modelId: utilityModels[selected.provider] || selected.modelId,
-});
+export function utilityAgent(selected: ModelRef): { model: ModelRef; thinkingLevel: ModelThinkingLevel } {
+  const config = utilityAgents[selected.provider];
+  return { model: { provider: selected.provider, modelId: config?.modelId || selected.modelId }, thinkingLevel: config?.thinkingLevel || "low" };
+}
 const preferredModels: Record<string, string> = { anthropic: "claude-sonnet-5-5" };
 // Pi's catalog has no release dates; keep each picker focused on the current lineup.
 const pickerModels: Record<string, string[]> = {
