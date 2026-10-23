@@ -13,7 +13,7 @@ export function createDelegation(getWorker: () => Extension, getHarness: () => H
   async function collect(delegationId: string, child: Delegation, context: Context) {
     const harness = getHarness();
     const submission = child.submissionId === undefined ? undefined : await harness.submission(child.submissionId as SubmissionId, context);
-    if (!submission) throw new Error("Delegation was not admitted");
+    if (!submission) throw new Error("Delegation was not started");
     const result = await submission.wait(context);
     const conversation = (await harness.conversation(child.conversationId as ConversationId, context))!;
     await conversation.waitForIdle(context);
@@ -114,7 +114,7 @@ export const delegationHooks = [hook(GenerationTask, { afterResponse: async (mes
   const pending = Object.entries(calls).filter(([, child]) => child.requestId === requestId && child.status === "outstanding");
   if (!pending.length) return;
   // Replace the premature answer with a durable collection round before the final
-  // boundary can settle this request or admit queued follow-ups.
+  // boundary can settle this request or start queued follow-ups.
   message.content = [...message.content.filter(part => part.type === "thinking"),
     ...pending.map(([delegationId]) => ({ type: "toolCall" as const, id: `collect_${api.taskId}_${delegationId}`,
       name: "delegate_result", arguments: { delegationId } }))];

@@ -9,9 +9,9 @@ import { PiService, type PiOptions } from "./pi.ts";
 import { HomeRouter, type Route } from "./home-routing.ts";
 import { HomeDoc, State, now, assistantText, type HomeMessage, type Turn } from "./state.ts";
 import { PromptSuggestions } from "./prompt-suggestions.ts";
-import { admitMessage, requestTask, enqueueRequest, cancelRequest, requestsInSession } from "./request-tasks.ts";
+import { dispatchMessage, requestTask, enqueueRequest, cancelRequest, requestsInSession } from "./request-tasks.ts";
 
-type DispatchState = { phase: "route" } | { phase: "create"; route: Route } | { phase: "admit"; sessionId: string };
+type DispatchState = { phase: "route" } | { phase: "create"; route: Route } | { phase: "dispatch"; sessionId: string };
 const clean = (text: string) => text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 const replyPrompt = (text: string, reply?: { role: string; text: string }) => reply
@@ -112,10 +112,10 @@ export class Assistant {
             }
             entry.sessionId = session.id; entry.title = session.title;
             source.status = "routed";
-            return { status: "running", checkpoint: { phase: "admit", sessionId: session.id } };
+            return { status: "running", checkpoint: { phase: "dispatch", sessionId: session.id } };
           }, context);
         },
-        admit: async (task, runtime, context) => {
+        dispatch: async (task, runtime, context) => {
           const app = getApp();
           const message = app.state.home.messages.find((item) => item.id === task.input.sourceId);
           if (!message) { await runtime.commit(() => ({ status: "terminal", outcome: { status: "completed", result: null } }), context); return; }
@@ -123,9 +123,9 @@ export class Assistant {
           const record = app.state.home.sessions.find((item) => item.id === sessionId)!;
           await app.state.observe(record.conversationId);
           try {
-            // Admission is serialized briefly; execution never holds the dispatch chain.
-            const decision = await runtime.memo<Awaited<ReturnType<typeof admitMessage>>>("admission", context)
-              ?? await runtime.memo("admission", await admitMessage(app, message, sessionId), context);
+            // Dispatch decisions are serialized briefly; execution never holds the dispatch chain.
+            const decision = await runtime.memo<Awaited<ReturnType<typeof dispatchMessage>>>("dispatch-decision", context)
+              ?? await runtime.memo("dispatch-decision", await dispatchMessage(app, message, sessionId), context);
             await runtime.commit(async tx => {
               const home = await tx.doc(HomeDoc);
               const source = home.messages.find(item => item.id === task.input.sourceId)!;
@@ -147,7 +147,7 @@ export class Assistant {
                   if (target.submissionId !== undefined) tx.settleSubmission(target.submissionId as SubmissionId, { status: "unanswered", reason: "superseded", detail: "Replaced by a newer request" });
                 }
                 if (decision.action === "cancel") source.prompt = finished
-                  ? `The requested task already finished before cancellation was admitted. Explain briefly; do not claim it was cancelled. Original message: ${source.text}`
+                  ? `The requested task already finished before cancellation was dispatched. Explain briefly; do not claim it was cancelled. Original message: ${source.text}`
                   : `The requested task was cancelled. Acknowledge briefly. Original message: ${source.text}`;
               }
               await enqueueRequest(tx, app.work, source, sessionId);
@@ -244,7 +244,7 @@ export class Assistant {
     const turn = this.snapshot().turns.find(item => item.id === turnId && item.sessionId === sessionId && item.status === "queued");
     if (!turn) throw new Error("This message has already started or is no longer queued.");
     const source = this.state.home.messages.find(item => item.id === turnId)!;
-    // Abort dispatch first so admission cannot race withdrawal.
+    // Abort the dispatch task before withdrawing its queued request.
     if (source.taskId !== undefined) {
       await this.pi.harness.abortTask(source.taskId as TaskId, BACKGROUND_CONTEXT);
       await this.pi.harness.waitForTask(source.taskId as TaskId, BACKGROUND_CONTEXT);

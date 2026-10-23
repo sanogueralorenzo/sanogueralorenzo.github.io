@@ -5,7 +5,7 @@ import { Type } from "typebox";
 import type { Assistant } from "./assistant.ts";
 import { HomeDoc, assistantText, type HomeMessage } from "./state.ts";
 
-type Admission = { action: "start"; dependsOn: string[] } | { action: "revise" | "cancel"; targetId: string };
+type DispatchDecision = { action: "start"; dependsOn: string[] } | { action: "revise" | "cancel"; targetId: string };
 type WorkState = { phase: "ready" } | { phase: "fork"; entryId: number; cwd: string } | { phase: "execute"; conversationId: number; cwd: string };
 type Input = { sourceId: string; sessionId: string };
 type Runtime = TaskRuntime<Input, WorkState, null, object>;
@@ -14,7 +14,7 @@ export const requestsInSession = (app: Assistant, sessionId: string) => app.stat
   app.state.home.entries.find(entry => entry.id === message.entryId)?.sessionId === sessionId);
 
 // Application task IDs are message IDs. They stay stable across a stopped task's new execution attempt.
-export async function admitMessage(app: Assistant, source: HomeMessage, sessionId: string): Promise<Admission> {
+export async function dispatchMessage(app: Assistant, source: HomeMessage, sessionId: string): Promise<DispatchDecision> {
   const earlier = new Set(app.state.home.messages.slice(0, app.state.home.messages.findIndex(message => message.id === source.id)).map(message => message.id));
   const active = app.snapshot().turns.filter(turn => turn.sessionId === sessionId && earlier.has(turn.sourceId!));
   if (!active.length) return { action: "start", dependsOn: [] };
@@ -23,12 +23,12 @@ export async function admitMessage(app: Assistant, source: HomeMessage, sessionI
     if (!target) throw new Error("There is no active task to revise");
     return { action: "revise", targetId: target.sourceId! };
   }
-  let accepted: Admission | undefined;
-  const choose = defineTool({ name: "admit_message", description: "Choose how this message relates to the listed unfinished tasks. Reference only their exact task IDs.",
+  let accepted: DispatchDecision | undefined;
+  const choose = defineTool({ name: "dispatch_message", description: "Choose how this message relates to the listed unfinished tasks. Reference only their exact task IDs.",
     parameters: Type.Object({ action: Type.Union([Type.Literal("start"), Type.Literal("revise"), Type.Literal("cancel")]),
       dependsOn: Type.Optional(Type.Array(Type.String())), targetId: Type.Optional(Type.String()) }, { additionalProperties: false }),
     execute: async args => {
-      if (accepted) return { output: [{ type: "text" as const, text: "Admission already accepted" }] };
+      if (accepted) return { output: [{ type: "text" as const, text: "Dispatch decision already accepted" }] };
       try {
         const ids = new Set(active.map(turn => turn.sourceId));
         if (args.action === "start") {
@@ -40,17 +40,17 @@ export async function admitMessage(app: Assistant, source: HomeMessage, sessionI
           if (args.dependsOn?.length) throw new Error("Revisions and cancellations cannot add dependencies");
           accepted = { action: args.action, targetId: args.targetId };
         }
-        return { output: [{ type: "text" as const, text: "Admission accepted" }] };
+        return { output: [{ type: "text" as const, text: "Dispatch decision accepted" }] };
       } catch (error) { return { output: [{ type: "text" as const, text: String(error) }], isError: true }; }
     } });
   const record = app.state.home.sessions.find(item => item.id === sessionId)!;
-  await app.pi.utility("admission", JSON.stringify({
+  await app.pi.utility("dispatcher", JSON.stringify({
     recent: app.state.transcript(sessionId).slice(-12),
     tasks: active.map(turn => ({ taskId: turn.sourceId, text: turn.text, status: turn.status,
       dependsOn: app.state.home.messages.find(item => item.id === turn.sourceId)?.dependsOn || [] })),
     message: source.prompt || source.text,
   }), record.cwd, [choose], () => accepted ? JSON.stringify(accepted) : undefined);
-  if (!accepted) throw new Error("Admission did not choose a task relationship");
+  if (!accepted) throw new Error("Dispatcher did not choose a task relationship");
   return accepted;
 }
 
@@ -79,7 +79,7 @@ export function requestTask(getApp: () => Assistant) {
             if (replaced && replaced.state.status !== "terminal") waiting.push(replaced.id);
           }
           // Read the dependency graph and its receipts on the commit line. A concurrent revision cannot change
-          // the edges between checking prerequisites and admitting this task.
+          // the edges between checking prerequisites and starting this task.
           for (const id of current.dependsOn || []) {
             const dependency = home.messages.find(item => item.id === id);
             if (!dependency) throw new Error(`Prerequisite task ${id} was removed`);

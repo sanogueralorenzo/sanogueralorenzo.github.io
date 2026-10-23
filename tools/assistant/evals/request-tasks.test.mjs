@@ -15,7 +15,7 @@ async function until(check, message = "condition") {
   for (let i = 0; i < 400; i++) { const value = await check(); if (value) return value; await new Promise(resolve => setTimeout(resolve, 10)); }
   throw new Error(`Timed out waiting for ${message}`);
 }
-async function fixture(t, respond, admission = () => ({ action: "start", dependsOn: [] }), storage = undefined) {
+async function fixture(t, respond, dispatcher = () => ({ action: "start", dependsOn: [] }), storage = undefined) {
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), "assistant-request-")));
   const calls = [];
   const runtime = { getModel: () => model, streamSimple: (selected, transcript, options = {}) => lazyStream(selected, async () => (async function* () {
@@ -23,10 +23,10 @@ async function fixture(t, respond, admission = () => ({ action: "start", depends
     const input = transcript.messages.filter(message => message.role === "user").at(-1)?.content;
     const names = (transcript.tools || transcript.messages.flatMap(message => message.toolsAdded || [])).map(tool => tool.name);
     let content;
-    if (names.includes("admit_message")) {
+    if (names.includes("dispatch_message")) {
       const request = JSON.parse(input);
-      calls.push({ admission: request });
-      content = [call("admit_message", await admission(request))];
+      calls.push({ dispatcher: request });
+      content = [call("dispatch_message", await dispatcher(request))];
     } else if (names.includes("route_home")) {
       const match = input.match(/Recent saved conversations: (.*)\nRecent Home exchanges/);
       const sessions = JSON.parse(match[1]);
@@ -228,7 +228,7 @@ test("deleting a queued task prevents execution and fails its dependents explici
   slow.resolve([text("Weather result")]);
 });
 
-test("admission rejects self or future dependencies and only sees older tasks", { timeout: 15000 }, async t => {
+test("dispatcher rejects self or future dependencies and only sees older tasks", { timeout: 15000 }, async t => {
   const slow = gate();
   let decisions = 0;
   const f = await fixture(t, (input, _transcript, signal) => input.endsWith("Weather") ? block(signal, slow) : [text("Independent result")], request => {
@@ -246,8 +246,8 @@ test("admission rejects self or future dependencies and only sees older tasks", 
   await until(async () => (await f.receipt("later"))?.status === "done");
   assert.deepEqual(f.app.state.home.messages.find(message => message.id === "first").dependsOn, []);
   assert.equal(decisions, 3);
-  for (const { admission } of f.calls.filter(call => call.admission?.message === "First follow-up"))
-    assert.deepEqual(admission.tasks.map(task => task.taskId), ["weather"]);
+  for (const { dispatcher } of f.calls.filter(call => call.dispatcher?.message === "First follow-up"))
+    assert.deepEqual(dispatcher.tasks.map(task => task.taskId), ["weather"]);
   slow.resolve([text("Weather result")]);
 });
 
@@ -282,7 +282,7 @@ test("Stop cancels workers below earlier coordinator generation rounds", { timeo
   assert.deepEqual(records.items.filter(task => task.state.status !== "terminal"), []);
 });
 
-test("cancellation does not claim to stop a task that finished during admission", { timeout: 15000 }, async t => {
+test("cancellation does not claim to stop a task that finished while the dispatcher was deciding", { timeout: 15000 }, async t => {
   const slow = gate(), deciding = gate(), release = gate();
   const f = await fixture(t, (input, _transcript, signal) => input.endsWith("Weather") ? block(signal, slow) : [text("Already finished")], async () => {
     deciding.resolve();

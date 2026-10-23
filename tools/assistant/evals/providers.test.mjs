@@ -85,7 +85,7 @@ test("fast preferences persist independently and require a connected provider", 
   await assert.rejects(offline.setFastMode("anthropic", true), /Connect Anthropic first/);
 });
 
-test("native search preserves client tools, skips routing and admission, and stays out of suggestions", async t => {
+test("native search preserves client tools, skips router and dispatcher calls, and stays out of suggestions", async t => {
   const models = runtime();
   const wrapped = providerModels(models);
   const requests = [];
@@ -109,7 +109,7 @@ test("native search preserves client tools, skips routing and admission, and sta
       assert.equal(request.tools.some(tool => tool.name === "read"), true);
       if (provider === "anthropic") assert.equal(request.tools.find(tool => tool.name === "web_search").type, "web_search_20250305");
     }
-    for (const name of ["route_home", "admit_message"]) {
+    for (const name of ["route_home", "dispatch_message"]) {
       const routing = await send(name);
       assert.ok(!(routing.tools || []).some(tool => tool.googleSearch || tool.type?.startsWith("web_search")));
     }
