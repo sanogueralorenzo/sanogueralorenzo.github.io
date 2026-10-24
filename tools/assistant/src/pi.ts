@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import type { JsonValue } from "@earendil-works/chord";
+import type { Context as TaskContext, JsonValue } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { lazyStream, type Models, type Model, type Api, type Context, type ModelsSimpleStreamOptions } from "@earendil-works/pi-ai";
 import { createCodingTools, createReadOnlyTools, formatSkillsForPrompt } from "@earendil-works/pi-coding-agent";
@@ -66,9 +66,11 @@ export function providerModels(runtime: Models, fastEnabled: (provider: string) 
     }
     return (model: Model<Api>, transcript: Context, options: ModelsSimpleStreamOptions = {}) => lazyStream(model, async () => {
       const tools = transcript.tools || transcript.messages.flatMap((message) => message.role === "system" ? message.toolsAdded || [] : []);
-      const routing = tools.some((tool) => ["route_home", "dispatch_message"].includes(tool.name));
-      // Reserve one additional inference slot for routing and dispatch decisions.
-      while (active.size >= (routing ? maxWorkRequests + 1 : maxWorkRequests)) {
+      const routing = tools.some((tool) => tool.name === "route_home");
+      const scheduling = routing || tools.some((tool) => tool.name === "dispatch_message");
+      // Keep dispatch responsive under execution load, and Home routing responsive under dispatch load.
+      const limit = maxWorkRequests + (routing ? 2 : scheduling ? 1 : 0);
+      while (active.size >= limit) {
         options.signal?.throwIfAborted();
         await new Promise<void>((resolve, reject) => {
           const abort = () => { cleanup(); reject(options.signal!.reason); };
@@ -87,7 +89,7 @@ export function providerModels(runtime: Models, fastEnabled: (provider: string) 
           const sources = new NativeSearchSources();
           const stream = target.streamSimple(model, transcript, { ...options,
             onPayload: async (payload, selected) => {
-              const request = nativeSearchPayload(model, await options.onPayload?.(payload, selected) ?? payload, !routing);
+              const request = nativeSearchPayload(model, await options.onPayload?.(payload, selected) ?? payload, !scheduling);
               return fastModePayload(model, request, fastEnabled(model.provider));
             },
             onProviderStreamEvent: async (event, selected) => {
@@ -157,7 +159,7 @@ export class PiService {
     const utility = ["router", "dispatcher"].includes(role);
     return { ...(utility ? utilityAgent(this.model) : { model: this.model, thinkingLevel: "high" as const }), cwd, extensions: [this.roles[role]] };
   }
-  async utility(role: "router" | "dispatcher", input: string, cwd: string, customTools: ToolRegistration[] = [], acceptedResult?: () => string | undefined) {
+  async utility(role: "router" | "dispatcher", input: string, cwd: string, customTools: ToolRegistration[] = [], acceptedResult?: () => string | undefined, context: TaskContext = BACKGROUND_CONTEXT) {
     const tools = customTools.map((tool) => defineTool({ name: tool.name, description: tool.description, parameters: tool.parameters,
       execute: async (args, api, context) => {
         const result = await tool.execute(args, api, context);
@@ -167,13 +169,13 @@ export class PiService {
     const registry = createRegistry();
     const extension = roleExtension(role, tools);
     registry.install(extension);
-    const harness = await Harness.open(new MemoryStorage(), { models: this.agentModels, registry }, BACKGROUND_CONTEXT);
+    const harness = await Harness.open(new MemoryStorage(), { models: this.agentModels, registry }, context);
     try {
-      const root = await harness.root(BACKGROUND_CONTEXT, { agent: { ...this.agent(role, cwd), extensions: [extension] } });
-      const settled = await (await root.submit({ type: "input", content: input }, BACKGROUND_CONTEXT)).wait(BACKGROUND_CONTEXT);
+      const root = await harness.root(context, { agent: { ...this.agent(role, cwd), extensions: [extension] } });
+      const settled = await (await root.submit({ type: "input", content: input }, context)).wait(context);
       if (acceptedResult?.()) return acceptedResult()!;
       if (settled.status !== "done" || settled.type !== "input") throw new Error("Router did not choose a destination");
-      const entry = await root.commit((tx) => tx.entry(AssistantEntry, settled.answer), BACKGROUND_CONTEXT);
+      const entry = await root.commit((tx) => tx.entry(AssistantEntry, settled.answer), context);
       return assistantText(entry?.model?.[0] || {});
     } finally { await harness.close(BACKGROUND_CONTEXT); }
   }
