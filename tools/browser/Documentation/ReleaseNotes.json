@@ -4381,6 +4381,10 @@
     "mouse-swipe-buttons-switch-spaces-over-sidebar": {
       "category": "fixed",
       "message": "Mouse Back and Forward buttons set up as swipes in Logitech Options+ switch Spaces when the pointer is over the sidebar, as other mice do."
+    },
+    "local-macos-build-runner": {
+      "category": "internal",
+      "message": "Enable isolated local WebKit Mac builds without upstream signing credentials and fix Swift compilation of page wrappers and update settings."
     }
   }
 }

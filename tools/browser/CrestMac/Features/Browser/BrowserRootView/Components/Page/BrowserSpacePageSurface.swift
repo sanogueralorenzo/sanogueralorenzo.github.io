@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct BrowserSpacePageSurface: NSViewRepresentable {
+    // MARK: - Variables
+
     let model: BrowserRootModel
     let transientBrowsing: BrowserTransientBrowsingCoordinator
     let tabPromotionNamespace: Namespace.ID
@@ -10,6 +12,22 @@ struct BrowserSpacePageSurface: NSViewRepresentable {
     @AppStorage(SpacePageMotionPreference.key)
     private var animatesSpacePages = SpacePageMotionPreference.defaultValue
     private var pageEnvironment = SpacePageEnvironment()
+
+    // MARK: - Initializers
+
+    init(
+        model: BrowserRootModel, transientBrowsing: BrowserTransientBrowsingCoordinator,
+        tabPromotionNamespace: Namespace.ID, shortcuts: BrowserShortcutStore?,
+        appearance: BrowserChromeAppearance = BrowserChromeAppearance()
+    ) {
+        self.model = model
+        self.transientBrowsing = transientBrowsing
+        self.tabPromotionNamespace = tabPromotionNamespace
+        self.shortcuts = shortcuts
+        self.appearance = appearance
+    }
+
+    // MARK: - Actions - Presentation
 
     func makeNSView(context: Context) -> SpaceContentPagerView<BrowserRootPageSurface> {
         SpaceContentPagerView(frame: .zero)

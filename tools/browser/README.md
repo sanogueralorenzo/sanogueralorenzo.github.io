@@ -11,11 +11,13 @@ Requires an Apple silicon Mac, Xcode with macOS/iOS SDKs supporting the 26.1 dep
 ```sh
 cd tools/browser
 Scripts/control-plane/install-dotnet.sh
-Scripts/bootstrap.sh
-open Crest.xcodeproj
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/bootstrap.sh
+Scripts/run-local.sh
 ```
 
-If Command Line Tools is selected instead of Xcode, set `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` for the build commands.
+`run-local.sh` builds and opens the WebKit Mac app with an ad-hoc signature, a separate bundle identifier, and a persistent isolated profile. No Apple developer team is needed; iCloud sync and upstream updates stay disabled. Pass `--build-only` to compile without opening it. Build products live in `~/Library/Developer/Xcode/DerivedData/BrowserLocal`.
+
+If Command Line Tools is selected instead of Xcode, set `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` for bootstrap. The local runner selects that Xcode automatically. Open `Crest.xcodeproj` to edit in Xcode; use the local runner to build without upstream signing profiles.
 
 The `Crest` scheme builds the Mac app with WebKit. Chromium packaging requires a prebuilt engine; see [the engine setup](CrestEngines/Chromium/README.md). `project.yml` is authoritative; run `xcodegen generate` after changing targets or project configuration.
 

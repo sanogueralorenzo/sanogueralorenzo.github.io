@@ -11,7 +11,7 @@ struct BrowserPlatformSoftwareUpdateSettingsSection: View {
                 "Check for updates automatically",
                 isOn: Binding(
                     get: { softwareUpdates.automaticallyChecksForUpdates },
-                    set: softwareUpdates.setAutomaticallyChecksForUpdates
+                    set: { softwareUpdates.setAutomaticallyChecksForUpdates($0) }
                 )
             )
 
@@ -19,7 +19,7 @@ struct BrowserPlatformSoftwareUpdateSettingsSection: View {
                 "Download and install updates automatically",
                 isOn: Binding(
                     get: { softwareUpdates.automaticallyDownloadsUpdates },
-                    set: softwareUpdates.setAutomaticallyDownloadsUpdates
+                    set: { softwareUpdates.setAutomaticallyDownloadsUpdates($0) }
                 )
             )
             .disabled(!softwareUpdates.automaticallyChecksForUpdates)

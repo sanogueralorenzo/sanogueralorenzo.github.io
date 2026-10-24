@@ -54,11 +54,11 @@ if [[ "$mode" == "--fix-commit" ]]; then
   fi
 
   head_version="$({
-    git -C "$repository_root" show HEAD:Config/Version.xcconfig 2>/dev/null \
+    git -C "$repository_root" show HEAD:./Config/Version.xcconfig 2>/dev/null \
       | sed -nE 's/^[[:space:]]*MARKETING_VERSION[[:space:]]*=[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p'
   } || true)"
   staged_version="$({
-    git -C "$repository_root" show :Config/Version.xcconfig 2>/dev/null \
+    git -C "$repository_root" show :./Config/Version.xcconfig 2>/dev/null \
       | sed -nE 's/^[[:space:]]*MARKETING_VERSION[[:space:]]*=[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p'
   } || true)"
 

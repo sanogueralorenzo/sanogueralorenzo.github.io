@@ -152,14 +152,14 @@ def working_catalog_document(repository_root: pathlib.Path) -> ReleaseNoteCatalo
 
 
 def staged_catalog(repository_root: pathlib.Path) -> ReleaseNoteCatalog:
-    contents = git_file(repository_root, f":{CATALOG_PATH}")
+    contents = git_file(repository_root, f":./{CATALOG_PATH}")
     if contents is None:
         raise CatalogValidationError(f"stage {CATALOG_PATH} with the current commit")
     return parse_catalog_document(contents, f"staged {CATALOG_PATH}")
 
 
 def head_catalog(repository_root: pathlib.Path) -> ReleaseNoteCatalog:
-    contents = git_file(repository_root, f"HEAD:{CATALOG_PATH}")
+    contents = git_file(repository_root, f"HEAD:./{CATALOG_PATH}")
     if contents is None:
         return ReleaseNoteCatalog(LEGACY_SCHEMA_VERSION, {}, {})
     return parse_catalog_document(contents, f"HEAD {CATALOG_PATH}")

@@ -22,15 +22,15 @@ final class BrowserRootModel {
     /// closure-backed binding reads its initial value. Reuse it so containers
     /// forwarding the binding do not observe the address themselves.
     @ObservationIgnored private(set) lazy var addressBinding = Binding<String>(
-        get: { @MainActor [weak self] in self?.address ?? "" },
-        set: { @MainActor [weak self] address in
+        get: { [weak self] in self?.address ?? "" },
+        set: { [weak self] address in
             guard let self, self.address != address else { return }
             self.address = address
         }
     )
     @ObservationIgnored private(set) lazy var isAddressEditingBinding = Binding<Bool>(
-        get: { @MainActor [weak self] in self?.isAddressEditing ?? false },
-        set: { @MainActor [weak self] isEditing in
+        get: { [weak self] in self?.isAddressEditing ?? false },
+        set: { [weak self] isEditing in
             guard let self, self.isAddressEditing != isEditing else { return }
             self.isAddressEditing = isEditing
         }
