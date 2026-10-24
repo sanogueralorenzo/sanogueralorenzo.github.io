@@ -1,0 +1,13 @@
+{"sidebar":{"containers":[{
+  "items":[
+    "a",{"id":"a","data":{"tab":{"savedTitle":"A","savedURL":"https://a.example/"}}},
+    "b",{"id":"b","data":{"tab":{"savedTitle":"B","savedURL":"https://b.example/"}}},
+    "c",{"id":"c","data":{"tab":{"savedTitle":"C","savedURL":"https://c.example/"}}}
+  ],
+  "spaces":[
+    "one",{"id":"one","title":"   ","containerIDs":["a"]},
+    "two",{"id":"two","containerIDs":["b"]},
+    "empty",{"id":"empty","title":"Empty","containerIDs":[]},
+    "three",{"id":"three","title":"","containerIDs":["c"]}
+  ]
+}]}}

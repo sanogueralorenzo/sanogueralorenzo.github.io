@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><IsTestProject>true</IsTestProject><IsPackable>false</IsPackable><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" PrivateAssets="all" />
+    <ProjectReference Include="../../src/CrestCore/CrestCore.csproj" />
+    <ProjectReference Include="../../src/CrestCore.Native/CrestCore.Native.csproj" />
+    <ProjectReference Include="../../tools/CrestCore.Generator/CrestCore.Generator.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Session/Fixtures/*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Storage/Fixtures/*.sqlite" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Portability/Fixtures/**/*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

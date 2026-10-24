@@ -1,0 +1,27 @@
+name: Feature request
+description: Propose a user problem Crest could solve.
+title: "feature: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: Discuss early ideas and alternatives in [r/CrestBrowser](https://www.reddit.com/r/CrestBrowser). Use this form when there is a clear user problem and a concrete outcome Crest could track.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to accomplish, and where does Crest get in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed outcome
+      description: Describe the behavior you would expect, without assuming a particular implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Platform and Space boundaries
+      description: Note whether this applies to Mac, iPhone, iPad, extensions, private browsing, or a particular Space workflow.

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Crest community on Reddit
+    url: https://www.reddit.com/r/CrestBrowser
+    about: Ask questions, share feedback, discuss ideas, and report website or extension compatibility experiences.
+  - name: Security vulnerability
+    url: https://github.com/pauljoda/Crest/security/advisories/new
+    about: Report security issues privately instead of opening a public issue.
+  - name: Crest Help
+    url: https://crestbrowser.com/guides/
+    about: Read setup, extension, privacy, and troubleshooting guides.

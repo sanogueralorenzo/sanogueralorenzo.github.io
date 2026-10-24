@@ -1,0 +1,731 @@
+name: Publish experimental macOS release
+run-name: Experimental macOS • ${{ inputs.source_ref }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Branch to publish to the experimental channel
+        required: true
+        type: string
+      expected_sha:
+        description: Optional expected branch commit; refuse publication if the branch moved
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+  artifact-metadata: write
+
+# Intentionally shares the production release concurrency group because both
+# workflows write to the same `updates` branch.
+concurrency:
+  group: crest-macos-release
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Resolve experimental publication
+    runs-on: ubuntu-latest
+    outputs:
+      asset_base: ${{ steps.release.outputs.asset_base }}
+      branch_name: ${{ steps.release.outputs.branch_name }}
+      build_number: ${{ steps.release.outputs.build_number }}
+      marketing_version: ${{ steps.release.outputs.marketing_version }}
+      previous_commit: ${{ steps.release.outputs.previous_commit }}
+      release_tag: ${{ steps.release.outputs.release_tag }}
+      release_title: ${{ steps.release.outputs.release_title }}
+      source_sha: ${{ steps.release.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Dispatch with --ref chromium-control-plane to use its Chromium pipeline.
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 0
+
+      - name: Resolve release identity and previous experimental publication
+        id: release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_REF: ${{ inputs.source_ref }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+
+          retry_github() {
+            local attempt delay exit_code
+            delay=2
+            for attempt in 1 2 3 4 5 6; do
+              if "$@"; then
+                return 0
+              else
+                exit_code=$?
+              fi
+              if [[ "$attempt" == 6 ]]; then
+                return "$exit_code"
+              fi
+              printf 'GitHub request failed; retrying in %s seconds.\n' "$delay" >&2
+              sleep "$delay"
+              delay=$((delay * 2))
+            done
+          }
+
+          if ! git ls-remote --exit-code --heads origin "refs/heads/${SOURCE_REF}" >/dev/null 2>&1; then
+            printf 'Experimental releases require an existing branch; %s was not found.\n' "$SOURCE_REF" >&2
+            exit 1
+          fi
+
+          default_branch="$(
+            retry_github gh api "repos/${GITHUB_REPOSITORY}" --jq '.default_branch'
+          )"
+          if [[ "$SOURCE_REF" == "$default_branch" ]]; then
+            printf \
+              'Experimental releases are branch-only. Enter the Chromium/experimental branch instead of %s.\n' \
+              "$default_branch" >&2
+            exit 1
+          fi
+
+          # The installed artifact must understand the experimental Sparkle channel.
+          # This intentionally fails rather than silently falling back to Stable.
+          if ! grep -Eq 'case[[:space:]]+experimental' \
+              CrestMac/Features/SoftwareUpdates/Models/BrowserSoftwareUpdateChannel.swift \
+              || ! grep -Fq 'appcast-experimental' \
+              CrestMac/Features/SoftwareUpdates/Models/BrowserSoftwareUpdateChannel.swift; then
+            cat >&2 <<'MESSAGE'
+          This branch does not yet declare BrowserSoftwareUpdateChannel.experimental
+          with appcast-experimental.xml as its custom feed. Add that channel before
+          publishing so installed experimental builds cannot fall back to another feed.
+          MESSAGE
+            exit 1
+          fi
+
+          retry_github git fetch --force origin \
+            "refs/heads/${default_branch}:refs/remotes/origin/${default_branch}"
+          retry_github git fetch --force origin \
+            "refs/heads/updates:refs/remotes/origin/updates"
+
+          marketing_version="$(
+            sed -nE \
+              's/^MARKETING_VERSION[[:space:]]*=[[:space:]]*([^[:space:]]+)$/\1/p' \
+              Config/Version.xcconfig
+          )"
+          build_epoch=1000
+          build_number="$((build_epoch + GITHUB_RUN_NUMBER))"
+          release_date="$(date -u +%Y-%m-%d)"
+          source_sha="$(git rev-parse HEAD)"
+          if [[ -n "$EXPECTED_SHA" && "$source_sha" != "$EXPECTED_SHA" ]]; then
+            echo 'The experimental branch moved from the verified commit; refusing publication.' >&2
+            exit 1
+          fi
+          short_sha="$(git rev-parse --short=7 "$source_sha")"
+          branch_name="$SOURCE_REF"
+          branch_slug="$(
+            printf '%s' "$branch_name" \
+              | tr '[:upper:]' '[:lower:]' \
+              | sed -E 's/[^a-z0-9._-]+/-/g; s/^-+//; s/-+$//' \
+              | cut -c1-40
+          )"
+          if [[ -z "$branch_slug" ]]; then
+            branch_slug=branch
+          fi
+
+          # Keep both products newer than every published channel, including
+          # the final experimental build that moves users to Development.
+          build_number="$(
+            python3 Scripts/next-release-build-number.py \
+              --git-ref refs/remotes/origin/updates \
+              --minimum "$build_number"
+          )"
+
+          experimental_appcast="$RUNNER_TEMP/appcast-experimental.xml"
+          previous_commit=""
+          if git cat-file -e \
+              "refs/remotes/origin/updates:appcast-experimental.xml" 2>/dev/null; then
+            git show \
+              "refs/remotes/origin/updates:appcast-experimental.xml" \
+              > "$experimental_appcast"
+
+            next_experimental_build="$(
+              APPCAST_PATH="$experimental_appcast" python3 - <<'PY'
+          import os
+          import re
+          import xml.etree.ElementTree as ET
+          
+          sparkle_version = "{http://www.andymatuschak.org/xml-namespaces/sparkle}version"
+          root = ET.parse(os.environ["APPCAST_PATH"]).getroot()
+          versions = []
+          for item in root.findall(".//item"):
+              value = (item.findtext(sparkle_version) or "").strip()
+              if not re.fullmatch(r"[0-9]+", value):
+                  raise SystemExit(f"Invalid Sparkle build number: {value!r}")
+              versions.append(int(value))
+          print(max(versions, default=0) + 1)
+          PY
+            )"
+            if (( next_experimental_build > build_number )); then
+              build_number="$next_experimental_build"
+            fi
+
+            published_commit_prefix="$(
+              APPCAST_PATH="$experimental_appcast" python3 - <<'PY'
+          import importlib.util
+          import os
+          import pathlib
+          import sys
+          
+          path = pathlib.Path("Scripts/resolve-published-release.py")
+          spec = importlib.util.spec_from_file_location("crest_resolve_published_release", path)
+          module = importlib.util.module_from_spec(spec)
+          sys.modules[spec.name] = module
+          spec.loader.exec_module(module)
+          
+          appcast = pathlib.Path(os.environ["APPCAST_PATH"]).read_text()
+          print(module.published_commit_prefix(appcast, "experimental") or "")
+          PY
+            )"
+
+            if [[ -n "$published_commit_prefix" ]]; then
+              previous_commit="$(
+                git rev-parse "${published_commit_prefix}^{commit}" 2>/dev/null || true
+              )"
+            fi
+          fi
+
+          # First publication, or a rebased branch whose prior commit is no longer
+          # reachable, starts release notes at the branch point with main.
+          if [[ -z "$previous_commit" ]]; then
+            previous_commit="$(
+              git merge-base \
+                "refs/remotes/origin/${default_branch}" \
+                "$source_sha"
+            )"
+          fi
+
+          release_tag="experimental-${marketing_version}-${branch_slug}-${release_date}-${build_number}-r${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+          release_title="Crest Experimental ${marketing_version} · ${branch_name} · ${release_date} · Build ${build_number}"
+          asset_base="Crest-${marketing_version}-experimental-${release_date}-${short_sha}-arm64"
+
+          {
+            printf 'asset_base=%s\n' "$asset_base"
+            printf 'branch_name=%s\n' "$branch_name"
+            printf 'build_number=%s\n' "$build_number"
+            printf 'marketing_version=%s\n' "$marketing_version"
+            printf 'previous_commit=%s\n' "$previous_commit"
+            printf 'release_tag=%s\n' "$release_tag"
+            printf 'release_title=%s\n' "$release_title"
+            printf 'source_sha=%s\n' "$source_sha"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            printf '### Experimental publication\n\n'
+            printf -- '- Branch: `%s`\n' "$branch_name"
+            printf -- '- Source: `%s`\n' "$source_sha"
+            printf -- '- Previous experimental baseline: `%s`\n' "$previous_commit"
+            printf -- '- Build: `%s`\n' "$build_number"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  engine:
+    name: Prepare Chromium engine
+    needs: preflight
+    uses: ./.github/workflows/chromium-engine.yml
+    permissions:
+      contents: write
+    with:
+      source_sha: ${{ needs.preflight.outputs.source_sha }}
+
+  release:
+    name: Sign, notarize, and publish
+    needs: [preflight, engine]
+    runs-on: xcode-27
+    # Two apps and two disk images are notarized.
+    timeout-minutes: 180
+    # Separate from `production`, which only admits main and release tags, so
+    # experimental builds can come from any branch.
+    environment: experimental
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.preflight.outputs.source_sha }}
+          fetch-depth: 0
+
+      - name: Ensure build tools are available
+        run: |
+          command -v xcodegen >/dev/null || brew install xcodegen
+          command -v rg >/dev/null || brew install ripgrep
+          Scripts/control-plane/install-dotnet.sh
+
+      - name: Prepare release source
+        run: Scripts/bootstrap.sh
+
+      - name: Build, sign, and notarize
+        shell: zsh {0}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64 }}
+          DEVELOPER_ID_APPLICATION_P12_BASE64: ${{ secrets.DEVELOPER_ID_APPLICATION_P12_BASE64 }}
+          DEVELOPER_ID_APPLICATION_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_P12_PASSWORD }}
+          DEVELOPER_ID_PROVISIONING_PROFILE_BASE64: ${{ secrets.DEVELOPER_ID_PROVISIONING_PROFILE_BASE64 }}
+          RELEASE_ASSET_BASE: ${{ needs.preflight.outputs.asset_base }}
+          RELEASE_BUILD_NUMBER: ${{ needs.preflight.outputs.build_number }}
+          SOURCE_SHA: ${{ needs.preflight.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+          release_root="$RUNNER_TEMP/crest-experimental-release"
+          archive_path="$release_root/Crest.xcarchive"
+          export_path="$release_root/export"
+          publish_path="$release_root/publish"
+          installer_name="Installer-${RELEASE_ASSET_BASE}.dmg"
+          checksum_name="Checksum-${RELEASE_ASSET_BASE}.dmg.sha256"
+          symbols_name="Debug-Symbols-${RELEASE_ASSET_BASE}.dSYM.zip"
+          keychain_path="$RUNNER_TEMP/crest-signing.keychain-db"
+          api_key_path="$RUNNER_TEMP/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          p12_path="$RUNNER_TEMP/developer-id-application.p12"
+          profile_path="$RUNNER_TEMP/crest-developer-id.provisionprofile"
+          installed_profile_directory="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          installed_profile_path="$installed_profile_directory/${GITHUB_RUN_ID}-crest.provisionprofile"
+          keychain_password="$(openssl rand -hex 24)"
+          original_keychain="$(security default-keychain -d user | tr -d '"')"
+
+          cleanup_signing() {
+            security default-keychain -d user -s "$original_keychain" >/dev/null 2>&1 || true
+            security delete-keychain "$keychain_path" >/dev/null 2>&1 || true
+            find \
+              "$api_key_path" \
+              "$p12_path" \
+              "$profile_path" \
+              "$installed_profile_path" \
+              -delete 2>/dev/null || true
+          }
+          trap cleanup_signing EXIT INT TERM HUP
+
+          mkdir -p "$release_root" "$publish_path"
+          print -r -- "$DEVELOPER_ID_APPLICATION_P12_BASE64" | base64 -D > "$p12_path"
+          print -r -- "$APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64" | base64 -D > "$api_key_path"
+          print -r -- "$DEVELOPER_ID_PROVISIONING_PROFILE_BASE64" \
+            | base64 -D > "$profile_path"
+          chmod 600 "$p12_path" "$api_key_path" "$profile_path"
+
+          profile_plist="$release_root/developer-id-profile.plist"
+          security cms -D -i "$profile_path" > "$profile_plist"
+          test "$(plutil -extract Name raw "$profile_plist")" = "Crest Developer ID"
+          mkdir -p "$installed_profile_directory"
+          cp "$profile_path" "$installed_profile_path"
+
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$p12_path" \
+            -k "$keychain_path" \
+            -P "$DEVELOPER_ID_APPLICATION_P12_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$keychain_password" \
+            "$keychain_path"
+          security list-keychains -d user -s "$keychain_path" "$original_keychain"
+          security default-keychain -d user -s "$keychain_path"
+
+          identity_hash="$(
+            security find-identity -v -p codesigning "$keychain_path" \
+              | awk '/Developer ID Application: .*\(3U2R97HLXF\)/ { print $2; exit }'
+          )"
+          if [[ -z "$identity_hash" ]]; then
+            print -u2 "The imported archive does not contain Crest's Developer ID Application identity."
+            exit 1
+          fi
+
+          notarize() {
+            xcrun notarytool submit "$1" \
+              --key "$api_key_path" \
+              --key-id "$APP_STORE_CONNECT_API_KEY_ID" \
+              --issuer "$APP_STORE_CONNECT_API_ISSUER_ID" \
+              --wait
+          }
+
+          # Notarize an app, then wrap it in a signed, notarized disk image.
+          package_disk_image() {
+            local app="$1" image="$2" volume="$3" staging="$release_root/dmg-$4"
+            local archive="$release_root/$4-notarization.zip"
+            ditto -c -k --sequesterRsrc --keepParent "$app" "$archive"
+            notarize "$archive"
+            xcrun stapler staple "$app"
+            xcrun stapler validate "$app"
+            spctl --assess --type execute --verbose=4 "$app"
+            mkdir -p "$staging"
+            ditto "$app" "$staging/Crest.app"
+            ln -s /Applications "$staging/Applications"
+            diskutil image create from --volumeName "$volume" --format ULFO "$staging" "$image"
+            codesign --force --timestamp --sign "$identity_hash" "$image"
+            notarize "$image"
+            xcrun stapler staple "$image"
+            xcrun stapler validate "$image"
+            spctl --assess --type open --context context:primary-signature --verbose=4 "$image"
+          }
+
+          # --- Entitlements: Xcode's Developer ID export of the WebKit
+          # composition resolves the entitlements Crest is signed with. That
+          # app only supplies them; it is not published. ---
+          xcodebuild archive \
+            -project Crest.xcodeproj \
+            -scheme Crest \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -archivePath "$archive_path" \
+            -derivedDataPath "$RUNNER_TEMP/crest-experimental-derived-data" \
+            CURRENT_PROJECT_VERSION="$RELEASE_BUILD_NUMBER" \
+            CREST_DEFAULT_UPDATE_CHANNEL=development \
+            DEVELOPMENT_TEAM=3U2R97HLXF \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            CREST_PROVISIONING_PROFILE_SPECIFIER="Crest Developer ID"
+
+          xcodebuild -exportArchive \
+            -archivePath "$archive_path" \
+            -exportPath "$export_path" \
+            -exportOptionsPlist Config/DeveloperIDExportOptions.plist
+
+          app_path="$export_path/Crest.app"
+          test -d "$app_path"
+          codesign --verify --deep --strict --verbose=2 "$app_path"
+          test "$(defaults read "$app_path/Contents/Info" CFBundleIdentifier)" = "com.pauldavis.crest"
+          test "$(defaults read "$app_path/Contents/Info" CrestDefaultUpdateChannel)" = "development"
+          test "$(lipo -archs "$app_path/Contents/MacOS/Crest")" = "arm64"
+
+          exported_entitlements="$release_root/exported-entitlements.plist"
+          codesign -d --entitlements :- "$app_path" \
+            > "$exported_entitlements" 2>/dev/null
+          test "$(/usr/libexec/PlistBuddy -c 'Print :com.apple.application-identifier' "$exported_entitlements")" \
+            = "3U2R97HLXF.com.pauldavis.crest"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.aps-environment' "$exported_entitlements")" \
+            = "production"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.icloud-container-identifiers:0' "$exported_entitlements")" \
+            = "iCloud.com.pauldavis.crest"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :keychain-access-groups:0' "$exported_entitlements")" \
+            = "3U2R97HLXF.com.pauldavis.crest"
+          if /usr/libexec/PlistBuddy -c 'Print :com.apple.security.app-sandbox' "$exported_entitlements" >/dev/null 2>&1; then
+            print -u2 "The product entitlements must not enable the app sandbox; it would strand installed data."
+            exit 1
+          fi
+
+          # --- Crest: Chromium's engine with Crest's interface and WebKit. The
+          # engine is prebuilt and published once per engine revision; see
+          # Scripts/control-plane/publish-chromium-engine.py. ---
+          engine_root="$release_root/engine"
+          engine_tag="$(python3 Scripts/control-plane/chromium_engine.py tag)"
+          engine_asset="$(python3 Scripts/control-plane/chromium_engine.py asset)"
+          mkdir -p "$engine_root"
+          if ! gh release download "$engine_tag" \
+              --repo "$GITHUB_REPOSITORY" \
+              --pattern "$engine_asset" \
+              --pattern "${engine_asset}.sha256" \
+              --dir "$engine_root"; then
+            print -u2 "No Chromium engine is published for this branch's engine sources ($engine_tag)."
+            print -u2 "On the build Mac: apply the host, run build-chromium-baseline.py, then"
+            print -u2 "Scripts/control-plane/publish-chromium-engine.py --source <chromium src> --ninja <ninja>."
+            exit 1
+          fi
+          (cd "$engine_root" && shasum -a 256 -c "${engine_asset}.sha256")
+          ditto -x -k "$engine_root/$engine_asset" "$engine_root"
+          test -d "$engine_root/Chromium.app"
+
+          # The native core the UI framework links against, then the framework.
+          (cd CrestCore && "$HOME/.dotnet/dotnet" publish src/CrestCore.Native \
+            -c Release -r osx-arm64 --nologo)
+          core_library="$PWD/CrestCore/src/CrestCore.Native/bin/Release/net10.0/osx-arm64/publish/CrestCore.Native.dylib"
+          test -f "$core_library"
+          xcodebuild build \
+            -project Crest.xcodeproj \
+            -scheme CrestChromiumUIProduct \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/crest-experimental-derived-data" \
+            CURRENT_PROJECT_VERSION="$RELEASE_BUILD_NUMBER" \
+            CODE_SIGNING_ALLOWED=NO
+          ui_framework="$RUNNER_TEMP/crest-experimental-derived-data/Build/Products/Release/CrestChromiumUIProduct.framework"
+          test -d "$ui_framework"
+
+          mkdir -p "$release_root/chromium"
+          chromium_app="$release_root/chromium/Crest.app"
+          CREST_DEFAULT_UPDATE_CHANNEL=development python3 Scripts/control-plane/package-chromium-host.py \
+            --browser "$engine_root/Chromium.app" \
+            --product \
+            --distribution \
+            --ui "$ui_framework" \
+            --core "$core_library" \
+            --entitlements "$exported_entitlements" \
+            --provisioning-profile "$profile_path" \
+            --signing-identity "$identity_hash" \
+            --output "$chromium_app"
+          codesign --verify --deep --strict --verbose=2 "$chromium_app"
+          test "$(defaults read "$chromium_app/Contents/Info" CFBundleIdentifier)" = "com.pauldavis.crest"
+          test "$(defaults read "$chromium_app/Contents/Info" CrestDefaultUpdateChannel)" = "development"
+          test "$(defaults read "$chromium_app/Contents/Info" CFBundleVersion)" = "$RELEASE_BUILD_NUMBER"
+
+          package_disk_image "$chromium_app" "$publish_path/$installer_name" "Crest" chromium
+          ditto -c -k --keepParent \
+            "$ui_framework.dSYM" \
+            "$publish_path/$symbols_name"
+
+          (
+            cd "$publish_path"
+            shasum -a 256 "$installer_name" > "$checksum_name"
+          )
+
+      - name: Attest release disk image
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: ${{ runner.temp }}/crest-experimental-release/publish/Installer-${{ needs.preflight.outputs.asset_base }}.dmg
+
+      - name: Create GitHub prerelease
+        shell: zsh {0}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIOUS_COMMIT: ${{ needs.preflight.outputs.previous_commit }}
+          RELEASE_ASSET_BASE: ${{ needs.preflight.outputs.asset_base }}
+          RELEASE_BRANCH: ${{ needs.preflight.outputs.branch_name }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.release_tag }}
+          RELEASE_TITLE: ${{ needs.preflight.outputs.release_title }}
+          SOURCE_SHA: ${{ needs.preflight.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+
+          retry_github() {
+            local attempt delay exit_code
+            delay=2
+            for attempt in 1 2 3 4 5 6; do
+              if "$@"; then
+                return 0
+              else
+                exit_code=$?
+              fi
+              if [[ "$attempt" == 6 ]]; then
+                return "$exit_code"
+              fi
+              print -u2 "GitHub request failed; retrying in ${delay} seconds."
+              sleep "$delay"
+              delay=$((delay * 2))
+            done
+          }
+
+          release_root="$RUNNER_TEMP/crest-experimental-release"
+          publish_path="$release_root/publish"
+          release_notes="$release_root/release-notes.md"
+          installer_name="Installer-${RELEASE_ASSET_BASE}.dmg"
+          checksum_name="Checksum-${RELEASE_ASSET_BASE}.dmg.sha256"
+          symbols_name="Debug-Symbols-${RELEASE_ASSET_BASE}.dSYM.zip"
+
+          # Reuse Crest's release-note implementation directly, adding only an
+          # experimental channel description at runtime. The catalog selection,
+          # categories, highlighting, compare links, and asset links stay identical
+          # to the normal release workflow.
+          RELEASE_NOTES_PATH="$release_notes" \
+          RELEASE_BRANCH="$RELEASE_BRANCH" \
+          RELEASE_TAG="$RELEASE_TAG" \
+          PREVIOUS_COMMIT="$PREVIOUS_COMMIT" \
+          INSTALLER_NAME="$installer_name" \
+          python3 - <<'PY'
+          import importlib.util
+          import os
+          import pathlib
+          import sys
+          
+          script = pathlib.Path("Scripts/generate-release-notes.py")
+          sys.path.insert(0, str(script.parent.resolve()))
+          spec = importlib.util.spec_from_file_location("crest_generate_release_notes", script)
+          module = importlib.util.module_from_spec(spec)
+          sys.modules[spec.name] = module
+          spec.loader.exec_module(module)
+          
+          module.CHANNEL_DESCRIPTIONS["experimental"] = (
+              "This is the final experimental update. Installing it switches updates to "
+              "Development, where future releases continue after this branch merges into main."
+          )
+          
+          notes = module.release_notes(
+              repository_root=pathlib.Path.cwd(),
+              repository=os.environ["GITHUB_REPOSITORY"],
+              server_url=os.environ["GITHUB_SERVER_URL"],
+              channel="experimental",
+              release_tag=os.environ["RELEASE_TAG"],
+              current_ref=os.environ["SOURCE_SHA"],
+              previous_ref=os.environ["PREVIOUS_COMMIT"],
+              previous_entry=None,
+              asset_name=os.environ["INSTALLER_NAME"],
+          )
+          pathlib.Path(os.environ["RELEASE_NOTES_PATH"]).write_text(notes)
+          PY
+
+          installer_asset="$publish_path/$installer_name"
+          checksum_asset="$publish_path/$checksum_name"
+          symbols_asset="$publish_path/$symbols_name"
+
+          ensure_prerelease() {
+            local attempt delay
+            delay=2
+            for attempt in 1 2 3 4 5 6; do
+              if gh release view \
+                  "$RELEASE_TAG" \
+                  --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+                return 0
+              fi
+              if gh release create \
+                  "$RELEASE_TAG" \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --target "$SOURCE_SHA" \
+                  --title "$RELEASE_TITLE" \
+                  --notes-file "$release_notes" \
+                  --prerelease \
+                  --latest=false; then
+                return 0
+              fi
+              if [[ "$attempt" == 6 ]]; then
+                return 1
+              fi
+              print -u2 "Unable to confirm the release; retrying in ${delay} seconds."
+              sleep "$delay"
+              delay=$((delay * 2))
+            done
+          }
+
+          ensure_prerelease
+          python3 Scripts/reconcile-release-assets.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --release-tag "$RELEASE_TAG" \
+            --asset "$installer_asset" \
+            --asset "$checksum_asset" \
+            --asset "$symbols_asset"
+
+      - name: Publish signed experimental Sparkle appcast
+        shell: zsh {0}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ASSET_BASE: ${{ needs.preflight.outputs.asset_base }}
+          RELEASE_BUILD_NUMBER: ${{ needs.preflight.outputs.build_number }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.release_tag }}
+          SPARKLE_EDDSA_PRIVATE_KEY: ${{ secrets.SPARKLE_EDDSA_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+
+          retry_github() {
+            local attempt delay exit_code
+            delay=2
+            for attempt in 1 2 3 4 5 6; do
+              if "$@"; then
+                return 0
+              else
+                exit_code=$?
+              fi
+              if [[ "$attempt" == 6 ]]; then
+                return "$exit_code"
+              fi
+              print -u2 "GitHub request failed; retrying in ${delay} seconds."
+              sleep "$delay"
+              delay=$((delay * 2))
+            done
+          }
+
+          sparkle_version=2.9.5
+          sparkle_archive_sha256=015336b601493e05c237964954bff6191370003d94edefe663724c88840d73cc
+          sparkle_root="$RUNNER_TEMP/Sparkle-${sparkle_version}"
+          feed_source="$RUNNER_TEMP/crest-experimental-appcast-source"
+          updates_checkout="$RUNNER_TEMP/crest-updates-branch"
+          release_root="$RUNNER_TEMP/crest-experimental-release"
+          appcast_filename=appcast-experimental.xml
+          webkit_appcast_filename=appcast-experimental-webkit.xml
+          installer_name="Installer-${RELEASE_ASSET_BASE}.dmg"
+
+          mkdir -p "$sparkle_root" "$feed_source" "$updates_checkout"
+
+          retry_github gh release download "$sparkle_version" \
+            --repo sparkle-project/Sparkle \
+            --pattern "Sparkle-${sparkle_version}.tar.xz" \
+            --dir "$sparkle_root"
+          print "${sparkle_archive_sha256}  ${sparkle_root}/Sparkle-${sparkle_version}.tar.xz" \
+            | shasum -a 256 -c -
+          tar -xf "$sparkle_root/Sparkle-${sparkle_version}.tar.xz" -C "$sparkle_root"
+
+          retry_github git fetch origin updates
+
+          # Each composition reads its own signed feed. A WebKit-only copy of
+          # Crest reads the -webkit feed, which offers the same Crest installer
+          # so that copy updates into the dual-engine app.
+          generate_feed() {
+            local appcast="$1" installer="$2" source="$3"
+            mkdir -p "$source"
+            if git cat-file -e "FETCH_HEAD:${appcast}" 2>/dev/null; then
+              git show "FETCH_HEAD:${appcast}" > "$source/${appcast}"
+            fi
+            cp "$release_root/publish/$installer" "$source/$installer"
+            cp "$release_root/release-notes.md" "$source/${installer%.dmg}.md"
+            print -r -- "$SPARKLE_EDDSA_PRIVATE_KEY" \
+              | "$sparkle_root/bin/generate_appcast" \
+                  --ed-key-file - \
+                  --download-url-prefix "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/" \
+                  --link "https://crestbrowser.com/" \
+                  --versions "$RELEASE_BUILD_NUMBER" \
+                  --maximum-versions 1 \
+                  --embed-release-notes \
+                  --channel experimental \
+                  -o "$source/${appcast}" \
+                  "$source"
+            local expected="https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/${installer}"
+            if ! rg --fixed-strings "url=\"${expected}\"" "$source/${appcast}"; then
+              print -u2 "The generated ${appcast} does not point to its release asset."
+              exit 1
+            fi
+          }
+          generate_feed "$appcast_filename" "$installer_name" "$feed_source"
+          generate_feed "$webkit_appcast_filename" "$installer_name" "$feed_source-webkit"
+
+          git -C "$updates_checkout" init --initial-branch=updates
+          git -C "$updates_checkout" remote add origin \
+            "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          authorization_header="$(
+            git config --get "http.${GITHUB_SERVER_URL}/.extraheader"
+          )"
+          git -C "$updates_checkout" config \
+            "http.${GITHUB_SERVER_URL}/.extraheader" "$authorization_header"
+          unset authorization_header
+
+          retry_github git -C "$updates_checkout" fetch --depth=1 origin updates
+          git -C "$updates_checkout" checkout -B updates FETCH_HEAD
+          cp "$feed_source/${appcast_filename}" "$updates_checkout/${appcast_filename}"
+          cp "$feed_source-webkit/${webkit_appcast_filename}" "$updates_checkout/${webkit_appcast_filename}"
+
+          # Preserve the production workflow's README if present. Only create a
+          # minimal one if the updates branch somehow does not have it.
+          if [[ ! -f "$updates_checkout/README.md" ]]; then
+            printf '%s\n' \
+              '# Crest software updates' \
+              '' \
+              'This branch contains signed Sparkle appcasts for notarized Crest releases.' \
+              > "$updates_checkout/README.md"
+          fi
+
+          git -C "$updates_checkout" add "$appcast_filename" "$webkit_appcast_filename" README.md
+          git -C "$updates_checkout" config user.name "github-actions[bot]"
+          git -C "$updates_checkout" config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$updates_checkout" commit \
+            -m "chore(updates): publish ${RELEASE_TAG}"
+          retry_github git -C "$updates_checkout" push origin HEAD:updates
+
+      - name: Remove generated release data
+        if: always()
+        run: |
+          find \
+            "$RUNNER_TEMP/crest-experimental-release" \
+            "$RUNNER_TEMP/crest-experimental-derived-data" \
+            "$RUNNER_TEMP/crest-experimental-appcast-source" \
+            "$RUNNER_TEMP/crest-experimental-appcast-source-webkit" \
+            "$RUNNER_TEMP/crest-updates-branch" \
+            "$RUNNER_TEMP/Sparkle-2.9.5" \
+            -depth -delete 2>/dev/null || true

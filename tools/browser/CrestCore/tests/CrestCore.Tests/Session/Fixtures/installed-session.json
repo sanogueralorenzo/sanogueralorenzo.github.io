@@ -1,0 +1,768 @@
+{
+  "defaultSpaceID" : {
+    "rawValue" : "29B78245-87B0-4665-AA35-EAA9F384CC70"
+  },
+  "spaces" : [
+    {
+      "history" : [
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 0 page 0",
+          "lastVisitedAt" : 721692800,
+          "id" : "F187B063-794C-4A80-BD6F-6DB28B126F21",
+          "visitCount" : 1,
+          "url" : "https://example.com/space-0/page-0"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 0 page 1",
+          "lastVisitedAt" : 721692801,
+          "id" : "388BD6EB-ADD9-4778-BBB1-EC8864217CDF",
+          "visitCount" : 2,
+          "url" : "https://example.com/space-0/page-1"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 0 page 2",
+          "lastVisitedAt" : 721692802,
+          "id" : "CEC81914-3F89-4515-A272-FE90BCF7B8EA",
+          "visitCount" : 3,
+          "url" : "https://example.com/space-0/page-2"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 0 page 3",
+          "lastVisitedAt" : 721692803,
+          "id" : "DC67F7F6-933D-4DF7-8247-7F56C743AD4F",
+          "visitCount" : 4,
+          "url" : "https://example.com/space-0/page-3"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 0 page 4",
+          "lastVisitedAt" : 721692804,
+          "id" : "D4708F34-3887-41BE-8684-CB773D40AF6C",
+          "visitCount" : 5,
+          "url" : "https://example.com/space-0/page-4"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 0 page 5",
+          "lastVisitedAt" : 721692805,
+          "id" : "22A63803-755A-461B-8799-46A0955855F3",
+          "visitCount" : 1,
+          "url" : "https://example.com/space-0/page-5"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 0 page 6",
+          "lastVisitedAt" : 721692806,
+          "id" : "332A56A3-6DE5-4BAA-98D5-C3F500E3A6C6",
+          "visitCount" : 2,
+          "url" : "https://example.com/space-0/page-6"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 0 page 7",
+          "lastVisitedAt" : 721692807,
+          "id" : "15B3E8C2-6BE8-42F1-8CBB-665C9BAD64D1",
+          "visitCount" : 3,
+          "url" : "https://example.com/space-0/page-7"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 0 page 8",
+          "lastVisitedAt" : 721692808,
+          "id" : "DFFEEE81-C60C-44C8-87FD-782B9FEBBE22",
+          "visitCount" : 4,
+          "url" : "https://example.com/space-0/page-8"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 0 page 9",
+          "lastVisitedAt" : 721692809,
+          "id" : "6F62F146-E2FF-4D66-9A31-70A68C930408",
+          "visitCount" : 5,
+          "url" : "https://example.com/space-0/page-9"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 0 page 10",
+          "lastVisitedAt" : 721692810,
+          "id" : "6FE07C90-8628-48EB-94A3-2FA8EC04A5E5",
+          "visitCount" : 1,
+          "url" : "https://example.com/space-0/page-10"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 0 page 11",
+          "lastVisitedAt" : 721692811,
+          "id" : "CDD01FE2-AA7E-4311-9D13-10C5F38E80B2",
+          "visitCount" : 2,
+          "url" : "https://example.com/space-0/page-11"
+        }
+      ],
+      "browsingPreferences" : {
+        "contentBlockingPolicy" : "balanced",
+        "searchSuggestionsEnabled" : false,
+        "searchProvider" : "google",
+        "customSearchProviders" : [
+
+        ],
+        "selectedSearchProviderID" : "google",
+        "dataRetention" : {
+          "archive" : "forever",
+          "history" : "forever",
+          "downloads" : "forever"
+        },
+        "currentTabCleanupPolicy" : "after12Hours"
+      },
+      "isSavedTabsExpanded" : true,
+      "symbol" : "hammer.fill",
+      "name" : "Work",
+      "accessPolicy" : "open",
+      "branding" : {
+        "renderingVersion" : 5,
+        "bannerPattern" : "diagonal",
+        "colors" : [
+          {
+            "green" : 0.055,
+            "red" : 0.235,
+            "blue" : 0.102,
+            "alpha" : 1
+          },
+          {
+            "green" : 0.125,
+            "red" : 0.447,
+            "blue" : 0.188,
+            "alpha" : 1
+          },
+          {
+            "green" : 0.635,
+            "red" : 0.788,
+            "blue" : 0.329,
+            "alpha" : 1
+          }
+        ],
+        "gradientAngle" : 0,
+        "themeMode" : "banner",
+        "bannerStrength" : 1,
+        "iconStyle" : "layeredCrest",
+        "readabilityFade" : 0.45,
+        "textColorMode" : "automatic",
+        "hasCustomAppearance" : false,
+        "crest" : {
+          "ordinaryColorIndex" : 1,
+          "divisionCount" : 4,
+          "symbolColorIndex" : 2,
+          "chargeWeight" : "bold",
+          "depth" : "none",
+          "edgeWidth" : 0,
+          "showsOutline" : false,
+          "plateScale" : 1,
+          "sealTeeth" : 12,
+          "sheenAngle" : 45,
+          "symbol" : "lion",
+          "backplateColorIndex" : 0,
+          "trimColorIndex" : 2,
+          "edgeColorIndex" : 2,
+          "trimWeight" : 0.75,
+          "ordinaryWidth" : 1,
+          "fieldDivision" : "plain",
+          "secondaryFieldColorIndex" : 1,
+          "chargeScale" : 1.2,
+          "trim" : "line",
+          "finish" : "flat",
+          "ordinary" : "none",
+          "backplate" : "shield",
+          "chargeLayout" : "single",
+          "chargeOffset" : 0,
+          "trimDetail" : 12
+        },
+        "folderColorIntensity" : 0,
+        "keepsControlsReadable" : true,
+        "showsTexture" : false
+      },
+      "folders" : [
+        {
+          "location" : "saved",
+          "title" : "Launch Atlas",
+          "id" : {
+            "rawValue" : "85B97BF6-5E3C-4949-BCD1-E6C0250C63BD"
+          },
+          "isCollapsed" : false,
+          "color" : {
+            "green" : 0.48,
+            "red" : 0.43,
+            "blue" : 0.54,
+            "alpha" : 1
+          },
+          "symbol" : "folder.fill"
+        }
+      ],
+      "tabs" : [
+        {
+          "symbol" : "crest.emoji:🧭",
+          "id" : {
+            "rawValue" : "80807CB7-9218-4B0A-9598-53D1191EE028"
+          },
+          "title" : "Brief",
+          "storedIconMode" : "emoji",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EBrief%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20BRIEF%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "placement" : "pinned",
+          "lastActivatedAt" : 811896356.105757,
+          "savedURL" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EBrief%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20BRIEF%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "keepsPageLoaded" : false
+        },
+        {
+          "symbol" : "crest.emoji:📐",
+          "id" : {
+            "rawValue" : "FC618603-900A-4971-A218-529947780399"
+          },
+          "title" : "Projects",
+          "storedIconMode" : "emoji",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EProjects%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20PROJECTS%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "placement" : "pinned",
+          "lastActivatedAt" : 811896356.105789,
+          "savedURL" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EProjects%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20PROJECTS%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "keepsPageLoaded" : false
+        },
+        {
+          "symbol" : "crest.emoji:📅",
+          "id" : {
+            "rawValue" : "5A0DE5EF-EBFC-423D-AEB4-38E67C97FB25"
+          },
+          "title" : "Calendar",
+          "storedIconMode" : "emoji",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ECalendar%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20CALENDAR%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "placement" : "pinned",
+          "lastActivatedAt" : 811896356.105807,
+          "savedURL" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ECalendar%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20CALENDAR%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "keepsPageLoaded" : false
+        },
+        {
+          "symbol" : "crest.emoji:✍️",
+          "id" : {
+            "rawValue" : "841074B1-B859-4907-9313-6A46A7F25228"
+          },
+          "title" : "Notes",
+          "storedIconMode" : "emoji",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ENotes%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20NOTES%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "placement" : "pinned",
+          "lastActivatedAt" : 811896356.105832,
+          "savedURL" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ENotes%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20NOTES%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "keepsPageLoaded" : false
+        },
+        {
+          "symbol" : "crest.emoji:🔬",
+          "id" : {
+            "rawValue" : "8ABB2C05-E7BA-43E7-8943-2346DC8A7784"
+          },
+          "title" : "Audience research",
+          "storedIconMode" : "emoji",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EAudience%20research%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20AUDIENCE%20RESEARCH%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "placement" : "saved",
+          "folderID" : {
+            "rawValue" : "85B97BF6-5E3C-4949-BCD1-E6C0250C63BD"
+          },
+          "savedURL" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EAudience%20research%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20AUDIENCE%20RESEARCH%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "lastActivatedAt" : 811896356.10585,
+          "keepsPageLoaded" : false
+        },
+        {
+          "symbol" : "crest.emoji:🚩",
+          "id" : {
+            "rawValue" : "3DC95010-461A-4666-AF1E-06953253B838"
+          },
+          "title" : "Launch plan",
+          "storedIconMode" : "emoji",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ELaunch%20plan%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20LAUNCH%20PLAN%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "placement" : "saved",
+          "folderID" : {
+            "rawValue" : "85B97BF6-5E3C-4949-BCD1-E6C0250C63BD"
+          },
+          "savedURL" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ELaunch%20plan%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20LAUNCH%20PLAN%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "lastActivatedAt" : 811896356.105866,
+          "keepsPageLoaded" : false
+        },
+        {
+          "symbol" : "crest.emoji:🎨",
+          "id" : {
+            "rawValue" : "73640615-57B9-421F-BF9C-9EA22181B444"
+          },
+          "title" : "Design review",
+          "storedIconMode" : "emoji",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EDesign%20review%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20DESIGN%20REVIEW%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "placement" : "saved",
+          "folderID" : {
+            "rawValue" : "85B97BF6-5E3C-4949-BCD1-E6C0250C63BD"
+          },
+          "savedURL" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EDesign%20review%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20DESIGN%20REVIEW%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "lastActivatedAt" : 811896356.105883,
+          "keepsPageLoaded" : false
+        },
+        {
+          "symbol" : "crest.emoji:✨",
+          "id" : {
+            "rawValue" : "72449507-9A06-463A-97B3-CFB6FF958C31"
+          },
+          "title" : "Monday overview",
+          "storedIconMode" : "emoji",
+          "placement" : "current",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EMonday%20overview%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20MONDAY%20OVERVIEW%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "lastActivatedAt" : 811896356.105901,
+          "keepsPageLoaded" : false,
+          "splitGroupID" : {
+            "rawValue" : "79A0AB7A-BFEE-446F-8150-0B146A10F676"
+          }
+        },
+        {
+          "symbol" : "crest.emoji:🗒️",
+          "id" : {
+            "rawValue" : "52893283-6EDC-42B8-987B-0898AA33B3DA"
+          },
+          "title" : "Launch notes",
+          "storedIconMode" : "emoji",
+          "placement" : "current",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ELaunch%20notes%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20LAUNCH%20NOTES%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "lastActivatedAt" : 811896356.105918,
+          "keepsPageLoaded" : false,
+          "splitGroupID" : {
+            "rawValue" : "79A0AB7A-BFEE-446F-8150-0B146A10F676"
+          }
+        },
+        {
+          "symbol" : "crest.emoji:🧠",
+          "id" : {
+            "rawValue" : "3DC78C7C-D975-461E-840A-E422F623BA2C"
+          },
+          "title" : "Decision log",
+          "storedIconMode" : "emoji",
+          "placement" : "current",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EDecision%20log%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20DECISION%20LOG%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "lastActivatedAt" : 811896356.105934,
+          "keepsPageLoaded" : false,
+          "splitGroupID" : {
+            "rawValue" : "71C7D12F-FC22-42D5-9B3E-F97DB0B82829"
+          }
+        },
+        {
+          "symbol" : "crest.emoji:✅",
+          "id" : {
+            "rawValue" : "97B59775-C716-463C-B149-75845001AE38"
+          },
+          "title" : "Launch checklist",
+          "storedIconMode" : "emoji",
+          "placement" : "current",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ELaunch%20checklist%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20LAUNCH%20CHECKLIST%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "lastActivatedAt" : 811896356.10595,
+          "keepsPageLoaded" : false,
+          "splitGroupID" : {
+            "rawValue" : "71C7D12F-FC22-42D5-9B3E-F97DB0B82829"
+          }
+        }
+      ],
+      "id" : {
+        "rawValue" : "29B78245-87B0-4665-AA35-EAA9F384CC70"
+      },
+      "profile" : {
+        "id" : "19C9099C-743E-4902-AD5C-13A27481C7F1"
+      },
+      "archivedTabs" : [
+        {
+          "reason" : "synced",
+          "tab" : {
+            "id" : {
+              "rawValue" : "7B9D5A84-1296-4FF3-8AC7-14629374D3C2"
+            },
+            "symbol" : "crest.emoji:☁️",
+            "title" : "Remote launch brief",
+            "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ERemote%20launch%20brief%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20REMOTE%20LAUNCH%20BRIEF%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+            "storedIconMode" : "emoji",
+            "placement" : "current",
+            "lastActivatedAt" : 811896356.105973,
+            "keepsPageLoaded" : false
+          },
+          "archivedAt" : 811896266.105974
+        },
+        {
+          "reason" : "closed",
+          "tab" : {
+            "id" : {
+              "rawValue" : "7B51716C-7212-4778-917A-398CEA5D6882"
+            },
+            "symbol" : "crest.emoji:🎨",
+            "title" : "Completed design review",
+            "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ECompleted%20design%20review%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20COMPLETED%20DESIGN%20REVIEW%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+            "storedIconMode" : "emoji",
+            "placement" : "current",
+            "lastActivatedAt" : 811896356.105991,
+            "keepsPageLoaded" : false
+          },
+          "archivedAt" : 811896116.105992
+        },
+        {
+          "reason" : "autoCleanup",
+          "tab" : {
+            "id" : {
+              "rawValue" : "CFC732D3-C5C3-4592-A35B-8B224B0509D2"
+            },
+            "symbol" : "crest.emoji:📦",
+            "title" : "Idle research notes",
+            "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EIdle%20research%20notes%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2315233b%3Bbackground%3A%23f3efe5%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2315233b%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%23315f98%200%2056%25%2C%23d6ab4e%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2315233b%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%23315f98%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3ENORTHSTAR%20STUDIO%20%C2%B7%20IDLE%20RESEARCH%20NOTES%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EMake%20space%20for%20the%20work%20that%20matters%2E%3C%2Fh1%3E%3Cp%3EA%20calm%20command%20center%20for%20launches%2C%20decisions%2C%20and%20the%20people%20moving%20them%20forward%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EToday%3C%2Fh2%3E%3Cp%3EThree%20decisions%2C%20one%20clear%20priority%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3EAtlas%3C%2Fh2%3E%3Cp%3EResearch%20is%20ready%20for%20review%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3ELaunch%3C%2Fh2%3E%3Cp%3EMilestone%20check%2Din%20at%202%3A30%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3ENotes%3C%2Fh2%3E%3Cp%3ESeven%20ideas%20worth%20keeping%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+            "storedIconMode" : "emoji",
+            "placement" : "current",
+            "lastActivatedAt" : 811896356.106007,
+            "keepsPageLoaded" : false
+          },
+          "archivedAt" : 811895816.106008
+        }
+      ],
+      "accent" : "indigo",
+      "splitGroups" : [
+        {
+          "customTitle" : "Research",
+          "id" : {
+            "rawValue" : "79A0AB7A-BFEE-446F-8150-0B146A10F676"
+          },
+          "titleModifiedAt" : 721692800
+        }
+      ],
+      "credentialPreferences" : {
+        "syncsCrestPasswordsWithICloud" : true,
+        "alsoOffersSaveToSystemPasswords" : false,
+        "isEnabled" : true
+      }
+    },
+    {
+      "history" : [
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 1 page 0",
+          "lastVisitedAt" : 721692800,
+          "id" : "C8E29EE3-454D-4522-A4BD-2271BF84BFBE",
+          "visitCount" : 1,
+          "url" : "https://example.com/space-1/page-0"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 1 page 1",
+          "lastVisitedAt" : 721692801,
+          "id" : "1EBF9123-C55E-4CB9-8A1A-EDBDFD4AF88E",
+          "visitCount" : 2,
+          "url" : "https://example.com/space-1/page-1"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 1 page 2",
+          "lastVisitedAt" : 721692802,
+          "id" : "636CD60E-1544-47E6-8911-6007FE9A6553",
+          "visitCount" : 3,
+          "url" : "https://example.com/space-1/page-2"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 1 page 3",
+          "lastVisitedAt" : 721692803,
+          "id" : "D7D5FFCC-3F13-4C6A-9C64-4A765C295804",
+          "visitCount" : 4,
+          "url" : "https://example.com/space-1/page-3"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 1 page 4",
+          "lastVisitedAt" : 721692804,
+          "id" : "A610A2B9-D5B3-41F9-B4DC-5BD2658EAC79",
+          "visitCount" : 5,
+          "url" : "https://example.com/space-1/page-4"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 1 page 5",
+          "lastVisitedAt" : 721692805,
+          "id" : "1E175E06-4BB8-428E-A417-6B3CBBA5D33A",
+          "visitCount" : 1,
+          "url" : "https://example.com/space-1/page-5"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 1 page 6",
+          "lastVisitedAt" : 721692806,
+          "id" : "AA74BC6B-4721-451C-9BC0-17A753627B5C",
+          "visitCount" : 2,
+          "url" : "https://example.com/space-1/page-6"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 1 page 7",
+          "lastVisitedAt" : 721692807,
+          "id" : "F9DE3F29-3FF2-4007-BC9F-3B7735BD6CFB",
+          "visitCount" : 3,
+          "url" : "https://example.com/space-1/page-7"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 1 page 8",
+          "lastVisitedAt" : 721692808,
+          "id" : "ED147C17-054F-4A51-BC48-D4165C85B91C",
+          "visitCount" : 4,
+          "url" : "https://example.com/space-1/page-8"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 1 page 9",
+          "lastVisitedAt" : 721692809,
+          "id" : "29A88DBD-6F4B-4679-A438-82430C4C4003",
+          "visitCount" : 5,
+          "url" : "https://example.com/space-1/page-9"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 1 page 10",
+          "lastVisitedAt" : 721692810,
+          "id" : "05F452AF-FC43-46CE-8A8E-30BAE5AD82C8",
+          "visitCount" : 1,
+          "url" : "https://example.com/space-1/page-10"
+        },
+        {
+          "firstVisitedAt" : 721692800,
+          "title" : "Space 1 page 11",
+          "lastVisitedAt" : 721692811,
+          "id" : "EC3C6661-EAE4-4E2D-A8EE-32EF26CA4378",
+          "visitCount" : 2,
+          "url" : "https://example.com/space-1/page-11"
+        }
+      ],
+      "browsingPreferences" : {
+        "contentBlockingPolicy" : "balanced",
+        "searchSuggestionsEnabled" : false,
+        "searchProvider" : "google",
+        "customSearchProviders" : [
+
+        ],
+        "selectedSearchProviderID" : "google",
+        "dataRetention" : {
+          "archive" : "forever",
+          "history" : "forever",
+          "downloads" : "forever"
+        },
+        "currentTabCleanupPolicy" : "after12Hours"
+      },
+      "isSavedTabsExpanded" : true,
+      "symbol" : "leaf.fill",
+      "name" : "Personal",
+      "accessPolicy" : "deviceOwnerAuthentication",
+      "branding" : {
+        "renderingVersion" : 5,
+        "bannerPattern" : "diagonal",
+        "colors" : [
+          {
+            "green" : 0.157,
+            "red" : 0.118,
+            "blue" : 0.2,
+            "alpha" : 1
+          },
+          {
+            "green" : 0.306,
+            "red" : 0.243,
+            "blue" : 0.369,
+            "alpha" : 1
+          },
+          {
+            "green" : 0.678,
+            "red" : 0.525,
+            "blue" : 0.769,
+            "alpha" : 1
+          }
+        ],
+        "gradientAngle" : 0,
+        "themeMode" : "banner",
+        "bannerStrength" : 1,
+        "iconStyle" : "layeredCrest",
+        "readabilityFade" : 0.45,
+        "textColorMode" : "automatic",
+        "hasCustomAppearance" : false,
+        "crest" : {
+          "ordinaryColorIndex" : 1,
+          "divisionCount" : 4,
+          "symbolColorIndex" : 2,
+          "chargeWeight" : "bold",
+          "depth" : "none",
+          "edgeWidth" : 0,
+          "showsOutline" : false,
+          "plateScale" : 1,
+          "sealTeeth" : 12,
+          "sheenAngle" : 45,
+          "symbol" : "direwolf",
+          "backplateColorIndex" : 0,
+          "trimColorIndex" : 2,
+          "edgeColorIndex" : 2,
+          "trimWeight" : 0.75,
+          "ordinaryWidth" : 1,
+          "fieldDivision" : "plain",
+          "secondaryFieldColorIndex" : 1,
+          "chargeScale" : 1.2,
+          "trim" : "line",
+          "finish" : "flat",
+          "ordinary" : "none",
+          "backplate" : "frenchShield",
+          "chargeLayout" : "single",
+          "chargeOffset" : 0,
+          "trimDetail" : 12
+        },
+        "folderColorIntensity" : 0,
+        "keepsControlsReadable" : true,
+        "showsTexture" : false
+      },
+      "folders" : [
+        {
+          "location" : "saved",
+          "title" : "Weekend Plans",
+          "id" : {
+            "rawValue" : "8B0A5AA5-5577-4BFF-B049-27C01A13E745"
+          },
+          "isCollapsed" : false,
+          "color" : {
+            "green" : 0.48,
+            "red" : 0.43,
+            "blue" : 0.54,
+            "alpha" : 1
+          },
+          "symbol" : "folder.fill"
+        }
+      ],
+      "tabs" : [
+        {
+          "symbol" : "crest.emoji:🏡",
+          "id" : {
+            "rawValue" : "CF4B5AF0-B915-49DA-B38A-3472BAED217C"
+          },
+          "title" : "Home",
+          "storedIconMode" : "emoji",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EHome%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2320372d%3Bbackground%3A%23eef2e8%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2320372d%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%236d8d68%200%2056%25%2C%23d7684f%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%236d8d68%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3EFIELD%20NOTES%20%C2%B7%20HOME%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EA%20slower%20Saturday%20starts%20here%2E%3C%2Fh1%3E%3Cp%3EPlans%20for%20good%20food%2C%20open%20roads%2C%20a%20little%20dirt%20under%20your%20nails%2C%20and%20time%20to%20read%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EWeekend%3C%2Fh2%3E%3Cp%3EMarket%2C%20trail%2C%20then%20nowhere%20to%20be%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3ETrips%3C%2Fh2%3E%3Cp%3ECabin%20map%20and%20quiet%20roads%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3EGarden%3C%2Fh2%3E%3Cp%3EWhat%20to%20plant%20before%20the%20rain%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3EReading%3C%2Fh2%3E%3Cp%3EFour%20essays%20for%20Sunday%20morning%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "placement" : "pinned",
+          "lastActivatedAt" : 811896356.106442,
+          "savedURL" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EHome%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2320372d%3Bbackground%3A%23eef2e8%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2320372d%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%236d8d68%200%2056%25%2C%23d7684f%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%236d8d68%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3EFIELD%20NOTES%20%C2%B7%20HOME%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EA%20slower%20Saturday%20starts%20here%2E%3C%2Fh1%3E%3Cp%3EPlans%20for%20good%20food%2C%20open%20roads%2C%20a%20little%20dirt%20under%20your%20nails%2C%20and%20time%20to%20read%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EWeekend%3C%2Fh2%3E%3Cp%3EMarket%2C%20trail%2C%20then%20nowhere%20to%20be%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3ETrips%3C%2Fh2%3E%3Cp%3ECabin%20map%20and%20quiet%20roads%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3EGarden%3C%2Fh2%3E%3Cp%3EWhat%20to%20plant%20before%20the%20rain%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3EReading%3C%2Fh2%3E%3Cp%3EFour%20essays%20for%20Sunday%20morning%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "keepsPageLoaded" : false
+        },
+        {
+          "symbol" : "crest.emoji:🗺️",
+          "id" : {
+            "rawValue" : "4C05C2DA-0677-49DF-979E-976DEFBD7CDC"
+          },
+          "title" : "Trips",
+          "storedIconMode" : "emoji",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ETrips%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2320372d%3Bbackground%3A%23eef2e8%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2320372d%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%236d8d68%200%2056%25%2C%23d7684f%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%236d8d68%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3EFIELD%20NOTES%20%C2%B7%20TRIPS%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EA%20slower%20Saturday%20starts%20here%2E%3C%2Fh1%3E%3Cp%3EPlans%20for%20good%20food%2C%20open%20roads%2C%20a%20little%20dirt%20under%20your%20nails%2C%20and%20time%20to%20read%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EWeekend%3C%2Fh2%3E%3Cp%3EMarket%2C%20trail%2C%20then%20nowhere%20to%20be%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3ETrips%3C%2Fh2%3E%3Cp%3ECabin%20map%20and%20quiet%20roads%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3EGarden%3C%2Fh2%3E%3Cp%3EWhat%20to%20plant%20before%20the%20rain%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3EReading%3C%2Fh2%3E%3Cp%3EFour%20essays%20for%20Sunday%20morning%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "placement" : "pinned",
+          "lastActivatedAt" : 811896356.106461,
+          "savedURL" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ETrips%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2320372d%3Bbackground%3A%23eef2e8%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2320372d%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%236d8d68%200%2056%25%2C%23d7684f%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%236d8d68%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3EFIELD%20NOTES%20%C2%B7%20TRIPS%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EA%20slower%20Saturday%20starts%20here%2E%3C%2Fh1%3E%3Cp%3EPlans%20for%20good%20food%2C%20open%20roads%2C%20a%20little%20dirt%20under%20your%20nails%2C%20and%20time%20to%20read%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EWeekend%3C%2Fh2%3E%3Cp%3EMarket%2C%20trail%2C%20then%20nowhere%20to%20be%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3ETrips%3C%2Fh2%3E%3Cp%3ECabin%20map%20and%20quiet%20roads%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3EGarden%3C%2Fh2%3E%3Cp%3EWhat%20to%20plant%20before%20the%20rain%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3EReading%3C%2Fh2%3E%3Cp%3EFour%20essays%20for%20Sunday%20morning%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "keepsPageLoaded" : false
+        },
+        {
+          "symbol" : "crest.emoji:🍲",
+          "id" : {
+            "rawValue" : "7C76D711-A4EA-44FF-A80E-233169F8CCF8"
+          },
+          "title" : "Recipes",
+          "storedIconMode" : "emoji",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ERecipes%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2320372d%3Bbackground%3A%23eef2e8%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2320372d%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%236d8d68%200%2056%25%2C%23d7684f%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%236d8d68%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3EFIELD%20NOTES%20%C2%B7%20RECIPES%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EA%20slower%20Saturday%20starts%20here%2E%3C%2Fh1%3E%3Cp%3EPlans%20for%20good%20food%2C%20open%20roads%2C%20a%20little%20dirt%20under%20your%20nails%2C%20and%20time%20to%20read%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EWeekend%3C%2Fh2%3E%3Cp%3EMarket%2C%20trail%2C%20then%20nowhere%20to%20be%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3ETrips%3C%2Fh2%3E%3Cp%3ECabin%20map%20and%20quiet%20roads%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3EGarden%3C%2Fh2%3E%3Cp%3EWhat%20to%20plant%20before%20the%20rain%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3EReading%3C%2Fh2%3E%3Cp%3EFour%20essays%20for%20Sunday%20morning%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "placement" : "pinned",
+          "lastActivatedAt" : 811896356.106477,
+          "savedURL" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ERecipes%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2320372d%3Bbackground%3A%23eef2e8%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2320372d%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%236d8d68%200%2056%25%2C%23d7684f%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%236d8d68%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3EFIELD%20NOTES%20%C2%B7%20RECIPES%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EA%20slower%20Saturday%20starts%20here%2E%3C%2Fh1%3E%3Cp%3EPlans%20for%20good%20food%2C%20open%20roads%2C%20a%20little%20dirt%20under%20your%20nails%2C%20and%20time%20to%20read%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EWeekend%3C%2Fh2%3E%3Cp%3EMarket%2C%20trail%2C%20then%20nowhere%20to%20be%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3ETrips%3C%2Fh2%3E%3Cp%3ECabin%20map%20and%20quiet%20roads%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3EGarden%3C%2Fh2%3E%3Cp%3EWhat%20to%20plant%20before%20the%20rain%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3EReading%3C%2Fh2%3E%3Cp%3EFour%20essays%20for%20Sunday%20morning%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "keepsPageLoaded" : false
+        },
+        {
+          "symbol" : "crest.emoji:📚",
+          "id" : {
+            "rawValue" : "DC472F06-3699-4006-AF08-EECE27D228C4"
+          },
+          "title" : "Reading",
+          "storedIconMode" : "emoji",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EReading%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2320372d%3Bbackground%3A%23eef2e8%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2320372d%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%236d8d68%200%2056%25%2C%23d7684f%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%236d8d68%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3EFIELD%20NOTES%20%C2%B7%20READING%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EA%20slower%20Saturday%20starts%20here%2E%3C%2Fh1%3E%3Cp%3EPlans%20for%20good%20food%2C%20open%20roads%2C%20a%20little%20dirt%20under%20your%20nails%2C%20and%20time%20to%20read%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EWeekend%3C%2Fh2%3E%3Cp%3EMarket%2C%20trail%2C%20then%20nowhere%20to%20be%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3ETrips%3C%2Fh2%3E%3Cp%3ECabin%20map%20and%20quiet%20roads%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3EGarden%3C%2Fh2%3E%3Cp%3EWhat%20to%20plant%20before%20the%20rain%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3EReading%3C%2Fh2%3E%3Cp%3EFour%20essays%20for%20Sunday%20morning%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "placement" : "pinned",
+          "lastActivatedAt" : 811896356.106493,
+          "savedURL" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EReading%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2320372d%3Bbackground%3A%23eef2e8%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2320372d%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%236d8d68%200%2056%25%2C%23d7684f%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%236d8d68%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3EFIELD%20NOTES%20%C2%B7%20READING%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EA%20slower%20Saturday%20starts%20here%2E%3C%2Fh1%3E%3Cp%3EPlans%20for%20good%20food%2C%20open%20roads%2C%20a%20little%20dirt%20under%20your%20nails%2C%20and%20time%20to%20read%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EWeekend%3C%2Fh2%3E%3Cp%3EMarket%2C%20trail%2C%20then%20nowhere%20to%20be%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3ETrips%3C%2Fh2%3E%3Cp%3ECabin%20map%20and%20quiet%20roads%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3EGarden%3C%2Fh2%3E%3Cp%3EWhat%20to%20plant%20before%20the%20rain%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3EReading%3C%2Fh2%3E%3Cp%3EFour%20essays%20for%20Sunday%20morning%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "keepsPageLoaded" : false
+        },
+        {
+          "symbol" : "crest.emoji:🏔️",
+          "id" : {
+            "rawValue" : "51249BF9-1DF9-424D-9927-093F57C374C4"
+          },
+          "title" : "Cabin ideas",
+          "storedIconMode" : "emoji",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ECabin%20ideas%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2320372d%3Bbackground%3A%23eef2e8%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2320372d%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%236d8d68%200%2056%25%2C%23d7684f%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%236d8d68%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3EFIELD%20NOTES%20%C2%B7%20CABIN%20IDEAS%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EA%20slower%20Saturday%20starts%20here%2E%3C%2Fh1%3E%3Cp%3EPlans%20for%20good%20food%2C%20open%20roads%2C%20a%20little%20dirt%20under%20your%20nails%2C%20and%20time%20to%20read%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EWeekend%3C%2Fh2%3E%3Cp%3EMarket%2C%20trail%2C%20then%20nowhere%20to%20be%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3ETrips%3C%2Fh2%3E%3Cp%3ECabin%20map%20and%20quiet%20roads%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3EGarden%3C%2Fh2%3E%3Cp%3EWhat%20to%20plant%20before%20the%20rain%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3EReading%3C%2Fh2%3E%3Cp%3EFour%20essays%20for%20Sunday%20morning%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "placement" : "saved",
+          "folderID" : {
+            "rawValue" : "8B0A5AA5-5577-4BFF-B049-27C01A13E745"
+          },
+          "savedURL" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ECabin%20ideas%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2320372d%3Bbackground%3A%23eef2e8%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2320372d%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%236d8d68%200%2056%25%2C%23d7684f%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%236d8d68%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3EFIELD%20NOTES%20%C2%B7%20CABIN%20IDEAS%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EA%20slower%20Saturday%20starts%20here%2E%3C%2Fh1%3E%3Cp%3EPlans%20for%20good%20food%2C%20open%20roads%2C%20a%20little%20dirt%20under%20your%20nails%2C%20and%20time%20to%20read%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EWeekend%3C%2Fh2%3E%3Cp%3EMarket%2C%20trail%2C%20then%20nowhere%20to%20be%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3ETrips%3C%2Fh2%3E%3Cp%3ECabin%20map%20and%20quiet%20roads%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3EGarden%3C%2Fh2%3E%3Cp%3EWhat%20to%20plant%20before%20the%20rain%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3EReading%3C%2Fh2%3E%3Cp%3EFour%20essays%20for%20Sunday%20morning%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "lastActivatedAt" : 811896356.106509,
+          "keepsPageLoaded" : false
+        },
+        {
+          "symbol" : "crest.emoji:🌱",
+          "id" : {
+            "rawValue" : "F4EAED32-F788-4312-AB3A-4768051A03A6"
+          },
+          "title" : "Garden notes",
+          "storedIconMode" : "emoji",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EGarden%20notes%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2320372d%3Bbackground%3A%23eef2e8%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2320372d%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%236d8d68%200%2056%25%2C%23d7684f%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%236d8d68%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3EFIELD%20NOTES%20%C2%B7%20GARDEN%20NOTES%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EA%20slower%20Saturday%20starts%20here%2E%3C%2Fh1%3E%3Cp%3EPlans%20for%20good%20food%2C%20open%20roads%2C%20a%20little%20dirt%20under%20your%20nails%2C%20and%20time%20to%20read%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EWeekend%3C%2Fh2%3E%3Cp%3EMarket%2C%20trail%2C%20then%20nowhere%20to%20be%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3ETrips%3C%2Fh2%3E%3Cp%3ECabin%20map%20and%20quiet%20roads%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3EGarden%3C%2Fh2%3E%3Cp%3EWhat%20to%20plant%20before%20the%20rain%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3EReading%3C%2Fh2%3E%3Cp%3EFour%20essays%20for%20Sunday%20morning%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "placement" : "saved",
+          "folderID" : {
+            "rawValue" : "8B0A5AA5-5577-4BFF-B049-27C01A13E745"
+          },
+          "savedURL" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EGarden%20notes%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2320372d%3Bbackground%3A%23eef2e8%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2320372d%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%236d8d68%200%2056%25%2C%23d7684f%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%236d8d68%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3EFIELD%20NOTES%20%C2%B7%20GARDEN%20NOTES%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EA%20slower%20Saturday%20starts%20here%2E%3C%2Fh1%3E%3Cp%3EPlans%20for%20good%20food%2C%20open%20roads%2C%20a%20little%20dirt%20under%20your%20nails%2C%20and%20time%20to%20read%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EWeekend%3C%2Fh2%3E%3Cp%3EMarket%2C%20trail%2C%20then%20nowhere%20to%20be%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3ETrips%3C%2Fh2%3E%3Cp%3ECabin%20map%20and%20quiet%20roads%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3EGarden%3C%2Fh2%3E%3Cp%3EWhat%20to%20plant%20before%20the%20rain%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3EReading%3C%2Fh2%3E%3Cp%3EFour%20essays%20for%20Sunday%20morning%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "lastActivatedAt" : 811896356.106526,
+          "keepsPageLoaded" : false
+        },
+        {
+          "symbol" : "crest.emoji:📖",
+          "id" : {
+            "rawValue" : "88B902D9-85A3-4FCC-A119-A95ECC7047E2"
+          },
+          "title" : "Sunday reading",
+          "storedIconMode" : "emoji",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ESunday%20reading%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2320372d%3Bbackground%3A%23eef2e8%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2320372d%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%236d8d68%200%2056%25%2C%23d7684f%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%236d8d68%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3EFIELD%20NOTES%20%C2%B7%20SUNDAY%20READING%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EA%20slower%20Saturday%20starts%20here%2E%3C%2Fh1%3E%3Cp%3EPlans%20for%20good%20food%2C%20open%20roads%2C%20a%20little%20dirt%20under%20your%20nails%2C%20and%20time%20to%20read%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EWeekend%3C%2Fh2%3E%3Cp%3EMarket%2C%20trail%2C%20then%20nowhere%20to%20be%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3ETrips%3C%2Fh2%3E%3Cp%3ECabin%20map%20and%20quiet%20roads%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3EGarden%3C%2Fh2%3E%3Cp%3EWhat%20to%20plant%20before%20the%20rain%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3EReading%3C%2Fh2%3E%3Cp%3EFour%20essays%20for%20Sunday%20morning%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "placement" : "saved",
+          "folderID" : {
+            "rawValue" : "8B0A5AA5-5577-4BFF-B049-27C01A13E745"
+          },
+          "savedURL" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3ESunday%20reading%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2320372d%3Bbackground%3A%23eef2e8%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2320372d%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%236d8d68%200%2056%25%2C%23d7684f%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%236d8d68%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3EFIELD%20NOTES%20%C2%B7%20SUNDAY%20READING%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EA%20slower%20Saturday%20starts%20here%2E%3C%2Fh1%3E%3Cp%3EPlans%20for%20good%20food%2C%20open%20roads%2C%20a%20little%20dirt%20under%20your%20nails%2C%20and%20time%20to%20read%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EWeekend%3C%2Fh2%3E%3Cp%3EMarket%2C%20trail%2C%20then%20nowhere%20to%20be%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3ETrips%3C%2Fh2%3E%3Cp%3ECabin%20map%20and%20quiet%20roads%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3EGarden%3C%2Fh2%3E%3Cp%3EWhat%20to%20plant%20before%20the%20rain%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3EReading%3C%2Fh2%3E%3Cp%3EFour%20essays%20for%20Sunday%20morning%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "lastActivatedAt" : 811896356.106542,
+          "keepsPageLoaded" : false
+        },
+        {
+          "symbol" : "crest.emoji:☀️",
+          "id" : {
+            "rawValue" : "020A34CB-DECF-487A-B483-B48E32E73203"
+          },
+          "title" : "A slower Saturday",
+          "storedIconMode" : "emoji",
+          "placement" : "current",
+          "url" : "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf%2D8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice%2Dwidth%2Cinitial%2Dscale%3D1%22%3E%3Ctitle%3EA%20slower%20Saturday%3C%2Ftitle%3E%3Cstyle%3E%0A%2A%7Bbox%2Dsizing%3Aborder%2Dbox%7Dbody%7Bmargin%3A0%3Bpadding%3Aclamp%2832px%2C6vw%2C84px%29%3Bcolor%3A%2320372d%3Bbackground%3A%23eef2e8%3Bfont%2Dfamily%3A%2Dapple%2Dsystem%2CBlinkMacSystemFont%2Csans%2Dserif%7Dmain%7Bmax%2Dwidth%3A1100px%3Bmargin%3Aauto%7D%2Ekicker%7Bfont%2Dsize%3A11px%3Bfont%2Dweight%3A800%3Bletter%2Dspacing%3A%2E2em%7D%2Ehero%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3A1%2E2fr%20%2E8fr%3Bgap%3A40px%3Balign%2Ditems%3Aend%3Bmargin%3A8vh%200%207vh%7D%2Ehero%20h1%7Bmargin%3A0%3Bfont%3A500%20clamp%2852px%2C8vw%2C100px%29%2F%2E88%20ui%2Dserif%2CGeorgia%2Cserif%3Bletter%2Dspacing%3A%2D%2E055em%7D%2Ehero%20p%7Bmax%2Dwidth%3A420px%3Bmargin%3A0%200%208px%3Bfont%2Dsize%3A18px%3Bline%2Dheight%3A1%2E55%3Bcolor%3Acolor%2Dmix%28in%20srgb%2C%2320372d%2065%25%2Ctransparent%29%7D%2Erule%7Bheight%3A10px%3Bbackground%3Alinear%2Dgradient%2890deg%2C%236d8d68%200%2056%25%2C%23d7684f%2056%25%29%7D%2Egrid%7Bdisplay%3Agrid%3Bgrid%2Dtemplate%2Dcolumns%3Arepeat%284%2C1fr%29%3Bborder%2Dtop%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dleft%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%7Bmin%2Dheight%3A185px%3Bpadding%3A24px%3Bborder%2Dright%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%3Bborder%2Dbottom%3A1px%20solid%20color%2Dmix%28in%20srgb%2C%2320372d%2020%25%2Ctransparent%29%7D%2Ecard%2Eactive%7Bcolor%3Awhite%3Bbackground%3A%236d8d68%7D%2Ecard%20span%7Bfont%2Dsize%3A10px%3Bletter%2Dspacing%3A%2E12em%7D%2Ecard%20h2%7Bmargin%3A55px%200%208px%3Bfont%3A500%2027px%2F1%20ui%2Dserif%2CGeorgia%2Cserif%7D%2Ecard%20p%7Bmargin%3A0%3Bfont%2Dsize%3A12px%3Bline%2Dheight%3A1%2E45%3Bopacity%3A%2E68%7D%40media%28max%2Dwidth%3A700px%29%7B%2Ehero%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%3Bmargin%2Dtop%3A5vh%7D%2Ehero%20h1%7Bfont%2Dsize%3A54px%7D%2Egrid%7Bgrid%2Dtemplate%2Dcolumns%3A1fr%201fr%7D%2Ecard%7Bmin%2Dheight%3A150px%7D%2Ecard%20h2%7Bmargin%2Dtop%3A30px%7D%7D%0A%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cmain%3E%3Cdiv%20class%3D%22kicker%22%3EFIELD%20NOTES%20%C2%B7%20A%20SLOWER%20SATURDAY%3C%2Fdiv%3E%3Csection%20class%3D%22hero%22%3E%3Ch1%3EA%20slower%20Saturday%20starts%20here%2E%3C%2Fh1%3E%3Cp%3EPlans%20for%20good%20food%2C%20open%20roads%2C%20a%20little%20dirt%20under%20your%20nails%2C%20and%20time%20to%20read%2E%3C%2Fp%3E%3C%2Fsection%3E%3Cdiv%20class%3D%22rule%22%3E%3C%2Fdiv%3E%3Csection%20class%3D%22grid%22%3E%3Carticle%20class%3D%22card%20active%22%3E%0A%20%20%3Cspan%3E01%3C%2Fspan%3E%3Ch2%3EWeekend%3C%2Fh2%3E%3Cp%3EMarket%2C%20trail%2C%20then%20nowhere%20to%20be%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E02%3C%2Fspan%3E%3Ch2%3ETrips%3C%2Fh2%3E%3Cp%3ECabin%20map%20and%20quiet%20roads%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E03%3C%2Fspan%3E%3Ch2%3EGarden%3C%2Fh2%3E%3Cp%3EWhat%20to%20plant%20before%20the%20rain%3C%2Fp%3E%0A%3C%2Farticle%3E%3Carticle%20class%3D%22card%20%22%3E%0A%20%20%3Cspan%3E04%3C%2Fspan%3E%3Ch2%3EReading%3C%2Fh2%3E%3Cp%3EFour%20essays%20for%20Sunday%20morning%3C%2Fp%3E%0A%3C%2Farticle%3E%3C%2Fsection%3E%3C%2Fmain%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
+          "lastActivatedAt" : 811896356.106558,
+          "keepsPageLoaded" : false
+        }
+      ],
+      "id" : {
+        "rawValue" : "F628336B-AFB4-4A57-B7B9-76B26FA1F0C0"
+      },
+      "profile" : {
+        "id" : "19AEEC11-5159-4343-84D5-A0A2B2608428"
+      },
+      "archivedTabs" : [
+
+      ],
+      "accent" : "teal",
+      "splitGroups" : [
+
+      ],
+      "credentialPreferences" : {
+        "syncsCrestPasswordsWithICloud" : true,
+        "alsoOffersSaveToSystemPasswords" : false,
+        "isEnabled" : true
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{"sidebar":{"containers":[{
+  "items":[
+    "root",{"id":"root","childrenIds":["one","two"],"data":{"itemContainer":{}}},
+    "one",{"id":"one","data":{"tab":{"savedTitle":"Arc","savedURL":"https://arc.net/","timeLastActiveAt":1700000000}}},
+    "two",{"id":"two","data":{"tab":{"savedTitle":"WebKit","savedURL":"https://webkit.org/","timeLastActiveAt":1700000000123}}}
+  ],
+  "spaces":["space",{"id":"space","title":"Arc Work","containerIDs":["root"],"newContainerIDs":[]}]
+}]}}

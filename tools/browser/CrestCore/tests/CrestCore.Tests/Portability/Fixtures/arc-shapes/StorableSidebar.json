@@ -1,0 +1,7 @@
+{"sidebar":{"containers":[{
+  "items":{
+    "current":{"data":{"tab":{"savedTitle":"Current","savedURL":"https://current.example/","timeLastActiveAt":"1700000000"}}},
+    "additional":{"data":{"tab":{"savedTitle":"Additional","savedURL":"https://additional.example/"}}}
+  },
+  "spaces":{"space":{"title":"Work","containerIDs":["current"],"newContainerIDs":["additional"]}}
+}]}}

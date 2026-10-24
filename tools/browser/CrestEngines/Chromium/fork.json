@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "upstreamRepository": "ungoogled-software/ungoogled-chromium-macos",
+  "integrationBranch": "main",
+  "automaticChannel": "development",
+  "automaticMajorUpdates": false
+}

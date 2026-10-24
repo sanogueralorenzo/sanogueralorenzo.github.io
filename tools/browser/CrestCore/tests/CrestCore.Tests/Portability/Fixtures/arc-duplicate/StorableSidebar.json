@@ -1,0 +1,7 @@
+{"sidebar":{"containers":[{
+  "items":[
+    "tab",{"data":{"tab":{"savedURL":"https://old.example/"}}},
+    "tab",{"data":{"tab":{"savedURL":"https://current.example/"}}}
+  ],
+  "spaces":["space",{"containerIDs":["tab"]}]
+}]}}

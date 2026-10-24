@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- SQLite is called through LibraryImport, whose generated stubs are unsafe. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Storage tests read and fault the session file through the core's own
+         connection, and history tests walk visits against a small history limit. -->
+    <InternalsVisibleTo Include="CrestCore.Tests" />
+  </ItemGroup>
+</Project>

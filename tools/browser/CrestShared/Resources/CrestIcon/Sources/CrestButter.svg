@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <clipPath id="crest-banner">
+      <path d="M337 190H687Q727 190 727 230V774Q727 794 711 805Q698 814 682 803L531 702Q512 689 493 702L342 803Q326 814 313 805Q297 794 297 774V230Q297 190 337 190Z"/>
+    </clipPath>
+  </defs>
+  <path d="M400 120H780V460L400 314Z" fill="#F4D27B" clip-path="url(#crest-banner)"/>
+</svg>

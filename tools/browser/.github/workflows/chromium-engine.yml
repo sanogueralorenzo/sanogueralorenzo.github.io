@@ -1,0 +1,104 @@
+name: Ensure Chromium engine
+
+on:
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact Crest commit whose engine will be packaged
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    name: Find matching published engine
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.engine.outputs.ready }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          # A merged fork PR's source_sha is its merge commit on main, which
+          # checkout otherwise refuses under the caller's pull_request_target.
+          allow-unsafe-pr-checkout: ${{ github.event.pull_request.merged == true }}
+          persist-credentials: false
+      - name: Inspect engine release
+        id: engine
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 Scripts/control-plane/chromium_artifact.py
+      - name: Require an enabled builder for a missing engine
+        if: steps.engine.outputs.ready != 'true'
+        env:
+          BUILD_ENABLED: ${{ vars.CHROMIUM_CI_ENABLED }}
+        run: |
+          if [[ "$BUILD_ENABLED" != true ]]; then
+            echo 'The required engine is missing. Enable CHROMIUM_CI_ENABLED to build it on the registered Mac.' >&2
+            exit 1
+          fi
+
+  build:
+    name: Build missing engine on the Mac
+    needs: inspect
+    if: needs.inspect.outputs.ready != 'true'
+    runs-on: [self-hosted, macOS, ARM64, crest-chromium]
+    timeout-minutes: 1440
+    concurrency:
+      group: crest-chromium-maintenance
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    env:
+      CREST_CHROMIUM_WORKSPACE: ${{ vars.CHROMIUM_WORKSPACE }}
+      CHROMIUM_SDK: ${{ vars.CHROMIUM_SDK }}
+    steps:
+      # Called only by trusted release dispatches and merged pull requests.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          allow-unsafe-pr-checkout: ${{ github.event.pull_request.merged == true }}
+          persist-credentials: false
+      - name: Check managed build tools
+        run: |
+          test -n "$CREST_CHROMIUM_WORKSPACE"
+          test -d "$CHROMIUM_SDK"
+          test -x "$CREST_CHROMIUM_WORKSPACE/tools/bin/python"
+          echo '/opt/homebrew/bin' >> "$GITHUB_PATH"
+          echo "$CREST_CHROMIUM_WORKSPACE/tools/bin" >> "$GITHUB_PATH"
+      - name: Test fork and release contracts
+        run: python -m unittest discover -s Scripts/Tests
+      - name: Prepare and compile the engine
+        id: build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOBS: ${{ vars.CHROMIUM_BUILD_JOBS || '4' }}
+        run: python Scripts/control-plane/chromium-fork.py build --sdk "$CHROMIUM_SDK" --jobs "$JOBS"
+      - name: Publish the engine
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENGINE_SOURCE: ${{ steps.build.outputs.source }}
+        run: |
+          python Scripts/control-plane/publish-chromium-engine.py \
+            --source "$ENGINE_SOURCE" --ninja "$CREST_CHROMIUM_WORKSPACE/tools/bin/ninja" \
+            --repository "$GITHUB_REPOSITORY"
+
+  ready:
+    name: Require the published engine
+    needs: [inspect, build]
+    if: >-
+      always() && needs.inspect.result == 'success' &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          allow-unsafe-pr-checkout: ${{ github.event.pull_request.merged == true }}
+          persist-credentials: false
+      - name: Verify release is ready for packaging
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 Scripts/control-plane/chromium_artifact.py --require

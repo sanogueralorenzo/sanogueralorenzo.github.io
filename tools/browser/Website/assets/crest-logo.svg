@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title description">
+  <title id="title">Crest</title>
+  <desc id="description">A three-color banner beside a dark rail on a warm white field.</desc>
+  <defs>
+    <clipPath id="app-icon">
+      <rect x="40" y="40" width="944" height="944" rx="224"/>
+    </clipPath>
+    <clipPath id="crest-banner">
+      <path d="M337 190H687Q727 190 727 230V774Q727 794 711 805Q698 814 682 803L531 702Q512 689 493 702L342 803Q326 814 313 805Q297 794 297 774V230Q297 190 337 190Z"/>
+    </clipPath>
+    <linearGradient id="icon-field" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fffefa"/>
+      <stop offset="1" stop-color="#f0eee8"/>
+    </linearGradient>
+    <filter id="banner-shadow" x="-40%" y="-30%" width="180%" height="190%">
+      <feDropShadow dx="0" dy="28" stdDeviation="24" flood-color="#172238" flood-opacity=".16"/>
+    </filter>
+  </defs>
+  <g clip-path="url(#app-icon)">
+    <rect x="40" y="40" width="944" height="944" fill="url(#icon-field)"/>
+    <path d="M337 190H687Q727 190 727 230V774Q727 794 711 805Q698 814 682 803L531 702Q512 689 493 702L342 803Q326 814 313 805Q297 794 297 774V230Q297 190 337 190Z" fill="#172238" opacity=".13" filter="url(#banner-shadow)"/>
+    <g clip-path="url(#crest-banner)">
+      <path d="M400 503H780V900H400Z" fill="#ef705e"/>
+      <path d="M400 313H780V650L400 504Z" fill="#7fafce"/>
+      <path d="M400 120H780V460L400 314Z" fill="#f4d27b"/>
+      <rect width="440.333" height="1024" fill="#263a4d"/>
+    </g>
+  </g>
+  <rect x="40.5" y="40.5" width="943" height="943" rx="223.5" fill="none" stroke="#172238" stroke-opacity=".1"/>
+</svg>

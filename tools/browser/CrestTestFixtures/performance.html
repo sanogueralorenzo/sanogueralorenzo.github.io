@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crest Performance Fixture</title>
+  <style>
+    :root { color-scheme: dark; font: 15px/1.45 ui-sans-serif, system-ui, sans-serif; }
+    body { margin: 0; min-height: 100vh; background: #0b1020; color: #f1f4ff; }
+    main { width: min(760px, calc(100% - 48px)); margin: 0 auto; padding: 40px 24px; }
+    h1 { margin: 0 0 6px; font-size: 28px; }
+    p { color: #aeb9d9; }
+    dl { display: grid; grid-template-columns: max-content 1fr; gap: 9px 18px; padding: 20px; border: 1px solid #ffffff1c; border-radius: 16px; background: #141b31; }
+    dt { color: #93a5da; }
+    dd { margin: 0; font-variant-numeric: tabular-nums; }
+    video { display: block; width: 100%; margin-top: 24px; border-radius: 16px; background: black; }
+    #nodes { height: 1px; overflow: hidden; contain: strict; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 id="heading">Performance Tab</h1>
+    <p>Deterministic retained-page, media, mutation, and background-throttling telemetry.</p>
+    <dl aria-label="Performance telemetry">
+      <dt>Run</dt><dd id="run">—</dd>
+      <dt>Tab</dt><dd id="tab">—</dd>
+      <dt>Load count</dt><dd id="load-count">—</dd>
+      <dt>Visibility</dt><dd id="visibility">—</dd>
+      <dt>Visibility changes</dt><dd id="visibility-count">0</dd>
+      <dt>Mutation tick</dt><dd id="mutation-tick">0</dd>
+      <dt>Longest timer gap</dt><dd id="timer-gap">0 ms</dd>
+      <dt>Video state</dt><dd id="video-state">not requested</dd>
+      <dt>Video time</dt><dd id="video-time">0.00 s</dd>
+    </dl>
+    <video id="video" src="sample.mp4" muted playsinline loop controls hidden></video>
+    <div id="nodes" aria-hidden="true"></div>
+  </main>
+  <script>
+    const parameters = new URLSearchParams(location.search);
+    const run = parameters.get('run') || 'default';
+    const tab = parameters.get('tab') || '0';
+    const shouldMutate = parameters.get('mutate') === '1';
+    const shouldPlayVideo = parameters.get('video') === '1';
+    const baseTitle = `Perf ${tab}`;
+    const loadKey = `crest-performance:${run}:${tab}:loads`;
+    const loadCount = Number(localStorage.getItem(loadKey) || 0) + 1;
+    localStorage.setItem(loadKey, String(loadCount));
+
+    document.title = baseTitle;
+    document.querySelector('#heading').textContent = baseTitle;
+    document.querySelector('#run').textContent = run;
+    document.querySelector('#tab').textContent = tab;
+    document.querySelector('#load-count').textContent = String(loadCount);
+
+    const nodes = document.querySelector('#nodes');
+    const fragment = document.createDocumentFragment();
+    for (let index = 0; index < 800; index += 1) {
+      const node = document.createElement('span');
+      node.textContent = `${tab}-${index}`;
+      fragment.append(node);
+    }
+    nodes.append(fragment);
+
+    let visibilityChanges = 0;
+    function publishVisibility() {
+      document.querySelector('#visibility').textContent = document.visibilityState;
+      document.querySelector('#visibility-count').textContent = String(visibilityChanges);
+    }
+    document.addEventListener('visibilitychange', () => {
+      visibilityChanges += 1;
+      publishVisibility();
+    });
+    publishVisibility();
+
+    let mutationTick = 0;
+    if (shouldMutate) {
+      setInterval(() => {
+        mutationTick += 1;
+        document.title = `${baseTitle} · ${mutationTick}`;
+        history.replaceState(null, '', `?run=${encodeURIComponent(run)}&tab=${encodeURIComponent(tab)}&mutate=1#tick-${mutationTick}`);
+        document.querySelector('#mutation-tick').textContent = String(mutationTick);
+      }, 750);
+    }
+
+    let previousTimer = performance.now();
+    let longestTimerGap = 0;
+    setInterval(() => {
+      const now = performance.now();
+      longestTimerGap = Math.max(longestTimerGap, now - previousTimer);
+      previousTimer = now;
+      document.querySelector('#timer-gap').textContent = `${Math.round(longestTimerGap)} ms`;
+    }, 100);
+
+    const video = document.querySelector('#video');
+    if (shouldPlayVideo) {
+      video.hidden = false;
+      video.addEventListener('playing', () => { document.querySelector('#video-state').textContent = 'playing'; });
+      video.addEventListener('pause', () => { document.querySelector('#video-state').textContent = 'paused'; });
+      video.addEventListener('timeupdate', () => {
+        document.querySelector('#video-time').textContent = `${video.currentTime.toFixed(2)} s`;
+      });
+      video.play().catch(error => {
+        document.querySelector('#video-state').textContent = `blocked: ${error.name}`;
+      });
+    }
+  </script>
+</body>
+</html>

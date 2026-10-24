@@ -1,0 +1,780 @@
+{
+  "defaultSpaceID" : {
+    "rawValue" : "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+  },
+  "spaces" : [
+    {
+      "history" : [
+        {
+          "firstVisitedAt" : 780123256.7891234,
+          "title" : "Article",
+          "lastVisitedAt" : 780123356.7891234,
+          "id" : "721DD82B-3B7E-4A83-B256-3DDDD37B7E0F",
+          "visitCount" : 7,
+          "url" : "https://news.example/article/42"
+        },
+        {
+          "firstVisitedAt" : 780123366.7891234,
+          "title" : "Left",
+          "lastVisitedAt" : 780123376.7891234,
+          "id" : "C75426B1-C343-4227-9157-76059184ED63",
+          "visitCount" : 1,
+          "url" : "https://left.example/"
+        }
+      ],
+      "browsingPreferences" : {
+        "contentBlockingPolicy" : "off",
+        "searchSuggestionsEnabled" : true,
+        "searchProvider" : "google",
+        "customSearchProviders" : [
+          {
+            "suggestionURLTemplate" : "https://docs.example/suggest?q={searchTerms}",
+            "id" : "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+            "name" : "Docs",
+            "searchURLTemplate" : "https://docs.example/search?q={searchTerms}"
+          },
+          {
+            "id" : "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+            "name" : "Wiki",
+            "searchURLTemplate" : "https://wiki.example/find?q=%s"
+          }
+        ],
+        "selectedSearchProviderID" : "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+        "dataRetention" : {
+          "archive" : "thirtyDays",
+          "history" : "ninetyDays",
+          "downloads" : "oneWeek"
+        },
+        "currentTabCleanupPolicy" : "after7Days"
+      },
+      "isSavedTabsExpanded" : false,
+      "savedTabsExpansionModifiedAt" : 780123475.7891234,
+      "symbol" : "star.fill",
+      "name" : "Everything",
+      "accessPolicy" : "deviceOwnerAuthentication",
+      "branding" : {
+        "renderingVersion" : 5,
+        "bannerPattern" : "quartered",
+        "colors" : [
+          {
+            "green" : 0.2,
+            "red" : 0.1,
+            "blue" : 0.3,
+            "alpha" : 1
+          },
+          {
+            "green" : 0.5,
+            "red" : 0.4,
+            "blue" : 0.6,
+            "alpha" : 0.8
+          },
+          {
+            "green" : 0.8,
+            "red" : 0.7,
+            "blue" : 0.9,
+            "alpha" : 1
+          }
+        ],
+        "gradientAngle" : 135,
+        "themeMode" : "gradient",
+        "bannerStrength" : 0.8,
+        "iconStyle" : "layeredCrest",
+        "readabilityFade" : 0.4,
+        "textColorMode" : "light",
+        "hasCustomAppearance" : true,
+        "crest" : {
+          "ordinaryColorIndex" : 1,
+          "divisionCount" : 6,
+          "symbolColorIndex" : 1,
+          "chargeWeight" : "light",
+          "depth" : "lifted",
+          "edgeWidth" : 0.5,
+          "showsOutline" : true,
+          "plateScale" : 0.9,
+          "sealTeeth" : 18,
+          "sheenAngle" : 90,
+          "symbol" : "griffin",
+          "backplateColorIndex" : 1,
+          "trimColorIndex" : 0,
+          "palette" : [
+            {
+              "green" : 0.1,
+              "red" : 0.3,
+              "blue" : 0.2,
+              "alpha" : 1
+            },
+            {
+              "green" : 0.7,
+              "red" : 0.9,
+              "blue" : 0.3,
+              "alpha" : 1
+            }
+          ],
+          "trimWeight" : 1.5,
+          "edgeColorIndex" : 1,
+          "ordinaryWidth" : 1.2,
+          "fieldDivision" : "gyronny",
+          "secondaryFieldColorIndex" : 0,
+          "chargeScale" : 1.2,
+          "charge" : {
+            "kind" : "monogram",
+            "value" : "AB",
+            "style" : "sans"
+          },
+          "finish" : "sheen",
+          "ordinary" : "chevron",
+          "backplate" : "frenchShield",
+          "trim" : "beaded",
+          "chargeLayout" : "ring",
+          "chargeOffset" : 0.1,
+          "startingPresetID" : "winter",
+          "trimDetail" : 16
+        },
+        "folderColorIntensity" : 0.6,
+        "keepsControlsReadable" : true,
+        "symbolColor" : {
+          "green" : 0.85,
+          "red" : 0.9,
+          "blue" : 0.2,
+          "alpha" : 1
+        },
+        "showsTexture" : true
+      },
+      "folders" : [
+        {
+          "location" : "saved",
+          "title" : "Reading",
+          "id" : {
+            "rawValue" : "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "isCollapsed" : false,
+          "color" : {
+            "green" : 0.4,
+            "red" : 0.2,
+            "blue" : 0.6,
+            "alpha" : 0.5
+          },
+          "symbol" : "books.vertical"
+        },
+        {
+          "symbol" : "crest.emoji:📚",
+          "location" : "saved",
+          "id" : {
+            "rawValue" : "103A72E0-C616-41BC-A248-CA740907813F"
+          },
+          "isCollapsed" : true,
+          "color" : {
+            "green" : 0.48,
+            "red" : 0.43,
+            "blue" : 0.54,
+            "alpha" : 1
+          },
+          "parentID" : {
+            "rawValue" : "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "title" : "Later",
+          "collapseModifiedAt" : 780123471.7891234
+        },
+        {
+          "location" : "current",
+          "title" : "Split work",
+          "id" : {
+            "rawValue" : "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "isCollapsed" : false,
+          "color" : {
+            "green" : 0.48,
+            "red" : 0.43,
+            "blue" : 0.54,
+            "alpha" : 1
+          },
+          "symbol" : "folder"
+        },
+        {
+          "isCollapsed" : false,
+          "location" : "current",
+          "id" : {
+            "rawValue" : "72ACEC3C-6348-4403-89C3-76E1901AA666"
+          },
+          "symbol" : "tray",
+          "orderAnchorTabID" : {
+            "rawValue" : "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          "color" : {
+            "green" : 0.5,
+            "red" : 0.5,
+            "blue" : 0.5,
+            "alpha" : 1
+          },
+          "title" : "Empty"
+        }
+      ],
+      "tabs" : [
+        {
+          "lastActivatedAt" : 780123457.7891234,
+          "faviconURL" : "https://pinned.example/favicon.ico",
+          "symbol" : "pin.fill",
+          "title" : "Pinned page",
+          "placement" : "pinned",
+          "savedURL" : "https://pinned.example/",
+          "id" : {
+            "rawValue" : "853D3F20-BB2C-45F0-98BD-CCC71C646370"
+          },
+          "storedIconMode" : "pulled",
+          "positionModifiedAt" : 780123458.789,
+          "titleModifiedAt" : 780123459.789,
+          "iconAccent" : {
+            "green" : 0.5,
+            "red" : 0.25,
+            "blue" : 0.75
+          },
+          "customTitle" : "Mail",
+          "url" : "https://pinned.example/inbox?view=all#top",
+          "keepsPageLoaded" : true
+        },
+        {
+          "id" : {
+            "rawValue" : "4615461C-BA47-4054-B5CF-3DCAF3362D8C"
+          },
+          "symbol" : "gearshape",
+          "title" : "Settings",
+          "placement" : "saved",
+          "nativeContent" : {
+            "kind" : "settings",
+            "resourceID" : "36D804C1-3F34-4E98-BC70-04CED016E1DE"
+          },
+          "storedIconMode" : "automatic",
+          "folderID" : {
+            "rawValue" : "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "lastActivatedAt" : 780123463.7891234,
+          "positionModifiedAt" : 780123464.789,
+          "keepsPageLoaded" : false
+        },
+        {
+          "lastActivatedAt" : 780123460.7891234,
+          "faviconURL" : "https://news.example/icon.png",
+          "symbol" : "crest.emoji:🌊",
+          "title" : "Saved article",
+          "placement" : "saved",
+          "savedURL" : "https://news.example/article",
+          "id" : {
+            "rawValue" : "B61250D4-3D4E-4DD6-8871-0BB326669142"
+          },
+          "storedIconMode" : "emoji",
+          "positionModifiedAt" : 780123461.789,
+          "titleModifiedAt" : 780123462.789,
+          "iconAccent" : {
+            "green" : 0,
+            "red" : 1,
+            "blue" : 0
+          },
+          "folderID" : {
+            "rawValue" : "103A72E0-C616-41BC-A248-CA740907813F"
+          },
+          "customTitle" : "Reading",
+          "url" : "https://news.example/article/42",
+          "keepsPageLoaded" : false
+        },
+        {
+          "keepsPageLoaded" : true,
+          "symbol" : "globe",
+          "id" : {
+            "rawValue" : "428CAA9C-9A7A-4386-B120-F6096032C167"
+          },
+          "title" : "Left",
+          "url" : "https://left.example/",
+          "placement" : "current",
+          "folderID" : {
+            "rawValue" : "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "lastActivatedAt" : 780123465.7891234,
+          "iconAccent" : {
+            "green" : 0.5,
+            "red" : 0.25,
+            "blue" : 0.75
+          },
+          "positionModifiedAt" : 780123466.789,
+          "splitGroupID" : {
+            "rawValue" : "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "faviconURL" : "https://left.example/f.ico"
+        },
+        {
+          "keepsPageLoaded" : false,
+          "symbol" : "globe",
+          "id" : {
+            "rawValue" : "942AC076-B0D8-454B-9EEB-3791E6113F77"
+          },
+          "title" : "Right",
+          "placement" : "current",
+          "folderID" : {
+            "rawValue" : "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "url" : "https://right.example/page",
+          "lastActivatedAt" : 780123467.7891234,
+          "positionModifiedAt" : 780123468.789,
+          "customTitle" : "Right side",
+          "splitGroupID" : {
+            "rawValue" : "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "titleModifiedAt" : 780123469.789
+        },
+        {
+          "placement" : "current",
+          "title" : "Start Page",
+          "id" : {
+            "rawValue" : "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          "keepsPageLoaded" : false,
+          "lastActivatedAt" : 780123470.7891234,
+          "symbol" : "flag.fill"
+        }
+      ],
+      "id" : {
+        "rawValue" : "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+      },
+      "profile" : {
+        "id" : "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+      },
+      "archivedTabs" : [
+        {
+          "reason" : "closed",
+          "tab" : {
+            "lastActivatedAt" : 780123476.7891234,
+            "faviconURL" : "https://archive.example/favicon.ico",
+            "symbol" : "globe",
+            "title" : "closed",
+            "placement" : "current",
+            "id" : {
+              "rawValue" : "FDA1DB22-5EEE-4001-B553-5208F01B5C65"
+            },
+            "storedIconMode" : "pulled",
+            "positionModifiedAt" : 780123477.789,
+            "titleModifiedAt" : 780123478.789,
+            "iconAccent" : {
+              "green" : 0.5,
+              "red" : 0.25,
+              "blue" : 0.75
+            },
+            "customTitle" : "CLOSED",
+            "url" : "https://archive.example/closed",
+            "keepsPageLoaded" : true
+          },
+          "archivedAt" : 780123479.7891234
+        },
+        {
+          "reason" : "closed",
+          "tab" : {
+            "lastActivatedAt" : 780123486.7891234,
+            "faviconURL" : "https://archive.example/favicon.ico",
+            "symbol" : "globe",
+            "title" : "deleted",
+            "placement" : "current",
+            "id" : {
+              "rawValue" : "3842B407-6EBD-4CCE-A5FA-B628FB3D1DB5"
+            },
+            "storedIconMode" : "pulled",
+            "positionModifiedAt" : 780123487.789,
+            "titleModifiedAt" : 780123488.789,
+            "iconAccent" : {
+              "green" : 0.5,
+              "red" : 0.25,
+              "blue" : 0.75
+            },
+            "customTitle" : "DELETED",
+            "url" : "https://archive.example/deleted",
+            "keepsPageLoaded" : true
+          },
+          "archivedAt" : 780123489.7891234,
+          "deletionOrigin" : "local"
+        },
+        {
+          "reason" : "synced",
+          "tab" : {
+            "lastActivatedAt" : 780123496.7891234,
+            "faviconURL" : "https://archive.example/favicon.ico",
+            "symbol" : "globe",
+            "title" : "remote",
+            "placement" : "current",
+            "id" : {
+              "rawValue" : "ECFD18EC-D81A-4B92-9ECB-8C65B0349016"
+            },
+            "storedIconMode" : "pulled",
+            "positionModifiedAt" : 780123497.789,
+            "titleModifiedAt" : 780123498.789,
+            "iconAccent" : {
+              "green" : 0.5,
+              "red" : 0.25,
+              "blue" : 0.75
+            },
+            "customTitle" : "REMOTE",
+            "url" : "https://archive.example/remote",
+            "keepsPageLoaded" : true
+          },
+          "archivedAt" : 780123499.7891234,
+          "deletionOrigin" : "remote"
+        },
+        {
+          "reason" : "autoCleanup",
+          "tab" : {
+            "lastActivatedAt" : 780123506.7891234,
+            "faviconURL" : "https://archive.example/favicon.ico",
+            "symbol" : "globe",
+            "title" : "cleanup",
+            "placement" : "current",
+            "id" : {
+              "rawValue" : "3D80C1CF-9748-4A3D-A03E-7BA4EFDD2BFB"
+            },
+            "storedIconMode" : "pulled",
+            "positionModifiedAt" : 780123507.789,
+            "titleModifiedAt" : 780123508.789,
+            "iconAccent" : {
+              "green" : 0.5,
+              "red" : 0.25,
+              "blue" : 0.75
+            },
+            "customTitle" : "CLEANUP",
+            "url" : "https://archive.example/cleanup",
+            "keepsPageLoaded" : true
+          },
+          "archivedAt" : 780123509.7891234
+        },
+        {
+          "reason" : "quickWindow",
+          "tab" : {
+            "lastActivatedAt" : 780123516.7891234,
+            "faviconURL" : "https://archive.example/favicon.ico",
+            "symbol" : "globe",
+            "title" : "quick",
+            "placement" : "current",
+            "id" : {
+              "rawValue" : "66E8E391-D7DE-43AC-BA3D-AF4BB8DEE03F"
+            },
+            "storedIconMode" : "pulled",
+            "positionModifiedAt" : 780123517.789,
+            "titleModifiedAt" : 780123518.789,
+            "iconAccent" : {
+              "green" : 0.5,
+              "red" : 0.25,
+              "blue" : 0.75
+            },
+            "customTitle" : "QUICK",
+            "url" : "https://archive.example/quick",
+            "keepsPageLoaded" : true
+          },
+          "archivedAt" : 780123519.7891234
+        },
+        {
+          "reason" : "synced",
+          "tab" : {
+            "lastActivatedAt" : 780123526.7891234,
+            "faviconURL" : "https://archive.example/favicon.ico",
+            "symbol" : "globe",
+            "title" : "synced",
+            "placement" : "current",
+            "id" : {
+              "rawValue" : "920E573F-7EED-4976-819F-2356876E5093"
+            },
+            "storedIconMode" : "pulled",
+            "positionModifiedAt" : 780123527.789,
+            "titleModifiedAt" : 780123528.789,
+            "iconAccent" : {
+              "green" : 0.5,
+              "red" : 0.25,
+              "blue" : 0.75
+            },
+            "customTitle" : "SYNCED",
+            "url" : "https://archive.example/synced",
+            "keepsPageLoaded" : true
+          },
+          "archivedAt" : 780123529.7891234
+        }
+      ],
+      "accent" : "rose",
+      "splitGroups" : [
+        {
+          "iconModifiedAt" : 780123473.789,
+          "tintModifiedAt" : 780123474.789,
+          "id" : {
+            "rawValue" : "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "customIconSymbol" : "crest.emoji:🧪",
+          "tint" : {
+            "green" : 0.3,
+            "red" : 0.2,
+            "blue" : 0.4,
+            "alpha" : 0.9
+          },
+          "customTitle" : "Research",
+          "titleModifiedAt" : 780123472.789
+        }
+      ],
+      "credentialPreferences" : {
+        "syncsCrestPasswordsWithICloud" : false,
+        "alsoOffersSaveToSystemPasswords" : true,
+        "isEnabled" : false
+      }
+    },
+    {
+      "history" : [
+
+      ],
+      "browsingPreferences" : {
+        "contentBlockingPolicy" : "balanced",
+        "searchSuggestionsEnabled" : false,
+        "searchProvider" : "duckDuckGo",
+        "customSearchProviders" : [
+
+        ],
+        "selectedSearchProviderID" : "duckDuckGo",
+        "dataRetention" : {
+          "archive" : "forever",
+          "history" : "forever",
+          "downloads" : "forever"
+        },
+        "currentTabCleanupPolicy" : "never"
+      },
+      "isSavedTabsExpanded" : true,
+      "symbol" : "square.grid.2x2.fill",
+      "name" : "Plain",
+      "accessPolicy" : "open",
+      "branding" : {
+        "renderingVersion" : 5,
+        "bannerPattern" : "diagonal",
+        "colors" : [
+          {
+            "green" : 0.49,
+            "red" : 0.12,
+            "blue" : 0.52,
+            "alpha" : 1
+          }
+        ],
+        "gradientAngle" : 0,
+        "themeMode" : "banner",
+        "bannerStrength" : 1,
+        "iconStyle" : "simpleSymbol",
+        "readabilityFade" : 0.25,
+        "textColorMode" : "automatic",
+        "crest" : {
+          "ordinaryColorIndex" : 0,
+          "divisionCount" : 4,
+          "symbolColorIndex" : 0,
+          "chargeWeight" : "bold",
+          "depth" : "none",
+          "edgeWidth" : 0,
+          "showsOutline" : false,
+          "plateScale" : 1,
+          "sealTeeth" : 12,
+          "sheenAngle" : 45,
+          "symbol" : "dragon",
+          "backplateColorIndex" : 0,
+          "trimColorIndex" : 0,
+          "edgeColorIndex" : 0,
+          "trimWeight" : 1,
+          "ordinaryWidth" : 1,
+          "fieldDivision" : "plain",
+          "secondaryFieldColorIndex" : 0,
+          "chargeScale" : 1,
+          "charge" : {
+            "kind" : "emoji",
+            "value" : "🦊"
+          },
+          "finish" : "flat",
+          "ordinary" : "none",
+          "backplate" : "shield",
+          "trim" : "none",
+          "chargeLayout" : "single",
+          "chargeOffset" : 0,
+          "trimDetail" : 12
+        },
+        "folderColorIntensity" : 0,
+        "keepsControlsReadable" : true,
+        "showsTexture" : false
+      },
+      "folders" : [
+
+      ],
+      "tabs" : [
+        {
+          "symbol" : "globe",
+          "id" : {
+            "rawValue" : "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          "title" : "Plain",
+          "placement" : "current",
+          "lastActivatedAt" : 780123556.7891234,
+          "url" : "https://plain.example/",
+          "keepsPageLoaded" : false
+        }
+      ],
+      "id" : {
+        "rawValue" : "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+      },
+      "profile" : {
+        "id" : "EF488B84-5E8C-40BA-8A63-808A89DDD3DB"
+      },
+      "archivedTabs" : [
+
+      ],
+      "accent" : "teal",
+      "splitGroups" : [
+
+      ],
+      "credentialPreferences" : {
+        "syncsCrestPasswordsWithICloud" : true,
+        "alsoOffersSaveToSystemPasswords" : false,
+        "isEnabled" : true
+      }
+    },
+    {
+      "history" : [
+
+      ],
+      "browsingPreferences" : {
+        "contentBlockingPolicy" : "balanced",
+        "searchSuggestionsEnabled" : false,
+        "searchProvider" : "google",
+        "customSearchProviders" : [
+
+        ],
+        "selectedSearchProviderID" : "google",
+        "dataRetention" : {
+          "archive" : "forever",
+          "history" : "forever",
+          "downloads" : "forever"
+        },
+        "currentTabCleanupPolicy" : "after12Hours"
+      },
+      "isSavedTabsExpanded" : true,
+      "symbol" : "leaf",
+      "name" : "Leaving",
+      "accessPolicy" : "open",
+      "branding" : {
+        "renderingVersion" : 5,
+        "bannerPattern" : "diagonal",
+        "colors" : [
+          {
+            "green" : 0.27,
+            "red" : 0.85,
+            "blue" : 0.2,
+            "alpha" : 1
+          },
+          {
+            "green" : 0.67,
+            "red" : 0.88,
+            "blue" : 0.25,
+            "alpha" : 1
+          }
+        ],
+        "gradientAngle" : 0,
+        "themeMode" : "banner",
+        "bannerStrength" : 1,
+        "iconStyle" : "simpleSymbol",
+        "readabilityFade" : 0.25,
+        "textColorMode" : "automatic",
+        "crest" : {
+          "ordinaryColorIndex" : 0,
+          "divisionCount" : 4,
+          "symbolColorIndex" : 0,
+          "chargeWeight" : "bold",
+          "depth" : "none",
+          "edgeWidth" : 0,
+          "showsOutline" : false,
+          "plateScale" : 1,
+          "sealTeeth" : 12,
+          "sheenAngle" : 45,
+          "symbol" : "oak",
+          "backplateColorIndex" : 1,
+          "trimColorIndex" : 1,
+          "edgeColorIndex" : 1,
+          "trimWeight" : 1,
+          "ordinaryWidth" : 1,
+          "fieldDivision" : "plain",
+          "secondaryFieldColorIndex" : 1,
+          "chargeScale" : 1,
+          "charge" : {
+            "kind" : "system",
+            "value" : "star.fill"
+          },
+          "finish" : "flat",
+          "ordinary" : "none",
+          "backplate" : "shield",
+          "trim" : "none",
+          "chargeLayout" : "single",
+          "chargeOffset" : 0,
+          "trimDetail" : 12
+        },
+        "folderColorIntensity" : 0,
+        "keepsControlsReadable" : true,
+        "showsTexture" : false
+      },
+      "folders" : [
+
+      ],
+      "tabs" : [
+        {
+          "placement" : "current",
+          "title" : "Start Page",
+          "id" : {
+            "rawValue" : "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          },
+          "keepsPageLoaded" : false,
+          "lastActivatedAt" : 780123656.7891234,
+          "symbol" : "flag.fill"
+        }
+      ],
+      "id" : {
+        "rawValue" : "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+      },
+      "profile" : {
+        "id" : "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7"
+      },
+      "archivedTabs" : [
+
+      ],
+      "accent" : "orange",
+      "splitGroups" : [
+
+      ],
+      "credentialPreferences" : {
+        "syncsCrestPasswordsWithICloud" : true,
+        "alsoOffersSaveToSystemPasswords" : false,
+        "isEnabled" : true
+      }
+    }
+  ],
+  "disposableSeedMarker" : "027A55FA-1FCB-48D5-B850-6525D2B18BB9",
+  "appPreferences" : {
+    "savedTabFaviconReturnsToSavedURL" : true,
+    "offersTranslation" : false,
+    "automaticallyTranslates" : true,
+    "splitFocusFollowsMouse" : true,
+    "automaticallyShowsDeveloperToolbar" : false,
+    "savedTabClosePolicy" : "returnToSavedURL",
+    "translationRules" : {
+      "sources" : {
+        "fr" : {
+          "targetID" : "de",
+          "isEnabled" : false
+        },
+        "es" : {
+          "targetID" : "en",
+          "isEnabled" : true
+        }
+      }
+    },
+    "startupBehavior" : "lastActiveTab",
+    "automaticallyEntersPictureInPicture" : false,
+    "checksSpelling" : true
+  },
+  "spaceDeletions" : [
+    {
+      "profileID" : "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7",
+      "operationID" : "F8EB2C81-9F63-4F58-B067-2AABD659EC7E",
+      "spaceID" : {
+        "rawValue" : "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+      }
+    }
+  ]
+}

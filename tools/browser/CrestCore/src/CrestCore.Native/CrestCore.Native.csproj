@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PublishAot>true</PublishAot>
+    <NativeLib>Shared</NativeLib>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../CrestCore/CrestCore.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The session file uses the system SQLite on every Apple platform. -->
+    <DirectPInvoke Include="libsqlite3" />
+    <NativeLibrary Include="-lsqlite3" />
+  </ItemGroup>
+</Project>

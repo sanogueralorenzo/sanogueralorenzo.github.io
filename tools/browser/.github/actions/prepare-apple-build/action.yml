@@ -1,0 +1,16 @@
+name: Prepare the Apple build
+description: Installs the build tools and generates the Xcode project.
+
+runs:
+  using: composite
+  steps:
+    - name: Ensure build tools are available
+      shell: bash
+      run: |
+        command -v xcodegen >/dev/null || brew install xcodegen
+        command -v rg >/dev/null || brew install ripgrep
+        Scripts/control-plane/install-dotnet.sh
+
+    - name: Generate the project
+      shell: bash
+      run: Scripts/bootstrap.sh
