@@ -14,7 +14,7 @@ export const requestsInSession = (app: Assistant, sessionId: string) => app.stat
   app.state.home.entries.find(entry => entry.id === message.entryId)?.sessionId === sessionId);
 
 // Application task IDs are message IDs. They stay stable across a stopped task's new execution attempt.
-export async function dispatchMessage(app: Assistant, source: HomeMessage, sessionId: string): Promise<DispatchDecision> {
+export async function dispatchMessage(app: Assistant, source: HomeMessage, sessionId: string, context: Context): Promise<DispatchDecision> {
   const earlier = new Set(app.state.home.messages.slice(0, app.state.home.messages.findIndex(message => message.id === source.id)).map(message => message.id));
   const active = app.snapshot().turns.filter(turn => turn.sessionId === sessionId && earlier.has(turn.sourceId!));
   if (!active.length) return { action: "start", dependsOn: [] };
@@ -49,7 +49,7 @@ export async function dispatchMessage(app: Assistant, source: HomeMessage, sessi
     tasks: active.map(turn => ({ taskId: turn.sourceId, text: turn.text, status: turn.status,
       dependsOn: app.state.home.messages.find(item => item.id === turn.sourceId)?.dependsOn || [] })),
     message: source.prompt || source.text,
-  }), record.cwd, [choose], () => accepted ? JSON.stringify(accepted) : undefined);
+  }), record.cwd, [choose], () => accepted ? JSON.stringify(accepted) : undefined, context);
   if (!accepted) throw new Error("Dispatcher did not choose a task relationship");
   return accepted;
 }

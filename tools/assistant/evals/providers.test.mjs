@@ -306,3 +306,29 @@ test("mapped utility models serialize disabled or minimum reasoning and respect 
     assert.ok(!(request.tools || []).some(tool => tool.googleSearch || tool.type?.startsWith("web_search")));
   }
 });
+
+test("Home routing and dispatch keep reserved capacity under execution and dispatch load", { timeout: 10000 }, async () => {
+  const model = runtime().getModel("openai", "gpt-6-luna");
+  for (const flood of [Array(9).fill("dispatch_message"), Array(8).fill("read")]) {
+    const release = Promise.withResolvers();
+    const started = [];
+    const models = providerModels({ streamSimple: (selected, transcript) => lazyStream(selected, async () => (async function* () {
+      const name = transcript.tools[0].name;
+      started.push(name);
+      if (name !== "route_home") await release.promise;
+      yield { type: "done", reason: "stop", message: { role: "assistant", content: [{ type: "text", text: "Done" }],
+        api: selected.api, provider: selected.provider, model: selected.id, stopReason: "stop", timestamp: Date.now(),
+        usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } } };
+    })()) });
+    const send = name => models.streamSimple(model, { messages: [], tools: [{ name, description: "Choose", parameters: { type: "object", properties: {} } }] }).result();
+    const pending = flood.map(send);
+    if (flood[0] === "read") pending.push(send("dispatch_message"));
+    pending.push(send("dispatch_message"));
+    try {
+      await send("route_home");
+      assert.equal(started.filter(name => name === "dispatch_message").length, flood[0] === "read" ? 1 : 9);
+      assert.equal(started.filter(name => name === "read").length, flood[0] === "read" ? 8 : 0);
+      assert.equal(started.filter(name => name === "route_home").length, 1);
+    } finally { release.resolve(); await Promise.all(pending); }
+  }
+});

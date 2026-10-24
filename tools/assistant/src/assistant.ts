@@ -1,19 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { configure, defineTask, type ConversationId, type ConversationView, type SubmissionId, type TaskId } from "@earendil-works/pi-durable";
+import type { ConversationId, ConversationView, SubmissionId, TaskId } from "@earendil-works/pi-durable";
 import { PiService, type PiOptions } from "./pi.ts";
-import { HomeRouter, type Route } from "./home-routing.ts";
+import { HomeRouter } from "./home-routing.ts";
 import { HomeDoc, State, now, assistantText, type HomeMessage, type Turn } from "./state.ts";
 import { PromptSuggestions } from "./prompt-suggestions.ts";
-import { dispatchMessage, requestTask, enqueueRequest, cancelRequest, requestsInSession } from "./request-tasks.ts";
+import { requestTask, enqueueRequest, cancelRequest, requestsInSession } from "./request-tasks.ts";
+import { routingTask, dispatchTask, enqueueDispatch } from "./request-scheduling.ts";
 
-type DispatchState = { phase: "route" } | { phase: "create"; route: Route } | { phase: "dispatch"; sessionId: string };
 const clean = (text: string) => text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
-const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 const replyPrompt = (text: string, reply?: { role: string; text: string }) => reply
   ? `In reply to this earlier ${reply.role} message:\n> ${reply.text.slice(0, 2000).replaceAll("\n", "\n> ")}\n\n${text}` : text;
 
@@ -26,13 +24,14 @@ export class Assistant {
   readonly suggestions: PromptSuggestions;
   private readonly db: DatabaseSync;
   readonly work: ReturnType<typeof requestTask>;
-  private readonly dispatch: ReturnType<typeof Assistant.dispatchTask>;
+  private readonly routing: ReturnType<typeof routingTask>;
+  private readonly dispatch: ReturnType<typeof dispatchTask>;
   private readonly rootId: ConversationId;
   private readonly listeners = new Set<(event: unknown) => void>();
   private readonly finished = new Set<string>();
   private closing?: Promise<void>;
-  private constructor(dataDir: string, cwd: string, pi: PiService, db: DatabaseSync, dispatch: ReturnType<typeof Assistant.dispatchTask>, work: ReturnType<typeof requestTask>, rootId: ConversationId) {
-    this.dataDir = dataDir; this.cwd = cwd; this.pi = pi; this.db = db; this.dispatch = dispatch; this.work = work; this.rootId = rootId;
+  private constructor(dataDir: string, cwd: string, pi: PiService, db: DatabaseSync, routing: ReturnType<typeof routingTask>, dispatch: ReturnType<typeof dispatchTask>, work: ReturnType<typeof requestTask>, rootId: ConversationId) {
+    this.dataDir = dataDir; this.cwd = cwd; this.pi = pi; this.db = db; this.routing = routing; this.dispatch = dispatch; this.work = work; this.rootId = rootId;
     this.state = new State(pi.harness); this.router = new HomeRouter(this.state, pi, cwd);
     this.suggestions = new PromptSuggestions(Promise.resolve(pi.models), db, async (sessionId) => {
       const record = this.state.home.sessions.find(session => session.id === sessionId);
@@ -43,14 +42,15 @@ export class Assistant {
   }
   static async open(dataDir: string, cwd: string, options: PiOptions = {}) {
     let app!: Assistant;
-    const dispatch = Assistant.dispatchTask(() => app);
+    const dispatch = dispatchTask(() => app);
+    const routing = routingTask(() => app, dispatch);
     const work = requestTask(() => app);
-    const pi = await PiService.open(dataDir, { ...options, tasks: [...(options.tasks || []), dispatch, work] });
+    const pi = await PiService.open(dataDir, { ...options, tasks: [...(options.tasks || []), routing, dispatch, work] });
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
     const db = new DatabaseSync(join(dataDir, "suggestions.db"));
     try {
       const root = await pi.harness.root(BACKGROUND_CONTEXT);
-      app = new Assistant(dataDir, cwd, pi, db, dispatch, work, root.id);
+      app = new Assistant(dataDir, cwd, pi, db, routing, dispatch, work, root.id);
       await app.state.load(() => app.publish());
       for (const entry of app.snapshot().entries) for (const update of entry.updates) if (update.kind === "result") app.finished.add(update.id);
       for (const record of app.state.home.sessions) {
@@ -62,111 +62,6 @@ export class Assistant {
       pi.harness.resume();
       return app;
     } catch (error) { db.close(); await pi.close(); throw error; }
-  }
-  private static dispatchTask(getApp: () => Assistant) {
-    return defineTask<{ sourceId: string; after?: number }, DispatchState, null>({ name: "assistant.dispatch", version: 1, initial: () => ({ phase: "route" }),
-      phases: {
-        route: async (task, runtime, context) => {
-          const app = getApp();
-          if (task.input.after !== undefined) {
-            const previous = await runtime.getTask(task.input.after as TaskId, context);
-            if (previous && previous.state.status !== "terminal") {
-              await runtime.commit(() => ({ status: "waiting", checkpoint: { phase: "route" }, on: [task.input.after as TaskId], policy: "allSettled" }), context);
-              return;
-            }
-          }
-          const message = app.state.home.messages.find((item) => item.id === task.input.sourceId);
-          if (!message) { await runtime.commit(() => ({ status: "terminal", outcome: { status: "completed", result: null } }), context); return; }
-          try {
-            const entry = app.state.home.entries.find((item) => item.id === message.entryId);
-            const route: Route = entry?.sessionId ? { mode: "continue", sessionId: entry.sessionId } : await app.router.discover(message);
-            await runtime.commit(() => ({ status: "running", checkpoint: { phase: "create", route: JSON.parse(JSON.stringify(route)) } }), context);
-          } catch (error) {
-            if (context.abortSignal?.aborted) throw error;
-            await runtime.commit(async (tx) => {
-              const home = await tx.doc(HomeDoc);
-              const source = home.messages.find((item) => item.id === task.input.sourceId);
-              if (source) { source.status = "failed"; source.error = errorText(error); }
-              return { status: "terminal", outcome: { status: "failed", error: { message: errorText(error) } } };
-            }, context);
-          }
-        },
-        create: async (task, runtime, context) => {
-          const app = getApp();
-          await runtime.commit(async (tx) => {
-            const home = await tx.doc(HomeDoc);
-            const source = home.messages.find((item) => item.id === task.input.sourceId)!;
-            const route = task.state.checkpoint.route;
-            let session = route.mode === "continue" ? home.sessions.find((item) => item.id === route.sessionId) : undefined;
-            if (!session) {
-              const cwd = route.mode === "start" ? route.cwd?.trim() || homedir() : app.cwd;
-              const created = await tx.createConversation({ ownership: { kind: "ownerless" } });
-              await configure(tx, created.id, app.pi.agent("coordinator", cwd));
-              const record = { id: String(created.id), conversationId: created.id, title: route.mode === "start" ? clean(route.title.slice(0, 100)) : "Conversation", cwd, paused: false, createdAt: now() };
-              home.sessions.push(record); session = home.sessions.at(-1)!;
-            }
-            let entry = home.entries.find((item) => item.id === source.entryId);
-            if (!entry) {
-              home.entries.push({ id: randomUUID(), sourceId: source.id, title: session.title, sessionId: session.id, createdAt: now(), updatedAt: now() });
-              entry = home.entries.at(-1)!; source.entryId = entry.id;
-            }
-            entry.sessionId = session.id; entry.title = session.title;
-            source.status = "routed";
-            return { status: "running", checkpoint: { phase: "dispatch", sessionId: session.id } };
-          }, context);
-        },
-        dispatch: async (task, runtime, context) => {
-          const app = getApp();
-          const message = app.state.home.messages.find((item) => item.id === task.input.sourceId);
-          if (!message) { await runtime.commit(() => ({ status: "terminal", outcome: { status: "completed", result: null } }), context); return; }
-          const sessionId = task.state.checkpoint.sessionId;
-          const record = app.state.home.sessions.find((item) => item.id === sessionId)!;
-          await app.state.observe(record.conversationId);
-          try {
-            // Dispatch decisions are serialized briefly; execution never holds the dispatch chain.
-            const decision = await runtime.memo<Awaited<ReturnType<typeof dispatchMessage>>>("dispatch-decision", context)
-              ?? await runtime.memo("dispatch-decision", await dispatchMessage(app, message, sessionId), context);
-            await runtime.commit(async tx => {
-              const home = await tx.doc(HomeDoc);
-              const source = home.messages.find(item => item.id === task.input.sourceId)!;
-              if (source.submissionId !== undefined) return undefined;
-              source.dependsOn = decision.action === "start" ? decision.dependsOn : [];
-              if (decision.action !== "start") {
-                const target = home.messages.find(item => item.id === decision.targetId)!;
-                const receipt = await tx.submissionByRequest(record.conversationId as ConversationId, target.requestId || target.id);
-                const finished = receipt?.status === "done" || receipt?.status === "unanswered";
-                if (target.workTaskId !== undefined) source.waitForRunId = target.workTaskId;
-                if (decision.action === "revise") {
-                  for (const dependent of home.messages) if (dependent.dependsOn?.includes(decision.targetId)) {
-                    const pending = await tx.submissionByRequest(record.conversationId as ConversationId, dependent.requestId || dependent.id);
-                    if (pending?.status === "queued") dependent.dependsOn = dependent.dependsOn.map(id => id === decision.targetId ? source.id : id);
-                  }
-                }
-                if (!finished) {
-                  target.replacedBy = source.id;
-                  if (target.submissionId !== undefined) tx.settleSubmission(target.submissionId as SubmissionId, { status: "unanswered", reason: "superseded", detail: "Replaced by a newer request" });
-                }
-                if (decision.action === "cancel") source.prompt = finished
-                  ? `The requested task already finished before cancellation was dispatched. Explain briefly; do not claim it was cancelled. Original message: ${source.text}`
-                  : `The requested task was cancelled. Acknowledge briefly. Original message: ${source.text}`;
-              }
-              await enqueueRequest(tx, app.work, source, sessionId);
-              return undefined;
-            }, context);
-            if (decision.action !== "start") await cancelRequest(app, decision.targetId);
-            await runtime.commit(() => ({ status: "terminal", outcome: { status: "completed", result: null } }), context);
-          } catch (error) {
-            if (context.abortSignal?.aborted) throw error;
-            await runtime.commit(async tx => {
-              const source = (await tx.doc(HomeDoc)).messages.find(item => item.id === task.input.sourceId);
-              if (source) { source.status = "failed"; source.error = errorText(error); }
-              return { status: "terminal", outcome: { status: "failed", error: { message: errorText(error) } } };
-            }, context);
-          }
-        },
-      },
-      abort: async (_task, runtime, context) => { await runtime.commit(() => ({ status: "terminal", outcome: { status: "aborted" } }), context); },
-    });
   }
   subscribe(listener: (event: unknown) => void) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   private emit(event: unknown) { for (const listener of this.listeners) listener(event); }
@@ -195,9 +90,9 @@ export class Assistant {
       home.entries.push({ id: randomUUID(), sourceId: id, title: "", sessionId: null, createdAt: now(), updatedAt: now() });
       const entry = home.entries.at(-1)!;
       home.messages.push({ id, text, createdAt: now(), entryId: entry.id, status: "routing" });
-      const taskId = await tx.createTask(this.dispatch, { sourceId: id, ...(home.lastDispatchTaskId !== undefined && { after: home.lastDispatchTaskId }) }, { conversationId: this.rootId, ownership: { kind: "conversation" } });
+      const taskId = await tx.createTask(this.routing, { sourceId: id, ...(home.lastRouteTaskId !== undefined && { after: home.lastRouteTaskId }) }, { conversationId: this.rootId, ownership: { kind: "conversation" } });
       home.messages.at(-1)!.taskId = taskId;
-      home.lastDispatchTaskId = taskId;
+      home.lastRouteTaskId = taskId;
     });
     this.pi.harness.resume();
     return this.state.home.messages.find((message) => message.id === id)!;
@@ -234,9 +129,7 @@ export class Assistant {
       const message = JSON.parse(JSON.stringify({ id, text, mode, entryId, status: "routed", createdAt: now(), replyToId, editOfId, reaction,
         prompt: editOfId ? `Use this revision of my active request:\n${text}` : replyPrompt(text, referenced) })) as HomeMessage;
       home.messages.push(message);
-      const taskId = await tx.createTask(this.dispatch, { sourceId: id, ...(home.lastDispatchTaskId !== undefined && { after: home.lastDispatchTaskId }) }, { conversationId: this.rootId, ownership: { kind: "conversation" } });
-      home.messages.at(-1)!.taskId = taskId;
-      home.lastDispatchTaskId = taskId;
+      await enqueueDispatch(tx, this.dispatch, home.messages.at(-1)!, sessionId);
       return { turn: { id, sessionId, text, replyToId, status: "queued" } };
     });
   }
@@ -309,9 +202,12 @@ export class Assistant {
       source.requestId = `${source.id}:resume:${randomUUID()}`;
       delete source.executionId;
       delete source.error;
-      await enqueueRequest(tx, this.work, source, sessionId);
+      if (source.dependsOn === undefined) {
+        delete source.submissionId;
+        await enqueueDispatch(tx, this.dispatch, source, sessionId);
+      } else await enqueueRequest(tx, this.work, source, sessionId);
       for (const message of home.messages) if (queued.has(message.id)) {
-        if (message.submissionId === undefined) await enqueueRequest(tx, this.work, message, sessionId);
+        if (message.submissionId === undefined) await enqueueDispatch(tx, this.dispatch, message, sessionId);
         else message.workTaskId = await tx.createTask(this.work, { sourceId: message.id, sessionId }, { conversationId: record.conversationId as ConversationId, ownership: { kind: "conversation" } });
       }
     });

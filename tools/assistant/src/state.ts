@@ -9,11 +9,11 @@ export type HomeMessage = { id: string; text: string; createdAt: string; entryId
 export type Update = { id: string; text: string; kind: "progress" | "result" | "error"; sourceId?: string; quoteSource?: boolean; createdAt: string };
 type SavedEntry = { id: string; sourceId: string; title: string; sessionId: string | null; createdAt: string; updatedAt: string };
 export type HomeEntry = SavedEntry & { status: EntryStatus; interruptedText?: string; interruptedSourceId?: string; updates: Update[] };
-type SavedSession = { id: string; conversationId: number; title: string; cwd: string; paused: boolean; createdAt: string };
+type SavedSession = { id: string; conversationId: number; title: string; cwd: string; paused: boolean; createdAt: string; lastDispatchTaskId?: number };
 export type SessionRecord = SavedSession & { status: "idle" | "running" | "interrupted" };
 export type Turn = { id: string; sessionId: string; entryId: string | null; sourceId?: string; replyToId?: string; text: string; status: "queued" | "running"; createdAt: string; dependsOn?: string[] };
 export type Data = { messages: HomeMessage[]; entries: HomeEntry[]; sessions: SessionRecord[]; turns: Turn[] };
-export type HomeData = { messages: HomeMessage[]; entries: SavedEntry[]; sessions: SavedSession[]; lastDispatchTaskId?: number };
+export type HomeData = { messages: HomeMessage[]; entries: SavedEntry[]; sessions: SavedSession[]; lastRouteTaskId?: number };
 export const HomeDoc = defineDoc<HomeData>({ kind: "assistant.home", version: 1, scope: "session", initial: () => ({ messages: [], entries: [], sessions: [] }) });
 export const now = () => new Date().toISOString();
 export const messageText = (message: { content?: unknown }): string => typeof message.content === "string" ? message.content : Array.isArray(message.content)

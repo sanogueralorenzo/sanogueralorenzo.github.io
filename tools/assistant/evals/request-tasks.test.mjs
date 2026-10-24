@@ -15,7 +15,8 @@ async function until(check, message = "condition") {
   for (let i = 0; i < 400; i++) { const value = await check(); if (value) return value; await new Promise(resolve => setTimeout(resolve, 10)); }
   throw new Error(`Timed out waiting for ${message}`);
 }
-async function fixture(t, respond, dispatcher = () => ({ action: "start", dependsOn: [] }), storage = undefined) {
+async function fixture(t, respond, dispatcher = () => ({ action: "start", dependsOn: [] }),
+  { storage, router = ({ sessions }) => ({ mode: "continue", sessionId: sessions[0].id }) } = {}) {
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), "assistant-request-")));
   const calls = [];
   const runtime = { getModel: () => model, streamSimple: (selected, transcript, options = {}) => lazyStream(selected, async () => (async function* () {
@@ -26,11 +27,13 @@ async function fixture(t, respond, dispatcher = () => ({ action: "start", depend
     if (names.includes("dispatch_message")) {
       const request = JSON.parse(input);
       calls.push({ dispatcher: request });
-      content = [call("dispatch_message", await dispatcher(request))];
+      content = [call("dispatch_message", await dispatcher(request, options.signal))];
     } else if (names.includes("route_home")) {
       const match = input.match(/Recent saved conversations: (.*)\nRecent Home exchanges/);
       const sessions = JSON.parse(match[1]);
-      content = [call("route_home", { mode: "continue", sessionId: sessions[0].id })];
+      const request = { sessions, message: input.split("Original user message (verbatim):\n")[1].split("\n\nCall route_home")[0] };
+      calls.push({ router: request });
+      content = [call("route_home", await router(request, options.signal))];
     } else {
       calls.push({ input, transcript });
       content = await respond(input, transcript, options.signal);
@@ -44,7 +47,9 @@ async function fixture(t, respond, dispatcher = () => ({ action: "start", depend
   t.after(async () => { await app.shutdown(); rmSync(cwd, { recursive: true, force: true }); });
   const receipt = id => {
     const source = app.state.home.messages.find(message => message.id === id);
-    const session = app.state.home.sessions[0];
+    const entry = app.state.home.entries.find(item => item.id === source.entryId);
+    const session = app.state.home.sessions.find(item => item.id === entry.sessionId);
+    if (!session) return undefined;
     return app.pi.harness.commit(tx => tx.submissionByRequest(session.conversationId, source.requestId || source.id), context);
   };
   return { get app() { return app; }, calls, receipt, restart: async () => {
@@ -299,4 +304,142 @@ test("cancellation does not claim to stop a task that finished while the dispatc
   await until(async () => (await f.receipt("cancel"))?.status === "done");
   assert.equal(f.app.state.home.messages.find(message => message.id === "weather").replacedBy, undefined);
   assert.match(f.calls.find(call => call.input?.includes("Original message: Stop weather")).input, /already finished before cancellation/);
+});
+
+test("Home routing stays ordered and releases the next message while dispatch is still deciding", { timeout: 15000 }, async t => {
+  const execution = gate(), decision = gate(), destination = gate();
+  const f = await fixture(t, (input, _transcript, signal) => input.endsWith("Anchor A") ? block(signal, execution) : [text("Finished")],
+    (request, signal) => request.message === "Hold A decision" ? block(signal, decision) : { action: "start", dependsOn: [] },
+    { router: ({ message, sessions }, signal) => {
+      if (message === "New B") return block(signal, destination);
+      return { mode: "continue", sessionId: (message === "Continue B" ? sessions.find(session => session.title === "B") : sessions[0]).id };
+    } });
+  await f.app.submitHome("Anchor A", "anchor-a");
+  await until(() => f.calls.some(call => call.input?.endsWith("Anchor A")));
+  await f.app.submitHome("Hold A decision", "hold-a");
+  await until(() => f.calls.some(call => call.dispatcher?.message === "Hold A decision"));
+  await f.app.submitHome("New B", "new-b");
+  await until(() => f.calls.some(call => call.router?.message === "New B"), "routing while another dispatcher is blocked");
+  await f.app.submitHome("Continue B", "continue-b");
+  const source = f.app.state.home.messages.find(message => message.id === "continue-b");
+  await until(async () => (await f.app.pi.harness.commit(tx => tx.task(source.taskId), context)).state.status === "waiting");
+  assert.equal(f.calls.some(call => call.router?.message === "Continue B"), false);
+  destination.resolve({ mode: "start", title: "B" });
+  await until(async () => (await f.receipt("continue-b"))?.status === "done");
+  const home = f.app.snapshot();
+  assert.equal(home.entries.find(entry => entry.sourceId === "continue-b").sessionId, home.sessions.find(session => session.title === "B").id);
+  assert.deepEqual(f.calls.filter(call => call.router).map(call => call.router.message), ["Hold A decision", "New B", "Continue B"]);
+  assert.equal(await f.receipt("hold-a"), undefined);
+  decision.resolve({ action: "start", dependsOn: [] });
+  await until(async () => (await f.receipt("hold-a"))?.status === "done");
+});
+
+test("dispatch decisions are ordered within a conversation and concurrent across conversations", { timeout: 15000 }, async t => {
+  const execution = gate(), decisionA = gate(), decisionB = gate();
+  const f = await fixture(t, (input, _transcript, signal) => /Anchor [AB]$/.test(input) ? block(signal, execution) : [text("Finished")],
+    (request, signal) => request.message === "Hold A decision" ? block(signal, decisionA)
+      : request.message === "Hold B decision" ? block(signal, decisionB) : { action: "start", dependsOn: [] },
+    { router: () => ({ mode: "start", title: "B" }) });
+  await f.app.submitHome("Anchor A", "anchor-a");
+  await until(() => f.calls.some(call => call.input?.endsWith("Anchor A")));
+  await f.app.submitHome("Anchor B", "anchor-b");
+  await until(() => f.calls.some(call => call.input?.endsWith("Anchor B")));
+  const [a, b] = f.app.snapshot().sessions;
+  await f.app.submitSession(a.id, "Hold A decision", "followUp", { id: "hold-a" });
+  await until(() => f.calls.some(call => call.dispatcher?.message === "Hold A decision"));
+  await f.app.submitSession(a.id, "Later A decision", "followUp", { id: "later-a" });
+  await f.app.submitSession(b.id, "Hold B decision", "followUp", { id: "hold-b" });
+  await until(() => f.calls.some(call => call.dispatcher?.message === "Hold B decision"), "parallel dispatch in another conversation");
+  assert.equal(f.calls.some(call => call.dispatcher?.message === "Later A decision"), false);
+  decisionA.resolve({ action: "start", dependsOn: [] });
+  await until(async () => (await f.receipt("later-a"))?.status === "done");
+  assert.equal(await f.receipt("hold-b"), undefined);
+  decisionB.resolve({ action: "start", dependsOn: [] });
+  await until(async () => (await f.receipt("hold-b"))?.status === "done");
+});
+
+test("messages sent to an existing conversation bypass blocked Home routing", { timeout: 15000 }, async t => {
+  const execution = gate(), routing = gate();
+  const f = await fixture(t, (input, _transcript, signal) => input.endsWith("Anchor") ? block(signal, execution) : [text("Direct reply")],
+    undefined, { router: (_request, signal) => block(signal, routing) });
+  await f.app.submitHome("Anchor", "anchor");
+  await until(() => f.calls.some(call => call.input?.endsWith("Anchor")));
+  await f.app.submitHome("Slow routing", "slow-route");
+  await until(() => f.calls.some(call => call.router?.message === "Slow routing"));
+  await f.app.submitSession(f.app.snapshot().sessions[0].id, "Known conversation", "followUp", { id: "direct" });
+  await until(async () => (await f.receipt("direct"))?.status === "done", "direct message while Home routing is blocked");
+  assert.equal(f.app.snapshot().messages.find(message => message.id === "slow-route").status, "routing");
+  assert.equal(f.calls.filter(call => call.router).length, 1);
+});
+
+test("restart preserves ordered routing and per-conversation dispatch waits without duplicate replies", { timeout: 15000 }, async t => {
+  const execution = gate(), decision = gate(), routing = gate();
+  let dispatchAttempts = 0, routeAttempts = 0;
+  const f = await fixture(t, (input, _transcript, signal) => input.endsWith("Anchor A") ? block(signal, execution) : [text("Finished")],
+    (request, signal) => request.message === "Hold A decision" && ++dispatchAttempts === 1 ? block(signal, decision) : { action: "start", dependsOn: [] },
+    { router: ({ message, sessions }, signal) => {
+      if (message === "New B") return ++routeAttempts === 1 ? block(signal, routing) : { mode: "start", title: "B" };
+      return { mode: "continue", sessionId: sessions.find(session => session.title === "B").id };
+    } });
+  await f.app.submitHome("Anchor A", "anchor-a");
+  await until(() => f.calls.some(call => call.input?.endsWith("Anchor A")));
+  const a = f.app.snapshot().sessions[0];
+  await f.app.submitSession(a.id, "Hold A decision", "followUp", { id: "hold-a" });
+  await until(() => dispatchAttempts === 1);
+  await f.app.submitSession(a.id, "Later A decision", "followUp", { id: "later-a" });
+  await f.app.submitHome("New B", "new-b");
+  await until(() => routeAttempts === 1);
+  await f.app.submitHome("Continue B", "continue-b");
+  await f.restart();
+  await until(async () => (await f.receipt("later-a"))?.status === "done" && (await f.receipt("continue-b"))?.status === "done");
+  assert.equal(f.app.snapshot().sessions.filter(session => session.title === "B").length, 1);
+  for (const id of ["hold-a", "later-a", "new-b", "continue-b"])
+    assert.equal(f.app.snapshot().entries.find(entry => entry.sourceId === id).updates.filter(update => update.kind === "result").length, 1);
+  assert.equal(dispatchAttempts, 2);
+  assert.equal(routeAttempts, 2);
+});
+
+test("Stop drains an in-flight dispatch and Continue classifies its pending follow-up before execution", { timeout: 15000 }, async t => {
+  const initial = gate(), resumed = gate(), deciding = gate();
+  let executions = 0, decisions = 0;
+  const f = await fixture(t, (input, transcript, signal) => {
+    if (input.endsWith("Weather")) return block(signal, ++executions === 1 ? initial : resumed);
+    assert.ok(transcript.messages.some(message => message.role === "assistant" && message.content.some(part => part.text === "Weather resumed")));
+    return [text("Dependent finished")];
+  }, (_request, signal) => ++decisions === 1 ? block(signal, deciding) : { action: "start", dependsOn: ["weather"] });
+  await f.app.submitHome("Weather", "weather");
+  await until(() => executions === 1);
+  const id = f.app.snapshot().sessions[0].id;
+  await f.app.submitSession(id, "Dependent", "followUp", { id: "dependent" });
+  await until(() => decisions === 1);
+  await f.app.stop(id);
+  const entry = f.app.snapshot().entries.find(entry => entry.sourceId === "weather");
+  assert.equal(entry.status, "interrupted");
+  await f.app.resume(entry.id);
+  await until(async () => (await f.receipt("dependent"))?.status === "queued");
+  assert.equal(decisions, 2);
+  assert.deepEqual(f.app.state.home.messages.find(message => message.id === "dependent").dependsOn, ["weather"]);
+  assert.equal(f.calls.some(call => call.input?.endsWith("Dependent")), false);
+  resumed.resolve([text("Weather resumed")]);
+  await until(async () => (await f.receipt("dependent"))?.status === "done");
+});
+
+test("failed routing and dispatch decisions release their respective queues", { timeout: 15000 }, async t => {
+  const execution = gate();
+  const f = await fixture(t, (input, _transcript, signal) => input.endsWith("Anchor") ? block(signal, execution) : [text("Finished")],
+    request => {
+      if (request.message === "Bad dispatch") throw new Error("Dispatch failed");
+      return { action: "start", dependsOn: [] };
+    }, { router: ({ message, sessions }) => {
+      if (message === "Bad route") throw new Error("Routing failed");
+      return { mode: "continue", sessionId: sessions[0].id };
+    } });
+  await f.app.submitHome("Anchor", "anchor");
+  await until(() => f.calls.some(call => call.input?.endsWith("Anchor")));
+  await f.app.submitHome("Bad route", "bad-route");
+  await f.app.submitHome("Bad dispatch", "bad-dispatch");
+  await f.app.submitHome("Good request", "good");
+  await until(async () => (await f.receipt("good"))?.status === "done");
+  assert.equal(f.app.state.home.messages.find(message => message.id === "bad-route").status, "failed");
+  assert.equal(f.app.state.home.messages.find(message => message.id === "bad-dispatch").status, "failed");
 });
