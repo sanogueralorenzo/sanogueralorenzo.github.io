@@ -4609,6 +4609,10 @@
     "global-search-suggestions-toggle": {
       "category": "improved",
       "message": "Search suggestions are optional, off by default, and controlled for all Spaces in General settings."
+    },
+    "fork-github-live-folders": {
+      "category": "new",
+      "message": "GitHub live folders refresh through each Space’s session, with PR filters, automatic creation after sign-in and direct folder deletion."
     }
   }
 }
