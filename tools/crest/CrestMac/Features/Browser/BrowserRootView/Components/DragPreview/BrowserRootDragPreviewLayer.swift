@@ -8,7 +8,7 @@ struct BrowserRootDragPreviewLayer: View {
 
     @Environment(\.browserWindowCornerRadius) private var windowCornerRadius
 
-    private var appearance: BrowserChromeAppearance { .device(windowCornerRadius: windowCornerRadius) }
+    private var appearance: BrowserChromeAppearance { .init(windowCornerRadius: windowCornerRadius) }
 
     var body: some View {
         BrowserDragPreviewWindowBridge(

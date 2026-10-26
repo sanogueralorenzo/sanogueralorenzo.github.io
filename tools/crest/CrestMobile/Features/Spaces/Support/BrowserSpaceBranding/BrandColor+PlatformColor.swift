@@ -8,7 +8,7 @@ extension BrandColor {
         var blue: CGFloat = 0
         var alpha: CGFloat = 1
         guard UIColor(color).getRed(&red, green: &green, blue: &blue, alpha: &alpha) else {
-            self = .ocean
+            self = .neutral
             return
         }
         self.init(

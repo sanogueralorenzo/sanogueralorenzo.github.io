@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The folder as one thing: its header, the rows it holds, the menu that acts
-/// on it, and the two presentations that menu can raise.
+/// on it.
 struct BrowserFolderGroupSurface: View {
     @Environment(BrowserSidebarInteractionState.self) private var sidebarInteraction
 
@@ -9,6 +9,7 @@ struct BrowserFolderGroupSurface: View {
     let interaction: BrowserFolderGroupInteractionContext
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(BrowserGitHubIntegration.self) private var github: BrowserGitHubIntegration?
 
     private var folder: FolderStateModel { configuration.folder }
 
@@ -27,21 +28,17 @@ struct BrowserFolderGroupSurface: View {
         }
         .contextMenu {
             if configuration.capabilities.supportsOrganization {
+                if folder.source != nil, github != nil {
+                    BrowserGitHubFolderOptionsMenu(configuration: configuration)
+                    Divider()
+                }
                 BrowserFolderOrganizationMenu(
                     folder: folder,
                     context: configuration.context,
                     assignment: configuration.folderRuntimeAssignment,
                     createNestedFolder: interaction.beginCreatingChild,
                     renameFolder: interaction.beginRenaming,
-                    changeColor: {
-                        interaction.isChoosingColor.wrappedValue = true
-                    },
-                    changeIcon: {
-                        interaction.isChoosingIcon.wrappedValue = true
-                    },
-                    deleteFolder: {
-                        interaction.isConfirmingDeletion.wrappedValue = true
-                    }
+                    deleteFolder: interaction.deleteFolder
                 )
                 .tint(.primary)
                 // A long press opens this menu out of the same gesture that would
@@ -63,39 +60,6 @@ struct BrowserFolderGroupSurface: View {
                     )
                 }
             }
-        }
-        .popover(
-            isPresented: interaction.isChoosingColor,
-            arrowEdge: .trailing
-        ) {
-            BrowserFolderColorPicker(color: interaction.folderColor)
-                .presentationCompactAdaptation(.popover)
-        }
-        .browserIconCustomizationPopover(
-            BrowserIconCustomizationPresentation(
-                isPresented: interaction.isChoosingIcon,
-                title: "Folder Icon",
-                currentEmoji: BrowserIconSymbol.emoji(from: folder.displaySymbol),
-                currentSystemSymbol: BrowserIconSymbol.emoji(from: folder.displaySymbol) == nil
-                    ? folder.displaySymbol : nil,
-                showsReset: folder.displaySymbol != "folder" && folder.displaySymbol != "folder.fill",
-                resetTitle: "Use Folder Icon",
-                setEmoji: { interaction.folderSymbol.wrappedValue = BrowserIconSymbol.symbol(forEmoji: $0) },
-                setSystemSymbol: { interaction.folderSymbol.wrappedValue = $0 },
-                reset: { interaction.folderSymbol.wrappedValue = "folder" }
-            )
-        )
-        .confirmationDialog(
-            "Delete \(folder.shownTitle)?",
-            isPresented: interaction.isConfirmingDeletion,
-            titleVisibility: .visible
-        ) {
-            Button("Delete Folder", role: .destructive) {
-                interaction.deleteFolder()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Its tabs stay in this section, and any nested folders move up one level.")
         }
         .animation(
             CrestMotion.collection.unlessReducingMotion(reduceMotion),
@@ -164,8 +128,7 @@ private struct BrowserFolderCollapsedVisibilityUpdates: ViewModifier {
 
     #if os(macOS)
         private func reconcileVisibility() {
-            guard configuration.context.space.folders.contains(configuration.folder.id),
-                !configuration.spaceAccess.isLocked(configuration.context.space)
+            guard configuration.context.space.folders.contains(configuration.folder.id)
             else { return }
             configuration.sidebarInteraction.reconcileCollapsedFolder(
                 configuration.folderRuntimeAssignment, isExpanded: !configuration.folder.isCollapsed,

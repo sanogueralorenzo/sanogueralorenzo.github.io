@@ -12,7 +12,7 @@ extension View {
 private struct BrowserFolderHeaderDensityLayout: ViewModifier {
     let configuration: BrowserFolderGroupConfiguration
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    private var tabScale: Double { BrowserDeviceAppearanceStore.shared.tabScale }
+    private let tabScale = 1.0
 
     func body(content: Content) -> some View {
         let metrics = configuration.headerMetrics

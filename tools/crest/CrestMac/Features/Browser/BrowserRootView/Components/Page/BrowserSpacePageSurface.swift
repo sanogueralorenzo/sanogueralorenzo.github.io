@@ -1,14 +1,26 @@
 import SwiftUI
 
 struct BrowserSpacePageSurface: NSViewRepresentable {
+    // MARK: - Variables
+
     let model: BrowserRootModel
-    let transientBrowsing: BrowserTransientBrowsingCoordinator
     let tabPromotionNamespace: Namespace.ID
     let shortcuts: BrowserShortcutStore?
 
-    @AppStorage(SpacePageMotionPreference.key)
-    private var animatesSpacePages = SpacePageMotionPreference.defaultValue
     private var pageEnvironment = SpacePageEnvironment()
+
+    // MARK: - Initializers
+
+    init(
+        model: BrowserRootModel,
+        tabPromotionNamespace: Namespace.ID, shortcuts: BrowserShortcutStore?
+    ) {
+        self.model = model
+        self.tabPromotionNamespace = tabPromotionNamespace
+        self.shortcuts = shortcuts
+    }
+
+    // MARK: - Actions - Presentation
 
     func makeNSView(context: Context) -> SpaceContentPagerView<BrowserRootPageSurface> {
         SpaceContentPagerView(frame: .zero)
@@ -28,15 +40,14 @@ struct BrowserSpacePageSurface: NSViewRepresentable {
         view.update(
             spaces: model.browser.availableSpaces,
             selectedSpaceID: model.browser.selectedSpaceID,
-            lockedSpaceIDs: model.lockedSpaceIDs,
             layoutDirection: context.environment.layoutDirection,
-            presentation: animatesSpacePages && !context.environment.accessibilityReduceMotion
+            presentation: !context.environment.accessibilityReduceMotion
                 ? context.environment.spacePagerPresentation : nil
         ) { space, isSelected in
             SpacePageRoot(
                 content: BrowserRootPageSurface(
                     model: model, space: space, isSelectedSpace: isSelected,
-                    transientBrowsing: transientBrowsing,
+
                     tabPromotionNamespace: tabPromotionNamespace,
                     shortcuts: shortcuts,
                     layoutDirection: context.environment.layoutDirection),

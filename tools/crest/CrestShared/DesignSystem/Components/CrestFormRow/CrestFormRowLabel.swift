@@ -36,7 +36,7 @@ struct CrestFormRowLabel: View {
 #if DEBUG
     #Preview("With and without subtitle") {
         VStack(alignment: .leading, spacing: 20) {
-            CrestFormRowLabel(title: "Default Space", systemImage: "square.grid.2x2")
+            CrestFormRowLabel(title: "Space", systemImage: "square.grid.2x2")
             CrestFormRowLabel(
                 title: "Content Blocking", subtitle: "Choose which blocklists this Space loads",
                 systemImage: "shield.lefthalf.filled", tint: .green)

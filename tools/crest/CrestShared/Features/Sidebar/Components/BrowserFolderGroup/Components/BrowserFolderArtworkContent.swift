@@ -1,55 +1,10 @@
 import SwiftUI
 
-/// The shared folder drawing, with its optional symbol attached to the front plane.
+/// The standard folder drawing, shared by ordinary and live folders.
 struct BrowserFolderArtworkContent: View {
-    let symbol: String
-    let color: BrandColor
     var isExpanded = false
-    let iconOnly: Bool
-    var tintsTitle = false
-    @Environment(\.colorScheme) private var colorScheme
 
-    var body: some View {
-        if iconOnly, let glyph = Self.customGlyph(for: symbol) {
-            Group {
-                if BrowserIconSymbol.emoji(from: symbol) != nil {
-                    glyph
-                } else {
-                    // Use the folder's font-relative footprint. Text attachments
-                    // can truncate wider symbols inside the fixed icon column.
-                    Image(systemName: "folder").hidden().overlay {
-                        Image(systemName: symbol).resizable().scaledToFit()
-                    }
-                }
-            }
-            .foregroundStyle(symbolStyle)
-            .transaction { $0.animation = nil }
-        } else {
-            BrowserFolderFaces(glyph: Self.customGlyph(for: symbol), color: color, isExpanded: isExpanded)
-                .foregroundStyle(faceForeground)
-        }
-    }
-
-    /// Matches the tinted title beside it. Without a tint the glyph keeps the
-    /// inherited hierarchical style, which a highlighted menu row inverts.
-    private var symbolStyle: AnyShapeStyle {
-        guard
-            let tint = color.folderSymbolColor(
-                for: symbol, tintsTitle: tintsTitle, onDarkBackground: colorScheme == .dark)
-        else { return AnyShapeStyle(.primary) }
-        return AnyShapeStyle(tint.color)
-    }
-
-    private var faceForeground: Color {
-        let scheme = color.foregroundTone.colorScheme
-        return scheme == .dark ? .white : .black
-    }
-
-    static func customGlyph(for symbol: String) -> Text? {
-        if let emoji = BrowserIconSymbol.emoji(from: symbol) { return Text(emoji) }
-        guard symbol != "folder", symbol != "folder.fill" else { return nil }
-        return Text(Image(systemName: symbol))
-    }
+    var body: some View { BrowserFolderFaces(isExpanded: isExpanded).foregroundStyle(.white) }
 }
 
 /// Shared proportions and hinge angles for the folder's two flat faces.
@@ -66,8 +21,6 @@ private enum BrowserFolderGeometry {
 }
 
 private struct BrowserFolderFaces: View {
-    let glyph: Text?
-    let color: BrandColor
     let isExpanded: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -120,11 +73,6 @@ private struct BrowserFolderFaces: View {
                         var tint = context
                         tint.opacity = BrandColor.folderFrontHighlightOpacity
                         tint.fill(path, with: .color(.white))
-                        if let glyph {
-                            context.draw(
-                                glyph.font(.system(size: size.height * 0.5, weight: .semibold)),
-                                at: CGPoint(x: size.width / 2, y: size.height / 2))
-                        }
                     }
                     .frame(height: max(1, size.height - top))
                     .modifier(
@@ -136,7 +84,7 @@ private struct BrowserFolderFaces: View {
     }
 
     private var faceColor: Color {
-        color.color
+        BrandColor.neutral.color
     }
 }
 
@@ -166,11 +114,8 @@ private struct BrowserFolderFaceProjection: GeometryEffect {
 #if DEBUG
     #Preview("Folder artwork") {
         HStack(spacing: 24) {
-            BrowserFolderArtworkContent(symbol: "folder.fill", color: .ocean, isExpanded: false, iconOnly: false)
-            BrowserFolderArtworkContent(symbol: "star.fill", color: .ocean, isExpanded: true, iconOnly: false)
-            BrowserFolderArtworkContent(symbol: "star.fill", color: .ocean, isExpanded: false, iconOnly: true)
-            BrowserFolderArtworkContent(
-                symbol: "star.fill", color: .ocean, isExpanded: false, iconOnly: true, tintsTitle: true)
+            BrowserFolderArtworkContent(isExpanded: false)
+            BrowserFolderArtworkContent(isExpanded: true)
         }.font(.system(size: 32)).padding(32)
     }
 #endif

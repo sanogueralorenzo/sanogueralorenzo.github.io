@@ -40,17 +40,6 @@ struct BrowserSidebarTabRowContent: View {
                 isLoaded: configuration.isLoaded,
                 metrics: configuration.metrics,
                 leadingInset: configuration.metrics.contentLeadingInset,
-                restoreSavedLocation: configuration.restoreSavedLocation,
-                iconCustomization: BrowserIconCustomizationPresentation(
-                    isPresented: interaction.isChoosingIcon,
-                    title: "Tab Icon",
-                    currentEmoji: configuration.tab.emojiIcon,
-                    // Reset applies to explicit icon overrides.
-                    showsReset: !configuration.tab.iconMode.followsPage,
-                    resetTitle: "Use Website Icon",
-                    setEmoji: interaction.setEmojiIcon,
-                    reset: interaction.resetIcon
-                ),
                 select: interaction.activate
             )
             .modifier(

@@ -180,15 +180,8 @@ struct BrowserPlatformCommandPaletteField: NSViewRepresentable {
 
         func refreshSuffix() {
             field?.placeholderString =
-                model.activeProvider.map { "\($0.actionTitle)…" }
-                ?? model.activeScope.map { String(localized: "Search \(String(localized: $0.title))…") }
+                model.activeScope.map { String(localized: "Search \(String(localized: $0.title))…") }
                 ?? String(localized: "Search or Enter URL…")
-            if model.urlCompletion == nil, let provider = model.providerOffer {
-                suffixLabel.isHidden = true
-                suffixLabel.rootView.isVisible = false
-                field?.setAccessibilityHelp(String(localized: "\(provider.actionTitle). Press Tab to enter a query."))
-                return
-            }
             guard let field, let editor = field.currentEditor() as? NSTextView,
                 !editor.hasMarkedText(), let proposal = model.urlCompletion,
                 let window = editor.window

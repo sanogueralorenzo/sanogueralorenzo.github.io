@@ -10,7 +10,6 @@ enum CrestSpaceChipMetrics {
     static let railSpacing: CGFloat = CrestSpacing.small
     static let iconSize: CGFloat = 24
     static let menuIconSize: CGFloat = 20
-    static var lockSize: CGFloat { max(5, iconSize * 0.24) }
     static let selectedStrokeWidth: CGFloat = CrestButtonMetrics.prominentStrokeWidth
     static let restingStrokeWidth: CGFloat = CrestButtonMetrics.quietStrokeWidth
     static let selectedStrokeOpacity = 0.72

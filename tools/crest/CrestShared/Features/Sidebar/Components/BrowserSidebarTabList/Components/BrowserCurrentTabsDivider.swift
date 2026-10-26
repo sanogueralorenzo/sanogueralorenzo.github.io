@@ -2,11 +2,11 @@ import SwiftUI
 
 /// The seam between the saved run and the current one, on every shell.
 ///
-/// Pointer-only shells reveal Clear on hover. Touch shells center its hit target
-/// on the line, using the saved drop band as the space above it.
+/// Pointer-only shells reveal the archive action on hover. Touch shells keep it visible.
 struct BrowserCurrentTabsDivider: View {
+    // MARK: - Variables
+
     let capabilities: BrowserInteractionCapabilities
-    var hasSavedTabsEndBand = false
     /// Whether the shell is currently in the state that reveals the control —
     /// a pointer resting somewhere over the list.
     var showsClearAction = false
@@ -14,65 +14,61 @@ struct BrowserCurrentTabsDivider: View {
     let canClear: Bool
     let clear: () -> Void
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.browserShortcutBindings) private var shortcutBindings
 
     private var metrics: BrowserSidebarTabListMetrics {
         capabilities.tabListMetrics
     }
 
     var body: some View {
-        Group {
-            if revealsOnHoverOnly {
-                ZStack(alignment: .trailing) {
-                    line
-                    clearButton
-                }
-                .padding(.vertical, metrics.dividerVerticalInset)
-            } else {
-                line
-                    .overlay(alignment: .trailing) { clearButton }
-                    .padding(
-                        .top,
-                        hasSavedTabsEndBand ? max(0, touchSpacing - metrics.savedSectionEndBandHeight) : touchSpacing
-                    )
-                    .padding(.bottom, touchSpacing)
+        HStack(spacing: CrestSpacing.small) {
+            VStack(spacing: 0) {
+                Divider()
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 1 / displayScale)
+            if showsClearButton {
+                clearButton
             }
         }
+        .frame(height: canClear ? controlHeight : 1 / displayScale)
+        .padding(.vertical, verticalInset)
         .padding(.horizontal, metrics.dividerHorizontalInset)
-    }
-
-    private var line: some View {
-        Divider()
-            .frame(height: 1 / displayScale)
-            .padding(.trailing, showsClearButton ? metrics.clearActionOcclusionWidth : 0)
     }
 
     private var clearButton: some View {
         Button(action: clear) {
             HStack(spacing: 4) {
-                if revealsOnHoverOnly { Text("Clear") }
+                if revealsOnHoverOnly {
+                    Text("Clear")
+                    BrowserShortcutHint(shortcut: ShortcutCommand.clearUnpinnedTabs.shortcut(in: shortcutBindings))
+                }
                 Image(systemName: "archivebox")
-                Image(systemName: "arrow.down")
             }
-            .frame(minWidth: revealsOnHoverOnly ? nil : 44, minHeight: revealsOnHoverOnly ? nil : 44)
-            .contentShape(.rect)
+            .padding(.horizontal, CrestSpacing.small)
+            .frame(minWidth: capabilities.supportsTouch ? 44 : nil, minHeight: controlHeight)
+            .contentShape(.capsule)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(
+            CrestChromeButtonStyle(controlSize: nil, cornerRadius: controlHeight / 2, cornerStyle: .circular)
+        )
         .font(.caption.weight(.medium))
         .foregroundStyle(.secondary)
         .fixedSize()
-        .opacity(showsClearButton ? 1 : 0)
-        .disabled(!canClear || !showsClearButton)
-        .accessibilityHidden(!showsClearButton)
-        .accessibilityLabel("Clear Open Tabs")
+        .accessibilityLabel("Archive Current Tabs")
         .accessibilityHint("Moves all current tabs to Archive")
     }
 
-    private var touchSpacing: CGFloat {
-        max(22, metrics.dividerVerticalInset)
+    private var controlHeight: CGFloat {
+        capabilities.supportsTouch ? 44 : 28
+    }
+
+    private var verticalInset: CGFloat {
+        max(0, metrics.dividerVerticalInset - (canClear ? controlHeight / 2 : 0))
     }
 
     private var showsClearButton: Bool {
-        !revealsOnHoverOnly || (showsClearAction && canClear)
+        canClear && (!revealsOnHoverOnly || showsClearAction)
     }
 
     private var revealsOnHoverOnly: Bool {

@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// The Space's name and identity, the disclosure that opens its saved tabs,
-/// and the menu of everything the shell can do to it.
+/// The Space's name, identity and actions menu.
 ///
 /// One header for both shells. What used to be two files differing in a
 /// handful of sizes is now one anatomy resolved from
@@ -10,19 +9,15 @@ import SwiftUI
 struct BrowserSpaceHeader: View {
     let space: BrowserSpaceIdentity
     let isPrivateBrowsing: Bool
-    @Binding var isSavedTabsExpanded: Bool
     let capabilities: BrowserInteractionCapabilities
     let actions: BrowserSpaceHeaderActions
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     init(
-        space: some BrowserSpaceIdentifying, isPrivateBrowsing: Bool, isSavedTabsExpanded: Binding<Bool>,
+        space: some BrowserSpaceIdentifying, isPrivateBrowsing: Bool,
         capabilities: BrowserInteractionCapabilities, actions: BrowserSpaceHeaderActions
     ) {
         self.space = space.identity
         self.isPrivateBrowsing = isPrivateBrowsing
-        _isSavedTabsExpanded = isSavedTabsExpanded
         self.capabilities = capabilities
         self.actions = actions
     }
@@ -41,68 +36,22 @@ struct BrowserSpaceHeader: View {
             .padding(.leading, CrestSpacing.small)
             .padding(.trailing, CrestSpacing.extraSmall)
         )
-        .crestHoverSurface(
-            cornerRadius: CrestLayout.sidebarControlCornerRadius
-        )
         .padding(.horizontal, CrestSpacing.small)
     }
 
     private var title: some View {
-        Button(action: toggleSavedTabs) {
-            HStack(spacing: CrestSpacing.small) {
-                identity
+        HStack(spacing: CrestSpacing.small) {
+            BrowserSpaceIdentityIcon(identity: space, size: metrics.iconSize)
 
-                Text(space.name)
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+            Text(space.name)
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
 
-                if space.requiresAuthentication {
-                    Image(systemName: "lock.fill")
-                        .font(.caption2.weight(.bold))
-                        .accessibilityLabel("Private Space")
-                }
-
-                Spacer(minLength: CrestSpacing.small)
-            }
-            .frame(
-                maxWidth: .infinity,
-                maxHeight: metrics.contentMaxHeight,
-                alignment: .leading
-            )
-            .contentShape(.rect)
+            Spacer(minLength: CrestSpacing.small)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(space.name) saved tabs")
-        .accessibilityValue(isSavedTabsExpanded ? "Expanded" : "Collapsed")
-        .accessibilityHint(
-            isSavedTabsExpanded
-                ? "Collapses saved tabs"
-                : "Expands saved tabs"
-        )
-    }
-
-    /// The Space's crest, swapped for a chevron while the saved tabs are
-    /// closed — the two share one slot so the title never shifts sideways as
-    /// the section opens.
-    private var identity: some View {
-        Group {
-            if !isSavedTabsExpanded {
-                Image(systemName: "chevron.right")
-                    .font(
-                        .system(
-                            size: metrics.disclosureGlyphSize,
-                            weight: .bold
-                        )
-                    )
-                    .foregroundStyle(.secondary)
-                    .transition(.opacity)
-            } else {
-                BrowserSpaceIdentityIcon(identity: space, size: metrics.iconSize)
-                    .transition(.opacity)
-            }
-        }
-        .frame(width: metrics.iconSize, height: metrics.iconSize)
+        .frame(maxWidth: .infinity, maxHeight: metrics.contentMaxHeight, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 
     /// A fixed band where the shell holds every row to one height, and a floor
@@ -119,27 +68,14 @@ struct BrowserSpaceHeader: View {
     private var metrics: BrowserSpaceHeaderMetrics {
         capabilities.spaceHeaderMetrics
     }
-
-    private func toggleSavedTabs() {
-        withAnimation(
-            CrestMotion.disclosure.unlessReducingMotion(reduceMotion)
-        ) {
-            if let toggle = actions.toggleSavedTabs {
-                toggle()
-            } else {
-                isSavedTabsExpanded.toggle()
-            }
-        }
-    }
 }
 
 #if DEBUG
     #Preview("Saved tabs header") {
-        @Previewable @State var expanded = true
         BrowserSpaceHeader(
-            space: BrowserSpaceBrandingPreviewFixture.simpleSpace, isPrivateBrowsing: false,
-            isSavedTabsExpanded: $expanded, capabilities: BrowserInteractionCapabilities(),
-            actions: BrowserSpaceHeaderActions(openNewTab: {}, createFolder: {}, showHistory: {}, cleanup: {})
+            space: BrowserSpaceIdentityPreviewFixture.simpleSpace, isPrivateBrowsing: false,
+            capabilities: BrowserInteractionCapabilities(),
+            actions: BrowserSpaceHeaderActions(openNewTab: {}, createFolder: {}, showHistory: {})
         )
         .padding().frame(width: 320)
     }

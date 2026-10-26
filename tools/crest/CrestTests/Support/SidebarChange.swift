@@ -59,8 +59,7 @@ struct SidebarChange {
     static let renameSpace = SidebarChange(name: "E8 rename Space") {
         bench, run in
         bench.store.updateSpaceIdentity(
-            bench.space.id, name: "Renamed \(run)", symbol: bench.space.settings.symbol,
-            accent: bench.space.settings.accent)
+            bench.space.id, name: "Renamed \(run)")
     }
     static let loadingToggle = SidebarChange(name: "E9 loading toggle") { bench, run in
         bench.report(bench.pages[0], isLoading: run.isMultiple(of: 2))

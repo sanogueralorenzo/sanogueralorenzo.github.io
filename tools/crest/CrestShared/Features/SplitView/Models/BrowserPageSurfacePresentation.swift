@@ -3,15 +3,10 @@ import Foundation
 
 /// What a content area is presenting: a row of cards, or the one page surface.
 ///
-/// Resolved by `init(space:isLocked:cards:…)` and then only drawn, so a shell
+/// Resolved by `init(space:cards:…)` and then only drawn, so a shell
 /// reads the branch rather than deciding it.
 @MainActor
 enum BrowserPageSurfacePresentation {
-    /// The single surface with no Space of its own behind it — none is
-    /// selected, or the selected one is locked and showing its access gate
-    /// instead of pages. Nothing may be dropped into it: the page store has
-    /// already let every card go, and a Space that has not been unlocked is not
-    /// somewhere a tab may land.
     case unavailable
 
     /// The single rounded surface, presenting `space`. `cardTabID` is the lone
@@ -52,13 +47,12 @@ enum BrowserPageSurfacePresentation {
     ///     `.splitInsert` aimed at this very Space opens a slot in this row.
     init(
         space: SpaceModel?,
-        isLocked: Bool,
         cards: [TabStateModel],
         hasEnteredSplitContent: Bool,
         resolvedTarget: BrowserSidebarReorderTarget?,
         presentsTrailingPanel: Bool = false
     ) {
-        guard let space, !isLocked else {
+        guard let space else {
             self = .unavailable
             return
         }

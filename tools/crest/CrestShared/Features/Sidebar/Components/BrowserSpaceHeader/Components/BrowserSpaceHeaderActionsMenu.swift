@@ -1,18 +1,29 @@
 import SwiftUI
 
-/// The Space header's overflow menu.
-///
-/// Every item is here exactly when the shell handed down a closure for it, so
-/// the list is a statement about what this shell can do rather than about
-/// which shell it is. Private browsing does not remove the items it disables —
-/// it replaces them with the note that says why, which is the only way a
-/// reader learns the feature exists at all.
+/// A native menu entry shared by the platform presentations.
+struct BrowserSpaceHeaderMenuItem {
+    var title: LocalizedStringResource
+    var symbol: String
+    var action: () -> Void = {}
+    var shortcut: BrowserShortcut?
+    var identifier: String?
+    var isEnabled = true
+    var isDestructive = false
+    var children: [BrowserSpaceHeaderMenuItem] = []
+}
+
+/// The Space header's overflow menu, using the shell's available actions.
 struct BrowserSpaceHeaderActionsMenu: View {
+    // MARK: - Variables
+
     let isPrivateBrowsing: Bool
     let metrics: BrowserSpaceHeaderMetrics
     let actions: BrowserSpaceHeaderActions
 
     @Environment(\.supportsMultipleWindows) private var supportsMultipleWindows
+    @Environment(\.browserShortcutBindings) private var shortcutBindings
+
+    // MARK: - Actions - Drawing
 
     var body: some View {
         styledMenu
@@ -22,93 +33,129 @@ struct BrowserSpaceHeaderActionsMenu: View {
             .accessibilityLabel("Space actions")
     }
 
-    /// `BorderlessButtonMenuStyle` is macOS's alone, and it is what keeps the
-    /// ellipsis reading as a bare glyph rather than as a bordered popup. The
-    /// compact shell's menu already draws that way without being asked.
     @ViewBuilder
     private var styledMenu: some View {
         #if os(macOS)
-            menu
-                .menuIndicator(.hidden)
-                .menuStyle(.borderlessButton)
-                .fixedSize()
+            BrowserPlatformSpaceActionsMenu(
+                sections: sections, controlSize: metrics.actionsControlSize,
+                symbolSize: metrics.actionsGlyph?.size ?? metrics.iconSize
+            )
+            .fixedSize()
+            .offset(y: -CrestSpacing.small)
         #else
-            menu
+            Menu {
+                ForEach(sections.indices, id: \.self) { section in
+                    if section > 0 { Divider() }
+                    ForEach(sections[section].indices, id: \.self) { index in
+                        item(sections[section][index])
+                    }
+                }
+                .crestMenuActionLabelStyle()
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(metrics.actionsGlyph?.font)
+                    .frame(width: metrics.actionsControlSize, height: metrics.actionsControlSize)
+                    .contentShape(.rect)
+            }
+            .crestMenuActionLabelStyle()
         #endif
     }
 
-    private var menu: some View {
-        Menu {
-            items
-                .crestMenuActionLabelStyle()
-        } label: {
-            label
-        }
-        .crestMenuActionLabelStyle()
-    }
-
-    @ViewBuilder
-    private var items: some View {
-        Button(ShortcutCommand.newTab, action: actions.openNewTab)
-
-        if let openNewWindow = actions.openNewWindow, supportsMultipleWindows {
-            Button(ShortcutCommand.newWindow, action: openNewWindow)
-                .accessibilityIdentifier("new-browser-window")
-        }
-
-        Button(
-            "New Folder",
-            systemImage: "folder.badge.plus",
-            action: actions.createFolder
-        )
-
-        Button(ShortcutCommand.showHistory, action: actions.showHistory)
-
-        if let showPasswords = actions.showPasswords {
-            if isPrivateBrowsing {
-                Label(
-                    "Passwords Off in Private Browsing",
-                    systemImage: "key.slash"
+    #if !os(macOS)
+        @ViewBuilder
+        private func item(_ entry: BrowserSpaceHeaderMenuItem) -> some View {
+            if entry.children.isEmpty {
+                Button(
+                    String(localized: entry.title), systemImage: entry.symbol,
+                    role: entry.isDestructive ? .destructive : nil,
+                    action: entry.action
                 )
-                .foregroundStyle(.secondary)
+                .keyboardShortcut(entry.shortcut?.keyboardShortcut)
+                .crestAccessibilityIdentifier(entry.identifier)
+                .disabled(!entry.isEnabled)
             } else {
-                Button("Passwords", systemImage: "key.fill", action: showPasswords)
+                Menu(String(localized: entry.title), systemImage: entry.symbol) {
+                    ForEach(entry.children.indices, id: \.self) { index in
+                        let child = entry.children[index]
+                        Button(String(localized: child.title), action: child.action)
+                    }
+                }
+                .disabled(!entry.isEnabled)
             }
         }
+    #endif
 
-        if isPrivateBrowsing,
-            let closePrivateBrowsing = actions.closePrivateBrowsing
-        {
-            Button(
-                "Close Private Tabs",
-                systemImage: "xmark.square",
-                role: .destructive,
-                action: closePrivateBrowsing
-            )
-            .accessibilityIdentifier("close-private-tabs")
+    // MARK: - Actions - Entries
+
+    private var sections: [[BrowserSpaceHeaderMenuItem]] {
+        var sections: [[BrowserSpaceHeaderMenuItem]] = []
+        if let showTabs = actions.showTabs {
+            sections.append([.init(title: "Back to Tabs", symbol: "sidebar.left", action: showTabs)])
+        }
+        if let showWebsiteSettings = actions.showWebsiteSettings {
+            sections.append([
+                .init(
+                    title: "Website Settings", symbol: "slider.horizontal.3", action: showWebsiteSettings,
+                    identifier: "website-settings")
+            ])
         }
 
+        var creation: [BrowserSpaceHeaderMenuItem] = [
+            .init(title: "New Tab", symbol: "plus", action: actions.openNewTab, shortcut: shortcut(for: .newTab))
+        ]
+        if let openNewWindow = actions.openNewWindow, supportsMultipleWindows {
+            creation.append(
+                .init(
+                    title: "New Window", symbol: "macwindow.badge.plus", action: openNewWindow,
+                    shortcut: shortcut(for: .newWindow), identifier: "new-browser-window"))
+        }
+        creation.append(.init(title: "New Folder", symbol: "folder.badge.plus", action: actions.createFolder))
+        if let createGitHubFolder = actions.createGitHubFolder {
+            creation.append(
+                .init(
+                    title: "Live Folder", symbol: "folder.badge.gearshape", isEnabled: !isPrivateBrowsing,
+                    children: [
+                        .init(title: "GitHub", symbol: "", action: createGitHubFolder)
+                    ]))
+        }
+        sections.append(creation)
+
+        var utilities: [BrowserSpaceHeaderMenuItem] = []
+        if let showArchive = actions.showArchive {
+            utilities.append(
+                .init(
+                    title: "Archive", symbol: "archivebox", action: showArchive, shortcut: shortcut(for: .showArchive)))
+        }
+        utilities.append(
+            .init(
+                title: "History", symbol: "clock.arrow.circlepath", action: actions.showHistory,
+                shortcut: shortcut(for: .showHistory)))
+        if let showDownloads = actions.showDownloads {
+            utilities.append(
+                .init(
+                    title: "Downloads", symbol: "arrow.down.circle", action: showDownloads,
+                    shortcut: shortcut(for: .showDownloads)))
+        }
+        sections.append(utilities)
+
+        var settings: [BrowserSpaceHeaderMenuItem] = []
+        if isPrivateBrowsing, let closePrivateBrowsing = actions.closePrivateBrowsing {
+            settings.append(
+                .init(
+                    title: "Close Private Tabs", symbol: "xmark.square", action: closePrivateBrowsing,
+                    identifier: "close-private-tabs", isDestructive: true))
+        }
         if let showSettings = actions.showSettings {
-            Button("Settings", systemImage: "gearshape", action: showSettings)
-                .accessibilityIdentifier("settings-button")
+            settings.append(
+                .init(
+                    title: "Settings", symbol: "gearshape", action: showSettings, shortcut: actions.settingsShortcut,
+                    identifier: "settings-button"))
         }
-
-        Button(ShortcutCommand.clearUnpinnedTabs, action: actions.cleanup)
+        if !settings.isEmpty { sections.append(settings) }
+        return sections
     }
 
-    @ViewBuilder
-    private var label: some View {
-        let glyph = Image(systemName: "ellipsis")
-            .font(metrics.actionsGlyph?.font)
-            .frame(
-                width: metrics.actionsControlSize,
-                height: metrics.actionsControlSize
-            )
-
-        if metrics.expandsActionsHitArea {
-            glyph.contentShape(.rect)
-        } else {
-            glyph
-        }
+    private func shortcut(for command: ShortcutCommand) -> BrowserShortcut? {
+        command.shortcut(in: shortcutBindings)
     }
 }

@@ -17,7 +17,6 @@ struct BrowserSidebarListContext {
     let window: WindowStateModel
     let favicons: FaviconAssets
     let browser: BrowserStore
-    let spaceAccess: BrowserSpaceAccessController
     let pageAccess: BrowserSidebarPageAccess
     let tabActions: BrowserSidebarTabActions
     let capabilities: BrowserInteractionCapabilities
@@ -71,25 +70,17 @@ struct BrowserSidebarListContext {
         return pageAccess.isSharedAsTab(assignment) || pageAccess.isSharingTab(assignment)
     }
 
-    /// Whether the window shows this Space, unlocked, so its rows may act.
-    @MainActor var isCurrentAndUnlocked: Bool {
+    @MainActor var isCurrentAndAvailable: Bool {
         isCurrent(assignment)
     }
 
-    /// Whether the window shows the Space `assignment` names, unlocked, with
-    /// the same profile, so a row drawn for it may act. A row captures its
-    /// assignment when it draws; a profile replaced since refuses it. Reading
-    /// it observes which Space the window shows, the Space's membership and
-    /// profile, and the Space's lock.
     @MainActor func isCurrent(_ assignment: BrowserSpaceRuntimeAssignment) -> Bool {
         guard window.shownSpaceID == assignment.spaceID, browser.spaceModel(assignment.spaceID) === space,
             space.profileID == assignment.profileID
         else { return false }
-        return !spaceAccess.isLocked(space)
+        return true
     }
 
-    /// Whether a row drawn for the tab `assignment` names may act on it: the
-    /// window shows its Space, unlocked, and the Space still holds the tab.
     @MainActor func isTabCurrent(_ assignment: BrowserTabRuntimeAssignment) -> Bool {
         isCurrent(BrowserSpaceRuntimeAssignment(spaceID: assignment.spaceID, profileID: assignment.profileID))
             && space.tabs.contains(assignment.tabID)
@@ -131,15 +122,6 @@ struct BrowserSidebarListContext {
         pageAccess.audioSpectrum(runtimeAssignment(of: tabID))
     }
 
-    @MainActor func unload(_ tabID: UUID) {
-        pageAccess.unloadPage(tabID, assignment)
-    }
-
-    @MainActor func pullNewIcon(_ tabID: UUID) {
-        let actions = tabActions
-        Task { await actions.pullNewIcon(for: tabID) }
-    }
-
     /// The tab as the page layer names it: in this Space, with its profile.
     @MainActor private func runtimeAssignment(of tabID: UUID) -> BrowserTabRuntimeAssignment {
         BrowserTabRuntimeAssignment(tabID: tabID, spaceID: space.id, profileID: space.profileID)
@@ -149,7 +131,7 @@ struct BrowserSidebarListContext {
 extension BrowserSidebarListContext: Equatable {
     static func == (lhs: BrowserSidebarListContext, rhs: BrowserSidebarListContext) -> Bool {
         lhs.space === rhs.space && lhs.window === rhs.window && lhs.favicons === rhs.favicons
-            && lhs.browser === rhs.browser && lhs.spaceAccess === rhs.spaceAccess
+            && lhs.browser === rhs.browser
             && lhs.capabilities == rhs.capabilities && lhs.promotionNamespaces == rhs.promotionNamespaces
             && (lhs.restoreSavedLocation == nil) == (rhs.restoreSavedLocation == nil)
     }

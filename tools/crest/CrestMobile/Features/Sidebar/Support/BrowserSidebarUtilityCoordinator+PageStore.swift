@@ -10,14 +10,12 @@ extension BrowserSidebarUtilityCoordinator {
     init(
         browser: BrowserStore,
         pages: MobileBrowserPageStore,
-        spaceAccess: BrowserSpaceAccessController,
         selectTab: @escaping (UUID) -> Void,
         openURL: @escaping (URL) -> Void
     ) {
         self.init(
             browser: browser,
             downloadCenter: pages.downloadCenter,
-            spaceAccess: spaceAccess,
             platformActions: BrowserSidebarUtilityPlatformActions(
                 downloadDestinations: [.share, .files],
                 openHistoryEntry: { url, _ in openURL(url) },

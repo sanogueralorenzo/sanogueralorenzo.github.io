@@ -10,12 +10,8 @@ struct BrowserSidebarTabRowInteractionContext {
     let isRenaming: Bool
     let draftTitle: Binding<String>
     let isTitleFocused: FocusState<Bool>.Binding
-    let isChoosingIcon: Binding<Bool>
     let activate: () -> Void
     let beginRenaming: () -> Void
-    let beginChangingIcon: () -> Void
-    let setEmojiIcon: (String) -> Void
-    let resetIcon: () -> Void
     let commitTitle: () -> Void
     let cancelTitleEditing: () -> Void
     /// Isolated because the platform seam that delivers an auxiliary click

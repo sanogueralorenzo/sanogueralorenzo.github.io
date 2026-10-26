@@ -37,26 +37,6 @@ enum CrestMotion {
     static let navigationTransition: TimeInterval = 0.28
     /// Showing or hiding the app's primary browser chrome.
     static let chromeTransition: TimeInterval = 0.28
-    /// Handing the sidebar surface between its docked and floating placements.
-    static let sidebarMorphTransition: TimeInterval = 0.28
-    /// Moving page surfaces aside before a floating sidebar attaches to the row.
-    static let sidebarDockApproachTransition: TimeInterval = 0.22
-    /// The short final handoff from the floating sidebar card to its docked seat.
-    static let sidebarDockAttachmentTransition: TimeInterval = 0.16
-    /// Letting the undocked sidebar retreat after pointer interaction ends.
-    static let sidebarRetreatTransition: TimeInterval = 0.30
-    /// Keeps phased sidebar work aligned with the visible geometry handoff.
-    static let sidebarMorphCompletionDelay: Duration = .seconds(
-        sidebarMorphTransition
-    )
-    /// Keeps the dock handoff behind the page-surface approach.
-    static let sidebarDockApproachCompletionDelay: Duration = .seconds(
-        sidebarDockApproachTransition
-    )
-    /// Keeps the morph alive until the card has finished attaching.
-    static let sidebarDockAttachmentCompletionDelay: Duration = .seconds(
-        sidebarDockAttachmentTransition
-    )
     /// Showing or changing a secondary pane layered over browser chrome.
     static let floatingPaneTransition: TimeInterval = 0.24
     /// Showing or hiding compact toolbars within web content.
@@ -69,7 +49,7 @@ enum CrestMotion {
     static let disclosureTransition: TimeInterval = 0.20
     /// Updating an address field's determinate loading fill.
     static let loadingProgressTransition: TimeInterval = 0.22
-    /// Selecting a choice within an onboarding flow.
+    /// Selecting a choice within an import review.
     static let selectionTransition: TimeInterval = 0.20
     /// Applying or removing the persistent visual state of a drag source.
     static let dragSourceTransition: TimeInterval = 0.20
@@ -83,9 +63,6 @@ enum CrestMotion {
     static let boundaryShakeTransition: TimeInterval = 0.36
     /// Fading a page in where Reduce Motion stills a slide.
     static let reducedMotionFadeTransition: TimeInterval = 0.2
-    /// Presenting Peek inside a Quick Window.
-    static let quickPeekEntranceTransition: TimeInterval = 0.34
-    /// Revealing initial Peek web content after its first commit.
     static let contentRevealTransition: TimeInterval = 0.12
     /// Updating a favicon-derived palette or comparable content state.
     static let paletteTransition: TimeInterval = 0.18
@@ -96,9 +73,6 @@ enum CrestMotion {
     static let contentStateTransition: TimeInterval = 0.22
     /// Presenting transient confirmation feedback in browser chrome.
     static let feedbackPresentationTransition: TimeInterval = 0.22
-    /// Dismissing a Peek card back into browser chrome.
-    static let peekDismissalTransition: TimeInterval = 0.22
-    /// Revealing one destination in the utility fan.
     static let utilityFanRevealTransition: TimeInterval = 0.42
     /// The complete press-and-return cycle for reload feedback.
     static let reloadFeedbackDuration: Duration = .milliseconds(240)
@@ -108,17 +82,8 @@ enum CrestMotion {
     static let reloadFeedbackPhaseSeconds: TimeInterval = 0.12
 
     static var step: Animation { .snappy(duration: stepTransition) }
-    /// Uses SwiftUI's native default curve for full onboarding-step changes.
-    static var onboardingStep: Animation { .default }
     /// Uses SwiftUI's native snappy curve for progress selection feedback.
-    static var onboardingProgress: Animation { .snappy }
-    /// Uses SwiftUI's native snappy curve for onboarding presentation state.
-    static var onboardingPresentation: Animation { .snappy }
-    /// The slow cross-fade between the fields the setup stage wears.
-    static var onboardingBackdrop: Animation { .easeInOut(duration: onboardingBackdropFade) }
-    static let onboardingBackdropFade: TimeInterval = 1.6
-    /// How long the welcome holds each template's field before fading to the next.
-    static let onboardingWelcomeHold: Duration = .seconds(7)
+    static var importProgress: Animation { .snappy }
     static var press: Animation { .easeOut(duration: pressFeedback) }
     static var compactPress: Animation { .easeOut(duration: compactPressFeedback) }
     static var developerPress: Animation { .snappy(duration: developerPressFeedback) }
@@ -127,18 +92,6 @@ enum CrestMotion {
     static var dragPreview: Animation { .smooth(duration: dragPreviewTransition) }
     static var navigation: Animation { .snappy(duration: navigationTransition) }
     static var chrome: Animation { .smooth(duration: chromeTransition) }
-    static var sidebarMorph: Animation {
-        .smooth(duration: sidebarMorphTransition)
-    }
-    static var sidebarDockApproach: Animation {
-        .smooth(duration: sidebarDockApproachTransition)
-    }
-    static var sidebarDockAttachment: Animation {
-        .smooth(duration: sidebarDockAttachmentTransition)
-    }
-    static var sidebarRetreat: Animation {
-        .smooth(duration: sidebarRetreatTransition)
-    }
     static var floatingPane: Animation { .smooth(duration: floatingPaneTransition) }
     static var toolbar: Animation { .snappy(duration: toolbarTransition) }
     static var dismissal: Animation { .easeOut(duration: dismissalTransition) }
@@ -163,9 +116,6 @@ enum CrestMotion {
     static var reducedMotionFade: Animation {
         .easeInOut(duration: reducedMotionFadeTransition)
     }
-    static var quickPeekEntrance: Animation {
-        .smooth(duration: quickPeekEntranceTransition)
-    }
     static var contentReveal: Animation {
         .easeOut(duration: contentRevealTransition)
     }
@@ -175,7 +125,6 @@ enum CrestMotion {
     static var feedbackPresentation: Animation {
         .snappy(duration: feedbackPresentationTransition)
     }
-    static var peekDismissal: Animation { .snappy(duration: peekDismissalTransition) }
     static var utilityFanReveal: Animation {
         .smooth(duration: utilityFanRevealTransition, extraBounce: 0.05)
     }

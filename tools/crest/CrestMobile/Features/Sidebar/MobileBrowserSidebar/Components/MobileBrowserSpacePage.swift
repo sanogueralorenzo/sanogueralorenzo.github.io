@@ -12,13 +12,11 @@ struct MobileBrowserSpacePage: View {
     let space: SpaceModel
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
-    let spaceAccess: BrowserSpaceAccessController
     let capabilities: BrowserInteractionCapabilities
     let tabPromotionNamespace: Namespace.ID
     let selectTab: (UUID) -> Void
     let openNewTab: () -> Void
     let showHistory: () -> Void
-    let showPasswords: () -> Void
     let showSettings: () -> Void
     let closePrivateBrowsing: () -> Void
     let compactPageIsFullyPresented: Bool
@@ -45,17 +43,14 @@ struct MobileBrowserSpacePage: View {
             BrowserSpaceHeader(
                 space: space,
                 isPrivateBrowsing: browser.isPrivateBrowsing,
-                isSavedTabsExpanded: savedTabsExpansionBinding,
                 capabilities: capabilities,
                 actions: BrowserSpaceHeaderActions(
                     openNewTab: openNewTab,
                     openNewWindow: { openWindow(value: MobileWindowRequest()) },
                     createFolder: beginCreatingFolder,
                     showHistory: showHistory,
-                    showPasswords: showPasswords,
                     closePrivateBrowsing: closePrivateBrowsing,
-                    showSettings: showSettings,
-                    cleanup: browser.cleanupCurrentTabs
+                    showSettings: showSettings
                 )
             )
 
@@ -70,8 +65,7 @@ struct MobileBrowserSpacePage: View {
         }
         .modifier(
             MobileBrowserReorderDropFeed(
-                browser: browser,
-                spaceAccess: spaceAccess
+                browser: browser
             )
         )
         .accessibilityElement(children: .contain)
@@ -87,7 +81,7 @@ struct MobileBrowserSpacePage: View {
         guard let window = browser.windowModel else { return nil }
         return BrowserSidebarListContext(
             space: space, window: window, favicons: browser.core.state.favicons, browser: browser,
-            spaceAccess: spaceAccess, pageAccess: pageAccess, tabActions: tabActions, capabilities: capabilities,
+            pageAccess: pageAccess, tabActions: tabActions, capabilities: capabilities,
             promotionNamespaces: [
                 .pinned: tabPromotionNamespace, .saved: tabPromotionNamespace, .current: tabPromotionNamespace,
             ],
@@ -95,30 +89,27 @@ struct MobileBrowserSpacePage: View {
     }
 
     private var pageAccess: BrowserSidebarPageAccess {
-        BrowserSidebarPageAccess(pages: pages, browser: browser, spaceAccess: spaceAccess)
+        BrowserSidebarPageAccess(pages: pages, browser: browser)
     }
 
     private var tabActions: BrowserSidebarTabActions {
         BrowserSidebarTabActions(
             assignment: assignment,
-            browser: browser, reorderState: sidebarInteraction.sidebarReorderState,
-            pages: pages,
-            spaceAccess: spaceAccess
+            browser: browser, reorderState: sidebarInteraction.sidebarReorderState, syncPagesAfterMutation: {}
         )
     }
 
     private func openNewTabIfAvailable() {
-        guard isCurrentAndUnlocked else { return }
+        guard isCurrentAndAvailable else { return }
         openNewTab()
     }
 
     private func restoreSavedLocation(_ tabID: UUID) {
-        guard isCurrentAndUnlocked else { return }
+        guard isCurrentAndAvailable else { return }
         MobileSavedLocationRestoreAction(
             browser: browser,
             pages: pages,
-            selectTab: selectTab,
-            spaceAccess: spaceAccess
+            selectTab: selectTab
         ).perform(
             BrowserTabRuntimeAssignment(
                 tabID: tabID,
@@ -129,10 +120,9 @@ struct MobileBrowserSpacePage: View {
     }
 
     private func beginCreatingFolder() {
-        guard isCurrentAndUnlocked,
+        guard isCurrentAndAvailable,
             let folderID = browser.addFolder(matching: assignment)
         else { return }
-        browser.setSavedTabsExpanded(true, matching: assignment)
         sidebarInteraction.editingFolderRequest = BrowserFolderRuntimeAssignment(
             folderID: folderID,
             spaceID: assignment.spaceID,
@@ -140,20 +130,11 @@ struct MobileBrowserSpacePage: View {
         )
     }
 
-    private var savedTabsExpansionBinding: Binding<Bool> {
-        Binding {
-            browser.spaceModel(matching: assignment)?.settings.isSavedTabsExpanded ?? true
-        } set: { isExpanded in
-            guard isCurrentAndUnlocked else { return }
-            browser.setSavedTabsExpanded(isExpanded, matching: assignment)
-        }
-    }
-
     private var assignment: BrowserSpaceRuntimeAssignment {
         BrowserSpaceRuntimeAssignment(space: space)
     }
 
-    private var isCurrentAndUnlocked: Bool {
-        browser.selectedUnlockedSpace(matching: assignment, accessController: spaceAccess) != nil
+    private var isCurrentAndAvailable: Bool {
+        browser.selectedAvailableSpace(matching: assignment) != nil
     }
 }

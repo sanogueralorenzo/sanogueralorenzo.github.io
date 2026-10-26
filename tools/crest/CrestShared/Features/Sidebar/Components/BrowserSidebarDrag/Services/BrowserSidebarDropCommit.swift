@@ -1,9 +1,5 @@
 import Foundation
 
-/// Commits a sidebar drop as the core's drop intent for its target. Which
-/// edit a drop makes, and every rule that refuses it, is the core's, locked
-/// and departing Spaces included: this only names where the lift landed, and
-/// shows the person a refusal's own words.
 @MainActor
 struct BrowserSidebarDropCommit {
     // MARK: - Variables

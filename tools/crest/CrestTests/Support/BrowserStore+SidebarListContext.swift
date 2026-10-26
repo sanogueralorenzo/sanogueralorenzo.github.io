@@ -7,7 +7,7 @@ extension BrowserStore {
     /// builds them, over no page layer: every tab holds a page, and nothing
     /// unloads or pulls an icon.
     func sidebarListContext(
-        for spaceID: UUID, spaceAccess: BrowserSpaceAccessController = BrowserSpaceAccessController(),
+        for spaceID: UUID,
         capabilities: BrowserInteractionCapabilities = BrowserInteractionCapabilities(),
         select: @escaping (UUID) -> Void = { _ in }
     ) -> BrowserSidebarListContext? {
@@ -17,13 +17,13 @@ extension BrowserStore {
         let pageAccess = BrowserSidebarPageAccess(
             containsResidentPage: { _ in true }, containsResidentPageMatching: { _ in true },
             siteThemeIconAccent: { _ in nil }, residencyRevision: { 0 }, selectPages: {},
-            deactivatePagePresentation: {}, unloadPage: { _, _ in }, pullFavicon: { _, _ in nil },
+            deactivatePagePresentation: {},
             downloadCenter: BrowserDownloadCenter(permissionCenter: BrowserSitePermissionCenter()))
         let tabActions = BrowserSidebarTabActions(
             assignment: assignment, browser: self, reorderState: interaction.sidebarReorderState,
-            spaceAccess: spaceAccess, syncPagesAfterMutation: {}, pullFavicon: { _, _ in nil })
+            syncPagesAfterMutation: {})
         return BrowserSidebarListContext(
-            space: space, window: window, favicons: core.state.favicons, browser: self, spaceAccess: spaceAccess,
+            space: space, window: window, favicons: core.state.favicons, browser: self,
             pageAccess: pageAccess, tabActions: tabActions, capabilities: capabilities, select: select)
     }
 }

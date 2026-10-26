@@ -36,13 +36,6 @@ extension BrandColor {
             alpha: face.alpha)
     }
 
-    /// An icon-only symbol follows its tinted title, so the glyph and the words
-    /// beside it read as one folder. Emoji keep the colors they ship with.
-    func folderSymbolColor(for symbol: String, tintsTitle: Bool, onDarkBackground: Bool) -> BrandColor? {
-        guard tintsTitle, BrowserIconSymbol.emoji(from: symbol) == nil else { return nil }
-        return folderTitleColor(onDarkBackground: onDarkBackground)
-    }
-
     /// This color at `opacity`, flattened over an opaque `background`.
     func composited(opacity: Double, over background: BrandColor) -> BrandColor {
         let alpha = self.alpha * opacity

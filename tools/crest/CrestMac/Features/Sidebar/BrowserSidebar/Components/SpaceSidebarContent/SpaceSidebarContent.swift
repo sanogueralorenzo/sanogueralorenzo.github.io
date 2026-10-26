@@ -5,14 +5,10 @@ struct SpaceSidebarContent: View {
     let space: SpaceModel
     let browser: BrowserStore
     let pages: BrowserPagePool
-    let spaceAccess: BrowserSpaceAccessController
     let capabilities: BrowserInteractionCapabilities
     let openNewTab: () -> Void
-    let showHistory: () -> Void
     let commandSurfaceNamespace: Namespace.ID
     let tabPromotionNamespace: Namespace.ID
-    let editSpace: () -> Void
-    let createSpace: (() -> Void)?
     let utilitySurface: BrowserUtilitySurface?
     @Binding var utilitySearchText: String
     @Binding var utilityFilter: BrowserUtilityListFilter
@@ -51,16 +47,9 @@ struct SpaceSidebarContent: View {
                         space: space,
                         browser: browser,
                         pages: pages,
-                        spaceAccess: spaceAccess,
                         capabilities: capabilities,
-                        isSavedTabsExpanded: savedTabsExpansionBinding,
-                        toggleSavedTabs: toggleSavedTabs,
                         openNewTab: openNewTab,
-                        beginCreatingFolder: beginCreatingFolder,
-                        showHistory: showHistory,
-                        tabPromotionNamespace: tabPromotionNamespace,
-                        editSpace: editSpace,
-                        createSpace: createSpace
+                        tabPromotionNamespace: tabPromotionNamespace
                     )
                 }
             }
@@ -71,39 +60,4 @@ struct SpaceSidebarContent: View {
         }
     }
 
-    private func beginCreatingFolder() {
-        guard isCurrentAndUnlocked,
-            let folderID = browser.addFolder(matching: assignment)
-        else { return }
-        browser.setSavedTabsExpanded(true, matching: assignment)
-        sidebarInteraction.editingFolderRequest = BrowserFolderRuntimeAssignment(
-            folderID: folderID,
-            spaceID: assignment.spaceID,
-            profileID: assignment.profileID
-        )
-    }
-
-    private var savedTabsExpansionBinding: Binding<Bool> {
-        Binding {
-            space.settings.isSavedTabsExpanded
-        } set: { isExpanded in
-            guard isCurrentAndUnlocked else { return }
-            browser.setSavedTabsExpanded(isExpanded, matching: assignment)
-        }
-    }
-
-    private func toggleSavedTabs() {
-        guard
-            let liveSpace = browser.selectedUnlockedSpace(matching: assignment, accessController: spaceAccess)
-        else { return }
-        browser.setSavedTabsExpanded(!liveSpace.settings.isSavedTabsExpanded, matching: assignment)
-    }
-
-    private var assignment: BrowserSpaceRuntimeAssignment {
-        BrowserSpaceRuntimeAssignment(space: space)
-    }
-
-    private var isCurrentAndUnlocked: Bool {
-        browser.selectedUnlockedSpace(matching: assignment, accessController: spaceAccess) != nil
-    }
 }

@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// One reload interaction shared by compact address bars and the persistent
-/// iPad/macOS sidebar chrome. Local developer pages gain the adjacent menu
-/// without forking the control or its feedback animation.
+/// iPad/macOS sidebar chrome. Local developer pages keep their reload options
+/// inline on touch and in a context menu in the compact pointer strip.
 struct BrowserReloadControl: View {
     let isLoading: Bool
     let isDeveloperMode: Bool
@@ -20,7 +20,9 @@ struct BrowserReloadControl: View {
         height: CrestLayout.minimumHitTarget
     )
     var symbolPointSize = BrowserChromeSymbolLabel.defaultPointSize
+    var showsDeveloperMenuInline = true
 
+    @Environment(\.browserShortcutBindings) private var bindings
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var reloadPulse = 0
     @State private var isPlayingReloadFeedback = false
@@ -29,41 +31,29 @@ struct BrowserReloadControl: View {
     var body: some View {
         HStack(spacing: 0) {
             Button(action: performPrimaryAction) {
-                BrowserReloadFeedbackIcon(
-                    systemName: symbolName,
-                    pulse: reloadPulse,
-                    animates: !reduceMotion,
-                    pointSize: symbolPointSize,
-                    feedbackDidComplete: finishReloadFeedback
-                )
+                VStack(spacing: CrestSpacing.extraExtraSmall) {
+                    BrowserReloadFeedbackIcon(
+                        systemName: symbolName,
+                        pulse: reloadPulse,
+                        animates: !reduceMotion,
+                        pointSize: symbolPointSize,
+                        feedbackDidComplete: finishReloadFeedback
+                    )
+                    BrowserShortcutHint(shortcut: primaryCommand.shortcut(in: bindings))
+                }
+                .frame(minWidth: reloadControlSize.width, minHeight: reloadControlSize.height)
             }
-            .buttonStyle(CrestChromeButtonStyle(controlSize: reloadControlSize))
+            .buttonStyle(CrestChromeButtonStyle(controlSize: nil))
             .accessibilityLabel(isLoading ? "Stop" : "Reload")
             .accessibilityIdentifier("reload-control")
-            .help(isLoading ? "Stop" : "Reload (⌘R)")
+            .help(isLoading ? "Stop" : "Reload")
+            .contextMenu {
+                if isDeveloperMode && !showsDeveloperMenuInline { developerActions }
+            }
 
-            if isDeveloperMode {
+            if isDeveloperMode && showsDeveloperMenuInline {
                 Menu {
-                    Group {
-                        Button("Reload", systemImage: "arrow.clockwise") {
-                            performAnimatedReload(reload)
-                        }
-                        Button(
-                            "Reload (Ignore Cache)",
-                            systemImage: "arrow.trianglehead.2.clockwise.rotate.90"
-                        ) {
-                            performAnimatedReload(reloadFromOrigin)
-                        }
-                        Divider()
-                        Button(
-                            "Clear Cookies and Reload",
-                            systemImage: BrowsingDataCategory.siteData.symbol ?? "trash"
-                        ) {
-                            clearAndReload()
-                        }
-                        .disabled(isClearingSiteData)
-                    }
-                    .crestMenuActionLabelStyle()
+                    developerActions
                 } label: {
                     Image(systemName: isClearingSiteData ? "progress.indicator" : "chevron.down")
                         .font(.system(size: 8, weight: .bold))
@@ -90,6 +80,31 @@ struct BrowserReloadControl: View {
         )
         .disabled(!isEnabled)
     }
+
+    private var developerActions: some View {
+        Group {
+            Button("Reload", systemImage: "arrow.clockwise") {
+                performAnimatedReload(reload)
+            }
+            Button(
+                "Reload (Ignore Cache)",
+                systemImage: "arrow.trianglehead.2.clockwise.rotate.90"
+            ) {
+                performAnimatedReload(reloadFromOrigin)
+            }
+            Divider()
+            Button(
+                "Clear Cookies, Storage, and Reload",
+                systemImage: "trash"
+            ) {
+                clearAndReload()
+            }
+            .disabled(isClearingSiteData)
+        }
+        .crestMenuActionLabelStyle()
+    }
+
+    private var primaryCommand: ShortcutCommand { isLoading ? .stopLoading : .reloadPage }
 
     /// Stop while a load runs, unless the reload feedback is still turning.
     private var symbolName: String {

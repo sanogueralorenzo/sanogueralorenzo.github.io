@@ -2,19 +2,18 @@ import SwiftUI
 
 /// What a platform's palette can do with an address it opens: open it in
 /// place of what the source tab shows, in a new tab behind or in front of it,
-/// beside it in Split View, or in a Quick Window. Each answers whether it
+/// beside it in Split View. Each answers whether it
 /// opened the address.
 @MainActor
 protocol BrowserCommandPaletteOpener {
     func openHere(_ url: URL, from source: BrowserTabRuntimeAssignment) -> Bool
     func openTab(_ url: URL, from source: BrowserTabRuntimeAssignment, selecting: Bool) -> Bool
     func openInSplit(_ url: URL, from source: BrowserTabRuntimeAssignment) -> Bool
-    func openInQuickWindow(_ url: URL, from source: BrowserTabRuntimeAssignment) -> Bool
 }
 
 /// Where activating a palette row that opens an address opens it, which the
 /// modifier keys a person holds choose: here, in a new tab behind or in front
-/// of the current one, beside it in Split View, or in a Quick Window. Each
+/// of the current one, beside it in Split View. Each
 /// names the keys that choose it, what the selected row says and wears while
 /// they are held, and how it opens an address through a platform's opener.
 struct BrowserCommandPaletteOpening: Hashable, Sendable {
@@ -32,11 +31,7 @@ struct BrowserCommandPaletteOpening: Hashable, Sendable {
     static let splitView = BrowserCommandPaletteOpening(
         name: "splitView", modifiers: [.shift], title: "Open in Split View", symbol: "rectangle.split.2x1"
     ) { opener, url, source in opener.openInSplit(url, from: source) }
-    static let quickWindow = BrowserCommandPaletteOpening(
-        name: "quickWindow", modifiers: [.option], title: "Open in Quick Window", symbol: "macwindow"
-    ) { opener, url, source in opener.openInQuickWindow(url, from: source) }
-
-    static let all: [BrowserCommandPaletteOpening] = [here, backgroundTab, newTab, splitView, quickWindow]
+    static let all: [BrowserCommandPaletteOpening] = [here, backgroundTab, newTab, splitView]
 
     // MARK: - Variables
 

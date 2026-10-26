@@ -30,20 +30,7 @@ struct BrowserSidebarPageAccess {
     /// Brings the session's current selection on screen.
     let selectPages: @MainActor () -> Void
 
-    /// Takes every presented page off screen without evicting it, which is what
-    /// a Space returning to its locked state needs.
     let deactivatePagePresentation: @MainActor () -> Void
-
-    /// Releases one tab's resident page, if the Space and profile still own it.
-    let unloadPage: @MainActor (UUID, BrowserSpaceRuntimeAssignment) -> Void
-
-    /// Asks a resident page for a fresh favicon. Returns `nil` when the tab has
-    /// no page, has moved, or the page cannot produce one.
-    let pullFavicon:
-        @MainActor (
-            UUID,
-            BrowserSpaceRuntimeAssignment
-        ) async -> (data: Data, iconAccent: BrowserTabIconAccent?)?
 
     /// Shared across both shells already, so the sidebar holds the real thing
     /// rather than a closure over it.
@@ -75,6 +62,10 @@ struct BrowserSidebarPageAccess {
     /// The engine's measure of the sound a tab's page plays, band by band, or
     /// nil where its engine does not measure it.
     var audioSpectrum: @MainActor (BrowserTabRuntimeAssignment) -> BrowserAudioSpectrumFeed? = { _ in nil }
+    /// The page's current navigation state, read from the owning window so a
+    /// row observes URL changes before navigation finishes. Nil when unloaded.
+    var liveState: @MainActor (BrowserTabRuntimeAssignment) -> PageLiveState? = { _ in nil }
+
 }
 
 extension BrowserSidebarPageAccess {
@@ -86,7 +77,7 @@ extension BrowserSidebarPageAccess {
     /// it at call time, which is what keeps a row's residency and favicon
     /// reads inside Observation's tracking.
     init(
-        pages: some BrowserPageOwner, browser: BrowserStore, spaceAccess: BrowserSpaceAccessController,
+        pages: some BrowserPageOwner, browser: BrowserStore,
         selectPages: (@MainActor () -> Void)? = nil
     ) {
         self.init(
@@ -102,28 +93,15 @@ extension BrowserSidebarPageAccess {
             residencyRevision: { pages.residencyRevision &+ pages.nativeTabs.residencyRevision },
             selectPages: selectPages ?? { pages.select(at: .now) },
             deactivatePagePresentation: { pages.deactivatePagePresentation() },
-            unloadPage: { tabID, assignment in
-                guard let tab = browser.spaceModel(matching: assignment)?.tabs.model(tabID)
-                else { return }
-                if !tab.placement.isDurable {
-                    pages.unloadPage(for: tabID, matching: assignment)
-                } else if BrowserDurableTabCloseAction(browser: browser, spaceAccess: spaceAccess).perform(
-                    BrowserTabRuntimeAssignment(
-                        tabID: tabID, spaceID: assignment.spaceID, profileID: assignment.profileID
-                    ))
-                {
-                    pages.select(at: .now)
-                }
-            },
-            pullFavicon: { tabID, assignment in
-                await pages.pullFavicon(for: tabID, matching: assignment)
-            },
             downloadCenter: pages.downloadCenter,
             mediaSession: { assignment in
                 pages.mediaSession(matching: assignment)
             },
             setMuted: { muted, assignment in
                 pages.setMuted(muted, matching: assignment)
+            },
+            liveState: { assignment in
+                pages.host.page(matching: assignment)?.live
             }
         )
     }

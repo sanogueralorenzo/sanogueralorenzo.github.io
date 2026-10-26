@@ -5,10 +5,8 @@ struct BrowserTabBatchMenu: View {
 
     let request: BrowserCapturedSelection
     let browser: BrowserStore
-    let spaceAccess: BrowserSpaceAccessController
-    var unload: ((UUID) -> Void)? = nil
 
-    private var actions: BrowserTabBatchActions { BrowserTabBatchActions(browser: browser, spaceAccess: spaceAccess) }
+    private var actions: BrowserTabBatchActions { BrowserTabBatchActions(browser: browser) }
     private var count: Int { request.ids.count }
 
     var body: some View {
@@ -45,7 +43,7 @@ struct BrowserTabBatchMenu: View {
         }
         Menu("Move to Space", systemImage: "square.grid.2x2") {
             ForEach(
-                browser.availableTabMoveDestinationSpaces(from: request.assignment, accessController: spaceAccess)
+                browser.availableTabMoveDestinationSpaces(from: request.assignment)
             ) { space in
                 let moving = browser.moving(request, to: BrowserSpaceRuntimeAssignment(space: space))
                 Button {
@@ -62,21 +60,7 @@ struct BrowserTabBatchMenu: View {
                 "Separate Selected Splits", systemImage: "rectangle.split.2x1.slash", browser.separatingSplits(request))
         }
         Divider()
-        action("Keep Pages Loaded", systemImage: "lock", browser.keepingLoaded(request, true))
-        action("Stop Keeping Pages Loaded", systemImage: "lock.open", browser.keepingLoaded(request, false))
         action("Duplicate \(count) Tabs", systemImage: "plus.square.on.square", browser.duplicating(request))
-        if let unload {
-            let unloading = browser.keepingLoaded(request, false)
-            Button("Unload \(count) Pages", systemImage: "minus") {
-                if let reason = actions.reason(unloading) {
-                    browser.tabMultiSelection.message = reason
-                    return
-                }
-                for id in request.ids { unload(id) }
-                browser.tabMultiSelection.clear()
-            }
-            .disabled(!actions.isAvailable(unloading))
-        }
         action("Archive Selected Tabs", systemImage: "archivebox", browser.closing(request))
         action("Delete \(count) Tabs", systemImage: "trash", role: .destructive, browser.deleting(request))
         Divider()

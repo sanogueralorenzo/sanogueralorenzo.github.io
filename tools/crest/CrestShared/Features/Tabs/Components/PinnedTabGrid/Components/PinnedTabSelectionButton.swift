@@ -40,7 +40,9 @@ struct PinnedTabSelectionButton: View {
                     .contentShape(.rect)
             }
             .buttonStyle(
-                CrestChromeButtonStyle(controlSize: nil, cornerRadius: BrowserSidebarMetrics.layerCornerRadius())
+                CrestChromeButtonStyle(
+                    controlSize: nil, cornerRadius: BrowserSidebarMetrics.capsuleRadius(tabScale: 1),
+                    cornerStyle: .circular)
             )
             .accessibilityLabel(tab.shownTitle)
             if isSelected {
@@ -50,7 +52,11 @@ struct PinnedTabSelectionButton: View {
                         Image(systemName: "arrow.uturn.backward")
                             .font(.system(size: capabilities.trailingControlMetrics.glyphSize, weight: .medium))
                     }
-                    .buttonStyle(CrestChromeButtonStyle(controlSize: capabilities.trailingControlMetrics.controlSize))
+                    .buttonStyle(
+                        CrestChromeButtonStyle(
+                            controlSize: capabilities.trailingControlMetrics.controlSize,
+                            cornerRadius: capabilities.trailingControlMetrics.cornerRadius, cornerStyle: .circular)
+                    )
                     .accessibilityLabel("Return to Saved URL")
                     .accessibilityIdentifier("return-tab-to-saved-url")
                     .help("Return to Saved URL")

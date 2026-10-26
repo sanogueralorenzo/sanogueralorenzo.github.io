@@ -18,11 +18,11 @@ struct BrowserCommandPaletteRowIcon: View {
                         tabID: tab.id,
                         scale: BrowserCommandPaletteMetrics.rowFaviconSize / TabFaviconMetrics.defaultSize)
                 }
+            } else if row.kind == .space, let id = row.subjectID, let space = model.browser.spaceModel(id) {
+                BrowserSpaceIdentityIcon(space: space, size: BrowserCommandPaletteMetrics.rowIconContainerSize)
             } else if let provider = model.searchProvider(for: row) {
                 BrowserSearchProviderIcon(
-                    provider: provider,
-                    profileID: model.space?.profileID,
-                    size: BrowserCommandPaletteMetrics.rowFaviconSize
+                    provider: provider, size: BrowserCommandPaletteMetrics.rowFaviconSize
                 )
             } else {
                 Image(systemName: row.symbol)

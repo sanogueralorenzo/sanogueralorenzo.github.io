@@ -7,7 +7,7 @@ enum CrestColor {
     static let hover = Color.primary.opacity(CrestOpacity.hover)
     static let subtleBorder = Color.primary.opacity(CrestOpacity.border)
     static let selectedBorder = Color.primary.opacity(CrestOpacity.selectedBorder)
-    static let dropIndicator = CrestBrandPalette.paper.opacity(CrestOpacity.dropIndicator)
+    static let dropIndicator = CrestBrandTheme.canvas.opacity(CrestOpacity.dropIndicator)
     static let textPrimary = Color.primary
     static let textSecondary = Color.secondary
 

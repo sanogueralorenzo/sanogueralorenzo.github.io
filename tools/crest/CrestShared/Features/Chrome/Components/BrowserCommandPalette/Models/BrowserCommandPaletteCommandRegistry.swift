@@ -12,7 +12,6 @@ struct BrowserCommandPaletteCommandRegistry {
     private let performer: (ShortcutCommand) -> Void
     private let settingsOpener: (String) -> Void
     private let spaceSwitcher: (UUID) -> Void
-    private let archiveReopener: (UUID) -> Void
     private let copier: (String) -> Void
 
     init(
@@ -22,7 +21,6 @@ struct BrowserCommandPaletteCommandRegistry {
         perform: @escaping (ShortcutCommand) -> Void,
         openSettings: @escaping (String) -> Void = { _ in },
         switchSpace: @escaping (UUID) -> Void = { _ in },
-        reopenArchivedTab: @escaping (UUID) -> Void = { _ in },
         copy: @escaping (String) -> Void = { _ in }
     ) {
         self.commands = commands
@@ -31,7 +29,6 @@ struct BrowserCommandPaletteCommandRegistry {
         performer = perform
         settingsOpener = openSettings
         spaceSwitcher = switchSpace
-        archiveReopener = reopenArchivedTab
         copier = copy
     }
 
@@ -59,10 +56,6 @@ struct BrowserCommandPaletteCommandRegistry {
 
     func switchSpace(_ id: UUID) {
         spaceSwitcher(id)
-    }
-
-    func reopenArchivedTab(_ id: UUID) {
-        archiveReopener(id)
     }
 
     /// Copies `text` and says so in the window's notice.

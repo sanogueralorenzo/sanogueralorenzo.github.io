@@ -14,19 +14,18 @@ struct BrowserSidebarPresentation: Hashable, Sendable {
 
     // MARK: - Static Variables
 
-    static let floatingCardInset: CGFloat = 7
-    static let floatingCardCornerRadius: CGFloat = 18
+    static let floatingCardInset: CGFloat = 6
+    static let floatingHoverMargin: CGFloat = 32
 
     static let docked = BrowserSidebarPresentation(
         kind: .docked, name: "docked", showsSidebar: true, showsWindowControls: true, reservesSidebarWidth: true,
-        sidebarToggleAction: .hide, exitMargin: 0, toggles: { $0.toggleDockedSidebar() })
+        toggles: { $0.toggleDockedSidebar() })
     static let floating = BrowserSidebarPresentation(
         kind: .floating, name: "floating", showsSidebar: true, showsWindowControls: true, reservesSidebarWidth: false,
-        sidebarToggleAction: .dock, exitMargin: 30, toggles: { $0.toggleFloatingSidebar() })
+        toggles: { $0.toggleFloatingSidebar() })
     static let collapsed = BrowserSidebarPresentation(
         kind: .collapsed, name: "collapsed", showsSidebar: false, showsWindowControls: false,
-        reservesSidebarWidth: false, sidebarToggleAction: .dock, exitMargin: 0,
-        toggles: { $0.toggleCollapsedSidebar() })
+        reservesSidebarWidth: false, toggles: { $0.toggleCollapsedSidebar() })
 
     // MARK: - Variables
 
@@ -36,14 +35,6 @@ struct BrowserSidebarPresentation: Hashable, Sendable {
     let showsWindowControls: Bool
     let reservesSidebarWidth: Bool
 
-    /// What the sidebar's toggle does from here.
-    let sidebarToggleAction: BrowserSidebarToggleAction
-
-    /// How far past its page-side edge a hovered sidebar here still counts the
-    /// pointer as on it, so drifting just off a floating card does not put it
-    /// away.
-    let exitMargin: CGFloat
-
     /// Calls the handler's toggle for this place.
     private let toggles: @MainActor @Sendable (any BrowserSidebarToggleHandler) -> Void
 
@@ -51,7 +42,6 @@ struct BrowserSidebarPresentation: Hashable, Sendable {
 
     private init(
         kind: Kinds, name: String, showsSidebar: Bool, showsWindowControls: Bool, reservesSidebarWidth: Bool,
-        sidebarToggleAction: BrowserSidebarToggleAction, exitMargin: CGFloat,
         toggles: @escaping @MainActor @Sendable (any BrowserSidebarToggleHandler) -> Void
     ) {
         self.kind = kind
@@ -59,38 +49,19 @@ struct BrowserSidebarPresentation: Hashable, Sendable {
         self.showsSidebar = showsSidebar
         self.showsWindowControls = showsWindowControls
         self.reservesSidebarWidth = reservesSidebarWidth
-        self.sidebarToggleAction = sidebarToggleAction
-        self.exitMargin = exitMargin
         self.toggles = toggles
-    }
-
-    /// The place a window's split-view column visibility and floating state
-    /// put its sidebar.
-    init(
-        columnVisibility: NavigationSplitViewVisibility,
-        isFloatingSidebarPresented: Bool,
-        isPageFullscreen: Bool = false
-    ) {
-        // A page alone in full screen has no room beside it, so a docked
-        // sidebar can only float over it, and docks again once it ends.
-        guard columnVisibility == .detailOnly || isPageFullscreen else {
-            self = .docked
-            return
-        }
-        self = isFloatingSidebarPresented ? .floating : .collapsed
     }
 
     // MARK: - Actions - Layout
 
-    static func floatingHoverRegionWidth(sidebarWidth: CGFloat) -> CGFloat {
+    static func floatingRegionWidth(sidebarWidth: CGFloat) -> CGFloat {
         sidebarWidth + (floatingCardInset * 2)
     }
 
     func reservedWidth(
-        for sidebarWidth: CGFloat,
-        whileApproachingDock: Bool = false
+        for sidebarWidth: CGFloat
     ) -> CGFloat {
-        reservesSidebarWidth || whileApproachingDock ? sidebarWidth : 0
+        reservesSidebarWidth ? sidebarWidth : 0
     }
 
     // MARK: - Actions - Toggle

@@ -26,6 +26,11 @@ struct CrestSpaceIconPickerStyle: Hashable, Sendable {
         trackFillOpacity: CrestSpaceIconPickerMetrics.trackFillOpacity,
         trackBorderOpacity: CrestSpaceIconPickerMetrics.trackBorderOpacity, tintsSelection: true,
         selectionFillOpacity: CrestSpaceIconPickerMetrics.selectionFillOpacity)
+    static let titlebar = CrestSpaceIconPickerStyle(
+        name: "titlebar", height: 24, trackPadding: 2, fixedCornerRadius: nil,
+        minimumSegmentWidth: 28, smallestSegment: CGSize(width: 28, height: 20), overflowButtonWidth: 14,
+        fillsSegments: false, trackFillOpacity: 0.08, trackBorderOpacity: 0.12,
+        tintsSelection: false, selectionFillOpacity: 0.12)
     static let touch = CrestSpaceIconPickerStyle(
         name: "touch", height: 48, trackPadding: CrestSpaceIconPickerMetrics.trackPadding, fixedCornerRadius: nil,
         minimumSegmentWidth: 52, smallestSegment: CGSize(width: 44, height: 42), overflowButtonWidth: 44,

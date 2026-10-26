@@ -18,7 +18,7 @@ enum CrestButtonMetrics {
     static let quietStrokeWidth: CGFloat = 0.75
     static let prominentStrokeWidth: CGFloat = 1.25
 
-    static let inkStrokeOpacity = CrestBrandTheme.lineLightOpacity
+    static let inkStrokeOpacity = 0.18
     static let pressedFillOpacity = 0.8
     static let tintRestFill = 0.10
     static let tintEmphasizedFill = 0.16

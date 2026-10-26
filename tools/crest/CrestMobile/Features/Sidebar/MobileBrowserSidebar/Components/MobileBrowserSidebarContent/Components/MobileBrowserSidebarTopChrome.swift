@@ -153,16 +153,15 @@ struct MobileBrowserSidebarTopChrome: View {
             submit: configuration.submitAddress,
             morphNamespace: configuration.compactChromeNamespace,
             spaceID: selectedSpaceID,
-            commandPaletteHandoff: configuration.commandPaletteHandoff,
-            branding: configuration.context.browser.shownSpace.map(\.settings.look)
+            commandPaletteHandoff: configuration.commandPaletteHandoff
+
         )
     }
 
     private var selectedPageActions: MobileSelectedPageActionPort? {
         MobileSelectedPageActionPort(
             browser: configuration.context.browser,
-            pages: configuration.pages,
-            spaceAccess: configuration.context.spaceAccess
+            pages: configuration.pages
         )
     }
 

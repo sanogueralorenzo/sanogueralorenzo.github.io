@@ -46,8 +46,4 @@ struct BrowserCollapsedFolderTabVisibilityState: Equatable {
         keptTabID = selectedTabID
     }
 
-    mutating func tabDidUnload(_ tabID: UUID) {
-        guard keptTabID == tabID else { return }
-        keptTabID = nil
-    }
 }

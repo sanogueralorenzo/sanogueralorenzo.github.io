@@ -31,23 +31,17 @@ struct MobileBrowserSidebarSpaceContent: View {
                 space: space,
                 browser: configuration.context.browser,
                 pages: configuration.pages,
-                spaceAccess: configuration.context.spaceAccess,
                 capabilities: configuration.context.capabilities,
                 tabPromotionNamespace: configuration.tabPromotionNamespace,
                 selectTab: configuration.selectTab,
                 openNewTab: configuration.openNewTab,
                 showHistory: configuration.context.chromeActions.presentHistory,
-                showPasswords: showPasswords,
                 showSettings: showSettings,
                 closePrivateBrowsing: configuration.closePrivateBrowsing,
                 compactPageIsFullyPresented:
                     configuration.compactPageIsFullyPresented
             )
         }
-    }
-
-    private func showPasswords() {
-        configuration.context.chromeActions.presentPasswords?()
     }
 
     private func showSettings() {

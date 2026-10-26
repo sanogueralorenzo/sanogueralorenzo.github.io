@@ -8,8 +8,6 @@ enum BrowserCommandPalettePreviewFixture {
         id: uuid(finalByte: 0x21),
         profileID: uuid(finalByte: 0x31),
         name: "Work",
-        symbol: "briefcase.fill",
-        accent: .indigo,
         tabs: [
             TabState.Seed(
                 id: selectedTabID,
@@ -46,7 +44,7 @@ enum BrowserCommandPalettePreviewFixture {
     )
 
     static let registry = BrowserCommandPaletteCommandRegistry(
-        commands: [.newWindow, .showHistory, .showDownloads, .toggleSidebar],
+        commands: [.newWindow, .showHistory, .showDownloads],
         shortcut: { command in
             guard command == .showHistory else { return nil }
             return BrowserShortcut(
@@ -65,11 +63,7 @@ enum BrowserCommandPalettePreviewFixture {
 
     static var space: SpaceModel? { browser.spaceModel(currentSpace.id) }
 
-    static let google = SearchProvider(
-        name: BuiltInSearchProvider.google.name, title: BuiltInSearchProvider.google.title, kind: .engine,
-        shortcuts: BuiltInSearchProvider.google.shortcuts, searchTemplate: "https://www.google.com/search?q=%s",
-        suggestionTemplate: nil, color: BuiltInSearchProvider.google.color, logo: BuiltInSearchProvider.google.logo,
-        builtIn: .google, customID: nil, site: "google.com")
+    static let google = SearchProvider.google
 
     static let intentRow = PaletteRow(
         kind: .search, title: "Search Google", subtitle: "swift", symbol: PaletteRowKind.search.symbol,

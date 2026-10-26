@@ -13,7 +13,6 @@ import SwiftUI
 struct MobileBrowserSidebarSurface: View {
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
-    let spaceAccess: BrowserSpaceAccessController
 
     /// Where the archive, history, and downloads lists come up.
     let utilityPresentationStyle: MobileBrowserSidebarUtilityPresentationStyle
@@ -65,7 +64,6 @@ struct MobileBrowserSidebarSurface: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.mobileBrowserControlPlacement) private var controlPlacement
-    @State private var showsPasswords = false
     @State private var presentedSpaceSheet: MobileBrowserSidebarSpaceSheet?
 
     var body: some View {
@@ -73,7 +71,6 @@ struct MobileBrowserSidebarSurface: View {
             BrowserSidebar(
                 browser: browser,
                 pageAccess: pageAccess,
-                spaceAccess: spaceAccess,
                 capabilities: capabilities,
                 utilityCoordinator: utilityCoordinator,
                 utilityPresentation: utilityPresentation,
@@ -109,14 +106,13 @@ struct MobileBrowserSidebarSurface: View {
     }
 
     private var pageAccess: BrowserSidebarPageAccess {
-        BrowserSidebarPageAccess(pages: pages, browser: browser, spaceAccess: spaceAccess)
+        BrowserSidebarPageAccess(pages: pages, browser: browser)
     }
 
     private var utilityCoordinator: BrowserSidebarUtilityCoordinator {
         BrowserSidebarUtilityCoordinator(
             browser: browser,
             pages: pages,
-            spaceAccess: spaceAccess,
             selectTab: selectTab,
             openURL: openURL
         )
@@ -126,7 +122,6 @@ struct MobileBrowserSidebarSurface: View {
         BrowserSidebarChromeActions(
             presentSpaceSettings: { _ in presentSettings() },
             presentHistory: presentHistory,
-            presentPasswords: { showsPasswords = true },
             presentArchive: { presentSpaceSheet(.archive) },
             presentDownloads: { presentSpaceSheet(.downloads) }
         )
@@ -136,9 +131,7 @@ struct MobileBrowserSidebarSurface: View {
         MobileBrowserSidebarPresentationConfiguration(
             browser: browser,
             pages: pages,
-            spaceAccess: spaceAccess,
             selectedColorScheme: selectedSidebarColorScheme,
-            showsPasswords: $showsPasswords,
             presentedSpaceSheet: $presentedSpaceSheet,
             selectedSpaceAssignment: selectedSpaceAssignment,
             selectTab: selectTab,
@@ -198,7 +191,7 @@ struct MobileBrowserSidebarSurface: View {
     /// does, so they keep agreeing.
     private var selectedSidebarColorScheme: ColorScheme {
         guard let space = browser.shownSpace else { return colorScheme }
-        return space.settings.look.colorScheme(over: colorScheme)
+        return colorScheme
     }
 
     private var selectedSpaceAssignment: BrowserSpaceRuntimeAssignment? {
@@ -209,12 +202,10 @@ struct MobileBrowserSidebarSurface: View {
         utilityPresentationStyle.presentHistory(from: self)
     }
 
-    /// Puts one of the Space's lists up as a sheet, and refuses unless the Space
-    /// is still the selected, unlocked one the sheet would be about.
     func presentSpaceSheet(_ surface: BrowserUtilitySurface) {
         guard utilityPresentationStyle == .sheet,
             let assignment = selectedSpaceAssignment,
-            browser.selectedUnlockedSpace(matching: assignment, accessController: spaceAccess) != nil
+            browser.selectedAvailableSpace(matching: assignment) != nil
         else { return }
         presentedSpaceSheet = MobileBrowserSidebarSpaceSheet(
             surface: surface,
@@ -225,12 +216,6 @@ struct MobileBrowserSidebarSurface: View {
         }
     }
 
-    /// Brings the address field back in step once the session has moved.
-    ///
-    /// This shell owns the field, so it is the one that has to answer for it: a
-    /// locked or vanished Space empties it, a placement that shows the page next
-    /// to the sidebar takes the new Space's URL, and editing always ends because
-    /// whatever was being typed belonged to the Space that was left.
     private func synchronizeAddress(for space: SpaceModel?) {
         if space == nil {
             address = ""
@@ -251,7 +236,6 @@ struct MobileBrowserSidebarSurface: View {
     MobileBrowserSidebarSurface(
         browser: fixture.browser,
         pages: fixture.pages,
-        spaceAccess: fixture.spaceAccess,
         utilityPresentationStyle: .inline,
         showsPageBackdrop: false,
         reservesBottomChromeInset: false,

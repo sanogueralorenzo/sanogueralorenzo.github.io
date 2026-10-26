@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import SwiftUI
 
-/// The shared palette's rows, keyboard selection and the search provider or
+/// The shared palette's rows, keyboard selection and the local
 /// scope a person narrowed it to. The core ranks what the palette offers for each
 /// query, off the main thread; an answer that arrives after a newer keystroke
 /// is dropped, so the latest query always wins, and a key pressed before the
@@ -44,16 +44,11 @@ final class BrowserCommandPaletteModel {
     private(set) var selectedResultIndex = 0
     private(set) var keyboardSelectionRevision = 0
     private(set) var completionEditing = BrowserURLCompletionEditingState()
-    /// The search provider the person narrowed the palette to, or nil.
-    private(set) var activeProvider: SearchProvider?
     /// The kind of result the person narrowed the palette to, or nil.
     private(set) var activeScope: PaletteScope?
     /// The modifier keys the person holds, which choose where a row opens.
     private(set) var heldModifiers: EventModifiers = []
     private var completionProposal: AddressCompletion?
-    private var offeredSearch: SearchOffer?
-    /// Every provider what is typed names or starts to name, closest first.
-    private var matchingProviders: [SearchProvider] = []
     private var offeredScope: PaletteScope?
     @ObservationIgnored var applyCompletion: ((String, NSRange) -> Void)?
     /// Replaces the field's text, as entering or leaving a scope does.
@@ -69,13 +64,6 @@ final class BrowserCommandPaletteModel {
     /// wait that runs it on the rows already shown.
     @ObservationIgnored private var waitingKey: (() -> Void)?
     @ObservationIgnored private var keyWaitTask: Task<Void, Never>?
-    /// The text on the pasteboard when the palette opened, offered with
-    /// Paste and Go while the text is still what the palette opened with, or
-    /// nil.
-    @ObservationIgnored private let pasteboard: String?
-    /// What the field held when the palette opened: nothing for a new tab, or
-    /// the address of the page the window shows.
-    @ObservationIgnored private let openedWith: String
 
     private let suggestionDebounce: Duration
     private let fetchSuggestions: @Sendable (URL) async throws -> [String]
@@ -86,29 +74,6 @@ final class BrowserCommandPaletteModel {
     private let emptySelectionActions: BrowserEmptySelectionPaletteActions?
     /// Where this platform can open a row, which the modifier keys choose among.
     let openings: [BrowserCommandPaletteOpening]
-
-    /// How the person set the palette to rank and arrange its rows.
-    var preferences: PalettePreferences { BrowserAppPreferenceStore.shared.preferences.palette }
-
-    /// The search provider Tab enters for what is typed, or nil: one the
-    /// text names exactly by its shortcut even while a completion shows, else
-    /// one it names by title or site once no completion does.
-    var providerOffer: SearchProvider? {
-        guard isUnscoped, completionEditing.isAtEnd, preferences.searchesSitesWithTab, isCompletionSourceAvailable,
-            let offer = offeredSearch, urlCompletion == nil || offer.beatsCompletion
-        else { return nil }
-        return offer.provider
-    }
-
-    /// The providers the palette offers as chips while what is typed is one
-    /// word, closest first, when Tab or Space enters them; none once the
-    /// palette is narrowed.
-    var providerChips: [SearchProvider] {
-        guard isUnscoped, preferences.searchesSitesWithTab || preferences.providerSpaceTrigger.isEnabled,
-            isCompletionSourceAvailable
-        else { return [] }
-        return matchingProviders
-    }
 
     /// The scope Tab enters for what is typed, or nil.
     var scopeOffer: PaletteScope? {
@@ -139,7 +104,7 @@ final class BrowserCommandPaletteModel {
         return opening(for: items[selectedResultIndex].row)
     }
 
-    private var isUnscoped: Bool { activeProvider == nil && activeScope == nil }
+    private var isUnscoped: Bool { activeScope == nil }
 
     private var availableSourceAssignment: BrowserTabRuntimeAssignment? {
         guard let sourceAssignment, isSourceAvailableAction(sourceAssignment) else { return nil }
@@ -169,8 +134,7 @@ final class BrowserCommandPaletteModel {
         openURL: @escaping (BrowserTabRuntimeAssignment, URL, BrowserCommandPaletteOpening) -> Bool,
         dismiss: @escaping () -> Void,
         emptySelectionActions: BrowserEmptySelectionPaletteActions? = nil,
-        openings: [BrowserCommandPaletteOpening] = [.here],
-        readPasteboard: () -> String? = { nil }
+        openings: [BrowserCommandPaletteOpening] = [.here]
     ) {
         self.browser = browser
         self.space = space
@@ -186,8 +150,6 @@ final class BrowserCommandPaletteModel {
         dismissAction = dismiss
         self.emptySelectionActions = emptySelectionActions
         self.openings = openings
-        openedWith = initialQuery
-        pasteboard = BrowserAppPreferenceStore.shared.preferences.palette.offers(.pasteAndGo) ? readPasteboard() : nil
         // The palette opens with its rows: the resting answer is quick to
         // rank, so it is asked for on the main thread.
         if let answer = try? browser.core.query(question(for: initialQuery)) { show(answer, for: sequence) }
@@ -228,17 +190,12 @@ final class BrowserCommandPaletteModel {
 
     // MARK: - Actions - Keys
 
-    /// Tab: enters the search provider whose shortcut the text is, else
-    /// accepts the completion the field shows, else enters the provider or
-    /// scope the text names, else moves to the next row. It never moves focus
+    /// Tab accepts the completion, enters the named local scope, or moves to
+    /// the next row. It never moves focus
     /// out of the field.
     func pressTab() {
         waitForAnswer { [weak self] in
             guard let self else { return }
-            if let provider = providerOffer {
-                enter(provider)
-                return
-            }
             if acceptURLCompletion() { return }
             if let scope = scopeOffer {
                 enter(scope)
@@ -294,25 +251,16 @@ final class BrowserCommandPaletteModel {
 
     // MARK: - Actions - Scopes
 
-    /// Narrows the palette to `provider`: what the person types next searches it.
-    func enter(_ provider: SearchProvider) {
-        activeProvider = provider
-        activeScope = nil
-        narrowed()
-    }
-
     /// Narrows the palette to `scope`'s kind of result.
     func enter(_ scope: PaletteScope) {
         activeScope = scope
-        activeProvider = nil
         narrowed()
     }
 
-    /// Leaves the search provider or scope, keeping what was typed.
+    /// Leaves the local scope, keeping what was typed.
     @discardableResult
     func leaveScope() -> Bool {
         guard !isUnscoped else { return false }
-        activeProvider = nil
         activeScope = nil
         requestAnswer()
         replaceText?(query)
@@ -322,7 +270,6 @@ final class BrowserCommandPaletteModel {
     /// Enters what the text named in the palette's notation, keeping what
     /// followed it as what is typed.
     private func enter(_ entry: PaletteEntry) {
-        activeProvider = entry.provider
         activeScope = entry.scope
         narrowed(keeping: entry.text)
     }
@@ -361,18 +308,16 @@ final class BrowserCommandPaletteModel {
     }
 
     /// Forgets the row the person moved to: a row whose kind forgets from
-    /// history takes its page out of the Space's history, and what the palette
-    /// learned about the row goes. The row the palette leads with is never
+    /// history takes its page out of the Space's history. The leading row is never
     /// forgotten this way.
     @discardableResult
     func forgetSelectedRow() -> Bool {
         guard selectedResultIndex > 0, items.indices.contains(selectedResultIndex) else { return false }
         let row = items[selectedResultIndex].row
-        guard row.kind.forgetsFromHistory || row.reason == .learned else { return false }
+        guard row.kind.forgetsFromHistory else { return false }
         if row.kind.forgetsFromHistory, let address = row.address, let space {
             browser.removeHistoryAddress(address, in: space.id)
         }
-        try? browser.core.send(ForgetPaletteChoices(windowID: browser.windowID, row: row.seed))
         requestAnswer()
         return true
     }
@@ -383,16 +328,13 @@ final class BrowserCommandPaletteModel {
     }
 
     /// Runs `row` as its kind's activation does. One that closes the palette
-    /// has it remember the pick for what was typed and close; one that
-    /// narrows it, to a provider or a scope, leaves it open.
+    /// closes it; one that narrows to a local scope leaves it open.
     func activate(_ row: PaletteRow) {
         guard shownSequence == sequence else { return }
         let activation = row.kind.activation
-        let typed = query
         guard BrowserCommandPaletteActivation.of(activation)?.run(row, self) == true, activation.closesPalette else {
             return
         }
-        try? browser.core.send(RecordPaletteChoice(windowID: browser.windowID, text: typed, row: row.seed))
         dismiss()
     }
 
@@ -474,9 +416,8 @@ final class BrowserCommandPaletteModel {
     private func question(for text: String, remote: [String] = []) -> PaletteSuggestions {
         PaletteSuggestions(
             windowID: browser.windowID, text: text, commands: offeredCommands(for: text),
-            settingsPages: commands?.settingsPages ?? [], remote: remote, provider: activeProvider?.seed,
-            scope: activeScope, allowsCompletion: completionEditing.canPropose(for: text),
-            pasteboard: text.isEmpty || text == openedWith ? pasteboard : nil)
+            settingsPages: commands?.settingsPages ?? [], remote: remote,
+            scope: activeScope, allowsCompletion: completionEditing.canPropose(for: text))
     }
 
     /// The commands the core may rank for `text`. A palette without resting
@@ -486,6 +427,9 @@ final class BrowserCommandPaletteModel {
         guard offersRestingCommands || !text.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
         return commands?.paletteCommands ?? []
     }
+
+    /// Refreshes visible rows and cancels any request for the previous provider.
+    func refreshSearchProvider() { requestAnswer() }
 
     /// Asks the core for the current query's answer off the main thread, then
     /// for the search suggestions the answer allows, and shows each only while
@@ -504,17 +448,19 @@ final class BrowserCommandPaletteModel {
             guard let address = answer.suggestionAddress.flatMap(URL.init(string:)) else { return }
             do {
                 try await Task.sleep(for: suggestionDebounce)
+                guard await Self.answer(question, from: core)?.suggestionAddress == answer.suggestionAddress,
+                    !Task.isCancelled
+                else { return }
                 let fetched = try await fetchSuggestions(address)
                 try Task.checkCancellation()
                 guard asked == sequence, !fetched.isEmpty,
                     let merged = await Self.answer(
                         PaletteSuggestions(
                             windowID: question.windowID, text: question.text, commands: question.commands,
-                            settingsPages: question.settingsPages, remote: fetched, provider: question.provider,
-                            scope: question.scope, allowsCompletion: question.allowsCompletion,
-                            pasteboard: question.pasteboard),
+                            settingsPages: question.settingsPages, remote: fetched,
+                            scope: question.scope, allowsCompletion: question.allowsCompletion),
                         from: core),
-                    asked == sequence
+                    asked == sequence, merged.suggestionAddress == answer.suggestionAddress
                 else { return }
                 let selected = items.indices.contains(selectedResultIndex) ? items[selectedResultIndex].id : nil
                 show(merged, for: asked)
@@ -533,8 +479,6 @@ final class BrowserCommandPaletteModel {
         groups = BrowserCommandPaletteGroup.groups(of: answer)
         items = groups.flatMap(\.items)
         completionProposal = answer.completion
-        offeredSearch = answer.offeredSearch
-        matchingProviders = answer.matchingProviders
         offeredScope = answer.offeredScope
         if !items.indices.contains(selectedResultIndex) { selectedResultIndex = 0 }
         // A key waiting on this answer acts once the entry's own answer arrives.
@@ -546,71 +490,5 @@ final class BrowserCommandPaletteModel {
     private nonisolated static func answer(_ question: PaletteSuggestions, from core: CrestCore) async -> PaletteAnswer?
     {
         await Task.detached(priority: .userInitiated) { try? core.query(question) }.value
-    }
-}
-
-extension PalettePreferences {
-    /// Whether the palette offers results of `source`.
-    func offers(_ source: PaletteSource) -> Bool {
-        sources.first { $0.source == source }?.isEnabled ?? false
-    }
-}
-
-enum BrowserSearchSuggestionResponseParser {
-    static func suggestions(from data: Data) -> [String] {
-        guard data.count <= BrowserSearchSuggestionClient.maximumResponseByteCount else {
-            return []
-        }
-        guard
-            let payload = try? JSONSerialization.jsonObject(with: data) as? [Any],
-            payload.count >= 2,
-            let values = payload[1] as? [Any]
-        else { return [] }
-        return values.compactMap { $0 as? String }.prefix(20).map { $0 }
-    }
-}
-
-/// Fetches an engine's search suggestions from the address the core names,
-/// without cookies or caching.
-actor BrowserSearchSuggestionClient {
-    static let shared = BrowserSearchSuggestionClient()
-    static let maximumResponseByteCount = 64 * 1_024
-
-    nonisolated static var sessionConfiguration: URLSessionConfiguration {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.httpCookieStorage = nil
-        configuration.httpShouldSetCookies = false
-        configuration.urlCache = nil
-        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-        configuration.timeoutIntervalForRequest = 5
-        configuration.timeoutIntervalForResource = 5
-        return configuration
-    }
-
-    private let session: URLSession
-
-    init(session: URLSession? = nil) {
-        self.session = session ?? URLSession(configuration: Self.sessionConfiguration)
-    }
-
-    func suggestions(from address: URL) async throws -> [String] {
-        var request = URLRequest(url: address)
-        request.cachePolicy = .reloadIgnoringLocalCacheData
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        let (bytes, response) = try await session.bytes(for: request)
-        guard
-            let response = response as? HTTPURLResponse,
-            (200...299).contains(response.statusCode),
-            response.expectedContentLength <= 0
-                || response.expectedContentLength <= Self.maximumResponseByteCount
-        else { return [] }
-
-        var data = Data()
-        data.reserveCapacity(min(Self.maximumResponseByteCount, 8 * 1_024))
-        for try await byte in bytes {
-            guard data.count < Self.maximumResponseByteCount else { return [] }
-            data.append(byte)
-        }
-        return BrowserSearchSuggestionResponseParser.suggestions(from: data)
     }
 }

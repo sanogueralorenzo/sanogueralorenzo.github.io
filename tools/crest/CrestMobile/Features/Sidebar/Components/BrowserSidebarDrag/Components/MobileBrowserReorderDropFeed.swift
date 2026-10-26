@@ -14,7 +14,6 @@ struct MobileBrowserReorderDropFeed: ViewModifier {
     @Environment(BrowserSidebarInteractionState.self) private var sidebarInteraction
 
     let browser: BrowserStore
-    let spaceAccess: BrowserSpaceAccessController
 
     /// Where the fed region sits, so the delegate can report positions in the
     /// same global space the zones measured themselves in.
@@ -32,7 +31,6 @@ struct MobileBrowserReorderDropFeed: ViewModifier {
                 BrowserMobileReorderDropTarget(
                     reorder: BrowserSidebarReorderContext(
                         browser: browser,
-                        spaceAccess: spaceAccess,
                         state: sidebarInteraction.sidebarReorderState
                     ),
                     origin: origin

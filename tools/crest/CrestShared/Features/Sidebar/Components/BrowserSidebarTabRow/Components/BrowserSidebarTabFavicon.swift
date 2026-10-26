@@ -10,7 +10,7 @@ struct BrowserSidebarTabFavicon: View {
     /// that earns full-strength ink.
     var isProminent = false
     var isLoaded = true
-    private var iconScale: Double { BrowserDeviceAppearanceStore.shared.tabScale }
+    private let iconScale = 1.0
 
     var body: some View {
         BrowserSidebarTabFaviconContent(

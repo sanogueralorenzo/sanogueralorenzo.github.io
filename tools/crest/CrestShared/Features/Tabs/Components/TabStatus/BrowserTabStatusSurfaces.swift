@@ -20,7 +20,7 @@ struct BrowserTabStatusSurfaces: View {
         if let tab, let outline = BrowserTabStatus.marks(of: tab).first(where: { $0.surface?.outlineWidth != nil }),
             let width = outline.surface?.outlineWidth
         {
-            RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
+            RoundedRectangle(cornerRadius: style.cornerRadius, style: .circular)
                 .strokeBorder(CrestBrandTheme.accent, lineWidth: width)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)

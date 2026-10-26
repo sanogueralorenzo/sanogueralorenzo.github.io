@@ -2,10 +2,8 @@ import SwiftUI
 
 struct BrowserRootShell: View, BrowserChromeAnimating {
     let model: BrowserRootModel
-    let transientBrowsing: BrowserTransientBrowsingCoordinator
     let spaceSettingsPresentation: BrowserSpaceSettingsPresentationState
     let shortcuts: BrowserShortcutStore?
-    @Binding var storedSidebarWidth: Double
     let commandSurfaceNamespace: Namespace.ID
     let tabPromotionNamespace: Namespace.ID
 
@@ -14,11 +12,9 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var downloadFeedback = BrowserMacDownloadFeedbackState()
     @State private var spacePagerPresentation = SpacePagerPresentation()
-    @AppStorage(SidebarFullscreenRevealPreference.key, store: BrowserChromeAppearancePreference.defaults)
-    private var revealsSidebarInFullscreen = SidebarFullscreenRevealPreference.defaultValue
 
     /// The shell places the sidebar; the page frames under it read the rest.
-    private var sidebarOnRight: Bool { BrowserDeviceAppearanceStore.shared.sidebarOnRight }
+    private var sidebarOnRight: Bool { BrowserChromeAppearance().sidebarOnRight }
     private var sidebarEdge: HorizontalEdge {
         BrowserChromeAppearance.sidebarEdge(onRight: sidebarOnRight, in: layoutDirection)
     }
@@ -26,23 +22,12 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
     var body: some View {
         ZStack(alignment: .leading) {
             BrowserRootFullscreenContent(
-                pages: model.pages,
-                revealsSidebar: revealsSidebarInFullscreen,
-                sidebarEdge: sidebarEdge
+                pages: model.pages
             ) {
                 standardContent
-            } sidebar: {
-                sidebarSurface
-                    .allowsHitTesting(!model.chrome.isCommandPalettePresented)
-                    .accessibilityHidden(model.chrome.isCommandPalettePresented)
-            } controls: {
-                shellControls
-                    .allowsHitTesting(!model.chrome.isCommandPalettePresented)
-                    .accessibilityHidden(model.chrome.isCommandPalettePresented)
             }
 
-            // Window focus gates the edge reveal in the shell and over a page
-            // in full screen alike, so it is followed whichever shows.
+            // Follow focus in the ordinary shell and fullscreen pages alike.
             BrowserWindowFocusBridge(isWindowFocused: model.isWindowFocusedBinding)
                 .frame(width: 0, height: 0)
                 .allowsHitTesting(false)
@@ -52,9 +37,7 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
             // fullscreen page hides: taking it down would restore the window's
             // style while AppKit is carrying it into fullscreen.
             BrowserNativeWindowControlsBridge(
-                isVisible: model.sidebarPresentation.showsWindowControls,
-                sidebarOnRight: sidebarOnRight,
-                sidebarWidth: model.sidebarWidth
+                isVisible: model.sidebarPresentation.showsWindowControls
             )
             .frame(maxWidth: .infinity)
             .frame(height: 0)
@@ -93,47 +76,21 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
             BrowserWebFocusRestorationGate(
                 browserChromeOwnsFocus:
                     !model.isWindowFocused
-                    || model.isAddressEditing
                     || model.chrome.isCommandPalettePresented,
                 pageChromeOwnsFocus: false
             )
         )
         .animation(chromeAnimation(CrestMotion.collection), value: sidebarOnRight)
         .animation(
-            chromeAnimation(
-                model.isSidebarApproachingDock
-                    ? CrestMotion.sidebarDockAttachment
-                    : CrestMotion.sidebarMorph
-            ),
-            value: model.chrome.columnVisibility
-        )
-        .animation(
-            chromeAnimation(
-                model.isSidebarApproachingDock
-                    ? CrestMotion.sidebarDockAttachment
-                    : model.isSidebarMorphing
-                        ? CrestMotion.sidebarMorph
-                        : CrestMotion.floatingPane
-            ),
-            value: model.isFloatingSidebarPresented
-        )
-        .animation(
-            chromeAnimation(CrestMotion.sidebarDockApproach),
-            value: model.isSidebarApproachingDock
-        )
-        .animation(
             BrowserCommandSurfaceMorph.commandPaletteAnimation(reduceMotion: reduceMotion),
             value: model.isCommandPaletteShown
         )
-        .onChange(
-            of: model.chrome.utilityPresentation.isSidebarInteractionActive
-        ) { _, isActive in
-            model.sidebarInteractionChanged(
-                isActive,
-                reduceMotion: reduceMotion
-            )
+        .animation(chromeAnimation(CrestMotion.floatingPane), value: model.isSidebarPresented)
+        .onChange(of: model.isSidebarPresented) { model.sidebarPresentationChanged() }
+        .onChange(of: model.chrome.utilityPresentation.isSidebarInteractionActive) { _, isActive in
+            model.sidebarInteractionChanged(isActive, reduceMotion: reduceMotion)
         }
-        .modifier(BrowserRootPermissionObserver(model: model, reduceMotion: reduceMotion))
+        .modifier(BrowserRootPermissionObserver(model: model))
         .transaction { transaction in
             if reduceMotion {
                 transaction.disablesAnimations = true
@@ -141,15 +98,6 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
         }
         .ignoresSafeArea(.container, edges: .top)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-        .onChange(of: revealsSidebarOverFullscreenPage, initial: true) { _, reveals in
-            model.fullscreenSidebarRevealChanged(reveals)
-        }
-        .onChange(of: transientBrowsing.orphanedPeeks(in: model.browser), initial: true) {
-            transientBrowsing.reconcilePeeks(in: model.browser)
-        }
-        .onChange(of: transientBrowsing.peekRequests, initial: true) {
-            model.pages.retainPeekPages(for: transientBrowsing.peekRequests)
-        }
     }
 
     private var standardContent: some View {
@@ -162,11 +110,10 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
             BrowserSidebarPageLayout(
                 presentation: model.sidebarPresentation,
                 width: model.sidebarWidth,
-                edge: sidebarEdge,
-                isApproachingDock: model.isSidebarApproachingDock
+                edge: sidebarEdge
             ) {
                 BrowserSpacePageSurface(
-                    model: model, transientBrowsing: transientBrowsing,
+                    model: model,
                     tabPromotionNamespace: tabPromotionNamespace, shortcuts: shortcuts
                 )
                 .clipped()
@@ -178,9 +125,6 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
             .allowsHitTesting(!model.chrome.isCommandPalettePresented)
             .accessibilityHidden(model.chrome.isCommandPalettePresented)
 
-            BrowserRootUtilityFanLayer(model: model, sidebarOnRight: sidebarOnRight)
-                .zIndex(BrowserRootMetrics.utilityFanZIndex)
-
             BrowserMacDownloadFeedbackLayer(model: model, feedback: downloadFeedback)
                 .zIndex(BrowserRootMetrics.utilityFanZIndex + 1)
 
@@ -191,10 +135,6 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
         }
     }
 
-    private var revealsSidebarOverFullscreenPage: Bool {
-        revealsSidebarInFullscreen && model.pages.activePage?.isContentFullscreen == true
-    }
-
     private var sidebarSurface: some View {
         BrowserRootSidebarSurfaceLayer(
             presentation: model.sidebarPresentation,
@@ -203,13 +143,8 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
             space: model.browser.shownSpace,
             reduceTransparency: reduceTransparency,
             spaces: model.browser.availableSpaces,
-            isRevealedByPointer: model.isFloatingSidebarRevealedByPointer,
-            hoverChanged: {
-                model.sidebarSurfaceHoverChanged(
-                    $0,
-                    reduceMotion: reduceMotion
-                )
-            }
+            isRevealedByPointer: model.isSidebarRevealedByPointer,
+            hoverChanged: { model.sidebarSurfaceHoverChanged($0, reduceMotion: reduceMotion) }
         ) {
             BrowserRootSidebarContent(
                 model: model,
@@ -232,22 +167,19 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
 
     private var shellControls: some View {
         BrowserRootShellControls(
-            model: model, storedSidebarWidth: $storedSidebarWidth, sidebarEdge: sidebarEdge)
+            model: model
+        )
+        .zIndex(BrowserRootMetrics.floatingSidebarZIndex + 1)
     }
 }
 
 /// Tab selection is observed here so the ordinary shell's inputs stay stable
 /// when only the page occupying it changes.
 ///
-/// A page alone in full screen keeps the sidebar's hover area when the person
-/// asked for it, and the sidebar floats over the page without moving it.
-private struct BrowserRootFullscreenContent<Content: View, Sidebar: View, Controls: View>: View {
+/// Page fullscreen leaves browser chrome outside the page surface.
+private struct BrowserRootFullscreenContent<Content: View>: View {
     let pages: BrowserPagePool
-    let revealsSidebar: Bool
-    let sidebarEdge: HorizontalEdge
     @ViewBuilder let content: Content
-    @ViewBuilder let sidebar: Sidebar
-    @ViewBuilder let controls: Controls
 
     var body: some View {
         if let page = pages.activePage, page.isContentFullscreen {
@@ -260,31 +192,22 @@ private struct BrowserRootFullscreenContent<Content: View, Sidebar: View, Contro
                 .environment(\.browserPagePresentationWindowID, pages.windowID)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(.black)
-
-                if revealsSidebar {
-                    sidebar.frame(maxWidth: .infinity, alignment: edgeAlignment)
-                    controls.frame(maxWidth: .infinity, alignment: edgeAlignment)
-                }
             }
             .ignoresSafeArea()
         } else {
             content
         }
     }
-
-    private var edgeAlignment: Alignment {
-        sidebarEdge == .leading ? .leading : .trailing
-    }
 }
 
+/// Permission prompts are anchored in the sidebar and must remain reachable.
 private struct BrowserRootPermissionObserver: ViewModifier {
     let model: BrowserRootModel
-    let reduceMotion: Bool
 
     func body(content: Content) -> some View {
         content.onChange(of: model.pages.activePage?.sitePermissionRequests.current?.id) {
             if model.pages.activePage?.sitePermissionRequests.current != nil {
-                model.presentFloatingSidebar(reduceMotion: reduceMotion)
+                model.chrome.showSidebar()
             }
         }
     }

@@ -5,7 +5,7 @@ struct BrowserSiteControlHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(page.live.title.isEmpty ? "Site Controls" : page.live.title)
+            Text(page.live.title.isEmpty ? String(localized: "Website Settings") : page.live.title)
                 .font(.headline)
                 .lineLimit(1)
             if let host = page.live.displayURL?.host() {

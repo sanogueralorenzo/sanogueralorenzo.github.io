@@ -7,19 +7,10 @@ import Foundation
 enum BrowserSidebarSelection {
     // MARK: - Actions - Units
 
-    /// The items a person can select in the Space the window shows, in the
-    /// order the sidebar shows them, each unit what one click selects: a tab,
-    /// a folder, or the members of a split. It follows the core's outline:
-    /// pinned tabs, the saved section while it is open, then the open tabs;
-    /// the inside of an open folder after its row, and the rows a collapsed
-    /// folder keeps on screen: the folders on the way to its kept tab, then
-    /// the tab's row. A locked Space offers none.
     static func itemUnits(in browser: BrowserStore) -> [[BrowserSelectionItemID]] {
         guard let space = browser.spaceModel(browser.selectedSpaceID) else { return [] }
         let interaction = browser.interactionObserver as? BrowserSidebarInteractionState
-        if space.settings.accessPolicy == .deviceOwnerAuthentication {
-            guard let access = interaction?.sidebarSpaceAccess, !access.isLocked(space) else { return [] }
-        }
+
         var units: [[BrowserSelectionItemID]] = []
         func unit(of row: SidebarRow) -> [BrowserSelectionItemID] {
             row.kind.groupsTabs ? row.members.map(BrowserSelectionItemID.tab) : [.tab(row.id)]
@@ -56,7 +47,7 @@ enum BrowserSidebarSelection {
             }
         }
         walk(space.sidebar.section(.pinned))
-        if space.settings.isSavedTabsExpanded { walk(space.sidebar.section(.saved)) }
+        walk(space.sidebar.section(.saved))
         walk(space.sidebar.section(.current))
         return units
     }

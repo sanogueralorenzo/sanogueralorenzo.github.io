@@ -12,7 +12,10 @@ struct BrowserChromeAppearancePersistence: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .environment(\.browserWindowCornerRadius, isWindowFullScreen ? nil : windowCornerRadius)
+            .environment(
+                \.browserWindowCornerRadius,
+                isWindowFullScreen ? nil : windowCornerRadius
+            )
             #if os(macOS)
                 // The window's corners change shape with its chrome, so the
                 // radius is read live rather than assumed.

@@ -32,11 +32,6 @@ struct BrowserCommandPaletteActivation {
         commands.switchSpace(spaceID)
         return true
     }
-    static let reopensArchivedTab = BrowserCommandPaletteActivation(.reopensArchivedTab) { row, palette in
-        guard let tabID = row.subjectID, let commands = palette.commands else { return false }
-        commands.reopenArchivedTab(tabID)
-        return true
-    }
     static let copiesAnswer = BrowserCommandPaletteActivation(.copiesAnswer) { row, palette in
         guard let commands = palette.commands else { return false }
         commands.copy(row.title)
@@ -49,7 +44,7 @@ struct BrowserCommandPaletteActivation {
     }
 
     static let all = [
-        switchesToTab, opensAddress, searches, runsCommand, opensSettingsPage, showsSpace, reopensArchivedTab,
+        switchesToTab, opensAddress, searches, runsCommand, opensSettingsPage, showsSpace,
         copiesAnswer, entersScope,
     ]
 

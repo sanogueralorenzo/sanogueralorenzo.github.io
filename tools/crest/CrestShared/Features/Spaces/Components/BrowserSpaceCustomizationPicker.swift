@@ -70,8 +70,7 @@ struct BrowserSpaceCustomizationPicker: View {
                     // Only the picker occupies this lane; the plus has its own width
                     // so it does not reserve a matching empty utility on the left.
                     let allocation = BrowserSpaceSwitcherLayout.compactStripAllocation(
-                        availableWidth: geometry.size.width, spaceCount: spaces.count,
-                        leadingUtilityWidth: 0, trailingUtilityWidth: 0)
+                        availableWidth: geometry.size.width, spaceCount: spaces.count)
                     BrowserSpaceSwitcherCompactPicker(
                         spaces: spaces, selectedSpaceID: selectedSpaceID,
                         metrics: usesTouch ? .touch : .pointer, selectSpace: selectSpace, allocation: allocation,

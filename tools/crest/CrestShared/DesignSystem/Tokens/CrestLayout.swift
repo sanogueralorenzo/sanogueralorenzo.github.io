@@ -8,7 +8,7 @@ enum CrestLayout {
     static let glassIconButtonDiameter: CGFloat = 44
     static let sidebarControlCornerRadius = CrestRadius.compact
     static let reloadQuarterTurn: CGFloat = 90
-    static let pinnedAccentBorderWidth: CGFloat = 2
+    static let pinnedAccentBorderWidth: CGFloat = 0.5
 
     static let minimumHitTarget = CrestPlatformLayout.minimumHitTarget
     static let sidebarRowHeight = CrestPlatformLayout.sidebarRowHeight

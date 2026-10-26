@@ -4,27 +4,23 @@ import Foundation
 struct MobileSelectedPageActionPort: MobilePageActions {
     private let browser: BrowserStore
     private let pages: MobileBrowserPageStore
-    private let spaceAccess: BrowserSpaceAccessController
     private let expectedAssignment: BrowserTabRuntimeAssignment
 
     init?(
         browser: BrowserStore,
-        pages: MobileBrowserPageStore,
-        spaceAccess: BrowserSpaceAccessController
+        pages: MobileBrowserPageStore
     ) {
         guard let assignment = browser.shownTabAssignment else { return nil }
-        self.init(browser: browser, pages: pages, spaceAccess: spaceAccess, expectedAssignment: assignment)
+        self.init(browser: browser, pages: pages, expectedAssignment: assignment)
     }
 
     init(
         browser: BrowserStore,
         pages: MobileBrowserPageStore,
-        spaceAccess: BrowserSpaceAccessController,
         expectedAssignment: BrowserTabRuntimeAssignment
     ) {
         self.browser = browser
         self.pages = pages
-        self.spaceAccess = spaceAccess
         self.expectedAssignment = expectedAssignment
     }
 
@@ -37,7 +33,7 @@ struct MobileSelectedPageActionPort: MobilePageActions {
     }
 
     var activePage: MobileBrowserPage? {
-        guard let space = browser.shownSpace, !spaceAccess.isLocked(space),
+        guard let space = browser.shownSpace,
             browser.shownTabAssignment == expectedAssignment,
             let page = pages.activePage,
             page.tabID == expectedAssignment.tabID,

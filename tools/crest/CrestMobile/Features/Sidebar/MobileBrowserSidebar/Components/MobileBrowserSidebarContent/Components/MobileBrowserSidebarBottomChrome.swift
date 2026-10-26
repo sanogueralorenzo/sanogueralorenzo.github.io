@@ -4,7 +4,7 @@ struct MobileBrowserSidebarBottomChrome: View {
     @Environment(\.mobileBrowserControlPlacement) private var controlPlacement
     let configuration: MobileBrowserSidebarContentConfiguration
 
-    private var sidebarOnRight: Bool { BrowserDeviceAppearanceStore.shared.sidebarOnRight }
+    private var sidebarOnRight: Bool { BrowserChromeAppearance().sidebarOnRight }
 
     var body: some View {
         if controlPlacement.movesControlsToToolbar {
@@ -56,9 +56,7 @@ struct MobileBrowserSidebarBottomChrome: View {
             }
         }
         .modifier(
-            SpaceForegroundBlend(
-                spaces: configuration.context.availableSpaces,
-                selectedSpaceID: configuration.context.browser.shownSpace?.id)
+            BrowserChromeForeground()
         )
         .padding(
             .bottom,
@@ -81,8 +79,7 @@ struct MobileBrowserSidebarBottomChrome: View {
     }
 
     private var showsSpaceActions: Bool {
-        configuration.context.browser.showsSelectedSpaceActions(
-            accessController: configuration.context.spaceAccess)
+        configuration.context.browser.showsSelectedSpaceActions()
     }
 
     @ViewBuilder

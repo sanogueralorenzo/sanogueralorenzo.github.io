@@ -33,8 +33,7 @@ struct BrowserCommandPalette: View {
         overlayContentLeadingInset: CGFloat = 0,
         overlayContentInsets: EdgeInsets? = nil,
         emptySelectionActions: BrowserEmptySelectionPaletteActions? = nil,
-        openings: [BrowserCommandPaletteOpening] = [.here],
-        readPasteboard: () -> String? = { nil }
+        openings: [BrowserCommandPaletteOpening] = [.here]
     ) {
         self.presentation = presentation
         self.morphNamespace = morphNamespace
@@ -53,8 +52,7 @@ struct BrowserCommandPalette: View {
                 openURL: openURL,
                 dismiss: dismiss,
                 emptySelectionActions: emptySelectionActions,
-                openings: openings,
-                readPasteboard: readPasteboard
+                openings: openings
             ))
     }
 
@@ -68,6 +66,9 @@ struct BrowserCommandPalette: View {
         )
         .onChange(of: model.isCompletionSourceAvailable) { _, available in
             if !available { model.invalidateURLCompletion() }
+        }
+        .onChange(of: BrowserAppPreferenceStore.shared.searchProvider) { _, _ in
+            model.refreshSearchProvider()
         }
         .onDisappear { model.invalidateURLCompletion() }
     }

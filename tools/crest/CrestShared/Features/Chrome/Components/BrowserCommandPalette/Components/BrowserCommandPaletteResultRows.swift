@@ -10,7 +10,7 @@ struct BrowserCommandPaletteResultRows: View {
                 BrowserCommandPaletteIntentRow(model: model, item: item)
                     .id(item.id)
             } else {
-                BrowserCommandPaletteResultRow(model: model, item: item, namesKind: group.section == .results)
+                BrowserCommandPaletteResultRow(model: model, item: item)
                     .id(item.id)
             }
         }

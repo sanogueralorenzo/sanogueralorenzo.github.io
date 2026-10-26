@@ -9,7 +9,7 @@ import SwiftUI
 /// them. The container carries what belongs to the group — presented, dragged,
 /// dropped against, and the two ways a split ends — and each row carries what
 /// belongs to its own tab. That division is what lets a group be one row to the
-/// list while still letting a person focus, rename, unload, or close one pane.
+/// list while still letting a person focus, rename, or close one pane.
 ///
 /// What differs between a pointer shell and a touch one is read from
 /// `BrowserInteractionCapabilities` rather than from which target compiled the
@@ -22,12 +22,6 @@ struct BrowserSidebarSplitGroupRow: View {
     let context: BrowserSidebarListContext
 
     @Environment(\.sidebarSpacePresentation) private var spacePresentation
-    @State private var renameRequest: BrowserSplitGroupRuntimeAssignment?
-    @State private var iconRequest: BrowserSplitGroupRuntimeAssignment?
-    @State private var tintRequest: BrowserSplitGroupRuntimeAssignment?
-    @State private var draftTitle = ""
-    @FocusState private var isTitleFocused: Bool
-
     var body: some View {
         BrowserSidebarSplitGroupRowContent(
             configuration: configuration,
@@ -35,29 +29,7 @@ struct BrowserSidebarSplitGroupRow: View {
         )
         .modifier(
             BrowserSidebarSplitGroupRowSurface(
-                configuration: configuration,
-                interaction: interaction
-            )
-        )
-        .popover(isPresented: tintPresentation, arrowEdge: .trailing) {
-            BrowserFolderColorPicker(
-                color: interaction.tint,
-                title: "Split View Color",
-                showsReset: configuration.tint != nil,
-                resetTitle: "Use Default Color",
-                reset: interaction.resetTint
-            )
-            .presentationCompactAdaptation(.popover)
-        }
-        .onChange(of: configuration.runtimeAssignment) { _, assignment in
-            guard renameRequest != assignment else { return }
-            clearDeferredActions()
-        }
-        .modifier(
-            SidebarSpaceRoleCleanupModifier(
-                isAvailable: configuration.isAvailableForDisplay,
-                hasPendingActions: renameRequest != nil || iconRequest != nil || tintRequest != nil,
-                cancel: clearDeferredActions
+                configuration: configuration
             )
         )
     }
@@ -73,33 +45,11 @@ struct BrowserSidebarSplitGroupRow: View {
     }
 
     private var interaction: BrowserSidebarSplitGroupRowInteractionContext {
-        BrowserSidebarSplitGroupRowInteractionContext(
-            isRenaming: isRenaming,
-            draftTitle: $draftTitle,
-            isTitleFocused: $isTitleFocused,
-            isChoosingIcon: iconPresentation,
-            isChoosingTint: tintPresentation,
-            tint: tintBinding,
-            activate: activate,
-            closeSplit: closeSplit,
-            beginRenaming: beginRenaming,
-            beginChangingIcon: beginChangingIcon,
-            beginChangingTint: beginChangingTint,
-            setEmojiIcon: setRequestedEmoji,
-            resetIcon: clearRequestedIcon,
-            commitTitle: commitTitle,
-            cancelTitleEditing: cancelTitleEditing,
-            resetTint: resetTint
-        )
-    }
-
-    private var isRenaming: Bool {
-        renameRequest == configuration.runtimeAssignment
-            && configuration.isAvailableForDisplay
+        BrowserSidebarSplitGroupRowInteractionContext(activate: activate, closeSplit: closeSplit)
     }
 
     private func activate() {
-        guard configuration.isCurrentAndUnlocked,
+        guard configuration.isCurrentAndAvailable,
             let memberID = configuration.focusedMemberID
                 ?? configuration.members.first?.id
         else { return }
@@ -107,7 +57,7 @@ struct BrowserSidebarSplitGroupRow: View {
     }
 
     private func closeSplit() {
-        guard configuration.canClose, configuration.isCurrentAndUnlocked else { return }
+        guard configuration.canClose, configuration.isCurrentAndAvailable else { return }
         // Closing the second-to-last member dissolves the group through the
         // domain's survivor rule; the final close then takes an ordinary tab.
         for member in configuration.members {
@@ -118,120 +68,6 @@ struct BrowserSidebarSplitGroupRow: View {
         }
     }
 
-    private func beginRenaming() {
-        guard configuration.isCurrentAndUnlocked else { return }
-        draftTitle = configuration.shownTitle
-        renameRequest = configuration.runtimeAssignment
-        Task { @MainActor in isTitleFocused = true }
-    }
-
-    private func commitTitle() {
-        guard let request = renameRequest,
-            request == configuration.runtimeAssignment,
-            configuration.isCurrentAndUnlocked
-        else { return }
-        renameRequest = nil
-        configuration.browser.setSplitGroupTitle(
-            draftTitle,
-            groupID: request.groupID,
-            matching: request.spaceAssignment
-        )
-    }
-
-    private func cancelTitleEditing() {
-        draftTitle = configuration.shownTitle
-        renameRequest = nil
-        isTitleFocused = false
-    }
-
-    private func beginChangingIcon() {
-        guard configuration.isCurrentAndUnlocked else { return }
-        iconRequest = configuration.runtimeAssignment
-    }
-
-    private func beginChangingTint() {
-        guard configuration.isCurrentAndUnlocked else { return }
-        tintRequest = configuration.runtimeAssignment
-    }
-
-    private var iconPresentation: Binding<Bool> {
-        deferredPresentation(request: $iconRequest, begin: beginChangingIcon)
-    }
-
-    private var tintPresentation: Binding<Bool> {
-        deferredPresentation(request: $tintRequest, begin: beginChangingTint)
-    }
-
-    private func deferredPresentation(
-        request: Binding<BrowserSplitGroupRuntimeAssignment?>,
-        begin: @escaping () -> Void
-    ) -> Binding<Bool> {
-        Binding {
-            request.wrappedValue == configuration.runtimeAssignment
-                && configuration.isAvailableForDisplay
-        } set: { isPresented in
-            if isPresented {
-                begin()
-            } else {
-                request.wrappedValue = nil
-            }
-        }
-    }
-
-    private var tintBinding: Binding<BrandColor> {
-        Binding {
-            configuration.tint ?? .folderDefault
-        } set: { tint in
-            guard tintRequest == configuration.runtimeAssignment,
-                configuration.isCurrentAndUnlocked
-            else { return }
-            configuration.browser.setSplitGroupTint(
-                tint,
-                groupID: configuration.groupID,
-                matching: configuration.assignment
-            )
-        }
-    }
-
-    private func resetTint() {
-        guard tintRequest == configuration.runtimeAssignment,
-            configuration.isCurrentAndUnlocked
-        else { return }
-        configuration.browser.setSplitGroupTint(
-            nil,
-            groupID: configuration.groupID,
-            matching: configuration.assignment
-        )
-    }
-
-    private func setRequestedEmoji(_ emoji: String) {
-        guard iconRequest == configuration.runtimeAssignment,
-            configuration.isCurrentAndUnlocked
-        else { return }
-        configuration.browser.setSplitGroupEmojiIcon(
-            emoji,
-            groupID: configuration.groupID,
-            matching: configuration.assignment
-        )
-    }
-
-    private func clearRequestedIcon() {
-        guard iconRequest == configuration.runtimeAssignment,
-            configuration.isCurrentAndUnlocked
-        else { return }
-        configuration.browser.setSplitGroupEmojiIcon(
-            nil,
-            groupID: configuration.groupID,
-            matching: configuration.assignment
-        )
-        iconRequest = nil
-    }
-
-    private func clearDeferredActions() {
-        cancelTitleEditing()
-        iconRequest = nil
-        tintRequest = nil
-    }
 }
 
 extension BrowserSidebarSplitGroupRow: @MainActor Equatable {

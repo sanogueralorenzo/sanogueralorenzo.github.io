@@ -32,6 +32,6 @@ struct BrowserFolderMenuIcon: View {
 
 #if DEBUG
     #Preview("Component") {
-        BrowserFolderMenuIcon(systemName: "folder.fill", color: .ocean).padding()
+        BrowserFolderMenuIcon(systemName: "folder.fill", color: .neutral).padding()
     }
 #endif

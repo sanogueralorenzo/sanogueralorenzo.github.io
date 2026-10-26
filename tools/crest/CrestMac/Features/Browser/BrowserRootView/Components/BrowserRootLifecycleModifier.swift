@@ -56,15 +56,7 @@ private struct BrowserRootSelectionFollower: ViewModifier {
         content.modifier(
             BrowserRootSelectionObserver(
                 selection: model.selectionSnapshot,
-                lock: model.selectedSpaceIsLocked,
-                // A window with no locked-Space arrangement of its own has
-                // nothing to do about a lock that is already up when it
-                // appears; `prepareBrowser` settles that case.
-                evaluatesLockInitially: false,
-                selectionChanged: synchronizeSelection,
-                lockChanged: { _, _ in
-                    model.synchronizeAfterLockChange()
-                }
+                selectionChanged: synchronizeSelection
             )
         )
     }
@@ -125,12 +117,6 @@ private struct BrowserRootSessionFollower: ViewModifier {
             ) {
                 model.reconcileContentBlocking()
             }
-            .onChange(
-                of: runtimeSessionProjection.credentialAccessState,
-                initial: true
-            ) {
-                model.reconcileCredentialAccess()
-            }
     }
 }
 
@@ -139,22 +125,11 @@ private struct BrowserRootChromeObserver: ViewModifier {
     @Binding var storedSidebarWidth: Double
     let persistSidebarWidth: (Double) -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     func body(content: Content) -> some View {
         content
             .onChange(of: storedSidebarWidth) { _, width in
                 model.restoreSidebarWidth(CGFloat(width))
                 persistSidebarWidth(width)
-            }
-            .onChange(of: model.chrome.columnVisibility) {
-                model.columnVisibilityChanged(reduceMotion: reduceMotion)
-            }
-            .onChange(of: model.chrome.isFloatingSidebarPresented) {
-                model.floatingSidebarPresentationChanged()
-            }
-            .onChange(of: model.lockedSpaceIDs, initial: true) { _, spaceIDs in
-                model.relockProtectedSpaces(spaceIDs)
             }
     }
 }

@@ -6,7 +6,6 @@ struct BrowserSidebarPageLayout<Detail: View, Sidebar: View, Controls: View>: Vi
     let presentation: BrowserSidebarPresentation
     let width: CGFloat
     let edge: HorizontalEdge
-    var isApproachingDock = false
     @ViewBuilder let detail: Detail
     @ViewBuilder let sidebar: Sidebar
     @ViewBuilder let controls: Controls
@@ -15,12 +14,10 @@ struct BrowserSidebarPageLayout<Detail: View, Sidebar: View, Controls: View>: Vi
         ZStack(alignment: .leading) {
             HStack(spacing: 0) {
                 BrowserRootSidebarLayoutReservation(
-                    presentation: presentation, width: edge == .leading ? width : 0,
-                    isApproachingDock: isApproachingDock)
+                    presentation: presentation, width: edge == .leading ? width : 0)
                 detail.anchorPreference(key: BrowserRootPageBoundsKey.self, value: .bounds) { $0 }
                 BrowserRootSidebarLayoutReservation(
-                    presentation: presentation, width: edge == .trailing ? width : 0,
-                    isApproachingDock: isApproachingDock)
+                    presentation: presentation, width: edge == .trailing ? width : 0)
             }
             sidebar.frame(maxWidth: .infinity, alignment: edge == .leading ? .leading : .trailing)
             controls.frame(maxWidth: .infinity, alignment: edge == .leading ? .leading : .trailing)

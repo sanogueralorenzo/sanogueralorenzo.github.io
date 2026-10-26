@@ -13,7 +13,6 @@ struct BrowserRootPageSurface: View, @MainActor Equatable {
     let model: BrowserRootModel
     let space: SpaceModel
     let isSelectedSpace: Bool
-    let transientBrowsing: BrowserTransientBrowsingCoordinator
     let tabPromotionNamespace: Namespace.ID
     /// The chords the window's commands show in a Start Page's palette.
     let shortcuts: BrowserShortcutStore?
@@ -27,7 +26,6 @@ struct BrowserRootPageSurface: View, @MainActor Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.model === rhs.model && lhs.space === rhs.space
             && lhs.isSelectedSpace == rhs.isSelectedSpace
-            && lhs.transientBrowsing === rhs.transientBrowsing
             && lhs.tabPromotionNamespace == rhs.tabPromotionNamespace
             && lhs.shortcuts === rhs.shortcuts && lhs.layoutDirection == rhs.layoutDirection
     }
@@ -50,7 +48,7 @@ struct BrowserRootPageSurface: View, @MainActor Equatable {
     }
 
     private var surfacePage: BrowserPage? {
-        shownTab.flatMap { model.pages.surfacePage(for: $0.id, in: space, accessController: model.spaceAccess) }
+        shownTab.flatMap { model.pages.surfacePage(for: $0.id, in: space) }
     }
 
     private var previewsStartPage: Bool {
@@ -58,12 +56,11 @@ struct BrowserRootPageSurface: View, @MainActor Equatable {
     }
 
     private var pageSurfacePresentation: BrowserPageSurfacePresentation {
-        if previewsStartPage, !model.spaceAccess.isLocked(space) {
+        if previewsStartPage {
             return .single(space: space, cardTabID: nil)
         }
         return BrowserPageSurfacePresentation(
             space: space,
-            isLocked: model.spaceAccess.isLocked(space),
             cards: model.browser.cards(in: space),
             hasEnteredSplitContent:
                 isSelectedSpace && model.sidebarInteraction.sidebarReorderState.hasEnteredSplitContent,
@@ -75,12 +72,6 @@ struct BrowserRootPageSurface: View, @MainActor Equatable {
     var body: some View {
         let presentation = pageSurfacePresentation
         return surface(presentation)
-            // Every edge of the window's frame around this Space's pages moves
-            // the window, except where Peek covers it.
-            .overlay { BrowserPageFrameTitleBarSurface(docked: model.sidebarPresentation.reservesSidebarWidth) }
-            .overlay {
-                BrowserRootPeekLayer(model: model, transientBrowsing: transientBrowsing, space: space)
-            }
             .environment(\.browserPagePresentationWindowID, model.windowState?.id)
             .environment(\.spaceContentIsInteractive, isInteractive)
             .environment(\.browserPagePresentation, pagePresentation)
@@ -94,7 +85,7 @@ struct BrowserRootPageSurface: View, @MainActor Equatable {
                 \.browserWebFocusRestorationGate,
                 BrowserWebFocusRestorationGate(
                     browserChromeOwnsFocus: !isInteractive || !model.isWindowFocused
-                        || model.isAddressEditing || model.chrome.isCommandPalettePresented,
+                        || model.chrome.isCommandPalettePresented,
                     pageChromeOwnsFocus: false))
     }
 
@@ -115,49 +106,27 @@ struct BrowserRootPageSurface: View, @MainActor Equatable {
             )
         } else {
             BrowserRootDetailSurface(
-                adjoinsLeadingSidebar:
-                    model.sidebarPresentation.reservesSidebarWidth,
-                usesBorderlessFrame: BrowserDeviceAppearanceStore.shared.isBorderless,
+                adjoinsLeadingSidebar: false,
+                usesBorderlessFrame: true,
                 isStartPage: previewsStartPage || shownTab?.surface == .startPage,
                 hasActivePage: surfacePage != nil,
                 completedNavigationCount: surfacePage?.completedNavigationCount ?? 0,
                 hasSelectedSpace: true,
                 handleWebContentInteraction: model.chrome.handleWebContentInteraction,
                 content: Group {
-                    if model.spaceAccess.isLocked(space) {
-                        BrowserSpaceAccessView(
-                            space: space,
-                            spaces: model.browser.availableSpaces,
-                            accessController: model.spaceAccess,
-                            selectSpace: { assignment in
-                                guard
-                                    let candidate = model.browser.unlockedSpace(
-                                        matching: assignment, accessController: model.spaceAccess)
-                                else { return }
-                                model.browser.selectSpace(candidate.id)
-                            },
-                            presentation: .contentOverlay
-                        )
-                        .background {
-                            LockedSpacePagePreview(
-                                space: space, cards: model.browser.cards(in: space), pages: model.pages)
-                        }
-                    } else {
-                        BrowserDetailView(
-                            presentation: presentation,
-                            browser: model.browser,
-                            pages: model.pages,
-                            spaceAccess: model.spaceAccess,
-                            tabPromotionNamespace: tabPromotionNamespace,
-                            startPageFocusRequest:
-                                model.chrome.startPageFocusRequest,
-                            isCommandPalettePresented:
-                                model.chrome.isCommandPalettePresented,
-                            commands: model.paletteRegistry(
-                                windows: windows, layoutDirection: layoutDirection, shortcuts: shortcuts),
-                            previewsStartPage: previewsStartPage
-                        )
-                    }
+                    BrowserDetailView(
+                        presentation: presentation,
+                        browser: model.browser,
+                        pages: model.pages,
+                        tabPromotionNamespace: tabPromotionNamespace,
+                        startPageFocusRequest:
+                            model.chrome.startPageFocusRequest,
+                        isCommandPalettePresented:
+                            model.chrome.isCommandPalettePresented,
+                        commands: model.paletteRegistry(
+                            windows: windows, layoutDirection: layoutDirection, shortcuts: shortcuts),
+                        previewsStartPage: previewsStartPage
+                    )
                 }
             )
             // The lone tab on show is a card as far as a drag is concerned: it

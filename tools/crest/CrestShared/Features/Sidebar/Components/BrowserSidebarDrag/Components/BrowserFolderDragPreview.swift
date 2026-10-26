@@ -37,7 +37,7 @@ struct BrowserFolderDragPreview: View {
     private func folderHeader(_ folder: FolderStateModel, depth: Int = 0) -> some View {
         HStack(spacing: CrestSpacing.small) {
             let color = folder.displayColor
-            BrowserFolderArtwork(symbol: folder.displaySymbol, color: color, isExpanded: !folder.isCollapsed)
+            BrowserFolderArtwork(isExpanded: !folder.isCollapsed)
                 .foregroundStyle(color.color.opacity(0.86))
                 .frame(width: 20)
             Text(folder.title).lineLimit(1)

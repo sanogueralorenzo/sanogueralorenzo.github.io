@@ -8,14 +8,13 @@ struct BrowserNativeWindowChromeSnapshot {
     let titleVisibility: NSWindow.TitleVisibility
     let titlebarSeparatorStyle: NSTitlebarSeparatorStyle
     let toolbar: NSToolbar?
-    let toolbarStyle: NSWindow.ToolbarStyle
     let contentFrameClipsToBounds: Bool
     let buttonVisibility: [(NSWindow.ButtonType, Bool)]
 }
 
 /// Styles the window that shows Crest's chrome, which acts as the window's
 /// title bar: the title bar is transparent and shows no title, and the
-/// window's own controls sit on the sidebar.
+/// window's own controls keep their standard AppKit positions.
 ///
 /// In fullscreen the title bar slides down over the page with the menu bar,
 /// so there it is the system's standard one while it is revealed, from the
@@ -24,16 +23,11 @@ struct BrowserNativeWindowChromeSnapshot {
 /// windowed title bar, which an opaque title bar draws as a band across the
 /// top of every page. Neither writes the fullscreen bit of the style mask,
 /// which AppKit owns during its transitions.
-///
-/// The window's toolbar only holds the title bar's metrics, so it shows only
-/// outside fullscreen, whoever shows it. AppKit keeps a fullscreen window's
-/// visible toolbar on screen once the title bar has revealed, and an empty one
-/// would stay behind as a bar across the top of the window.
 @MainActor
 final class BrowserNativeWindowControlsHostView: NSView {
     // MARK: - Static Variables
 
-    /// The standard window buttons the chrome hides, shows and moves.
+    /// The standard window buttons the chrome hides and shows.
     static let buttonTypes: [NSWindow.ButtonType] = [
         .closeButton,
         .miniaturizeButton,
@@ -43,18 +37,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
     // MARK: - Variables
 
     private var originalChrome: BrowserNativeWindowChromeSnapshot?
-    private var chromeToolbar: BrowserChromeToolbar?
-    /// Follows the toolbar's visibility, which SwiftUI's bar appearance sets
-    /// to shown whenever the window's content changes its bar preferences.
-    private var toolbarVisibilityObservation: NSKeyValueObservation?
     private var windowObservers: [NSObjectProtocol] = []
-    private var nativeButtonOrigins: [NSWindow.ButtonType: CGFloat] = [:]
-    var sidebarOnRight = false
-    /// Whether the controls are crossing the window with the sidebar. AppKit
-    /// lays its title bar out again on every window update, and putting them
-    /// straight at their destination then would cut the move short.
-    private var isMovingControls = false
-    var sidebarWidth: CGFloat = BrowserChromeLayout.sidebarIdealWidth
     var isVisible = true {
         didSet {
             guard isVisible != oldValue else { return }
@@ -90,11 +73,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
         applyBrowserChrome()
     }
 
-    override func setFrameSize(_ newSize: NSSize) {
-        super.setFrameSize(newSize)
-        positionWindowControls()
-    }
-
     override func hitTest(_ point: NSPoint) -> NSView? {
         nil
     }
@@ -110,7 +88,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
             window.styleMask.insert(.fullSizeContentView)
         }
         applyTitleBar(to: window)
-        applySystemToolbarMetrics(to: window)
+        applyWindowShape(to: window)
         let shouldShowWindowControls = window.styleMask.showsWindowControls(
             sidebarPresentationShowsControls: isVisible)
         for type in Self.buttonTypes {
@@ -119,7 +97,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
             guard button.isHidden != shouldHide else { continue }
             button.isHidden = shouldHide
         }
-        positionWindowControls()
     }
 
     /// Shows the title bar as Crest's chrome, transparent and without a title
@@ -140,61 +117,19 @@ final class BrowserNativeWindowControlsHostView: NSView {
         }
     }
 
-    /// Move the existing AppKit controls inside their titlebar, retaining their
-    /// native actions, accessibility, sizes and order. Fullscreen owns placement.
-    private func positionWindowControls(onRight: Bool? = nil, animated: Bool = false) {
-        guard let window, animated || !isMovingControls, !window.styleMask.contains(.fullScreen) else { return }
-        let offset =
-            (onRight ?? sidebarOnRight)
-            ? window.styleMask.windowControlsSidebarOffset(
-                windowWidth: window.contentView?.bounds.width ?? bounds.width,
-                sidebarWidth: sidebarWidth
-            ) : 0
-        for type in Self.buttonTypes {
-            guard let button = window.standardWindowButton(type), let parent = button.superview else { continue }
-            if nativeButtonOrigins[type] == nil {
-                nativeButtonOrigins[type] = parent.convert(button.frame.origin, to: nil).x
-            }
-            guard let nativeX = nativeButtonOrigins[type] else { continue }
-            let target = parent.convert(NSPoint(x: nativeX + offset, y: 0), from: nil).x
-            if abs(button.frame.minX - target) > 0.5 {
-                (animated ? button.animator() : button).setFrameOrigin(NSPoint(x: target, y: button.frame.minY))
-            }
-        }
-    }
-
-    /// Takes the controls to the sidebar's new side inside the animation the
-    /// sidebar crosses the window with.
-    func moveWindowControls(sidebarOnRight: Bool) {
-        self.sidebarOnRight = sidebarOnRight
-        isMovingControls = true
-        positionWindowControls(animated: true)
-    }
-
-    func finishMovingWindowControls() {
-        isMovingControls = false
-        applyBrowserChrome()
-    }
-
     func restoreWindowChrome() {
         stopObservingWindow()
         guard let window, let originalChrome else { return }
-        isMovingControls = false
-        positionWindowControls(onRight: false)
-        nativeButtonOrigins.removeAll()
         window.styleMask = window.styleMask.restoringBrowserChrome(to: originalChrome.styleMask)
         window.titleVisibility = originalChrome.titleVisibility
         window.titlebarAppearsTransparent = originalChrome.titlebarAppearsTransparent
         window.titlebarSeparatorStyle = originalChrome.titlebarSeparatorStyle
         window.toolbar = originalChrome.toolbar
-        window.toolbarStyle = originalChrome.toolbarStyle
         window.contentView?.superview?.clipsToBounds =
             originalChrome.contentFrameClipsToBounds
         for (type, wasHidden) in originalChrome.buttonVisibility {
             window.standardWindowButton(type)?.isHidden = wasHidden
         }
-        toolbarVisibilityObservation = nil
-        chromeToolbar = nil
         self.originalChrome = nil
     }
 
@@ -206,7 +141,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
             titleVisibility: window.titleVisibility,
             titlebarSeparatorStyle: window.titlebarSeparatorStyle,
             toolbar: window.toolbar,
-            toolbarStyle: window.toolbarStyle,
             contentFrameClipsToBounds:
                 window.contentView?.superview?.clipsToBounds ?? false,
             buttonVisibility: Self.buttonTypes.map { type in
@@ -215,44 +149,15 @@ final class BrowserNativeWindowControlsHostView: NSView {
         )
     }
 
-    private func applySystemToolbarMetrics(to window: NSWindow) {
-        // This runs on every update of the sidebar's animation. On macOS 26,
-        // writing the frame view's property again, even unchanged, has it
-        // redraw, which flickers a fullscreen window until the menu bar's
-        // reveal redraws it.
+    private func applyWindowShape(to window: NSWindow) {
+        // A toolbar, even an empty one, gives macOS windows larger corners.
+        // The sidebar supplies all chrome, so use the smaller titlebar-only shape.
+        if window.toolbar != nil {
+            window.toolbar = nil
+        }
+        // Avoid resetting this during sidebar animation: AppKit redraws the frame.
         if let frameView = window.contentView?.superview, !frameView.clipsToBounds {
             frameView.clipsToBounds = true
-        }
-        let toolbar: BrowserChromeToolbar
-        if let chromeToolbar {
-            toolbar = chromeToolbar
-        } else {
-            toolbar = BrowserChromeToolbar(
-                identifier: BrowserChromeToolbar.chromeIdentifier
-            )
-            toolbar.allowsUserCustomization = false
-            toolbar.autosavesConfiguration = false
-            toolbar.displayMode = .iconOnly
-            toolbar.insertItem(withItemIdentifier: .flexibleSpace, at: 0)
-            chromeToolbar = toolbar
-            toolbarVisibilityObservation = toolbar.observe(\.isVisible) { [weak self] _, _ in
-                // Settle after whoever changed it finishes its own update.
-                DispatchQueue.main.async { [weak self] in
-                    self?.applyBrowserChrome()
-                }
-            }
-        }
-
-        toolbar.chromeWindow = window
-        if window.toolbar !== toolbar {
-            window.toolbar = toolbar
-        }
-        if window.toolbarStyle != .unified {
-            window.toolbarStyle = .unified
-        }
-        let shouldShowToolbar = window.styleMask.showsBrowserToolbar
-        if toolbar.isVisible != shouldShowToolbar {
-            toolbar.isVisible = shouldShowToolbar
         }
     }
 
@@ -264,9 +169,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
         let names: [Notification.Name] = [
             NSWindow.didBecomeKeyNotification,
             NSWindow.didResignKeyNotification,
-            NSWindow.didUpdateNotification,
             NSWindow.didResizeNotification,
-            NSWindow.willEnterFullScreenNotification,
             NSWindow.didEnterFullScreenNotification,
             NSWindow.willExitFullScreenNotification,
             NSWindow.didExitFullScreenNotification,
@@ -286,12 +189,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
 
     private func windowChanged(_ name: Notification.Name) {
         switch name {
-        case NSWindow.didUpdateNotification:
-            positionWindowControls()
-            return
-        case NSWindow.willEnterFullScreenNotification:
-            positionWindowControls(onRight: false)
-            return
         case NSWindow.didEnterFullScreenNotification:
             observeFullScreenTitleBar()
         case NSWindow.willExitFullScreenNotification:

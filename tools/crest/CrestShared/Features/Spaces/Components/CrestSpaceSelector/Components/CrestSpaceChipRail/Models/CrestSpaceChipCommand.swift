@@ -6,6 +6,7 @@ struct CrestSpaceChipCommand: Identifiable {
     let title: LocalizedStringKey
     let systemImage: String
     var isDestructive = false
+    var isEnabled = true
     let perform: () -> Void
 
     static func rename(_ perform: @escaping () -> Void) -> Self {
@@ -20,8 +21,8 @@ struct CrestSpaceChipCommand: Identifiable {
     static func customize(_ perform: @escaping () -> Void) -> Self {
         CrestSpaceChipCommand(
             id: "customize",
-            title: "Customize",
-            systemImage: "paintpalette",
+            title: "Edit Name",
+            systemImage: "pencil",
             perform: perform
         )
     }

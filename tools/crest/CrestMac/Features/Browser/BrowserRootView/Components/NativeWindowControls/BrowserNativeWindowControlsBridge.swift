@@ -2,13 +2,9 @@ import SwiftUI
 
 struct BrowserNativeWindowControlsBridge: NSViewRepresentable {
     let isVisible: Bool
-    var sidebarOnRight = false
-    var sidebarWidth: CGFloat = BrowserChromeLayout.sidebarIdealWidth
 
     func makeNSView(context: Context) -> BrowserNativeWindowControlsHostView {
         let view = BrowserNativeWindowControlsHostView()
-        view.sidebarOnRight = sidebarOnRight
-        view.sidebarWidth = sidebarWidth
         view.isVisible = isVisible
         return view
     }
@@ -17,19 +13,8 @@ struct BrowserNativeWindowControlsBridge: NSViewRepresentable {
         _ nsView: BrowserNativeWindowControlsHostView,
         context: Context
     ) {
-        nsView.sidebarWidth = sidebarWidth
         nsView.isVisible = isVisible
-        guard nsView.sidebarOnRight != sidebarOnRight else {
-            nsView.applyBrowserChrome()
-            return
-        }
-        // The sidebar crosses the window in this update's animation, and the
-        // controls go with it on the same curve.
-        context.animate {
-            nsView.moveWindowControls(sidebarOnRight: sidebarOnRight)
-        } completion: {
-            nsView.finishMovingWindowControls()
-        }
+        nsView.applyBrowserChrome()
     }
 
     static func dismantleNSView(

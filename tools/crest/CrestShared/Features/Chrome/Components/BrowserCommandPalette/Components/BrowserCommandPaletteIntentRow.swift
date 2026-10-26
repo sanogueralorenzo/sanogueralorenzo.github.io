@@ -19,9 +19,7 @@ struct BrowserCommandPaletteIntentRow: View {
                         BrowserCommandPaletteRowIcon(model: model, row: item.row)
                     } else if let provider = model.searchProvider(for: item.row) {
                         BrowserSearchProviderIcon(
-                            provider: provider,
-                            profileID: model.space?.profileID,
-                            size: BrowserCommandPaletteMetrics.intentSymbolPointSize
+                            provider: provider, size: BrowserCommandPaletteMetrics.intentSymbolPointSize
                         )
                     } else {
                         Image(systemName: item.row.symbol)
@@ -54,7 +52,7 @@ struct BrowserCommandPaletteIntentRow: View {
                     Text(verbatim: item.row.title)
                         .font(.body.weight(.semibold))
                         .lineLimit(1)
-                    BrowserCommandPaletteRowDetail(model: model, row: item.row)
+                    BrowserCommandPaletteRowDetail(row: item.row)
                 }
 
                 Spacer(minLength: BrowserCommandPaletteMetrics.rowSpacing)

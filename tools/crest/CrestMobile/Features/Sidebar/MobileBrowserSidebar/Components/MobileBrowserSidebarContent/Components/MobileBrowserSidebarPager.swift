@@ -20,7 +20,7 @@ struct MobileBrowserSidebarPager: View {
                     selectedSpace: configuration.context.browser.shownSpace
                 ) { space in
                     if let space {
-                        BrowserSpaceBannerBackground(branding: space.settings.look)
+                        CrestBrandTheme.surface
                     } else {
                         Color(uiColor: .systemBackground)
                     }

@@ -49,8 +49,6 @@ struct BrowserSidebarReorderSourceModifier: ViewModifier {
             return
         }
         if input.rejectedGesture { return }
-        // A retained source can receive a callback before SwiftUI has
-        // rendered a Space/profile/lock change. Recheck live authorization.
         if ownsLift {
             input.move(to: location, source: source, reorder: reorder)
             return
@@ -151,10 +149,6 @@ final class BrowserSidebarReorderInputSession {
         let section: BrowserSidebarReorderSection
         var parentItemID: BrowserSidebarReorderItemID?
 
-        /// Whether the row still stands where it was lifted from: the Space
-        /// has the same profile and still lists the row there. A locked Space's
-        /// lift is the core's to refuse, in its own words.
-        /// Used only for pointer actions, not while rendering or measuring rows.
         func isAvailable(in reorder: BrowserSidebarReorderContext) -> Bool {
             let assignment = item.spaceAssignment
             guard let space = reorder.browser.spaceModel(assignment.spaceID), space.profileID == assignment.profileID
@@ -175,15 +169,14 @@ final class BrowserSidebarReorderInputSession {
         guard let liftSessionToken else { return }
         reorder.state.retainPointerContinuation(session: liftSessionToken) {
             [
-                self, weak state = reorder.state, weak browser = reorder.browser,
-                weak access = reorder.spaceAccess
+                self, weak state = reorder.state, weak browser = reorder.browser
             ] point, released in
             guard let state else { return }
-            guard let browser, let access else {
+            guard let browser else {
                 cancel(in: state)
                 return
             }
-            let context = BrowserSidebarReorderContext(browser: browser, spaceAccess: access, state: state)
+            let context = BrowserSidebarReorderContext(browser: browser, state: state)
             move(to: point, source: source, reorder: context)
             if released {
                 release(source: source, reorder: context, windowDrop: windowDrop)

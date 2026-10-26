@@ -9,10 +9,10 @@ struct BrowserFolderHeaderControl: View {
 
     private var folder: FolderStateModel { configuration.folder }
     @Environment(\.browserInteractionCapabilities) private var capabilities
-    private var showsTabCounts: Bool { BrowserDeviceAppearanceStore.shared.foldersShowTabCounts }
-    private var alwaysVisible: Bool { BrowserDeviceAppearanceStore.shared.foldersAlwaysVisible }
-    private var tintsTitle: Bool { BrowserDeviceAppearanceStore.shared.foldersTintTitle }
-    private var textScale: Double { BrowserDeviceAppearanceStore.shared.tabScale }
+    private let showsTabCounts = true
+    private let alwaysVisible = false
+    private let tintsTitle = false
+    private let textScale = 1.0
 
     private var isEditing: Bool {
         interaction.editingFolderRequest.wrappedValue
@@ -24,7 +24,6 @@ struct BrowserFolderHeaderControl: View {
             if isEditing {
                 HStack(spacing: 7) {
                     BrowserFolderIcon(
-                        folder: folder,
                         isExpanded: interaction.isExpanded.wrappedValue,
                         metrics: configuration.headerMetrics
                     )
@@ -52,7 +51,6 @@ struct BrowserFolderHeaderControl: View {
                 } label: {
                     HStack(spacing: 7) {
                         BrowserFolderIcon(
-                            folder: folder,
                             isExpanded: interaction.isExpanded.wrappedValue,
                             metrics: configuration.headerMetrics
                         )

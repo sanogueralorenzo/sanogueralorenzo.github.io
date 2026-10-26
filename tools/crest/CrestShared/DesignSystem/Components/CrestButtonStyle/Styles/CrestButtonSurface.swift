@@ -41,12 +41,12 @@ struct CrestButtonSurface: View {
                     weight: .bold
                 )
             )
-            .foregroundStyle(CrestBrandPalette.ink)
+            .browserReadableForeground(over: tint ?? CrestBrandTheme.accent)
             .padding(.horizontal, CrestButtonMetrics.prominentHorizontalPadding)
             .frame(minHeight: CrestButtonMetrics.prominentHeight)
             .background {
                 Capsule().fill(
-                    (tint ?? CrestBrandPalette.butter)
+                    (tint ?? CrestBrandTheme.accent)
                         .opacity(
                             configuration.isPressed
                                 ? CrestButtonMetrics.pressedFillOpacity
@@ -56,7 +56,7 @@ struct CrestButtonSurface: View {
             }
             .overlay {
                 Capsule().strokeBorder(
-                    CrestBrandPalette.ink
+                    CrestBrandTheme.textDisplay
                         .opacity(CrestButtonMetrics.inkStrokeOpacity),
                     lineWidth: CrestButtonMetrics.strokeWidth
                 )

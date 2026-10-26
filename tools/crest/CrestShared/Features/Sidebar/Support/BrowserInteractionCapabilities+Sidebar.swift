@@ -21,7 +21,7 @@ extension BrowserInteractionCapabilities {
         supportsHover && !supportsTouch
     }
 
-    /// The geometry and reveal behavior of a row's trailing close or unload
+    /// The geometry and reveal behavior of a row's trailing close or return
     /// control.
     ///
     /// Touch decides this rather than hover: the control has to be hittable by

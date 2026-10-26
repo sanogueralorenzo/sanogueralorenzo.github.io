@@ -230,7 +230,9 @@ final class BrowserSidebarReorderState {
         return geometry.zones.values.compactMap { registration in
             let projected: CGRect?
             if case .section(let section) = registration.zone.target, section.usesGridOrdering,
-                let pinned, registration.zone.frame.intersects(pinned.frame)
+                let pinned,
+                registration.zone.frame.intersects(pinned.frame)
+                    || (registration.zone.frame.isEmpty && registration.zone.frame.origin == pinned.frame.origin)
             {
                 projected = CGRect(
                     origin: pinned.frame.origin,
@@ -240,6 +242,8 @@ final class BrowserSidebarReorderState {
                 projected = layout.frame(for: registration.zone)
             }
             guard var frame = projected else { return nil }
+            // Collapsed sections remain reachable during a drag without reserving resting layout space.
+            frame.size.height = max(frame.height, registration.zone.minimumHeight)
             if let regionID = registration.scrollRegionID {
                 guard let viewport = geometry.scrollRegions[regionID] else { return nil }
                 frame = frame.intersection(viewport)

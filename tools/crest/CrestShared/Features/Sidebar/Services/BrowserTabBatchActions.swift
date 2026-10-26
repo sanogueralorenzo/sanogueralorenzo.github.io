@@ -8,7 +8,6 @@ struct BrowserTabBatchActions {
     // MARK: - Variables
 
     let browser: BrowserStore
-    let spaceAccess: BrowserSpaceAccessController
 
     // MARK: - Actions - Performing
 
@@ -45,14 +44,14 @@ struct BrowserTabBatchActions {
         }
     }
 
-    /// Copies the selected pages' addresses, when every selected tab is a
-    /// page the core would keep loaded.
+    /// Copies the selected pages' addresses while the selection is current.
     func copyLinks(_ request: BrowserCapturedSelection) {
-        if let reason = reason(browser.keepingLoaded(request, false)) {
-            browser.tabMultiSelection.message = reason
+        guard BrowserSidebarSelection.capture(request.rootItems, in: browser) == request else {
+            browser.tabMultiSelection.message =
+                Rejection.selectionChanged(SelectionChanged()).placementExplanation
             return
         }
-        let links = BrowserTabOrganizationAction(browser: browser, spaceAccess: spaceAccess)
+        let links = BrowserTabOrganizationAction(browser: browser)
         var urls: [URL] = []
         for id in request.ids {
             guard

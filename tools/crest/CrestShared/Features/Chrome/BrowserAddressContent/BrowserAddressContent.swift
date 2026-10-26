@@ -24,6 +24,7 @@ struct BrowserAddressContent: View {
     var centeringField: NamedCoordinateSpace?
     let submit: () -> Void
 
+    @Environment(\.browserShortcutBindings) private var bindings
     @FocusState private var isFocused: Bool
     @State private var selection: TextSelection?
     /// How much farther the field reaches past the address's leading edge
@@ -93,14 +94,9 @@ struct BrowserAddressContent: View {
             .multilineTextAlignment(.center),
             measuring: text.isEmpty ? Text(prompt) : Text(verbatim: text)
         )
-        #if os(iOS)
-            // A combined search and address field keeps the ordinary space
-            // bar, which URL keyboards remove.
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .keyboardType(.default)
-            .submitLabel(.go)
-        #endif
+        .textFieldStyle(.plain)
+        .multilineTextAlignment(.leading)
+        .modifier(BrowserPlatformAddressInputModifier())
         .focused($isFocused)
         .onSubmit(submit)
         // Escape puts the address away without opening it, as a click
@@ -156,11 +152,26 @@ struct BrowserAddressContent: View {
                 focusAndSelectAll()
             }
         } label: {
-            centeredInField(
-                addressSummaryLabel(presentation),
-                measuring: addressSummaryLabel(presentation)
-            )
-            .frame(maxWidth: .infinity)
+            HStack(spacing: CrestSpacing.extraSmall) {
+                VStack(alignment: .leading, spacing: CrestSpacing.extraExtraSmall) {
+                    Text(presentation.domain)
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(text.isEmpty ? .secondary : .primary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    if let route = presentation.route {
+                        Text(route)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                BrowserShortcutHint(shortcut: ShortcutCommand.openLocation.shortcut(in: bindings))
+            }
             .contentShape(.rect)
         }
     }

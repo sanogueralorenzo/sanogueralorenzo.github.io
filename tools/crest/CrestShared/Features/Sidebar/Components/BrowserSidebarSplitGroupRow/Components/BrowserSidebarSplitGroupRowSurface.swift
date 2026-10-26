@@ -3,7 +3,6 @@ import SwiftUI
 /// Measures the split as one insertion slot; its header owns the group drag.
 struct BrowserSidebarSplitGroupRowSurface: ViewModifier {
     let configuration: BrowserSidebarSplitGroupRowConfiguration
-    let interaction: BrowserSidebarSplitGroupRowInteractionContext
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.sidebarLayerDepth) private var depth
@@ -18,15 +17,6 @@ struct BrowserSidebarSplitGroupRowSurface: ViewModifier {
                     hoverTint: configuration.isPresented ? CrestColor.hover : nil
                 )
                 .overlay { if isMultiSelected { containerShape.fill(CrestColor.hover) } }
-                .overlay {
-                    if let tint = configuration.tint {
-                        containerShape.fill(
-                            tint.color.opacity(
-                                configuration.isPresented ? 0.16 : 0.10
-                            )
-                        )
-                    }
-                }
             }
             .animation(surfaceAnimation, value: configuration.isPresented)
             .animation(surfaceAnimation, value: isMultiSelected)
@@ -40,7 +30,7 @@ struct BrowserSidebarSplitGroupRowSurface: ViewModifier {
                 BrowserTabSelectionTarget(
                     tabID: configuration.members.first?.id, browser: configuration.browser,
                     assignment: configuration.assignment,
-                    isEnabled: configuration.isAvailableForDisplay && !interaction.isRenaming)
+                    isEnabled: configuration.isAvailableForDisplay)
             )
             .browserSidebarReorderContainer(
                 item: .splitGroup(configuration.dragItem),

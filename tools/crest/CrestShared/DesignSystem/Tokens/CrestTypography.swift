@@ -22,7 +22,7 @@ enum CrestTypography {
     }
 
     /// Display serif at a fixed optical size. Retained for hand-tuned editorial
-    /// layouts (the onboarding wizard) whose line breaks are composed by hand.
+    /// layouts (the browser importer) whose line breaks are composed by hand.
     static func display(_ size: CGFloat) -> Font {
         .custom(displayFontName, size: size)
     }

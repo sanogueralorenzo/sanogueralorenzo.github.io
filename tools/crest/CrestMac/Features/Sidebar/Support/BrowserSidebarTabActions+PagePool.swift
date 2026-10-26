@@ -11,20 +11,15 @@ extension BrowserSidebarTabActions {
         assignment: BrowserSpaceRuntimeAssignment,
         browser: BrowserStore,
         reorderState: BrowserSidebarReorderState,
-        pages: BrowserPagePool,
-        spaceAccess: BrowserSpaceAccessController
+        pages: BrowserPagePool
     ) {
         self.init(
             assignment: assignment,
             browser: browser,
             reorderState: reorderState,
-            spaceAccess: spaceAccess,
             syncPagesAfterMutation: {
                 pages.reconcile()
                 pages.select()
-            },
-            pullFavicon: { tabID, assignment in
-                await pages.pullFavicon(for: tabID, matching: assignment)
             }
         )
     }

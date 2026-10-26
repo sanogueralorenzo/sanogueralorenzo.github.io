@@ -13,11 +13,8 @@ import SwiftUI
 ///
 /// - **Focus.** One `BrowserSplitCardPointerMonitor` for the window. Cards
 ///   register their bounds in `cardFrames`, the monitor turns a mouse-down into
-///   one of them, and the event continues to the page untouched. The hover path
-///   is gated by the Follow Mouse preference and evaluated only when a pointer
-///   actually arrives. Both funnel through `focusSplitCard`, which is an ordinary
-///   selection change and no-ops on the card that already has focus, so the two
-///   inputs can never fight.
+///   one of them, and the event continues to the page untouched. Selection
+///   changes through `focusSplitCard`, which leaves an already focused card alone.
 /// - **The carry.** A ⇧⌘-held press picks a card up: the same monitor keeps the
 ///   events, the row draws that member's column as the gap wherever the pointer
 ///   has taken it, and the release commits the slot the gap is standing in.
@@ -37,8 +34,8 @@ struct BrowserSplitPageSurface: View {
     /// The chords the window's commands show in a Start Page card's palette.
     let shortcuts: BrowserShortcutStore?
 
-    /// The core's app preference; an unbound preview store keeps click-to-focus.
-    private var appPreferences: BrowserAppPreferenceStore { .shared }
+    private var appearance: BrowserChromeAppearance { .init() }
+
     @Environment(\.layoutDirection) private var layoutDirection
     @Environment(\.browserMacWindows) private var windows
     @State private var cardFrames = BrowserSplitCardFrameRegistry()
@@ -48,7 +45,7 @@ struct BrowserSplitPageSurface: View {
     @State private var panelFrame: CGRect?
 
     private var isSelectedSpace: Bool {
-        model.browser.selectedSpaceID == space.id && !model.spaceAccess.isLocked(space)
+        model.browser.selectedSpaceID == space.id
     }
 
     private var widthTransaction: Binding<BrowserSplitWidthTransaction> {
@@ -65,10 +62,10 @@ struct BrowserSplitPageSurface: View {
         BrowserSplitColumnsView(
             members: displayMembers,
             focusedTabID: isSelectedSpace ? model.pages.activeTabID : model.browser.selectedTabID(in: space.id),
-            frameInsets: BrowserChromeAppearance.device(windowCornerRadius: nil).pageInsets(
-                docked: model.sidebarPresentation.reservesSidebarWidth, direction: layoutDirection
+            frameInsets: appearance.pageInsets(
+                docked: false, direction: layoutDirection
             ),
-            accent: space.settings.look.primaryColor.color,
+            accent: CrestBrandTheme.accent,
             placeholderIndex: placeholderIndex,
             liftedTabID: isSelectedSpace ? model.splitCardLift.carriedTabID : nil,
             widthTransaction: widthTransaction,
@@ -81,7 +78,6 @@ struct BrowserSplitPageSurface: View {
                     space: space,
                     browser: model.browser,
                     pages: model.pages,
-                    spaceAccess: model.spaceAccess,
                     tabPromotionNamespace: tabPromotionNamespace,
                     startPageFocusRequest:
                         model.chrome.startPageFocusRequest,
@@ -89,9 +85,7 @@ struct BrowserSplitPageSurface: View {
                         model.chrome.isCommandPalettePresented,
                     commands: model.paletteRegistry(
                         windows: windows, layoutDirection: layoutDirection, shortcuts: shortcuts),
-                    cardFrames: cardFrames,
-                    focusesOnHover: { focusesOnHover(member.id) },
-                    onFocusRequest: { if isSelectedSpace { model.focusSplitCard(member.id) } }
+                    cardFrames: cardFrames
                 )
             },
             panel: isSelectedSpace && model.extensionSidePanel.panel != nil
@@ -111,7 +105,7 @@ struct BrowserSplitPageSurface: View {
                 }
             }
         )
-        .environment(\.browserSplitUsesBorderlessFrame, BrowserDeviceAppearanceStore.shared.isBorderless)
+        .environment(\.browserSplitUsesBorderlessFrame, BrowserChromeAppearance().borderless)
         .background {
             if isSelectedSpace {
                 BrowserSplitCardPointerMonitor(
@@ -323,18 +317,6 @@ struct BrowserSplitPageSurface: View {
         }
     }
 
-    private func focusesOnHover(_ tabID: UUID) -> Bool {
-        isSelectedSpace
-            && Self.focusesOnHover(
-                followsMouse: appPreferences.splitFocusFollowsMouse,
-                isCardFocused: model.pages.activeTabID == tabID,
-                isAddressEditing: model.isAddressEditing,
-                isDraggingSidebarItem: model.sidebarInteraction.sidebarReorderState.isDragging,
-                isCarryingCard: model.splitCardLift.isCarrying,
-                isCommandPalettePresented: model.chrome.isCommandPalettePresented
-            )
-    }
-
     private func handleMouseDown(_ tabID: UUID) {
         guard
             isSelectedSpace,
@@ -353,7 +335,7 @@ struct BrowserSplitPageSurface: View {
     /// the window: a start-page or not-yet-committed card shows the Space's
     /// atmosphere through it while loaded neighbours keep their page background.
     private func usesTransparentInnerSurface(_ member: TabStateModel) -> Bool {
-        let page = model.pages.surfacePage(for: member.id, in: space, accessController: model.spaceAccess)
+        let page = model.pages.surfacePage(for: member.id, in: space)
         return BrowserPageSurfacePresentation.usesTransparentInnerSurface(
             isStartPage: member.surface == .startPage,
             hasActivePage: page != nil,

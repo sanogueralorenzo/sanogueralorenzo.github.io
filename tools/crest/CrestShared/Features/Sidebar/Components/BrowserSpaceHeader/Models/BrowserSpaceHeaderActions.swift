@@ -13,24 +13,25 @@ struct BrowserSpaceHeaderActions {
     /// Creates a folder in this Space's saved tabs.
     let createFolder: () -> Void
 
+    /// Adds the GitHub live folder where the shell can refresh website sessions.
+    var createGitHubFolder: (() -> Void)?
+
     /// Opens the history list.
     let showHistory: () -> Void
 
-    /// Opens saved passwords. Nil where the shell reaches them elsewhere.
-    /// Where it is present and private browsing is on, the item becomes the
-    /// disabled note that says why.
-    var showPasswords: (() -> Void)?
+    var showArchive: (() -> Void)?
+    var showDownloads: (() -> Void)?
+    var showTabs: (() -> Void)?
+    var showWebsiteSettings: (() -> Void)?
 
     /// Closes every private tab. Rendered only while private browsing is on,
     /// since it is the one action that has nothing to act on otherwise.
     var closePrivateBrowsing: (() -> Void)?
 
-    /// Opens settings. Nil where the shell has its own settings entry point.
+    /// Opens the browser settings.
     var showSettings: (() -> Void)?
 
-    /// Closes the Space's current tabs, leaving the saved ones alone.
-    let cleanup: () -> Void
+    /// The shell's application-level shortcut, when Settings has one.
+    var settingsShortcut: BrowserShortcut?
 
-    /// Toggles live expansion when the header renders a retained page value.
-    var toggleSavedTabs: (() -> Void)?
 }

@@ -14,17 +14,17 @@ import SwiftUI
 enum BrowserSidebarMetrics {
     // MARK: - Static Variables
 
-    static let lockedSpaceBlurRadius: CGFloat = 12
+    static let cornerRadius = Double(CrestLayout.sidebarRowHeight / 2)
     static let addressBottomInset: CGFloat = 1
     /// The one gap down the top of a Space: address field to extension strip,
     /// strip to pinned tabs, and address field to pinned tabs when there is no
     /// strip. The selected pin's glow slides under whichever layer is above.
     static let topSectionSpacing = CrestSpacing.small
-    static let pinnedTabsBottomInset: CGFloat = 6
+    static let pinnedTabsBottomInset = CrestSpacing.medium
 
     /// How far every top-level layer sits from the sidebar's leading and
     /// trailing edges.
-    static let layerInset = CrestSpacing.small
+    static let layerInset = CrestSpacing.large
 
     /// How far a container holds what it contains in from its own edge, the
     /// same on all four sides for folders and Split Views alike. It is also the
@@ -44,7 +44,7 @@ enum BrowserSidebarMetrics {
     @MainActor
     static func containerBottomPadding(tabScale: Double) -> CGFloat {
         let separation = BrowserSidebarDensity(tabScale).rowSeparation(
-            hasBorders: BrowserDeviceAppearanceStore.shared.tabs.borders == .all)
+            hasBorders: false)
         return max(0, containerPadding - CGFloat(separation) / 2)
     }
 
@@ -55,8 +55,9 @@ enum BrowserSidebarMetrics {
     @MainActor
     static func layerCornerRadius(depth: Int = 0) -> CGFloat {
         layerCornerRadius(
-            depth: depth, userRadius: BrowserDeviceAppearanceStore.shared.sidebarCornerRadius,
-            capsuleRadius: capsuleRadius(tabScale: BrowserDeviceAppearanceStore.shared.tabScale))
+            depth: depth, userRadius: cornerRadius,
+            capsuleRadius: capsuleRadius(
+                tabScale: 1.0))
     }
 
     /// The corner radius of a layer drawn inside `depth` containers, for a

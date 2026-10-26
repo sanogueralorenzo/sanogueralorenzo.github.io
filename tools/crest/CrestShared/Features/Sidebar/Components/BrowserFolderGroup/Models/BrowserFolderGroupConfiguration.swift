@@ -29,7 +29,6 @@ struct BrowserFolderGroupConfiguration {
     var profileID: UUID { assignment.profileID }
     var browser: BrowserStore { context.browser }
     var pageAccess: BrowserSidebarPageAccess { context.pageAccess }
-    var spaceAccess: BrowserSpaceAccessController { context.spaceAccess }
     var capabilities: BrowserInteractionCapabilities { context.capabilities }
 
     /// The list of what the folder holds, as the core publishes it.
@@ -38,11 +37,6 @@ struct BrowserFolderGroupConfiguration {
     /// Whether the folder draws everything it holds: it is open, and no
     /// collapsed folder around it is showing only the way to its kept tab.
     var showsContents: Bool { !folder.isCollapsed && inheritedKeptTabID == nil }
-
-    var displayBranding: SpaceBranding? {
-        guard let spacePresentation else { return context.space.settings.look }
-        return spacePresentation.assignment == assignment ? spacePresentation.branding : nil
-    }
 
     var headerMetrics: BrowserFolderHeaderMetrics {
         capabilities.savedFolderHeaderMetrics
@@ -68,14 +62,11 @@ struct BrowserFolderGroupConfiguration {
     /// Inactive pages retain their normal control appearance while commands
     /// remain guarded by the live selected Space below.
     var isAvailableForDisplay: Bool {
-        guard let spacePresentation else { return isCurrentAndUnlocked }
+        guard let spacePresentation else { return isCurrentAndAvailable }
         return spacePresentation.isAvailable(matching: assignment) && context.space.folders.contains(folder.id)
     }
 
-    /// Every action the group offers is refused unless the window shows the
-    /// Space the group was drawn for, unlocked, and the Space still holds the
-    /// folder.
-    var isCurrentAndUnlocked: Bool {
+    var isCurrentAndAvailable: Bool {
         context.isCurrent(assignment) && context.space.folders.contains(folder.id)
     }
 

@@ -25,9 +25,8 @@ struct BrowserSidebarTabRowMetrics: Equatable, Sendable {
     let contentTrailingInset: CGFloat
 
     /// The fixed column the favicon is drawn into, where the shell reserves
-    /// one. A touch row sizes its glyph for the distance it is read from and
-    /// needs a column wide enough that titles still line up; a pointer row
-    /// lets the favicon's own 18pt box do that work.
+    /// one. The pointer column matches the address field's security control;
+    /// the touch column sizes its glyph for the distance it is read from.
     let faviconSlot: BrowserSidebarTabFaviconSlot?
 
     /// Whether the activation area stretches to the row's full height.
@@ -37,14 +36,18 @@ struct BrowserSidebarTabRowMetrics: Equatable, Sendable {
     /// the activation area to an unbounded height would fight that.
     let fillsRowHeight: Bool
 
-    /// A pointer shell: content tight against its surface, no favicon column,
-    /// and an activation area that fills the row's fixed height.
+    /// A pointer shell: a shared icon column and an activation area that fills
+    /// the row's fixed height.
     static let pointer = BrowserSidebarTabRowMetrics(
         contentSpacing: 0,
         contentLeadingInset: 9,
         contentTrailingInset: (CrestLayout.sidebarRowHeight
             - BrowserTabTrailingControlMetrics.pointer.controlSize.height) / 2,
-        faviconSlot: nil,
+        faviconSlot: BrowserSidebarTabFaviconSlot(
+            width: BrowserTabTrailingControlMetrics.pointer.controlSize.height,
+            glyphSize: 17,
+            glyphWeight: .regular
+        ),
         fillsRowHeight: true
     )
 

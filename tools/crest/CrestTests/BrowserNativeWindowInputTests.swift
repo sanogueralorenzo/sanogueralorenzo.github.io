@@ -33,7 +33,6 @@ final class BrowserNativeWindowInputTests: XCTestCase {
         }
 
         chrome.isVisible = false
-        chrome.sidebarOnRight = true
         chrome.applyBrowserChrome()
         XCTAssertTrue(window.isMovable)
         XCTAssertTrue(content.hitTest(NSPoint(x: 400, y: 574)) === input)

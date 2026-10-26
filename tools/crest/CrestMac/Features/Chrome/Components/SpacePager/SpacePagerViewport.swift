@@ -24,7 +24,6 @@ final class SpacePagerViewport<Content: View>: NSView {
     /// What the Spaces were at the last update, kept as values: the models
     /// change in place, so only a snapshot tells an update what moved.
     private var shownAssignments: [BrowserSpaceRuntimeAssignment] = []
-    private var shownAccessPolicies: [SpaceAccessPolicy] = []
     private(set) var selectedSpaceID: UUID?
     private(set) var presentationSpaceID: UUID?
     private(set) var isInteractionLocked = false
@@ -87,14 +86,11 @@ final class SpacePagerViewport<Content: View>: NSView {
         makeRoot: @escaping (SpaceModel, Bool) -> SpacePageRoot<Content>
     ) {
         let assignments = spaces.map(BrowserSpaceRuntimeAssignment.init(space:))
-        let accessPolicies = spaces.map(\.settings.accessPolicy)
         let assignmentsChanged = shownAssignments != assignments
         let selectionChanged = self.selectedSpaceID != selectedSpaceID
-        let accessPoliciesChanged = shownAccessPolicies != accessPolicies
         shownAssignments = assignments
-        shownAccessPolicies = accessPolicies
         let invalidatesMotion =
-            assignmentsChanged || accessPoliciesChanged || isInteractionLocked
+            assignmentsChanged || isInteractionLocked
             || self.reduceMotion != reduceMotion || self.layoutDirection != layoutDirection
         self.presentation = presentation
         pendingContentTopInsets = contentTopInsets

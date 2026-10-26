@@ -17,28 +17,10 @@ struct BrowserSidebarSplitGroupContextMenu: View {
                 let request = BrowserSidebarSelection.capture(for: .tab(first.id), in: configuration.browser)
             {
                 BrowserTabBatchMenu(
-                    request: request, browser: configuration.browser,
-                    spaceAccess: configuration.spaceAccess, unload: { configuration.context.unload($0) })
+                    request: request, browser: configuration.browser)
             } else {
-                Button("Rename Split View…", systemImage: "pencil") {
-                    interaction.beginRenaming()
-                }
-                .disabled(!configuration.isAvailableForDisplay)
-
-                Button("Change Icon…", systemImage: "face.smiling") {
-                    interaction.beginChangingIcon()
-                }
-                .disabled(!configuration.isAvailableForDisplay)
-
-                Button("Change Color…", systemImage: "paintpalette") {
-                    interaction.beginChangingTint()
-                }
-                .disabled(!configuration.isAvailableForDisplay)
-
-                Divider()
-
                 Button("Separate All Tabs", systemImage: "rectangle.split.2x1.slash") {
-                    guard configuration.isCurrentAndUnlocked,
+                    guard configuration.isCurrentAndAvailable,
                         let first = configuration.members.first
                     else { return }
                     configuration.browser.dissolveSplit(

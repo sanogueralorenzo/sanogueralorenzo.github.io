@@ -90,12 +90,11 @@ struct BrowserSidebarReorderTarget: Equatable, Sendable {
                 guard let destinationSpace = browser.spaceModel(destination.spaceID),
                     destinationSpace.profileID == destination.profileID
                 else { return nil }
-                let follows = browser.linkPreferences.preferences.followsMovedTabs
                 return BrowserSidebarDrop(
                     intent: DropOnSpace(
                         workspaceID: workspaceID, windowID: windowID, spaceID: spaceID, selection: selection,
-                        destinationSpaceID: destination.spaceID, follows: follows),
-                    following: follows ? destinationSpace : nil,
+                        destinationSpaceID: destination.spaceID, follows: true),
+                    following: destinationSpace,
                     leavesSpace: true
                 )
             case .splitInsert(let assignment, let index):

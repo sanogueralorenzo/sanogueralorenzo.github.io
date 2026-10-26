@@ -1,24 +1,55 @@
 import SwiftUI
 
-/// The one control a tab row carries: close for a tab that belongs to the
-/// session, unload for one that outlives it and only has a page to put away.
+/// Returns a durable tab to its saved address, then puts its page to sleep.
+/// Current tabs keep their close control.
 struct BrowserSidebarTabTrailingControl: View {
+    @Environment(\.browserShortcutBindings) private var shortcutBindings
+
     let configuration: BrowserSidebarTabRowConfiguration
     @Binding var isHovering: Bool
 
     @ViewBuilder
     var body: some View {
-        if configuration.tab.placement == .saved {
-            BrowserSidebarTabUnloadButton(
-                configuration: configuration,
-                isVisible: configuration.isLoaded && isRevealed
-            )
+        if configuration.tab.placement.isDurable {
+            HStack(spacing: CrestSpacing.extraSmall) {
+                if configuration.isSelected {
+                    BrowserShortcutHint(shortcut: ShortcutCommand.closeTabOrWindow.shortcut(in: shortcutBindings))
+                }
+                if configuration.canReturnToSavedAddress || configuration.isLoaded {
+                    Button(action: performDurableAction) {
+                        BrowserSidebarTabTrailingControlLabel(
+                            systemName: configuration.canReturnToSavedAddress ? "arrow.uturn.backward" : "minus",
+                            metrics: configuration.trailingControlMetrics
+                        )
+                    }
+                    .modifier(BrowserSidebarTabTrailingControlStyle(metrics: configuration.trailingControlMetrics))
+                    .disabled(
+                        !configuration.isAvailableForDisplay
+                            || (configuration.canReturnToSavedAddress
+                                ? configuration.context.restoreSavedLocation == nil : !configuration.isLoaded)
+                    )
+                    .accessibilityLabel(durableActionTitle)
+                    .accessibilityIdentifier(
+                        configuration.canReturnToSavedAddress ? "return-tab-to-saved-url" : "sleep-saved-tab"
+                    )
+                    .help(durableActionTitle)
+                }
+            }
         } else {
-            BrowserSidebarTabCloseButton(
-                configuration: configuration,
-                isVisible: configuration.canClose && isRevealed
-            )
+            HStack(spacing: CrestSpacing.extraSmall) {
+                if configuration.isSelected {
+                    BrowserShortcutHint(shortcut: ShortcutCommand.closeTabOrWindow.shortcut(in: shortcutBindings))
+                }
+                BrowserSidebarTabCloseButton(
+                    configuration: configuration,
+                    isVisible: configuration.canClose && isRevealed
+                )
+            }
         }
+    }
+
+    private var durableActionTitle: LocalizedStringKey {
+        configuration.canReturnToSavedAddress ? "Return to Saved URL" : "Put Tab to Sleep"
     }
 
     private var isRevealed: Bool {
@@ -27,6 +58,18 @@ struct BrowserSidebarTabTrailingControl: View {
             isSelected: configuration.isSelected
         )
     }
+
+    private func performDurableAction() {
+        guard configuration.isCurrentAndAvailable else { return }
+        if configuration.canReturnToSavedAddress {
+            configuration.context.restoreSavedLocation?(configuration.tab.id)
+        } else if configuration.isLoaded,
+            BrowserDurableTabCloseAction(browser: configuration.browser).perform(configuration.runtimeAssignment)
+        {
+            configuration.context.pageAccess.selectPages()
+        }
+    }
+
 }
 
 private struct BrowserSidebarTabCloseButton: View {
@@ -36,7 +79,7 @@ private struct BrowserSidebarTabCloseButton: View {
 
     var body: some View {
         Button {
-            guard configuration.isCurrentAndUnlocked else { return }
+            guard configuration.isCurrentAndAvailable else { return }
             configuration.browser.closeTab(
                 configuration.tab.id,
                 matching: configuration.assignment
@@ -48,7 +91,7 @@ private struct BrowserSidebarTabCloseButton: View {
             )
         }
         .modifier(BrowserSidebarTabTrailingControlStyle(metrics: metrics))
-        .contentShape(.rect)
+        .contentShape(.circle)
         .foregroundStyle(Color.primary)
         .opacity(
             isVisible
@@ -58,35 +101,6 @@ private struct BrowserSidebarTabCloseButton: View {
         .disabled(!configuration.canClose || !configuration.isAvailableForDisplay)
         .allowsHitTesting(isVisible)
         .accessibilityLabel("Close \(configuration.tab.shownTitle(in: configuration.isLoaded ? core?.state : nil))")
-    }
-
-    private var metrics: BrowserTabTrailingControlMetrics {
-        configuration.trailingControlMetrics
-    }
-}
-
-private struct BrowserSidebarTabUnloadButton: View {
-    @Environment(CrestCore.self) private var core: CrestCore?
-    let configuration: BrowserSidebarTabRowConfiguration
-    let isVisible: Bool
-
-    var body: some View {
-        Button {
-            guard configuration.isCurrentAndUnlocked else { return }
-            configuration.context.unload(configuration.tab.id)
-        } label: {
-            BrowserSidebarTabTrailingControlLabel(
-                systemName: "minus",
-                metrics: metrics
-            )
-        }
-        .modifier(BrowserSidebarTabTrailingControlStyle(metrics: metrics))
-        .contentShape(.rect)
-        .opacity(isVisible ? 1 : 0)
-        .disabled(!configuration.isLoaded || !configuration.isAvailableForDisplay)
-        .allowsHitTesting(isVisible)
-        .accessibilityLabel("Unload \(configuration.tab.shownTitle(in: configuration.isLoaded ? core?.state : nil))")
-        .help("Unload Tab")
     }
 
     private var metrics: BrowserTabTrailingControlMetrics {
@@ -105,7 +119,7 @@ private struct BrowserSidebarTabTrailingControlLabel: View {
                 width: metrics.controlSize.width,
                 height: metrics.controlSize.height
             )
-            .contentShape(.rect)
+            .contentShape(.circle)
     }
 }
 
@@ -118,7 +132,8 @@ private struct BrowserSidebarTabTrailingControlStyle: ViewModifier {
     func body(content: Content) -> some View {
         if metrics.usesChromeControlStyle {
             content.buttonStyle(
-                CrestChromeButtonStyle(controlSize: metrics.controlSize)
+                CrestChromeButtonStyle(
+                    controlSize: metrics.controlSize, cornerRadius: metrics.cornerRadius, cornerStyle: .circular)
             )
         } else {
             content.buttonStyle(.plain)

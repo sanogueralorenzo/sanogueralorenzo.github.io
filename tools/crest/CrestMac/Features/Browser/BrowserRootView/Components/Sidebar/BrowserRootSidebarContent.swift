@@ -9,13 +9,10 @@ struct BrowserRootSidebarContent: View {
     let commandSurfaceNamespace: Namespace.ID
     let tabPromotionNamespace: Namespace.ID
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     var body: some View {
         BrowserSidebar(
             browser: model.browser,
             pageAccess: pageAccess,
-            spaceAccess: model.spaceAccess,
             capabilities: capabilities,
             utilityCoordinator: utilityCoordinator,
             utilityPresentation: model.chrome.utilityPresentation,
@@ -24,19 +21,9 @@ struct BrowserRootSidebarContent: View {
             BrowserSidebarLoadedContent(
                 context: context,
                 pages: model.pages,
-                address: model.addressBinding,
-                isAddressEditing: model.isAddressEditingBinding,
-                addressFocusRequest: model.chrome.addressFocusRequest,
                 activateAddress: { model.chrome.openLocation(model.address) },
-                submitAddress: model.submitAddress,
                 openNewTab: model.openNewTab,
-                sidebarToggleAction:
-                    model.sidebarPresentation.sidebarToggleAction,
-                toggleSidebar: {
-                    model.toggleSidebar(reduceMotion: reduceMotion)
-                },
                 commandSurfaceNamespace: commandSurfaceNamespace,
-                commandPaletteHandoff: model.commandPaletteHandoff(reduceMotion: reduceMotion),
                 tabPromotionNamespace: tabPromotionNamespace
             )
         }
@@ -49,14 +36,13 @@ struct BrowserRootSidebarContent: View {
     }
 
     private var pageAccess: BrowserSidebarPageAccess {
-        BrowserSidebarPageAccess(pages: model.pages, browser: model.browser, spaceAccess: model.spaceAccess)
+        BrowserSidebarPageAccess(pages: model.pages, browser: model.browser)
     }
 
     private var utilityCoordinator: BrowserSidebarUtilityCoordinator {
         BrowserSidebarUtilityCoordinator(
             browser: model.browser,
-            pages: model.pages,
-            spaceAccess: model.spaceAccess
+            pages: model.pages
         )
     }
 
@@ -65,7 +51,10 @@ struct BrowserRootSidebarContent: View {
         return BrowserSidebarChromeActions(
             presentSpaceSettings: { presentSpaceSettings(for: $0) },
             presentHistory: { model.chrome.presentUtility(.history) },
-            createSpace: create
+            presentArchive: { model.chrome.presentUtility(.archive) },
+            presentDownloads: { model.chrome.presentUtility(.downloads) },
+            createSpace: create,
+            deleteSpace: model.browser.isTemporaryWorkspace ? nil : { deleteSpace($0) }
         )
     }
 
@@ -73,8 +62,10 @@ struct BrowserRootSidebarContent: View {
         for assignment: BrowserSpaceRuntimeAssignment,
         intent: BrowserSettingsSpaceIntent = .none
     ) {
+        guard model.browser.spaceModel(matching: assignment) != nil else { return }
         spaceSettingsPresentation.present(
-            BrowserSettingsSpaceRequest(tab: .appearance, intent: intent), assignment: assignment)
+            BrowserSettingsSpaceRequest(tab: .identity, intent: intent), assignment: assignment)
+        model.browser.selectSpace(assignment.spaceID)
         model.browser.openSettings()
         model.pages.select()
     }
@@ -85,4 +76,19 @@ struct BrowserRootSidebarContent: View {
         model.pages.select()
         presentSpaceSettings(for: BrowserSpaceRuntimeAssignment(space: space), intent: .newSpace)
     }
+
+    private func deleteSpace(_ assignment: BrowserSpaceRuntimeAssignment) {
+        Task { @MainActor in
+            guard let space = model.browser.spaceModel(matching: assignment) else { return }
+            do {
+                try await model.browser.deleteSpace(
+                    space.id, dataDeleter: model.browser.family.spaceDataDeleter ?? model.pages)
+            } catch {
+                model.chrome.showNotice(
+                    BrowserNotice(
+                        message: error.localizedDescription, systemImage: "exclamationmark.triangle"))
+            }
+        }
+    }
+
 }

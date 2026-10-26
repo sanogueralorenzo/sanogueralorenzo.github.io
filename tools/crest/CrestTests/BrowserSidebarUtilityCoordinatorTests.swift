@@ -9,7 +9,84 @@ import XCTest
 /// is covered by `MobileBrowserSidebarUtilityCoordinatorTests`.
 @MainActor
 final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
-    func testDownloadPolicyRequiresExactSelectedUnlockedProfileOwnership() {
+    func testExactSelectedAssignmentRestoresArchiveAndOpensHistory() throws {
+        let context = makeContext()
+        let port = RecordedPlatformActions()
+        let coordinator = makeCoordinator(context, port: port)
+        let assignment = BrowserSpaceRuntimeAssignment(space: context.source)
+        let entry = try XCTUnwrap(context.browser.spaceModel(context.source.id)?.history.entries.first)
+
+        coordinator.actions.restoreArchivedTab(context.archived.id, assignment)
+        coordinator.actions.openHistoryEntry(entry, assignment)
+
+        let source = try XCTUnwrap(
+            context.browser.spaceModel(context.source.id)
+        )
+        XCTAssertFalse(source.archive.contains(tabID: context.archived.id))
+        XCTAssertTrue(source.tabs.contains(context.archived.id))
+        XCTAssertEqual(port.restoredTabs, [context.archived.id])
+        XCTAssertEqual(port.openedURLs.map(\.absoluteString), [context.history.url])
+    }
+
+    func testCapturedUtilityActionsRejectSelectionAndProfileChanges() throws {
+        try assertActionsAreRejected { context in
+            context.browser.selectSpace(context.destination.id)
+        }
+        try assertActionsAreRejected { context in
+            self.replaceProfile(of: context.source, in: context.browser)
+        }
+    }
+
+    func testCapturedUtilityActionsRejectDeletingSpaces() throws {
+        let deletingContext = makeContext()
+        XCTAssertTrue(
+            deletingContext.browser.family.beginDeletingSpace(
+                deletingContext.source.id
+            )
+        )
+        defer {
+            deletingContext.browser.family.finishDeletingSpace(
+                deletingContext.source.id
+            )
+        }
+        try assertActionsAreRejected(context: deletingContext, mutation: { _ in })
+    }
+
+    /// Each download action reaches the shell's port with the item the policy
+    /// approved, and a captured action whose Space has moved on reaches nothing.
+    func testDownloadActionsReachThePlatformPortForOwnedItemsOnly() {
+        let context = makeContext()
+        let port = RecordedPlatformActions()
+        let coordinator = makeCoordinator(context, port: port)
+        let assignment = BrowserSpaceRuntimeAssignment(space: context.source)
+        let itemID = context.downloadItemID
+
+        coordinator.actions.performDownloadAction(
+            .open(itemID, .revealInFinder),
+            assignment
+        )
+        coordinator.actions.performDownloadAction(.cancel(itemID), assignment)
+        coordinator.actions.performDownloadAction(.clear(itemID), assignment)
+
+        XCTAssertEqual(port.openedDownloads.map { $0.item.id }, [itemID])
+        XCTAssertEqual(port.openedDownloads.map { $0.destination }, [.revealInFinder])
+        XCTAssertEqual(port.canceledDownloads, [itemID])
+        XCTAssertEqual(port.clearedDownloads, [itemID])
+
+        context.browser.selectSpace(context.destination.id)
+        coordinator.actions.performDownloadAction(
+            .open(itemID, .revealInFinder),
+            assignment
+        )
+        coordinator.actions.performDownloadAction(.cancel(itemID), assignment)
+        coordinator.actions.performDownloadAction(.clear(itemID), assignment)
+
+        XCTAssertEqual(port.openedDownloads.count, 1)
+        XCTAssertEqual(port.canceledDownloads, [itemID])
+        XCTAssertEqual(port.clearedDownloads, [itemID])
+    }
+
+    func testDownloadPolicyRequiresExactSelectedProfileOwnership() {
         let context = makeContext()
         let assignment = BrowserSpaceRuntimeAssignment(space: context.source)
         let exactItem = downloadItem(profileID: assignment.profileID, id: Self.uuid(20))
@@ -21,35 +98,21 @@ final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
 
         XCTAssertEqual(
             action.downloadItem(
-                matching: assignment, in: context.browser, accessController: context.access,
+                matching: assignment, in: context.browser,
                 itemsForProfile: { _ in [exactItem] }),
             exactItem
         )
         XCTAssertNil(
             action.downloadItem(
-                matching: assignment, in: context.browser, accessController: context.access,
+                matching: assignment, in: context.browser,
                 itemsForProfile: { _ in [wrongProfileItem] })
         )
 
         context.browser.selectSpace(context.destination.id)
         XCTAssertNil(
             action.downloadItem(
-                matching: assignment, in: context.browser, accessController: context.access,
+                matching: assignment, in: context.browser,
                 itemsForProfile: { _ in [exactItem] })
-        )
-
-        let lockedContext = makeContext(isProtected: true)
-        let lockedAssignment = BrowserSpaceRuntimeAssignment(
-            space: lockedContext.source
-        )
-        let lockedItem = downloadItem(
-            profileID: lockedAssignment.profileID,
-            id: Self.uuid(22)
-        )
-        XCTAssertNil(
-            BrowserUtilityDownloadAction.clear(lockedItem.id).downloadItem(
-                matching: lockedAssignment, in: lockedContext.browser, accessController: lockedContext.access,
-                itemsForProfile: { _ in [lockedItem] })
         )
 
         let deletingContext = makeContext()
@@ -72,7 +135,7 @@ final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
         }
         XCTAssertNil(
             BrowserUtilityDownloadAction.clear(deletingItem.id).downloadItem(
-                matching: deletingAssignment, in: deletingContext.browser, accessController: deletingContext.access,
+                matching: deletingAssignment, in: deletingContext.browser,
                 itemsForProfile: { _ in [deletingItem] })
         )
 
@@ -91,11 +154,56 @@ final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
         XCTAssertNil(
             BrowserUtilityDownloadAction.clear(replacementItem.id).downloadItem(
                 matching: replacementAssignment, in: replacementContext.browser,
-                accessController: replacementContext.access, itemsForProfile: { _ in [replacementItem] })
+                itemsForProfile: { _ in [replacementItem] })
         )
     }
 
-    private func makeContext(isProtected: Bool = false) -> Context {
+    private func assertActionsAreRejected(
+        context: Context? = nil,
+        mutation: (Context) -> Void,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws {
+        let context = context ?? makeContext()
+        let port = RecordedPlatformActions()
+        let coordinator = makeCoordinator(context, port: port)
+        let assignment = BrowserSpaceRuntimeAssignment(space: context.source)
+        let entry = try XCTUnwrap(context.browser.spaceModel(context.source.id)?.history.entries.first)
+        mutation(context)
+
+        coordinator.actions.restoreArchivedTab(context.archived.id, assignment)
+        coordinator.actions.openHistoryEntry(entry, assignment)
+
+        XCTAssertTrue(port.restoredTabs.isEmpty, file: file, line: line)
+        XCTAssertTrue(port.openedURLs.isEmpty, file: file, line: line)
+        let source = try XCTUnwrap(
+            context.browser.spaceModel(context.source.id)
+        )
+        XCTAssertEqual(
+            source.archive.entries.map(\.tab.id),
+            [context.archived.id],
+            file: file,
+            line: line
+        )
+        XCTAssertFalse(
+            source.tabs.models.contains(where: { $0.url == context.history.url }),
+            file: file,
+            line: line
+        )
+    }
+
+    private func makeCoordinator(
+        _ context: Context,
+        port: RecordedPlatformActions
+    ) -> BrowserSidebarUtilityCoordinator {
+        BrowserSidebarUtilityCoordinator(
+            browser: context.browser,
+            downloadCenter: context.downloadCenter,
+            platformActions: port.platformActions
+        )
+    }
+
+    private func makeContext() -> Context {
         let selectedTab = TabState.Seed(
             id: Self.uuid(1),
             title: "Selected",
@@ -125,20 +233,15 @@ final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
             id: Self.uuid(3),
             profileID: Self.uuid(4),
             name: "Source",
-            symbol: "sidebar.left",
-            accent: .indigo,
             folders: [],
             tabs: [selectedTab],
             archivedTabs: [archived],
-            history: [history],
-            accessPolicy: isProtected ? .deviceOwnerAuthentication : .open
+            history: [history]
         )
         let destination = SpaceState.Seed(
             id: Self.uuid(5),
             profileID: Self.uuid(6),
             name: "Destination",
-            symbol: "square.grid.2x2",
-            accent: .rose,
             folders: [],
             tabs: []
         )
@@ -153,9 +256,6 @@ final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
             browser: browser,
             downloadCenter: downloadCenter,
             downloadItemID: downloadItemID,
-            access: BrowserSpaceAccessController(
-                authenticator: AcceptingAuthenticator()
-            ),
             source: source,
             destination: destination,
             archived: archived,
@@ -185,16 +285,34 @@ final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
         let browser: BrowserStore
         let downloadCenter: BrowserDownloadCenter
         let downloadItemID: UUID
-        let access: BrowserSpaceAccessController
         let source: SpaceState.Seed
         let destination: SpaceState.Seed
         let archived: ArchivedTabState.Seed
         let history: HistoryEntryState
     }
 
-    private final class AcceptingAuthenticator: BrowserDeviceAuthenticating {
-        func authenticate(reason _: String) async throws -> Bool {
-            true
+    /// A stand-in for either shell's binding, so a guard can be tested by what
+    /// it lets through rather than by what a particular shell does next.
+    @MainActor
+    private final class RecordedPlatformActions {
+        var restoredTabs: [UUID] = []
+        var openedURLs: [URL] = []
+        var openedDownloads: [(item: DownloadState, destination: BrowserUtilityDownloadDestination)] = []
+        var canceledDownloads: [UUID] = []
+        var clearedDownloads: [UUID] = []
+
+        var platformActions: BrowserSidebarUtilityPlatformActions {
+            BrowserSidebarUtilityPlatformActions(
+                downloadDestinations: [.open, .revealInFinder],
+                openHistoryEntry: { url, _ in self.openedURLs.append(url) },
+                selectRestoredTab: { self.restoredTabs.append($0) },
+                openFinishedDownload: { item, destination in
+                    self.openedDownloads.append((item, destination))
+                },
+                cancelDownload: { self.canceledDownloads.append($0) },
+                clearDownload: { self.clearedDownloads.append($0) }
+            )
         }
     }
+
 }

@@ -1,23 +1,13 @@
 import Foundation
 
-/// The archive, history, and downloads actions the sidebar's utility surfaces
-/// perform, behind the one access guard they all share.
-///
-/// Every action re-reads the session at call time and refuses unless the Space
-/// the caller named is still the selected, unlocked one it owns — the surfaces
-/// hand out captured closures, and a Space can be reselected, relocked, deleted,
-/// or have its profile replaced between the capture and the tap. Only the last
-/// step of each action differs between the shells; that step comes from
-/// `BrowserSidebarUtilityPlatformActions`.
 @MainActor
 struct BrowserSidebarUtilityCoordinator {
     let browser: BrowserStore
     let downloadCenter: BrowserDownloadCenter
-    let spaceAccess: BrowserSpaceAccessController
     let platformActions: BrowserSidebarUtilityPlatformActions
 
     var selectedDownloads: [DownloadState] {
-        guard let space = browser.shownSpace, !spaceAccess.isLocked(space) else { return [] }
+        guard let space = browser.shownSpace else { return [] }
         return downloadCenter.items(for: space.profileID)
     }
 
@@ -31,7 +21,7 @@ struct BrowserSidebarUtilityCoordinator {
     }
 
     func acknowledgeDownloads(ifPresented surface: BrowserUtilitySurface?) {
-        guard surface == .downloads, let space = browser.shownSpace, !spaceAccess.isLocked(space) else { return }
+        guard surface == .downloads, let space = browser.shownSpace else { return }
         downloadCenter.acknowledgeItems(for: space.profileID)
     }
 
@@ -40,7 +30,7 @@ struct BrowserSidebarUtilityCoordinator {
         matching assignment: BrowserSpaceRuntimeAssignment
     ) {
         guard
-            browser.selectedUnlockedSpace(matching: assignment, accessController: spaceAccess) != nil,
+            browser.selectedAvailableSpace(matching: assignment) != nil,
             browser.restoreArchivedTab(tabID, matching: assignment)
         else { return }
         platformActions.selectRestoredTab(tabID)
@@ -51,7 +41,7 @@ struct BrowserSidebarUtilityCoordinator {
         matching assignment: BrowserSpaceRuntimeAssignment
     ) {
         guard
-            browser.selectedUnlockedSpace(matching: assignment, accessController: spaceAccess) != nil,
+            browser.selectedAvailableSpace(matching: assignment) != nil,
             let url = URL(string: entry.url)
         else { return }
         platformActions.openHistoryEntry(url, assignment)
@@ -72,7 +62,7 @@ struct BrowserSidebarUtilityCoordinator {
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> DownloadState? {
         action.downloadItem(
-            matching: assignment, in: browser, accessController: spaceAccess,
+            matching: assignment, in: browser,
             itemsForProfile: downloadCenter.items(for:))
     }
 }
@@ -86,7 +76,7 @@ extension BrowserSidebarUtilityCoordinator: BrowserDownloadActionPerformer {
 
     func retryDownload(_ item: DownloadState, matching assignment: BrowserSpaceRuntimeAssignment) {
         downloadCenter.retryAutomaticDownload(item.id, matching: assignment) { expectedAssignment in
-            browser.unlockedSpace(matching: expectedAssignment, accessController: spaceAccess) != nil
+            browser.availableSpace(matching: expectedAssignment) != nil
         }
     }
 

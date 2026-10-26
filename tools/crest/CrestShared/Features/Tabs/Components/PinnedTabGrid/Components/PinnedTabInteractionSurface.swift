@@ -14,7 +14,7 @@ struct PinnedTabInteractionSurface: ViewModifier {
                 BrowserTabStatusSurfaces(
                     tab: statusSource,
                     style: BrowserTabStatusSurfaceStyle(
-                        accent: CrestBrandTheme.accent, cornerRadius: BrowserSidebarMetrics.layerCornerRadius(),
+                        accent: CrestBrandTheme.accent, cornerRadius: BrowserSidebarMetrics.capsuleRadius(tabScale: 1),
                         barOpacity: CrestOpacity.prominentStatusSurface))
             }
             .modifier(

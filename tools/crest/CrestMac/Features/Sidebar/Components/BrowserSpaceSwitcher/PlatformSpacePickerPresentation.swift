@@ -97,7 +97,7 @@ final class SpacePickerPresentationView: NSView {
         self.frames = frames
         colors = Dictionary(
             uniqueKeysWithValues: spaces.map {
-                ($0.id, NSColor(selectionTint ?? $0.branding.primaryColor.color))
+                ($0.id, NSColor(selectionTint ?? CrestBrandTheme.accent))
             })
         if let snapshot = presentation.snapshot, snapshot.spaceIDs == ids {
             receive(snapshot)
@@ -201,7 +201,7 @@ final class SpacePickerPresentationView: NSView {
         transition.animate(
             highlight, keyPath: "fillColor",
             values: colors.map {
-                $0.withAlphaComponent($0.alphaComponent * CrestSpaceIconPickerMetrics.selectionFillOpacity).cgColor
+                $0.withAlphaComponent($0.alphaComponent * style.selectionFillOpacity).cgColor
             })
         transition.animate(highlight, keyPath: "strokeColor", values: colors.map(\.cgColor))
         return true
@@ -245,7 +245,7 @@ final class SpacePickerPresentationView: NSView {
             .cgPath
         highlight.fillColor =
             color.withAlphaComponent(
-                color.alphaComponent * CrestSpaceIconPickerMetrics.selectionFillOpacity
+                color.alphaComponent * style.selectionFillOpacity
             ).cgColor
         highlight.strokeColor = color.cgColor
         highlight.lineWidth = stroke

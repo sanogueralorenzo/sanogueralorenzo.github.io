@@ -5,7 +5,7 @@ import AppKit
 /// SwiftUI's `.onHover` can miss the transition when the view behind the edge
 /// is a live `WKWebView`. `NSTrackingArea` observes the window-level pointer
 /// crossing instead, while `hitTest` keeps clicks, scrolling, and page drags
-/// owned by the shared reveal button and the web content beneath it.
+/// owned by the web content beneath it.
 ///
 /// The strip reveals only for a pointer that moves onto it. One already resting
 /// where the strip appears, as the sidebar it just hid slides away, has not

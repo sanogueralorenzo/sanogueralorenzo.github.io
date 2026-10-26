@@ -17,20 +17,8 @@ struct MobileBrowserSidebarBottomChromeLayout<Content: View>: View {
             content
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     VStack(spacing: 0) {
-                        // A top layer over every Space of every profile: mounted
-                        // beside the pager and never keyed to the selected Space,
-                        // so a Space switch cannot unmount or recreate the deck.
-                        if BrowserSidebarWidgetHost.isShown(
-                            sidebarIsPresented:
-                                configuration.sidebarIsPresented,
-                            isPrivateBrowsing: configuration.context.browser
-                                .isPrivateBrowsing
-                        ) {
-                            BrowserSidebarWidgetHost(
-                                capabilities: [
-                                    .persistentSidebar,
-                                    .mediaSessions,
-                                ],
+                        if configuration.sidebarIsPresented && !configuration.context.browser.isPrivateBrowsing {
+                            BrowserNowPlayingSidebar(
                                 activateMediaSession: activateMediaSession,
                                 ownerFaviconData: ownerFaviconData
                             )
@@ -72,8 +60,7 @@ struct MobileBrowserSidebarBottomChromeLayout<Content: View>: View {
             guard
                 configuration.pages.containsResidentPage(matching: assignment),
                 let space = configuration.context.browser.spaceModel(matching: assignment.spaceAssignment),
-                space.tabs.model(assignment.tabID) != nil,
-                await configuration.context.spaceAccess.unlock(space)
+                space.tabs.model(assignment.tabID) != nil
             else { return }
             configuration.context.selectSpace(assignment.spaceID)
             configuration.selectTab(assignment.tabID)

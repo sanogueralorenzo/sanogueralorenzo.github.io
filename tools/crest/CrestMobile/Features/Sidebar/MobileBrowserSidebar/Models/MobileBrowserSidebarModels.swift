@@ -42,9 +42,7 @@ struct MobileBrowserSidebarContentConfiguration {
 struct MobileBrowserSidebarPresentationConfiguration {
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
-    let spaceAccess: BrowserSpaceAccessController
     let selectedColorScheme: ColorScheme
-    let showsPasswords: Binding<Bool>
     let presentedSpaceSheet: Binding<MobileBrowserSidebarSpaceSheet?>
     let selectedSpaceAssignment: BrowserSpaceRuntimeAssignment?
     let selectTab: (UUID) -> Void

@@ -10,7 +10,7 @@ struct BrowserCommandPaletteRowButtonStyle: ButtonStyle {
             .contentShape(.rect)
             .background(
                 isSelected
-                    ? Color.accentColor.opacity(
+                    ? CrestBrandTheme.accent.opacity(
                         BrowserCommandPaletteMetrics.selectedRowOpacity
                     )
                     : Color.primary.opacity(

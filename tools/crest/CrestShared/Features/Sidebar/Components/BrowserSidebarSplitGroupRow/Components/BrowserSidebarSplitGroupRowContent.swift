@@ -6,7 +6,7 @@ struct BrowserSidebarSplitGroupRowContent: View {
     let interaction: BrowserSidebarSplitGroupRowInteractionContext
 
     @Environment(\.sidebarLayerDepth) private var depth
-    private var tabScale: Double { BrowserDeviceAppearanceStore.shared.tabScale }
+    private let tabScale = 1.0
 
     var body: some View {
         VStack(spacing: configuration.metrics.memberSpacing) {

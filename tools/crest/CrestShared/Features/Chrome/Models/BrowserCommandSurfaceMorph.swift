@@ -12,9 +12,8 @@ import SwiftUI
 struct BrowserCommandSurfaceMorph: Hashable, Sendable {
     // MARK: - Static Variables
 
-    /// The palette's frame and corner radius, both ways: the smooth hand-off
-    /// the sidebar makes between its docked and floating placements.
-    static let animation = CrestMotion.sidebarMorph
+    /// The smooth handoff of the palette's frame and corner radius, both ways.
+    static let animation = CrestMotion.chrome
 
     /// A fade that runs as the frame starts to move: the field letting go and
     /// the palette's glass taking over on open, the palette's contents
@@ -24,7 +23,7 @@ struct BrowserCommandSurfaceMorph: Hashable, Sendable {
     /// A fade that finishes as the frame settles: the palette's contents on
     /// open, the palette's glass and the field trading places on close.
     static let trailingFade = CrestMotion.contentReveal.delay(
-        CrestMotion.sidebarMorphTransition - CrestMotion.contentRevealTransition
+        CrestMotion.chromeTransition - CrestMotion.contentRevealTransition
     )
 
     // MARK: - Types
@@ -62,7 +61,7 @@ struct BrowserCommandSurfaceMorph: Hashable, Sendable {
     /// in place at once.
     @MainActor
     static func animatesCommandPalette(reduceMotion: Bool) -> Bool {
-        !reduceMotion && BrowserDeviceAppearanceStore.shared.address.animatesIntoCommandPalette
+        !reduceMotion
     }
 
     /// The pace of the palette's arrival and departure, or nil when it

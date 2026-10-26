@@ -112,7 +112,9 @@ struct PinnedTabTile: View {
             )
             .padding(.horizontal, grid.capabilities.tabRowMetrics.contentLeadingInset)
             .frame(height: BrowserSidebarDensity(1).pinHeight(touch: grid.capabilities.supportsTouch))
-            .crestInteractiveSurface(isSelected: isSelected, isHovering: false)
+            .crestInteractiveSurface(
+                isSelected: isSelected, isHovering: false,
+                cornerRadius: BrowserSidebarMetrics.capsuleRadius(tabScale: 1), cornerStyle: .circular)
         } else {
             PinnedTabSelectionButton(
                 tab: tab,

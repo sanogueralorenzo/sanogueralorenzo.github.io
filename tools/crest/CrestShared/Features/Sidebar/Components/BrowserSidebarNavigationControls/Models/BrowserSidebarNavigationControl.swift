@@ -4,28 +4,28 @@ import Foundation
 /// labels, and the port calls that ask about and walk that direction. The
 /// history control reads them instead of switching over directions.
 struct BrowserSidebarNavigationControl: Hashable, Sendable {
-    // MARK: - Variables
+    // MARK: - Static Variables
 
     static let back = BrowserSidebarNavigationControl(
         name: "back", systemImage: "chevron.left", accessibilityLabel: "Back",
-        accessibilityIdentifier: "browser-back-control", tooltip: "Back (⌘[)", emptyHistoryTitle: "No Earlier Pages",
+        accessibilityIdentifier: "browser-back-control", command: .back, emptyHistoryTitle: "No Earlier Pages",
         isAvailable: { $0.canGoBack() }, history: { $0.backHistory() }, navigate: { $0.goBack() },
         navigateToItem: { $0.goBackToHistoryItem($1) })
     static let forward = BrowserSidebarNavigationControl(
         name: "forward", systemImage: "chevron.right", accessibilityLabel: "Forward",
-        accessibilityIdentifier: "browser-forward-control", tooltip: "Forward (⌘])",
+        accessibilityIdentifier: "browser-forward-control", command: .forward,
         emptyHistoryTitle: "No Later Pages",
         isAvailable: { $0.canGoForward() }, history: { $0.forwardHistory() }, navigate: { $0.goForward() },
         navigateToItem: { $0.goForwardToHistoryItem($1) })
+
+    // MARK: - Variables
 
     let name: String
     let systemImage: String
     let accessibilityLabel: LocalizedStringResource
     let accessibilityIdentifier: String
 
-    /// The tooltip, with the keyboard equivalent every shell that has a
-    /// keyboard honors.
-    let tooltip: LocalizedStringResource
+    let command: ShortcutCommand
 
     let emptyHistoryTitle: LocalizedStringResource
 

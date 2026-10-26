@@ -4617,6 +4617,30 @@
     "fork-webkit-content-blocking": {
       "category": "improved",
       "message": "WebKit blocks more ads and trackers and collapses blocked ad containers with cosmetic filtering."
+    },
+    "fork-compact-hover-sidebar": {
+      "category": "improved",
+      "message": "A frameless window uses a compact hover sidebar, Space color dots, inline shortcuts, icon-only pins and New Tab after the list."
+    },
+    "fork-current-tabs-divider": {
+      "category": "fixed",
+      "message": "Clear sits at the end of a horizontal divider, and New Tab moves up when the current tabs are cleared."
+    },
+    "fork-tab-action-visibility-and-shapes": {
+      "category": "fixed",
+      "message": "Saved tabs show the close shortcut only when selected and sleep controls only while loaded, with matching rounded tabs and actions."
+    },
+    "fork-thinner-space-switcher": {
+      "category": "improved",
+      "message": "The Spaces switcher uses a shorter pill with more clearance above the navigation controls."
+    },
+    "native-window-controls-default-position": {
+      "category": "improved",
+      "message": "Window controls stay in their standard macOS positions without custom offsets or movement animations."
+    },
+    "fork-floating-sidebar-six-point-gap": {
+      "category": "improved",
+      "message": "The floating sidebar sits closer to the window edge."
     }
   }
 }

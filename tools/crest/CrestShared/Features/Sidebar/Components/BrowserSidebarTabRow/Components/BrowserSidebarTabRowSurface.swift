@@ -30,7 +30,7 @@ struct BrowserSidebarTabRowSurface: ViewModifier {
     let interaction: BrowserSidebarTabRowInteractionContext
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    private var tabScale: Double { BrowserDeviceAppearanceStore.shared.tabScale }
+    private let tabScale = 1.0
 
     func body(content: Content) -> some View {
         content
@@ -46,7 +46,7 @@ struct BrowserSidebarTabRowSurface: ViewModifier {
             .padding(
                 .vertical,
                 BrowserSidebarDensity(tabScale).rowSeparation(
-                    hasBorders: BrowserDeviceAppearanceStore.shared.tabs.borders == .all) / 2
+                    hasBorders: false) / 2
             )
             .browserTabPromotionDestination(
                 id: configuration.promotionID,
@@ -85,7 +85,6 @@ struct BrowserSidebarTabRowSurface: ViewModifier {
                 dragState: sidebarInteraction.tabDragState,
                 reorder: BrowserSidebarReorderContext(
                     browser: configuration.browser,
-                    spaceAccess: configuration.spaceAccess,
                     state: sidebarInteraction.sidebarReorderState
                 ),
                 parentSplitGroupID: configuration.isSplitGroupMember ? configuration.tab.splitGroupID : nil,
@@ -127,9 +126,7 @@ struct BrowserSidebarTabRowSurface: ViewModifier {
             tab: configuration.tab,
             context: configuration.context,
             assignment: configuration.runtimeAssignment,
-            isLoaded: configuration.isLoaded,
-            renameTab: interaction.beginRenaming,
-            changeIcon: interaction.beginChangingIcon
+            renameTab: interaction.beginRenaming
         )
         .tint(.primary)
         .onAppear {
@@ -165,7 +162,6 @@ struct BrowserSidebarTabRowSurface: ViewModifier {
 private struct BrowserSidebarTabRowAppearance: ViewModifier {
     let configuration: BrowserSidebarTabRowConfiguration
     @Binding var isHovering: Bool
-    @Environment(\.sidebarLayerDepth) private var depth
 
     func body(content: Content) -> some View {
         content
@@ -173,16 +169,14 @@ private struct BrowserSidebarTabRowAppearance: ViewModifier {
                 BrowserTabStatusSurfaces(
                     tab: BrowserTabStatusSource(
                         tabID: configuration.tab.id, context: configuration.context,
-                        canAct: { configuration.isCurrentAndUnlocked }),
+                        canAct: { configuration.isCurrentAndAvailable }),
                     style: BrowserTabStatusSurfaceStyle(
-                        accent: accent, cornerRadius: BrowserSidebarMetrics.layerCornerRadius(depth: depth),
+                        accent: accent, cornerRadius: BrowserSidebarMetrics.capsuleRadius(tabScale: 1),
                         barOpacity: CrestOpacity.statusSurface)
                 )
             }
             .modifier(
                 BrowserTabAppearanceSurface(
-                    appearance: BrowserDeviceAppearanceStore.shared.tabs,
-                    accent: accent,
                     isPinned: false,
                     isSelected: configuration.isSelected,
                     isHovering: isHovering
@@ -193,12 +187,6 @@ private struct BrowserSidebarTabRowAppearance: ViewModifier {
             )
     }
 
-    private var accent: Color {
-        (BrowserDeviceAppearanceStore.shared.tabs.color ?? branding?.primaryColor ?? .indigo).color
-    }
+    private var accent: Color { CrestBrandTheme.accent }
 
-    private var branding: SpaceBranding? {
-        configuration.spacePresentation?.branding
-            ?? configuration.context.space.settings.look
-    }
 }

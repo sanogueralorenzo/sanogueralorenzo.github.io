@@ -9,7 +9,7 @@ struct BrowserSiteQuickActions: View {
             BrowserSiteQuickActionButton(
                 title: "Copy Link",
                 systemImage: "square.and.arrow.up",
-                action: { perform(page.copyDeveloperPageLink) }
+                action: { perform { page.copyPageLink() } }
             )
             BrowserSiteQuickActionButton(
                 title: "Reload",
@@ -17,10 +17,14 @@ struct BrowserSiteQuickActions: View {
                 action: { perform(page.reload) }
             )
             BrowserSiteQuickActionButton(
-                title: "Capture",
-                systemImage: "camera",
-                action: { perform(page.beginRegionCapture) }
+                title: LocalizedStringKey(page.translation.actionTitle),
+                systemImage: "translate",
+                action: { perform(page.translation.performAction) }
             )
+            .disabled(!page.pageEngine.registration.supports(.translation) || page.readerModeState.isActive)
+            .accessibilityValue(page.translation.status)
+            .accessibilityIdentifier("site-translation-button")
+            .help(page.translation.status.isEmpty ? page.translation.actionTitle : page.translation.status)
             BrowserSiteQuickActionButton(
                 title: "Inspect",
                 systemImage: "scope",

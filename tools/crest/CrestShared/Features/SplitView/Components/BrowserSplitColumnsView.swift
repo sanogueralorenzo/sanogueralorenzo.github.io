@@ -76,7 +76,7 @@ struct BrowserSplitColumnsView<Member: Identifiable, Content: View, Panel: View>
     @Environment(\.layoutDirection) private var layoutDirection
     @State private var panelWidthTransaction = BrowserSplitPanelWidthTransaction()
 
-    private var appearance: BrowserChromeAppearance { .device(windowCornerRadius: windowCornerRadius) }
+    private var appearance: BrowserChromeAppearance { .init(windowCornerRadius: windowCornerRadius) }
 
     var body: some View {
         GeometryReader { proxy in

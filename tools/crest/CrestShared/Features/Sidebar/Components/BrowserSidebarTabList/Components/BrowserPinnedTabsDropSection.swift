@@ -8,7 +8,10 @@ struct BrowserPinnedTabsDropSection: View {
 
     var body: some View {
         BrowserPinnedTabsGrid(context: context)
-            .frame(minHeight: metrics.sectionEndBandHeight)
+            .frame(
+                minHeight: context.capabilities.reservesReorderSectionZones && isDragging
+                    ? metrics.sectionEndBandHeight : 0
+            )
             .contentShape(.rect)
             .browserSidebarReorderSectionIndicator(
                 .tabs(placement: .pinned, folderID: nil),
@@ -24,6 +27,10 @@ struct BrowserPinnedTabsDropSection: View {
             )
             .accessibilityHint("Drop a tab here to pin it")
             .environment(\.browserInteractionCapabilities, context.capabilities)
+    }
+
+    private var isDragging: Bool {
+        sidebarInteraction.sidebarReorderState.hasLiftInFlight || sidebarInteraction.tabDragState.item != nil
     }
 
     private var metrics: BrowserSidebarTabListMetrics {
@@ -46,7 +53,7 @@ private struct BrowserPinnedTabsGrid: View {
             assignment: context.assignment,
             window: context.window,
             select: { runtimeAssignment in
-                guard context.isCurrentAndUnlocked else { return }
+                guard context.isCurrentAndAvailable else { return }
                 context.select(runtimeAssignment.tabID)
             },
             context: context,

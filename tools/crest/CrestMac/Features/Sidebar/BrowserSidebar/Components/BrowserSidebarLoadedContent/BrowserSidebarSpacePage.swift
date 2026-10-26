@@ -12,9 +12,7 @@ struct BrowserSidebarSpacePage: View {
     // collection and unrelated sidebar actions. Re-initialization still
     // supplies fresh owners, bindings and callbacks on every root update.
     private let browser: BrowserStore
-    private let spaceAccess: BrowserSpaceAccessController
     private let capabilities: BrowserInteractionCapabilities
-    private let chromeActions: BrowserSidebarChromeActions
     private let utilityPresentation: BrowserUtilityPresentationState
     private let utilityActions: BrowserUtilityListActions
     private let utilitySearchText: Binding<String>
@@ -39,9 +37,7 @@ struct BrowserSidebarSpacePage: View {
         self.commandSurfaceNamespace = commandSurfaceNamespace
         self.tabPromotionNamespace = tabPromotionNamespace
         browser = context.browser
-        spaceAccess = context.spaceAccess
         capabilities = context.capabilities
-        chromeActions = context.chromeActions
         utilityPresentation = context.utilityPresentation
         utilityActions = context.utilityActions
         utilitySearchText = context.utilitySearchText
@@ -62,31 +58,24 @@ struct BrowserSidebarSpacePage: View {
 
     /// Authorization and selection are checked again when the field mounts, including after a pending Find.
     private func consumeSearchFocusRequest(_ request: Int, for surface: BrowserUtilitySurface) -> Bool {
-        guard let space = browser.spaceModel(matching: assignment), browser.shownSpace?.id == space.id,
-            !spaceAccess.isLocked(space)
+        guard let space = browser.spaceModel(matching: assignment), browser.shownSpace?.id == space.id
         else { return false }
         return utilityPresentation.consumeSearchFocusRequest(request, for: surface)
     }
 
     private func content(for space: SpaceModel) -> some View {
-        let isLocked = spaceAccess.isLocked(space)
         // These callbacks use the page and their action owners, independently
         // of the selected role that changes on the surrounding native host.
         let pageSpace = space
-        let actions = chromeActions
         let confirmClear = confirmClearHistory
         return SpaceSidebarContent(
             space: space,
             browser: browser,
             pages: pages,
-            spaceAccess: spaceAccess,
             capabilities: capabilities,
             openNewTab: openNewTab,
-            showHistory: chromeActions.presentHistory,
             commandSurfaceNamespace: commandSurfaceNamespace,
             tabPromotionNamespace: tabPromotionNamespace,
-            editSpace: { actions.presentSpaceSettings(BrowserSpaceRuntimeAssignment(space: pageSpace)) },
-            createSpace: actions.createSpace,
             utilitySurface: utilityPresentation.surface,
             utilitySearchText: utilitySearchText,
             utilityFilter: utilityFilter,
@@ -99,29 +88,15 @@ struct BrowserSidebarSpacePage: View {
             utilitySearchFocusRequest: utilityPresentation.searchFocusRequest,
             consumeUtilitySearchFocusRequest: consumeSearchFocusRequest
         )
-        .environment(\.sidebarSpacePresentation, SidebarSpacePresentation(space: space, isUnlocked: !isLocked))
+        .environment(\.sidebarSpacePresentation, SidebarSpacePresentation(space: space))
         .environment(\.sidebarSpaceIsSelected, isSelected)
-        // Blur and redaction are drawing effects; rows still run their tasks.
-        // This stops the ones that would otherwise disclose a locked Space's
-        // hostnames to the network.
-        .environment(\.browserSpaceContentIsLocked, isLocked)
-        .onChange(of: isLocked) { _, locked in
-            if locked, isSelected { browser.tabMultiSelection.clear() }
-        }
-        .modifier(SpaceColorScheme(branding: space.settings.look))
-        .blur(
-            radius: isLocked
-                ? BrowserSidebarMetrics.lockedSpaceBlurRadius
-                : 0
-        )
-        .redacted(reason: isLocked ? .placeholder : [])
-        .allowsHitTesting(isSelected && !isLocked)
+        .allowsHitTesting(isSelected)
         // Retained offscreen pages must not participate when AppKit rebuilds
         // keyboard navigation for a newly focused Start Page command field.
         // An empty interaction set avoids adding a focus stop for the container.
-        .focusable(isSelected && !isLocked, interactions: [])
+        .focusable(isSelected, interactions: [])
         .focusEffectDisabled()
-        .accessibilityHidden(!isSelected || isLocked)
+        .accessibilityHidden(!isSelected)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(space.settings.name) Space")
     }

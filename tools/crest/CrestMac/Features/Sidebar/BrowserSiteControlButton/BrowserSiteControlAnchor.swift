@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A native view the composition places behind the Site Controls button, so an
+/// A native view the composition places behind More, so an
 /// engine can anchor its own popups to the control that lists its extensions.
 struct BrowserSiteControlAnchor: Sendable {
     let makeView: @MainActor @Sendable () -> NSView

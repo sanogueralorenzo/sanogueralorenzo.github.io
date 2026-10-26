@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// One Space's moving sidebar content: the pinned grid, the Space header, and
-/// the scrolling tab list. Address and navigation controls stay outside it.
+/// One Space's moving sidebar content: the pinned grid and scrolling tab list.
+/// Space, address and navigation controls stay outside it.
 ///
 /// Everything here is composition and binding. The sections and the list are the
 /// shared ones; this shell supplies scrolling chrome and the page-facing
@@ -12,16 +12,9 @@ struct SpaceSidebarBrowsingContent: View {
     let space: SpaceModel
     let browser: BrowserStore
     let pages: BrowserPagePool
-    let spaceAccess: BrowserSpaceAccessController
     let capabilities: BrowserInteractionCapabilities
-    @Binding var isSavedTabsExpanded: Bool
-    let toggleSavedTabs: () -> Void
     let openNewTab: () -> Void
-    let beginCreatingFolder: () -> Void
-    let showHistory: () -> Void
     let tabPromotionNamespace: Namespace.ID
-    let editSpace: () -> Void
-    let createSpace: (() -> Void)?
 
     /// The clear-current-tabs control appears while a pointer rests anywhere
     /// over the list, so the state belongs to the whole scrolling region rather
@@ -45,38 +38,24 @@ struct SpaceSidebarBrowsingContent: View {
             .padding(.top, hasPinnedTabs ? BrowserSidebarMetrics.topSectionSpacing : 0)
             .padding(.bottom, hasPinnedTabs ? BrowserSidebarMetrics.pinnedTabsBottomInset : 0)
 
-        BrowserSpaceHeader(
-            space: space,
-            isPrivateBrowsing: browser.isPrivateBrowsing,
-            isSavedTabsExpanded: $isSavedTabsExpanded,
-            capabilities: capabilities,
-            actions: BrowserSpaceHeaderActions(
-                openNewTab: openNewTab,
-                createFolder: beginCreatingFolder,
-                showHistory: showHistory,
-                cleanup: browser.cleanupCurrentTabs,
-                toggleSavedTabs: toggleSavedTabs
-            )
-        )
-
         SpaceSidebarTabListScroll(browser: browser) {
-            BrowserSidebarBackgroundInteractionView(
-                editSpace: editSpace,
-                createSpace: createSpace
-            )
-            .modifier(
-                BrowserSidebarEmptySpaceNewTabGesture(
-                    tabActions: tabActions,
+            BrowserSidebarBackgroundInteractionView()
+                .modifier(
+                    BrowserSidebarEmptySpaceNewTabGesture(
+                        tabActions: tabActions,
+                        openNewTab: openNewTab
+                    )
+                )
+        } content: {
+            BrowserIntegrationsSidebar(space: space, browser: browser, pages: pages) {
+                BrowserSidebarTabList(
+                    context: listContext,
+                    showsClearAction: isHoveringTabList,
                     openNewTab: openNewTab
                 )
-            )
-        } content: {
-            BrowserSidebarTabList(
-                context: listContext,
-                showsClearAction: isHoveringTabList,
-                openNewTab: openNewTab
-            )
-            .equatable()
+                .equatable()
+            }
+            .id(BrowserSpaceRuntimeAssignment(space: space))
         }
         .onHover { isHoveringTabList = $0 }
         .background {
@@ -85,7 +64,7 @@ struct SpaceSidebarBrowsingContent: View {
         }
         .background {
             BrowserTabSelectionMonitor(
-                browser: browser, spaceAccess: spaceAccess,
+                browser: browser,
                 assignment: BrowserSpaceRuntimeAssignment(space: space), activate: activate,
                 ownsFocus: browser.tabMultiSelection.isEngaged && browser.tabMultiSelection.ownsKeyboardFocus)
         }
@@ -104,21 +83,20 @@ struct SpaceSidebarBrowsingContent: View {
         guard let window = browser.windowModel else { return nil }
         return BrowserSidebarListContext(
             space: space, window: window, favicons: browser.core.state.favicons, browser: browser,
-            spaceAccess: spaceAccess, pageAccess: pageAccess, tabActions: tabActions, capabilities: capabilities,
+            pageAccess: pageAccess, tabActions: tabActions, capabilities: capabilities,
             promotionNamespaces: [.current: tabPromotionNamespace], select: activate,
             restoreSavedLocation: restoreSavedLocation)
     }
 
     private var pageAccess: BrowserSidebarPageAccess {
-        BrowserSidebarPageAccess(pages: pages, browser: browser, spaceAccess: spaceAccess)
+        BrowserSidebarPageAccess(pages: pages, browser: browser)
     }
 
     private var tabActions: BrowserSidebarTabActions {
         BrowserSidebarTabActions(
             assignment: BrowserSpaceRuntimeAssignment(space: space),
             browser: browser, reorderState: sidebarInteraction.sidebarReorderState,
-            pages: pages,
-            spaceAccess: spaceAccess
+            pages: pages
         )
     }
 
@@ -136,8 +114,7 @@ struct SpaceSidebarBrowsingContent: View {
     private func restoreSavedLocation(_ tabID: UUID) {
         BrowserSavedLocationRestoreAction(
             browser: browser,
-            pages: pages,
-            spaceAccess: spaceAccess
+            pages: pages
         ).perform(
             BrowserTabRuntimeAssignment(
                 tabID: tabID,
@@ -167,13 +144,12 @@ private struct BrowserSidebarSelectionReconciler: View {
 
     private func reconcile() {
         let browser = context.browser
-        interaction.sidebarSpaceAccess = context.spaceAccess
         if let workspace = browser.workspaceModel {
             interaction.pruneCollapsedFolders(
-                keepingFoldersOf: workspace.spaces.models.filter { !context.spaceAccess.isLocked($0) })
+                keepingFoldersOf: workspace.spaces.models)
         }
         let space = context.space
-        guard browser.spaceModel(space.id) === space, !context.spaceAccess.isLocked(space) else { return }
+        guard browser.spaceModel(space.id) === space else { return }
         for folder in space.folders.models {
             let folderTabIDs = space.tabIDs(inFolder: folder.id)
             interaction.reconcileCollapsedFolder(
@@ -193,9 +169,6 @@ private struct BrowserSidebarSelectionReconciler: View {
             units: BrowserSidebarSelection.itemUnits(in: browser))
     }
 
-    /// What reconciling reads, observed here rather than by any row: the
-    /// Space's lists and folders, which of its tabs the window shows, whether
-    /// it is shown and unlocked, and residency.
     private var snapshot: Snapshot {
         let space = context.space
         let lists = space.sidebar.lists.map(\.rows)
@@ -204,9 +177,7 @@ private struct BrowserSidebarSelectionReconciler: View {
             lists: lists,
             folders: space.folders.models.map { Snapshot.Folder(id: $0.id, isCollapsed: $0.isCollapsed) },
             shownTabIDs: listed.filter { context.window.shownTabIDs.contains($0) },
-            isSavedTabsExpanded: space.settings.isSavedTabsExpanded,
             isSelected: context.window.shownSpaceID == space.id,
-            isUnlocked: !context.spaceAccess.isLocked(space),
             residencyRevision: context.pageAccess.residencyRevision(),
             spaceIDs: context.browser.workspaceModel?.spaces.models.map(\.id) ?? [])
     }
@@ -219,9 +190,7 @@ private struct BrowserSidebarSelectionReconciler: View {
         let lists: [[SidebarRow]]
         let folders: [Folder]
         let shownTabIDs: [UUID]
-        let isSavedTabsExpanded: Bool
         let isSelected: Bool
-        let isUnlocked: Bool
         let residencyRevision: Int
         /// Evicted Space hosts still need their retained visibility pruned when
         /// Spaces disappear or access is revoked.

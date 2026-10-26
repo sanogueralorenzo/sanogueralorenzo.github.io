@@ -47,10 +47,9 @@ struct CrestSpaceChipRail: View {
             selection = identity.id
         } label: {
             HStack(spacing: CrestSpaceChipMetrics.contentSpacing) {
-                BrowserSpaceSymbolArtwork(
+                BrowserSpaceIdentityIcon(
                     identity: identity.space,
-                    size: CrestSpaceChipMetrics.iconSize,
-                    lockSize: CrestSpaceChipMetrics.lockSize
+                    size: CrestSpaceChipMetrics.iconSize
                 )
                 Text(verbatim: identity.name)
                     .lineLimit(1)

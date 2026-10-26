@@ -4,13 +4,11 @@ import Foundation
 struct MobileBrowserSidebarPreviewFixture {
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
-    let spaceAccess: BrowserSpaceAccessController
 
     init() {
         let folder = FolderState.Seed(
             id: Self.uuid(0x21),
             title: "Reading",
-            color: BrandColor.ocean,
             isCollapsed: false,
             collapseModifiedAt: Self.epoch
         )
@@ -45,9 +43,7 @@ struct MobileBrowserSidebarPreviewFixture {
             id: Self.uuid(0x11),
             profileID: Self.uuid(0x12),
             name: "Work",
-            symbol: "briefcase.fill",
-            accent: .indigo,
-            branding: SpaceHouse.lion.look,
+
             folders: [folder],
             tabs: [pinnedTab, savedTab, unfiledSavedTab, currentTab],
             history: [
@@ -65,23 +61,16 @@ struct MobileBrowserSidebarPreviewFixture {
             id: Self.uuid(0x13),
             profileID: Self.uuid(0x14),
             name: "Personal",
-            symbol: "lock.fill",
-            accent: .orange,
-            branding: SpaceHouse.winter.look,
-            tabs: [],
-            accessPolicy: .deviceOwnerAuthentication
+
+            tabs: []
         )
         let base = MobileBrowserPreviewFixture()
 
         browser = BrowserStore(
             seed: SessionState.Seed(spaces: [space, protectedSpace]),
-            credentialVault: InMemoryCredentialVault(),
             browsingMode: .privateBrowsing
         )
         pages = base.pages
-        spaceAccess = BrowserSpaceAccessController(
-            authenticator: BrowserPreviewAuthenticator(result: false)
-        )
     }
 
     private static let epoch = Date(timeIntervalSince1970: 0)

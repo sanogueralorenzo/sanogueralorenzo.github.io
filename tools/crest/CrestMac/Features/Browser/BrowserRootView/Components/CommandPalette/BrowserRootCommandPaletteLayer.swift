@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 struct BrowserRootCommandPaletteLayer: View {
@@ -33,8 +32,7 @@ struct BrowserRootCommandPaletteLayer: View {
                 morphNamespace: commandSurfaceNamespace,
                 overlayContentInsets: contentInsets,
                 emptySelectionActions: model.emptySelectionPaletteActions,
-                openings: BrowserCommandPaletteOpening.all,
-                readPasteboard: { NSPasteboard.general.string(forType: .string) }
+                openings: BrowserCommandPaletteOpening.all
             )
             .id(
                 BrowserCommandPalettePresentationIdentity(

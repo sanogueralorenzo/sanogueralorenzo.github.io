@@ -6,12 +6,11 @@ import Foundation
 struct BrowserEmptySelectionPaletteActions {
     let source: BrowserSpaceRuntimeAssignment
     let browser: BrowserStore
-    let accessController: BrowserSpaceAccessController
     let didSelectTab: () -> Void
 
     var isAvailable: Bool {
         guard
-            let space = browser.selectedUnlockedSpace(matching: source, accessController: accessController)
+            let space = browser.selectedAvailableSpace(matching: source)
         else { return false }
         return browser.selectedTabID(in: space.id) == nil
     }

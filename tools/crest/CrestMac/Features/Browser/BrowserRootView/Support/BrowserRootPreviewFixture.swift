@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Types
 
 enum BrowserRootPreviewState: Equatable {
-    case docked
+    case expanded
     case collapsed
     case commandPalette
 }
@@ -15,8 +15,7 @@ enum BrowserRootPreviewFixture {
         id: spaceID,
         profileID: uuid(0x11),
         name: "Research",
-        symbol: "books.vertical.fill",
-        accent: .indigo,
+
         tabs: [
             TabState.Seed(
                 id: uuid(0x42),
@@ -76,7 +75,7 @@ enum BrowserRootPreviewFixture {
 
     @MainActor
     static func makeChrome(
-        state: BrowserRootPreviewState = .docked
+        state: BrowserRootPreviewState = .expanded
     ) -> BrowserChromeState {
         let chrome = BrowserChromeState(sidebarIsPresented: state != .collapsed)
         if state == .commandPalette {
@@ -87,16 +86,15 @@ enum BrowserRootPreviewFixture {
 
     @MainActor
     static func makeModel(
-        state: BrowserRootPreviewState = .docked
+        state: BrowserRootPreviewState = .expanded
     ) -> BrowserRootModel {
         let browser = makeBrowser()
+        browser.selectTab(startTabID)
         return BrowserRootModel(
             browser: browser,
             pages: BrowserPagePool(browser: browser),
             chrome: makeChrome(state: state),
-            spaceAccess: BrowserSpaceAccessController(),
             windowState: makeWindowState(browser: browser),
-            startupBehavior: .showStartPage,
             persistedSidebarWidth: BrowserChromeLayout.sidebarIdealWidth
         )
     }
@@ -111,8 +109,7 @@ enum BrowserRootPreviewFixture {
             layouts: BrowserWindowLayouts(defaults: nil)
         )
         windowState.captureSidebar(
-            width: Double(BrowserChromeLayout.sidebarIdealWidth),
-            isPresented: true
+            width: Double(BrowserChromeLayout.sidebarIdealWidth)
         )
         return windowState
     }

@@ -10,13 +10,11 @@ extension BrowserSidebarUtilityCoordinator {
     /// stands when the reader taps.
     init(
         browser: BrowserStore,
-        pages: BrowserPagePool,
-        spaceAccess: BrowserSpaceAccessController
+        pages: BrowserPagePool
     ) {
         self.init(
             browser: browser,
             downloadCenter: pages.downloadCenter,
-            spaceAccess: spaceAccess,
             platformActions: BrowserSidebarUtilityPlatformActions(
                 downloadDestinations: [.open, .revealInFinder],
                 openHistoryEntry: { url, assignment in

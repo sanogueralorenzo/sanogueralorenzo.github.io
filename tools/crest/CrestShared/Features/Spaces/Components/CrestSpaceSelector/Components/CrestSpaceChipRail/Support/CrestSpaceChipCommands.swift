@@ -16,6 +16,7 @@ struct CrestSpaceChipCommands: ViewModifier {
                         role: command.isDestructive ? .destructive : nil,
                         action: command.perform
                     )
+                    .disabled(!command.isEnabled)
                 }
                 .crestMenuActionLabelStyle()
             }

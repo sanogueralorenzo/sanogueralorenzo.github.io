@@ -35,9 +35,7 @@ struct MobileCompactAddressBar: View {
                         controlSize: MobileCompactAddressBarLayout.pageActionsControlSize
                     )
                     if let page = pageActions.activePage {
-                        BrowserTranslationMenu(translation: page.translation)
-                            .gesture(MobileTranslationLongPressGesture(action: page.translation.start))
-                            .accessibilityHint("Tap for options. Touch and hold to translate now.")
+                        BrowserTranslationButton(translation: page.translation)
                             .frame(width: 44)
                             .scaleEffect(offersTranslation || reduceMotion ? 1 : 0.4)
                             .offset(x: translationOffset, y: offersTranslation || reduceMotion ? 0 : 3)

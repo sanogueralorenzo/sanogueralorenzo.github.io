@@ -7,14 +7,12 @@ struct BrowserSidebarReorderContext {
 
     let state: BrowserSidebarReorderState
     let browser: BrowserStore
-    let spaceAccess: BrowserSpaceAccessController
 
     // MARK: - Initializers
 
-    init(browser: BrowserStore, spaceAccess: BrowserSpaceAccessController, state: BrowserSidebarReorderState) {
+    init(browser: BrowserStore, state: BrowserSidebarReorderState) {
         self.state = state
         self.browser = browser
-        self.spaceAccess = spaceAccess
     }
 
     // MARK: - Actions - Lifting

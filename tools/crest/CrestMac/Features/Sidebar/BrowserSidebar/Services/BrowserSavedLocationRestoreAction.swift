@@ -10,19 +10,15 @@ import Foundation
 struct BrowserSavedLocationRestoreAction {
     let browser: BrowserStore
     let pages: BrowserPagePool
-    let spaceAccess: BrowserSpaceAccessController
 
-    /// Updates the tab before selection so an unloaded page starts at its root.
-    /// A resident page keeps its native history. A tab already home with no
-    /// navigation away, or outside the selected unlocked Space, is left alone.
     @discardableResult
     func perform(_ assignment: BrowserTabRuntimeAssignment) -> Bool {
         guard
-            let space = browser.selectedUnlockedSpace(
+            let space = browser.selectedAvailableSpace(
                 matching: BrowserSpaceRuntimeAssignment(
                     spaceID: assignment.spaceID,
                     profileID: assignment.profileID
-                ), accessController: spaceAccess),
+                )),
             let tab = space.tabs.model(assignment.tabID),
             browser.returnsToSavedAddress(tab.id, in: space.id),
             !pages.containsResidentPage(for: tab.id) || pages.containsResidentPage(matching: assignment)

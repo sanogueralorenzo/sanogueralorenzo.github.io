@@ -27,7 +27,6 @@ struct BrowserSidebarSplitGroupRowConfiguration {
     var spaceID: UUID { assignment.spaceID }
     var profileID: UUID { assignment.profileID }
     var browser: BrowserStore { context.browser }
-    var spaceAccess: BrowserSpaceAccessController { context.spaceAccess }
     var capabilities: BrowserInteractionCapabilities { context.capabilities }
 
     var metrics: BrowserSidebarSplitGroupRowMetrics {
@@ -47,23 +46,10 @@ struct BrowserSidebarSplitGroupRowConfiguration {
         tabRowMetrics.contentLeadingInset
     }
 
-    var runtimeAssignment: BrowserSplitGroupRuntimeAssignment {
-        BrowserSplitGroupRuntimeAssignment(
-            groupID: groupID,
-            spaceID: spaceID,
-            profileID: profileID
-        )
+    /// Names follow the current tab titles, in their sidebar order.
+    var shownTitle: String {
+        members.isEmpty ? String(localized: "Split View") : members.map(\.displayTitle).joined(separator: " / ")
     }
-
-    /// What a person chose for the split, as the core resolved it. Reading it
-    /// observes the Space's splits.
-    var choices: SplitGroupState {
-        context.space.splitGroups.first { $0.id == groupID } ?? .unchosen(groupID)
-    }
-
-    var shownTitle: String { choices.shownTitle }
-    var emojiIcon: String? { choices.displayEmojiIcon }
-    var tint: BrandColor? { choices.tint }
 
     /// Selecting any member presents the whole split, so the container reads as
     /// presented whenever the window shows one of its members.
@@ -99,7 +85,6 @@ struct BrowserSidebarSplitGroupRowConfiguration {
     var reorderContext: BrowserSidebarReorderContext {
         BrowserSidebarReorderContext(
             browser: browser,
-            spaceAccess: spaceAccess,
             state: sidebarInteraction.sidebarReorderState
         )
     }
@@ -107,14 +92,11 @@ struct BrowserSidebarSplitGroupRowConfiguration {
     /// Inactive pages retain their normal control appearance while commands
     /// remain guarded by the live selected Space below.
     var isAvailableForDisplay: Bool {
-        guard let spacePresentation else { return isCurrentAndUnlocked }
+        guard let spacePresentation else { return isCurrentAndAvailable }
         return spacePresentation.isAvailable(matching: assignment) && holdsMembers
     }
 
-    /// Every mutation this row offers is refused unless the window shows the
-    /// Space the row was drawn for, unlocked, and the Space still holds the
-    /// group.
-    var isCurrentAndUnlocked: Bool {
+    var isCurrentAndAvailable: Bool {
         context.isCurrent(assignment) && holdsMembers
     }
 
@@ -138,31 +120,7 @@ struct BrowserSidebarSplitGroupRowConfiguration {
     }
 }
 
-struct BrowserSplitGroupRuntimeAssignment: Equatable, Sendable {
-    let groupID: UUID
-    let spaceID: UUID
-    let profileID: UUID
-
-    var spaceAssignment: BrowserSpaceRuntimeAssignment {
-        BrowserSpaceRuntimeAssignment(spaceID: spaceID, profileID: profileID)
-    }
-}
-
 struct BrowserSidebarSplitGroupRowInteractionContext {
-    let isRenaming: Bool
-    let draftTitle: Binding<String>
-    let isTitleFocused: FocusState<Bool>.Binding
-    let isChoosingIcon: Binding<Bool>
-    let isChoosingTint: Binding<Bool>
-    let tint: Binding<BrandColor>
     let activate: () -> Void
     let closeSplit: @MainActor () -> Void
-    let beginRenaming: () -> Void
-    let beginChangingIcon: () -> Void
-    let beginChangingTint: () -> Void
-    let setEmojiIcon: (String) -> Void
-    let resetIcon: () -> Void
-    let commitTitle: () -> Void
-    let cancelTitleEditing: () -> Void
-    let resetTint: () -> Void
 }

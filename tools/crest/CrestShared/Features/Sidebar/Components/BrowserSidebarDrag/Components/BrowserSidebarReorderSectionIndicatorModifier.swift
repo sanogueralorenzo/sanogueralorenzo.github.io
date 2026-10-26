@@ -11,7 +11,7 @@ import SwiftUI
 ///
 /// Apply this to the run itself, not to the section's whole drop zone: the
 /// unfiled saved rows sit *below* the folder groups in the same zone, and the
-/// current tabs sit below the new-tab row, so only the run knows where its
+/// current tabs end above New Tab, so only the run knows where its
 /// first row would appear.
 struct BrowserSidebarReorderSectionIndicatorModifier: ViewModifier {
     let section: BrowserSidebarReorderSection

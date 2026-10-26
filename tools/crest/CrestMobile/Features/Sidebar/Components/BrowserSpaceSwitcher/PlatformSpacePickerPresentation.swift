@@ -30,7 +30,6 @@ final class SpacePickerPresentationView: UIView {
     private weak var scrollView: UIScrollView?
     private var ids: [UUID] = []
     private var tint: UIColor?
-    private var tones: [SpaceForegroundPresentation.Tone] = []
     private var frames: [UUID: CGRect] = [:]
     private var lastSnapshot: SpacePagerPresentation.Snapshot?
     private var scrollSegment: SpacePickerScrollProgress?
@@ -65,12 +64,6 @@ final class SpacePickerPresentationView: UIView {
         let newWidth = spaces.first.flatMap { frames[$0.id]?.width } ?? 0
         if ids != spaces.map(\.id) || abs(oldWidth - newWidth) > 0.5 { needsInitialPosition = true }
         ids = spaces.map(\.id)
-        let system = BrowserSpaceForegroundTone(readingIn: ColorScheme(traitCollection.userInterfaceStyle) ?? .light)
-        tones = spaces.map {
-            .init(
-                id: $0.id,
-                white: $0.branding.foregroundTone(system: system) == .light ? 1 : 0)
-        }
         self.frames = frames
         self.tint = tint.map(UIColor.init)
         // The background representable joins its enclosing native scroll view
@@ -141,7 +134,7 @@ final class SpacePickerPresentationView: UIView {
         highlight.cornerRadius = CrestSpaceIconPickerShape(style: style).cornerRadius(in: frame)
         highlight.cornerCurve = CrestSpaceIconPickerShape.layerCornerCurve
         highlight.backgroundColor =
-            (tint ?? UIColor(white: SpaceForegroundPresentation.white(at: position, tones: tones), alpha: 1))
+            (tint ?? .label)
             .withAlphaComponent(0.22).cgColor
         CATransaction.commit()
         defer { lastPosition = position }

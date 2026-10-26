@@ -10,7 +10,6 @@ struct BrowserSettingsSidebar: View {
     @State private var hoveredItem: BrowserSettingsSidebarItem?
     @Bindable var tabState: BrowserSettingsTabState
     let browser: BrowserStore
-    let spaceAccess: BrowserSpaceAccessController
     let dataDeleter: any BrowserSpaceDataDeleting
     let openSpace: BrowserSettingsOpenSpaceAction
     let addSpace: () -> Void
@@ -37,7 +36,7 @@ struct BrowserSettingsSidebar: View {
             .browserNativeScrollState(tabState.sidebarScroll)
         }
         .background(BrowserSettingsCanvas.background)
-        .browserSpaceDeletionConfirmation($pendingDeletionID, browser: browser, dataDeleter: dataDeleter)
+        .browserSpaceDeletion($pendingDeletionID, browser: browser, dataDeleter: dataDeleter)
         .onChange(of: navigation.query.isEmpty) { _, isEmpty in
             if !isEmpty { tabState.isArrangingSpaces = false }
         }
@@ -70,7 +69,7 @@ struct BrowserSettingsSidebar: View {
                     Text(destination.navigationTitle)
                 } icon: {
                     Image(systemName: destination.symbol)
-                        .foregroundStyle(destination.sidebarTint)
+                        .foregroundStyle(destination.color)
                 }
                 .settingsSidebarRow(.destination(destination), hovered: $hoveredItem, selection: selection)
                 .accessibilityIdentifier("settings-\(destination.name)")
@@ -149,12 +148,6 @@ struct BrowserSettingsSidebar: View {
                     .foregroundStyle(.secondary)
                     .accessibilityLabel("Drag to reorder")
             } else {
-                if space.settings.requiresAuthentication {
-                    Image(systemName: "lock.fill")
-                        .imageScale(.small)
-                        .foregroundStyle(.secondary)
-                        .accessibilityLabel("Locked")
-                }
                 if navigation.selection == .space(space.id) {
                     Menu {
                         spaceMenu(space)
@@ -177,7 +170,7 @@ struct BrowserSettingsSidebar: View {
 
     private func spaceMenu(_ space: SpaceModel) -> some View {
         BrowserSettingsSpaceMenu(
-            browser: browser, space: space, spaceAccess: spaceAccess, openSpace: openSpace,
+            browser: browser, space: space, openSpace: openSpace,
             requestDeletion: { pendingDeletionID = space.id })
     }
 
@@ -230,6 +223,7 @@ extension View {
                     .padding(.horizontal, BrowserSettingsSidebarMetrics.rowHighlightInset)
             )
             .tag(item)
+            .listItemTint(.monochrome)
     }
 }
 

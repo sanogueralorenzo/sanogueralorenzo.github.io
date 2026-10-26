@@ -7,6 +7,7 @@ struct BrowserSpaceSwitcherCompactPicker: View {
     var reorderState: BrowserSidebarReorderState? = nil
     let metrics: BrowserSpacePickerMetrics
     let selectSpace: (UUID) -> Void
+    var commands: (BrowserSpaceIdentity) -> [CrestSpaceChipCommand] = { _ in [] }
     let allocation: BrowserSpaceSwitcherCompactAllocation
     var moveSpace: ((UUID, UUID) -> Void)? = nil
     var style: CrestSpaceIconPickerStyle = .compact
@@ -52,6 +53,7 @@ struct BrowserSpaceSwitcherCompactPicker: View {
                 spaces: spaces,
                 selectedSpaceID: selectedSpaceID,
                 selectSpace: selectSpace,
+                commands: commands,
                 style: style,
                 accessibilityIdentifier: "space-switcher-picker",
                 moveSpace: moveSpace,

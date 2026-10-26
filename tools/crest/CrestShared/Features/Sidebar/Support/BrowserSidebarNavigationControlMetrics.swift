@@ -48,11 +48,10 @@ struct BrowserSidebarNavigationControlMetrics: Equatable, Sendable {
     /// accessibility text size.
     let accessibilityVerticalPadding: CGFloat
 
-    /// A pointer shell: compact targets in a titlebar-height strip, held off
-    /// the sidebar's trailing edge.
+    /// A pointer shell: navigation at the leading gutter and actions at the trailing gutter.
     static let pointer = BrowserSidebarNavigationControlMetrics(
-        controlSpacing: 1,
-        leadingSpacerMinimum: CrestSpacing.small,
+        controlSpacing: 0,
+        leadingSpacerMinimum: 0,
         controlSize: CGSize(
             width: BrowserChromeLayout.sidebarNavigationControlHitTarget,
             height: BrowserChromeLayout.sidebarNavigationControlHitTarget
@@ -67,9 +66,9 @@ struct BrowserSidebarNavigationControlMetrics: Equatable, Sendable {
         ),
         reloadSymbolPointSize: BrowserChromeLayout
             .sidebarNavigationSymbolPointSize,
-        leadingInset: 0,
-        trailingInset: BrowserChromeLayout.sidebarNavigationTrailingInset,
-        barHeight: BrowserChromeLayout.sidebarTitlebarHeight,
+        leadingInset: BrowserSidebarMetrics.layerInset,
+        trailingInset: BrowserSidebarMetrics.layerInset,
+        barHeight: CrestLayout.sidebarRowHeight,
         growsWithContent: false,
         accessibilityVerticalPadding: 0
     )

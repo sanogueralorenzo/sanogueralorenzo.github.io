@@ -13,6 +13,7 @@ struct CrestInteractiveSurfaceModifier: ViewModifier {
     var selectionEmphasis = false
     let isHovering: Bool
     let cornerRadius: CGFloat
+    var cornerStyle: RoundedCornerStyle = .continuous
     let isPressed: Bool
     let showsRestingSurface: Bool
     let selectedBorderColor: Color
@@ -29,7 +30,7 @@ struct CrestInteractiveSurfaceModifier: ViewModifier {
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(
             cornerRadius: cornerRadius,
-            style: .continuous
+            style: cornerStyle
         )
         let isEmphasized = isSelected || isPressed
 
@@ -105,6 +106,7 @@ struct CrestInteractiveSurfaceModifier: ViewModifier {
 private struct CrestHoverSurfaceModifier: ViewModifier {
     let isSelected: Bool
     let cornerRadius: CGFloat
+    let cornerStyle: RoundedCornerStyle
     let isPressed: Bool
     let showsRestingSurface: Bool
     let selectedBorderColor: Color
@@ -119,6 +121,7 @@ private struct CrestHoverSurfaceModifier: ViewModifier {
                 isSelected: isSelected,
                 isHovering: isHovering && isEnabled,
                 cornerRadius: cornerRadius,
+                cornerStyle: cornerStyle,
                 isPressed: isPressed && isEnabled,
                 showsRestingSurface: showsRestingSurface,
                 selectedBorderColor: selectedBorderColor,
@@ -133,6 +136,7 @@ extension View {
         isSelected: Bool,
         isHovering: Bool,
         cornerRadius: CGFloat = CrestRadius.compact,
+        cornerStyle: RoundedCornerStyle = .continuous,
         selectionEmphasis: Bool = false,
         isPressed: Bool = false,
         showsRestingSurface: Bool = false,
@@ -146,6 +150,7 @@ extension View {
                 selectionEmphasis: selectionEmphasis,
                 isHovering: isHovering,
                 cornerRadius: cornerRadius,
+                cornerStyle: cornerStyle,
                 isPressed: isPressed,
                 showsRestingSurface: showsRestingSurface,
                 selectedBorderColor: selectedBorderColor,
@@ -157,6 +162,7 @@ extension View {
     func crestHoverSurface(
         isSelected: Bool = false,
         cornerRadius: CGFloat = CrestRadius.compact,
+        cornerStyle: RoundedCornerStyle = .continuous,
         isPressed: Bool = false,
         showsRestingSurface: Bool = false,
         selectedBorderColor: Color = CrestColor.selectedBorder,
@@ -167,6 +173,7 @@ extension View {
             CrestHoverSurfaceModifier(
                 isSelected: isSelected,
                 cornerRadius: cornerRadius,
+                cornerStyle: cornerStyle,
                 isPressed: isPressed,
                 showsRestingSurface: showsRestingSurface,
                 selectedBorderColor: selectedBorderColor,

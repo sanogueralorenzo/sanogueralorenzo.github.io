@@ -6,6 +6,7 @@ struct BrowserNewTabRowContent: View {
     let action: () -> Void
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.browserShortcutBindings) private var bindings
     let tabScale: Double
     let hasBorders: Bool
 
@@ -25,16 +26,24 @@ struct BrowserNewTabRowContent: View {
 
     var body: some View {
         Button(action: action) {
-            Label {
-                Text("New Tab")
-                    .modifier(BrowserSidebarDensityFont(scale: tabScale, supportsTouch: capabilities.supportsTouch))
-                    .lineLimit(1)
-            } icon: {
-                Image(systemName: "plus")
-                    .font(tabMetrics.faviconSlot.map { .system(size: $0.glyphSize, weight: $0.glyphWeight) })
-                    .frame(width: tabMetrics.faviconSlot?.width ?? 18)
+            HStack(spacing: CrestSpacing.small) {
+                Label {
+                    Text("New Tab")
+                        .modifier(BrowserSidebarDensityFont(scale: tabScale, supportsTouch: capabilities.supportsTouch))
+                        .lineLimit(1)
+                } icon: {
+                    Image(systemName: "plus")
+                        .font(tabMetrics.faviconSlot.map { .system(size: $0.glyphSize, weight: $0.glyphWeight) })
+                        .frame(width: tabMetrics.faviconSlot?.width ?? 18)
+                }
+                .labelStyle(.titleAndIcon)
+                if metrics.showsShortcutHint,
+                    let shortcut = ShortcutCommand.newTab.shortcut(in: bindings)
+                {
+                    Spacer(minLength: 0)
+                    BrowserShortcutHint(shortcut: shortcut)
+                }
             }
-            .labelStyle(.titleAndIcon)
             .padding(.horizontal, metrics.labelHorizontalInset)
             .frame(minHeight: rowHeight, maxHeight: metrics.usesFixedHeight ? rowHeight : nil)
             .frame(
@@ -60,7 +69,6 @@ struct BrowserNewTabRowContent: View {
         // within, which lines it up with every other layer, is not part of
         // what a reader can press.
         .padding(.horizontal, BrowserSidebarMetrics.layerInset)
-        .modifier(BrowserNewTabRowTooltip(metrics: metrics))
     }
 }
 
@@ -70,20 +78,8 @@ private struct BrowserNewTabRowSurface: ViewModifier {
     @ViewBuilder
     func body(content: Content) -> some View {
         if metrics.showsHoverSurface {
-            content.crestHoverSurface(cornerRadius: BrowserSidebarMetrics.layerCornerRadius())
-        } else {
-            content
-        }
-    }
-}
-
-private struct BrowserNewTabRowTooltip: ViewModifier {
-    let metrics: BrowserSidebarNewTabRowMetrics
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if metrics.showsShortcutTooltip {
-            content.help("New Tab (⌘T)")
+            content.crestHoverSurface(
+                cornerRadius: BrowserSidebarMetrics.capsuleRadius(tabScale: 1), cornerStyle: .circular)
         } else {
             content
         }

@@ -3,8 +3,6 @@ import SwiftUI
 struct BrowserCommandPaletteResultRow: View {
     let model: BrowserCommandPaletteModel
     let item: BrowserCommandPaletteItem
-    /// The row names its kind at its end, as the blended layout shows it.
-    var namesKind = false
 
     private var isSelected: Bool { model.selectedResultIndex == item.index }
 
@@ -22,13 +20,13 @@ struct BrowserCommandPaletteResultRow: View {
                     Text(verbatim: item.row.title)
                         .font(.body.weight(.semibold))
                         .lineLimit(1)
-                    BrowserCommandPaletteRowDetail(model: model, row: item.row)
+                    BrowserCommandPaletteRowDetail(row: item.row)
                 }
 
                 Spacer(minLength: BrowserCommandPaletteMetrics.rowSpacing)
 
                 BrowserCommandPaletteRowTrailing(
-                    model: model, row: item.row, isSelected: isSelected, namesKind: namesKind)
+                    model: model, row: item.row, isSelected: isSelected)
 
                 Image(systemName: isSelected ? model.selectedOpening.symbol : "arrow.right")
                     .foregroundStyle(.secondary)

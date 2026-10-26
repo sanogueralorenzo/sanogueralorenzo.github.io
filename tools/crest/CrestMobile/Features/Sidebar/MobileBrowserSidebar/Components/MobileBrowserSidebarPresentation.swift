@@ -21,30 +21,21 @@ struct MobileBrowserSidebarPresentation<Content: View>: View {
                     MobileArchiveView(
                         browser: configuration.browser,
                         assignment: request.assignment,
-                        spaceAccess: configuration.spaceAccess,
                         selectTab: configuration.selectTab
                     )
                 case .history:
                     MobileHistoryView(
                         browser: configuration.browser,
                         assignment: request.assignment,
-                        spaceAccess: configuration.spaceAccess,
                         openURL: configuration.openURL
                     )
                 case .downloads:
                     MobileDownloadsView(
                         browser: configuration.browser,
                         pages: configuration.pages,
-                        assignment: request.assignment,
-                        spaceAccess: configuration.spaceAccess
+                        assignment: request.assignment
                     )
                 }
-            }
-            .sheet(isPresented: configuration.showsPasswords) {
-                MobilePasswordSettingsView(
-                    browser: configuration.browser,
-                    spaceAccess: configuration.spaceAccess
-                )
             }
             .onChange(of: configuration.selectedSpaceAssignment) {
                 _,

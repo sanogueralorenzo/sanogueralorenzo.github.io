@@ -1,16 +1,13 @@
 import SwiftUI
 
-/// The Space's current tabs as one drop section, on every shell: the new-tab row
-/// and the run of rows below it.
+/// The Space's current tabs as one drop section, on every shell.
 ///
-/// The current tabs are a run of their own inside this section's zone. They
-/// start below the new-tab row, which is where a cleared list has to show that
-/// it will still take a drop.
+/// New Tab follows this section, so drop indicators and insertion gaps stay
+/// with the tab rows rather than covering the action.
 struct BrowserCurrentTabsDropSection: View {
     @Environment(BrowserSidebarInteractionState.self) private var sidebarInteraction
 
     let context: BrowserSidebarListContext
-    let openNewTab: () -> Void
 
     private var section: BrowserSidebarReorderSection {
         .tabs(placement: .current, folderID: nil)
@@ -18,15 +15,23 @@ struct BrowserCurrentTabsDropSection: View {
 
     var body: some View {
         let list = context.space.sidebar.section(.current)
-        VStack(spacing: 0) {
-            BrowserNewTabRow(capabilities: context.capabilities, action: openNewTab)
+        if !list.isEmpty || isDragging {
+            sectionContent(list: list)
+        }
+    }
 
+    private var isDragging: Bool {
+        sidebarInteraction.sidebarReorderState.hasLiftInFlight
+            || sidebarInteraction.tabDragState.item != nil || sidebarInteraction.folderDragState.item != nil
+    }
+
+    private func sectionContent(list: SidebarListModel) -> some View {
+        VStack(spacing: 0) {
             if context.capabilities.reservesReorderSectionZones {
                 BrowserSidebarListRows(list: list, context: context).equatable()
 
                 // Also the band a cleared list draws its insertion line in: it
-                // sits directly below the new-tab row, where the first current
-                // tab would appear.
+                // sits above New Tab, where the first current tab would appear.
                 BrowserCurrentTabsEndDropTarget(context: context)
                     .browserSidebarReorderSectionIndicator(
                         section,
@@ -35,7 +40,7 @@ struct BrowserCurrentTabsDropSection: View {
             } else {
                 BrowserSidebarListRows(list: list, context: context) { items in
                     // A cleared list has no row to draw the seam on, so it
-                    // keeps a band under the new-tab row for the line to stand
+                    // keeps a band above New Tab for the line to stand
                     // in.
                     if items.isEmpty {
                         Color.clear

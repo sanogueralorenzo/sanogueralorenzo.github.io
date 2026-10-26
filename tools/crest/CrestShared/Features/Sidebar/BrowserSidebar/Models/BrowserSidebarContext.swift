@@ -16,7 +16,6 @@ struct BrowserSidebarContext {
     let sidebarInteraction: BrowserSidebarInteractionState
     let browser: BrowserStore
     let pageAccess: BrowserSidebarPageAccess
-    let spaceAccess: BrowserSpaceAccessController
 
     /// What the hosting shell can do, resolved once by the host.
     let capabilities: BrowserInteractionCapabilities
@@ -38,8 +37,6 @@ struct BrowserSidebarContext {
     /// Tells the root that the pager came to rest on a Space, which is what
     /// releases a deferred page selection.
 
-    /// Asks for the clear-history confirmation for one Space. The root refuses
-    /// unless that Space is still the selected, unlocked one.
     let confirmClearHistory: (SpaceModel) -> Void
 
     /// Dismisses an open utility surface because the reader tapped the sidebar

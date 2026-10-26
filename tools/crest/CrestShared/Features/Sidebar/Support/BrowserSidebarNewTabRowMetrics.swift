@@ -29,19 +29,16 @@ struct BrowserSidebarNewTabRowMetrics: Equatable, Sendable {
     /// what a touch shell has no way to show.
     let showsHoverSurface: Bool
 
-    /// Whether the row carries its keyboard shortcut as a tooltip.
-    ///
-    /// A tooltip needs a pointer to rest still over the row before it appears,
-    /// and the shortcut it names needs a keyboard to reach it.
-    let showsShortcutTooltip: Bool
+    /// Whether the row displays its keyboard shortcut beside the label.
+    let showsShortcutHint: Bool
 
     /// A pointer shell: one exact row height, a hover surface, and the shortcut
-    /// on hover.
+    /// beside the label.
     static let pointer = BrowserSidebarNewTabRowMetrics(
         labelHorizontalInset: 9,
         usesFixedHeight: true,
         showsHoverSurface: true,
-        showsShortcutTooltip: true
+        showsShortcutHint: true
     )
 
     /// A touch shell uses the same content margin as a tab row.
@@ -49,6 +46,6 @@ struct BrowserSidebarNewTabRowMetrics: Equatable, Sendable {
         labelHorizontalInset: BrowserSidebarTabRowMetrics.touch.contentLeadingInset,
         usesFixedHeight: false,
         showsHoverSurface: false,
-        showsShortcutTooltip: false
+        showsShortcutHint: false
     )
 }

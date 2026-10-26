@@ -8,7 +8,6 @@ import SwiftUI
 final class SpaceContentPagerView<Content: View & Equatable>: NSView {
     private var spaces: [SpaceModel] = []
     private var selectedSpaceID: UUID?
-    private var lockedSpaceIDs: Set<UUID> = []
     private var layoutDirection = LayoutDirection.leftToRight
     private var presentation: SpacePagerPresentation?
     private var snapshot: SpacePagerPresentation.Snapshot?
@@ -32,20 +31,18 @@ final class SpaceContentPagerView<Content: View & Equatable>: NSView {
     }
 
     func update(
-        spaces: [SpaceModel], selectedSpaceID: UUID, lockedSpaceIDs: Set<UUID>,
+        spaces: [SpaceModel], selectedSpaceID: UUID,
         layoutDirection: LayoutDirection, presentation: SpacePagerPresentation?,
         makeRoot: @escaping (SpaceModel, Bool) -> SpacePageRoot<Content>
     ) {
-        let changedLocks = self.lockedSpaceIDs.symmetricDifference(lockedSpaceIDs)
         let assignments = Set(spaces.map(BrowserSpaceRuntimeAssignment.init(space:)))
         // Withdraw old clear surfaces before admitting roots for a new lock or
         // profile assignment. In-flight reversal cannot resurrect those hosts.
-        for key in hosts.keys where changedLocks.contains(key.spaceID) || !assignments.contains(key) {
+        for key in hosts.keys where !assignments.contains(key) {
             hosts.removeValue(forKey: key)?.removeFromSuperview()
         }
         self.spaces = spaces
         self.selectedSpaceID = selectedSpaceID
-        self.lockedSpaceIDs = lockedSpaceIDs
         self.layoutDirection = layoutDirection
         self.makeRoot = makeRoot
         if self.presentation !== presentation {

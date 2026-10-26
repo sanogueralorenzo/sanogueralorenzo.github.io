@@ -45,8 +45,8 @@ enum SidebarChangeFixture {
                 lastVisitedAt: firstVisit.addingTimeInterval(Double(visit)))
         }
         return SpaceState.Seed(
-            name: "Space \(index)", symbol: "square.stack",
-            accent: SpaceAccent.all[index % SpaceAccent.all.count], folders: folders, tabs: tabs,
+            name: "Space \(index)",
+            folders: folders, tabs: tabs,
             history: history)
     }
 

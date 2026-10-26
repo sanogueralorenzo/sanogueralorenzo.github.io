@@ -5,7 +5,6 @@ import SwiftUI
 struct BrowserTabSelectionMonitor: View {
     @Environment(BrowserSidebarInteractionState.self) private var sidebarInteraction
     let browser: BrowserStore
-    let spaceAccess: BrowserSpaceAccessController
     let assignment: BrowserSpaceRuntimeAssignment
     let activate: (UUID) -> Void
     var ownsFocus = false
@@ -13,7 +12,7 @@ struct BrowserTabSelectionMonitor: View {
     var body: some View {
         GeometryReader { proxy in
             Bridge(
-                browser: browser, sidebarInteraction: sidebarInteraction, spaceAccess: spaceAccess,
+                browser: browser, sidebarInteraction: sidebarInteraction,
                 assignment: assignment, activate: activate, ownsFocus: ownsFocus,
                 globalFrame: proxy.frame(in: .global))
         }
@@ -22,7 +21,6 @@ struct BrowserTabSelectionMonitor: View {
     private struct Bridge: NSViewRepresentable {
         let browser: BrowserStore
         let sidebarInteraction: BrowserSidebarInteractionState
-        let spaceAccess: BrowserSpaceAccessController
         let assignment: BrowserSpaceRuntimeAssignment
         let activate: (UUID) -> Void
         let ownsFocus: Bool
@@ -33,7 +31,6 @@ struct BrowserTabSelectionMonitor: View {
         func updateNSView(_ view: SelectionView, context: Context) {
             view.browser = browser
             view.sidebarInteraction = sidebarInteraction
-            view.spaceAccess = spaceAccess
             view.assignment = assignment
             view.activate = activate
             view.globalFrame = globalFrame
@@ -51,7 +48,6 @@ struct BrowserTabSelectionMonitor: View {
     final class SelectionView: NSView {
         weak var browser: BrowserStore?
         weak var sidebarInteraction: BrowserSidebarInteractionState?
-        weak var spaceAccess: BrowserSpaceAccessController?
         var assignment: BrowserSpaceRuntimeAssignment?
         var activate: ((UUID) -> Void)?
         var globalFrame: CGRect = .zero
@@ -104,11 +100,11 @@ struct BrowserTabSelectionMonitor: View {
                     at: global, released: event.type == .leftMouseUp, eventTimestamp: event.timestamp)
                 if event.type == .leftMouseDragged { return event }
             }
-            guard let browser, let sidebarInteraction, let spaceAccess, let assignment,
+            guard let browser, let sidebarInteraction, let assignment,
                 browser.selectedSpaceID == assignment.spaceID
             else { return event }
             guard
-                browser.selectedUnlockedSpace(matching: assignment, accessController: spaceAccess) != nil
+                browser.selectedAvailableSpace(matching: assignment) != nil
             else {
                 browser.tabMultiSelection.clear()
                 return event
@@ -179,9 +175,9 @@ struct BrowserTabSelectionMonitor: View {
             }
             if command, !shift, !event.modifierFlags.contains(.option),
                 !event.modifierFlags.contains(.control), let id = selection.focusedItem,
-                let request = BrowserSidebarSelection.capture(for: id, in: browser), let spaceAccess
+                let request = BrowserSidebarSelection.capture(for: id, in: browser)
             {
-                let actions = BrowserTabBatchActions(browser: browser, spaceAccess: spaceAccess)
+                let actions = BrowserTabBatchActions(browser: browser)
                 switch event.charactersIgnoringModifiers?.lowercased() {
                 case "c":
                     actions.copyLinks(request)

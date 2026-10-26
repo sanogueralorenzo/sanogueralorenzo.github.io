@@ -30,7 +30,6 @@ struct MobileSplitContentDropFeed: ViewModifier {
     @Environment(BrowserSidebarInteractionState.self) private var sidebarInteraction
 
     let browser: BrowserStore
-    let spaceAccess: BrowserSpaceAccessController
 
     func body(content: Content) -> some View {
         content.overlay {
@@ -38,8 +37,7 @@ struct MobileSplitContentDropFeed: ViewModifier {
                 .contentShape(.rect)
                 .modifier(
                     MobileBrowserReorderDropFeed(
-                        browser: browser,
-                        spaceAccess: spaceAccess
+                        browser: browser
                     )
                 )
                 .allowsHitTesting(

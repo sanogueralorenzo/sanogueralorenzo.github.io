@@ -4,20 +4,14 @@ import SwiftUI
 /// spelled out by each header.
 ///
 /// The header is one row of chrome that both shells draw, and everything they
-/// used to disagree about was a size: how big the identity icon is, how big
-/// the chevron standing in for it is, and how much room the actions menu
-/// claims. None of that is a platform fact — it follows from the least precise
+/// used to disagree about was a size: how big the identity icon is and how
+/// much room the actions menu claims. None of that is a platform fact — it follows from the least precise
 /// input the shell accepts, the same way the tab row's geometry does.
 struct BrowserSpaceHeaderMetrics: Equatable, Sendable {
     /// The most a fixed-height header's content may grow to, or nil for no cap.
     private static let fixedContentMaxHeight: CGFloat? = nil
 
-    /// The point size of the chevron that replaces the identity icon while the
-    /// saved tabs are collapsed.
-    let disclosureGlyphSize: CGFloat
-
-    /// The square the identity icon — or the chevron standing in for it — is
-    /// drawn into.
+    /// The square the identity icon is drawn into.
     let iconSize: CGFloat
 
     /// The square the actions menu's ellipsis claims.
@@ -46,18 +40,17 @@ struct BrowserSpaceHeaderMetrics: Equatable, Sendable {
     /// A pointer shell: a small icon, a small ellipsis at the ambient size, and
     /// a row held to one exact height.
     static let pointer = BrowserSpaceHeaderMetrics(
-        disclosureGlyphSize: 9,
         iconSize: 20,
-        actionsControlSize: 24,
-        actionsGlyph: nil,
+        actionsControlSize: BrowserChromeLayout.sidebarNavigationControlHitTarget,
+        actionsGlyph: BrowserSpaceHeaderActionsGlyph(
+            size: BrowserChromeLayout.sidebarNavigationSymbolPointSize, weight: .regular),
         fillsRowHeight: true,
-        expandsActionsHitArea: false
+        expandsActionsHitArea: true
     )
 
     /// A touch shell: a larger icon, a full 44pt menu target with a glyph sized
     /// to read at that scale, and a row that grows with its label.
     static let touch = BrowserSpaceHeaderMetrics(
-        disclosureGlyphSize: 10,
         iconSize: 22,
         actionsControlSize: 44,
         actionsGlyph: BrowserSpaceHeaderActionsGlyph(size: 17, weight: .medium),

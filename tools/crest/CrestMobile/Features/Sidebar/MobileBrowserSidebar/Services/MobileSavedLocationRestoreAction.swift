@@ -5,7 +5,6 @@ struct MobileSavedLocationRestoreAction {
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
     let selectTab: (UUID) -> Void
-    var spaceAccess = BrowserSpaceAccessController()
 
     @discardableResult
     func perform(_ assignment: BrowserTabRuntimeAssignment) -> Bool {
@@ -13,7 +12,6 @@ struct MobileSavedLocationRestoreAction {
             let space = browser.shownSpace,
             space.id == assignment.spaceID,
             space.profileID == assignment.profileID,
-            !spaceAccess.isLocked(space),
             space.tabs.contains(assignment.tabID),
             browser.returnsToSavedAddress(assignment.tabID, in: space.id),
             !pages.containsResidentPage(for: assignment.tabID) || pages.containsResidentPage(matching: assignment)
@@ -27,7 +25,6 @@ struct MobileSavedLocationRestoreAction {
         let pageActions = MobileSelectedPageActionPort(
             browser: browser,
             pages: pages,
-            spaceAccess: spaceAccess,
             expectedAssignment: assignment
         )
         guard let page = pageActions.activePage

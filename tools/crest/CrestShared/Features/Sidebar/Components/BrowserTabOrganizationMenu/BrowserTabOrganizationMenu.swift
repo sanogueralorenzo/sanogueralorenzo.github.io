@@ -5,9 +5,7 @@ struct BrowserTabOrganizationMenu: View {
     let tab: TabStateModel
     let context: BrowserSidebarListContext
     let assignment: BrowserTabRuntimeAssignment
-    var isLoaded = true
     var renameTab: (() -> Void)? = nil
-    var changeIcon: (() -> Void)? = nil
 
     @Environment(\.browserInteractionCapabilities) private var capabilities
 
@@ -17,8 +15,7 @@ struct BrowserTabOrganizationMenu: View {
                 let request = BrowserSidebarSelection.capture(for: .tab(tab.id), in: context.browser)
             {
                 BrowserTabBatchMenu(
-                    request: request, browser: context.browser, spaceAccess: context.spaceAccess,
-                    unload: { context.unload($0) })
+                    request: request, browser: context.browser)
             } else {
                 BrowserTabOrganizationMenuContent(menu: self)
                 BrowserSidebarSelectionMenu(item: .tab(tab.id), browser: context.browser)

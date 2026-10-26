@@ -61,7 +61,6 @@ struct BrowserCommandPaletteCard: View {
                     )
                 )
                 .clipShape(morphingShape)
-                .modifier(BrowserSearchProviderGlow(color: model.activeProvider?.color, shape: morphingShape))
                 .animation(glassAnimation) {
                     $0.opacity(isSettled ? 1 : 0)
                 }
@@ -85,14 +84,11 @@ struct BrowserCommandPaletteCard: View {
                     )
                 )
                 .clipShape(restingShape)
-                .modifier(BrowserSearchProviderGlow(color: model.activeProvider?.color, shape: restingShape))
                 .opacity(isSettled ? 1 : 0)
         }
     }
 
-    /// The field, the provider chips while what is typed names some, and the
-    /// results. An overlay card keeps one height whatever the results, so it
-    /// never moves as they change; the chips take their room from the results.
+    /// The field and results. The overlay keeps one height as results change.
     private var contents: some View {
         VStack(spacing: 0) {
             BrowserCommandPaletteSearchField(
@@ -101,15 +97,11 @@ struct BrowserCommandPaletteCard: View {
                 queryIsFocused: queryIsFocused
             )
 
-            if !model.providerChips.isEmpty {
-                BrowserCommandPaletteProviderChips(model: model)
-            }
-
             if keepsHeight || !model.groups.isEmpty {
                 Divider()
                 BrowserCommandPaletteResultList(
                     model: model,
-                    maximumResultAreaHeight: resultAreaHeight,
+                    maximumResultAreaHeight: maximumResultAreaHeight,
                     fillsHeight: keepsHeight
                 )
             }
@@ -119,20 +111,13 @@ struct BrowserCommandPaletteCard: View {
     /// Whether the card keeps one height while its results change.
     private var keepsHeight: Bool { presentation == .overlay }
 
-    /// The height the results may take, less what the provider chips take
-    /// from a card that keeps its height.
-    private var resultAreaHeight: CGFloat {
-        guard keepsHeight, !model.providerChips.isEmpty else { return maximumResultAreaHeight }
-        return max(0, maximumResultAreaHeight - BrowserCommandPaletteMetrics.providerChipRowHeight)
-    }
-
     /// The card's own outline at rest, and the field's while the card is
     /// growing out of it or shrinking back, animated with the frame.
     private var morphingShape: RoundedRectangle {
         isSettled
             ? restingShape
             : RoundedRectangle(
-                cornerRadius: BrowserDeviceAppearanceStore.shared.sidebarCornerRadius,
+                cornerRadius: BrowserSidebarMetrics.cornerRadius,
                 style: .continuous
             )
     }

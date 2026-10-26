@@ -4,9 +4,7 @@ struct BrowserTabOrganizationMenuContent: View {
     let tab: TabStateModel
     let context: BrowserSidebarListContext
     let assignment: BrowserTabRuntimeAssignment
-    var isLoaded = true
     var renameTab: (() -> Void)? = nil
-    var changeIcon: (() -> Void)? = nil
 
     @Environment(\.layoutDirection) private var layoutDirection
 
@@ -14,13 +12,10 @@ struct BrowserTabOrganizationMenuContent: View {
         tab = menu.tab
         context = menu.context
         assignment = menu.assignment
-        isLoaded = menu.isLoaded
         renameTab = menu.renameTab
-        changeIcon = menu.changeIcon
     }
 
     private var browser: BrowserStore { context.browser }
-    private var spaceAccess: BrowserSpaceAccessController { context.spaceAccess }
 
     var body: some View {
         if context.takesPartInTabSharing(tab.id) {
@@ -50,32 +45,6 @@ struct BrowserTabOrganizationMenuContent: View {
             Button("Rename Tab…", systemImage: "pencil") {
                 performIfCurrent { renameTab() }
             }
-
-            Divider()
-        }
-
-        if !tab.isStartPage {
-            BrowserTabEditActions(
-                tab: tab,
-                favicons: context.favicons,
-                isLoaded: isLoaded,
-                pullNewIcon: { context.pullNewIcon(tab.id) },
-                restoreSavedLocation: context.restoreSavedLocation.map { restore in { restore(tab.id) } },
-                performIfCurrent: performIfCurrent,
-                replaceSavedLocation: {
-                    browser.replaceTabSavedLocationWithCurrent(
-                        tab.id,
-                        in: assignment.spaceID
-                    )
-                },
-                clearIcon: {
-                    browser.clearTabIcon(
-                        for: tab.id,
-                        matching: sourceAssignment
-                    )
-                },
-                changeIcon: { changeIcon?() }
-            )
 
             Divider()
         }
@@ -171,8 +140,7 @@ struct BrowserTabOrganizationMenuContent: View {
                             Label {
                                 Text(choice.pathTitle)
                             } icon: {
-                                BrowserFolderArtwork(
-                                    symbol: choice.folder.displaySymbol, color: choice.folder.displayColor)
+                                BrowserFolderArtwork()
                             }
                         }
                         .disabled(
@@ -205,7 +173,7 @@ struct BrowserTabOrganizationMenuContent: View {
                             let destinationAssignment =
                                 BrowserSpaceRuntimeAssignment(space: space)
                             guard
-                                browser.unlockedSpace(matching: destinationAssignment, accessController: spaceAccess)
+                                browser.availableSpace(matching: destinationAssignment)
                                     != nil
                             else { return }
                             browser.moveTab(
@@ -262,33 +230,6 @@ struct BrowserTabOrganizationMenuContent: View {
         }
 
         Divider()
-
-        if tab.nativeContent == nil {
-            Button(
-                tab.keepsPageLoaded ? "Stop Keeping Loaded" : "Keep Loaded",
-                systemImage: tab.keepsPageLoaded ? "lock.open" : "lock"
-            ) {
-                performIfCurrent {
-                    browser.setTabKeepsPageLoaded(
-                        !tab.keepsPageLoaded,
-                        for: tab.id,
-                        matching: sourceAssignment
-                    )
-                }
-            }
-
-        }
-
-        if isLoaded, tab.nativeContent == nil || tab.placement.isDurable {
-            Button(
-                !tab.placement.isDurable ? "Unload Tab" : "Close Tab",
-                systemImage: !tab.placement.isDurable ? "minus" : "xmark"
-            ) {
-                performIfCurrent {
-                    context.unload(tab.id)
-                }
-            }
-        }
 
         Button("Duplicate Tab", systemImage: "plus.square.on.square") {
             performIfCurrent {
@@ -370,12 +311,9 @@ struct BrowserTabOrganizationMenuContent: View {
     }
 
     private var availableDestinationSpaces: [SpaceModel] {
-        browser.availableTabMoveDestinationSpaces(from: sourceAssignment, accessController: spaceAccess)
+        browser.availableTabMoveDestinationSpaces(from: sourceAssignment)
     }
 
-    /// Runs a menu action only while the window shows the tab's Space,
-    /// unlocked, with the profile the menu was built for, and the Space still
-    /// holds the tab.
     private func performIfCurrent(_ action: () -> Void) {
         guard context.isCurrent(sourceAssignment), context.space.tabs.contains(tab.id) else { return }
         action()
@@ -383,8 +321,7 @@ struct BrowserTabOrganizationMenuContent: View {
 
     private var organizationAction: BrowserTabOrganizationAction {
         BrowserTabOrganizationAction(
-            browser: browser,
-            spaceAccess: spaceAccess
+            browser: browser
         )
     }
 }

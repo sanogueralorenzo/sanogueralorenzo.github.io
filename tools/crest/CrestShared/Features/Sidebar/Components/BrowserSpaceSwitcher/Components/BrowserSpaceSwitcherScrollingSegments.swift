@@ -9,16 +9,15 @@ struct BrowserSpaceSwitcherScrollingSegments: View {
     let selectedSpaceID: UUID
     let reorderState: BrowserSidebarReorderState
     let metrics: BrowserSpacePickerMetrics
-    let iconSizing: BrowserSpaceIconSizing
-    let chosenIconScale: Double
     let selectSpace: (UUID) -> Void
+    var commands: (BrowserSpaceIdentity) -> [CrestSpaceChipCommand] = { _ in [] }
 
     // MARK: - Actions - Drawing
 
     var body: some View {
         GeometryReader { geometry in
-            let scale = iconSizing.scale(
-                chosen: chosenIconScale, spaceCount: spaces.count, style: .touch, width: geometry.size.width)
+            let scale = BrowserSpaceIconSizing.scale(
+                spaceCount: spaces.count, style: .touch, width: geometry.size.width)
             let style = CrestSpaceIconPickerStyle.touch.scaled(by: scale)
             let allocation = BrowserSpaceSwitcherCompactAllocation(
                 pickerViewportWidth: geometry.size.width,
@@ -27,11 +26,12 @@ struct BrowserSpaceSwitcherScrollingSegments: View {
             BrowserSpaceSwitcherCompactPicker(
                 spaces: spaces, selectedSpaceID: selectedSpaceID,
                 reorderState: reorderState, metrics: metrics.scaled(by: scale), selectSpace: selectSpace,
+                commands: commands,
                 allocation: allocation, style: style)
         }
         .frame(
             height: CrestSpaceIconPickerStyle.touch.scaled(
-                by: iconSizing.largestScale(chosen: chosenIconScale)
+                by: 1
             ).height
         )
         .padding(.horizontal, BrowserSpaceSwitcherLayout.scrollingTrackHorizontalInset)

@@ -73,7 +73,7 @@
                     } label: {
                         Image(systemName: "trash")
                     }
-                    .buttonStyle(.crestIcon(tint: CrestBrandPalette.sage))
+                    .buttonStyle(.crestIcon(tint: CrestBrandTheme.accent))
                     .accessibilityLabel("Remove")
                 }
 
@@ -156,7 +156,7 @@
                 CrestSelectableCard(
                     isSelected: true,
                     accessibilityLabel: Text("Disabled"),
-                    tint: CrestBrandPalette.sage
+                    tint: CrestBrandTheme.accent
                 ) {
                 } content: {
                     Text("Disabled and selected")
@@ -181,7 +181,7 @@
                 )
 
                 CrestSpaceMenuPicker(
-                    "Default Space",
+                    "Space",
                     selection: $menuSelection,
                     spaces: spaces
                 )
@@ -207,12 +207,12 @@
                         }
 
                         CrestFormControlRow(
-                            "Default Space",
+                            "Space",
                             systemImage: "square.grid.2x2",
-                            tint: CrestBrandPalette.sky
+                            tint: CrestBrandTheme.accent
                         ) {
                             CrestSpaceMenuPicker(
-                                "Default Space",
+                                "Space",
                                 selection: $menuSelection,
                                 spaces: spaces,
                                 labelsHidden: true
@@ -223,14 +223,14 @@
                             "Reset All",
                             subtitle: "Makes every site ask again in this Space",
                             systemImage: "arrow.counterclockwise",
-                            tint: CrestBrandPalette.coral
+                            tint: CrestBrandTheme.accent
                         ) {
                             Button("Reset") {}
                                 .buttonStyle(.crestTertiary)
                         }
                     } footer: {
                         CrestFormFootnote(
-                            "Startup choices take effect the next time Crest opens a window."
+                            "Changes apply to all Spaces."
                         )
                     }
                 }

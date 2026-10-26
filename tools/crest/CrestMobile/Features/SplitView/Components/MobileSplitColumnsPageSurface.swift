@@ -33,14 +33,14 @@ struct MobileSplitColumnsPageSurface: View {
     /// `MobileRegularPageSurface` owns the decision; the row only draws it.
     let placeholderIndex: Int?
 
-    private var appearance: BrowserChromeAppearance { .device(windowCornerRadius: windowCornerRadius) }
+    private var appearance: BrowserChromeAppearance { .init(windowCornerRadius: windowCornerRadius) }
 
     var body: some View {
         BrowserSplitColumnsView(
             members: members,
             focusedTabID: model.browser.shownTab?.id,
             frameInsets: frameInsets,
-            accent: space.settings.look.primaryColor.color,
+            accent: CrestBrandTheme.accent,
             placeholderIndex: placeholderIndex,
             // "Fancy Move" is a pointer gesture: ⇧⌘-held mouse-down, and a
             // card that follows a cursor. iPadOS reorders its cards from the

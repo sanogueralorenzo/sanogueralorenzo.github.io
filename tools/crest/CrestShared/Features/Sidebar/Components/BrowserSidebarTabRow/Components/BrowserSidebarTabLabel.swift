@@ -10,17 +10,14 @@ struct BrowserSidebarTabLabel: View {
     let isLoaded: Bool
     let metrics: BrowserSidebarTabRowMetrics
     var leadingInset: CGFloat = 0
-    var restoreSavedLocation: (() -> Void)?
-    var faviconPrimaryClick: (() -> Void)?
     var titleOpacity = 1.0
     var iconOffset: CGFloat = 0
-    private var textScale: Double { BrowserDeviceAppearanceStore.shared.tabScale }
+    private let textScale = 1.0
 
     var body: some View {
         BrowserSidebarTabLabelContent(
             tab: tab, favicons: favicons, profileID: profileID, isSelected: isSelected, isLoaded: isLoaded,
-            metrics: metrics, leadingInset: leadingInset, restoreSavedLocation: restoreSavedLocation,
-            faviconPrimaryClick: faviconPrimaryClick,
+            metrics: metrics, leadingInset: leadingInset,
             titleOpacity: titleOpacity, iconOffset: iconOffset, textScale: textScale
         )
     }

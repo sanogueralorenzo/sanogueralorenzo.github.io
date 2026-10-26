@@ -240,20 +240,17 @@ extension SidebarBodies {
                     Child(
                         key: "list", input: AnyEquatable("list"),
                         node: Node(kind: .list) {
-                            let isSavedTabsExpanded = context.space.settings.isSavedTabsExpanded
                             generation += 1
                             var children: [Child] = []
-                            if isSavedTabsExpanded {
-                                children.append(
-                                    SidebarBodies.container(
-                                        "saved", list: context.space.sidebar.section(.saved), generation: generation,
-                                        context: context, interaction: interaction))
-                            }
+                            children.append(
+                                SidebarBodies.container(
+                                    "saved", list: context.space.sidebar.section(.saved), generation: generation,
+                                    context: context, interaction: interaction))
                             children.append(
                                 Child(
-                                    key: "seam", input: AnyEquatable(isSavedTabsExpanded),
+                                    key: "seam", input: AnyEquatable("seam"),
                                     node: Node(kind: .seam) {
-                                        SidebarReads.seam(in: context, isSavedTabsExpanded: isSavedTabsExpanded)
+                                        SidebarReads.seam(in: context)
                                         return []
                                     }))
                             children.append(
@@ -409,11 +406,10 @@ enum SidebarReads {
         let configuration = BrowserSidebarTabRowConfiguration(
             tab: tab, context: context, isSelected: context.window.shownTabIDs.contains(tab.id),
             isLoaded: context.isLoaded(tab.id), isSplitGroupMember: isSplitGroupMember)
-        _ = (tab.displayTitle, tab.placement, tab.folderID, tab.splitGroupID, tab.isAwayFromSavedAddress)
+        _ = (tab.displayTitle, tab.placement, tab.folderID, tab.splitGroupID, configuration.canReturnToSavedAddress)
         _ = (tab.emojiIcon, tab.iconMode, configuration.isPromotionSource, configuration.canClose)
         _ = BrowserTabFaviconSubject(tab: tab, image: context.favicons.icon(of: tab.id))
         _ = configuration.isAvailableForDisplay
-        _ = context.space.settings.look
         if !isSplitGroupMember { _ = BrowserSidebarSelection.showsSelected(.tab(tab.id), in: context) }
     }
 
@@ -426,7 +422,7 @@ enum SidebarReads {
         let configuration = BrowserSidebarSplitGroupRowConfiguration(
             sidebarInteraction: interaction, groupID: groupID, members: members, context: context,
             spacePresentation: nil)
-        _ = (configuration.shownTitle, configuration.emojiIcon, configuration.tint, configuration.isPresented)
+        _ = (configuration.shownTitle, configuration.isPresented)
         _ = (configuration.placement, configuration.folderID, configuration.isAvailableForDisplay)
         _ = members.map { BrowserTabFaviconSubject(tab: $0, image: context.favicons.icon(of: $0.id)) }
         _ = members.map { BrowserSidebarSelection.showsSelected(.tab($0.id), in: context) }
@@ -441,8 +437,8 @@ enum SidebarReads {
         let configuration = BrowserFolderGroupConfiguration(
             sidebarInteraction: interaction, folder: folder, depth: depth, context: context, spacePresentation: nil,
             inheritedKeptTabID: inheritedKeptTabID)
-        _ = (folder.title, folder.displaySymbol, folder.displayColor, folder.isCollapsed, folder.location)
-        _ = (configuration.displayBranding, configuration.isAvailableForDisplay)
+        _ = (folder.title, folder.displayColor, folder.isCollapsed, folder.location)
+        _ = configuration.isAvailableForDisplay
         _ = BrowserSidebarSelection.showsSelected(.folder(folder.id), in: context)
         _ = interaction.editingFolderRequest
         _ = (configuration.shownFolderTabID, configuration.residencyRevision)
@@ -454,11 +450,10 @@ enum SidebarReads {
     static func tile(_ tab: TabStateModel, in context: BrowserSidebarListContext) {
         _ = context.window.shownTabIDs.contains(tab.id)
         _ = (tab.displayTitle, tab.iconMode, tab.iconTint, tab.emojiIcon, tab.placement)
-        _ = (tab.supportsSavedLocationEditing, tab.nativeContent)
+        _ = tab.nativeContent
         _ = BrowserTabFaviconSubject(tab: tab, image: context.favicons.icon(of: tab.id))
         _ = context.isLoaded(tab.id)
         _ = BrowserSidebarSelection.showsSelected(.tab(tab.id), in: context)
-        _ = context.space.settings.look
         _ = context.isCurrent(context.assignment)
         let selection = context.browser.tabMultiSelection
         _ = (selection.pinnedRejectionGeneration, selection.rejectedPinnedIDs)
@@ -466,9 +461,9 @@ enum SidebarReads {
 
     /// The seam: whether the saved section keeps a band and whether the
     /// current section holds anything to clear.
-    static func seam(in context: BrowserSidebarListContext, isSavedTabsExpanded: Bool) {
+    static func seam(in context: BrowserSidebarListContext) {
         let sidebar = context.space.sidebar
-        if isSavedTabsExpanded, !context.capabilities.reservesReorderSectionZones {
+        if !context.capabilities.reservesReorderSectionZones {
             _ = sidebar.section(.saved).holdsTabRows
         }
         let current = sidebar.section(.current)

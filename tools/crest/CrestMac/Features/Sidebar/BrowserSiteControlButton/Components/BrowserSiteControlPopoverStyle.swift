@@ -5,16 +5,13 @@ import SwiftUI
 /// content behind it never washes out the light labels. A color-scheme override
 /// alone does not replace an inherited foreground style.
 struct BrowserSiteControlPopoverStyle: ViewModifier {
-    @Environment(\.crestSurfaceMaterial) private var materialOverride
 
     func body(content: Content) -> some View {
         content
             .font(.body)
-            .foregroundStyle(Color.white)
-            .tint(CrestBrandTheme.accent(.dark))
-            .presentationBackground(CrestSurfaceMaterial.shown(materialOverride).material)
-            .preferredColorScheme(.dark)
-            .environment(\.colorScheme, .dark)
+            .foregroundStyle(CrestBrandTheme.textDisplay)
+            .tint(CrestBrandTheme.accent)
+            .presentationBackground(CrestBrandTheme.surface)
     }
 }
 
@@ -28,7 +25,7 @@ struct BrowserSiteControlPopoverStyle: ViewModifier {
 
     #Preview("Dark popover from a dark Space") {
         BrowserSiteControlStylePreview()
-            .foregroundStyle(Color.white)
+            .foregroundStyle(CrestBrandTheme.textDisplay)
             .environment(\.colorScheme, .dark)
     }
 
@@ -42,7 +39,8 @@ struct BrowserSiteControlPopoverStyle: ViewModifier {
                 HStack(spacing: CrestSpacing.small) {
                     BrowserSiteQuickActionButton(title: "Copy Link", systemImage: "square.and.arrow.up", action: {})
                     BrowserSiteQuickActionButton(title: "Reload", systemImage: "arrow.clockwise", action: {})
-                    BrowserSiteQuickActionButton(title: "Capture", systemImage: "camera", action: {}).disabled(true)
+                    BrowserSiteQuickActionButton(title: "Translate Page", systemImage: "translate", action: {})
+                        .disabled(true)
                 }
                 Divider()
                 Label("Secure", systemImage: "lock.fill").foregroundStyle(.green)

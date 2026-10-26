@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct BrowserRootView: View {
-    private let transientBrowsing: BrowserTransientBrowsingCoordinator
     private let spaceSettingsPresentation: BrowserSpaceSettingsPresentationState
     private let shortcuts: BrowserShortcutStore?
     private let persistSidebarWidth: (Double) -> Void
@@ -15,18 +14,15 @@ struct BrowserRootView: View {
         browser: BrowserStore,
         pages: BrowserPagePool,
         chrome: BrowserChromeState,
-        transientBrowsing: BrowserTransientBrowsingCoordinator,
-        spaceAccess: BrowserSpaceAccessController = BrowserSpaceAccessController(),
+
         windowState: BrowserWindowStateStore? = nil,
         spaceSettingsPresentation: BrowserSpaceSettingsPresentationState =
             BrowserSpaceSettingsPresentationState(),
-        startupBehavior: StartupBehavior = .showStartPage,
         shortcuts: BrowserShortcutStore? = nil,
         initialSidebarWidth: Double? = nil,
         persistSidebarWidth: @escaping (Double) -> Void =
             BrowserRootSidebarWidthPersistence.write
     ) {
-        self.transientBrowsing = transientBrowsing
         self.spaceSettingsPresentation = spaceSettingsPresentation
         self.shortcuts = shortcuts
         self.persistSidebarWidth = persistSidebarWidth
@@ -40,9 +36,7 @@ struct BrowserRootView: View {
                 browser: browser,
                 pages: pages,
                 chrome: chrome,
-                spaceAccess: spaceAccess,
                 windowState: windowState,
-                startupBehavior: startupBehavior,
                 persistedSidebarWidth:
                     CGFloat(resolvedWidth)
             )
@@ -52,10 +46,9 @@ struct BrowserRootView: View {
     var body: some View {
         BrowserRootShell(
             model: model,
-            transientBrowsing: transientBrowsing,
+
             spaceSettingsPresentation: spaceSettingsPresentation,
             shortcuts: shortcuts,
-            storedSidebarWidth: $storedSidebarWidth,
             commandSurfaceNamespace: commandSurfaceNamespace,
             tabPromotionNamespace: tabPromotionNamespace
         )
@@ -66,6 +59,7 @@ struct BrowserRootView: View {
                 persistSidebarWidth: persistSidebarWidth
             )
         )
+        .environment(\.browserShortcutBindings, model.browser.core.state.shortcuts)
         .environment(model.sidebarInteraction)
         // Extension controls anywhere in the window open the panel into this
         // window's own row, so they read the host rather than being handed it.
@@ -74,7 +68,6 @@ struct BrowserRootView: View {
         // reach the engine host, which has a page but no view context, so this
         // window publishes the host that owns its row.
         .modifier(BrowserExtensionSidePanelRegistration(host: model.extensionSidePanel, pages: model.pages))
-        .modifier(BrowserPopupWindowPresentation(pages: model.pages))
         .modifier(BrowserRootWindowTitle(model: model))
     }
 }
@@ -93,8 +86,8 @@ private struct BrowserRootWindowTitle: ViewModifier {
     BrowserRootView(
         browser: browser,
         pages: BrowserPagePool(browser: browser),
-        chrome: BrowserRootPreviewFixture.makeChrome(state: .docked),
-        transientBrowsing: BrowserTransientBrowsingCoordinator(),
+        chrome: BrowserRootPreviewFixture.makeChrome(state: .expanded),
+
         windowState: BrowserRootPreviewFixture.makeWindowState(
             browser: browser
         ),
@@ -110,7 +103,7 @@ private struct BrowserRootWindowTitle: ViewModifier {
         browser: browser,
         pages: BrowserPagePool(browser: browser),
         chrome: BrowserRootPreviewFixture.makeChrome(state: .collapsed),
-        transientBrowsing: BrowserTransientBrowsingCoordinator(),
+
         windowState: BrowserRootPreviewFixture.makeWindowState(
             browser: browser
         ),
@@ -126,7 +119,7 @@ private struct BrowserRootWindowTitle: ViewModifier {
         browser: browser,
         pages: BrowserPagePool(browser: browser),
         chrome: BrowserRootPreviewFixture.makeChrome(state: .commandPalette),
-        transientBrowsing: BrowserTransientBrowsingCoordinator(),
+
         windowState: BrowserRootPreviewFixture.makeWindowState(
             browser: browser
         ),

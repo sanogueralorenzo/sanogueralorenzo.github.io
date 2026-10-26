@@ -47,7 +47,7 @@ struct MobileSpaceActionButtons: View {
     }
 
     private var selectedAccentColor: Color {
-        browser.shownSpace.map(\.settings.look)?.colors.first?.color ?? .accentColor
+        CrestBrandTheme.accent
     }
 
     private var downloadBadgeColor: Color {

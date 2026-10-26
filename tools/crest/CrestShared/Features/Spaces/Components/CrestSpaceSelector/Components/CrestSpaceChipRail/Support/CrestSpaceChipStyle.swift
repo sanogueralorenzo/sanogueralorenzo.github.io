@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A Space chip. Exposed because the onboarding wizard's absorbed chip style
+/// A Space chip. Its label-only style
 /// forwards to it.
 struct CrestSpaceChipStyle: ButtonStyle {
     let tint: Color

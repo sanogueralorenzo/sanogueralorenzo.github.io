@@ -7,13 +7,13 @@ struct BrowserRootSidebarSurfaceLayer<Content: View>: View {
     let space: SpaceModel?
     let reduceTransparency: Bool
     let spaces: [SpaceModel]
-    /// Whether the pointer brought a floating sidebar out by reaching the
-    /// window edge.
     let isRevealedByPointer: Bool
     let hoverChanged: @MainActor @Sendable (Bool) -> Void
     let content: Content
 
     @Environment(\.layoutDirection) private var layoutDirection
+    @Environment(\.browserWindowCornerRadius) private var windowCornerRadius
+    private var appearance: BrowserChromeAppearance { .init(windowCornerRadius: windowCornerRadius) }
 
     init(
         presentation: BrowserSidebarPresentation,
@@ -23,7 +23,7 @@ struct BrowserRootSidebarSurfaceLayer<Content: View>: View {
         reduceTransparency: Bool,
         spaces: [SpaceModel] = [],
         isRevealedByPointer: Bool = false,
-        hoverChanged: @escaping @MainActor @Sendable (Bool) -> Void,
+        hoverChanged: @escaping @MainActor @Sendable (Bool) -> Void = { _ in },
         @ViewBuilder content: () -> Content
     ) {
         self.presentation = presentation
@@ -54,25 +54,19 @@ struct BrowserRootSidebarSurfaceLayer<Content: View>: View {
             .contentShape(.interaction, .rect)
             #if os(macOS)
                 .overlay {
-                    // A hidden sidebar tracks nothing, and its tracker would
-                    // stay over the page it slid away from, where it would
-                    // take the page's cursor updates.
                     if presentation.showsSidebar {
                         // A floating card keeps its hover over a margin of the
                         // page beside it. The tracker never takes hits, so the
                         // page still gets every click and scroll there.
                         BrowserSidebarHoverTracker(
                             isRevealedByPointer: isRevealedByPointer,
-                            exitMargin: presentation.exitMargin,
-                            exitEdge: pageEdge,
                             onHoverChange: hoverChanged
                         )
-                        .padding(pageEdge == .leading ? .leading : .trailing, -presentation.exitMargin)
+                        // Include the card's inset in the total hover margin.
+                        .padding(surfaceInset - BrowserSidebarPresentation.floatingHoverMargin)
                         .accessibilityHidden(true)
                     }
                 }
-            #else
-                .onHover(perform: hoverChanged)
             #endif
             .offset(x: hiddenOffset)
             .allowsHitTesting(presentation.showsSidebar)
@@ -143,14 +137,14 @@ struct BrowserRootSidebarSurfaceLayer<Content: View>: View {
     }
 
     private var surfaceCornerRadius: CGFloat {
-        usesFloatingCardAppearance
-            ? BrowserSidebarPresentation.floatingCardCornerRadius
-            : 0
+        guard usesFloatingCardAppearance else { return 0 }
+        let windowCornerRadius = appearance.windowCornerRadius ?? BrowserChromeLayout.pageCornerRadius
+        return max(0, windowCornerRadius - surfaceInset)
     }
 
     private var surfaceRegionWidth: CGFloat {
         usesFloatingCardAppearance
-            ? BrowserSidebarPresentation.floatingHoverRegionWidth(
+            ? BrowserSidebarPresentation.floatingRegionWidth(
                 sidebarWidth: width
             )
             : width

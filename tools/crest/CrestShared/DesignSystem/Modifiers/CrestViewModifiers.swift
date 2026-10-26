@@ -14,7 +14,7 @@ private struct BrowserTabResidencyModifier: ViewModifier {
     let isLoaded: Bool
 
     func body(content: Content) -> some View {
-        let isDimmed = !isLoaded && BrowserDeviceAppearanceStore.shared.tabs.dimsUnloadedTabs
+        let isDimmed = !isLoaded
         content
             .saturation(isDimmed ? 0.3 : 1)
             .opacity(isDimmed ? 0.5 : 1)

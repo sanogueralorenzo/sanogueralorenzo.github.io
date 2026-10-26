@@ -28,33 +28,25 @@ struct BrowserSidebarTabRowConfiguration {
     var spaceID: UUID { assignment.spaceID }
     var profileID: UUID { assignment.profileID }
     var browser: BrowserStore { context.browser }
-    var spaceAccess: BrowserSpaceAccessController { context.spaceAccess }
     var capabilities: BrowserInteractionCapabilities { context.capabilities }
     var favicons: FaviconAssets { context.favicons }
     var placement: TabPlacement { tab.placement }
 
-    /// A tab the session keeps closes; one it outlives only unloads.
+    /// Only current tabs show a close control; durable tabs stay in place.
     var canClose: Bool { !tab.placement.isDurable }
+
+    /// A live navigation takes precedence over the URL kept at the last
+    /// completed load. Reading the page state observes pending and committed
+    /// URL changes, including a return home while the old document is away.
+    var canReturnToSavedAddress: Bool {
+        guard tab.placement.isDurable, tab.savedURL != nil || tab.url != nil else { return false }
+        let storedAddressIsAway = tab.isAwayFromSavedAddress
+        guard context.pageAccess.liveState(runtimeAssignment) != nil else { return storedAddressIsAway }
+        return browser.returnsToSavedAddress(tab.id, in: spaceID)
+    }
 
     var promotionNamespace: Namespace.ID? {
         context.promotionNamespace(for: tab.placement)
-    }
-
-    var unload: ((UUID) -> Void)? {
-        let context = context
-        return { context.unload($0) }
-    }
-
-    var pullNewIcon: (() -> Void)? {
-        let context = context
-        let tabID = tab.id
-        return { context.pullNewIcon(tabID) }
-    }
-
-    var restoreSavedLocation: (() -> Void)? {
-        guard let restore = context.restoreSavedLocation else { return nil }
-        let tabID = tab.id
-        return { restore(tabID) }
     }
 
     var select: (UUID) -> Void { context.select }
@@ -94,14 +86,11 @@ struct BrowserSidebarTabRowConfiguration {
     /// Inactive pages retain their normal control appearance while commands
     /// remain guarded by the live selected Space below.
     var isAvailableForDisplay: Bool {
-        guard let spacePresentation else { return isCurrentAndUnlocked }
+        guard let spacePresentation else { return isCurrentAndAvailable }
         return spacePresentation.isAvailable(matching: assignment) && context.space.tabs.contains(tab.id)
     }
 
-    /// Every action this row offers is refused unless the window shows the
-    /// Space the row was drawn for, unlocked, with the same profile, and the
-    /// Space still holds the tab.
-    var isCurrentAndUnlocked: Bool {
+    var isCurrentAndAvailable: Bool {
         context.isCurrent(assignment) && context.space.tabs.contains(tab.id)
     }
 

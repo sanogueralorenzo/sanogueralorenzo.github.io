@@ -13,13 +13,11 @@ enum BrowserSidebarPreviewFixture {
         id: spaceID,
         profileID: uuid(0x11),
         name: "Studio",
-        symbol: "paintpalette.fill",
-        accent: .indigo,
+
         folders: [
             FolderState.Seed(
                 id: folderID,
-                title: "Design References",
-                symbol: "folder.fill"
+                title: "Design References"
             )
         ],
         tabs: [
@@ -61,13 +59,6 @@ enum BrowserSidebarPreviewFixture {
     }
 
     @MainActor
-    static func makeSpaceAccess() -> BrowserSpaceAccessController {
-        BrowserSpaceAccessController(
-            authenticator: BrowserPreviewAuthenticator(result: true)
-        )
-    }
-
-    @MainActor
     static func makeUtilityPresentation(
         surface: BrowserUtilitySurface? = nil
     ) -> BrowserUtilityPresentationState {
@@ -94,8 +85,6 @@ enum BrowserSidebarPreviewFixture {
             residencyRevision: { 0 },
             selectPages: {},
             deactivatePagePresentation: {},
-            unloadPage: { _, _ in },
-            pullFavicon: { _, _ in nil },
             downloadCenter: downloadCenter
         )
     }
@@ -103,13 +92,11 @@ enum BrowserSidebarPreviewFixture {
     @MainActor
     static func makeUtilityCoordinator(
         browser: BrowserStore,
-        spaceAccess: BrowserSpaceAccessController,
         downloadCenter: BrowserDownloadCenter = BrowserDownloadCenter()
     ) -> BrowserSidebarUtilityCoordinator {
         BrowserSidebarUtilityCoordinator(
             browser: browser,
             downloadCenter: downloadCenter,
-            spaceAccess: spaceAccess,
             platformActions: BrowserSidebarUtilityPlatformActions(
                 downloadDestinations: [],
                 openHistoryEntry: { _, _ in },
@@ -126,7 +113,6 @@ enum BrowserSidebarPreviewFixture {
         BrowserSidebarChromeActions(
             presentSpaceSettings: { _ in },
             presentHistory: {},
-            presentPasswords: {},
             presentArchive: {},
             presentDownloads: {},
             createSpace: {}

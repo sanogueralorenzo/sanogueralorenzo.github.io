@@ -59,7 +59,7 @@ struct BrowserSidebarAddressFieldMetrics: Equatable, Sendable {
     /// hit target as a row's trailing control.
     static let securityControlSize = BrowserTabTrailingControlMetrics.pointer.controlSize.height
 
-    /// A pointer shell: one exact 36pt band with the glyph column reserved.
+    /// A pointer shell: the pinned-tab height with the glyph column reserved.
     static let pointer = BrowserSidebarAddressFieldMetrics(
         contentSpacing: 7,
         horizontalPadding: 9,
@@ -84,7 +84,7 @@ struct BrowserSidebarAddressFieldMetrics: Equatable, Sendable {
         horizontalPadding: 12,
         height: 44,
         growsWithContent: true,
-        editingRingColor: Color.accentColor.opacity(0.7),
+        editingRingColor: CrestBrandTheme.accent.opacity(0.7),
         editingRingWidth: 1,
         leadingGlyphFont: .system(size: 13, weight: .medium),
         leadingGlyphSlot: nil,

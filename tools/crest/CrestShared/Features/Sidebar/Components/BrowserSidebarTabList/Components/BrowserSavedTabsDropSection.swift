@@ -26,29 +26,19 @@ struct BrowserSavedTabsDropSection: View {
                         state: sidebarInteraction.sidebarReorderState
                     )
             } else {
-                BrowserSidebarListRows(list: list, context: context) { items in
-                    // A Space whose every saved tab lives in a folder still has
-                    // an unfiled run. Without a band of its own that run has no
-                    // region to aim at, nowhere to draw its insertion line, and
-                    // no way to take a tab that belongs outside the folders.
-                    if !items.contains(where: { $0.firstTabID != nil }) {
-                        Color.clear
-                            .frame(height: metrics.savedSectionEndBandHeight)
-                            .contentShape(.rect)
-                            .accessibilityHidden(true)
-                    }
-                }
-                .equatable()
-                .browserSidebarReorderSectionIndicator(
-                    section,
-                    state: sidebarInteraction.sidebarReorderState
-                )
+                BrowserSidebarListRows(list: list, context: context)
+                    .equatable()
+                    .browserSidebarReorderSectionIndicator(
+                        section,
+                        state: sidebarInteraction.sidebarReorderState
+                    )
             }
         }
         .contentShape(.rect)
         .browserSidebarReorderZone(
             .section(section),
-            state: sidebarInteraction.sidebarReorderState
+            state: sidebarInteraction.sidebarReorderState,
+            minimumHeight: metrics.savedSectionEndBandHeight
         )
         .modifier(
             BrowserSidebarSectionReservation(

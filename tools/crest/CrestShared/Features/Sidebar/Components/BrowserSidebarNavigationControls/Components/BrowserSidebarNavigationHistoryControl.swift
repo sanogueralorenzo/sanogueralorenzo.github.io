@@ -6,15 +6,22 @@ struct BrowserSidebarNavigationHistoryControl: View {
     let port: BrowserSidebarNavigationPort
     let metrics: BrowserSidebarNavigationControlMetrics
 
+    @Environment(\.browserShortcutBindings) private var bindings
+
     var body: some View {
         Button(action: navigate) {
-            Image(systemName: direction.systemImage)
-                .font(metrics.historySymbolFont)
+            VStack(spacing: CrestSpacing.extraExtraSmall) {
+                Image(systemName: direction.systemImage)
+                    .font(metrics.historySymbolFont)
+                BrowserShortcutHint(shortcut: direction.command.shortcut(in: bindings))
+            }
+            .frame(minWidth: metrics.controlSize.width, minHeight: metrics.controlSize.height)
         }
+        .buttonStyle(CrestChromeButtonStyle(controlSize: nil))
         .accessibilityLabel(Text(direction.accessibilityLabel))
         .accessibilityIdentifier(direction.accessibilityIdentifier)
         .disabled(!direction.isAvailable(port))
-        .help(Text(direction.tooltip))
+        .help(Text(direction.accessibilityLabel))
         .modifier(
             BrowserPlatformNavigationHistoryMenuModifier(
                 items: { direction.history(port) },

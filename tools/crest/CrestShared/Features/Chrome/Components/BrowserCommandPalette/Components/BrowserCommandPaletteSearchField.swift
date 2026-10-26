@@ -39,22 +39,11 @@ struct BrowserCommandPaletteSearchField: View {
         .frame(minHeight: BrowserCommandPaletteMetrics.searchFieldMinimumHeight)
     }
 
-    /// The search provider or scope the palette is narrowed to, which leaves
+    /// The local scope the palette is narrowed to, which leaves
     /// it when clicked.
     @ViewBuilder
     private var activeChip: some View {
-        if let provider = model.activeProvider {
-            Button {
-                model.leaveScope()
-            } label: {
-                BrowserSearchProviderPill(
-                    provider: provider, showsCloseControl: true, isInteractive: true, profileID: model.space?.profileID)
-            }
-            .buttonStyle(.plain)
-            .help("Stop searching \(provider.title)")
-            .accessibilityLabel("Stop searching \(provider.title)")
-            .accessibilityIdentifier("command-palette-provider-token")
-        } else if let scope = model.activeScope {
+        if let scope = model.activeScope {
             Button {
                 model.leaveScope()
             } label: {
@@ -67,27 +56,10 @@ struct BrowserCommandPaletteSearchField: View {
         }
     }
 
-    /// What Tab does next: enter the provider whose shortcut the text is,
-    /// accept the completion, or enter the provider or scope the text names.
+    /// Tab accepts the completion or enters the local scope the text names.
     @ViewBuilder
     private var offer: some View {
-        if let provider = model.providerOffer {
-            Button {
-                model.enter(provider)
-            } label: {
-                HStack(spacing: CrestSpacing.small) {
-                    BrowserSearchProviderPill(
-                        provider: provider, isInteractive: true, profileID: model.space?.profileID)
-                    tabHint
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .buttonStyle(.plain)
-            .help("Press Tab to \(provider.actionTitle)")
-            .accessibilityLabel(Text(verbatim: provider.actionTitle))
-            .accessibilityHint("Press Tab, enter your query, then press Return.")
-            .accessibilityIdentifier("command-palette-provider-offer")
-        } else if let completion = model.urlCompletion {
+        if let completion = model.urlCompletion {
             Button {
                 model.acceptURLCompletion()
             } label: {

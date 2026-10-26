@@ -7,7 +7,6 @@ struct MobileBrowserSidebarSpaceSurface: View {
     let isSelected: Bool
 
     var body: some View {
-        let isLocked = configuration.context.spaceAccess.isLocked(space)
 
         MobileBrowserSidebarSpaceContent(
             configuration: configuration,
@@ -15,24 +14,11 @@ struct MobileBrowserSidebarSpaceSurface: View {
             isSelected: isSelected
         )
         .environment(\.colorScheme, spaceColorScheme)
-        // Blur and redaction are drawing effects; rows still run their tasks.
-        // This stops the ones that would otherwise disclose a locked Space's
-        // hostnames to the network.
-        .environment(\.browserSpaceContentIsLocked, isLocked)
-        .blur(radius: isLocked ? BrowserSidebarMetrics.lockedSpaceBlurRadius : 0)
-        .redacted(reason: isLocked ? .placeholder : [])
-        .allowsHitTesting(!isLocked)
-        .accessibilityHidden(isLocked)
+        .blur(radius: 0)
+        .redacted(reason: [])
+
+        .accessibilityHidden(false)
         .overlay {
-            if isLocked {
-                BrowserSpaceAccessView(
-                    space: space,
-                    spaces: configuration.context.availableSpaces,
-                    accessController: configuration.context.spaceAccess,
-                    selectSpace: selectUnlockedSpace,
-                    presentation: .contentOverlay
-                )
-            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(isSelected)
@@ -43,13 +29,12 @@ struct MobileBrowserSidebarSpaceSurface: View {
     /// than from the system appearance, as every compact placement does, so
     /// they keep agreeing.
     private var spaceColorScheme: ColorScheme {
-        space.settings.look.colorScheme(over: colorScheme)
+        colorScheme
     }
 
-    private func selectUnlockedSpace(_ assignment: BrowserSpaceRuntimeAssignment) {
+    private func selectAvailableSpace(_ assignment: BrowserSpaceRuntimeAssignment) {
         guard
-            let candidate = configuration.context.browser.spaceModel(matching: assignment),
-            !configuration.context.spaceAccess.isLocked(candidate)
+            let candidate = configuration.context.browser.spaceModel(matching: assignment)
         else { return }
         configuration.context.selectSpace(assignment.spaceID)
     }

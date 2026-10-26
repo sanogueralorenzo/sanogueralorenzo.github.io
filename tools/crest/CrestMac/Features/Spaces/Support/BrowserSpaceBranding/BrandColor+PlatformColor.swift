@@ -4,7 +4,7 @@ import SwiftUI
 extension BrandColor {
     init(color: Color) {
         guard let resolved = NSColor(color).usingColorSpace(.sRGB) else {
-            self = .ocean
+            self = .neutral
             return
         }
         self.init(

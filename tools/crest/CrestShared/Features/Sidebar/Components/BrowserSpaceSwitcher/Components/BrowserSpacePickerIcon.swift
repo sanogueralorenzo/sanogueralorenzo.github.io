@@ -1,18 +1,14 @@
 import SwiftUI
 
-/// One Space's crest as the switcher draws it.
-///
-/// The shared artwork preserves the crest's original colors and layered badge
-/// in both the compact desktop track and the expanded touch segments.
+/// One Space's color dot, sized for the switcher's input surface.
 struct BrowserSpacePickerIcon: View {
     let space: BrowserSpaceIdentity
     let metrics: BrowserSpacePickerMetrics
 
     var body: some View {
-        BrowserSpaceSymbolArtwork(
+        BrowserSpaceIdentityIcon(
             identity: space,
-            size: metrics.iconSize,
-            lockSize: metrics.lockSize
+            size: metrics.iconSize
         )
         .padding(metrics.iconPadding)
     }

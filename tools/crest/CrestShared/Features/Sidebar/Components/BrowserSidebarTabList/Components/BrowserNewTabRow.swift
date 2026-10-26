@@ -5,12 +5,12 @@ struct BrowserNewTabRow: View {
     let capabilities: BrowserInteractionCapabilities
     let action: () -> Void
 
-    private var tabScale: Double { BrowserDeviceAppearanceStore.shared.tabScale }
+    private let tabScale = 1.0
 
     var body: some View {
         BrowserNewTabRowContent(
             capabilities: capabilities, action: action, tabScale: tabScale,
-            hasBorders: BrowserDeviceAppearanceStore.shared.tabs.borders == .all
+            hasBorders: false
         )
     }
 }

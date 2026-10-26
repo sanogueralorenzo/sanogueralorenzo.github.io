@@ -5,32 +5,25 @@ struct BrowserSiteControlPopover: View {
     let configuration: BrowserSiteControlConfiguration
     let dismiss: () -> Void
 
-    @State private var isPermissionsExpanded =
-        BrowserSitePermissionDisclosure.defaultIsExpanded
-
     var body: some View {
-        ScrollView {
-            BrowserSiteControlContent(
-                configuration: configuration,
-                permissionsExpansion: $isPermissionsExpanded,
-                dismiss: dismiss,
-                reviewCertificate: reviewCertificate
-            )
+        ViewThatFits(in: .vertical) {
+            content.fixedSize(horizontal: false, vertical: true)
+            ScrollView { content }
+                .scrollBounceBehavior(.basedOnSize)
         }
-        .id(isPermissionsExpanded)
-        .frame(
-            width: BrowserSiteControlMetrics.width,
-            height: isPermissionsExpanded ? BrowserSiteControlMetrics.expandedHeight : nil
-        )
+        .frame(width: BrowserSiteControlMetrics.width)
         .frame(maxHeight: BrowserSiteControlMetrics.maximumHeight)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Site Controls")
+        .accessibilityLabel("Website Settings")
         .accessibilityIdentifier("browser-site-controls-popover")
-        .onAppear {
-            if configuration.page.blockedPopupNotice != nil {
-                isPermissionsExpanded = true
-            }
-        }
+    }
+
+    private var content: some View {
+        BrowserSiteControlContent(
+            configuration: configuration,
+            dismiss: dismiss,
+            reviewCertificate: reviewCertificate
+        )
     }
 
     private func reviewCertificate() {

@@ -19,7 +19,6 @@ struct BrowserSidebarTabRow: View {
     @Environment(\.sidebarSpacePresentation) private var spacePresentation
     @State private var isHovering = false
     @State private var renameRequest: BrowserTabRuntimeAssignment?
-    @State private var iconRequest: BrowserTabRuntimeAssignment?
     @State private var draftTitle = ""
     @FocusState private var isTitleFocused: Bool
 
@@ -39,21 +38,19 @@ struct BrowserSidebarTabRow: View {
         .modifier(
             BrowserTabStatusBadgeHost(
                 tab: BrowserTabStatusSource(
-                    tabID: tab.id, context: context, canAct: { configuration.isCurrentAndUnlocked }))
+                    tabID: tab.id, context: context, canAct: { configuration.isCurrentAndAvailable }))
         )
         .environment(\.browserInteractionCapabilities, context.capabilities)
         .onChange(of: runtimeAssignment) { _, assignment in
             guard renameRequest != assignment else { return }
             cancelTitleEditing()
-            iconRequest = nil
         }
         .modifier(
             SidebarSpaceRoleCleanupModifier(
                 isAvailable: configuration.isAvailableForDisplay,
-                hasPendingActions: renameRequest != nil || iconRequest != nil,
+                hasPendingActions: renameRequest != nil,
                 cancel: {
                     cancelTitleEditing()
-                    iconRequest = nil
                 }
             )
         )
@@ -78,12 +75,8 @@ struct BrowserSidebarTabRow: View {
             isRenaming: isRenaming,
             draftTitle: $draftTitle,
             isTitleFocused: $isTitleFocused,
-            isChoosingIcon: iconPresentation,
             activate: activate,
             beginRenaming: beginRenaming,
-            beginChangingIcon: beginChangingIcon,
-            setEmojiIcon: setRequestedTabEmoji,
-            resetIcon: clearRequestedTabIcon,
             commitTitle: commitTitle,
             cancelTitleEditing: cancelTitleEditing,
             dismissFromAuxiliaryClick: dismissFromAuxiliaryClick
@@ -91,7 +84,7 @@ struct BrowserSidebarTabRow: View {
     }
 
     private func activate() {
-        guard configuration.isCurrentAndUnlocked else { return }
+        guard configuration.isCurrentAndAvailable else { return }
         // The lift and this button recognise simultaneously — deliberately, or
         // the button would suppress the lift — so the release that ends a
         // reorder also arrives here. Reject it rather than opening the tab that
@@ -101,7 +94,7 @@ struct BrowserSidebarTabRow: View {
     }
 
     private func beginRenaming() {
-        guard configuration.isCurrentAndUnlocked else { return }
+        guard configuration.isCurrentAndAvailable else { return }
         draftTitle = tab.shownTitle
         renameRequest = runtimeAssignment
         Task { @MainActor in
@@ -109,52 +102,11 @@ struct BrowserSidebarTabRow: View {
         }
     }
 
-    private func beginChangingIcon() {
-        guard configuration.isCurrentAndUnlocked else { return }
-        iconRequest = runtimeAssignment
-    }
-
-    private var iconPresentation: Binding<Bool> {
-        Binding {
-            iconRequest == runtimeAssignment
-                && configuration.isAvailableForDisplay
-        } set: { isPresented in
-            if isPresented {
-                beginChangingIcon()
-            } else {
-                iconRequest = nil
-            }
-        }
-    }
-
-    private func setRequestedTabEmoji(_ emoji: String) {
-        guard let request = iconRequest,
-            request == runtimeAssignment,
-            configuration.isCurrentAndUnlocked
-        else { return }
-        context.browser.setTabEmojiIcon(
-            emoji,
-            for: request.tabID,
-            matching: configuration.assignment
-        )
-    }
-
-    private func clearRequestedTabIcon() {
-        guard let request = iconRequest,
-            request == runtimeAssignment,
-            configuration.isCurrentAndUnlocked
-        else { return }
-        context.browser.clearTabIcon(
-            for: request.tabID,
-            matching: configuration.assignment
-        )
-    }
-
     private func commitTitle() {
         guard let request = renameRequest else { return }
         renameRequest = nil
         guard request == runtimeAssignment,
-            configuration.isCurrentAndUnlocked
+            configuration.isCurrentAndAvailable
         else { return }
         context.browser.setTabCustomTitle(
             draftTitle,
@@ -174,8 +126,9 @@ struct BrowserSidebarTabRow: View {
 
     private func dismissFromAuxiliaryClick() {
         let configuration = self.configuration
-        guard configuration.isCurrentAndUnlocked else { return }
-        BrowserTabMiddleClickAction(for: tab.placement).perform(on: configuration)
+        guard configuration.isCurrentAndAvailable else { return }
+        guard !tab.placement.isDurable else { return }
+        context.browser.closeTab(tab.id, matching: configuration.assignment)
     }
 
     private var isRenaming: Bool {

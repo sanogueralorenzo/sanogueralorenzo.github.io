@@ -46,7 +46,7 @@ struct MobileSplitCardContent: View {
             if let page, let failure = page.live.failure {
                 BrowserNavigationFailureView(
                     failure: failure,
-                    branding: space.settings.look,
+
                     layout: failureLayout,
                     canGoBack: page.canReturnFromNavigationFailure,
                     canProceed: page.canProceedAfterCertificateFailure,

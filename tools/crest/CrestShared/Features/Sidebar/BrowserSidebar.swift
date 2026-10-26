@@ -6,7 +6,6 @@ struct BrowserSidebar<Content: View>: View {
     @Environment(BrowserSidebarInteractionState.self) private var sidebarInteraction
     let browser: BrowserStore
     let pageAccess: BrowserSidebarPageAccess
-    let spaceAccess: BrowserSpaceAccessController
 
     /// What the hosting shell can do. Resolved by the host and handed down
     /// unchanged, so every row under this sidebar answers to one value.
@@ -22,10 +21,6 @@ struct BrowserSidebar<Content: View>: View {
     /// and nothing is waiting on the pager.
     let presentsSelectedSpacePage: Bool
 
-    /// Called once the session has moved, with the Space that ended up
-    /// selected, or `nil` when it is locked or gone. This is where a shell that
-    /// owns the address field brings it back in step; a shell whose root model
-    /// already observes the session does nothing.
     let spaceSelectionChanged: (SpaceModel?) -> Void
 
     @ViewBuilder let content: (BrowserSidebarContext) -> Content
@@ -37,7 +32,6 @@ struct BrowserSidebar<Content: View>: View {
     init(
         browser: BrowserStore,
         pageAccess: BrowserSidebarPageAccess,
-        spaceAccess: BrowserSpaceAccessController,
         capabilities: BrowserInteractionCapabilities,
         utilityCoordinator: BrowserSidebarUtilityCoordinator,
         utilityPresentation: BrowserUtilityPresentationState,
@@ -48,7 +42,6 @@ struct BrowserSidebar<Content: View>: View {
     ) {
         self.browser = browser
         self.pageAccess = pageAccess
-        self.spaceAccess = spaceAccess
         self.capabilities = capabilities
         self.utilityCoordinator = utilityCoordinator
         self.utilityPresentation = utilityPresentation
@@ -64,7 +57,6 @@ struct BrowserSidebar<Content: View>: View {
             .modifier(
                 BrowserSidebarClearHistoryDialog(
                     browser: browser,
-                    spaceAccess: spaceAccess,
                     confirmation: $clearHistoryConfirmation
                 )
             )
@@ -87,7 +79,6 @@ struct BrowserSidebar<Content: View>: View {
             sidebarInteraction: sidebarInteraction,
             browser: browser,
             pageAccess: pageAccess,
-            spaceAccess: spaceAccess,
             capabilities: capabilities,
             availableSpaces: browser.availableSpaces,
             utilityPresentation: utilityPresentation,
@@ -124,7 +115,7 @@ struct BrowserSidebar<Content: View>: View {
 
     private func confirmClearHistory(for space: SpaceModel) {
         clearHistoryConfirmation =
-            BrowserSidebarClearHistoryConfirmation(for: space, in: browser, accessController: spaceAccess)
+            BrowserSidebarClearHistoryConfirmation(for: space, in: browser)
     }
 
     /// Moves the session to a Space, then decides what the page layer does
@@ -139,7 +130,7 @@ struct BrowserSidebar<Content: View>: View {
             pageAccess.deactivatePagePresentation()
         }
         browser.selectSpace(spaceID)
-        guard let space = selectedUnlockedSpace else {
+        guard let space = selectedAvailableSpace else {
             pageAccess.deactivatePagePresentation()
             spaceSelectionChanged(nil)
             return
@@ -148,23 +139,20 @@ struct BrowserSidebar<Content: View>: View {
         if presentsSelectedSpacePage { pageAccess.selectPages() }
     }
 
-    private var selectedUnlockedSpace: SpaceModel? {
-        guard let space = browser.shownSpace, !spaceAccess.isLocked(space) else { return nil }
+    private var selectedAvailableSpace: SpaceModel? {
+        guard let space = browser.shownSpace else { return nil }
         return space
     }
 }
 
 #Preview("Browser Sidebar — Space Pager") {
     let browser = BrowserSidebarPreviewFixture.makeBrowser()
-    let spaceAccess = BrowserSidebarPreviewFixture.makeSpaceAccess()
     BrowserSidebar(
         browser: browser,
         pageAccess: BrowserSidebarPreviewFixture.makePageAccess(),
-        spaceAccess: spaceAccess,
         capabilities: BrowserInteractionCapabilities(),
         utilityCoordinator: BrowserSidebarPreviewFixture.makeUtilityCoordinator(
-            browser: browser,
-            spaceAccess: spaceAccess
+            browser: browser
         ),
         utilityPresentation:
             BrowserSidebarPreviewFixture.makeUtilityPresentation(),

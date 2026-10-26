@@ -97,23 +97,17 @@ struct MobilePageActionsContent: View {
 
         if let page = pages.activePage {
             sitePermissions(for: page)
-            Menu("Translate Page", systemImage: "translate") {
-                BrowserTranslationActions(translation: page.translation)
-                    .crestMenuActionLabelStyle()
-                Button("Show Translation Controls", systemImage: "rectangle.topthird.inset.filled") {
-                    page.translation.present()
-                }
-            }
-            .disabled(page.readerModeState.isActive)
-            .task { await page.translation.refreshInstalledLanguages() }
+            Button(page.translation.actionTitle, systemImage: "translate", action: page.translation.performAction)
+                .accessibilityValue(page.translation.status)
+                .disabled(page.readerModeState.isActive)
         }
 
         if pages.activeURL?.host()?.isEmpty == false {
             Section {
-                Button(ShortcutCommand.clearSiteCookies) {
+                Button("Clear Cookies for This Site", systemImage: "person.crop.circle.badge.xmark") {
                     Task { await pages.clearSiteData(.siteData) }
                 }
-                Button(ShortcutCommand.clearSiteCache) {
+                Button("Clear Cache for This Site", systemImage: "trash") {
                     Task { await pages.clearSiteData(.cache) }
                 }
             }

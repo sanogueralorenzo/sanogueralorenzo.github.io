@@ -31,6 +31,9 @@ struct BrowserTabTrailingControlMetrics: Equatable, Sendable {
     /// drawn plain and the press is the system's own.
     let usesChromeControlStyle: Bool
 
+    /// The circular surface shared by close, return and sleep actions.
+    var cornerRadius: CGFloat { min(controlSize.width, controlSize.height) / 2 }
+
     /// A pointer shell: the chrome control size, a light glyph, and a control
     /// that waits for hover or selection before it appears.
     ///

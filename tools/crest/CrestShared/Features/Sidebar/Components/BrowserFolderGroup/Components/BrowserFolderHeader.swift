@@ -10,7 +10,6 @@ struct BrowserFolderHeader: View {
     let interaction: BrowserFolderGroupInteractionContext
 
     private var folder: FolderStateModel { configuration.folder }
-    private var tabScale: Double { BrowserDeviceAppearanceStore.shared.tabScale }
 
     var body: some View {
         BrowserFolderHeaderControl(
@@ -29,9 +28,7 @@ struct BrowserFolderHeader: View {
                 : "Expands this folder"
         )
         .modifier(BrowserFolderSelectionAccessibility(folderID: folder.id, browser: configuration.browser))
-        // Inside the folder's padding, as a Split View's header is inside its own.
-        .padding(.horizontal, BrowserSidebarMetrics.layerInset + BrowserSidebarMetrics.containerPadding)
-        .padding(.vertical, BrowserSidebarDensity(tabScale).rowSeparation() / 2)
+        .padding(.horizontal, BrowserSidebarMetrics.layerInset)
         .modifier(
             BrowserTabSelectionTarget(
                 tabID: nil, browser: configuration.browser,
@@ -47,7 +44,6 @@ struct BrowserFolderHeader: View {
             dragState: sidebarInteraction.folderDragState,
             reorder: BrowserSidebarReorderContext(
                 browser: configuration.browser,
-                spaceAccess: configuration.spaceAccess,
                 state: sidebarInteraction.sidebarReorderState
             ),
             isEnabled: interaction.editingFolderRequest.wrappedValue

@@ -32,10 +32,10 @@ struct PinnedTabGridContent: View {
                     tab: tab, grid: grid, reorder: reorderContext
                 )
             }
-            RoundedRectangle(cornerRadius: BrowserSidebarMetrics.layerCornerRadius(), style: .continuous)
+            RoundedRectangle(cornerRadius: BrowserSidebarMetrics.capsuleRadius(tabScale: 1), style: .circular)
                 .fill(.primary.opacity(0.035))
                 .overlay {
-                    RoundedRectangle(cornerRadius: BrowserSidebarMetrics.layerCornerRadius(), style: .continuous)
+                    RoundedRectangle(cornerRadius: BrowserSidebarMetrics.capsuleRadius(tabScale: 1), style: .circular)
                         .strokeBorder(.primary.opacity(0.12), lineWidth: 0.5)
                 }
                 .opacity(projection.insertionIndex == nil ? 0 : 1)

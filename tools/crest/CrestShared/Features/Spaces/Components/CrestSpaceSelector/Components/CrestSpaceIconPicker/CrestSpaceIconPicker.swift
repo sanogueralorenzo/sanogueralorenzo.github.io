@@ -8,6 +8,7 @@ struct CrestSpaceIconPicker<Space: BrowserSpaceIdentifying, SegmentContent: View
     let spaces: [Space]
     let selectedSpaceID: UUID?
     let selectSpace: (UUID) -> Void
+    var commands: (Space) -> [CrestSpaceChipCommand] = { _ in [] }
     var style: CrestSpaceIconPickerStyle = .compact
     var selectionTint: Color? = nil
     var accessibilityIdentifier: String?
@@ -131,10 +132,9 @@ struct CrestSpaceIconPicker<Space: BrowserSpaceIdentifying, SegmentContent: View
     private func spaceButton(_ space: Space) -> some View {
         let identity = space.identity
         let isSelected = space.id == selectedSpaceID
-        let tint = selectionTint ?? identity.branding.primaryColor.color
+        let tint = selectionTint ?? CrestBrandTheme.accent
         let accessibilityValue = accessibilityValue(
-            isSelected: isSelected,
-            requiresAuthentication: identity.requiresAuthentication
+            isSelected: isSelected
         )
 
         return Button {
@@ -152,12 +152,19 @@ struct CrestSpaceIconPicker<Space: BrowserSpaceIdentifying, SegmentContent: View
                             .fill((style.tintsSelection ? tint : Color.primary).opacity(style.selectionFillOpacity))
                             .overlay {
                                 CrestSpaceIconPickerShape(style: style)
-                                    .strokeBorder(style.tintsSelection ? tint : .clear, lineWidth: CrestLayout.hairline)
+                                    .strokeBorder(
+                                        style.tintsSelection ? tint : CrestColor.textSecondary,
+                                        lineWidth: CrestLayout.hairline)
                             }
                     }
                 }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(
+            CrestChromeButtonStyle(
+                controlSize: nil, cornerRadius: style.cornerRadius(forHeight: segmentSize.height),
+                cornerStyle: CrestSpaceIconPickerShape.cornerStyle)
+        )
+        .modifier(CrestSpaceChipCommands(commands: commands(space)))
         .accessibilityLabel(Text(verbatim: identity.name))
         .accessibilityValue(Text(accessibilityValue))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
@@ -169,19 +176,9 @@ struct CrestSpaceIconPicker<Space: BrowserSpaceIdentifying, SegmentContent: View
     }
 
     private func accessibilityValue(
-        isSelected: Bool,
-        requiresAuthentication: Bool
+        isSelected: Bool
     ) -> LocalizedStringResource {
-        switch (isSelected, requiresAuthentication) {
-        case (true, true):
-            "Selected, Private Space"
-        case (true, false):
-            "Selected, Open Space"
-        case (false, true):
-            "Private Space"
-        case (false, false):
-            "Open Space"
-        }
+        isSelected ? "Selected" : "Open Space"
     }
 }
 

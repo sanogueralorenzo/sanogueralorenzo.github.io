@@ -1,7 +1,5 @@
 import Foundation
 
-/// A pending request to clear one Space's history, which stays good only while
-/// that Space is the window's selected, unlocked Space.
 struct BrowserSidebarClearHistoryConfirmation: Equatable, Sendable {
     // MARK: - Variables
 
@@ -17,12 +15,10 @@ struct BrowserSidebarClearHistoryConfirmation: Equatable, Sendable {
         self.spaceName = spaceName
     }
 
-    /// The confirmation for clearing `space`'s history, or nil when `browser`
-    /// does not show it selected and unlocked.
     @MainActor
-    init?(for space: SpaceModel, in browser: BrowserStore, accessController: BrowserSpaceAccessController) {
+    init?(for space: SpaceModel, in browser: BrowserStore) {
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
-        guard browser.selectedUnlockedSpace(matching: assignment, accessController: accessController) != nil
+        guard browser.selectedAvailableSpace(matching: assignment) != nil
         else { return nil }
         self.init(assignment: assignment, spaceName: space.settings.name)
     }
@@ -30,14 +26,14 @@ struct BrowserSidebarClearHistoryConfirmation: Equatable, Sendable {
     // MARK: - Actions - Clearing
 
     @MainActor
-    func isLive(in browser: BrowserStore, accessController: BrowserSpaceAccessController) -> Bool {
-        browser.selectedUnlockedSpace(matching: assignment, accessController: accessController) != nil
+    func isLive(in browser: BrowserStore) -> Bool {
+        browser.selectedAvailableSpace(matching: assignment) != nil
     }
 
     @MainActor
     @discardableResult
-    func clearHistory(in browser: BrowserStore, accessController: BrowserSpaceAccessController) -> Bool {
-        guard isLive(in: browser, accessController: accessController) else { return false }
+    func clearHistory(in browser: BrowserStore) -> Bool {
+        guard isLive(in: browser) else { return false }
         return browser.clearHistory(matching: assignment)
     }
 }
