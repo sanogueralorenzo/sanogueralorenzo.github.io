@@ -21,6 +21,10 @@ Crest's emoji picker catalog is generated from the official
 The Unicode data notice is preserved in
 [`ThirdParty/Unicode-LICENSE.txt`](ThirdParty/Unicode-LICENSE.txt).
 
+The GitHub dashboard integration adapts response formats and selectors from
+[Zen Browser](https://github.com/zen-browser/desktop/blob/2ad194525da74d7f00609a424d93a3c7db430d21/src/zen/live-folders/providers/GithubLiveFolder.sys.mjs),
+under the Mozilla Public License 2.0, preserved in [`LICENSE`](LICENSE).
+
 Beyond these, the apps link only Apple platform frameworks supplied by the macOS
 and iOS SDKs: AuthenticationServices, CloudKit, LocalAuthentication, Security,
 SwiftUI, and WebKit.

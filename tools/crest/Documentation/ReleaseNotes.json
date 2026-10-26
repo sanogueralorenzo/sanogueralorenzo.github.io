@@ -4613,6 +4613,10 @@
     "fork-github-live-folders": {
       "category": "new",
       "message": "GitHub live folders refresh through each Space’s session, with PR filters, automatic creation after sign-in and direct folder deletion."
+    },
+    "fork-webkit-content-blocking": {
+      "category": "improved",
+      "message": "WebKit blocks more ads and trackers and collapses blocked ad containers with cosmetic filtering."
     }
   }
 }

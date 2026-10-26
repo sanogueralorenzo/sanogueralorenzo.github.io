@@ -6,6 +6,94 @@ import XCTest
 
 @MainActor
 final class BrowserContentBlockingTests: XCTestCase {
+    @MainActor
+    func testBalancedProtectionCompilesOnlyCrestsBundledRuleList() async throws {
+        let store = try isolatedRuleListStore()
+        defer { store.remove() }
+        let compiler = RecordingBuiltInRuleListCompiler()
+        let core = CrestCore()
+        let provider = BrowserContentRuleListProvider(
+            core: core,
+            ruleListStore: store.store,
+            compiler: compiler
+        )
+
+        let ruleLists = try await provider.balancedRuleLists()
+        let rules = try core.query(BalancedProtectionRules())
+
+        XCTAssertEqual(ruleLists.map(\.identifier), [rules.identifier])
+        XCTAssertEqual(compiler.identifiers, [rules.identifier])
+        XCTAssertEqual(compiler.sources, [rules.source])
+    }
+
+    /// Local profiles must enforce protection without touching another profile's cache.
+    func testIsolatedLaunchesCompileProtectionIntoSeparateStores() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("crest-blocking-profiles-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let environment = BrowserLaunchEnvironment(
+            values: ["CREST_ISOLATED_SESSION": "1", "CREST_ISOLATED_PERSISTENCE_ID": "blocking-test"],
+            isXCTestRuntime: false)
+        let firstDirectory = directory.appendingPathComponent("first", isDirectory: true)
+        let secondDirectory = directory.appendingPathComponent("second", isDirectory: true)
+        let firstCore = try CrestCore(configuration: AppConfiguration(storageDirectory: firstDirectory.path))
+        let secondCore = try CrestCore(configuration: AppConfiguration(storageDirectory: secondDirectory.path))
+        let first = BrowserContentRuleListProvider.forLaunch(core: firstCore, launchEnvironment: environment)
+        let second = BrowserContentRuleListProvider.forLaunch(core: secondCore, launchEnvironment: environment)
+        let lists = try await first.balancedRuleLists()
+        XCTAssertEqual(lists.map(\.identifier), [try firstCore.query(BalancedProtectionRules()).identifier])
+        let secondStore = try XCTUnwrap(
+            WKContentRuleListStore(url: secondDirectory.appendingPathComponent("ContentRules")))
+        let before = await BrowserContentRuleListCompiler.availableIdentifiers(store: secondStore)
+        XCTAssertTrue(before.isEmpty)
+        let secondLists = try await second.balancedRuleLists()
+        XCTAssertEqual(secondLists.map(\.identifier), lists.map(\.identifier))
+        let after = await BrowserContentRuleListCompiler.availableIdentifiers(store: secondStore)
+        XCTAssertEqual(after, lists.map(\.identifier))
+        let anonymous = BrowserContentRuleListProvider.forLaunch(core: CrestCore(), launchEnvironment: environment)
+        let anonymousLists = try await anonymous.balancedRuleLists()
+        XCTAssertEqual(anonymousLists.map(\.identifier), lists.map(\.identifier))
+    }
+
+    func testPagePoolReconcilesThePolicyAcrossResidentPages() async throws {
+        let store = try isolatedRuleListStore()
+        defer { store.remove() }
+        let ruleList = try await BrowserContentRuleListCompiler.compile(
+            identifier: "com.pauldavis.crest.tests.pool-reconciliation.\(UUID().uuidString)",
+            source: blockingRuleSource(matching: "crest-pool-reconciliation\\.js$"),
+            store: store.store
+        )
+        let provider = StubContentRuleListProvider(generations: [[ruleList]])
+        let firstTab = TabState.Seed.startPage()
+        let firstSpace = contentBlockingSpace(name: "Protected", tab: firstTab)
+        let browser = BrowserStore.hostingPages(
+            SessionState.Seed(spaces: [firstSpace]), showing: firstSpace.id, tabs: [firstSpace.id: firstTab.id],
+            core: .hostingPages(contentRuleLists: provider))
+        let pool = BrowserPagePool(browser: browser, browsingMode: .privateBrowsing)
+        defer {
+            for tabID in pool.retainedTabIDs {
+                pool.unloadPage(for: tabID)
+            }
+        }
+
+        await pool.prepareContentBlocking()
+        XCTAssertNil(
+            pool.contentBlockingErrorDescription,
+            pool.contentBlockingErrorDescription ?? ""
+        )
+        pool.select()
+        XCTAssertEqual(pool.activePage?.isContentBlockingActive, true)
+        var preferences = firstSpace.settings.browsingPreferences
+        preferences.contentBlocking = .off
+        browser.updateBrowsingPreferences(preferences, in: firstSpace.id)
+        await pool.reconcileContentBlocking()
+
+        XCTAssertEqual(pool.activePage?.isContentBlockingActive, false)
+
+        pool.relieveMemoryPressure(.warning)
+
+    }
+
     func testTurningOffCrestProtectionPreservesAnotherInstalledRuleList() async throws {
         let crestIdentifier = "com.pauldavis.crest.tests.owned-rules.\(UUID().uuidString)"
         let extensionIdentifier = "com.pauldavis.crest.tests.extension-rules.\(UUID().uuidString)"
@@ -206,8 +294,6 @@ final class BrowserContentBlockingTests: XCTestCase {
     ) -> SpaceState.Seed {
         SpaceState.Seed(
             name: name,
-            symbol: "shield",
-            accent: .indigo,
             folders: [],
             tabs: tabs
         )
@@ -364,5 +450,27 @@ extension BrowserStore {
             let opened = core.engines.host(popup.id)
         else { return nil }
         return (opened.page, popup)
+    }
+}
+
+@MainActor
+private final class RecordingBuiltInRuleListCompiler:
+    BrowserContentRuleListCompiling
+{
+    private(set) var identifiers: [String] = []
+    private(set) var sources: [String] = []
+
+    func compile(
+        identifiers: [String],
+        sources: [String],
+        store: WKContentRuleListStore
+    ) async throws -> [WKContentRuleList] {
+        self.identifiers = identifiers
+        self.sources = sources
+        return try await BrowserContentRuleListCompilerAdapter().compile(
+            identifiers: identifiers,
+            sources: sources,
+            store: store
+        )
     }
 }
