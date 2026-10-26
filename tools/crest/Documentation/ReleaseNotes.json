@@ -4641,6 +4641,10 @@
     "fork-floating-sidebar-six-point-gap": {
       "category": "improved",
       "message": "The floating sidebar sits closer to the window edge."
+    },
+    "fork-wave-icon": {
+      "category": "improved",
+      "message": "Crest uses one blue sail and coral sun icon across the app and web assets."
     }
   }
 }
