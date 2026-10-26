@@ -38,9 +38,8 @@ Reference implementation and definitions:
 `BrowserPagePool` requests automatic entry only for pages leaving the visible
 tab set. Moving focus between cards in a visible split does not enter PiP.
 If multiple cards leave together, the focused card is considered first.
-Entering an unlocked empty Space or start page follows the same departure
-lifecycle. Locking a protected Space withdraws its pages' pending automatic
-requests. A departing WebKit page enters through Crest's bridge in the page,
+Entering an empty Space or start page follows the same departure
+lifecycle. A departing WebKit page enters through Crest's bridge in the page,
 after the player checks below. A departing Chromium page that is playing, and
 not already in Picture in Picture, enters through the `EnterPictureInPicture`
 page request, which asks Chromium's media session to move its video.
@@ -56,14 +55,9 @@ that stays on screen, such as one the person floated without leaving it, keeps
 its PiP. The page controller's `returnToTab()` only withdraws an automatic
 request still pending.
 
-A Space this process may not show keeps no video on screen. When a protected
-Space locks, on demand or as Crest goes to the background, or a Space is being
-deleted or is gone, the core sends `ExitPictureInPicture` to every page of that
-Space that reports PiP: its tabs' pages, in the background or not, and its Quick
-Window and Peek pages. A page that reports PiP again while its Space is locked
-is asked again at once. The rule is the core's, so it holds for both engines and
-covers Chromium's document PiP for a page that owns the window. Private
-workspaces never lock.
+When a Space is being deleted or is gone, the core sends
+`ExitPictureInPicture` to its tab, Quick Window and Peek pages that report PiP.
+The rule holds for both engines, including Chromium document PiP owned by a page.
 
 The PiP window's return control reports `PictureInPictureReturned` for its page,
 and the engine returns the video inline itself. WebKit reports it from
@@ -76,7 +70,7 @@ and publishes `WindowBroughtForward`. That window's page pool raises and
 activates it without replacing the media pipeline. When the page's window has
 closed, another window over its workspace shows the tab, preferring one that
 shows the tab's Space; with none open, nothing happens, since the return never
-opens a window. Closed tabs, locked Spaces and Spaces being deleted show
+opens a window. Closed tabs and Spaces being deleted show
 nothing, and a private page returns only within the private workspace. Ordinary
 PiP dismissal does not request this routing.
 
@@ -102,8 +96,7 @@ An active or pending PiP presentation protects the source page from automatic
 unloading, including when playback is paused. The original WKWebView and
 media pipeline remain alive while its view is detached. Closing, explicitly
 unloading, navigating, or terminating the source ends its presentation.
-Locking a protected Space also closes its video, including a Space in the
-background, as the core asks.
+
 
 ## Recognizing an interactive player
 

@@ -10,7 +10,7 @@ feature. Read [ControlPlane.md](ControlPlane.md) for how the design works, and
 
 | Layer | Owns | Never owns |
 | --- | --- | --- |
-| Portable core (`CrestCore`) | Every piece of browser state and every rule that must behave the same on both engines and both platforms: sessions, windows and what each shows, pages and their live state, prompts, downloads, site permissions, credential policy, search and completion, import and export, setup, shortcuts, launch policy, behavior preferences, engine registrations and per-site engine choices, storage and sync | Rendering, input, scrolling, compositing, engine handles, image bytes, OS services |
+| Portable core (`CrestCore`) | Every piece of browser state and every rule that must behave the same on both engines and both platforms: sessions, windows and what each shows, pages and their live state, prompts, downloads, site permissions, search and completion, import and export, setup, shortcuts, launch policy, behavior preferences, engine registrations and the global engine choice, storage and sync | Rendering, input, scrolling, compositing, engine handles, image bytes, OS services |
 | Engine bindings (`CrestEngines/Chromium`, `WebKitEngineBinding` and the WebKit page code in `CrestShared` and `CrestMac`) | Page creation and disposal, loads, engine navigation history, find, zoom, capture, printing, export, DevTools, extensions, download transfer, website data and cookie stores, reporting what happened to the core | Deciding browser rules; changing browser state other than by reporting events |
 | Shared Swift (`CrestShared`, `CrestMac`, `CrestMobile`) | Views, layout, animation, presentation of prompts and notices, native windows and cards, OS services (Keychain, CloudKit transport, notification delivery, LaunchServices) | Engine types or `#if CREST_CHROMIUM_HOST` outside the engine code; second copies of core rules |
 
@@ -20,10 +20,7 @@ shared transition, and a binding reports what the engine did.
 
 Rules every engine keeps:
 
-- A Space is one profile on every engine. No path may share a profile across
-  Spaces, or create a page, transfer, export or network request for a locked
-  Space without a grant. The core gate covers intents and borrowing; the
-  presentation layer must not build content for a locked Space.
+- A Space is one profile on every engine. No path may share a profile across Spaces.
 - A private window is incognito on every engine. Its profile is new each time
   private browsing opens, shares nothing with any Space, runs no extension a
   person installed, and is destroyed with everything in it when the window
@@ -33,15 +30,15 @@ Rules every engine keeps:
   window. An extension's popup opens as a tab in the current window, and a
   window a page asks for, such as a sign-in popup, opens as a Quick Window over
   its opener's window. DevTools and side panels dock inside the Crest window.
-- A page another page opens stays on its opener's engine. A site's engine
-  choice and the default engine apply only to pages the person opens.
+- A page another page opens stays on its opener's engine. The global default
+  applies to new pages the person opens.
 - Capability declarations in `BrowserEngineRegistration` describe what the
   binding really does. The core offers what the default engine supports and
   what each engine a page is open on supports, and the page's own engine
   enables it. UI never gates on build flags.
 - Unsupported features have explicit product behavior. Reader, built-in
   content blocking and protected media are unavailable on Chromium by
-  decision; a page that needs protected media switches to WebKit after before-unload checks, unless a website rule already chooses its engine.
+  decision; a page that needs protected media switches to WebKit after before-unload checks, without creating a website rule.
   Whole-page translation works on both engines: each engine adapter supplies
   the page's main document as a `BrowserTranslationDocument`, which runs the
   same translation bridge through WebKit's content world or Chromium's content
@@ -148,9 +145,7 @@ Chromium:
 
 - Crest's bridges run in an isolated world the page cannot reach. Link hover,
   user activity, blocked popups, media sessions and favicons arrive as engine
-  presentations. The credential bridge runs through the same content-script
-  channel; capture, fill, save and recency rules are core queries that carry
-  no password. The host turns Chromium's password manager off for every page.
+  presentations. The host turns Chromium's password manager off for every page.
 - Page fullscreen reports its state to the shared shell, which shows the video
   without browser chrome and restores the shell on Escape.
 - The file chooser and the color picker are Chromium's own surfaces, since the
@@ -186,9 +181,7 @@ WebKit:
   registration declares that limit.
 - WebKit has no extensions; its registration declares `extensions`
   unavailable.
-- Two shared files still name WebKit types: `CredentialContentBridge.swift`
-  installs the WebKit credential bridge, and the transient page lease carries
-  WebKit content-rule lists.
+- The transient page lease carries WebKit content-rule lists.
 
 Neither Quick Window nor the setup windows host an extension side panel.
 
@@ -207,25 +200,23 @@ downloads. Launch cleanup and retention run as the core's
 | Aggregate | Core surface |
 | --- | --- |
 | Downloads | The download intents and changes, and the `DownloadProgress` and `DownloadRisk` queries; the engine download events and commands |
-| Credentials and passkeys | The capture, fill, save-check, recency, save-match, save, strong-password, passkey and system-password queries, which carry no password; `CredentialImportPreview`, `PasswordImportPreview` and `CredentialExport`, which carry passwords the core never keeps |
+| Passkeys | `PasskeyAccess` checks platform capability, device setup and system consent. |
 | Site permissions | The permission intents and the `SiteDecision` and `CaptureDecision` queries |
 | Search, completion and the palette | `SearchProvider`, the search engine intents, `PaletteSuggestions` |
 | Windows, sidebar and setup | The window intents, the sidebar outline and drop targets, `SelectionPreview`, the setup draft and flow intents and `FinishSetup` |
 | Shortcuts, menus, launch and media | The shortcut intents, `NumberedSelections` and the `ShortcutMenu` layout; `LaunchIsolation`, the launch plan, `LaunchWindows`, `WindowToReopen`, `EngineWindowPlacement` and `PrepareToQuit`; media session arbitration |
-| Behavior preferences | The session's `appPreferences` record behind `SetAppPreferences`, `SetTranslationRule` and `ImportAppPreferences` |
-| Links and Quick Window | `LinkNavigation`, `RouteExternalLink`, `RouteLocalDocument`, `ExternalWebLink`, `ChooseExternalLinkDestination`, `RememberQuickWindowSpace` and the link preference intents |
-| Engines | `EnginesChanged`, `EnginePreferencesChanged`, `SelectDefaultEngine`, `EditEngineRule`, `ForgetEngineRule`, `ChooseSiteEngine`, `RehostPage`, `ProtectedMediaUnavailable` |
+| Behavior preferences | The session's device-local search and translation preferences behind `SetAppPreferences` |
+| Links and external opens | `LinkNavigation`, `ExternalOpenDestination`, `ExternalWebLink` |
+| Engines | `EnginesChanged`, `EnginePreferencesChanged`, `SelectDefaultEngine`, `RehostPage`, `ProtectedMediaUnavailable` |
 
-The device stores a preferred default engine and exact-origin website rules
-locally. Settings edits the same rules that page-menu choices and protected
-media fallback use. Private choices remain scoped to their private Space.
-Changing the default starts no engine and moves no existing page. An
-unavailable preference is retained but falls back to the product's default.
-Chromium is the dual-engine product's recommended default. WebKit preference
-keeps Chromium unloaded until a Chromium website or extension is opened.
+The device stores a global default engine locally. Changing it starts no engine
+and moves no existing page. An unavailable preference is retained while new pages
+use the product’s available default. Chromium is the dual-engine product’s
+recommended default. WebKit preference keeps Chromium unloaded until a Chromium
+page or extension is opened.
 
 These stay in Swift by design: heraldry vocabulary and composition, favicon
-palette extraction, sidebar widgets, Peek motion and presentation phases,
+palette extraction, Now Playing presentation, Peek motion and presentation phases,
 tear-off placement geometry, drag geometry and default-browser prompt cadence.
 
 ## Builds and packaging
@@ -276,8 +267,6 @@ Use this when a new feature arrives:
 3. Is it layout, animation or presentation state? Then it is shared Swift, and
    it gates on what the core offers and the page's engine supports, never on
    engine `#if` flags.
-4. Does it touch a locked Space? The core gate must reject it, and the
-   presentation layer must not build its content.
-5. Does it open a window? Only from a person's action or an explicit extension
+4. Does it open a window? Only from a person's action or an explicit extension
    request; a window a page asks for opens as a Quick Window over its opener's
    window. Otherwise it reuses the current window or docks inside it.

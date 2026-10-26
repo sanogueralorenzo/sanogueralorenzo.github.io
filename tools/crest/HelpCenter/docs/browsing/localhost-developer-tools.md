@@ -22,7 +22,6 @@ This previews the page’s layout at the chosen dimensions; it does not reproduc
 - Edit the complete development URL without losing the visible route.
 - Copy the current link.
 - Open Site Settings and inspect permissions.
-- Use **Capture in Portrait Mode**, **Copy Full Page Capture**, or drag a region to copy it.
 - Toggle the inspector's Console, Network panel, or element inspection.
 
 Automatic localhost tools follow the focused address. The manual toolbar toggle lets you inspect other sites too.

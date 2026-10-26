@@ -16,7 +16,6 @@ These are the current defaults. On Mac, open **Settings → Shortcuts** to searc
 | New Window | Command-N |
 | New Blank Window (Mac) | Option-Command-N |
 | New Tab | Command-T |
-| New Quick Window (Mac) | Option-Shift-Command-N |
 | New Private Window | Shift-Command-N |
 | Close Current Tab or Window | Command-W |
 | Close Window | Shift-Command-W |
@@ -28,6 +27,8 @@ These are the current defaults. On Mac, open **Settings → Shortcuts** to searc
 | Reload from Origin | Shift-Command-R |
 
 On Mac, **Command-L** opens the address editor while keeping a collapsed sidebar collapsed.
+
+For a saved or pinned tab, **Command-W** returns to its saved URL first. At that URL, it puts the page to sleep and switches to another active tab, keeping the saved tab in the sidebar. Saved tab rows show the same shortcut beside their return arrow or minus button.
 
 ## Tabs and Spaces
 
@@ -66,7 +67,7 @@ Tap **Control-Tab** to jump to the tab you used last. On a Mac, hold it to see y
 | Action | Default |
 | --- | --- |
 | Show or Hide Reader | Unassigned |
-| Show or Hide Translation Toolbar | Shift-Command-L |
+| Translate Page | Shift-Command-L |
 | Toggle Content Blocking | Unassigned |
 | Find in Page | Command-F |
 | Zoom In | Command-+ |
@@ -94,11 +95,11 @@ Tap **Control-Tab** to jump to the tab you used last. On a Mac, hold it to see y
 
 iPad uses Crest’s shipped defaults for the commands available on that platform. Hold the Command key to inspect commands exposed by the current menu context. Full shortcut rebinding is a Mac feature.
 
-On iPad, **Option-Command-N** remains New Quick Window. New Blank Window is a Mac command.
+New Blank Window is a Mac command.
 
 ## Context-only keys
 
-Some temporary interfaces have their own local actions. In Peek, **Command-W** closes the preview and **Command-O** promotes it to a full tab. **Escape** dismisses transient panels such as the command palette or Quick Window flow when dismissal is available.
+**Escape** dismisses the command palette and other transient panels when dismissal is available.
 
 ## Resolve a conflict on Mac
 

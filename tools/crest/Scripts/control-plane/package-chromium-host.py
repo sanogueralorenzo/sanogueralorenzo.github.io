@@ -130,17 +130,6 @@ def sign_for_distribution(output, identity, app_entitlements):
     codesign(output, app_entitlements)
 
 
-def default_update_channel(repo):
-    override = os.environ.get("CREST_DEFAULT_UPDATE_CHANNEL", "").strip()
-    if override:
-        return override
-    channels = set(re.findall(r"^\s*CREST_DEFAULT_UPDATE_CHANNEL:\s*([a-z]+)\s*$",
-                              (repo / "project.yml").read_text(), re.MULTILINE))
-    if len(channels) != 1:
-        raise SystemExit(f"project.yml must name one default update channel; found {sorted(channels)}")
-    return channels.pop()
-
-
 def minimum_system_version(engine_info, ui_info):
     """Launch Services and Sparkle must require every bundled component's OS."""
     versions = [info["LSMinimumSystemVersion"] for info in (engine_info, ui_info)]
@@ -280,12 +269,8 @@ def main():
             parser.error("The native UI build must supply Sparkle.framework beside the host framework")
         subprocess.run(["ditto", str(sparkle), str(frameworks / "Sparkle.framework")], check=True)
         icon = resources / "Crest.icns"
-        dock_plugin = ui.parent / "CrestDockTilePlugin.docktileplugin"
-        if not icon.is_file() or not dock_plugin.is_dir():
-            parser.error("The native UI build must supply Crest.icns and CrestDockTilePlugin.docktileplugin")
-        plugins = output / "Contents/PlugIns"
-        plugins.mkdir(exist_ok=True)
-        subprocess.run(["ditto", str(dock_plugin), str(plugins / dock_plugin.name)], check=True)
+        if not icon.is_file():
+            parser.error("The native UI build must supply Crest.icns")
         # The helper agents run, crest-browser, which reaches Crest over its
         # agent socket. It lives in Contents/Helpers, where signing treats it
         # as loose code with the hardened runtime; its embedded Info.plist
@@ -326,8 +311,6 @@ def main():
         info["LSMinimumSystemVersion"] = minimum_system_version(info, ui_info)
         info["CFBundleIconFile"] = "Crest"
         info["CFBundleIconName"] = "Crest"
-        info["NSDockTilePlugIn"] = "CrestDockTilePlugin.docktileplugin"
-        info["CrestAppIconPreferenceDomain"] = info["CFBundleIdentifier"]
         # Chromium's scripting dictionary names Chromium's application class,
         # which Crest's application is not. Once any script loaded it, a quit
         # Apple Event (the updater's relaunch, the Dock's Quit, a logout) found
@@ -347,10 +330,6 @@ def main():
             if (key.startswith("SU") or key.endswith("UsageDescription")
                     or key in ("CFBundleURLTypes", "CFBundleDocumentTypes")):
                 info[key] = value
-        # Crest's Info.plist leaves the channel to its target's build setting;
-        # a packaged product follows that same default, read from project.yml
-        # unless CREST_DEFAULT_UPDATE_CHANNEL overrides it.
-        info["CrestDefaultUpdateChannel"] = default_update_channel(repo)
         if "SUFeedURL" not in info or "SUPublicEDKey" not in info:
             parser.error("Crest's Info.plist must supply the Sparkle feed and public key for a product package")
     else:
@@ -366,7 +345,6 @@ def main():
         name_engine_helpers(frameworks, info["CFBundleDisplayName"])
         name_product_in_localized_info(resources, info["CFBundleDisplayName"])
     targets = [] if args.baseline else [frameworks / "CrestCore.Native.dylib", frameworks / ui.name,
-                                      output / "Contents/PlugIns/CrestDockTilePlugin.docktileplugin",
                                       output / "Contents/Helpers/crest-browser"]
     targets += sorted((p for p in frameworks.rglob("*.app") if not p.is_symlink()), key=lambda p: len(p.parts), reverse=True)
     targets += sorted((p for p in frameworks.glob("*.framework") if p.name != ui.name), key=lambda p: len(p.parts), reverse=True)

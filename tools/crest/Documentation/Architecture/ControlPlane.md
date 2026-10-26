@@ -22,7 +22,7 @@ and the wire in detail.
 | `CrestMobile` | `CrestShared` and `CrestMobile` | WebKit | Installed |
 | `CrestChromiumUI`, `CrestNativeCore`, `CrestMobileNativeCore` | The same UI | As their product | Review: `CREST_REVIEW_BUILD` names an isolated launch |
 
-A review build keeps its own named isolation, session, credentials prefix and
+A review build keeps its own named isolation, session and
 website data stores, so it never reads or writes the installed app's data. A
 test run the Mac review build hosts stays unnamed and keeps nothing, as in
 every other host.
@@ -31,7 +31,7 @@ every other host.
 
 | Owner | Responsibilities |
 | --- | --- |
-| `CrestCore` | Every piece of browser state and every rule: workspaces, Spaces and their profiles, tabs, folders, splits, history, archive, windows and what each shows, pages and their live state, the questions pages ask, downloads, site permissions, credential policy, search and completion, import and export, setup, shortcuts, launch policy, behavior preferences, engine registrations and per-site engine choices, storage and sync |
+| `CrestCore` | Every piece of browser state and every rule: workspaces, Spaces and their profiles, tabs, folders, splits, history, archive, windows and what each shows, pages and their live state, the questions pages ask, downloads, site permissions, search and completion, import and export, setup, shortcuts, launch policy, behavior preferences, engine registrations and the global engine choice, storage and sync |
 | Engine bindings | Creating, loading and closing pages; engine navigation history; find, zoom, capture, export, printing and DevTools; extensions; network, cookie and website data stores; reporting what happened to the core |
 | Apple OS services | CloudKit transport and account state, Keychain and system authentication, notification delivery, file panels, default-browser registration, software updates, the favicon image store |
 | SwiftUI and AppKit/UIKit | Views, layout, animation, hover, scroll position, window frames, sidebar width, appearance preferences, presenting the prompts the core asks for, embedding engine views |
@@ -62,14 +62,14 @@ Everything that crosses the boundary is a C# record or fixed set in the
 with its domain and application, which keep folders and namespaces of their own
 (`Contracts`, `Domain` and `Application` under `CrestCore/src/CrestCore`):
 
-- **Intents** change state (`OpenTab`, `ChooseSiteEngine`).
+- **Intents** change state (`OpenTab`, `SelectDefaultEngine`).
 - **Queries** answer without changing it (`PaletteSuggestions`, `SiteDecision`).
   A query that needs no session, such as `LaunchIsolation` or `NormalizeBranding`,
   is a `StandaloneQuery`, which `crest_core_answer` answers without an app.
 - **Changes** carry the state an intent or the core's own work produced
   (`TabsChanged`, `EnginesChanged`), or name an event the UI reacts to
   (`PageRehosted`).
-- **Rejections** name the rule that refused an intent (`SpaceLocked`,
+- **Rejections** name the rule that refused an intent (`SpaceBeingDeleted`,
   `UnregisteredEngine`). A rejection a person reads carries its `[Localized]`
   message.
 - **Engine commands, engine events, page requests and engine presentations**
@@ -122,20 +122,13 @@ the generated files are stale.
 - A fixed set is a sealed class whose static instances carry their data, their
   `[Localized]` titles and any rule that differs by member. Swift receives a
   struct with the same members. A member's wire tag is its index in `All`, so
-  `All` only grows at the end. A set with runtime members, such as a Space's
-  custom search engines, is `[OpenSet]` and never crosses by tag.
+  `All` only grows at the end. A set with runtime members is `[OpenSet]` and never crosses by tag.
 - A record whose constructor normalizes its fields, such as `SiteOrigin`, is
   `[NormalizedOnConstruction]`; Swift gets only a labeled wire initializer and
   a normalizing platform initializer.
 - A message's byte limit is data on its type (`[MessageLimit]`), which the
   dispatcher checks before it reads the message.
-- A record that holds a password is `[HoldsSecrets]`: its text names no
-  secret, and a containment test proves no change, intent, stored session,
-  device record or sync journal reaches it. An answer buffer is cleared when
-  it is freed. The credential questions keep no state: capture, fill and save
-  take only identities and metadata, and importing or exporting a password
-  file are the only questions that carry passwords, which the core answers
-  from the question alone.
+- `[HoldsSecrets]` makes generated descriptions redact sensitive values and suppress reflection. Answer buffers are cleared when freed.
 
 ### Resolved values and seeds
 
@@ -169,7 +162,7 @@ fails at launch instead of misreading data. Nothing crosses as JSON.
 The core publishes typed changes and never resends unchanged state. It derives
 them by comparing each accepted state with the one before, so no change can be
 forgotten. Changes are keyed by workspace, because the persistent session,
-private browsing, borrowed workspaces and Quick Windows are open at once.
+private browsing, borrowed workspaces and system sign-in windows are open at once.
 
 An intent answers with the changes still pending from earlier, then its own,
 so an older change never lands after a newer one and the caller reads the new
@@ -204,7 +197,7 @@ beside that file, following each batch that changes the session.
 | Object | Holds | Saved | Synced |
 | --- | --- | --- | --- |
 | Workspaces (`NativeSessionAuthority`) | The persistent session and every memory-only one: Spaces with their profiles, tabs, folders, splits, history, archive, app preferences | The persistent session | Yes, through the journal |
-| `Device` | Windows and what each shows, split column shares, per-site engine choices, site permission choices, shortcuts, link preferences, setup, adoptions | In the device store; memory-only Spaces' choices stay in memory | Never |
+| `Device` | Windows and what each shows, split column shares, the global engine choice, site permission choices, shortcuts, setup, adoptions | In the device store; memory-only Spaces' choices stay in memory | Never |
 | `Pages` | Each open page: its owner, window, engine, phase and live state | Never | Never |
 | `Prompts`, `ClosePreparations` | Questions waiting on the person; a close or quit in progress | Never | Never |
 | `Engines` | The registered bindings, their capabilities and what the device offers | Never | Never |
@@ -237,27 +230,10 @@ when the source Space goes. A borrowed workspace never edits its Space's
 settings; the core refuses with `BorrowedProfileRequiresOwner`.
 
 The session model covers tab lifecycle and placement, folders, splits,
-multi-selection batches, cross-Space and cross-workspace moves, Quick Window
-and Peek promotion, history and archive with their retention, sidebar outlines
+multi-selection batches, cross-Space and cross-workspace moves, history and archive with their retention,
+sidebar outlines
 and drop targets, imports, and Space creation, identity, appearance,
-preferences, access policy and deletion.
-
-### Locked Spaces
-
-`SpaceAccessAuthority` holds this process's grants, driven by
-`BeginUnlockingSpace`, `FinishUnlockingSpace`, `LockSpace` and `LockAllSpaces`,
-each of which publishes `SpaceLockChanged`. The native access controller
-presents Apple's authentication prompt, answers with its result and reads each
-lock from the read model. Grants match both Space and profile identity and
-never enter storage or sync.
-
-A session rejects a prepared intent that would read or change a locked Space
-with `SpaceLocked`, before any preparation runs. Raising protection, deletion,
-and retention sweeps still apply to a locked Space, since none of them
-returns its content. Sync is not gated, so background convergence continues,
-but a merge can raise protection and never remove it where this device holds
-no grant. Native page, credential and extension callers keep their own gates,
-so the core gate is defence in depth.
+preferences and deletion.
 
 ### Windows belong to the device
 
@@ -274,7 +250,7 @@ sixteen used last. Sidebar width and presentation stay the platform's.
 The Dock icon's menu is the core's answer to `DockMenu`, asked over the
 windows as the platform stacks them: the window commands (`DockMenuCommand`),
 then the persistent session's Spaces in order, each with whether the frontmost
-window shows it and whether it is locked, and the window a chosen Space shows
+window shows it, and the window a chosen Space shows
 in. That window is the frontmost over the persistent session, never a private
 or borrowed one; with none open, a chosen Space opens a window on itself. Both
 Mac apps draw it with the Space switcher's icons.
@@ -352,7 +328,7 @@ profile UUID is the shared identity; its Chromium directory or WebKit data
 store is the binding's detail.
 
 Cookies and website data, engine history stacks, caches, device permissions,
-per-site engine choices, extensions and their access never enter sync. Native
+engine preferences, extensions and their access never enter sync. Native
 Settings and Start Pages, `chrome://`, `chrome-extension://`, files and other
 non-web tabs stay on the device that opened them and survive incoming merges.
 Private and temporary workspaces never upload. A device must not delete a
@@ -388,7 +364,7 @@ The engine contract is a set of contract records like intents and changes:
 
 - **Engine commands** the core issues to one binding: `CreatePage`,
   `LoadPage`, `ClosePage`, `RecoverPage`, `ExitPictureInPicture` for a page a
-  window shows again or one of a locked Space, `CheckBeforeUnload`, the prompt
+  window shows again, `CheckBeforeUnload`, the prompt
   settlements, the download commands, the erasures (`EraseProfileData`,
   `EraseSiteData`), `AdoptOfferedPage` and `RejectOfferedPage` for a page the
   engine offered, and `StageNavigation` and `DropStagedLink` for a staged link.
@@ -496,12 +472,10 @@ page with the rules its Space's protection applies; each page owner still
 applies a changed protection to its live pages. A popup WebKit makes keeps the
 configuration WebKit derived from its opener's.
 
-The binding asks the core `LinkActivation` for each link the person follows
-in one of its pages, as Chromium's does, and keeps a modified link bound for
-a Peek staged with its referrer: the platform asks the core `StageLink` to
-hand it to the Peek's page, which the core allows only on the same engine and
-profile and before the page has loaded anything, and WebKit drops a link the
-core discards, one that no longer applies, and those of a page that closes.
+The binding asks the core `LinkActivation` about clicked links. Modified
+links and links leaving a saved tab's site open regular tabs; native request
+registration preserves their request details and the opener's engine.
+
 
 The binding runs each `LoadPage` in its page once the page's host is ready
 for it. A page the core closes keeping its state reports `PageClosed` with
@@ -518,7 +492,7 @@ only: a relaunch, or a tab whose state the core no longer holds, restores
 from there.
 
 `BrowserPageHost` keeps a workspace's pages on the Mac, iPhone and iPad: each
-tab's resident page, the Quick Window and Peek leases, and the state a tab's
+tab's resident page, the the state a tab's
 page leaves behind. Every Mac window over a workspace shares one host through
 its runtime store; each iPhone or iPad scene has its own. When the core moves
 a page to another engine, the page takes the new engine's adapter and view in
@@ -539,65 +513,36 @@ and each platform's own commands.
 Each page belongs to one engine, and capabilities are read from the page's
 engine.
 
-- **Site choices.** `ChooseSiteEngine(space, origin, engine)` records which
-  engine a site's new pages open on. A choice made in a persistent-session
-  Space holds for every Space and the device store keeps it, the most recent
-  512; one made in a private or other memory-only Space holds for that Space
-  alone and stays in memory. A tab's page opens on the engine chosen for the
-  site the tab shows, when that engine is registered, and otherwise on the
-  default engine. A restore state kept by one engine is never handed to
-  another.
-- **Opened pages keep their opener's engine.** A page another page opened runs
-  on its opener's engine, whatever the site's choice: a script's window, a
-  `target=_blank` link or form, a popup, a link the person follows into a new
-  tab with a modifier or the context menu, and the Peek or split a link opens.
-  `OpenPage` names such a page's opener (`OpenerPageId`), and a page an engine
-  opened by itself (`PageOffered`) stays on that engine. The site's choice and
-  the default engine apply to pages the person opens: typed addresses,
-  bookmarks and links from other apps.
-- **Moving a page.** `RehostPage(page, engine, remembersSite)` checks the page's
-  `beforeunload` decision before closing it on its engine,
-  keeping nothing, creates it on the other in the same profile and window, and
-  loads the address it showed once that engine created it. The page keeps its
-  identity, owner and window; its history and form state stay behind, and the
-  questions its old engine asked end. A load the person asks for toward a site
-  chosen for another engine moves the page there the same way, and so does a
-  navigation the document starts in a page no other page opened; a page
-  another page opened stays with its opener's engine, which keeps a sign-in
-  window's redirects inside it. Every move publishes
-  `PageRehosted(page, space, origin, from, to, reason)`.
-- **Site Controls** shows which engine the site opens in when more than one is
-  registered, and choosing another moves the page and records the choice.
-  The Chromium product's Page menu also moves the shown page alone to any
-  other registered engine (**Open Page in WebKit**), recording no choice.
-  Both read the registered engines, not what the device offers, so they are
-  there before any page has opened on the other engine.
-- **Protected media.** Crest's Chromium carries no Widevine. When a page, or
-  a frame of its own site, asks for Widevine or PlayReady, Chromium reports
-  `ProtectedMediaUnavailable`. The core automatically attempts a move once per
-  document to an engine with the `protected-media` capability, which WebKit has
-  through the platform's FairPlay. It checks `beforeunload` before moving and
-  validates that the document and website choice have not changed while waiting.
-  Only an allowed move records that engine for the site. Cancelling preserves
-  the page and its website choice without another prompt for that document.
-  No automatic move starts when no engine plays protected media, when the page
-  already moved for this reason, when another close is pending, or when the
-  site already has a choice. The
-  Mac window shows a notice with **Move Back**, which records the engine the
-  page left for the site and moves it back.
+- **Global default.** New pages use the registered default engine. A restore
+  state kept by one engine is never handed to another.
+- **Opened pages keep their opener’s engine.** `OpenPage` validates its
+  `OpenerPageId` against the workspace and profile. Page-opened tabs, links,
+  forms and sign-in popups keep that engine, even if the global default changes.
+  `PageOffered` adopts a page on the engine that opened it.
+- **Moving a page.** `RehostPage(page, engine)` completes `beforeunload` before
+  closing the old engine’s page and creating it on the destination engine in
+  the same profile and window. It preserves page identity and cross-engine
+  history and settles the old engine’s prompts. It never records a website rule.
+  The Page menu offers **Open Page in WebKit** or **Open Page in Chromium**.
+- **Protected media.** An unsupported key-system request reports
+  `ProtectedMediaUnavailable`. The core can move that page once per document
+  to an engine with protected-media support, after `beforeunload` and document
+  validation. Cancellation preserves the page without repeating the prompt.
+  A notice offers **Move Back** for that page. Future pages still use the
+  global default.
 - **Profiles and website data.** A Space is one profile on every engine. The
   profile's Chromium directory and its WebKit website data store share the
   profile's identifier; a named isolated launch derives its own WebKit store
   identifiers, and private and ephemeral launches use non-persistent stores.
-  Deleting the Space erases both, and the locked-Space gate covers both.
+  Deleting the Space erases both.
   Sign-in never moves between engines.
 
 ## Page lifecycle
 
-The core owns page identity. A page's owner (a tab, or a Quick Window, Peek or
+The core owns page identity. A page's owner (a tab, or a system sign-in or
 Settings request) opens it through the core (`OpenPage`) from its window,
 hands it to another owner (`MovePage`) and releases it (`ReleasePage`). The
-core refuses a page in a locked Space, in one being deleted, or for a tab that
+core refuses a page in a Space being deleted, or for a tab that
 already has one in that window. It asks the page's engine to create, load and close the
 engine's page. Typed addresses, the command palette, Open Location and every
 first load go through `Navigate`, which the core resolves by the Space's
@@ -613,46 +558,19 @@ they share, internal to the core, and its dispatchers hand it to each message:
 `intent.Apply(this, turn)`. A report reads its page once; one about a page the
 core no longer hosts, or that another engine hosts, changes nothing.
 
-- **Offered pages.** A page an engine opens by itself, such as a
-  `window.open` popup or an extension's `chrome.windows.create`, arrives as
-  `PageOffered`, and the core decides where it goes. WebKit offers the popup
-  it made while it waits for the popup's web view: the core adopts or refuses
-  it on the same stack, the binding builds the adopted page from the
-  configuration WebKit derived from the opener's, and the page's owner hosts it
-  before WebKit starts its first navigation, so `window.opener` stays
-  connected. A refused popup gets no window, never a tab of its own.
-  A window a page asked for, which its engine made a window of its own
-  (`SpaceId` with a source: Chromium's popup and new-window dispositions,
-  WebKit's popup window features, as HTML's "popup window is requested"
-  decides), becomes a Quick Window page in its opener's Space and window,
-  published as `OfferedWindowAdopted` with the page that asked for it. The
-  window that routes that page now, which is the one the person is using
-  rather than the one the core recorded, hosts the popup's page at once in
-  the page host every window over the workspace shares, and opens a Quick
-  Window over itself that takes it, so a sign-in popup is one window whose
-  redirects stay in it; its `window.close()` closes the Quick
-  Window, and Open in makes it a tab with its opener intact. Otherwise a
-  transient page keeps what it opens: the core rejects the offer and loads
-  the address in the Quick Window or Peek itself, in one page with its native
-  history. A web address or the empty document at a fragment loads there; the
-  bare `about:blank` an engine reports for a window with no address yet loads
-  nothing. WebKit loads the window's own request there, keeping its method,
-  body and referrer, and offers a `window.open()` with no address as
-  `about:blank`. A tab's offer becomes a new
-  tab beside the tab, in its Space and window. Anything else joins the
-  window's reserved Space, or else the Space it shows, after the tab it shows.
-  The core refuses an offer for a locked or deleting Space, one of another
-  profile, a closed window or a full Space, with `RejectOfferedPage`.
-  Otherwise it opens the tab, issues `AdoptOfferedPage` and publishes
-  `OfferedPageAdopted`, and the window that hosts the tab shows the page the
-  engine made. iPhone and iPad have no Quick Window, so WebKit offers every
-  popup there as a tab.
+- **Offered pages.** An engine offers a popup or new tab through `PageOffered`.
+  The core opens a current tab in the opener's Space and window, issues
+  `AdoptOfferedPage`, and publishes `OfferedPageAdopted`. The platform hosts
+  the actual engine page, preserving its profile, opener, redirects and script
+  state. This also applies to sized sign-in popups and nested popups. Offers
+  without an opener use their reserved window and Space. A deleting Space,
+  mismatched profile, closed window or full Space refuses the offer.
 - **Navigation.** A binding reports each navigation as it starts, commits,
   finishes or fails. The core records one visit per document when it finishes,
   because both engines know the title only then. A page with a tab updates the
   tab's address and title and adds the visit to its Space's history in one
-  revision; a Quick Window or Peek page adds only the visit. Nothing is
-  recorded for a failed load, in a locked Space or one being deleted. A move
+  revision; a page without a tab adds only the visit. Nothing is
+  recorded for a failed load, in a Space being deleted. A move
   within a document is a visit of its own when it reaches another page, and
   records nothing when only the fragment changes.
 - **Live state.** A binding reports a page's `PageSnapshot` at most once per
@@ -675,7 +593,7 @@ core no longer hosts, or that another engine hosts, changes nothing.
   still hosts means the engine closed it on its own authority, as an
   extension's `chrome.tabs.remove` or `chrome.windows.remove` does. Either
   way the core closes what owns the page as the person closing it would: a
-  tab through `CloseTab`, once, and a Quick Window's or Peek's page through
+  tab through `CloseTab`, once, and a system sign-in page through
   `TransientPageClosed`, which closes whatever shows it. A page in a Space
   being deleted has nothing left to close. The acknowledgement of a close the
   core asked for finds the page already gone or moved to another engine, and
@@ -720,7 +638,7 @@ core no longer hosts, or that another engine hosts, changes nothing.
 - **Picture in Picture.** Each page reports its Picture in Picture activity
   in its snapshot. When a window shows a page again, or the page's Space locks,
   is being deleted or is gone, the core sends the page's engine
-  `ExitPictureInPicture`, and it asks again at once if a page of a locked Space
+  `ExitPictureInPicture`, and it asks again at once if a page of a deleted Space
   reports Picture in Picture. The Picture in Picture window's return control
   reports `PictureInPictureReturned`, and the core shows the page's tab in the
   window that hosts it (`WindowBroughtForward`); the return never opens a
@@ -762,8 +680,7 @@ core no longer hosts, or that another engine hosts, changes nothing.
 ## What stays in Swift
 
 By design: heraldry vocabulary and composition, favicon image bytes and
-palette extraction, sidebar widgets, Peek motion and presentation phases,
-tear-off placement geometry, drag geometry, default-browser prompt cadence,
+palette extraction, Now Playing presentation, tear-off placement geometry, drag geometry, default-browser prompt cadence,
 appearance preferences and the presentation of every prompt, notice and sheet.
 Informational feedback uses the top-of-window notice capsule, which may offer
 one action that undoes what it reports; a dialog appears only when the person
@@ -873,7 +790,7 @@ documents and sign-ins that arrived before it was ready.
   `LaunchWindows` names the windows a launch reopens, back to front, and the
   one that opens on the startup choice, or the setup a first run shows in front
   of them. `WindowToReopen` answers a Dock click with no window open.
-  `RouteExternalLink` and `RouteLocalDocument` place what other apps open,
+  `ExternalOpenDestination` selects the regular window and current Space for external opens,
   `EngineWindowPlacement` places a browser the engine created for itself, and
   `DockMenu` fills the Dock menu. `PrepareToQuit` and `PrepareToCloseWindows`
   ask each page before a quit or a window's close; a quit waits with
@@ -883,7 +800,7 @@ documents and sign-ins that arrived before it was ready.
   launcher offers each `ShortcutCommand` that `OffersInPalette`, in catalog
   order; both show what `EnginesChanged` says the device offers.
 - **What stays native.** Window kinds (`BrowserMacWindowKind`: browser,
-  temporary, private, Quick Window, setup and update details), frames and
+  temporary, private, system sign-in, setup and update details), frames and
   cascading, key focus and window activity, and the close gate every window
   shares (`BrowserWindowCloseGate`), which asks the core before a person's
   close. The shell adds AppKit's application, Edit, Window and Help menus, and
@@ -911,12 +828,9 @@ commands. It has no `@main`. Crest owns `NSApplication` and its delegate;
 Chromium contributes native event processing and accessibility without
 replacing them. A WebKit-only session never loads Chromium's framework.
 
-Settings exposes the device's preferred default and exact-origin website
-rules through `GetEnginePreferences`, `SelectDefaultEngine`,
-`EditEngineRule` and `ForgetEngineRule`. These choices are local device data,
-not synchronized browsing state. Private-page choices are absent from this
-projection. Opening Extensions may start Chromium even with WebKit preferred;
-merely visiting engine Settings does not.
+Settings exposes the global default through `GetEnginePreferences` and
+`SelectDefaultEngine`. The device stores this choice locally. Opening Extensions
+may start Chromium even with WebKit preferred; visiting engine Settings does not.
 
 - **Profiles.** Each Space uses a regular Chromium profile under the engine's
   user-data directory; the product keeps it in
@@ -932,18 +846,10 @@ merely visiting engine Settings does not.
   place of Chromium's profiles and incognito window, and reopens the windows
   open at quit. The product registers Crest for HTTP, HTTPS and HTML documents
   and carries the Sparkle feed.
-- **Links.** Chromium's binding asks the core `LinkActivation` for each link
-  the person follows in an owned page, from its modified-link hook and its
-  protected-link throttle: saved-site protection, Peek priority and
-  modified-link tab selection. A plain click on a link that opens a window of
-  its own (`target="_blank"`) asks for the page it was followed in, as WebKit
-  does; when the core answers Peek, the engine's new window closes before the
-  core is offered it. A new tab a modified click asked for stays a tab. A link
-  bound for a new tab or a Peek stays
-  staged inside the engine with its verified referrer, initiator, headers and
-  source SiteInstance. The platform asks the core `StageLink` to hand it to
-  the new page, which the core allows only on the same engine and profile, or
-  `DiscardStagedLink` to drop it; the new page receives only a one-shot token.
+- **Links.** Chromium asks the core `LinkActivation` about modified clicks
+  and ordinary links leaving a saved tab's site. The decision opens a regular
+  tab in front or behind, retaining Chromium's verified navigation parameters.
+  Website popups keep their original page through ordinary offer adoption.
   Context-menu rows reach Crest as typed rows, never as dictionaries.
 - **Internal pages.** Crest's session and address controls spell internal
   addresses `crest://`; the binding translates them to `chrome://` for

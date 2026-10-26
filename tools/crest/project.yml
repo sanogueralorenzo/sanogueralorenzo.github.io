@@ -113,7 +113,6 @@ targetTemplates:
       # supply their own.
       - path: CrestShared
         excludes:
-          - Resources/CrestIcon/Sources
           - Resources/CrestIcon/Validation
           - Infrastructure/Engines/BrowserEngineRegistration+Composition.swift
           - Features/Settings/Components/BrowserEngineExtensionSettingsPane.swift
@@ -127,9 +126,6 @@ targetTemplates:
           - CrestChromiumHost.h
       - path: CrestAgents
     dependencies:
-      - target: CrestDockTilePlugin
-        link: false
-        embed: false
       # The packager copies the agent helper into Contents/Helpers.
       - target: CrestBrowserHelper
         link: false
@@ -139,7 +135,6 @@ targetTemplates:
       - sdk: AuthenticationServices.framework
       - sdk: CloudKit.framework
       - sdk: CoreLocation.framework
-      - sdk: LocalAuthentication.framework
       - sdk: MediaPlayer.framework
       - sdk: UserNotifications.framework
       - sdk: WebKit.framework
@@ -150,7 +145,6 @@ targetTemplates:
         PRODUCT_MODULE_NAME: CrestChromiumUI
         GENERATE_INFOPLIST_FILE: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: Crest
-        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "CrestWinter CrestLion CrestStorm CrestDragon CrestMeadow CrestIron CrestRiver CrestSun CrestVigil"
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: ${hostCompilationConditions}
         SWIFT_OBJC_BRIDGING_HEADER: "$(PROJECT_DIR)/CrestEngines/Chromium/Apple/CrestChromiumHost.h"
         SWIFT_INCLUDE_PATHS: "$(PROJECT_DIR)/CrestContracts/include"
@@ -195,17 +189,10 @@ targets:
         buildPhase: resources
       - path: CrestShared
         excludes:
-          - Resources/CrestIcon/Sources
           - Resources/CrestIcon/Validation
       - path: CrestMac
       - path: CrestAgents
     dependencies:
-      - target: CrestDockTilePlugin
-        embed: true
-        link: false
-        codeSign: true
-        copy:
-          destination: plugins
       - target: CrestBrowserHelper
         embed: true
         link: false
@@ -218,7 +205,6 @@ targets:
       - sdk: AuthenticationServices.framework
       - sdk: CloudKit.framework
       - sdk: CoreLocation.framework
-      - sdk: LocalAuthentication.framework
       - sdk: MediaPlayer.framework
       - sdk: UserNotifications.framework
       - sdk: WebKit.framework
@@ -232,12 +218,10 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: CrestMac/Configuration/Crest-Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: Crest
-        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "CrestWinter CrestLion CrestStorm CrestDragon CrestMeadow CrestIron CrestRiver CrestSun CrestVigil"
         CREST_NATIVE_CORE_BUNDLE_IDENTIFIER: com.pauldavis.crest.native-core
         PRODUCT_BUNDLE_IDENTIFIER: "$(CREST_NATIVE_CORE_BUNDLE_IDENTIFIER)"
         PRODUCT_MODULE_NAME: Crest
         PRODUCT_NAME: CrestNativeCore
-        CREST_DEFAULT_UPDATE_CHANNEL: development
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) CREST_REVIEW_BUILD"
         SWIFT_INCLUDE_PATHS: "$(PROJECT_DIR)/CrestContracts/include"
         CREST_CORE_LIBRARY_DIR: "$(PROJECT_DIR)/CrestCore/src/CrestCore.Native/bin/Release/net10.0/osx-arm64/publish"
@@ -266,6 +250,10 @@ targets:
           - BrowserDataRetentionTests.swift
           - BrowserWebHostViewTests.swift
           - BrowserPageNavigationMarkerTests.swift
+          - BrowserFindSessionTests.swift
+          - EnginePageAvailabilityTests.swift
+          - BrowserSoftwareUpdateTests.swift
+          - BrowserSoftwareUpdateRefreshTests.swift
           - BrowserShortcutTests.swift
           - BrowserDurableTabCloseTests.swift
           - BrowserWebsiteDataStoreTests.swift
@@ -305,17 +293,10 @@ targets:
         buildPhase: resources
       - path: CrestShared
         excludes:
-          - Resources/CrestIcon/Sources
           - Resources/CrestIcon/Validation
       - path: CrestMac
       - path: CrestAgents
     dependencies:
-      - target: CrestDockTilePlugin
-        embed: true
-        link: false
-        codeSign: true
-        copy:
-          destination: plugins
       - target: CrestBrowserHelper
         embed: true
         link: false
@@ -328,7 +309,6 @@ targets:
       - sdk: AuthenticationServices.framework
       - sdk: CloudKit.framework
       - sdk: CoreLocation.framework
-      - sdk: LocalAuthentication.framework
       - sdk: MediaPlayer.framework
       - sdk: UserNotifications.framework
       - sdk: WebKit.framework
@@ -342,12 +322,10 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: CrestMac/Configuration/Crest-Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: Crest
-        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "CrestWinter CrestLion CrestStorm CrestDragon CrestMeadow CrestIron CrestRiver CrestSun CrestVigil"
         CREST_MAC_BUNDLE_IDENTIFIER: com.pauldavis.crest
         PRODUCT_BUNDLE_IDENTIFIER: "$(CREST_MAC_BUNDLE_IDENTIFIER)"
         PRODUCT_MODULE_NAME: Crest
         PRODUCT_NAME: Crest
-        CREST_DEFAULT_UPDATE_CHANNEL: development
   # crest-browser, the helper agents run over stdio to reach the Crest app it
   # ships inside (Contents/Helpers). Mac only.
   CrestBrowserHelper:
@@ -365,22 +343,6 @@ targets:
         CREATE_INFOPLIST_SECTION_IN_BINARY: YES
         SKIP_INSTALL: YES
         SWIFT_EMIT_LOC_STRINGS: NO
-  CrestDockTilePlugin:
-    type: bundle
-    platform: macOS
-    sources:
-      - path: CrestDockTilePlugin
-      - path: CrestMac/Features/AppIcon/BrowserMacAppIconAssets.swift
-      - path: CrestMac/Features/AppIcon/BrowserMacDockTileView.swift
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.pauldavis.crest.docktileplugin
-        PRODUCT_NAME: CrestDockTilePlugin
-        PRODUCT_MODULE_NAME: CrestDockTilePlugin
-        WRAPPER_EXTENSION: docktileplugin
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_NSPrincipalClass: CrestDockTilePlugin.CrestDockTilePlugin
-        SKIP_INSTALL: YES
   CrestTests:
     type: bundle.unit-test
     platform: macOS
@@ -412,14 +374,12 @@ targets:
         buildPhase: resources
       - path: CrestShared
         excludes:
-          - Resources/CrestIcon/Sources
           - Resources/CrestIcon/Validation
       - path: CrestMobile
     dependencies:
       - sdk: AuthenticationServices.framework
       - sdk: CloudKit.framework
       - sdk: CoreLocation.framework
-      - sdk: LocalAuthentication.framework
       - sdk: WebKit.framework
       - sdk: Security.framework
     settings:
@@ -434,7 +394,6 @@ targets:
         PRODUCT_NAME: CrestNativeCore
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: Crest
-        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "CrestWinter CrestLion CrestStorm CrestDragon CrestMeadow CrestIron CrestRiver CrestSun CrestVigil"
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) CREST_REVIEW_BUILD"
         SWIFT_INCLUDE_PATHS: "$(PROJECT_DIR)/CrestContracts/include"
@@ -469,7 +428,6 @@ targets:
         buildPhase: resources
       - path: CrestShared
         excludes:
-          - Resources/CrestIcon/Sources
           - Resources/CrestIcon/Validation
       - path: CrestMobile
     dependencies:
@@ -477,7 +435,6 @@ targets:
       - sdk: AuthenticationServices.framework
       - sdk: CloudKit.framework
       - sdk: CoreLocation.framework
-      - sdk: LocalAuthentication.framework
       - sdk: WebKit.framework
       - sdk: Security.framework
     settings:
@@ -492,7 +449,6 @@ targets:
         PRODUCT_NAME: Crest
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: Crest
-        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "CrestWinter CrestLion CrestStorm CrestDragon CrestMeadow CrestIron CrestRiver CrestSun CrestVigil"
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
   # The share sheet entry hands shared links to the iOS app. It compiles the
   # hand-off it shares with the app, never the core, which an extension's

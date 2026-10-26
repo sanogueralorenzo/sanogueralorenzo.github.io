@@ -6,6 +6,5 @@ Crest uses these marks only to identify the corresponding search-provider choice
 - DuckDuckGo: [SVGL](https://svgl.app/library/duckduckgo.svg)
 - Bing: [SVGL](https://svgl.app/library/bing.svg)
 - Brave: [SVGL](https://svgl.app/library/brave.svg)
-- Ecosia: [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Ecosia-like_logo.svg), dedicated to the public domain under CC0 by Mannivu
 
-Google, DuckDuckGo, Bing, Brave, Ecosia, and their logos are trademarks of their respective owners.
+Google, DuckDuckGo, Bing, Brave, and their logos are trademarks of their respective owners.

@@ -3,28 +3,24 @@
 The core decides where a followed link or an opened window goes, on both
 engines and every platform: the `LinkNavigation` query and the engines'
 `LinkActivation` question for a followed link, and `PageOffered` for a window
-an engine made. General settings contains one focus preference, **Focus new
-tabs opened from links**, which the core keeps in the device store's link
-preferences (`LinkBehavior.FocusesNewTabs`); preferences without it use `false`.
+an engine made. Link selection follows fixed gesture rules.
 
-| Gesture | Focus off | Focus on |
-| --- | --- | --- |
-| Command-click or middle-click link | Background tab | Selected tab |
-| Same gesture with Shift | Selected tab | Background tab |
-| Scripted new window with the same modifier or button gesture | Background tab | Selected tab |
-| Direct link or scripted same-page navigation | Current page | Current page |
-| Plain click leaving a pinned or saved tab's site, with automatic Peek on | Peek | Peek |
-| Unmodified `target=_blank`, form target, or `window.open` without popup features | Selected tab beside the opener | Selected tab beside the opener |
-| `window.open` asking for a popup window, on the Mac | Quick Window over the opener's window | Quick Window over the opener's window |
-| Any new window from a Quick Window or Peek | Loads in that Quick Window or Peek | Loads in that Quick Window or Peek |
-| Explicit window, download, Peek, Quick Window, or Space destination action | Existing action semantics | Existing action semantics |
+| Gesture | Result |
+| --- | --- |
+| Command-click or middle-click link | Background tab |
+| Same gesture with Shift | Selected tab |
+| Option-click link | Selected tab |
+| Scripted new window with Command-click or middle-click | Background tab, selected when Shift is held |
+| Direct link or scripted same-page navigation | Current page |
+| Plain click leaving a pinned or saved tab's site | Selected tab, preserving the saved page |
+| Unmodified `target=_blank`, form target, or `window.open` | Selected tab beside the opener |
 
-The Command/Option preference for Peek still determines which modifier means
-"new tab". Shift reverses the focus choice only for a reported new-tab gesture.
-The same decision applies on macOS, iPhone and iPad; iPhone and iPad have no
-Quick Window, so a popup window opens there as a tab. A script that does not
-preserve a link or new-window gesture cannot be classified from the appearance
-of its card. Crest does not rewrite sites or infer missing input intent.
+These rules apply on macOS, iPhone and iPad. A script that does not preserve a
+link or new-window gesture cannot be classified from the appearance of its
+card. Crest does not rewrite sites or infer missing input intent.
+
+Moving tabs to another Space, through a menu or drag and drop, selects that
+Space and the moved tab. Moving a batch selects its first tab in sidebar order.
 
 A page another page opens stays on its opener's engine, whatever the site's
 engine choice. The engine loads the page it made for a new window, so opener

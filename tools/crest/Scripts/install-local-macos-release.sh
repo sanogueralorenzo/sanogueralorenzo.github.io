@@ -174,7 +174,6 @@ xcodebuild archive \
   -archivePath "$archive_path" \
   -derivedDataPath "$derived_data_path" \
   CURRENT_PROJECT_VERSION="$build_number" \
-  CREST_DEFAULT_UPDATE_CHANNEL=development \
   DEVELOPMENT_TEAM="$team_id" \
   CODE_SIGN_STYLE=Manual \
   CODE_SIGN_IDENTITY="$signing_identity" \
@@ -225,7 +224,7 @@ for entry in crest_chromium_ui_start crest_native_host_run; do
 done
 
 mkdir -p "${built_application_path:h}"
-CREST_DEFAULT_UPDATE_CHANNEL=development python3 Scripts/control-plane/package-chromium-host.py \
+python3 Scripts/control-plane/package-chromium-host.py \
   --browser "$engine_path" \
   --product \
   --distribution \

@@ -4645,6 +4645,10 @@
     "fork-wave-icon": {
       "category": "improved",
       "message": "Crest uses one blue sail and coral sun icon across the app and web assets."
+    },
+    "fork-standalone-development": {
+      "category": "internal",
+      "message": "Document the fork’s intentional differences and support standalone local builds while keeping upstream history."
     }
   }
 }

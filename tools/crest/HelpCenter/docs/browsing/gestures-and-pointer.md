@@ -29,11 +29,9 @@ Many Crest actions stay out of the permanent chrome. This is the practical map f
 
 - Right-click a tab, folder, Space, or link for its contextual actions.
 - Command-click tabs and folders to select several items; Shift-click to select a range.
-- Drag a webpage link to pull out a live Peek. **Settings → Links → Drag links to Peek** controls this gesture; hold Option to use the opposite behavior.
 - Middle-click a current tab to close it.
 - Middle-click a pinned or saved item to unload its live page while keeping the durable item.
 - Double-click the saved-location indicator on a saved tab, or its pinned tile when applicable, to return to the saved home URL.
-- Turn on **Focus follows pointer** in **Settings → Tabs** if moving the pointer between Split View cards should move focus too.
 
 ## Dragging without losing work
 

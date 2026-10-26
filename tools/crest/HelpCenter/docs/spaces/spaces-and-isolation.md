@@ -15,7 +15,6 @@ A Crest Space is not only a group of tabs. It is a separate browsing profile wit
 - Current, pinned, saved, grouped, and archived tabs
 - Nested folders and saved locations
 - History, Archive, download records, and their retention choices
-- Crest Passwords and optional iCloud Keychain participation
 - Site permissions and content-blocking choices
 - Extensions, actions, permissions, and extension settings on Mac
 - Name, symbol, gradient or crest, and sidebar appearance
@@ -34,5 +33,5 @@ Open the tab’s context menu and choose a destination, or drag it to another Sp
 
 ## Delete a Space carefully
 
-Deleting a Space removes its tabs, pins, folders, Archive, history, Crest Passwords, cookies, website storage, permissions, downloads records, and extension state. Read the confirmation before continuing. If you only need less clutter, archive or move tabs instead.
+Deleting a Space removes its tabs, pins, folders, Archive, history, cookies, website storage, permissions, downloads records, and extension state. Read the confirmation before continuing. If you only need less clutter, archive or move tabs instead.
 

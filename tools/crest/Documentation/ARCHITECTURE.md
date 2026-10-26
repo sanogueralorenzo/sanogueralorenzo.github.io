@@ -2,7 +2,7 @@
 
 Crest is a native SwiftUI browser for Apple silicon. It treats a **Space** as the primary privacy and organization boundary.
 
-From Crest 0.7, browser rules live in a portable .NET core and pages render through engine adapters. On Mac, one app hosts both engines: Chromium is the default, and a person or website rule can choose WebKit. Protected-video requests trigger an automatic switch to WebKit unless the person has chosen an engine for the site. The core validates the document and completes before-unload checks before moving it or remembering a website rule. Cancellation leaves both unchanged. Chromium loads the first time a page or extension needs it. Extensions run only in Chromium. iPhone and iPad use WebKit. Both engines share the same core, UI and sync records. See [Portable browser control plane](Architecture/ControlPlane.md) and [Engine abstraction](Architecture/EngineAbstractionCompletion.md).
+From Crest 0.7, browser rules live in a portable .NET core and pages render through engine adapters. On Mac, one app hosts both engines: Chromium is the default, and the person can choose a global default or move a page to WebKit. Protected-video requests can move the current page to WebKit after document validation and before-unload checks. These moves never create website rules. Chromium loads the first time a page or extension needs it. Extensions run only in Chromium. iPhone and iPad use WebKit. Both engines share the same core, UI and sync records. See [Portable browser control plane](Architecture/ControlPlane.md) and [Engine abstraction](Architecture/EngineAbstractionCompletion.md).
 
 ## Source map
 
@@ -29,13 +29,12 @@ Every persistent Space owns its own browsing state. A Space boundary includes:
 
 - the engine profile: a WebKit website data store or a Chromium profile, with its cookies, cache, and sessions
 - tabs, pinned sites, folders, history, archive, and appearance
-- Crest Passwords and credential matching
 - content-blocking and permission state
 - synchronization records and deletion tombstones
 
 Private Spaces use non-persistent engine storage and do not join normal persistence or sync. Quick Window and Peek are transient presentations, but deliberately borrow the selected Space's session boundary when a signed-in preview is useful.
 
-Space deletion is coordinated across browser state, website data, credentials, sync records, and window restoration. A stale synced record must not resurrect a deleted Space.
+Space deletion is coordinated across browser state, website data, sync records, and window restoration. A stale synced record must not resurrect a deleted Space.
 
 ## Data and synchronization
 
@@ -51,7 +50,7 @@ The core reads other browsers' data. Its import readers share URL and whitespace
 
 Normal windows share a `BrowserPageRuntimeStore` and one `BrowserPageHost` over the workspace. Each tab has one `BrowserTabRuntime` owning its live page and native history. The focused window hosts the live view; other windows showing the same tab use its preview and can take over presentation. Native tab models share the same workspace lifetime. Closing a normal window releases its presentation while retaining shared tabs and their loaded state.
 
-**Blank Window** creates a temporary workspace with no initial tabs. It borrows the source Space's website profile, credentials, permissions, identity, and settings. Its tabs, pins, folders, history, archive, favicons, and tab-state storage remain local and in memory, with no sync coordinator or window restoration. Settings edit the canonical source profile through a separate selection facade. Source policy changes apply immediately; removing or replacing the source profile ends the temporary workspace. Closing it discards its local browsing records.
+**Blank Window** creates a temporary workspace with no initial tabs. It borrows the source Space's website profile, permissions, identity, and settings. Its tabs, pins, folders, history, archive, favicons, and tab-state storage remain local and in memory, with no sync coordinator or window restoration. Settings edit the canonical source profile through a separate selection facade. Source policy changes apply immediately; removing or replacing the source profile ends the temporary workspace. Closing it discards its local browsing records.
 
 Dragging one tab between workspaces moves its existing identity and runtime, including native content models and retained navigation state. The destination receives a Current tab without source folder or split membership, and the transfer does not archive the source tab. An empty source window stays open. A tear-off prepares a destination first and commits only after the native window attaches and both model and runtime assignments pass validation. Cancellation or a stale assignment leaves the source tab in place.
 
@@ -69,19 +68,21 @@ The macOS window coordinator, live-page handoff and mirrored preview, Blank Wind
 
 ## Credentials and privacy
 
-Crest Passwords are stored in the Keychain and matched by origin. Each Space can disable Crest-owned suggestions, generation, save prompts, and HTTP-auth reuse without deleting its stored credentials. Sensitive reveals and exports require device authentication. Page-to-app credential messages are schema-checked and origin-bound.
+Crest has no password vault, password autofill, form capture, or password import/export. HTTP authentication answers one challenge without persistent credential storage. Website passkeys use system providers.
 
 The privacy manifest is shipped from `CrestShared/Resources/PrivacyInfo.xcprivacy`. The macOS app declares Apple's approved Web Browser Public Key Credential entitlement for system passkey access and the iCloud Passwords helper. Its signing profiles must include that capability; system passkey access also requires the user's authorization. Other managed capabilities remain gated on platform-specific Apple approval.
 
-On macOS, Crest requests browser-wide passkey consent through AuthenticationServices when the first foreground HTTPS page opens, only if the system decision is undetermined. WebKit handles website credential requests directly, and Chromium sends them to the system passkey sheet; Crest does not intercept WebAuthn calls or insert permission checks into sign-in. Settings shares the same consent controller. On WebKit, file uploads validate reads in the host app before handing paths to the engine, retain picker security scopes until the page is removed, and surface denied access with a route to system settings. Chromium uses its own file chooser.
+On macOS, Crest checks system passkey capability while browsing and requests browser-wide consent only through an explicit action in Settings. WebKit handles website credential requests directly, and Chromium sends them to the system passkey sheet; Crest does not intercept WebAuthn calls or insert permission checks into sign-in. Settings shares the same consent controller. On WebKit, file uploads validate reads in the host app before handing paths to the engine, retain picker security scopes until the page is removed, and surface denied access with a route to system settings. Chromium uses its own file chooser.
 
 ## Engine boundary
 
 The core decides navigation, download, content-blocking, authentication, permission, failure-recovery and website-data rules. `BrowserPage` holds an engine-neutral `BrowserPageEngineAdapter`, whose `BrowserPageEngine` supplies the page view, and each engine adapter supplies the engine services. Capabilities declared in `BrowserEngineRegistration` decide which features the UI offers. Shared policy adapts presentation to the current layout and input capabilities.
 
+`BrowserIntegrationSession` supplies bounded, origin-bound GET requests without a resident tab. Its WebKit adapter uses the profile’s cookie store and proxy configuration with an ephemeral network session, validates cookies before publishing responses or applying cookie updates, and cancels work when ownership is revoked. GitHub consumes this port and parses dashboard data without executing website scripts. Credentials and responses are never persisted by the integration.
+
 `BrowserFaviconSession` owns capture, fallback, and retry lifetime through a document adapter on WebKit; Chromium reports favicons itself. Authenticated icon discovery stays inside the live WebKit context; public fallback remains credential-free and profile-scoped. Native pages invalidate requests on navigation and icon changes and stop them on removal.
 
-`BrowserReaderModeSession` owns request cancellation and document changes through a document adapter; Reader is WebKit-only. `BrowserCredentialSession` shares origin validation and filling on both engines: WebKit pages deliver its content bridge through their own user content controller, and Chromium pages through the engine port's `BrowserPageContentScripting`, which runs Crest's bridges in an isolated world the page cannot reach. Each page's live state, its address and the one it is heading to, title, loading, back and forward availability, security, failure and media activity, lives in the core's `Pages`: the engine reports a `PageSnapshot` at most once per turn through `EnginePageReporter`, and views read the page's `PageStateModel` from `CoreState.pages`. Progress, find, hovered links, fullscreen and zoom stay on the page as presentation. An address the person types or chooses, and a page's first load, go through the core's `Navigate`, which resolves it by the Space's search rules and asks the page's engine to load it.
+`BrowserReaderModeSession` owns request cancellation and document changes through a document adapter; Reader is WebKit-only. Each page's live state, its address and the one it is heading to, title, loading, back and forward availability, security, failure and media activity, lives in the core's `Pages`: the engine reports a `PageSnapshot` at most once per turn through `EnginePageReporter`, and views read the page's `PageStateModel` from `CoreState.pages`. Progress, find, hovered links, fullscreen and zoom stay on the page as presentation. An address the person types or chooses, and a page's first load, go through the core's `Navigate`, which resolves it by the Space's search rules and asks the page's engine to load it.
 
 Shared page operations own common navigation and media behavior. `BrowserPageContentRuleSession` tracks only Crest's WebKit content rules, and `BrowserTabStateCoordinator` owns archive eligibility and pending copies without retaining pages. Platform stores apply a shared reconciliation plan and retain their own presentation and memory-pressure policies. On macOS, each `BrowserTabRuntime` owns one live page. Releasing the tab releases that page and its native history.
 

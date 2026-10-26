@@ -156,9 +156,7 @@ the live status for each issue.
 - [ ] [bug: can't continue onboarding when importing from Arc](https://github.com/pauljoda/Crest/issues/535)
 - [ ] [Remove the blank space at the bottom of the iPad layout](https://github.com/pauljoda/Crest/issues/548)
 - [ ] [Keep a Quick Window from another app clear of a new tab's keyboard on iPhone](https://github.com/pauljoda/Crest/issues/563)
-- [ ] [Say so when a link from another app needs a locked Space](https://github.com/pauljoda/Crest/issues/564)
-- [ ] [bug: Saved passwords: one bad item can break a Space, and other storage gaps](https://github.com/pauljoda/Crest/issues/649)
-- [ ] [Clear a single site's cookies, cache and website data, and manage website data in Settings](https://github.com/pauljoda/Crest/issues/686)
+- [ ] [Keep Look and Feel changes smooth while they preview live](https://github.com/pauljoda/Crest/issues/619)
 
 #### Completed
 

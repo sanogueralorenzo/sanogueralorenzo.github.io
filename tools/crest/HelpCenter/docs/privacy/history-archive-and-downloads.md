@@ -9,13 +9,15 @@ keywords: [history, Archive, downloads, retention, restore, cleanup]
 
 History, Archive, and Downloads are common browser surfaces, but every record remains attached to the Space that created it.
 
+On Mac, use the **…** menu at the end of the top navigation row to open **Archive**, **History**, or **Downloads**. Choose **Back to Tabs** in the same menu to return to browsing.
+
 ## History
 
 Open History with **Command-Y**, the menu, or the command palette. Search visits in the current Space and reopen a result. The command palette also includes relevant history matches while you type.
 
 ## Archive
 
-Archive contains manually closed or archived tabs, automatic Space cleanup, and expired Quick Windows. Filter by reason when you know how the item left the sidebar. Restoring an archived tab returns it to an appropriate live position in that Space.
+Archive contains manually closed or archived tabs, automatic Space cleanup. Filter by reason when you know how the item left the sidebar. Restoring an archived tab returns it to an appropriate live position in that Space.
 
 Use **Command-E** to archive the current tab, **Shift-Command-T** to reopen the last closed tab, and **Shift-Command-K** to clear unpinned current tabs into Archive.
 

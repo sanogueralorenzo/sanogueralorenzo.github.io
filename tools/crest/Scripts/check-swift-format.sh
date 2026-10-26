@@ -30,7 +30,8 @@ while (( $# > 0 )); do
 done
 
 cd "$repository_root"
-[[ -d .git || -f .git ]] || { print -u2 "error: $repository_root is not a Git worktree."; exit 2; }
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 \
+    || { print -u2 "error: $repository_root is not a Git worktree."; exit 2; }
 [[ -f .swift-format ]] || { print -u2 "error: .swift-format is missing."; exit 2; }
 
 typeset -a candidate_paths
@@ -42,15 +43,15 @@ else
       || { print -u2 "error: unknown base ref '$base_ref'."; exit 2; }
     while IFS= read -r -d '' changed_file; do
       candidate_paths+=("$changed_file")
-    done < <(git diff --name-only -z --diff-filter=ACMR "${base_ref}...HEAD" -- '*.swift')
+    done < <(git diff --relative --name-only -z --diff-filter=ACMR "${base_ref}...HEAD" -- '*.swift')
   fi
 
   while IFS= read -r -d '' changed_file; do
     candidate_paths+=("$changed_file")
-  done < <(git diff --name-only -z --diff-filter=ACMR -- '*.swift')
+  done < <(git diff --relative --name-only -z --diff-filter=ACMR -- '*.swift')
   while IFS= read -r -d '' changed_file; do
     candidate_paths+=("$changed_file")
-  done < <(git diff --cached --name-only -z --diff-filter=ACMR -- '*.swift')
+  done < <(git diff --cached --relative --name-only -z --diff-filter=ACMR -- '*.swift')
   while IFS= read -r -d '' changed_file; do
     candidate_paths+=("$changed_file")
   done < <(git ls-files --others --exclude-standard -z -- '*.swift')

@@ -14,7 +14,7 @@ lists what each engine lacks.
 | Layer | Owns | Never owns |
 | --- | --- | --- |
 | Platform UI (SwiftUI on macOS, iOS and iPadOS; WinUI 3 on Windows later) | Views, layout, animation, hover, scroll position, window frames, sidebar width, appearance preferences, presenting the prompts the core asks for, embedding engine views | Browser state, rules, persistence, deciding what happens next |
-| `CrestCore` | Every piece of browser state and every rule: Spaces, tabs, folders, splits, history, archive, windows and what each window shows, which windows a launch reopens and where external opens land, pages and their live state, preferences, downloads, permissions, credentials policy, import and export, search and completion, the commands and how the menu bar and launcher lay them out, onboarding and setup flows, Quick Window and Peek rules, storage, sync | Rendering, input, compositing, engine handles, image bytes, OS services |
+| `CrestCore` | Every piece of browser state and every rule: Spaces, tabs, folders, splits, history, archive, windows and what each window shows, which windows a launch reopens and where external opens land, pages and their live state, preferences, downloads, permissions, import and export, search and completion, the commands and how the menu bar and launcher lay them out, onboarding and setup flows, Quick Window and Peek rules, storage, sync | Rendering, input, compositing, engine handles, image bytes, OS services |
 | Engine bindings (Chromium in portable C++ with a thin shell per OS; WebKit in Swift) | Creating and closing pages, loading, engine navigation history, find, zoom, capture, printing, DevTools, extensions, network and cookie stores | Deciding browser rules; changing browser state other than by reporting events |
 | OS services (supplied by each platform) | CloudKit transport, Keychain, authentication prompts, notification delivery, file pickers, default-browser registration, software updates | Rules; deciding when to save or sync |
 
@@ -91,8 +91,7 @@ for `EnginePage` lists every direct engine call.
      beside the set, or a list of these; Swift receives each as a literal.
      Every fixed set in the contracts reaches Swift, whether or not a record
      names it.
-   - A set that also has members made at runtime, such as a Space's custom
-     search engines beside the built-ins, is marked `[OpenSet]`. A runtime
+   - A set that also has members made at runtime is marked `[OpenSet]`. A runtime
      member has no index in `All`, so an open set never crosses the wire;
      Swift receives a struct with a memberwise initializer whose values are
      equal when their names are.
@@ -228,12 +227,7 @@ Crest can run more than one engine at a time.
   extensions on a Chromium page.
 - A Space is one profile on every engine. The profile's Chromium directory and
   its WebKit website data store share the profile's identifier. Deleting the
-  Space erases both, and the locked-Space gate covers both.
-- Clearing one site's data, or a time range's, asks every registered engine
-  for its part, started or not, and succeeds only when each erased all of it.
-  A site is its registrable domain, with what its third parties stored
-  partitioned under it. The website data list is the sites every engine
-  reports for the profile, merged by name.
+  Space erases both.
 - `RehostPage` moves a page to another engine. The core closes the page on
   its current engine, creates it on the new one and loads the same URL. The
   page keeps its tab, and the UI re-hosts the view because `page.engine`
@@ -250,7 +244,7 @@ core records one visit per document, when the document finishes, because
 both engines know the page's title only then. A page with a tab updates the
 tab's address and title and adds the visit to its Space's history in one
 revision; a Quick Window or Peek page adds only the visit. Nothing is recorded
-for a failed load, in a locked Space or one being deleted. A report that
+for a failed load, in a Space being deleted. A report that
 arrives while a transaction holds the session is recorded once it ends.
 
 A move within a document, such as `history.pushState`, is a visit of its own

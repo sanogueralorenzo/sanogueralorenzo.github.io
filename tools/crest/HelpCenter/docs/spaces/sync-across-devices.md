@@ -13,7 +13,7 @@ Open **Settings → Sync** and enable **Sync Crest with iCloud** on each device 
 
 Crest synchronizes durable browser structure such as Spaces, tabs, saved folders, Split View groups, appearance, Archive, history, and supported preferences. Mac, iPad, and iPhone then render the same model in an interface suited to the screen.
 
-Password values never enter CloudKit. Each Space’s separate **Sync with iCloud Keychain** switch controls its encrypted Crest Password items. Private Spaces and transient Quick Window or Peek state are not normal synced browsing state.
+Password values never enter CloudKit. Each Space’s separate **Sync with iCloud Keychain** switch controls its encrypted Crest Password items. Private Spaces and system authentication windows are not synced browsing state.
 
 ## Check status
 

@@ -29,7 +29,7 @@ The signed Crest release carries this entitlement. Development and review builds
 
 - Confirm that you are running the signed Crest release from `/Applications`.
 - Reinstalling the extension does not change the browser's signature or entitlements.
-- Until it pairs, use Crest's built-in passwords for the Space or another password manager.
+- Until it pairs, use another password manager.
 
 ## Official reference
 

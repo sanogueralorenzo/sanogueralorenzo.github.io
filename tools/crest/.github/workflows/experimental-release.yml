@@ -87,20 +87,6 @@ jobs:
             exit 1
           fi
 
-          # The installed artifact must understand the experimental Sparkle channel.
-          # This intentionally fails rather than silently falling back to Stable.
-          if ! grep -Eq 'case[[:space:]]+experimental' \
-              CrestMac/Features/SoftwareUpdates/Models/BrowserSoftwareUpdateChannel.swift \
-              || ! grep -Fq 'appcast-experimental' \
-              CrestMac/Features/SoftwareUpdates/Models/BrowserSoftwareUpdateChannel.swift; then
-            cat >&2 <<'MESSAGE'
-          This branch does not yet declare BrowserSoftwareUpdateChannel.experimental
-          with appcast-experimental.xml as its custom feed. Add that channel before
-          publishing so installed experimental builds cannot fall back to another feed.
-          MESSAGE
-            exit 1
-          fi
-
           retry_github git fetch --force origin \
             "refs/heads/${default_branch}:refs/remotes/origin/${default_branch}"
           retry_github git fetch --force origin \
@@ -381,7 +367,6 @@ jobs:
             -archivePath "$archive_path" \
             -derivedDataPath "$RUNNER_TEMP/crest-experimental-derived-data" \
             CURRENT_PROJECT_VERSION="$RELEASE_BUILD_NUMBER" \
-            CREST_DEFAULT_UPDATE_CHANNEL=development \
             DEVELOPMENT_TEAM=3U2R97HLXF \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Developer ID Application" \
@@ -396,7 +381,6 @@ jobs:
           test -d "$app_path"
           codesign --verify --deep --strict --verbose=2 "$app_path"
           test "$(defaults read "$app_path/Contents/Info" CFBundleIdentifier)" = "com.pauldavis.crest"
-          test "$(defaults read "$app_path/Contents/Info" CrestDefaultUpdateChannel)" = "development"
           test "$(lipo -archs "$app_path/Contents/MacOS/Crest")" = "arm64"
 
           exported_entitlements="$release_root/exported-entitlements.plist"
@@ -454,7 +438,7 @@ jobs:
 
           mkdir -p "$release_root/chromium"
           chromium_app="$release_root/chromium/Crest.app"
-          CREST_DEFAULT_UPDATE_CHANNEL=development python3 Scripts/control-plane/package-chromium-host.py \
+          python3 Scripts/control-plane/package-chromium-host.py \
             --browser "$engine_root/Chromium.app" \
             --product \
             --distribution \
@@ -466,7 +450,6 @@ jobs:
             --output "$chromium_app"
           codesign --verify --deep --strict --verbose=2 "$chromium_app"
           test "$(defaults read "$chromium_app/Contents/Info" CFBundleIdentifier)" = "com.pauldavis.crest"
-          test "$(defaults read "$chromium_app/Contents/Info" CrestDefaultUpdateChannel)" = "development"
           test "$(defaults read "$chromium_app/Contents/Info" CFBundleVersion)" = "$RELEASE_BUILD_NUMBER"
 
           package_disk_image "$chromium_app" "$publish_path/$installer_name" "Crest" chromium
