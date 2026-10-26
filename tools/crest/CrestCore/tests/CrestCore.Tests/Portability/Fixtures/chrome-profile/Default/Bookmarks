@@ -1,0 +1,14 @@
+{"checksum":"ignored","roots":{
+  "bookmark_bar":{"type":"folder","name":"Bookmarks bar","children":[
+    {"type":"url","name":"Chromium","url":"https://www.chromium.org/","date_added":"13370000000000000"},
+    {"type":"url","name":"","url":"https://untitled.example/path","date_added":13370000000000000},
+    {"type":"url","name":"Bad","url":"chrome://settings"}
+  ]},
+  "other":{"type":"folder","name":"Other bookmarks","children":[
+    {"type":"folder","name":"Reference","children":[{"type":"url","name":"WebKit","url":"https://webkit.org/"}]},
+    {"type":"folder","name":"","children":[]}
+  ]},
+  "synced":{"type":"folder","name":"Mobile bookmarks","children":[]},
+  "zeta":{"name":"Zeta root","children":[{"type":"url","name":"Zeta","url":"https://zeta.example/"}]},
+  "alpha":{"type":"folder","name":"Alpha root","children":[{"type":"url","name":"Alpha","url":"https://alpha.example/"}]}
+},"version":1}

@@ -1,0 +1,14 @@
+--- a/tools/rust/build_bindgen.py
++++ b/tools/rust/build_bindgen.py
+@@ -124,6 +124,11 @@
+     # Windows uses lld-link for MSVC compat. Otherwise, we use lld via clang.
+     if sys.platform == 'win32':
+         linker = os.path.join(clang_bins_dir, 'lld-link')
++    elif sys.platform == 'darwin':
++        # Apple's linker understands the current SDK's TAPI target vocabulary.
++        linker = os.path.join(clang_bins_dir, 'clang')
++        env['LDFLAGS'] += ' -fuse-ld=/usr/bin/ld'
++        env['RUSTFLAGS'] += ' -Clink-arg=-fuse-ld=/usr/bin/ld'
+     else:
+         linker = os.path.join(clang_bins_dir, 'clang')
+         env['LDFLAGS'] += ' -fuse-ld=lld'

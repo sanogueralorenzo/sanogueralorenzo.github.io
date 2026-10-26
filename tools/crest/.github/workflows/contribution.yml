@@ -1,0 +1,44 @@
+name: Contribution checks
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: contribution-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  ai-declaration:
+    name: AI usage declaration
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check the AI usage section of the description
+        run: python3 Scripts/check-contribution.py ai-declaration --event "$GITHUB_EVENT_PATH"
+
+  sign-off:
+    name: Developer Certificate of Origin
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Fetch the pull request commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh api "repos/${GITHUB_REPOSITORY}/pulls/${PULL_REQUEST_NUMBER}/commits" --paginate --slurp > "${RUNNER_TEMP}/commits.json"
+
+      - name: Check that every commit carries a sign-off
+        run: python3 Scripts/check-contribution.py sign-off --event "$GITHUB_EVENT_PATH" --commits "${RUNNER_TEMP}/commits.json" --exempt-login "$GITHUB_REPOSITORY_OWNER"

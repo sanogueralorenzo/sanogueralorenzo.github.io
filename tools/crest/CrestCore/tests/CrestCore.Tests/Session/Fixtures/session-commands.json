@@ -1,0 +1,1315 @@
+{
+  "commands": [
+    {
+      "name": "tab.open",
+      "request": {
+        "version": 1,
+        "operation": "tab.open",
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "profileId": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2",
+        "arguments": {
+          "tab": {
+            "id": {
+              "rawValue": "11111111-1111-4111-8111-111111111111"
+            },
+            "title": "Opened",
+            "url": "https://opened.example/",
+            "symbol": "globe",
+            "placement": "current",
+            "lastActivatedAt": 800000000.5,
+            "keepsPageLoaded": false
+          },
+          "index": null,
+          "select": true,
+          "after": "428CAA9C-9A7A-4386-B120-F6096032C167"
+        },
+        "now": 800000000.5
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "tab.close",
+      "request": {
+        "version": 1,
+        "operation": "tab.close",
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "profileId": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2",
+        "arguments": {
+          "tabId": "11111111-1111-4111-8111-111111111111",
+          "resetArchivePlacement": true
+        },
+        "now": 800000001
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "11111111-1111-4111-8111-111111111111"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "folder.create",
+      "request": {
+        "version": 1,
+        "operation": "folder.create",
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "profileId": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2",
+        "arguments": {
+          "folderId": "22222222-2222-4222-8222-222222222222",
+          "title": null,
+          "placement": "current",
+          "parentId": null,
+          "color": {
+            "red": 0.43,
+            "green": 0.48,
+            "blue": 0.54,
+            "alpha": 1
+          },
+          "symbol": "folder",
+          "tabIds": [
+            "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          ],
+          "detach": false
+        },
+        "now": 800000002
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "split.join",
+      "request": {
+        "version": 1,
+        "operation": "split.join",
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "profileId": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2",
+        "arguments": {
+          "tabId": "853D3F20-BB2C-45F0-98BD-CCC71C646370",
+          "targetId": "428CAA9C-9A7A-4386-B120-F6096032C167",
+          "index": null,
+          "ids": [
+            "33333333-3333-4333-8333-333333333333"
+          ],
+          "copyObservations": [
+            {
+              "tabId": "853D3F20-BB2C-45F0-98BD-CCC71C646370",
+              "title": "Pinned observed",
+              "url": "https://pinned.example/observed"
+            }
+          ]
+        },
+        "now": 800000003
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "split.title",
+      "request": {
+        "version": 1,
+        "operation": "split.title",
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "profileId": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2",
+        "arguments": {
+          "groupId": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004",
+          "value": "Renamed split"
+        },
+        "now": 800000004
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "split.tint",
+      "request": {
+        "version": 1,
+        "operation": "split.tint",
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "profileId": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2",
+        "arguments": {
+          "groupId": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004",
+          "value": {
+            "red": 0.1,
+            "green": 0.2,
+            "blue": 0.3,
+            "alpha": 1
+          }
+        },
+        "now": 800000004.25
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "history.visit",
+      "request": {
+        "version": 1,
+        "operation": "history.visit",
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "profileId": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2",
+        "arguments": {
+          "url": "https://news.example/article/42#frag",
+          "title": "Article again"
+        },
+        "now": 800000005
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "archive.restore",
+      "request": {
+        "version": 1,
+        "operation": "archive.restore",
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "profileId": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2",
+        "arguments": {
+          "tabId": "FDA1DB22-5EEE-4001-B553-5208F01B5C65"
+        },
+        "now": 800000006
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "tab.transfer",
+      "request": {
+        "version": 1,
+        "operation": "tab.transfer",
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "profileId": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2",
+        "arguments": {
+          "tabId": "B61250D4-3D4E-4DD6-8871-0BB326669142",
+          "placement": "saved",
+          "folderId": null,
+          "before": null,
+          "select": false
+        },
+        "now": 800000007,
+        "destinationSpaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+        "destinationProfileId": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB"
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "space.identity",
+      "request": {
+        "version": 1,
+        "operation": "space.identity",
+        "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+        "profileId": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB",
+        "arguments": {
+          "name": "Renamed",
+          "symbol": "leaf",
+          "accent": "teal"
+        },
+        "now": 800000008
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "space.saved_expansion",
+      "request": {
+        "version": 1,
+        "operation": "space.saved_expansion",
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "profileId": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2",
+        "arguments": {
+          "value": true
+        },
+        "now": 800000009
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "space.browsing_preferences",
+      "request": {
+        "version": 1,
+        "operation": "space.browsing_preferences",
+        "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+        "profileId": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB",
+        "arguments": {
+          "value": {
+            "searchProvider": "bing",
+            "selectedSearchProviderID": "bing",
+            "customSearchProviders": [],
+            "searchSuggestionsEnabled": true,
+            "currentTabCleanupPolicy": "after24Hours",
+            "contentBlockingPolicy": "balanced",
+            "dataRetention": {
+              "history": "oneYear",
+              "archive": "oneDay",
+              "downloads": "forever"
+            }
+          }
+        },
+        "now": 800000010
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "space.branding",
+      "request": {
+        "version": 1,
+        "operation": "space.branding",
+        "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+        "profileId": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB",
+        "arguments": {
+          "value": {
+            "colors": [
+              {
+                "red": 1.2,
+                "green": 0.5,
+                "blue": -0.1,
+                "alpha": 1
+              },
+              {
+                "red": 0.2,
+                "green": 0.3,
+                "blue": 0.4,
+                "alpha": 0.5
+              }
+            ],
+            "bannerPattern": "stripes",
+            "bannerStrength": 1.5,
+            "readabilityFade": 0.3,
+            "keepsControlsReadable": true,
+            "themeMode": "banner",
+            "gradientAngle": -45,
+            "showsTexture": false,
+            "iconStyle": "simpleSymbol",
+            "crest": {
+              "backplate": "shield",
+              "fieldDivision": "plain",
+              "ordinary": "none",
+              "trim": "none",
+              "symbol": "mountain",
+              "chargeLayout": "single",
+              "backplateColorIndex": 1,
+              "secondaryFieldColorIndex": 1,
+              "ordinaryColorIndex": 7,
+              "trimColorIndex": 1,
+              "symbolColorIndex": 0,
+              "edgeColorIndex": 1,
+              "plateScale": 1,
+              "edgeWidth": 0,
+              "divisionCount": 4,
+              "finish": "flat",
+              "ordinaryWidth": 1,
+              "trimWeight": 1,
+              "trimDetail": 12,
+              "chargeScale": 1,
+              "chargeOffset": 0,
+              "chargeWeight": "bold",
+              "sheenAngle": 45,
+              "sealTeeth": 12,
+              "showsOutline": false,
+              "depth": "none"
+            },
+            "renderingVersion": 4,
+            "folderColorIntensity": 0.25,
+            "textColorMode": "dark",
+            "hasCustomAppearance": true
+          }
+        },
+        "now": 800000011
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "space.credential_preferences",
+      "request": {
+        "version": 1,
+        "operation": "space.credential_preferences",
+        "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+        "profileId": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB",
+        "arguments": {
+          "value": {
+            "isEnabled": true,
+            "syncsCrestPasswordsWithICloud": false,
+            "alsoOffersSaveToSystemPasswords": true
+          }
+        },
+        "now": 800000012
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "space.access",
+      "request": {
+        "version": 1,
+        "operation": "space.access",
+        "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+        "profileId": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB",
+        "arguments": {
+          "value": "deviceOwnerAuthentication"
+        },
+        "now": 800000013
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "space.default",
+      "request": {
+        "version": 1,
+        "operation": "space.default",
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "profileId": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2",
+        "arguments": {},
+        "now": 800000014
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "records.sweep",
+      "request": {
+        "version": 1,
+        "operation": "records.sweep",
+        "spaceId": null,
+        "profileId": null,
+        "arguments": {},
+        "now": 800000100
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "preferences.set",
+      "request": {
+        "version": 1,
+        "operation": "preferences.set",
+        "spaceId": null,
+        "profileId": null,
+        "arguments": {
+          "preference": "checksSpelling",
+          "value": false
+        },
+        "now": 800000101
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "space.search_provider.upsert",
+      "request": {
+        "version": 1,
+        "operation": "space.search_provider.upsert",
+        "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+        "profileId": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB",
+        "arguments": {
+          "provider": {
+            "id": "44444444-4444-4444-8444-444444444444",
+            "name": " Kagi ",
+            "searchURLTemplate": "https://kagi.com/search?q=%s",
+            "suggestionURLTemplate": null
+          },
+          "selects": true
+        },
+        "now": 800000102
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "space.search_provider.upsert.second",
+      "request": {
+        "version": 1,
+        "operation": "space.search_provider.upsert",
+        "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+        "profileId": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB",
+        "arguments": {
+          "provider": {
+            "id": "45454545-4545-4545-8545-454545454545",
+            "name": "Example",
+            "searchURLTemplate": "https://example.com/?q={searchTerms}",
+            "suggestionURLTemplate": "https://example.com/suggest?q={searchTerms}"
+          },
+          "selects": false
+        },
+        "now": 800000103
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "space.search_provider.remove",
+      "request": {
+        "version": 1,
+        "operation": "space.search_provider.remove",
+        "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+        "profileId": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB",
+        "arguments": {
+          "id": "44444444-4444-4444-8444-444444444444"
+        },
+        "now": 800000104
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "preferences.translation_rule",
+      "request": {
+        "version": 1,
+        "operation": "preferences.translation_rule",
+        "spaceId": null,
+        "profileId": null,
+        "arguments": {
+          "sourceID": "it",
+          "targetID": "en",
+          "isEnabled": true
+        },
+        "now": 800000105
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "preferences.set.startup",
+      "request": {
+        "version": 1,
+        "operation": "preferences.set",
+        "spaceId": null,
+        "profileId": null,
+        "arguments": {
+          "preference": "startupBehavior",
+          "value": "showStartPage"
+        },
+        "now": 800000106
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "preferences.set.saved_tab_close",
+      "request": {
+        "version": 1,
+        "operation": "preferences.set",
+        "spaceId": null,
+        "profileId": null,
+        "arguments": {
+          "preference": "savedTabClosePolicy",
+          "value": "resumeLastLocation"
+        },
+        "now": 800000107
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "preferences.import",
+      "request": {
+        "version": 1,
+        "operation": "preferences.import",
+        "spaceId": null,
+        "profileId": null,
+        "arguments": {
+          "legacy": {
+            "startupBehavior": "lastActiveTab",
+            "translationRules": "{\"sources\":{}}",
+            "checksSpelling": false
+          }
+        },
+        "now": 800000108
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "launch.plan",
+      "commit": false,
+      "request": {
+        "version": 1,
+        "operation": "launch.plan",
+        "platform": "desktop",
+        "hasActiveLaunchGate": false,
+        "environment": {
+          "testRuntime": false,
+          "previewRuntime": false,
+          "isolatedSession": false,
+          "namedProfile": false,
+          "isolatedCloudSync": false,
+          "resetSession": false,
+          "showcase": false,
+          "inMemoryCredentials": false,
+          "onboardingWelcome": false,
+          "desktopSetup": false,
+          "mobileSetup": false,
+          "performanceHarness": false,
+          "updateTestFeed": false
+        }
+      }
+    },
+    {
+      "name": "space.reorder",
+      "request": {
+        "version": 1,
+        "operation": "space.reorder",
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "profileId": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2",
+        "arguments": {
+          "offsets": [
+            2
+          ],
+          "destination": 0
+        },
+        "now": 800000109
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "space.create",
+      "request": {
+        "version": 1,
+        "operation": "space.create",
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "profileId": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2",
+        "arguments": {
+          "template": {
+            "history": [],
+            "browsingPreferences": {
+              "contentBlockingPolicy": "balanced",
+              "searchSuggestionsEnabled": false,
+              "searchProvider": "duckDuckGo",
+              "customSearchProviders": [],
+              "selectedSearchProviderID": "duckDuckGo",
+              "dataRetention": {
+                "archive": "forever",
+                "history": "forever",
+                "downloads": "forever"
+              },
+              "currentTabCleanupPolicy": "never"
+            },
+            "isSavedTabsExpanded": true,
+            "symbol": "square.grid.2x2.fill",
+            "name": "Plain",
+            "accessPolicy": "open",
+            "branding": {
+              "renderingVersion": 5,
+              "bannerPattern": "diagonal",
+              "colors": [
+                {
+                  "green": 0.49,
+                  "red": 0.12,
+                  "blue": 0.52,
+                  "alpha": 1
+                }
+              ],
+              "gradientAngle": 0,
+              "themeMode": "banner",
+              "bannerStrength": 1,
+              "iconStyle": "simpleSymbol",
+              "readabilityFade": 0.25,
+              "textColorMode": "automatic",
+              "crest": {
+                "ordinaryColorIndex": 0,
+                "divisionCount": 4,
+                "symbolColorIndex": 0,
+                "chargeWeight": "bold",
+                "depth": "none",
+                "edgeWidth": 0,
+                "showsOutline": false,
+                "plateScale": 1,
+                "sealTeeth": 12,
+                "sheenAngle": 45,
+                "symbol": "dragon",
+                "backplateColorIndex": 0,
+                "trimColorIndex": 0,
+                "edgeColorIndex": 0,
+                "trimWeight": 1,
+                "ordinaryWidth": 1,
+                "fieldDivision": "plain",
+                "secondaryFieldColorIndex": 0,
+                "chargeScale": 1,
+                "charge": {
+                  "kind": "emoji",
+                  "value": "🦊"
+                },
+                "finish": "flat",
+                "ordinary": "none",
+                "backplate": "shield",
+                "trim": "none",
+                "chargeLayout": "single",
+                "chargeOffset": 0,
+                "trimDetail": 12
+              },
+              "folderColorIntensity": 0,
+              "keepsControlsReadable": true,
+              "showsTexture": false
+            },
+            "folders": [],
+            "tabs": [
+              {
+                "id": {
+                  "rawValue": "68686868-6868-4868-8868-686868686868"
+                },
+                "title": "Start Page",
+                "symbol": "house",
+                "placement": "current",
+                "lastActivatedAt": 800000110,
+                "keepsPageLoaded": false
+              }
+            ],
+            "id": {
+              "rawValue": "66666666-6666-4666-8666-666666666666"
+            },
+            "profile": {
+              "id": "67676767-6767-4767-8767-676767676767"
+            },
+            "archivedTabs": [],
+            "accent": "teal",
+            "splitGroups": [],
+            "credentialPreferences": {
+              "syncsCrestPasswordsWithICloud": true,
+              "alsoOffersSaveToSystemPasswords": false,
+              "isEnabled": true
+            }
+          }
+        },
+        "now": 800000110
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "space.deletion.begin",
+      "request": {
+        "version": 1,
+        "operation": "space.deletion.begin",
+        "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+        "profileId": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB",
+        "arguments": {
+          "operationID": "55555555-5555-4555-8555-555555555555"
+        },
+        "now": 800000111
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "space.remove",
+      "request": {
+        "version": 1,
+        "operation": "space.remove",
+        "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+        "profileId": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB",
+        "arguments": {
+          "operationID": "55555555-5555-4555-8555-555555555555"
+        },
+        "now": 800000112
+      },
+      "commit": true,
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    },
+    {
+      "name": "workspace.import",
+      "commit": true,
+      "request": {
+        "version": 1,
+        "operation": "workspace.import",
+        "mode": "portable",
+        "arguments": {
+          "sources": [
+            {
+              "history": [
+                {
+                  "id": "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA",
+                  "url": "https://imported.example/",
+                  "title": "Imported",
+                  "firstVisitedAt": 790000000.25,
+                  "lastVisitedAt": 790000001.5,
+                  "visitCount": 2
+                }
+              ],
+              "browsingPreferences": {
+                "contentBlockingPolicy": "balanced",
+                "searchSuggestionsEnabled": false,
+                "searchProvider": "duckDuckGo",
+                "customSearchProviders": [],
+                "selectedSearchProviderID": "duckDuckGo",
+                "dataRetention": {
+                  "archive": "forever",
+                  "history": "forever",
+                  "downloads": "forever"
+                },
+                "currentTabCleanupPolicy": "never"
+              },
+              "isSavedTabsExpanded": true,
+              "symbol": "square.grid.2x2.fill",
+              "name": "Imported",
+              "accessPolicy": "open",
+              "branding": {
+                "renderingVersion": 5,
+                "bannerPattern": "diagonal",
+                "colors": [
+                  {
+                    "green": 0.49,
+                    "red": 0.12,
+                    "blue": 0.52,
+                    "alpha": 1
+                  }
+                ],
+                "gradientAngle": 0,
+                "themeMode": "banner",
+                "bannerStrength": 1,
+                "iconStyle": "simpleSymbol",
+                "readabilityFade": 0.25,
+                "textColorMode": "automatic",
+                "crest": {
+                  "ordinaryColorIndex": 0,
+                  "divisionCount": 4,
+                  "symbolColorIndex": 0,
+                  "chargeWeight": "bold",
+                  "depth": "none",
+                  "edgeWidth": 0,
+                  "showsOutline": false,
+                  "plateScale": 1,
+                  "sealTeeth": 12,
+                  "sheenAngle": 45,
+                  "symbol": "dragon",
+                  "backplateColorIndex": 0,
+                  "trimColorIndex": 0,
+                  "edgeColorIndex": 0,
+                  "trimWeight": 1,
+                  "ordinaryWidth": 1,
+                  "fieldDivision": "plain",
+                  "secondaryFieldColorIndex": 0,
+                  "chargeScale": 1,
+                  "charge": {
+                    "kind": "emoji",
+                    "value": "🦊"
+                  },
+                  "finish": "flat",
+                  "ordinary": "none",
+                  "backplate": "shield",
+                  "trim": "none",
+                  "chargeLayout": "single",
+                  "chargeOffset": 0,
+                  "trimDetail": 12
+                },
+                "folderColorIntensity": 0,
+                "keepsControlsReadable": true,
+                "showsTexture": false
+              },
+              "folders": [],
+              "tabs": [
+                {
+                  "symbol": "globe",
+                  "id": {
+                    "rawValue": "99999999-9999-4999-8999-999999999999"
+                  },
+                  "title": "Plain",
+                  "placement": "current",
+                  "lastActivatedAt": 780123556.7891234,
+                  "url": "https://plain.example/",
+                  "keepsPageLoaded": false
+                }
+              ],
+              "id": {
+                "rawValue": "77777777-7777-4777-8777-777777777777"
+              },
+              "profile": {
+                "id": "88888888-8888-4888-8888-888888888888"
+              },
+              "archivedTabs": [],
+              "accent": "teal",
+              "splitGroups": [],
+              "credentialPreferences": {
+                "syncsCrestPasswordsWithICloud": true,
+                "alsoOffersSaveToSystemPasswords": false,
+                "isEnabled": true
+              }
+            }
+          ]
+        },
+        "now": 800000200
+      },
+      "window": {
+        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+        "tabs": [
+          {
+            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
+            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          {
+            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
+            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          {
+            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
+            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+          }
+        ]
+      }
+    }
+  ]
+}

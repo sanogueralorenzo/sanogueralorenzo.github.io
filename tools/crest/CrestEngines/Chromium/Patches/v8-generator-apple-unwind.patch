@@ -1,0 +1,15 @@
+--- a/tools/v8_context_snapshot/BUILD.gn
++++ b/tools/v8_context_snapshot/BUILD.gn
+@@ -95,6 +95,12 @@
+     executable("v8_context_snapshot_generator") {
+       sources = [ "v8_context_snapshot_generator.cc" ]
+ 
++      # Apple's linker cannot encode this build tool's four C++/ObjC/Rust
++      # personalities in compact unwind. Keep DWARF unwind in the host tool.
++      if (is_mac && !use_lld) {
++        ldflags = [ "-Wl,-no_compact_unwind", "-Wl,-keep_dwarf_unwind" ]
++      }
++
+       deps = [
+         "//gin",
+         "//mojo/core/embedder",

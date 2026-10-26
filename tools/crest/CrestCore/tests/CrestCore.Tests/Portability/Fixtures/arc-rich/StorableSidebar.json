@@ -1,0 +1,32 @@
+{"sidebar":{"containers":[
+  {"items":[
+    "favorite-root",{"id":"favorite-root","childrenIds":["favorite"],"data":{"itemContainer":{}}},
+    "favorite",{"id":"favorite","data":{"tab":{"savedTitle":"Favorite","savedURL":"https://favorite.example/"}}},
+    "today-root",{"id":"today-root","childrenIds":["today","nested-list"],"data":{"itemContainer":{}}},
+    "today",{"id":"today","data":{"tab":{"savedTitle":"Today","savedURL":"https://today.example/"}}},
+    "nested-list",{"id":"nested-list","title":"Not a folder here","childrenIds":["today-two"],"data":{"list":{}}},
+    "today-two",{"id":"today-two","data":{"tab":{"savedURL":"https://today-two.example/path"},"createdAt":1600000000}},
+    "pinned-root",{"id":"pinned-root","childrenIds":["folder","bad"],"data":{"itemContainer":{}}},
+    "folder",{"id":"folder","title":"Reading","childrenIds":["saved","sub"],"data":{"list":{}}},
+    "sub",{"id":"sub","childrenIds":["deep"],"data":{"list":{}}},
+    "deep",{"id":"deep","title":"Deep title","data":{"tab":{"savedURL":"https://deep.example/"}}},
+    "saved",{"id":"saved","data":{"tab":{"savedTitle":"Saved","savedURL":"https://saved.example/"}}},
+    "bad",{"id":"bad","data":{"tab":{"savedTitle":"Bad","savedURL":"file:///etc/hosts"}}}
+  ],
+  "spaces":[
+    "space",{"id":"space","title":"Arc Work","profile":{"default":true},
+      "containerIDs":["unpinned","today-root","pinned","pinned-root"],
+      "customInfo":{"iconType":{"emoji_v2":"🏛️"},
+        "windowTheme":{"primaryColorPalette":{"midTone":{"red":0.2,"green":0.4,"blue":0.7,"alpha":1}}}}},
+    "space-two",{"id":"space-two","title":"Gradient","profile":{"custom":{"_0":{"machineID":"m","directoryBasename":"Profile 1"}}},
+      "newContainerIDs":["unpinned","today-root"],
+      "customInfo":{"iconType":{"icon":"code"},
+        "windowTheme":{"background":{"single":{"_0":{"style":{"color":{"_0":{"blendedGradient":{"_0":{"baseColors":[
+          {"red":0.9,"green":0.1,"blue":0.1},{"red":0.1,"green":0.8,"blue":0.2,"alpha":0.5},{"red":1.4,"green":-1,"blue":0.5},{"red":0.1,"green":0.1,"blue":0.1}
+        ]}}}}}}}}}}},
+    "space-three",{"id":"space-three","title":"Single","containerIDs":["unpinned","today-root"],
+      "customInfo":{"iconType":{"icon":"planet","emoji_v2":""},
+        "windowTheme":{"background":{"single":{"_0":{"style":{"color":{"_0":{"blendedSingleColor":{"_0":{"color":{"red":0.12,"green":0.49,"blue":0.52}}}}}}}}}}}}
+  ],
+  "topAppsContainerIDs":[{"default":true},"favorite-root",{"custom":{"_0":{"machineID":"m","directoryBasename":"Profile 1"}}},"today-root"]}
+]}}

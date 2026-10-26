@@ -1,0 +1,121 @@
+import Foundation
+import WebKit
+
+/// The page's WebKit-only state, read by its WebKit delegate conformances and
+/// bridges. Each is empty when another engine hosts the page.
+extension BrowserPage {
+    var webKitAdapter: BrowserWebKitPageAdapter? { engineAdapter as? BrowserWebKitPageAdapter }
+    /// The page WebKit's binding built for this page, or nil when another
+    /// engine hosts it.
+    var webKitEnginePage: WebKitEnginePage? { webKitAdapter?.webKitPage }
+    var webKitView: WKWebView? { webKitAdapter?.webView }
+
+    var activeNavigation: WKNavigation? {
+        get { webKitAdapter?.activeNavigation }
+        set { webKitAdapter?.activeNavigation = newValue }
+    }
+
+    /// Supplemental history for link entries WebKit leaves out of its lists.
+    var navigationHistory: BrowserPageNavigationHistory {
+        get { webKitAdapter?.webKit.history ?? BrowserPageNavigationHistory() }
+        set { webKitAdapter?.webKit.history = newValue }
+    }
+
+    var geolocationCoordinator: BrowserGeolocationCoordinator? { webKitAdapter?.geolocationCoordinator }
+
+    func applyContentBlocking(
+        policy: ContentBlockingPolicy,
+        balancedRuleLists: [WKContentRuleList],
+        activation: BrowserContentRuleListActivation = .onNextNavigation
+    ) {
+        webKitAdapter?.applyContentBlocking(
+            policy: policy,
+            balancedRuleLists: balancedRuleLists,
+            reloadsImmediately: activation == .immediately && pageEngine.currentURL != nil
+        )
+    }
+
+    func updateUnderPageBackground() {
+        webKitView?.underPageBackgroundColor =
+            completedNavigationCount == 0 ? .clear : nil
+    }
+
+    /// Tells the core the page's current navigation failed with `error`,
+    /// which `replacedDocument` when it came after the new document took the
+    /// page's place. A navigation that became a download or was cancelled is
+    /// no failure, and only ends.
+    func recordNavigationFailure(
+        _ error: any Error,
+        replacedDocument: Bool,
+        navigation: WKNavigation?
+    ) {
+        guard isCurrentNavigation(navigation), let reporter = webKitAdapter?.reporter else { return }
+        activeNavigation = nil
+        // A load that ends here commits no entry to take the core's identity.
+        navigationHistory.expectEntry(nil)
+        if let failure = PageFailure(
+            error: error, replacedDocument: replacedDocument, fallbackURL: reporter.pendingURL ?? webKitView?.url)
+        {
+            reporter.failed(failure)
+        } else {
+            reporter.interrupted()
+        }
+    }
+
+    /// Whether this page's own web view sent `scriptMessage`.
+    ///
+    /// A popup shares its opener's `WKUserContentController`, so the opener's
+    /// user scripts run inside the popup's document and post to the opener's
+    /// handlers. Without this check a popup's form would be read against the
+    /// opener's top-level origin, and an accepted fill would be evaluated in the
+    /// opener's web view against a frame belonging to the popup's.
+    private func isOwnScriptMessage(_ scriptMessage: WKScriptMessage) -> Bool {
+        scriptMessage.webView === webKitView
+    }
+
+    func receiveCredentialMessage(_ scriptMessage: WKScriptMessage) {
+        guard let webView = webKitView else { return }
+        credentialSession.receive(scriptMessage, in: webView)
+    }
+
+    /// Records the link the person just right-clicked, moments before WebKit
+    /// hands AppKit the menu that right-click opens.
+    func receiveLinkContextMessage(_ scriptMessage: WKScriptMessage) {
+        guard isOwnScriptMessage(scriptMessage),
+            scriptMessage.name
+                == BrowserLinkContextContentBridge.messageHandlerName
+        else { return }
+        if scriptMessage.frameInfo.isMainFrame,
+            let activation = BrowserDownloadSourceCapture(
+                messageBody: scriptMessage.body
+            )
+        {
+            downloadSourceStore.record(activation)
+            return
+        }
+        linkContextCapture.record(
+            body: scriptMessage.body,
+            documentURL: scriptMessage.frameInfo.request.url,
+            isMainFrame: scriptMessage.frameInfo.isMainFrame
+        )
+    }
+}
+
+// MARK: - WebKit hosting
+
+extension BrowserPage: WebKitPageHosting {
+    /// The page shows itself heading to `url`, which only an app-initiated
+    /// load may reach when it is a local file.
+    func prepareToLoad(_ url: URL) {
+        appInitiatedURL = url
+        prepareForNavigation(to: url)
+    }
+
+    func mediaActivityMayHaveChanged() {
+        refreshMediaActivity()
+    }
+
+    func historyMayHaveChanged() {
+        navigationReporter?.reportHistoryAgain()
+    }
+}

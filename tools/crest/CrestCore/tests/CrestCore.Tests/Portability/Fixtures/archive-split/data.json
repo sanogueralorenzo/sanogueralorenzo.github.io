@@ -1,0 +1,133 @@
+{
+  "exportedAt" : 1800000000000,
+  "format" : "com.pauldavis.crest.browser-data",
+  "schemaVersion" : 5,
+  "spaces" : [
+    {
+      "accent" : "indigo",
+      "archivedTabs" : [
+
+      ],
+      "branding" : {
+        "bannerPattern" : "diagonal",
+        "bannerStrength" : 1,
+        "colors" : [
+          {
+            "alpha" : 1,
+            "blue" : 0.23,
+            "green" : 0.15,
+            "red" : 0.08
+          },
+          {
+            "alpha" : 1,
+            "blue" : 0.64,
+            "green" : 0.42,
+            "red" : 0.22
+          },
+          {
+            "alpha" : 1,
+            "blue" : 0.25,
+            "green" : 0.67,
+            "red" : 0.88
+          }
+        ],
+        "crest" : {
+          "backplate" : "shield",
+          "backplateColorIndex" : 1,
+          "chargeLayout" : "single",
+          "chargeOffset" : 0,
+          "chargeScale" : 1,
+          "chargeWeight" : "bold",
+          "depth" : "none",
+          "divisionCount" : 4,
+          "edgeColorIndex" : 1,
+          "edgeWidth" : 0,
+          "fieldDivision" : "plain",
+          "finish" : "flat",
+          "ordinary" : "none",
+          "ordinaryColorIndex" : 2,
+          "ordinaryWidth" : 1,
+          "plateScale" : 1,
+          "sealTeeth" : 12,
+          "secondaryFieldColorIndex" : 1,
+          "sheenAngle" : 45,
+          "showsOutline" : false,
+          "symbol" : "mountain",
+          "symbolColorIndex" : 2,
+          "trim" : "none",
+          "trimColorIndex" : 1,
+          "trimDetail" : 12,
+          "trimWeight" : 1
+        },
+        "folderColorIntensity" : 0,
+        "gradientAngle" : 0,
+        "iconStyle" : "simpleSymbol",
+        "keepsControlsReadable" : true,
+        "readabilityFade" : 0.25,
+        "renderingVersion" : 2,
+        "showsTexture" : false,
+        "textColorMode" : "automatic",
+        "themeMode" : "banner"
+      },
+      "browsingPreferences" : {
+        "contentBlockingPolicy" : "balanced",
+        "currentTabCleanupPolicy" : "after12Hours",
+        "customSearchProviders" : [
+
+        ],
+        "dataRetention" : {
+          "archive" : "forever",
+          "downloads" : "forever",
+          "history" : "forever"
+        },
+        "searchProvider" : "google",
+        "searchSuggestionsEnabled" : false,
+        "selectedSearchProviderID" : "google"
+      },
+      "folders" : [
+
+      ],
+      "history" : [
+
+      ],
+      "name" : "Split",
+      "splitGroups" : [
+        {
+          "customIconSymbol" : "crest.emoji:👨🏽‍💻",
+          "customTitle" : "Portable Pair",
+          "iconModifiedAt" : 200000,
+          "id" : "4021AFE8-86D1-4554-A303-B44D2D20FEED",
+          "tint" : {
+            "alpha" : 1,
+            "blue" : 0.76,
+            "green" : 0.54,
+            "red" : 0.22
+          },
+          "tintModifiedAt" : 300000,
+          "titleModifiedAt" : 100000
+        }
+      ],
+      "symbol" : "rectangle.split.2x1",
+      "tabs" : [
+        {
+          "id" : "44032DC3-6BF9-4A89-AF25-10E5B65456BE",
+          "lastActivatedAt" : 1790435448994.124,
+          "placement" : "current",
+          "splitGroupID" : "4021AFE8-86D1-4554-A303-B44D2D20FEED",
+          "symbol" : "globe",
+          "title" : "First",
+          "url" : "https://example.com/first"
+        },
+        {
+          "id" : "3CB77BD6-4E38-469B-ABF0-BE96B0ECBD7E",
+          "lastActivatedAt" : 1790435448994.129,
+          "placement" : "current",
+          "splitGroupID" : "4021AFE8-86D1-4554-A303-B44D2D20FEED",
+          "symbol" : "globe",
+          "title" : "Second",
+          "url" : "https://example.com/second"
+        }
+      ]
+    }
+  ]
+}

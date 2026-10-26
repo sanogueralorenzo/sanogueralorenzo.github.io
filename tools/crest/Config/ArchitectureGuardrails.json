@@ -1,0 +1,11 @@
+{
+  "excludedPathPrefixes": [],
+  "importExemptions": [
+    {
+      "path": "CrestShared/Domain/BrowserTab/Icons/BrowserFaviconPayloadIdentity.swift",
+      "module": "CryptoKit",
+      "reason": "A favicon render identity must read every byte exactly once off the main actor's update path. SHA-256 states that directly; hand-rolling an equivalent from Foundation's per-process Hasher took two full passes over the payload and a fingerprint that could not safely be stored or compared across processes."
+    }
+  ],
+  "xcode27PatternExemptions": []
+}

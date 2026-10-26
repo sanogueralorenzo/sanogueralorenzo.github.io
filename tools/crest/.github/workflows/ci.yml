@@ -1,0 +1,249 @@
+name: Build Crest
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact source revision to validate before publication
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.event_name }}-${{ inputs.source_sha || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source:
+    name: Public-source compliance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          # The release calls this workflow for a merged PR. A fork PR's merge
+          # commit is already on main, but checkout refuses it under
+          # pull_request_target unless the step opts in.
+          allow-unsafe-pr-checkout: ${{ github.event.pull_request.merged == true }}
+
+      - name: Check the publishable source and dependency licenses
+        run: |
+          git diff --check
+          Scripts/check-public-source.py
+          python3 Scripts/release_note_catalog.py
+          Scripts/audit-licenses.py
+
+  script-tests:
+    name: Release and repository contracts
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          allow-unsafe-pr-checkout: ${{ github.event.pull_request.merged == true }}
+
+      - name: Ensure script tools are available
+        run: command -v rg >/dev/null || brew install ripgrep
+
+      - name: Test retained script contracts
+        run: python3 -m unittest discover -s Scripts/Tests
+
+  core:
+    name: .NET core contracts and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          allow-unsafe-pr-checkout: ${{ github.event.pull_request.merged == true }}
+
+      - name: Install the repository shell
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends zsh
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.201
+
+      - name: Test core contracts
+        run: dotnet test CrestCore/tests/CrestCore.Tests/CrestCore.Tests.csproj --nologo
+
+      - name: Check core analyzers and code style
+        run: Scripts/control-plane/lint-dotnet.sh
+
+      - name: Check architecture boundaries
+        run: python3 Scripts/check-architecture.py
+
+  # Pull requests and pushes to main build only the apps their files can
+  # affect; release validation and manual runs build both.
+  changes:
+    name: Changed areas
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      mac: ${{ steps.areas.outputs.mac }}
+      ios: ${{ steps.areas.outputs.ios }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          allow-unsafe-pr-checkout: ${{ github.event.pull_request.merged == true }}
+          fetch-depth: 2
+
+      - name: Decide which apps the change can affect
+        id: areas
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: python3 Scripts/ci-changed-areas.py >> "$GITHUB_OUTPUT"
+
+  # The three app builds run side by side on separate runners.
+  chromium-host:
+    name: Build Chromium product host
+    needs: changes
+    if: needs.changes.outputs.mac == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          allow-unsafe-pr-checkout: ${{ github.event.pull_request.merged == true }}
+
+      - uses: ./.github/actions/prepare-apple-build
+
+      - name: Check Swift formatting
+        run: |
+          python3 - <<'PYTHON'
+          import subprocess
+          paths = subprocess.check_output(["git", "ls-files", "-z", "*.swift"]).decode().split("\0")
+          paths = [path for path in paths if path and "/Generated/" not in path]
+          subprocess.run(["xcrun", "swift-format", "lint", "--strict", "--configuration", ".swift-format", *paths], check=True)
+          PYTHON
+
+      - name: Build Chromium product host
+        run: |
+          xcodebuild build \
+            -project Crest.xcodeproj \
+            -scheme CrestChromiumUIProduct \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/crest-build-derived-data" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Check native contracts against the built core
+        run: |
+          core="$RUNNER_TEMP/crest-build-derived-data/Build/Products/Release/CrestCore"
+          clang -std=c11 -Wall -Wextra -Werror -I CrestContracts/include \
+            CrestContracts/tests/native_abi.c "$core/CrestCore.Native.dylib" \
+            -Wl,-rpath,"$core" -o "$core/native-abi"
+          "$core/native-abi"
+          clang++ -std=c++20 -Wall -Wextra -Werror -Wconversion -I CrestContracts/include \
+            CrestContracts/tests/engine_abi.cc "$core/CrestCore.Native.dylib" \
+            -Wl,-rpath,"$core" -o "$core/engine-abi"
+          "$core/engine-abi"
+
+      - name: Remove generated build data
+        if: always()
+        run: find "$RUNNER_TEMP/crest-build-derived-data" -depth -delete 2>/dev/null || true
+
+  mac-app:
+    name: Build macOS
+    needs: changes
+    if: needs.changes.outputs.mac == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          allow-unsafe-pr-checkout: ${{ github.event.pull_request.merged == true }}
+
+      - uses: ./.github/actions/prepare-apple-build
+
+      - name: Build macOS
+        run: |
+          xcodebuild build \
+            -project Crest.xcodeproj \
+            -scheme Crest \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/crest-build-derived-data" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Remove generated build data
+        if: always()
+        run: find "$RUNNER_TEMP/crest-build-derived-data" -depth -delete 2>/dev/null || true
+
+  ios-app:
+    name: Build iOS
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          allow-unsafe-pr-checkout: ${{ github.event.pull_request.merged == true }}
+
+      - uses: ./.github/actions/prepare-apple-build
+
+      # The Chromium host job lints Swift whenever it runs; an iOS-only change
+      # skips that job, so this one lints instead.
+      - name: Check Swift formatting
+        if: needs.changes.outputs.mac != 'true'
+        run: |
+          python3 - <<'PYTHON'
+          import subprocess
+          paths = subprocess.check_output(["git", "ls-files", "-z", "*.swift"]).decode().split("\0")
+          paths = [path for path in paths if path and "/Generated/" not in path]
+          subprocess.run(["xcrun", "swift-format", "lint", "--strict", "--configuration", ".swift-format", *paths], check=True)
+          PYTHON
+
+      - name: Build iOS
+        run: |
+          xcodebuild build \
+            -project Crest.xcodeproj \
+            -scheme CrestMobile \
+            -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/crest-build-derived-data" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Remove generated build data
+        if: always()
+        run: find "$RUNNER_TEMP/crest-build-derived-data" -depth -delete 2>/dev/null || true
+
+  website:
+    name: Website and Help Center
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          allow-unsafe-pr-checkout: ${{ github.event.pull_request.merged == true }}
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: HelpCenter/package-lock.json
+
+      - name: Build Help Center
+        working-directory: HelpCenter
+        run: |
+          npm ci
+          npm run build

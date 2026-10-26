@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crest Browser Compatibility Corpus</title>
+  <style>
+    :root { color-scheme: light dark; font-family: ui-sans-serif, system-ui, sans-serif; }
+    body { margin: 0; background: #0c1020; color: #eef1ff; }
+    header { position: sticky; top: 0; z-index: 2; padding: 20px 24px; background: color-mix(in srgb, #11172c 88%, transparent); backdrop-filter: blur(18px); border-bottom: 1px solid #ffffff18; }
+    h1 { margin: 0 0 5px; font-size: 22px; }
+    header p { margin: 0; color: #aeb7d5; }
+    #summary { display: inline-flex; margin-top: 12px; padding: 6px 10px; border-radius: 999px; background: #2b355a; font-weight: 650; }
+    main { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; padding: 18px; }
+    section { min-width: 0; padding: 16px; border-radius: 14px; background: linear-gradient(145deg, #171d33, #111629); border: 1px solid #ffffff12; box-shadow: 0 10px 36px #0004; }
+    h2 { margin: 0 0 12px; font-size: 15px; }
+    .result { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid #ffffff0e; font-size: 13px; }
+    .result:first-of-type { border-top: 0; }
+    .pass { color: #69e7a3; } .fail { color: #ff7b89; } .pending { color: #d0b86d; }
+    video, canvas, iframe { width: 100%; border-radius: 10px; background: #070a13; border: 0; }
+    video { aspect-ratio: 16 / 9; }
+    canvas { height: 110px; }
+    iframe { height: 95px; }
+    button, a.action, input[type=file] { margin: 4px 4px 4px 0; }
+    button, a.action { display: inline-block; padding: 7px 10px; border: 1px solid #ffffff20; border-radius: 8px; background: #293355; color: inherit; text-decoration: none; }
+    #stress-output { max-height: 120px; overflow: auto; contain: strict; }
+    .stress-row { height: 18px; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Crest Browser Compatibility Corpus</h1>
+    <p>Deterministic local checks for the rendered WebKit surface.</p>
+    <div id="summary" role="status">Running…</div>
+  </header>
+  <main>
+    <section>
+      <h2>Rendering &amp; GPU</h2>
+      <canvas id="canvas" width="640" height="220"></canvas>
+      <div id="render-results"></div>
+    </section>
+
+    <section>
+      <h2>Storage &amp; workers</h2>
+      <div id="storage-results"></div>
+    </section>
+
+    <section>
+      <h2>Modern platform round trips</h2>
+      <div id="platform-results"></div>
+    </section>
+
+    <section>
+      <h2>Media playback</h2>
+      <video id="video" src="sample.mp4" muted playsinline loop controls preload="auto"></video>
+      <div id="media-results"></div>
+      <p id="picture-in-picture-status" role="status">Checking Picture in Picture…</p>
+      <button id="play-video" aria-label="Crest Fixture Play">Play</button>
+      <button id="picture-in-picture-video" aria-label="Crest Fixture Picture in Picture">Picture in Picture</button>
+      <button id="fullscreen-video">Fullscreen</button>
+    </section>
+
+    <section>
+      <h2>Navigation &amp; browser UI</h2>
+      <iframe src="frame.html" title="Same-origin frame"></iframe>
+      <div id="navigation-results"></div>
+      <button id="open-popup">Open popup</button>
+      <a class="action" href="download.txt" download>Download text file</a>
+      <button id="push-history">Push history entry</button>
+    </section>
+
+    <section>
+      <h2>Dialogs &amp; form controls</h2>
+      <button id="alert">Alert</button>
+      <button id="confirm">Confirm</button>
+      <button id="prompt">Prompt</button>
+      <input id="file-input" type="file" multiple>
+      <p contenteditable="true" spellcheck="true">Editable text with speling for native correction testing.</p>
+      <div id="form-results"></div>
+    </section>
+
+    <section>
+      <h2>DOM stress &amp; frame cadence</h2>
+      <div id="performance-results"></div>
+      <div id="stress-output"></div>
+    </section>
+  </main>
+
+  <script>
+    const results = new Map();
+    const corpusStartedAt = performance.now();
+    const groups = {
+      render: document.querySelector('#render-results'),
+      storage: document.querySelector('#storage-results'),
+      platform: document.querySelector('#platform-results'),
+      media: document.querySelector('#media-results'),
+      navigation: document.querySelector('#navigation-results'),
+      form: document.querySelector('#form-results'),
+      performance: document.querySelector('#performance-results')
+    };
+
+    function report(group, name, passed, detail = '') {
+      results.set(name, { passed, detail });
+      const row = document.createElement('div');
+      row.className = 'result';
+      row.dataset.test = name;
+      row.innerHTML = `<span>${name}</span><strong class="${passed ? 'pass' : 'fail'}">${passed ? 'PASS' : 'FAIL'}${detail ? ` · ${detail}` : ''}</strong>`;
+      groups[group].append(row);
+      updateSummary();
+    }
+
+    function updateSummary() {
+      const passed = [...results.values()].filter(result => result.passed).length;
+      const failed = results.size - passed;
+      const summary = document.querySelector('#summary');
+      summary.textContent = `${passed}/${results.size} passed${failed ? ` · ${failed} failed` : ''}`;
+      summary.dataset.failures = String(failed);
+    }
+
+    async function waitForServiceWorkerActivation(registration) {
+      const worker = registration.active ?? registration.waiting ?? registration.installing;
+      if (!worker || worker.state === 'activated') return worker?.state ?? 'missing';
+      return new Promise(resolve => {
+        const timeout = setTimeout(() => resolve(worker.state), 5000);
+        worker.addEventListener('statechange', () => {
+          if (worker.state !== 'activated' && worker.state !== 'redundant') return;
+          clearTimeout(timeout);
+          resolve(worker.state);
+        });
+      });
+    }
+
+    async function playVideoWithTimeout(video) {
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          const error = new Error('play timeout');
+          error.name = 'TimeoutError';
+          reject(error);
+        }, 2500);
+        try {
+          video.play().then(
+            () => { clearTimeout(timeout); resolve(); },
+            error => { clearTimeout(timeout); reject(error); }
+          );
+        } catch (error) {
+          clearTimeout(timeout);
+          reject(error);
+        }
+      });
+    }
+
+    async function run() {
+      const canvas = document.querySelector('#canvas');
+      const context2D = canvas.getContext('2d');
+      if (context2D) {
+        const gradient = context2D.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, '#6c6cff'); gradient.addColorStop(1, '#46e6bd');
+        context2D.fillStyle = gradient; context2D.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      report('render', 'Canvas 2D', !!context2D);
+
+      const webgl = document.createElement('canvas').getContext('webgl');
+      const webgl2 = document.createElement('canvas').getContext('webgl2');
+      report('render', 'WebGL context', !!webgl, webgl ? webgl.getParameter(webgl.VERSION) : 'unavailable');
+      report('render', 'WebGL 2 context', !!webgl2, webgl2 ? webgl2.getParameter(webgl2.VERSION) : 'unavailable');
+      report('render', 'CSS Grid', getComputedStyle(document.querySelector('main')).display === 'grid');
+      report('render', 'Backdrop filter', CSS.supports('backdrop-filter', 'blur(2px)'));
+
+      localStorage.setItem('crest-local', 'ready');
+      report('storage', 'Local storage', localStorage.getItem('crest-local') === 'ready');
+
+      const idbResult = await new Promise(resolve => {
+        const request = indexedDB.open('crest-live-corpus', 1);
+        request.onupgradeneeded = () => request.result.createObjectStore('values');
+        request.onerror = () => resolve(false);
+        request.onsuccess = () => {
+          const database = request.result;
+          const write = database.transaction('values', 'readwrite');
+          write.objectStore('values').put('ready', 'probe');
+          write.oncomplete = () => {
+            const read = database.transaction('values').objectStore('values').get('probe');
+            read.onerror = () => resolve(false);
+            read.onsuccess = () => resolve(read.result === 'ready');
+          };
+        };
+      });
+      report('storage', 'IndexedDB round trip', idbResult);
+
+      try {
+        const response = await fetch('data.json');
+        const data = await response.json();
+        report('storage', 'Fetch/subresources', data.status === 'ready');
+      } catch { report('storage', 'Fetch/subresources', false); }
+
+      const workerResult = await new Promise(resolve => {
+        const worker = new Worker('worker.js');
+        const timeout = setTimeout(() => resolve(false), 2500);
+        worker.onmessage = event => { clearTimeout(timeout); resolve(event.data === 'worker-ready'); worker.terminate(); };
+        worker.postMessage('probe');
+      });
+      report('storage', 'Dedicated worker', workerResult);
+
+      const wasmResult = await WebAssembly.instantiate(
+        new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0])
+      );
+      report('platform', 'WebAssembly execution', wasmResult.instance instanceof WebAssembly.Instance);
+
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('crest'));
+      report('platform', 'Web Crypto digest', digest.byteLength === 32);
+
+      const channelName = `crest-${crypto.randomUUID()}`;
+      const channelA = new BroadcastChannel(channelName);
+      const channelB = new BroadcastChannel(channelName);
+      const channelResult = await new Promise(resolve => {
+        const timeout = setTimeout(() => resolve(false), 2000);
+        channelB.onmessage = event => {
+          clearTimeout(timeout);
+          resolve(event.data === 'channel-ready');
+        };
+        channelA.postMessage('channel-ready');
+      });
+      channelA.close(); channelB.close();
+      report('platform', 'BroadcastChannel message', channelResult);
+
+      class CrestProbeElement extends HTMLElement {
+        connectedCallback() {
+          this.dataset.connected = 'true';
+          this.attachShadow({ mode: 'open' }).innerHTML = '<span>shadow-ready</span>';
+        }
+      }
+      customElements.define('crest-compatibility-probe', CrestProbeElement);
+      const customElement = document.createElement('crest-compatibility-probe');
+      customElement.hidden = true;
+      document.body.append(customElement);
+      report(
+        'platform',
+        'Custom element + shadow DOM',
+        customElement.dataset.connected === 'true'
+          && customElement.shadowRoot?.textContent === 'shadow-ready'
+      );
+
+      let compressionResult = false;
+      if (typeof CompressionStream === 'function' && typeof DecompressionStream === 'function') {
+        const stream = new Blob(['compressed-ready']).stream()
+          .pipeThrough(new CompressionStream('gzip'))
+          .pipeThrough(new DecompressionStream('gzip'));
+        compressionResult = await new Response(stream).text() === 'compressed-ready';
+      }
+      report('platform', 'Compressed stream round trip', compressionResult);
+
+      let offlineAudioResult = false;
+      if (typeof OfflineAudioContext === 'function') {
+        const audioContext = new OfflineAudioContext(1, 128, 44100);
+        const oscillator = new OscillatorNode(audioContext);
+        oscillator.connect(audioContext.destination);
+        oscillator.start();
+        const rendered = await audioContext.startRendering();
+        offlineAudioResult = rendered.length === 128 && rendered.numberOfChannels === 1;
+      }
+      report('platform', 'Offline audio render', offlineAudioResult);
+
+      const cache = await caches.open('crest-live-cache');
+      await cache.put('/live-cache-probe', new Response('cache-ready'));
+      const cacheResponse = await cache.match('/live-cache-probe');
+      report('platform', 'Cache Storage round trip', await cacheResponse?.text() === 'cache-ready');
+
+      try {
+        const registration = await navigator.serviceWorker.register('service-worker.js');
+        const readyRegistration = await Promise.race([
+          navigator.serviceWorker.ready,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('activation timeout')), 5000))
+        ]);
+        const activeState = await waitForServiceWorkerActivation(readyRegistration ?? registration);
+        report('storage', 'Service worker', activeState === 'activated', activeState);
+      } catch (error) { report('storage', 'Service worker', false, error.message); }
+
+      const video = document.querySelector('#video');
+      report('media', 'H.264 capability', video.canPlayType('video/mp4; codecs="avc1.42E01E"') !== '');
+      report('media', 'HLS capability', video.canPlayType('application/vnd.apple.mpegurl') !== '');
+      const mediaSourceAPI = typeof MediaSource === 'function'
+        ? 'MediaSource'
+        : (typeof ManagedMediaSource === 'function' ? 'ManagedMediaSource' : 'unavailable');
+      report('media', 'Media source streaming', mediaSourceAPI !== 'unavailable', mediaSourceAPI);
+      const mediaReady = await new Promise(resolve => {
+        if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) return resolve(true);
+        const timeout = setTimeout(() => resolve(false), 5000);
+        video.addEventListener('canplay', () => { clearTimeout(timeout); resolve(true); }, { once: true });
+        video.addEventListener('error', () => { clearTimeout(timeout); resolve(false); }, { once: true });
+      });
+      report('media', 'MP4 decode', mediaReady, mediaReady ? `${video.videoWidth}×${video.videoHeight}` : 'load failed');
+      if (mediaReady) {
+        try {
+          await playVideoWithTimeout(video);
+          await new Promise(resolve => setTimeout(resolve, 700));
+          report('media', 'Video playback policy', video.currentTime > 0.2, `${video.currentTime.toFixed(2)}s`);
+          video.pause();
+        } catch (error) {
+          report(
+            'media',
+            'Video playback policy',
+            error.name === 'NotAllowedError',
+            error.name === 'NotAllowedError' ? 'user action required' : `play rejected: ${error.name}`
+          );
+        }
+      } else {
+        report('media', 'Video playback policy', false, 'media unavailable');
+      }
+
+      report('navigation', 'Same-origin iframe', document.querySelector('iframe').contentWindow !== null);
+      report('navigation', 'Popup API', typeof window.open === 'function');
+      report('navigation', 'Download attribute', 'download' in document.createElement('a'));
+      report('navigation', 'History API', typeof history.pushState === 'function');
+      report('form', 'File input', document.querySelector('#file-input').multiple);
+      report('form', 'Content editable', document.querySelector('[contenteditable]').isContentEditable);
+      report('form', 'Dialog APIs', ['alert', 'confirm', 'prompt'].every(name => typeof window[name] === 'function'));
+
+      const stress = document.querySelector('#stress-output');
+      const start = performance.now();
+      const fragment = document.createDocumentFragment();
+      for (let index = 0; index < 2500; index++) {
+        const row = document.createElement('div');
+        row.className = 'stress-row'; row.textContent = `Row ${index}`; fragment.append(row);
+      }
+      stress.append(fragment);
+      const domDuration = performance.now() - start;
+      report('performance', '2,500-node DOM commit', stress.children.length === 2500, `${domDuration.toFixed(1)}ms`);
+
+      const frameTimes = [];
+      let last = performance.now();
+      await new Promise(resolve => {
+        function frame(now) {
+          frameTimes.push(now - last); last = now;
+          if (frameTimes.length >= 30) return resolve();
+          requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+      });
+      const dropped = frameTimes.filter(value => value > 34).length;
+      report('performance', 'Animation frame cadence', dropped <= 2, `${dropped} slow frames`);
+      document.documentElement.dataset.corpusComplete = 'true';
+      await submitCorpusResult();
+    }
+
+    async function submitCorpusResult(crashMessage = '') {
+      const runID = new URLSearchParams(location.search).get('crestRun');
+      if (!runID) return;
+      const normalizedResults = [...results.entries()].map(([name, result]) => ({
+        name,
+        passed: result.passed,
+        detail: result.detail
+      }));
+      const passed = normalizedResults.filter(result => result.passed).length;
+      const total = normalizedResults.length;
+      const payload = {
+        passed,
+        total,
+        failures: total - passed,
+        durationMs: performance.now() - corpusStartedAt,
+        userAgent: navigator.userAgent,
+        results: normalizedResults
+      };
+      if (crashMessage) payload.crash = crashMessage;
+      try {
+        await fetch(`/__crest_corpus_result__?run=${encodeURIComponent(runID)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          cache: 'no-store',
+          keepalive: true
+        });
+      } catch (error) {
+        document.documentElement.dataset.corpusReportError = error.message;
+      }
+    }
+
+    const pictureInPictureButton = document.querySelector('#picture-in-picture-video');
+    const pictureInPictureVideo = document.querySelector('#video');
+    const supportsWebKitPictureInPicture =
+      typeof pictureInPictureVideo.webkitSupportsPresentationMode === 'function'
+      && pictureInPictureVideo.webkitSupportsPresentationMode('picture-in-picture')
+      && typeof pictureInPictureVideo.webkitSetPresentationMode === 'function';
+    const supportsStandardPictureInPicture =
+      typeof pictureInPictureVideo.requestPictureInPicture === 'function';
+    const pictureInPictureStatus = document.querySelector('#picture-in-picture-status');
+    pictureInPictureStatus.textContent = `Picture in Picture: WebKit ${supportsWebKitPictureInPicture ? 'available' : 'unavailable'} · standard ${supportsStandardPictureInPicture ? 'available' : 'unavailable'} · ${pictureInPictureVideo.webkitPresentationMode ?? 'no presentation mode'}`;
+    if (!supportsWebKitPictureInPicture && !supportsStandardPictureInPicture) {
+      pictureInPictureButton.disabled = true;
+    }
+    function updatePictureInPictureButton(isPresenting) {
+      pictureInPictureButton.textContent = isPresenting
+        ? 'Exit Picture in Picture'
+        : 'Picture in Picture';
+      pictureInPictureButton.setAttribute(
+        'aria-label',
+        isPresenting
+          ? 'Crest Fixture Exit Picture in Picture'
+          : 'Crest Fixture Picture in Picture'
+      );
+    }
+    pictureInPictureVideo.addEventListener('enterpictureinpicture', () => {
+      updatePictureInPictureButton(true);
+    });
+    pictureInPictureVideo.addEventListener('leavepictureinpicture', () => {
+      updatePictureInPictureButton(false);
+    });
+    pictureInPictureVideo.addEventListener('webkitpresentationmodechanged', () => {
+      updatePictureInPictureButton(
+        pictureInPictureVideo.webkitPresentationMode === 'picture-in-picture'
+      );
+      pictureInPictureStatus.textContent = `Picture in Picture: ${pictureInPictureVideo.webkitPresentationMode}`;
+    });
+    document.querySelector('#play-video').onclick = async () => {
+      try {
+        await pictureInPictureVideo.play();
+        pictureInPictureStatus.textContent = 'Picture in Picture: video playing';
+      } catch (error) {
+        pictureInPictureStatus.textContent = `Picture in Picture play error: ${error.name} · ${error.message}`;
+      }
+    };
+    pictureInPictureButton.onclick = async () => {
+      try {
+        if (pictureInPictureVideo.paused) {
+          pictureInPictureStatus.textContent = 'Picture in Picture error: play the video first';
+          return;
+        }
+        if (supportsWebKitPictureInPicture) {
+          pictureInPictureVideo.webkitSetPresentationMode(
+            pictureInPictureVideo.webkitPresentationMode === 'picture-in-picture'
+              ? 'inline'
+              : 'picture-in-picture'
+          );
+          return;
+        }
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture();
+          return;
+        }
+        await pictureInPictureVideo.requestPictureInPicture();
+      } catch (error) {
+        pictureInPictureStatus.textContent = `Picture in Picture error: ${error.name} · ${error.message}`;
+      }
+    };
+    document.querySelector('#fullscreen-video').onclick = () => document.querySelector('#video').requestFullscreen();
+    document.querySelector('#open-popup').onclick = () => window.open('popup.html', '_blank', 'width=480,height=320');
+    document.querySelector('#push-history').onclick = () => { history.pushState({ probe: true }, '', '#history-probe'); };
+    document.querySelector('#alert').onclick = () => alert('Crest alert probe');
+    document.querySelector('#confirm').onclick = () => confirm('Crest confirm probe');
+    document.querySelector('#prompt').onclick = () => prompt('Crest prompt probe', 'ready');
+
+    run().catch(async error => {
+      document.querySelector('#summary').textContent = `Corpus crashed: ${error.message}`;
+      document.querySelector('#summary').dataset.failures = '1';
+      await submitCorpusResult(error.message);
+    });
+  </script>
+</body>
+</html>

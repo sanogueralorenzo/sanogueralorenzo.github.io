@@ -1,0 +1,8 @@
+<Project>
+  <!-- Cross-checks run a full computation beside the fast one that replaces it and throw when they
+       disagree. Debug builds run them, and so does the core a Debug app build publishes. This is a
+       targets file because the configuration has its default only after the props files. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug' or '$(CrestCrossChecks)' == 'true'">
+    <DefineConstants>$(DefineConstants);CREST_CROSS_CHECKS</DefineConstants>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,37 @@
+name: Bug report
+description: Report reproducible incorrect behavior in Crest.
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Questions, early feedback, and compatibility discussion belong in [r/CrestBrowser](https://www.reddit.com/r/CrestBrowser). Use this form for reproducible engineering work. Do not include passwords, account tokens, private URLs, or browsing data; report security issues through the private security form.
+  - type: input
+    id: version
+    attributes:
+      label: Crest version
+      placeholder: "For example: 0.4.0 (42), stable or nightly"
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - macOS
+        - iPhone
+        - iPad
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      placeholder: Tell us what you did, what you expected, and what happened.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Additional evidence
+      description: Include sanitized screenshots or logs when they materially clarify the problem.
