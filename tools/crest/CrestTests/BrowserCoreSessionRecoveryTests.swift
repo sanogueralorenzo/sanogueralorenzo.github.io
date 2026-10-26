@@ -15,7 +15,6 @@ final class BrowserCoreSessionRecoveryTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
         // Launch repair names a launch Space; this one already has it.
         var original = SessionState.Seed.preview
-        original.defaultSpaceID = original.spaces[0].id
         // The journal of a device that staged the session.
         let staged = try await BrowserStoredSessionHarness.staged(seed: original)
         let journalData = try XCTUnwrap(try staged.storedPart("journal"))
@@ -156,8 +155,6 @@ final class BrowserCoreSessionRecoveryTests: XCTestCase {
                     visitCount: entry % 5 + 1)
             }
         }
-        session.spaces[1].settings.accessPolicy = .deviceOwnerAuthentication
-        session.defaultSpaceID = session.spaces[0].id
         return (session, images)
     }
 }

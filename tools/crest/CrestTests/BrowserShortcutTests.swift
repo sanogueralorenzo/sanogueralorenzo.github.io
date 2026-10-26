@@ -5,7 +5,7 @@ import XCTest
 
 final class BrowserShortcutTests: XCTestCase {
     @MainActor
-    func testNativeDispatchUsesCurrentOverridesAndLeavesDisabledCommandsToTheResponder() throws {
+    func testNativeDispatchUsesFixedBindingsAndLeavesDisabledCommandsToTheResponder() throws {
         let store = BrowserShortcutStore()
         let event = try XCTUnwrap(
             NSEvent.keyEvent(
@@ -14,12 +14,40 @@ final class BrowserShortcutTests: XCTestCase {
                 characters: "i", charactersIgnoringModifiers: "i", isARepeat: false, keyCode: 34))
         XCTAssertEqual(store.command(for: event, isEnabled: { _ in true }), .toggleDeveloperToolbar)
         XCTAssertNil(store.command(for: event, isEnabled: { _ in false }))
-        store.clearShortcut(for: .toggleDeveloperToolbar)
-        XCTAssertNil(store.command(for: event, isEnabled: { _ in true }))
-        XCTAssertTrue(
-            store.assign(BrowserShortcut(key: .character("i"), modifiers: [.command, .shift]), to: .newTab)
-                is BrowserShortcutAssigned)
-        XCTAssertEqual(store.command(for: event, isEnabled: { _ in true }), .newTab)
+    }
+
+    @MainActor
+    func testDefaultZoomAliasLeavesDisabledCommandsToTheResponder() throws {
+        let store = BrowserShortcutStore()
+        let event = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown, location: .zero,
+                modifierFlags: [.command], timestamp: 0, windowNumber: 0, context: nil,
+                characters: "=", charactersIgnoringModifiers: "=", isARepeat: false, keyCode: 24))
+        XCTAssertEqual(store.command(for: event, isEnabled: { _ in true }), .zoomIn)
+        XCTAssertNil(store.command(for: event, isEnabled: { _ in false }))
+    }
+
+    func testShortcutRequiresAtLeastOneSupportedModifier() {
+        XCTAssertFalse(shortcut("t", []).isValid)
+        XCTAssertTrue(shortcut("t", [.command]).isValid)
+        XCTAssertTrue(special(.leftArrow, [.control, .option]).isValid)
+    }
+
+    @MainActor
+    func testCrestShortcutAssignmentsCanBeResolvedBeforeExtensions() throws {
+        let store = BrowserShortcutStore()
+        let newTab = try XCTUnwrap(store.shortcut(for: .newTab))
+
+        XCTAssertEqual(store.commands(assignedTo: newTab), [.newTab])
+        XCTAssertTrue(store.commands(assignedTo: shortcut("g", [.option])).isEmpty)
+    }
+
+    private func shortcut(
+        _ character: Character,
+        _ modifiers: ShortcutModifiers
+    ) -> BrowserShortcut {
+        BrowserShortcut(key: .character(character), modifiers: modifiers)
     }
 
     private func special(

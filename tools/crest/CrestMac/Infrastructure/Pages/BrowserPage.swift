@@ -8,11 +8,6 @@ import os
 
 // MARK: - Types
 
-enum BrowserDeveloperCaptureError: Error {
-    case pageUnavailable
-    case encodingFailed
-}
-
 /// Where the agent using a page's tab last acted on it, as the page shows the
 /// person: the point in the page's CSS pixels, and whether it pressed there.
 /// Each move is a new `revision`, so a second press at one point still shows.
@@ -47,7 +42,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     var enginePage: EnginePage { engineAdapter.enginePage }
     var pictureInPicture: (any BrowserPagePictureInPictureController)? { engineAdapter.pictureInPicture }
     var linkHover: BrowserLinkHoverController? { engineAdapter.linkHover }
-    var linkDrag: BrowserLinkDragController? { engineAdapter.linkDrag }
     /// Restores the editing focus of the engine's view, once asked for.
     var focusRestoration: BrowserWebFocusRestorationController {
         if let focusRestorationStorage { return focusRestorationStorage }
@@ -59,7 +53,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     @ObservationIgnored private var focusRestorationStorage: BrowserWebFocusRestorationController?
     /// What the page's engine is built with, which a new engine takes too.
     @ObservationIgnored private let mediaSessionStore: BrowserMediaSessionStore?
-    @ObservationIgnored private let allowsCredentialAccess: Bool
     @ObservationIgnored private(set) var isPrivateBrowsing = false
 
     /// What the page shows as the core holds it: its address, title,
@@ -111,7 +104,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     var readerModeState: BrowserReaderModeState { readerModeSession?.state ?? .unavailable }
     var isContentBlockingActive: Bool { engineAdapter.isContentBlockingActive }
     var developerPanel: BrowserDeveloperPanel?
-    private(set) var isRegionCapturePresented = false
     /// Where the agent using the page's tab last acted, which the page shows
     /// as the agent's pointer while the agent uses the tab.
     private(set) var agentPointer: BrowserAgentPointer?
@@ -119,11 +111,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// answer while it shows, which an agent using the tab may read and, all
     /// but a leave-page question, answer.
     var scriptDialog: ScriptDialogAsked?
-    private(set) var developerCaptureFeedback: String?
-    private(set) var developerCaptureFeedbackRevision = 0
-    var isCredentialAccessEnabled: Bool { credentialSession.isEnabled }
-    var credentialFillRequest: BrowserCredentialFillRequest? { credentialState.fillRequest }
-    var credentialSaveCandidate: BrowserCredentialSaveCandidate? { credentialState.saveCandidate }
     /// The pool that owns this page. Weak because the pool owns the page.
     @ObservationIgnored weak var host: BrowserPagePool?
     @ObservationIgnored var windowRouting: BrowserPageWindowRouting?
@@ -176,8 +163,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// asked for. Only an app-initiated load may reach a `file:` URL.
     @ObservationIgnored var appInitiatedURL: URL?
     @ObservationIgnored let openModifiedLink: (URLRequest, UUID, Bool) -> Void
-    @ObservationIgnored let openPeek: (BrowserPeekRequest) -> Void
-    @ObservationIgnored let handleLinkDrag: (BrowserPeekInteractionEvent) -> Void
     @ObservationIgnored var navigationContext: BrowserPageNavigationContext?
     @ObservationIgnored private let findSession = BrowserFindSession()
     var readerModeSession: BrowserReaderModeSession? { engineAdapter.readerModeSession }
@@ -192,18 +177,13 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     @ObservationIgnored var splitLinkHost: BrowserSplitLinkHost
     @ObservationIgnored var linkDestinationHost: BrowserLinkDestinationHost
     @ObservationIgnored var mediaSessionCoordinator: BrowserMediaSessionPageCoordinator?
-    @ObservationIgnored private(set) var userActivityHandler: (() -> Void)?
     /// Whether a window brought the page on screen and the person has not
     /// used it since, which the diagnostic log notes once they do.
     @ObservationIgnored var awaitsInputSincePresented = false
-    @ObservationIgnored let credentialSession: BrowserCredentialSession
-    var credentialState: BrowserCredentialPageState<BrowserCredentialSession.FillTarget> {
-        credentialSession.state
-    }
     @ObservationIgnored let httpAuthenticationSession: BrowserHTTPAuthenticationSession
 
     // Session-only presentation state belongs to the live page, including in splits.
-    private var developerToolbarVisibilityOverride: Bool?
+    private var developerToolbarIsVisible = false
     var developerViewport: BrowserDeveloperViewport? {
         didSet { enginePage.zoom(to: renderedPageZoom) }
     }
@@ -211,14 +191,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     var renderedPageZoom: CGFloat { developerViewport == nil ? pageZoom : 1 }
 
     var isDeveloperModeEnabled: Bool {
-        developerToolbarVisibilityOverride ?? (developerViewport != nil || isDeveloperModeAutomatic)
-    }
-
-    /// Whether this page's address turns the developer toolbar on by itself:
-    /// a local development address, while the person keeps that preference on.
-    var isDeveloperModeAutomatic: Bool {
-        BrowserAppPreferenceStore.shared.automaticallyShowsDeveloperToolbar
-            && live.displayURL?.isLocalDevelopmentAddress == true
+        developerToolbarIsVisible || developerViewport != nil
     }
 
     /// The tab that owns this page's Media Session, read when the session
@@ -270,16 +243,9 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         spaceID: UUID,
         profileID: UUID,
         spaceName: String,
-        allowsCredentialAccess: Bool = true,
-        isCredentialAccessEnabled: Bool = true,
         defaultPageZoom: CGFloat = BrowserDefaultPageZoomStore.defaultLevel,
-        loadHTTPAuthenticationCredential:
-            @escaping BrowserHTTPAuthenticationSession.LoadCredential = { _ in nil },
-        saveHTTPAuthenticationCredential:
-            @escaping BrowserHTTPAuthenticationSession.SaveCredential = { _ in },
+        openNewTab: @escaping (URL) -> Void,
         openModifiedLink: @escaping (URLRequest, UUID, Bool) -> Void = { _, _, _ in },
-        openPeek: @escaping (BrowserPeekRequest) -> Void = { _ in },
-        handleLinkDrag: @escaping (BrowserPeekInteractionEvent) -> Void = { _ in },
         splitLinkHost: BrowserSplitLinkHost = .unavailable,
         linkDestinationHost: BrowserLinkDestinationHost = .unavailable,
         opensExternalURL: @escaping (URL) -> Void = { NSWorkspace.shared.open($0) }
@@ -307,7 +273,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         self.corePage = corePage
         self.engineAdapter = engineAdapter
         self.mediaSessionStore = mediaSessionStore
-        self.allowsCredentialAccess = allowsCredentialAccess
         sitePermissionSession = BrowserPageSitePermissionSession(
             page: engineAdapter.enginePage, permissionCenter: permissionCenter, spaceID: spaceID)
         let normalizedDefaultPageZoom = BrowserDefaultPageZoomStore.normalized(
@@ -316,25 +281,10 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         self.defaultPageZoom = normalizedDefaultPageZoom
         pageZoom = normalizedDefaultPageZoom
         self.openModifiedLink = openModifiedLink
-        self.openPeek = openPeek
-        self.handleLinkDrag = handleLinkDrag
         self.splitLinkHost = splitLinkHost
         self.linkDestinationHost = linkDestinationHost
-        let httpAuthenticationSession = BrowserHTTPAuthenticationSession(
-            spaceID: spaceID,
-            allowsCredentialSaving: allowsCredentialAccess
-                && isCredentialAccessEnabled,
-            loadCredential: loadHTTPAuthenticationCredential,
-            saveCredential: saveHTTPAuthenticationCredential
-        )
+        let httpAuthenticationSession = BrowserHTTPAuthenticationSession()
         self.httpAuthenticationSession = httpAuthenticationSession
-        credentialSession = BrowserCredentialSession(
-            spaceID: spaceID,
-            core: downloadCenter.core,
-            supportsAccess: allowsCredentialAccess,
-            isEnabled: isCredentialAccessEnabled,
-            httpAuthentication: httpAuthenticationSession
-        )
         navigationDecider = BrowserNavigationDecider()
         // A popup whose destination belongs to another application is routed
         // into the same consent path an ordinary external-scheme navigation
@@ -367,27 +317,14 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         // The Space's default zoom; an engine that creates its page later
         // replays it then.
         enginePage.zoom(to: pageZoom)
-        engineAdapter.attach(to: self, allowsCredentialAccess: allowsCredentialAccess)
+        engineAdapter.attach(to: self)
         engineAdapter.setPrivateBrowsing(isPrivateBrowsing)
         if let mediaSessionStore {
             mediaSessionCoordinator = engineAdapter.makeMediaSessionCoordinator(for: self, store: mediaSessionStore)
         }
-        if userActivityHandler != nil { engineAdapter.monitorUserActivity(for: self) }
         // An engine that runs Crest's content bridges itself receives them here;
         // the WebKit adapter installs its own through its user content controller.
-        if allowsCredentialAccess, let scripting = pageEngine.contentScripting {
-            _ = scripting.install(
-                BrowserContentScript(
-                    source: BrowserCredentialContentBridge.source,
-                    handlerName: BrowserCredentialContentBridge.messageHandlerName,
-                    mainFrameOnly: false
-                )
-            ) { [weak self] message in
-                guard let self else { return }
-                self.credentialSession.receive(
-                    message.body, from: message.frame, topLevelURL: self.pageEngine.currentURL)
-            }
-        }
+
     }
 
     // MARK: - Actions - Navigation
@@ -447,17 +384,11 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         return true
     }
 
-    func monitorUserActivity(_ handler: @escaping () -> Void) {
-        userActivityHandler = handler
-        engineAdapter.monitorUserActivity(for: self)
-    }
-
     func styleVisitedLinks(history: [HistoryEntryState]) async {
         await engineAdapter.styleVisitedLinks(history: history)
     }
 
     func stopMonitoringUserActivity() {
-        userActivityHandler = nil
     }
 
     /// Notes in the diagnostic log the person's first input after a window
@@ -486,7 +417,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             spaceID: spaceID,
             profileID: profileID
         )
-        linkDrag?.contextDidChange()
         if previousTitle != navigationContext?.title {
             mediaSessionCoordinator?.ownerTitleDidChange()
         }
@@ -517,7 +447,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         sitePermissionRequests.setPresentationAvailable(false)
         translation.reset()
         fileUploadAccess.invalidate()
-        userActivityHandler = nil
         linkContextCapture.clear()
         tearDownEngine()
     }
@@ -528,7 +457,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         faviconSession?.stop()
         readerModeSession?.invalidate()
         linkHover?.detach()
-        linkDrag?.detach()
         focusRestorationStorage?.invalidate()
         focusRestorationStorage = nil
         mediaSessionCoordinator?.prepareForRemoval()
@@ -557,7 +485,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             page: adapter.enginePage, permissionCenter: permissionCenter, spaceID: spaceID)
         engineInfoBars = []
         shareSourceOffer = nil
-        isRegionCapturePresented = false
         isSharedAsTab = false
         isSharingTab = false
         sharedTabPageIDs = []
@@ -583,7 +510,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     // MARK: - Actions - Find and developer tools
 
     func setDeveloperToolbarVisible(_ visible: Bool) {
-        developerToolbarVisibilityOverride = visible
+        developerToolbarIsVisible = visible
         if !visible { developerViewport = nil }
     }
 
@@ -612,88 +539,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         } else {
             NSSound.beep()
         }
-    }
-
-    func beginRegionCapture() {
-        guard live.url != nil else { return }
-        isRegionCapturePresented = true
-    }
-
-    func cancelRegionCapture() {
-        isRegionCapturePresented = false
-    }
-
-    func toggleRegionCapture() {
-        if isRegionCapturePresented { cancelRegionCapture() } else { beginRegionCapture() }
-    }
-
-    func captureRegion(_ rect: CGRect) {
-        guard isRegionCapturePresented else { return }
-        isRegionCapturePresented = false
-        Task { [weak self] in
-            guard let self else { return }
-            do {
-                let png = await withCheckedContinuation { continuation in
-                    enginePage.capture(area: rect) { continuation.resume(returning: $0) }
-                }
-                guard let image = png.flatMap(NSImage.init(data:)) else {
-                    throw BrowserDeveloperCaptureError.pageUnavailable
-                }
-                guard Self.copyImageToPasteboard(image) else {
-                    throw BrowserDeveloperCaptureError.encodingFailed
-                }
-                presentDeveloperCaptureFeedback("Capture Copied")
-            } catch {
-                presentDeveloperCaptureFeedback("Couldn’t Capture Page")
-            }
-        }
-    }
-
-    func copyFullPageCapture() {
-        Task { [weak self] in
-            guard let self else { return }
-            do {
-                let image = try await fullPageSnapshot()
-                guard Self.copyImageToPasteboard(image) else {
-                    throw BrowserDeveloperCaptureError.encodingFailed
-                }
-                presentDeveloperCaptureFeedback("Full Page Capture Copied")
-            } catch {
-                presentDeveloperCaptureFeedback("Couldn’t Capture Full Page")
-            }
-        }
-    }
-
-    func savePortraitCapture() {
-        Task { [weak self] in
-            guard let self, let window = nativeView.window else { return }
-            do {
-                let snapshot = try await fullPageSnapshot(snapshotWidth: 720)
-                let portrait = Self.portraitImage(from: snapshot)
-                guard let data = Self.pngData(from: portrait) else {
-                    throw BrowserDeveloperCaptureError.encodingFailed
-                }
-                let panel = NSSavePanel()
-                panel.allowedContentTypes = [.png]
-                panel.canCreateDirectories = true
-                panel.nameFieldStringValue = live.suggestedFilename(pathExtension: "png")
-                panel.title = "Save Portrait Capture"
-                panel.prompt = "Save"
-                guard await panel.beginSheetModal(for: window) == .OK,
-                    let destinationURL = panel.url
-                else { return }
-                try await Task.detached(priority: .userInitiated) {
-                    try data.write(to: destinationURL, options: .atomic)
-                }.value
-                presentDeveloperCaptureFeedback("Portrait Capture Saved")
-            } catch {
-                presentDeveloperCaptureFeedback("Couldn’t Save Portrait Capture")
-            }
-        }
-    }
-
-    func dismissDeveloperCaptureFeedback() {
-        developerCaptureFeedback = nil
     }
 
     private var findExecutor: any BrowserFindExecuting {
@@ -811,38 +656,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         enginePage.stopTabSharing()
     }
 
-    // MARK: - Actions - Credentials
-
-    func dismissCredentialFillRequest() {
-        credentialState.dismissFillRequest()
-    }
-
-    func setCredentialAccessEnabled(_ isEnabled: Bool) {
-        credentialSession.setEnabled(isEnabled)
-    }
-
-    func dismissCredentialSaveCandidate() {
-        credentialState.dismissSaveCandidate()
-    }
-
-    func fillCredential(_ credential: BrowserCredential, for requestID: UUID) async throws {
-        guard let evaluate = credentialEvaluator else { throw CredentialVaultError.credentialManagerDisabled }
-        try await credentialSession.fill(credential, for: requestID, evaluate: evaluate)
-    }
-
-    func fillGeneratedPassword(_ password: String, for requestID: UUID) async throws {
-        guard let evaluate = credentialEvaluator else { throw CredentialVaultError.credentialManagerDisabled }
-        try await credentialSession.fillGeneratedPassword(password, for: requestID, evaluate: evaluate)
-    }
-
-    /// Fills go back through the channel the credential bridge came in on.
-    private var credentialEvaluator: BrowserCredentialSession.Evaluate? {
-        guard let scripting = pageEngine.contentScripting else { return engineAdapter.credentialEvaluator }
-        return { body, arguments, frame in
-            try await scripting.callAsyncJavaScript(body, arguments: arguments, in: frame)
-        }
-    }
-
     /// The document whole-page translation rewrites, on the engine the page
     /// is on now.
     var translationDocument: BrowserTranslationDocument? { engineAdapter.translationDocument }
@@ -852,12 +665,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     @discardableResult
     func copyPageLink() -> Bool {
         BrowserPageLinkClipboard.copy(live.documentURL)
-    }
-
-    func copyDeveloperPageLink() {
-        if copyPageLink() {
-            presentDeveloperCaptureFeedback("URL Copied")
-        }
     }
 
     @discardableResult
@@ -877,93 +684,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
 
     /// The whole page as an image `snapshotWidth` points wide, or as wide in
     /// points as the engine drew it on this screen.
-    private func fullPageSnapshot(snapshotWidth: CGFloat? = nil) async throws -> NSImage {
-        guard live.url != nil else { throw BrowserDeveloperCaptureError.pageUnavailable }
-        let backingScale = nativeView.window?.backingScaleFactor ?? 1
-        let data = try await enginePage.export(.png, width: snapshotWidth)
-        guard let image = NSImage(data: data), let bitmap = image.representations.first,
-            bitmap.pixelsWide > 0, bitmap.pixelsHigh > 0
-        else { throw BrowserDeveloperCaptureError.pageUnavailable }
-        // Engines draw in device pixels; AppKit composes the capture in points.
-        let width = snapshotWidth ?? CGFloat(bitmap.pixelsWide) / backingScale
-        image.size = NSSize(width: width, height: CGFloat(bitmap.pixelsHigh) * width / CGFloat(bitmap.pixelsWide))
-        return image
-    }
-
-    private static func copyImageToPasteboard(_ image: NSImage) -> Bool {
-        guard let data = pngData(from: image) else { return false }
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        return pasteboard.setData(data, forType: .png)
-    }
-
-    private static func pngData(from image: NSImage) -> Data? {
-        var proposedRect = CGRect(origin: .zero, size: image.size)
-        guard
-            let cgImage = image.cgImage(
-                forProposedRect: &proposedRect,
-                context: nil,
-                hints: nil
-            )
-        else { return nil }
-        let representation = NSBitmapImageRep(cgImage: cgImage)
-        return representation.representation(using: .png, properties: [:])
-    }
-
-    private static func portraitImage(from snapshot: NSImage) -> NSImage {
-        let horizontalInset: CGFloat = 64
-        let verticalInset: CGFloat = 72
-        let canvasSize = CGSize(
-            width: snapshot.size.width + horizontalInset * 2,
-            height: snapshot.size.height + verticalInset * 2
-        )
-        let imageRect = CGRect(
-            x: horizontalInset,
-            y: verticalInset,
-            width: snapshot.size.width,
-            height: snapshot.size.height
-        )
-
-        return NSImage(size: canvasSize, flipped: false) { canvasRect in
-            let gradient = NSGradient(colors: [
-                NSColor(calibratedRed: 0.16, green: 0.20, blue: 0.34, alpha: 1),
-                NSColor(calibratedRed: 0.48, green: 0.25, blue: 0.52, alpha: 1),
-                NSColor(calibratedRed: 0.14, green: 0.54, blue: 0.62, alpha: 1),
-            ])
-            gradient?.draw(in: canvasRect, angle: -35)
-
-            let context = NSGraphicsContext.current
-            context?.saveGraphicsState()
-            let shadow = NSShadow()
-            shadow.shadowColor = .black.withAlphaComponent(0.38)
-            shadow.shadowBlurRadius = 30
-            shadow.shadowOffset = CGSize(width: 0, height: -14)
-            shadow.set()
-            NSColor.black.withAlphaComponent(0.18).setFill()
-            NSBezierPath(
-                roundedRect: imageRect.insetBy(dx: -2, dy: -2),
-                xRadius: 14,
-                yRadius: 14
-            ).fill()
-            context?.restoreGraphicsState()
-
-            context?.saveGraphicsState()
-            NSBezierPath(
-                roundedRect: imageRect,
-                xRadius: 12,
-                yRadius: 12
-            ).addClip()
-            snapshot.draw(in: imageRect)
-            context?.restoreGraphicsState()
-            return true
-        }
-    }
-
-    private func presentDeveloperCaptureFeedback(_ message: String) {
-        developerCaptureFeedback = message
-        developerCaptureFeedbackRevision &+= 1
-    }
-
     func sharePage() {
         guard let url = live.documentURL else { return }
         let picker = NSSharingServicePicker(items: [url])
@@ -1119,8 +839,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         // Same-document navigation never commits a replacement document.
         // Cancel the current pull here; suspend new pulls only when WebKit
         // actually starts provisional navigation.
-        linkDrag?.cancel()
-        isRegionCapturePresented = false
         sitePermissionSession.resetMediaGrants()
         sitePermissionRequests.cancelAll()
         translation.reset()
@@ -1200,13 +918,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         } else {
             enginePage.refreshIcon()
         }
-    }
-
-    /// WebKit fetches the icon on demand; an engine that reports its own icon
-    /// has already published it.
-    func pullFavicon() async -> Data? {
-        if let faviconSession { return await faviconSession.pull() }
-        return faviconData
     }
 }
 

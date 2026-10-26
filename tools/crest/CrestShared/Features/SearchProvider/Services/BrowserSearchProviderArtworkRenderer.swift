@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The one way Crest draws a search provider's logo or site icon as an image:
+/// The one way Crest draws a search provider's bundled logo as an image:
 /// fitted, at its own proportions, inside a square of exactly the size asked
 /// for.
 ///
@@ -61,18 +61,6 @@ final class BrowserSearchProviderArtworkRenderer {
         if drawings.count == capacity { drawings.removeFirst() }
         drawings.append(Drawing(identity: identity, image: image))
         return image
-    }
-
-    /// A site's own icon, fitted into a square `size` points wide with softened
-    /// corners and drawn at `scale` pixels per point. The view that fetched the
-    /// icon keeps this drawing, so it is drawn once per fetch rather than kept here.
-    func image(siteIcon: CGImage, size: CGFloat, scale: CGFloat) -> CGImage? {
-        let content = Image(decorative: siteIcon, scale: 1)
-            .resizable()
-            .interpolation(.high)
-            .scaledToFit()
-            .clipShape(.rect(cornerRadius: size * 0.18))
-        return draw(content, size: size, colorScheme: .light, scale: scale)
     }
 
     private func draw(_ content: some View, size: CGFloat, colorScheme: ColorScheme, scale: CGFloat) -> CGImage? {

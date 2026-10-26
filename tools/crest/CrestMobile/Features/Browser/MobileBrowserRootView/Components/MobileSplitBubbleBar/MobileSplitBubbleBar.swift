@@ -102,7 +102,7 @@ struct MobileSplitBubbleBar<Bar: View>: View {
     // MARK: - Mutators
 
     private var isSplit: Bool {
-        cards.count >= SplitGroupState.minimumShownMembers
+        cards.count >= SidebarOutline.minimumSplitMembers
     }
 
     private var shownIndex: Int? {

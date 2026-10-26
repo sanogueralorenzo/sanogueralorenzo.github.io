@@ -21,9 +21,6 @@ struct BrowserSiteDeveloperModeStatus: View {
     }
 
     private var detail: String {
-        if page.isDeveloperModeAutomatic {
-            return "On automatically for localhost"
-        }
         return page.isDeveloperModeEnabled ? "On" : "Off"
     }
 }

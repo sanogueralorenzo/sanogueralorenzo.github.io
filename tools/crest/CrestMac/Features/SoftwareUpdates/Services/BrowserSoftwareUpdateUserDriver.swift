@@ -34,7 +34,7 @@ struct BrowserSoftwareUpdateMetadata: Equatable, Sendable {
 }
 
 /// Adapts Sparkle's silent automatic-update delegate callbacks to the same
-/// observable state used by Crest's manual user driver and sidebar widget.
+/// observable state used by Crest's update screens.
 @MainActor
 final class BrowserAutomaticSoftwareUpdatePresenter {
     private let model: BrowserSoftwareUpdateModel
@@ -110,7 +110,6 @@ final class BrowserSoftwareUpdateUserDriver: NSObject, SPUUserDriver,
     }
 
     let model: BrowserSoftwareUpdateModel
-    var channel: BrowserSoftwareUpdateChannel
     var updateCycleDidFinish: (() -> Void)?
     var updateWasFound: (() -> Void)?
     private let feedURLOverride: URL?
@@ -121,12 +120,10 @@ final class BrowserSoftwareUpdateUserDriver: NSObject, SPUUserDriver,
 
     init(
         model: BrowserSoftwareUpdateModel,
-        channel: BrowserSoftwareUpdateChannel,
         feedURLOverride: URL? = nil,
         runningVersion: String? = BrowserSoftwareUpdateUserDriver.bundleVersion
     ) {
         self.model = model
-        self.channel = channel
         self.feedURLOverride = feedURLOverride
         self.runningVersion = runningVersion
         self.automaticUpdatePresenter = BrowserAutomaticSoftwareUpdatePresenter(
@@ -139,14 +136,7 @@ final class BrowserSoftwareUpdateUserDriver: NSObject, SPUUserDriver,
         _ request: SPUUpdatePermissionRequest,
         reply: @escaping @Sendable (SUUpdatePermissionResponse) -> Void
     ) {
-        model.presentPermissionRequest { isEnabled in
-            reply(
-                SUUpdatePermissionResponse(
-                    automaticUpdateChecks: isEnabled,
-                    sendSystemProfile: false
-                )
-            )
-        }
+        reply(SUUpdatePermissionResponse(automaticUpdateChecks: true, sendSystemProfile: false))
     }
 
     func showUserInitiatedUpdateCheck(cancellation: @escaping () -> Void) {
@@ -272,8 +262,7 @@ final class BrowserSoftwareUpdateUserDriver: NSObject, SPUUserDriver,
     }
 
     func showUpdateInFocus() {
-        // The sidebar source is authoritative and immediately replays its
-        // current card whenever a browser window mounts a widget host.
+        // Settings and update details observe the model directly.
     }
 
     func updater(
@@ -376,11 +365,11 @@ final class BrowserSoftwareUpdateUserDriver: NSObject, SPUUserDriver,
     }
 
     func allowedChannels(for updater: SPUUpdater) -> Set<String> {
-        channel.allowedSparkleChannels
+        []
     }
 
     func feedURLString(for updater: SPUUpdater) -> String? {
-        feedURLOverride?.absoluteString ?? channel.customFeedURL?.absoluteString
+        feedURLOverride?.absoluteString ?? BrowserSoftwareUpdateFeed.current.url?.absoluteString
     }
 
     private func noUpdateMessage(_ error: any Error) -> String {

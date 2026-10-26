@@ -2,22 +2,9 @@ import SwiftUI
 
 /// The colors a settings page is drawn on.
 enum BrowserSettingsCanvas {
-    static var background: Color {
-        #if os(macOS)
-            Color(nsColor: .windowBackgroundColor)
-        #else
-            Color(uiColor: .systemGroupedBackground)
-        #endif
-    }
+    static var background: Color { CrestBrandTheme.canvas }
+    static var card: Color { CrestBrandTheme.surface }
 
-    /// A raised surface on the page, such as Crest Studio's preview column.
-    static var card: Color {
-        #if os(macOS)
-            Color(nsColor: .windowBackgroundColor).mix(with: .primary, by: 0.035)
-        #else
-            Color(uiColor: .secondarySystemGroupedBackground)
-        #endif
-    }
 }
 
 /// Form-like alignment outside a Form: the label leads, the control trails, and

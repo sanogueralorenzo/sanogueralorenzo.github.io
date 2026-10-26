@@ -31,12 +31,12 @@ struct MobileBrowserSettingsStyle: Equatable {
                 let source = settings.sheetAssignment
                 settings.dismissSheet()
                 guard let sheetAssignment = source,
-                    settings.browser.selectedUnlockedSpace(
-                        matching: sheetAssignment, accessController: settings.spaceAccess)
+                    settings.browser.selectedAvailableSpace(
+                        matching: sheetAssignment)
                         != nil
                 else { return }
                 settings.openEmbeddedSettings(adopting: sheetState)
-            } else if let space = settings.browser.shownSpace, !settings.spaceAccess.isLocked(space),
+            } else if let space = settings.browser.shownSpace,
                 settings.browser.shownTab?.nativeTabContent == .settings
             {
                 settings.pages.select()

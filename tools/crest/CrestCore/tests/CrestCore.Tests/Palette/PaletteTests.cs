@@ -4,28 +4,36 @@ using Xunit;
 
 namespace CrestCore.Tests;
 
-/// What a window's palette reveals and sends away: it asks a search engine for
-/// suggestions by default and never in a private
-/// window.
+/// What a window's palette reveals and sends away: remote suggestions require
+/// a device-wide opt-in and never leave a private window.
 public sealed partial class BrowserContractsTests {
     [Theory]
-    [InlineData("persistent", true)]
-    [InlineData("private", false)]
-    public void APaletteAsksForGoogleSuggestionsExceptInAPrivateWindow(string kind,
-        bool asks) {
+    [InlineData("persistent", false, false)]
+    [InlineData("persistent", true, true)]
+    [InlineData("private", false, false)]
+    [InlineData("private", true, false)]
+    public void SearchSuggestionsAreOptInAndNeverLeavePrivateWindows(string kind, bool enabled, bool asks) {
         var (document, space, _) = SavedSession();
         var session = document["session"]!;
-        using var device = new TestDevice(session, WorkspaceKind.Named(kind));
-        var window = device.Open(space);
+        using var device = new TestDevice(session);
+        var workspace = kind == "private" ? device.Attach(session.DeepClone(), WorkspaceKind.Private) : device.Workspace;
+        var window = device.OpenIn(workspace, space);
+        Assert.Null(device.Query(Asking(window, "crest browser")).SuggestionAddress);
+        device.Send(new SetAppPreferences(device.Workspace, AppPreferences.Default with { SearchSuggestionsEnabled = enabled }));
 
         var answer = device.Query(Asking(window, "crest browser"));
 
         Assert.Equal(asks, answer.SuggestionAddress is not null);
         Assert.Null(device.Query(Asking(window, "   ")).SuggestionAddress);
-        // Fetched suggestions join the answer the same way in every window.
+        // Disabling suggestions also rejects stale results already fetched by the host.
         var merged = device.Query(Asking(window, "crest browser") with { Remote = ["crest browser download", "Crest Browser"] });
-        Assert.Equal(["crest browser download"], merged.Groups.Single(group => group.Section == PaletteSection.SearchSuggestions).Rows
-            .Select(row => row.Title));
+        var suggestions = merged.Groups.Where(group => group.Section == PaletteSection.SearchSuggestions)
+            .SelectMany(group => group.Rows).Select(row => row.Title);
+        Assert.Equal(asks ? ["crest browser download"] : [], suggestions);
+        device.Send(new SetAppPreferences(device.Workspace, AppPreferences.Default));
+        Assert.Null(device.Query(Asking(window, "crest browser")).SuggestionAddress);
+        Assert.DoesNotContain(device.Query(Asking(window, "crest browser") with { Remote = ["stale result"] }).Groups,
+            group => group.Section == PaletteSection.SearchSuggestions);
     }
 
     [Theory]
@@ -38,7 +46,7 @@ public sealed partial class BrowserContractsTests {
         var (document, space, _) = SavedSession();
         var session = document["session"]!;
         using var device = new TestDevice(session);
-        device.Send(new SetAppPreferences(device.Workspace, AppPreferences.Default with { SearchProvider = provider }));
+        device.Send(new SetAppPreferences(device.Workspace, AppPreferences.Default with { SearchProvider = provider, SearchSuggestionsEnabled = true }));
         var borrowed = device.Borrow(session["spaces"]![0]!);
         var privateWorkspace = device.Attach(session.DeepClone(), WorkspaceKind.Private);
         foreach (var workspace in new[] { device.Workspace, borrowed, privateWorkspace }) {
@@ -53,7 +61,7 @@ public sealed partial class BrowserContractsTests {
         }
         // A later choice takes effect immediately for the same window and input.
         var selected = device.Open(space);
-        device.Send(new SetAppPreferences(device.Workspace, AppPreferences.Default with { SearchProvider = SearchProvider.Bing }));
+        device.Send(new SetAppPreferences(device.Workspace, AppPreferences.Default with { SearchProvider = SearchProvider.Bing, SearchSuggestionsEnabled = true }));
         Assert.Equal(SearchProvider.Bing.Suggest("crest browser"), device.Query(Asking(selected, "crest browser")).SuggestionAddress);
     }
 

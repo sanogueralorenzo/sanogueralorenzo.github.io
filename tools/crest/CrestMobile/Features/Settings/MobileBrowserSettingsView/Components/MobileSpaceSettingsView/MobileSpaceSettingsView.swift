@@ -6,13 +6,11 @@ struct MobileSpaceSettingsView: View {
     @Environment(\.browserSettingsSelectLiveSpace) private var liveSpaceSelection
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let browser: BrowserStore
-    let spaceAccess: BrowserSpaceAccessController
     let dataDeleter: any BrowserSpaceDataDeleting
 
     @State private var selectedSpaceID: UUID?
-    @State private var editorSection = BrowserSpaceEditorSection.appearance
+    @State private var editorSection = BrowserSpaceEditorSection.identity
     @State private var editingAppearanceSpace: SpaceModel?
-    @State private var forgeStep = BrowserCrestStudioStep.shape
 
     var body: some View {
         Group {
@@ -26,7 +24,7 @@ struct MobileSpaceSettingsView: View {
         .fullScreenCover(item: $editingAppearanceSpace) { requested in
             NavigationStack {
                 appearanceWorkspace(for: requested)
-                    .navigationTitle("Space appearance")
+                    .navigationTitle("Space identity")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
@@ -44,19 +42,13 @@ struct MobileSpaceSettingsView: View {
                 selectedSpaceID: Binding(get: { editedSpaceID }, set: { selectEditedSpace($0) })
             )
 
-            if let space, canReveal(space) {
+            if let space {
                 MobileSpaceCustomizationSection(
                     space: space,
                     editAppearance: { editingAppearanceSpace = space }
                 )
 
                 detailSections(for: space)
-            } else if let space {
-                BrowserSettingsPrivateSpaceAccessSection(
-                    space: space,
-                    accessController: spaceAccess,
-                    detail: "Unlock this Space to see its settings."
-                )
             }
         }
     }
@@ -69,28 +61,21 @@ struct MobileSpaceSettingsView: View {
                 section: $editorSection)
             Divider()
             if let space {
-                if canReveal(space) {
-                    Group {
-                        switch editorSection.kind {
-                        case .appearance:
-                            BrowserCrestForge(
-                                branding: browser.spaceBrandingBinding(in: space),
-                                symbol: browser.spaceSymbolBinding(in: space), step: $forgeStep,
-                                name: browser.spaceNameBinding(in: space))
-                        case .settings:
-                            Form {
-                                detailSections(for: space)
-                            }
+
+                Group {
+                    switch editorSection.kind {
+                    case .identity:
+                        BrowserSpaceIdentityEditor(
+                            name: browser.spaceNameBinding(in: space), color: browser.spaceColorBinding(in: space)
+                        )
+                    case .settings:
+                        Form {
+                            detailSections(for: space)
                         }
                     }
-                    .id(space.id)
-                } else {
-                    BrowserSettingsPane(.spaces) {
-                        BrowserSettingsPrivateSpaceAccessSection(
-                            space: space, accessController: spaceAccess,
-                            detail: "Unlock this Space to see its settings.")
-                    }
                 }
+                .id(space.id)
+
             } else {
                 ContentUnavailableView("Select a Space", systemImage: "square.grid.2x2")
             }
@@ -100,12 +85,10 @@ struct MobileSpaceSettingsView: View {
     }
 
     private func detailSections(for space: SpaceModel) -> some View {
-        BrowserSpaceSettingsSections(
+        BrowserSpaceDeletionSection(
             browser: browser,
-            space: space,
-            spaceAccess: spaceAccess,
-            dataDeleter: dataDeleter,
-            dismissKeyboard: dismissKeyboard)
+            spaceID: space.id,
+            dataDeleter: dataDeleter)
     }
 
     private func selectEditedSpace(_ id: UUID?) {
@@ -116,12 +99,10 @@ struct MobileSpaceSettingsView: View {
     @ViewBuilder
     private func appearanceWorkspace(for requested: SpaceModel) -> some View {
         if let currentSpace = browser.spaceModel(requested.id),
-            canReveal(currentSpace)
+            true
         {
-            BrowserCrestForge(
-                branding: browser.spaceBrandingBinding(in: currentSpace),
-                symbol: browser.spaceSymbolBinding(in: currentSpace), step: $forgeStep,
-                name: browser.spaceNameBinding(in: currentSpace), listsSteps: horizontalSizeClass == .compact)
+            BrowserSpaceIdentityEditor(
+                name: browser.spaceNameBinding(in: currentSpace), color: browser.spaceColorBinding(in: currentSpace))
         }
     }
 
@@ -134,21 +115,4 @@ struct MobileSpaceSettingsView: View {
         return browser.spaceModel(editedSpaceID)
     }
 
-    private func canReveal(_ space: SpaceModel) -> Bool {
-        !spaceAccess.isLocked(space)
-    }
-
-    private func dismissKeyboard() {
-        UIApplication.shared.sendAction(
-            #selector(UIResponder.resignFirstResponder),
-            to: nil,
-            from: nil,
-            for: nil
-        )
-        for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
-            for window in scene.windows {
-                window.endEditing(true)
-            }
-        }
-    }
 }

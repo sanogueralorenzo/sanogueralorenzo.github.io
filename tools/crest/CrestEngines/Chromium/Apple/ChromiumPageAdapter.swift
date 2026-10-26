@@ -17,11 +17,6 @@
         /// The engine reports hovered links itself.
         private(set) lazy var linkHover: BrowserLinkHoverController? =
             BrowserLinkHoverController(contentView: native.nativeView)
-        private(set) lazy var linkDrag: BrowserLinkDragController? = BrowserLinkDragController(
-            nativeView: native.nativeView,
-            context: { [weak self] in self?.page?.navigationContext },
-            dragsLinksToPeek: { [weak self] in self?.page?.corePage.linkPreferences?.dragsLinksToPeek == true },
-            handle: { [weak self] event in self?.page?.handleLinkDrag(event) })
         private(set) lazy var pictureInPicture: (any BrowserPagePictureInPictureController)? =
             ChromiumPictureInPicturePageController(page: enginePage)
         // Chromium presents favicons and its error pages itself; reader and
@@ -31,8 +26,6 @@
         var isContentBlockingActive: Bool { false }
         /// Chromium's binding reports the page's navigations to the core itself.
         var reporter: EnginePageReporter? { nil }
-        /// Fills go through the engine's content scripting.
-        var credentialEvaluator: BrowserCredentialSession.Evaluate? { nil }
         /// Translation runs through the engine's content scripting, in the
         /// page's main document.
         var translationDocument: BrowserTranslationDocument? { BrowserTranslationDocument(mainFrameOf: native) }
@@ -57,14 +50,12 @@
                 owner: page.mediaSessionOwner, fallbackTitle: page.mediaSessionFallbackTitle)
         }
 
-        func attach(to page: BrowserPage, allowsCredentialAccess: Bool) {
+        func attach(to page: BrowserPage) {
             self.page = page
             native.profileID = page.profileID
             native.observer = { [weak page] event in page?.receive(event) }
             native.promptPresenter = page
             native.menuHost = page
-            native.linkDrag = linkDrag
-            linkDrag?.observeNativeMouseDown()
         }
 
         func detach(from page: BrowserPage) {
@@ -80,7 +71,6 @@
         /// Chromium's page view takes focus through its own responder chain.
         func install(_ focusRestoration: BrowserWebFocusRestorationController) {}
         /// The engine presents a person's input as `PageInteracted`.
-        func monitorUserActivity(for page: BrowserPage) {}
         /// Chromium styles visited links from its own history.
         func styleVisitedLinks(history: [HistoryEntryState]) async {}
         /// The engine enforces site permissions itself; the page's permission

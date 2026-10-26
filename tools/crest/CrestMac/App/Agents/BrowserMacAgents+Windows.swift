@@ -1,11 +1,5 @@
 import AppKit
 
-/// The windows an agent opens once the person agrees: a normal window, a
-/// Blank Window or a Quick Window over an allowed, unlocked Space, and a
-/// Private Window, which no tool reaches into afterwards. Crest asks each
-/// time unless the person let the connection open windows until it
-/// disconnects. An agent never loads an address into private browsing the
-/// person already has open.
 extension BrowserMacAgents {
     // MARK: - Types
 
@@ -80,22 +74,6 @@ extension BrowserMacAgents {
         bringForward(window)
         note(.openedWindow, "", call)
         return .data(WindowReceipt(windowID: window.id, spaceID: space.id, tabID: nil))
-    }
-
-    func openQuickWindow(_ call: BrowserAgentCall) async throws(BrowserAgentFailure) -> AgentToolResult {
-        let opening = try call.arguments(WindowOpening.self)
-        guard let text = opening.url else { throw .invalidArguments("url is missing.") }
-        let url = try Self.address(text)
-        try await approveWindow(.quickWindow, over: try resolveSpace(opening.space, call), at: url, call)
-        let space = try resolveSpace(opening.space, call)
-        let assignment = BrowserSpaceRuntimeAssignment(spaceID: space.id, profileID: space.profileID)
-        let request = BrowserQuickWindowRequest(url: url, spaceAssignment: assignment)
-        // The same address in the same Space brings its Quick Window forward.
-        guard let windowID = windows.openQuickWindow(request), windows.quickWindow(windowID) != nil else {
-            throw .noWindow
-        }
-        note(.openedWindow, url.absoluteString, call)
-        return .data(WindowReceipt(windowID: windowID, spaceID: space.id, tabID: nil))
     }
 
     /// Asks the person whether the agent behind `call` may open a window of

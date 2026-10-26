@@ -8,18 +8,7 @@ extension BrowserStore {
         showStartPage(outsideSplits: false)
     }
 
-    /// Presents the Start Page before the person chooses a restored tab.
-    ///
-    /// Launch presentation is intentionally runtime-only. The durable session
-    /// keeps its restored selection, so merely opening and closing Crest does
-    /// not turn the Start Page draft into the next "last active tab."
-    @discardableResult
-    func presentStartPageForLaunch() -> UUID? {
-        showStartPage(outsideSplits: false)
-    }
-
-    /// Like launch presentation, entering an unloaded Space keeps the
-    /// remembered tab intact and does not persist a replacement selection.
+    /// Entering an unloaded Space presents its Start Page.
     @discardableResult
     func presentStartPageForSpaceEntry() -> UUID? {
         showStartPage(outsideSplits: true)
@@ -157,6 +146,11 @@ extension BrowserStore {
         return closeTab(id, in: assignment.spaceID)
     }
 
+    func clearCurrentTabs() {
+        guard let space = shownSpace else { return }
+        _ = clearCurrentTabs(matching: BrowserSpaceRuntimeAssignment(space: space))
+    }
+
     @discardableResult
     func clearCurrentTabs(
         matching assignment: BrowserSpaceRuntimeAssignment
@@ -206,68 +200,6 @@ extension BrowserStore {
         return setTabCustomTitle(title, for: id, in: assignment.spaceID)
     }
 
-    /// Gives the tab `emoji` as its icon, which the core refuses when its
-    /// first character does not present as an emoji.
-    func setTabEmojiIcon(_ emoji: String, for id: UUID, in spaceID: UUID) {
-        _ = setSessionTabIcon(.emoji, emoji: emoji, tabID: id, in: spaceID)
-    }
-
-    @discardableResult
-    func setTabEmojiIcon(
-        _ emoji: String,
-        for id: UUID,
-        matching assignment: BrowserSpaceRuntimeAssignment
-    ) -> Bool {
-        guard spaceModel(matching: assignment)?.tabs.model(id) != nil else { return false }
-        return setSessionTabIcon(.emoji, emoji: emoji, tabID: id, in: assignment.spaceID)
-    }
-
-    func setTabFavicon(
-        _ faviconData: Data,
-        iconAccent: BrowserTabIconAccent?,
-        for id: UUID,
-        in spaceID: UUID
-    ) {
-        guard
-            setSessionTabIcon(
-                .pulled, faviconData: faviconData,
-                iconAccent: iconAccent, tabID: id, in: spaceID)
-        else { return }
-    }
-
-    @discardableResult
-    func setTabFavicon(
-        _ faviconData: Data,
-        iconAccent: BrowserTabIconAccent?,
-        for id: UUID,
-        matching assignment: BrowserSpaceRuntimeAssignment
-    ) -> Bool {
-        guard spaceModel(matching: assignment)?.tabs.model(id) != nil else { return false }
-        return setSessionTabIcon(
-            .pulled, faviconData: faviconData, iconAccent: iconAccent, tabID: id, in: assignment.spaceID)
-    }
-
-    func clearTabIcon(for id: UUID, in spaceID: UUID) {
-        guard setSessionTabIcon(.automatic, tabID: id, in: spaceID) else { return }
-    }
-
-    @discardableResult
-    func clearTabIcon(
-        for id: UUID,
-        matching assignment: BrowserSpaceRuntimeAssignment
-    ) -> Bool {
-        guard spaceModel(matching: assignment)?.tabs.model(id) != nil else { return false }
-        return setSessionTabIcon(.automatic, tabID: id, in: assignment.spaceID)
-    }
-
-    @discardableResult
-    func replaceTabSavedLocationWithCurrent(
-        _ id: UUID,
-        in spaceID: UUID
-    ) -> Bool {
-        replaceSessionSavedAddress(tabID: id, in: spaceID)
-    }
-
     @discardableResult
     func restoreTabSavedLocation(
         _ id: UUID,
@@ -303,38 +235,4 @@ extension BrowserStore {
             from: self, failure: "Core navigation failed")
     }
 
-}
-
-// MARK: - Residency
-
-extension BrowserStore {
-    @discardableResult
-    func setTabKeepsPageLoaded(
-        _ keepsPageLoaded: Bool,
-        for id: UUID,
-        in spaceID: UUID
-    ) -> Bool {
-        guard
-            setSessionTabResidency(
-                keepsPageLoaded,
-                tabID: id,
-                in: spaceID
-            )
-        else { return false }
-        return true
-    }
-
-    @discardableResult
-    func setTabKeepsPageLoaded(
-        _ keepsPageLoaded: Bool,
-        for id: UUID,
-        matching assignment: BrowserSpaceRuntimeAssignment
-    ) -> Bool {
-        guard spaceModel(matching: assignment)?.tabs.model(id) != nil else { return false }
-        return setTabKeepsPageLoaded(
-            keepsPageLoaded,
-            for: id,
-            in: assignment.spaceID
-        )
-    }
 }

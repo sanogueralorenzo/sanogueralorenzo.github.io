@@ -1,15 +1,10 @@
 import SwiftUI
 
 struct BrowserWebContentView: View {
-    /// How long a developer capture's confirmation stays on screen.
-    private static let developerFeedbackDuration: Duration = .seconds(1.6)
-
     let page: BrowserPage
     let browser: BrowserStore
     let pages: BrowserPagePool
-    /// Whether a Quick Window shows the page, whose page commands always act
-    /// on it; a browser window's pool names the page they act on.
-    var isQuickWindowPage = false
+    var isAuthenticationPage = false
 
     @Environment(\.browserWebFocusRestorationGate)
     private var browserFocusRestorationGate
@@ -26,7 +21,7 @@ struct BrowserWebContentView: View {
                     page: page,
                     browser: browser,
                     pagePresentation: pagePresentation,
-                    isPageActive: isQuickWindowPage || pages.commandPage === page,
+                    isPageActive: isAuthenticationPage || pages.commandPage === page,
                     focusRestorationGate: focusRestorationGate,
                     tabPlacement: tabPlacement(ofPage:),
                     goToSharingCounterpart: sharingCounterpartActivation
@@ -39,9 +34,6 @@ struct BrowserWebContentView: View {
         }
         .modifier(
             BrowserPageToolbarHost {
-                if isShownPage, !page.readerModeState.isActive, page.translation.showsToolbar {
-                    BrowserTranslationToolbar(translation: page.translation)
-                }
                 if page.isDeveloperModeEnabled {
                     BrowserDeveloperToolbar(
                         page: page, browser: browser, pages: pages,
@@ -58,9 +50,6 @@ struct BrowserWebContentView: View {
                 isReaderActive: page.readerModeState.isActive
             )
         )
-        .onChange(of: page.developerCaptureFeedbackRevision) { _, revision in
-            dismissDeveloperFeedback(after: revision)
-        }
     }
 
     /// Shows the tab at the other end of the page's tab sharing, as clicking
@@ -93,9 +82,6 @@ struct BrowserWebContentView: View {
                 browserFocusRestorationGate.browserChromeOwnsFocus,
             pageChromeOwnsFocus:
                 page.isFindPresented
-                || page.credentialFillRequest != nil
-                || page.credentialSaveCandidate != nil
-                || page.isRegionCapturePresented
                 || page.live.failure != nil
                 || page.webContentFailureMessage != nil
         )
@@ -105,20 +91,10 @@ struct BrowserWebContentView: View {
         .of(.webPage, page: page)
     }
 
-    /// Whether the page is the one its window shows: a Quick Window's, or the
-    /// active tab's in the Space on screen. Its translation follows only then.
     private var isShownPage: Bool {
-        if isQuickWindowPage { return true }
+        if isAuthenticationPage { return true }
         guard pages.activePage === page, let space = browser.shownSpace else { return false }
         return space.id == page.spaceID && space.profileID == page.profileID
     }
 
-    private func dismissDeveloperFeedback(after revision: Int) {
-        guard revision > 0 else { return }
-        Task { @MainActor in
-            try? await Task.sleep(for: Self.developerFeedbackDuration)
-            guard page.developerCaptureFeedbackRevision == revision else { return }
-            page.dismissDeveloperCaptureFeedback()
-        }
-    }
 }

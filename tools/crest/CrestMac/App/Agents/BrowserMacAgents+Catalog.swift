@@ -51,16 +51,14 @@ extension BrowserMacAgents {
 
     func listSearchProviders(_ call: BrowserAgentCall) throws(BrowserAgentFailure) -> AgentToolResult {
         let query = try call.arguments(SearchQuery.self)
-        let space = try resolveSpace(query.space, call)
-        let catalog = BrowserSearchCatalog(core: core)
+        _ = try resolveSpace(query.space, call)
         func describe(_ provider: SearchProvider) -> SearchCatalog.Provider {
-            .init(id: provider.name, name: provider.title, shortcuts: provider.shortcuts, url: provider.searchTemplate)
+            .init(id: provider.name, name: provider.title, shortcuts: [], url: provider.searchTemplate)
         }
         return .data(
             SearchCatalog(
-                providers: catalog.providers.filter { catalog.isEnabled($0) }.map(describe),
-                defaultProvider: catalog.provider(for: space.settings.browsingPreferences, isPrivate: false).map(
-                    describe)))
+                providers: SearchProvider.all.map(describe),
+                defaultProvider: describe(BrowserAppPreferenceStore.shared.searchProvider)))
     }
 
     // MARK: - Actions - History
@@ -76,7 +74,7 @@ extension BrowserMacAgents {
         }
         let terms = (query.query ?? "").lowercased().split(whereSeparator: { $0.isWhitespace })
         let domain = query.domain?.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        let entries = reach.spaces.filter { !$0.isLocked }.flatMap { reached -> [HistoryList.Entry] in
+        let entries = reach.spaces.flatMap { reached -> [HistoryList.Entry] in
             guard let space = workspace.spaces.model(reached.spaceID) else { return [] }
             return space.history.entries.compactMap { entry in
                 let text = (entry.url + " " + entry.title).lowercased()
@@ -104,11 +102,6 @@ extension BrowserMacAgents {
                     }.prefix(limit))))
     }
 
-    /// Removes every visit to one address from an allowed, unlocked Space's
-    /// history through the core, once the person agrees. History keeps an
-    /// address without its fragment, so the comparison drops it, as the core
-    /// does. An address the Space has no visit to removes nothing and asks
-    /// nothing.
     func deleteHistory(_ call: BrowserAgentCall) async throws(BrowserAgentFailure) -> AgentToolResult {
         let deletion = try call.arguments(HistoryDeletion.self)
         let address = String(try Self.address(deletion.url).absoluteString.prefix { $0 != "#" })
@@ -121,7 +114,6 @@ extension BrowserMacAgents {
         try await approvals.approve(
             BrowserAgentHistoryDeletion(agentName: agentName, address: address, spaceName: spaceName),
             for: ObjectIdentifier(call.link))
-        // The person may lock the Space, or stop allowing it, while asked.
         let current = try resolveSpace(deletion.space, call)
         guard let workspaceID = try reach(call).workspaceID else { throw .rejected(.agentsOff(AgentsOff())) }
         let before = current.history.entries.count
@@ -142,13 +134,13 @@ extension BrowserMacAgents {
         let reach = try reach(call)
         let activeID = application.stackedWindowIDs.compactMap { application.windowCoordinator.existingModel(for: $0) }
             .first { !$0.isTemporary }?.browser.selectedSpaceID
-        let available = reach.spaces.filter { !$0.isLocked }
+        let available = reach.spaces
         let reached =
             id.flatMap { requested in available.first { $0.spaceID == requested } }
             ?? (id == nil ? (available.first { $0.spaceID == activeID } ?? available.first) : nil)
         guard let reached, let workspaceID = reach.workspaceID,
             let space = core.state.workspaces[workspaceID]?.spaces.model(reached.spaceID)
-        else { throw .refused("The opening Space is unavailable. Choose an allowed, unlocked Space.") }
+        else { throw .refused("The opening Space is unavailable. Choose an allowed Space.") }
         return space
     }
 }

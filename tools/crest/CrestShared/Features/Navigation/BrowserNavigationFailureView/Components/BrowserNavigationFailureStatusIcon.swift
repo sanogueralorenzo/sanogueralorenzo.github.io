@@ -29,9 +29,9 @@ struct BrowserNavigationFailureStatusIcon: View {
 #if DEBUG
     #Preview("Offline and certificate") {
         HStack(spacing: 24) {
-            BrowserNavigationFailureStatusIcon(symbolName: "wifi.slash", accent: .indigo, iconSize: 48)
+            BrowserNavigationFailureStatusIcon(symbolName: "wifi.slash", accent: CrestBrandTheme.accent, iconSize: 48)
             BrowserNavigationFailureStatusIcon(
-                symbolName: "lock.trianglebadge.exclamationmark", accent: .orange, iconSize: 48)
+                symbolName: "lock.trianglebadge.exclamationmark", accent: CrestBrandTheme.accent, iconSize: 48)
         }.padding()
     }
 #endif

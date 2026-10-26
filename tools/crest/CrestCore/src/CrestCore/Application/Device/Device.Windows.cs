@@ -29,7 +29,7 @@ internal sealed partial class Device {
         var session = authority.Current;
         var space = Available(session, spaceId);
         var others = session.Spaces.Where(other => other.Id != spaceId && Available(session, other.Id) is not null).ToList();
-        return new(space, shown, authority.Kind.IsPrivate, allowsInternalPages, others, now, SearchProvider);
+        return new(space, shown, authority.Kind.IsPrivate, allowsInternalPages, others, now, SearchProvider, SearchSuggestionsEnabled);
     }
 
     /// The rule that would refuse `intent` in `authority` now, or null when it

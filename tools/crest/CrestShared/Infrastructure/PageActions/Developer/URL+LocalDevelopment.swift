@@ -17,7 +17,7 @@ extension URL {
 
     /// Whether this address is the person's own development work — a local
     /// file, a single-label host, a private or loopback address, or a host
-    /// under a local-only suffix — so developer mode turns on by itself.
+    /// under a local-only suffix — as shown in the address chrome.
     var isLocalDevelopmentAddress: Bool {
         if isFileURL { return true }
 

@@ -4,7 +4,6 @@ struct BrowserDetailView: View {
     let presentation: BrowserPageSurfacePresentation
     let browser: BrowserStore
     let pages: BrowserPagePool
-    let spaceAccess: BrowserSpaceAccessController
     let tabPromotionNamespace: Namespace.ID
     let startPageFocusRequest: Int
     let isCommandPalettePresented: Bool
@@ -16,7 +15,7 @@ struct BrowserDetailView: View {
         let tab = presentation.singleTab
         let space = presentation.presentingSpace
         let page = tab.flatMap { tab in
-            space.flatMap { pages.surfacePage(for: tab.id, in: $0, accessController: spaceAccess) }
+            space.flatMap { pages.surfacePage(for: tab.id, in: $0) }
         }
         BrowserDetailContent(
             page: page,
@@ -25,7 +24,6 @@ struct BrowserDetailView: View {
             pagePresentation: previewsStartPage ? .startPage : .of(tab?.surface, page: page),
             browser: browser,
             pages: pages,
-            spaceAccess: spaceAccess,
             tabPromotionNamespace: tabPromotionNamespace,
             startPageFocusRequest: startPageFocusRequest,
             isCommandPalettePresented: isCommandPalettePresented,

@@ -1,12 +1,5 @@
 import AppKit
 
-/// What an agent may do with itself, the Spaces it reaches and their tabs.
-/// Each call reads the core's `AgentReach` or claims its tab first, so a Space
-/// the person stopped allowing or locked, or a tab they stopped the agent
-/// using, is out of reach at once. Tabs open, close and come forward through
-/// the window stores Crest's own commands use, so the core's rules and a
-/// page's leave-page check apply as they do for the person. An agent
-/// creates a window only for an explicit command from the person.
 extension BrowserMacAgents {
     // MARK: - Types
 
@@ -38,9 +31,7 @@ extension BrowserMacAgents {
     private struct SpaceListing: Encodable {
         let id: UUID
         let name: String
-        let locked: Bool
         let active: Bool?
-        let symbol: String?
         let icon: String?
     }
 
@@ -92,10 +83,10 @@ extension BrowserMacAgents {
             application.windowCoordinator.existingModel(for: $0)
         }.first { !$0.isTemporary }?.browser.selectedSpaceID
         let spaces = reach.spaces.map { reached in
-            let space = reached.isLocked ? nil : workspace?.spaces.model(reached.spaceID)
+            let space = workspace?.spaces.model(reached.spaceID)
             return SpaceListing(
-                id: reached.spaceID, name: reached.name, locked: reached.isLocked,
-                active: space.map { $0.id == selected }, symbol: space?.settings.symbol,
+                id: reached.spaceID, name: reached.name,
+                active: space.map { $0.id == selected },
                 icon: space.flatMap(spaceIcon))
         }
         return .data(["spaces": spaces])
@@ -117,11 +108,7 @@ extension BrowserMacAgents {
         let tabs = spaces.flatMap { space in
             space.tabs.map { describe($0, in: space.spaceID, model: workspace?.spaces.model(space.spaceID)) }
         }
-        let locked = spaces.filter(\.isLocked).map(\.name)
-        let note =
-            locked.isEmpty
-            ? nil : "Locked Spaces show no tabs until the person unlocks them: \(locked.joined(separator: ", "))."
-        return .data(["tabs": tabs], note: note)
+        return .data(["tabs": tabs])
     }
 
     func openTab(_ call: BrowserAgentCall) async throws(BrowserAgentFailure) -> AgentToolResult {
@@ -132,7 +119,6 @@ extension BrowserMacAgents {
             let workspaceID = reach.workspaceID,
             let space = core.state.workspaces[workspaceID]?.spaces.model(opening.space)
         else { throw .rejected(.agentSpaceUnavailable(AgentSpaceUnavailable(spaceID: opening.space))) }
-        guard !reached.isLocked else { throw .spaceLocked(reached.name) }
         let window = frontWindow(over: space)
         let shows = opening.show == true && window != nil
         let browser = window?.browser ?? application.browser
@@ -275,7 +261,7 @@ extension BrowserMacAgents {
     }
 
     private func spaceIcon(_ space: SpaceModel) -> String? {
-        guard let image = BrowserSpaceSymbolArtworkRenderer.shared.menuImage(for: BrowserSpaceIdentity(space: space)),
+        guard let image = BrowserSpaceArtworkRenderer.shared.menuImage(for: BrowserSpaceIdentity(space: space)),
             let tiff = image.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff),
             let png = bitmap.representation(using: .png, properties: [:])
         else { return nil }

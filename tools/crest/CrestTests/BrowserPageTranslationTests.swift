@@ -5,6 +5,80 @@ import XCTest
 
 @MainActor
 final class BrowserPageTranslationTests: XCTestCase {
+    func testOffersDoNotTranslateUntilRequestedAndShowingOriginalEndsTheOperation() async throws {
+        let web = try await fixture()
+        let translation = BrowserPageTranslation()
+        translation.setActive(true, in: BrowserTranslationDocument(webView: web))
+        await translation.detect()
+        XCTAssertNil(translation.configuration, "Detection must never request translation or a model download.")
+        XCTAssertFalse(translation.isWorking)
+        translation.updateTargetLanguage("fr")
+        translation.start()
+        XCTAssertNil(translation.configuration?.source)
+        XCTAssertEqual(translation.configuration?.target?.languageCode?.identifier, "fr")
+        XCTAssertNotNil(translation.configuration)
+        translation.showOriginal()
+        XCTAssertFalse(translation.isWorking, "Show Original must end the current translation.")
+        XCTAssertNil(translation.configuration)
+        translation.reset()
+        XCTAssertFalse(translation.isOffered)
+        XCTAssertNil(translation.configuration)
+    }
+
+    func testAutomaticTranslationHonorsPreferencesAndDoesNotUndoShowOriginal() async throws {
+        let web = try await fixture()
+        let translation = BrowserPageTranslation()
+        translation.setActive(true, in: BrowserTranslationDocument(webView: web))
+        translation.updateTargetLanguage("en")
+
+        await translation.detect(automatically: true, excluding: ["es-MX"])
+        XCTAssertEqual(translation.sourceID, "es")
+        XCTAssertNil(translation.configuration, "Excluded languages must not request translation or model downloads.")
+        translation.updateTargetLanguage("es-ES")
+        await translation.detect(automatically: true)
+        XCTAssertNil(translation.configuration, "Regional aliases of the target must not translate.")
+        translation.updateTargetLanguage("en")
+        await translation.detect(automatically: false)
+        XCTAssertNil(translation.configuration)
+
+        await translation.detect(automatically: true)
+        XCTAssertNotNil(translation.configuration)
+        XCTAssertTrue(translation.isWorking)
+        translation.showOriginal()
+        await translation.detect(automatically: true)
+        XCTAssertNil(translation.configuration, "Show Original must last until navigation, including host remounts.")
+
+        translation.reset()
+        await translation.detect(automatically: true, excluding: ["es"])
+        XCTAssertNil(translation.configuration)
+        translation.performAction()
+        XCTAssertNotNil(translation.configuration, "A manual request can translate an excluded language.")
+        translation.reset()
+        await translation.detect(automatically: true)
+        XCTAssertNotNil(translation.configuration, "A new document can translate automatically again.")
+        translation.reset()
+    }
+
+    func testDisappearingPreviousHostCannotCancelTheCurrentHostsTranslation() throws {
+        let web = WKWebView()
+        let translation = BrowserPageTranslation()
+        let previousHost = UUID()
+        let currentHost = UUID()
+        translation.setActive(true, in: BrowserTranslationDocument(webView: web), hostID: previousHost)
+        translation.updateTargetLanguage("en")
+        translation.start()
+        let configuration = try XCTUnwrap(translation.configuration)
+
+        translation.setActive(true, in: BrowserTranslationDocument(webView: web), hostID: currentHost)
+        translation.setActive(false, in: BrowserTranslationDocument(webView: web), hostID: previousHost)
+
+        XCTAssertTrue(translation.isWorking)
+        XCTAssertEqual(translation.configuration, configuration)
+        translation.setActive(false, in: BrowserTranslationDocument(webView: web), hostID: currentHost)
+        XCTAssertFalse(translation.isWorking)
+        XCTAssertNil(translation.configuration)
+    }
+
     func testTranslationPreservesEditableContentAndWebsiteChangesOnRestore() async throws {
         let web = try await fixture()
         let capture = try await BrowserTranslationDocument(webView: web).capture(token: "first")

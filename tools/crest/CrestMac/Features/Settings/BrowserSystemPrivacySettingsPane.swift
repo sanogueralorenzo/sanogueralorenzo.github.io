@@ -4,11 +4,10 @@ import SwiftUI
 struct BrowserSystemPrivacySettingsPane: View {
     @Environment(\.browserSettingsOpenSpace) private var openSpace
     let browser: BrowserStore
-    let spaceAccess: BrowserSpaceAccessController
 
     var body: some View {
         BrowserSettingsPane(.privacy) {
-            BrowserSystemPermissionSettingsSection(browser: browser, spaceAccess: spaceAccess)
+            BrowserSystemPermissionSettingsSection(browser: browser)
 
             if let openSpace {
                 Section {

@@ -21,10 +21,8 @@ extension BrowserStore {
         }
         return BrowserStore(
             opening: BrowserWindowOpening(id: id),
-            credentialVault: credentialVault,
             browsingMode: browsingMode,
             family: workspaceFamily,
-            linkPreferences: linkPreferences,
             core: core
         )
     }

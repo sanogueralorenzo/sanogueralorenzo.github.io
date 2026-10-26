@@ -7,33 +7,16 @@ final class BrowserChromeState {
     // MARK: - Variables
 
     let utilityPresentation: BrowserUtilityPresentationState
-    var columnVisibility: NavigationSplitViewVisibility {
-        get { observed(\.columnVisibilityStorage, as: \.columnVisibility) }
-        set { publish(newValue, into: \.columnVisibilityStorage, as: \.columnVisibility) }
+    var isSidebarPresented: Bool {
+        get { observed(\.isSidebarPresentedStorage, as: \.isSidebarPresented) }
+        set { publish(newValue, into: \.isSidebarPresentedStorage, as: \.isSidebarPresented) }
     }
-    @ObservationIgnored private var columnVisibilityStorage: NavigationSplitViewVisibility
-    /// Whether the undocked sidebar is floating over the page, as it does while
-    /// the pointer rests at the window's edge.
-    var isFloatingSidebarPresented: Bool {
-        get { observed(\.isFloatingSidebarPresentedStorage, as: \.isFloatingSidebarPresented) }
-        set { publish(newValue, into: \.isFloatingSidebarPresentedStorage, as: \.isFloatingSidebarPresented) }
-    }
-    @ObservationIgnored private var isFloatingSidebarPresentedStorage = false
-    /// Whether a page shows alone in full screen with the sidebar hover area
-    /// still live, where a docked sidebar gives way to the edge reveal.
-    var revealsSidebarOverFullscreenPage: Bool {
-        get { observed(\.revealsSidebarOverFullscreenPageStorage, as: \.revealsSidebarOverFullscreenPage) }
-        set {
-            publish(newValue, into: \.revealsSidebarOverFullscreenPageStorage, as: \.revealsSidebarOverFullscreenPage)
-        }
-    }
-    @ObservationIgnored private var revealsSidebarOverFullscreenPageStorage = false
+    @ObservationIgnored private var isSidebarPresentedStorage: Bool
     private(set) var commandPaletteMode: BrowserCommandPaletteMode? {
         get { observed(\.commandPaletteModeStorage, as: \.commandPaletteMode) }
         set { publish(newValue, into: \.commandPaletteModeStorage, as: \.commandPaletteMode) }
     }
     @ObservationIgnored private var commandPaletteModeStorage: BrowserCommandPaletteMode?
-    private(set) var addressFocusRequest = 0
     private(set) var startPageFocusRequest = 0
     private(set) var notice: BrowserNotice?
     private(set) var noticeRevision: Int {
@@ -60,11 +43,11 @@ final class BrowserChromeState {
     // MARK: - Initializers
 
     init(
-        sidebarIsPresented: Bool = true,
+        sidebarIsPresented: Bool = false,
         utilityPresentation: BrowserUtilityPresentationState =
             BrowserUtilityPresentationState()
     ) {
-        columnVisibilityStorage = sidebarIsPresented ? .all : .detailOnly
+        isSidebarPresentedStorage = sidebarIsPresented
         self.utilityPresentation = utilityPresentation
     }
 
@@ -73,43 +56,28 @@ final class BrowserChromeState {
     /// Hiding cancels utility presentation and pending input before an asynchronous view update can mount it.
     func hideSidebar() {
         utilityPresentation.dismiss()
-        columnVisibility = .detailOnly
+        isSidebarPresented = false
     }
 
     func showSidebar() {
-        columnVisibility = .all
+        isSidebarPresented = true
     }
 
-    /// Brings `surface` up in the sidebar. Every route to History, Archive and
-    /// Downloads comes through here, so none can open its list in a sidebar no
-    /// one can see: a hidden sidebar docks first, and one floating over the
-    /// page keeps floating.
+    /// Utility commands temporarily reveal their list in the floating sidebar.
     func presentUtility(_ surface: BrowserUtilitySurface) {
-        if columnVisibility == .detailOnly, !isFloatingSidebarPresented {
-            showSidebar()
-        }
+        showSidebar()
         utilityPresentation.present(surface)
     }
 
-    /// Utility shortcuts preserve the docked preference and toggle a floating sidebar when hidden.
     func toggleUtility(_ surface: BrowserUtilitySurface) {
-        if utilityPresentation.surface == surface,
-            columnVisibility != .detailOnly || isFloatingSidebarPresented
-        {
-            utilityPresentation.dismiss(surface)
-            if columnVisibility == .detailOnly {
-                isFloatingSidebarPresented = false
-            }
+        if utilityPresentation.surface == surface, isSidebarPresented {
+            hideSidebar()
         } else {
-            if columnVisibility == .detailOnly {
-                isFloatingSidebarPresented = true
-            }
             presentUtility(surface)
         }
     }
 
     func handleWebContentInteraction() {
-        guard columnVisibility != .detailOnly || !isFloatingSidebarPresented else { return }
         utilityPresentation.handleInteraction(.webContent)
     }
 

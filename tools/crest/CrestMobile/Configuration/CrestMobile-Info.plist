@@ -46,8 +46,6 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>CrestBrowserPasskeyManagedCapability</key>
 	<true/>
-	<key>CrestSystemPasswordWriteThroughManagedCapability</key>
-	<true/>
 	<key>CrestCloudKitContainerIdentifier</key>
 	<string>iCloud.com.pauldavis.crest</string>
 	<key>LSRequiresIPhoneOS</key>
@@ -65,8 +63,6 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Websites can request camera access for calls and other browser features.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>Authenticate before Crest unlocks private Spaces or reveals, copies, or exports saved passwords.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Websites can connect to devices on your local network when you allow them.</string>
 	<key>NSMicrophoneUsageDescription</key>

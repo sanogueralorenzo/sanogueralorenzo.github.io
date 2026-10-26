@@ -61,7 +61,7 @@
             let seed = space.seed
             let replacement = SpaceState.Seed(
                 id: seed.id, profileID: profileID, settings: seed.settings, folders: seed.folders, tabs: seed.tabs,
-                splitGroups: seed.splitGroups, archivedTabs: seed.archivedTabs, history: seed.history)
+                archivedTabs: seed.archivedTabs, history: seed.history)
             // A Space is never the last one while it goes.
             let placeholder = UUID()
             if spaceModels.count == 1 {

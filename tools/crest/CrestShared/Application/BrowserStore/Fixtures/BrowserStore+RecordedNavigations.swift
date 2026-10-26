@@ -14,10 +14,18 @@
             page.release(keepingState: false)
         }
 
-        /// Opens a page through the core for `tabID` in `spaceID`, or for a
-        /// Quick Window or Peek request when `tabID` is nil, on a core whose
-        /// default engine is WebKit. The page loads nothing: a test reports
-        /// what its engine would see with `finishNavigation(of:to:titled:icon:)`.
+        /// Gives the tab this window shows the address and title a page's
+        /// recorded navigation would, as the core records one, for tests of
+        /// what windows show. A nil `url` keeps the tab's address. The core must
+        /// host pages, as `CrestCore.hostingPages()` does.
+        func seedSelectedTabNavigation(to url: URL?, titled title: String) {
+            guard let tab = shownTab, let address = url ?? tab.address,
+                let page = openReportingPage(for: tab.id)
+            else { preconditionFailure("A test navigated a tab it cannot show on a core that hosts pages.") }
+            finishNavigation(of: page, to: address, titled: title)
+            page.release(keepingState: false)
+        }
+
         func openReportingPage(for tabID: UUID?, in spaceID: UUID? = nil) -> CorePage? {
             openPage(in: spaceID ?? selectedSpaceID, for: tabID)?.page
         }

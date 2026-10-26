@@ -4,7 +4,7 @@ struct BrowserNavigationFailureView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let failure: PageFailure
-    let branding: SpaceBranding?
+
     let layout: BrowserNavigationFailureLayout
     let canGoBack: Bool
     let canProceed: Bool
@@ -17,8 +17,7 @@ struct BrowserNavigationFailureView: View {
     @State private var showsDetails = false
 
     private var accent: Color {
-        BrowserNavigationFailureAppearance.brandColor(for: branding)?.color
-            ?? .accentColor
+        CrestBrandTheme.accent
     }
 
     private var presentation: BrowserNavigationFailurePresentation {
@@ -63,7 +62,7 @@ struct BrowserNavigationFailureView: View {
 ) {
     BrowserNavigationFailureView(
         failure: BrowserNavigationFailurePreviewFixture.offline,
-        branding: BrowserNavigationFailurePreviewFixture.branding,
+
         layout: .compact,
         canGoBack: true,
         canProceed: false,
@@ -79,7 +78,7 @@ struct BrowserNavigationFailureView: View {
 ) {
     BrowserNavigationFailureView(
         failure: BrowserNavigationFailurePreviewFixture.certificate,
-        branding: BrowserNavigationFailurePreviewFixture.branding,
+
         layout: .regular,
         canGoBack: true,
         canProceed: true,

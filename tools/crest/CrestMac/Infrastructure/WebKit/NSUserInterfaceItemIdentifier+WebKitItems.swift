@@ -9,4 +9,11 @@ extension NSUserInterfaceItemIdentifier {
     static let webKitOpenLinkInNewWindow = Self("WKMenuItemIdentifierOpenLinkInNewWindow")
     static let webKitPaste = Self("WKMenuItemIdentifierPaste")
     static let webKitDownloadImage = Self("WKMenuItemIdentifierDownloadImage")
+    static let webKitSpellingItems: Set<Self> = [
+        Self("WKMenuItemIdentifierSpellingMenu"),
+        Self("WKMenuItemIdentifierShowSpellingPanel"),
+        Self("WKMenuItemIdentifierCheckSpelling"),
+        Self("WKMenuItemIdentifierCheckSpellingWhileTyping"),
+        Self("WKMenuItemIdentifierCheckGrammarWithSpelling"),
+    ]
 }

@@ -6,40 +6,25 @@ struct MobileBrowserWindowScene: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(BrowserCloudSyncController.self) private var cloudSync
 
-    private let onboardingProgress: BrowserOnboardingProgressStore
-    private let automaticallyPresentsOnboarding: Bool
-    private let sidebarWidgets: BrowserSidebarWidgetRuntime
     private let memoryPressure: BrowserMemoryPressureMonitor
-    @Bindable private var onboardingCoordinator: BrowserOnboardingCoordinator
 
     @State private var runtime = Runtime()
     private let makeModel: @MainActor () -> MobileBrowserWindowSceneModel
     @State private var browsingMode: BrowserBrowsingMode = .standard
-    @State private var hasPresentedAutomaticOnboarding = false
 
     init(
         id: UUID,
         rootBrowser: BrowserStore,
         permissionCenter: BrowserSitePermissionCenter,
         pageStoreRegistry: MobileBrowserPageStoreRegistry,
-        spaceAccess: BrowserSpaceAccessController,
         tabStateArchive: (any BrowserTabStateArchiving)?,
         windowLayouts: BrowserWindowLayouts,
-        startupBehavior: StartupBehavior,
         memoryPressure: BrowserMemoryPressureMonitor,
         usesEphemeralWebsiteDataStores: Bool,
-        onboardingProgress: BrowserOnboardingProgressStore,
-        onboardingCoordinator: BrowserOnboardingCoordinator,
-        automaticallyPresentsOnboarding: Bool,
         mediaSessions: BrowserMediaSessionStore,
         downloads: MobileBrowserDownloads,
-        privateDownloads: MobileBrowserDownloads,
-        sidebarWidgets: BrowserSidebarWidgetRuntime
+        privateDownloads: MobileBrowserDownloads
     ) {
-        self.onboardingProgress = onboardingProgress
-        self.onboardingCoordinator = onboardingCoordinator
-        self.automaticallyPresentsOnboarding = automaticallyPresentsOnboarding
-        self.sidebarWidgets = sidebarWidgets
         self.memoryPressure = memoryPressure
         makeModel = {
             MobileBrowserWindowSceneModel(
@@ -47,10 +32,8 @@ struct MobileBrowserWindowScene: View {
                 rootBrowser: rootBrowser,
                 permissionCenter: permissionCenter,
                 pageStoreRegistry: pageStoreRegistry,
-                spaceAccess: spaceAccess,
                 tabStateArchive: tabStateArchive,
                 windowLayouts: windowLayouts,
-                startupBehavior: startupBehavior,
                 usesEphemeralWebsiteDataStores: usesEphemeralWebsiteDataStores,
                 mediaSessionStore: mediaSessions,
                 downloads: downloads,
@@ -80,7 +63,7 @@ struct MobileBrowserWindowScene: View {
     }
 
     var body: some View {
-        sceneSurface
+        browserSurface
             .modifier(BrowserChromeAppearancePersistence())
             .environment(model.browser.core)
             .environment(model.browser.core.engines)
@@ -120,57 +103,22 @@ struct MobileBrowserWindowScene: View {
                 case .active:
                     activateWindow()
                 case .inactive:
-                    sidebarWidgets.suspendHost(id: model.windowState.id)
                     model.prepareForInactiveScene()
                 case .background:
-                    sidebarWidgets.suspendHost(id: model.windowState.id)
                     model.prepareForBackgroundScene()
                 @unknown default:
-                    sidebarWidgets.suspendHost(id: model.windowState.id)
                     model.prepareForBackgroundScene()
                 }
             }
-            .animation(
-                CrestMotion.onboardingPresentation.unlessReducingMotion(reduceMotion),
-                value: onboardingCoordinator.isMobilePresented
-            )
-            .onAppear(perform: presentAutomaticOnboardingIfNeeded)
     }
 
     private func activateWindow() {
         model.activateWindow()
-        sidebarWidgets.activateHost(
-            id: model.windowState.id,
-            capabilities: [.mediaSessions]
-        )
+
     }
 
     private func closeWindowRuntime() {
-        sidebarWidgets.removeHost(id: model.windowState.id)
         model.closeWindowRuntime()
-    }
-
-    @ViewBuilder
-    private var sceneSurface: some View {
-        if showsAutomaticLaunchGate {
-            onboardingSurface
-        } else {
-            browserSurfaceWithOnboardingOverlay
-        }
-    }
-
-    private var browserSurfaceWithOnboardingOverlay: some View {
-        ZStack {
-            browserSurface
-                .allowsHitTesting(!onboardingCoordinator.isMobilePresented)
-                .accessibilityHidden(onboardingCoordinator.isMobilePresented)
-
-            if onboardingCoordinator.isMobilePresented {
-                onboardingSurface
-                    .transition(.opacity.combined(with: .scale(scale: 0.985)))
-                    .zIndex(10)
-            }
-        }
     }
 
     @ViewBuilder
@@ -181,84 +129,23 @@ struct MobileBrowserWindowScene: View {
                 pages: model.privatePages,
                 dataDeleter: model.privatePages,
                 navigation: model.privateNavigation,
-                transientBrowsing: model.privateTransientBrowsing,
+
                 windowState: model.windowState,
-                suspendsCompactPagePresentation: onboardingCoordinator.isMobilePresented,
-                startupBehavior: .lastActiveTab,
                 togglePrivateBrowsing: togglePrivateBrowsing,
                 closePrivateBrowsing: closePrivateBrowsing
             )
-            .preferredColorScheme(.dark)
         } else {
             MobileBrowserRootView(
                 browser: model.browser,
                 pages: model.pages,
                 dataDeleter: model.pageStoreRegistry,
                 navigation: model.navigation,
-                transientBrowsing: model.transientBrowsing,
-                spaceAccess: model.spaceAccess,
+
                 windowState: model.windowState,
-                suspendsCompactPagePresentation: onboardingCoordinator.isMobilePresented,
-                startupBehavior: model.startupBehavior,
                 togglePrivateBrowsing: togglePrivateBrowsing,
                 closePrivateBrowsing: closePrivateBrowsing
             )
         }
-    }
-
-    private var onboardingSurface: some View {
-        MobileBrowserOnboardingView(
-            request: onboardingCoordinator.request,
-            browser: model.browser,
-            cloudSync: cloudSync,
-            progress: onboardingProgress,
-            coordinator: onboardingCoordinator,
-            spaceAccess: model.spaceAccess,
-            didOpenGettingStarted: { assignment in
-                if model.presentGettingStartedAfterSetup(matching: assignment) {
-                    browsingMode = .standard
-                }
-            }
-        )
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .contentShape(Rectangle())
-    }
-
-    private var showsAutomaticLaunchGate: Bool {
-        let gateIsActive =
-            onboardingProgress.isLaunchGateActive
-            && onboardingCoordinator.request.entryPoint == .firstRun
-        return Self.showsLaunchGate(
-            automaticallyPresentsOnboarding: automaticallyPresentsOnboarding,
-            isLaunchGateActive: gateIsActive
-        )
-    }
-
-    /// Whether a launch puts up the welcome by itself: always outside an
-    /// isolated test launch, and inside one only when a fixture asks for it.
-    nonisolated static func presentsOnboardingAutomatically(
-        forceOnboarding: Bool,
-        usesIsolatedLaunch: Bool
-    ) -> Bool {
-        forceOnboarding || !usesIsolatedLaunch
-    }
-
-    /// Whether the launch gate replaces the browser: only on an incomplete
-    /// install whose welcome comes up by itself.
-    nonisolated static func showsLaunchGate(
-        automaticallyPresentsOnboarding: Bool,
-        isLaunchGateActive: Bool
-    ) -> Bool {
-        automaticallyPresentsOnboarding && isLaunchGateActive
-    }
-
-    private func presentAutomaticOnboardingIfNeeded() {
-        guard onboardingProgress.shouldPresentWelcome,
-            automaticallyPresentsOnboarding,
-            !hasPresentedAutomaticOnboarding
-        else { return }
-        onboardingCoordinator.presentOnMobile(.firstRun)
-        hasPresentedAutomaticOnboarding = true
     }
 
     private func togglePrivateBrowsing() {

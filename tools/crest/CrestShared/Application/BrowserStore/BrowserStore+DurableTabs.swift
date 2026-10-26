@@ -2,9 +2,8 @@ import Foundation
 
 extension BrowserStore {
     /// Records an explicit close without removing the durable tab or archiving
-    /// it: the core puts its page away, back at its saved address when the
-    /// app's preferences say so. The page owner retires its runtime before
-    /// publishing this session change.
+    /// it: the core puts its page away, keeping its last location and page
+    /// state. The page owner follows the core's close and retires its runtime.
     @discardableResult
     func closeDurableTab(_ assignment: BrowserTabRuntimeAssignment) -> Bool {
         let spaceAssignment = BrowserSpaceRuntimeAssignment(

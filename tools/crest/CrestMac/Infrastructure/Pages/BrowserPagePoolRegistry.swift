@@ -20,16 +20,13 @@ final class BrowserPagePoolRegistry: BrowserSpaceDataDeleting {
             self.pages = pages
         }
     }
-
-    private weak var spaceAccess: BrowserSpaceAccessController?
     private let primary: BrowserPagePool
     private var pools: [ObjectIdentifier: WeakPool] = [:]
     private var windowRuntimes: [UUID: WeakWindowRuntime] = [:]
     private var spacesDeletingData: Set<UUID> = []
 
-    init(primary: BrowserPagePool, spaceAccess: BrowserSpaceAccessController? = nil) {
+    init(primary: BrowserPagePool) {
         self.primary = primary
-        self.spaceAccess = spaceAccess
     }
 
     func register(_ pool: BrowserPagePool) {
@@ -112,7 +109,7 @@ extension BrowserPagePoolRegistry: BrowserPageDismissalAuthorizing {
                 guard let space = browser.spaceModel(matching: assignment.spaceAssignment),
                     !spacesDeletingData.contains(space.id)
                 else { return false }
-                return spaceAccess?.isLocked(space) != true
+                return false != true
             }
         }
         guard isAvailable() else { return false }

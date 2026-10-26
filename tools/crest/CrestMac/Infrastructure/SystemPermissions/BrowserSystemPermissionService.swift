@@ -21,16 +21,12 @@ final class BrowserSystemPermissionService: BrowserSystemPermissionServicing {
         self.readPasskeyStatus = readPasskeyStatus ?? { Self.passkeyStatus(asking: core) }
     }
 
-    func status(for permission: BrowserSystemPermission, spaceID: UUID?) async -> BrowserSystemPermissionStatus {
-        await permission.status(self, spaceID)
+    func status(for permission: BrowserSystemPermission) async -> BrowserSystemPermissionStatus {
+        await permission.status(self)
     }
 
-    func request(_ permission: BrowserSystemPermission, spaceID: UUID?) async throws {
-        try await permission.request(self, spaceID)
-    }
-
-    func chooseFolder(spaceID: UUID) async throws {
-        try await folderAccess.chooseFolder(spaceID: spaceID)
+    func request(_ permission: BrowserSystemPermission) async throws {
+        try await permission.request(self)
     }
 
     func openSettings(for permission: BrowserSystemPermission) -> Bool {

@@ -4,7 +4,6 @@ import SwiftUI
 struct MobileBrowserCommandController {
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
-    var spaceAccess = BrowserSpaceAccessController()
 
     // MARK: - Variables
 
@@ -49,15 +48,18 @@ struct MobileBrowserCommandController {
     @discardableResult
     func dismissSelectedTab() -> UUID? {
         guard let selectedTab = browser.shownTab, canDismissSelectedTab else { return nil }
-        // A saved or pinned tab puts its page away, which the page host
-        // follows once the core records it.
+        // A saved or pinned tab returns home before a second close puts its
+        // page away, using the same live-address check as its return arrow.
         if selectedTab.placement.isDurable {
-            guard let space = browser.shownSpace,
-                BrowserDurableTabCloseAction(browser: browser, spaceAccess: spaceAccess).perform(
-                    BrowserTabRuntimeAssignment(
-                        tabID: selectedTab.id, spaceID: space.id, profileID: space.profileID
-                    ))
-            else { return nil }
+            guard let space = browser.shownSpace else { return nil }
+            let assignment = BrowserTabRuntimeAssignment(
+                tabID: selectedTab.id, spaceID: space.id, profileID: space.profileID)
+            if browser.returnsToSavedAddress(selectedTab.id, in: space.id) {
+                let action = MobileSavedLocationRestoreAction(
+                    browser: browser, pages: pages, selectTab: { _ = selectTab($0) })
+                return action.perform(assignment) ? selectedTab.id : nil
+            }
+            guard BrowserDurableTabCloseAction(browser: browser).perform(assignment) else { return nil }
             synchronizePages()
             return selectedTab.id
         }
@@ -83,8 +85,8 @@ struct MobileBrowserCommandController {
         return browser.shownTab?.id
     }
 
-    func cleanupCurrentTabs() {
-        browser.cleanupCurrentTabs()
+    func clearCurrentTabs() {
+        browser.clearCurrentTabs()
         synchronizePages()
     }
 

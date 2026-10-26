@@ -3,7 +3,6 @@ import SwiftUI
 struct MobileBrowserDetailView: View {
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
-    let spaceAccess: BrowserSpaceAccessController
     @Binding var address: String
     @Binding var isAddressEditing: Bool
     let addressFocusRequest: Int
@@ -24,8 +23,7 @@ struct MobileBrowserDetailView: View {
     /// Shows the tab the address bar's swipe landed on.
     let showSwipedTab: (UUID) -> Void
     let compactTransitionEnded: (CGSize) -> Void
-    var transientBrowsing: BrowserTransientBrowsingCoordinator?
-    var didPromoteTransientPage: () -> Void = {}
+
     /// Opens History from the compact toolbar's history menus; a detail without
     /// that toolbar never calls it.
     var showHistory: () -> Void = {}
@@ -46,10 +44,9 @@ struct MobileBrowserDetailView: View {
     var body: some View {
         let pageActions = MobileSelectedPageActionPort(
             browser: browser,
-            pages: pages,
-            spaceAccess: spaceAccess
+            pages: pages
         )
-        let page = selectedSpaceIsLocked ? nil : pageActions?.activePage
+        let page = pageActions?.activePage
         let pagePresentation = PagePresentation.of(browser.shownTab?.surface, page: page, restoresUnloaded: isCompact)
         let viewport = pageViewport
         let livePage = pagePresentation == .livePage ? page : nil
@@ -70,28 +67,10 @@ struct MobileBrowserDetailView: View {
             for tabID in neighbors { pages.prepareResidentPage(for: tabID) }
         }
         .overlay {
-            if isCompact, let transientBrowsing {
-                MobileTransientBrowsingOverlay(
-                    browser: browser, pages: pages, coordinator: transientBrowsing,
-                    spaceAccess: spaceAccess, didPromote: didPromoteTransientPage
-                )
-                .clipped()
-                .padding(.bottom, viewport.bottomChromeHeight)
-            }
         }
         .background(safeAreaProbe)
         .safeAreaInset(edge: .top, spacing: 0) {
             if let page {
-                BrowserCredentialChrome(
-                    presentation: BrowserCredentialChromePresentation.resolve(
-                        saveCandidate: page.credentialSaveCandidate,
-                        fillRequest: page.credentialFillRequest
-                    ),
-                    fillPort: credentialFillPort(for: page),
-                    savePort: credentialSavePort(for: page),
-                    browser: browser,
-                    capabilities: capabilities
-                )
             }
         }
         .overlay(alignment: .bottom) {
@@ -187,8 +166,7 @@ struct MobileBrowserDetailView: View {
             MobileDownloadsView(
                 browser: browser,
                 pages: pages,
-                assignment: assignment,
-                spaceAccess: spaceAccess
+                assignment: assignment
             )
         }
     }
@@ -214,14 +192,14 @@ struct MobileBrowserDetailView: View {
                 if isMoving, let tabID = slot.tabID {
                     swipePlaceholder(of: tabID, viewport: viewport)
                 }
-            } else if selectedSpaceIsLocked {
+            } else if false {
                 unloadedPageSurface
             } else {
                 shownSurface(page: page, presentation: pagePresentation, viewport: viewport)
             }
         }
         .background {
-            if slot.place == 0, let tabID = slot.tabID, tabID == tabSwipe.landedTabID, !selectedSpaceIsLocked,
+            if slot.place == 0, let tabID = slot.tabID, tabID == tabSwipe.landedTabID,
                 !hasDrawn(livePage)
             {
                 swipePlaceholder(of: tabID, viewport: viewport)
@@ -268,7 +246,6 @@ struct MobileBrowserDetailView: View {
             if let page, let failure = page.live.failure {
                 BrowserNavigationFailureView(
                     failure: failure,
-                    branding: shownBranding,
                     layout: isCompact ? .compact : .regular,
                     canGoBack: page.canReturnFromNavigationFailure,
                     canProceed: page.canProceedAfterCertificateFailure,
@@ -311,7 +288,7 @@ struct MobileBrowserDetailView: View {
     }
 
     private var compactDownloadsAccess: MobileDownloadsMenuAccess? {
-        guard isCompact, let space = browser.shownSpace, !spaceAccess.isLocked(space) else { return nil }
+        guard isCompact, let space = browser.shownSpace else { return nil }
         let items = pages.downloadCenter.items(for: space.profileID)
         return MobileDownloadsMenuAccess(
             newItemCount: pages.downloadCenter
@@ -322,7 +299,7 @@ struct MobileBrowserDetailView: View {
     }
 
     private func presentCompactDownloads() {
-        guard let space = browser.shownSpace, !spaceAccess.isLocked(space) else { return }
+        guard let space = browser.shownSpace else { return }
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
         _ = pages.downloadCenter.acknowledgeItems(for: space.profileID)
         downloadsAssignment = assignment
@@ -338,46 +315,6 @@ struct MobileBrowserDetailView: View {
             matchState: { page.findMatchState },
             focusRequest: { page.findFocusRequest },
             dismiss: page.dismissFind
-        )
-    }
-
-    /// The four things a credential fill prompt asks, bound to the page it is
-    /// over.
-    private func credentialFillPort(
-        for page: MobileBrowserPage
-    ) -> BrowserCredentialFillPort {
-        BrowserCredentialFillPort(
-            spaceID: page.spaceID,
-            contentScale: page.pageZoom,
-            siteIconData: page.faviconData,
-            fill: { credential, requestID in
-                try await page.fillCredential(credential, for: requestID)
-            },
-            fillGeneratedPassword: { password, requestID in
-                try await page.fillGeneratedPassword(password, for: requestID)
-            },
-            dismiss: page.dismissCredentialFillRequest
-        )
-    }
-
-    /// What the save prompt asks of the page it is over. This shell can hand a
-    /// saved password on to the system's Passwords app, anchored on the window
-    /// the page is living in at the moment the offer is made.
-    private func credentialSavePort(
-        for page: MobileBrowserPage
-    ) -> BrowserCredentialSavePort {
-        BrowserCredentialSavePort(
-            spaceID: page.spaceID,
-            presentedCandidateID: { page.credentialSaveCandidate?.id },
-            dismiss: page.dismissCredentialSaveCandidate,
-            offerToSystemPasswords: { candidate, title in
-                try await BrowserSystemPasswordWriteThroughSystem.offer(
-                    candidate: candidate,
-                    title: title,
-                    anchor: page.webView.window,
-                    availability: browser.systemPasswordWriteThroughAvailability
-                )
-            }
         )
     }
 
@@ -427,11 +364,8 @@ struct MobileBrowserDetailView: View {
         )
     }
 
-    /// The cards beside the shown one in its split, on a phone, where a split
-    /// shows one card at a time and the address bar's swipe slides the next
-    /// one in. None in a locked Space, whose pages are put away.
     private var splitNeighborIDs: [UUID] {
-        guard isCompact, let space = browser.shownSpace, !spaceAccess.isLocked(space),
+        guard isCompact, let space = browser.shownSpace,
             let shown = browser.shownTab?.id
         else { return [] }
         let members = browser.cards(in: space).map(\.id)
@@ -442,7 +376,7 @@ struct MobileBrowserDetailView: View {
     /// The tab the address bar's swipe moves from, on a phone with the bar
     /// on show; nil where there is no swipe to make ready for.
     private var swipeShownTab: UUID? {
-        guard isCompact, showsCompactToolbar, !selectedSpaceIsLocked else { return nil }
+        guard isCompact, showsCompactToolbar else { return nil }
         return browser.shownTab?.id
     }
 
@@ -474,20 +408,7 @@ struct MobileBrowserDetailView: View {
         }
     }
 
-    /// The look of the Space this window shows, or nil for none.
-    private var shownBranding: SpaceBranding? {
-        browser.shownSpace.map(\.settings.look)
-    }
-
-    /// The appearance the start page's header reads its text tone from.
-    ///
-    /// Touch draws that header over the Space's branding, so the text follows
-    /// the branding rather than the system appearance. Without a Space there is
-    /// no brand to follow and the header inherits the environment's appearance.
-    private var startPageHeaderColorScheme: ColorScheme? {
-        guard let branding = shownBranding else { return nil }
-        return branding.colorScheme(over: colorScheme)
-    }
+    private var startPageHeaderColorScheme: ColorScheme? { colorScheme }
 
     private var unloadedPageSurface: some View {
         Color.clear
@@ -501,14 +422,10 @@ struct MobileBrowserDetailView: View {
             : MobileBrowserPageViewport.compactToolbarHeight
     }
 
-    private var selectedSpaceIsLocked: Bool {
-        browser.shownSpace.map(spaceAccess.isLocked) ?? false
-    }
-
     private func restoreSelectedTab() {
         // The floating detail remains mounted behind the sidebar's lock view.
         // Relocking deactivates its page; that must never trigger auto-restore.
-        guard let space = browser.shownSpace, !spaceAccess.isLocked(space) else { return }
+        guard let space = browser.shownSpace else { return }
         pages.select()
     }
 
@@ -517,7 +434,6 @@ struct MobileBrowserDetailView: View {
         return BrowserEmptySelectionPaletteActions(
             source: BrowserSpaceRuntimeAssignment(space: space),
             browser: browser,
-            accessController: spaceAccess,
             didSelectTab: {
                 pages.select()
                 address = browser.shownTab?.url ?? ""
@@ -544,7 +460,7 @@ struct MobileBrowserDetailView: View {
         _ target: BrowserTabRuntimeAssignment
     ) -> Bool {
         guard
-            let destination = browser.paletteTarget(target, from: source, accessController: spaceAccess)
+            let destination = browser.paletteTarget(target, from: source)
         else { return false }
         browser.selectSpace(destination.space.id)
         browser.selectTab(destination.tab.id)
@@ -555,6 +471,6 @@ struct MobileBrowserDetailView: View {
     private func isPaletteSourceAvailable(
         _ source: BrowserTabRuntimeAssignment
     ) -> Bool {
-        browser.isPaletteSourceAvailable(source, accessController: spaceAccess)
+        browser.isPaletteSourceAvailable(source)
     }
 }

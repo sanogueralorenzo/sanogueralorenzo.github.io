@@ -20,15 +20,6 @@ protocol BrowserSitePermissionObserver: AnyObject {
     func sitePermissionsDidChange(_ change: BrowserSitePermissionChange)
 }
 
-/// The platform's side of the core's site permission choices.
-///
-/// The core owns every rule and every choice: which choice answers a request
-/// (the narrowest saved choice, then the site-wide rule, with session choices
-/// first), the combined camera and microphone rule, the locked-Space gate,
-/// listing order, and which choices the device store keeps. This center asks
-/// the core its questions, sends the person's answers as intents, reads each
-/// Space's kept choices from the read model, and tells the pages observing it
-/// what each change covered. An answer a rule refuses records nothing.
 @MainActor
 final class BrowserSitePermissionCenter {
     // MARK: - Static Variables

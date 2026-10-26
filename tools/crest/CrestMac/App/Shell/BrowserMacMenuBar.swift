@@ -67,7 +67,6 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
         windowMenu(in: bar)
         let help = submenu(String(localized: "Help"), in: bar)
-        applicationItem(.gettingStarted, in: help)
         NSApp.helpMenu = help
         NSApp.mainMenu = bar
         observeReadModel()
@@ -256,6 +255,7 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
     /// Adds an item for `command`, named `title` or as the command names
     /// itself in menus.
     private func command(_ command: ShortcutCommand, titled title: String? = nil, in menu: NSMenu) {
+        guard BrowserMacCommand.of(command) != nil else { return }
         if !commandMenus.contains(where: { $0 === menu }) { commandMenus.append(menu) }
         let title = title ?? String(localized: command.menuTitle ?? command.title)
         let item = NSMenuItem(title: title, action: #selector(runCommand(_:)), keyEquivalent: "")
@@ -290,22 +290,6 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
         standard(
             String(localized: "Jump to Selection"), #selector(NSResponder.centerSelectionInVisibleArea(_:)), key: "j",
             in: find)
-
-        let spelling = submenu(String(localized: "Spelling and Grammar"), in: edit)
-        standard(
-            String(localized: "Show Spelling and Grammar"), #selector(NSText.showGuessPanel(_:)), key: ":",
-            in: spelling)
-        standard(String(localized: "Check Document Now"), #selector(NSText.checkSpelling(_:)), key: ";", in: spelling)
-        spelling.addItem(.separator())
-        standard(
-            String(localized: "Check Spelling While Typing"), #selector(NSTextView.toggleContinuousSpellChecking(_:)),
-            in: spelling)
-        standard(
-            String(localized: "Check Grammar With Spelling"), #selector(NSTextView.toggleGrammarChecking(_:)),
-            in: spelling)
-        standard(
-            String(localized: "Correct Spelling Automatically"),
-            #selector(NSTextView.toggleAutomaticSpellingCorrection(_:)), in: spelling)
 
         let substitutions = submenu(String(localized: "Substitutions"), in: edit)
         standard(

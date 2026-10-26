@@ -1,14 +1,5 @@
 import AppKit
 
-/// The Dock icon's menu, as the core answers it: Crest's window commands,
-/// then the Spaces a window can show, each drawn as the Space switcher draws
-/// it and checked when the frontmost window shows it. macOS adds the window
-/// list and its own items around it.
-///
-/// A command runs as the menu bar runs it, from the window the core names. A
-/// Space shows in that window, which is never a private one, or opens a
-/// window on itself when the core names none; a locked Space shows locked
-/// there, where the person unlocks it as they would anywhere else.
 @MainActor
 final class BrowserMacDockMenu: NSObject {
     // MARK: - Types
@@ -57,7 +48,8 @@ final class BrowserMacDockMenu: NSObject {
         if !content.spaces.isEmpty { menu.addItem(.separator()) }
         for space in content.spaces {
             let item = NSMenuItem(title: space.name, action: #selector(showSpace(_:)), keyEquivalent: "")
-            item.image = BrowserSpaceSymbolArtworkRenderer.shared.menuImage(for: BrowserSpaceIdentity(dockSpace: space))
+            item.image = BrowserSpaceArtworkRenderer.shared.menuImage(
+                for: BrowserSpaceIdentity(dockSpace: space))
             item.state = space.isShown ? .on : .off
             item.representedObject = SpaceChoice(space: space, windowID: content.windowID)
             item.target = self
@@ -98,10 +90,9 @@ final class BrowserMacDockMenu: NSObject {
         if let windowID, let model = application.windowCoordinator.existingModel(for: windowID) {
             return BrowserCommandActions(
                 browser: model.browser, pages: model.pages, chrome: model.chrome, windows: windows,
-                spaceAccess: application.spaceAccess, targetWindowID: windowID)
+                targetWindowID: windowID)
         }
         return BrowserCommandActions(
-            browser: application.browser, pages: application.pages, chrome: application.chrome, windows: windows,
-            spaceAccess: application.spaceAccess)
+            browser: application.browser, pages: application.pages, chrome: application.chrome, windows: windows)
     }
 }

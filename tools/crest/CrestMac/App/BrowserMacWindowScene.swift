@@ -12,35 +12,25 @@ struct BrowserMacWindowScene: View {
     var browser: BrowserStore { model.browser }
     var pages: BrowserPagePool { model.pages }
     var chrome: BrowserChromeState { model.chrome }
-    var transientBrowsing: BrowserTransientBrowsingCoordinator { model.transientBrowsing }
     var windowState: BrowserWindowStateStore { model.windowState }
     private let pagePoolRegistry: BrowserPagePoolRegistry
-    private let spaceAccess: BrowserSpaceAccessController
     private let spaceSettingsPresentation: BrowserSpaceSettingsPresentationState
-    private let startupBehavior: StartupBehavior
     private let shortcuts: BrowserShortcutStore?
-    private let sidebarWidgets: BrowserSidebarWidgetRuntime
     private let softwareUpdates: BrowserSoftwareUpdateService
 
     init(
         model: BrowserMacWindowModel,
         coordinator: BrowserMacWindowCoordinator,
         pagePoolRegistry: BrowserPagePoolRegistry,
-        spaceAccess: BrowserSpaceAccessController,
         spaceSettingsPresentation: BrowserSpaceSettingsPresentationState,
-        startupBehavior: StartupBehavior,
         shortcuts: BrowserShortcutStore? = nil,
-        sidebarWidgets: BrowserSidebarWidgetRuntime,
         softwareUpdates: BrowserSoftwareUpdateService
     ) {
         self.model = model
         self.coordinator = coordinator
         self.pagePoolRegistry = pagePoolRegistry
-        self.spaceAccess = spaceAccess
         self.spaceSettingsPresentation = spaceSettingsPresentation
-        self.startupBehavior = startupBehavior
         self.shortcuts = shortcuts
-        self.sidebarWidgets = sidebarWidgets
         self.softwareUpdates = softwareUpdates
     }
 
@@ -49,11 +39,9 @@ struct BrowserMacWindowScene: View {
             browser: browser,
             pages: pages,
             chrome: chrome,
-            transientBrowsing: transientBrowsing,
-            spaceAccess: spaceAccess,
+
             windowState: windowState,
             spaceSettingsPresentation: model.spaceSettingsPresentation,
-            startupBehavior: startupBehavior,
             shortcuts: shortcuts
         )
         .modifier(BrowserChromeAppearancePersistence())
@@ -68,10 +56,6 @@ struct BrowserMacWindowScene: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(
             BrowserWindowAccessibilityID.scene(id)
-        )
-        .environment(
-            \.browserApplicationIcon,
-            Image(nsImage: NSApplication.shared.applicationIconImage)
         )
         .environment(\.browserPagePresentationWindowID, id)
         .environment(
@@ -97,7 +81,6 @@ struct BrowserMacWindowScene: View {
         .onAppear(perform: activateWindow)
         .modifier(BrowserTemporaryWorkspaceReconciliation(coordinator: coordinator))
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
-            spaceAccess.lockAllForInactiveScene()
         }
         .onDisappear(perform: closeWindowRuntime)
         .task {
@@ -112,11 +95,6 @@ struct BrowserMacWindowScene: View {
             await browser.sweepExpiredBrowsingDataWhileSceneIsActive {
                 pages.downloadCenter.sweepExpiredRecords(in: browser.spaceModels)
             }
-        }
-        .onChange(of: chrome.columnVisibility, initial: true) { _, visibility in
-            windowState.captureSidebar(
-                isPresented: visibility != .detailOnly
-            )
         }
         .onChange(of: spaceSettingsPresentation.revision) {
             guard model.window?.isKeyWindow == true,
@@ -134,7 +112,6 @@ struct BrowserMacWindowScene: View {
             if phase == .active {
                 activateWindow()
             } else {
-                sidebarWidgets.suspendHost(id: id)
                 flushPendingPersistence()
             }
         }
@@ -142,14 +119,6 @@ struct BrowserMacWindowScene: View {
 
     private func activateWindow() {
         softwareUpdates.applicationDidBecomeActive()
-        sidebarWidgets.activateHost(
-            id: id,
-            capabilities: [
-                .persistentSidebar,
-                .mediaSessions,
-                .directSoftwareUpdates,
-            ]
-        )
         pagePoolRegistry.register(
             pages,
             browser: browser,
@@ -161,7 +130,6 @@ struct BrowserMacWindowScene: View {
         guard !closed else { return }
         closed = true
         (browser.interactionObserver as? BrowserSidebarInteractionState)?.cancel()
-        sidebarWidgets.removeHost(id: id)
         pagePoolRegistry.unregister(pages, for: id)
         flushPendingPersistence()
         coordinator.closeWindow(id)

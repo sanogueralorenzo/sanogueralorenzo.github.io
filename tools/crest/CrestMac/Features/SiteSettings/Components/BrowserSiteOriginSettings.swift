@@ -5,7 +5,6 @@ struct BrowserSiteOriginSettings: View {
     let origin: SiteOrigin
     var reviewCertificate: (() -> Void)?
     let permissionCenter: BrowserSitePermissionCenter
-    @Binding var isExpanded: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: CrestSpacing.medium) {
@@ -19,8 +18,7 @@ struct BrowserSiteOriginSettings: View {
             BrowserEngineSitePermissionsSection(
                 page: page,
                 origin: origin,
-                permissionCenter: permissionCenter,
-                isExpanded: $isExpanded
+                permissionCenter: permissionCenter
             )
         }
     }

@@ -91,7 +91,7 @@ final class BrowserStoredSessionHarness {
     private static func open(_ core: CrestCore, favicons: InMemoryBrowserFaviconStore) throws -> BrowserStore {
         let stored = try BrowserCoreSessionAuthority.openStored(in: core, favicons: favicons)
         return BrowserStore.production(
-            stored: stored, core: core, favicons: favicons, credentialVault: InMemoryCredentialVault())
+            stored: stored, core: core, favicons: favicons)
     }
 
     // MARK: - Actions - Launches

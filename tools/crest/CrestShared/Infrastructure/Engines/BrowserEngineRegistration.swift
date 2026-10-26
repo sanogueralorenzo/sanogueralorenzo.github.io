@@ -14,7 +14,7 @@ enum BrowserEngineRegistration {
     #endif
 
     /// Native WebKit page and profile ports. Protected media plays through the
-    /// platform's FairPlay. A staged Peek navigation replays
+    /// platform's FairPlay. A staged page navigation replays
     /// only a GET link's URL and referrer: WebKit has no public way to carry the
     /// initiating frame's origin, user activation or sandbox into another page.
     /// Find reports whether a match exists but not how many, because WebKit's

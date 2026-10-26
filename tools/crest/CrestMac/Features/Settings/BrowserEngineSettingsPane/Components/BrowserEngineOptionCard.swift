@@ -38,7 +38,7 @@ struct BrowserEngineOptionCard: View {
                 Spacer(minLength: 8)
                 Image(systemName: "checkmark")
                     .fontWeight(.semibold)
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(CrestBrandTheme.accent)
                     .opacity(isSelected ? 1 : 0)
                     .accessibilityHidden(true)
             }

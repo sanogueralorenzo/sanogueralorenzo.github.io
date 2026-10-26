@@ -43,8 +43,7 @@ final class BrowserSharedPageRuntimeTests: XCTestCase {
         second.setWindowFocused(true)
         let page = try XCTUnwrap(second.activePage)
         page.translation.setActive(true, in: try XCTUnwrap(page.translationDocument))
-        page.translation.sourceID = "es"
-        page.translation.targetID = "en"
+        page.translation.updateTargetLanguage("en")
         page.translation.start()
         second.releaseWindowPresentation()
         XCTAssertTrue(first.presentedPage(for: tab.id) === page)
@@ -124,6 +123,123 @@ final class BrowserSharedPageRuntimeTests: XCTestCase {
         XCTAssertEqual(historyState, 7)
     }
 
+    func testPageCallbacksFollowTheCurrentWorkspaceOwner() throws {
+        let tab = TabState.Seed.startPage()
+        let space = makeSpace(tabs: [tab])
+        let owner = BrowserPageRuntimeStore()
+        owner.publishesPageMetadataCentrally = true
+        let blankOwner = BrowserPageRuntimeStore()
+        blankOwner.publishesPageMetadataCentrally = true
+        let browser = hosting(space)
+        var links: [String] = []
+        let first = BrowserPagePool(
+            browser: browser,
+            runtimeStore: owner,
+            openModifiedLink: { _, _, _ in
+                links.append("first")
+                return nil
+            })
+        let second = BrowserPagePool(
+            browser: browser.makeWindowStore(),
+            runtimeStore: owner,
+            openModifiedLink: { _, _, _ in
+                links.append("second")
+                return nil
+            })
+        let blank = BrowserPagePool(
+            browser: hosting(space, on: browser.core),
+            runtimeStore: blankOwner,
+            openModifiedLink: { _, _, _ in
+                links.append("blank")
+                return nil
+            })
+        defer {
+            first.reconcile(validTabIDs: [])
+            blank.closeWindowWorkspace()
+        }
+        first.present(tab: tab.id, in: space.id)
+        let page = try XCTUnwrap(first.activePage)
+        second.present(tab: tab.id, in: space.id)
+        second.setWindowFocused(true)
+        let request = URLRequest(url: try XCTUnwrap(URL(string: "https://callback.crest.test/")))
+        page.openModifiedLink(request, space.id, false)
+        XCTAssertEqual(links, ["second"])
+
+        let assignment = BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profileID)
+        XCTAssertTrue(try transfer(assignment, from: second, to: blank))
+        blank.present(tab: tab.id, in: space.id)
+        page.openModifiedLink(request, space.id, false)
+        XCTAssertEqual(links, ["second", "blank"])
+    }
+
+    func testNativeTabMovePreservesItsLoadedModelAcrossWorkspaceOwners() throws {
+        let tab = TabState.Seed(title: "Settings", url: nil, nativeContent: .settings, placement: .current)
+        let space = makeSpace(tabs: [tab])
+        let source = BrowserPagePool(browser: hosting(space))
+        let destination = BrowserPagePool(browser: hosting(space, on: source.browser.core))
+        source.present(tab: tab.id, in: space.id)
+        let assignment = BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profileID)
+        let runtime = try XCTUnwrap(source.nativeTabs.runtime(matching: assignment, content: .settings))
+        let model = runtime.model(BrowserSettingsTabState.self) { BrowserSettingsTabState() }
+        model.navigation.searchText = "ownership"
+        XCTAssertTrue(try transfer(assignment, from: source, to: destination))
+        destination.present(tab: tab.id, in: space.id)
+        XCTAssertFalse(source.nativeTabs.contains(assignment))
+        XCTAssertTrue(destination.nativeTabs.runtime(matching: assignment, content: .settings) === runtime)
+        XCTAssertEqual(
+            runtime.model(BrowserSettingsTabState.self) { BrowserSettingsTabState() }.navigation.searchText, "ownership"
+        )
+    }
+
+    func testAnUnloadedTabTransfersItsArchivedHistoryWithoutLeavingSourceState() async throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "crest-window-tab-state-\(UUID())")
+        let archive = BrowserTabStateArchive(rootDirectory: directory)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let tab = TabState.Seed.startPage()
+        let space = makeSpace(tabs: [tab])
+        let source = BrowserPagePool(
+            browser: hosting(space), usesEphemeralWebsiteDataStores: false, tabStateArchive: archive)
+        // A window over a workspace that borrows the Space, as tearing a tab
+        // off into a window of its own opens.
+        let spaceAssignment = BrowserSpaceRuntimeAssignment(space: space)
+        let destination = BrowserPagePool(
+            browser: try XCTUnwrap(source.browser.makeTemporaryWindowStore(in: spaceAssignment)))
+        defer {
+            source.reconcile(validTabIDs: [])
+            destination.closeWindowWorkspace()
+        }
+        source.present(tab: tab.id, in: space.id)
+        let original = try XCTUnwrap(source.activePage)
+        let firstURL = try XCTUnwrap(URL(string: "https://unloaded-transfer.crest.test/one"))
+        let secondURL = try XCTUnwrap(URL(string: "https://unloaded-transfer.crest.test/two"))
+        for url in [firstURL, secondURL] {
+            original.webView.loadSimulatedRequest(
+                URLRequest(url: url), responseHTML: "<html><body>History</body></html>")
+            try await waitUntil { original.webView.url == url && !original.webView.isLoading }
+        }
+        source.unloadPage(for: tab.id)
+        await archive.flushPendingWrites()
+        XCTAssertNotNil(archive.archivedState(profileID: space.profileID, tabID: tab.id))
+        let assignment = BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profileID)
+
+        // The core moves the tab first, with the address its page reached, and
+        // then its archived page state follows it, as the window coordinator
+        // moves them.
+        XCTAssertTrue(
+            source.browser.transferTab(tab.id, matching: spaceAssignment, to: destination.browser, in: spaceAssignment))
+        XCTAssertTrue(
+            destination.transferTabRuntime(
+                from: source, matching: assignment, as: try pageTab(assignment, in: destination),
+                in: try XCTUnwrap(destination.browser.spaceModel(space.id))))
+        await source.flushPendingTabStateWrites()
+        XCTAssertNil(archive.archivedState(profileID: space.profileID, tabID: tab.id))
+        destination.present(tab: tab.id, in: space.id)
+        let restored = try XCTUnwrap(destination.activePage)
+        XCTAssertFalse(restored === original)
+        XCTAssertEqual(restored.webView.url, secondURL)
+        XCTAssertEqual(restored.webView.backForwardList.backList.map(\.url), [firstURL])
+    }
+
     private func waitUntil(_ condition: @MainActor () -> Bool) async throws {
         for _ in 0..<200 {
             if condition() { return }
@@ -156,7 +272,7 @@ final class BrowserSharedPageRuntimeTests: XCTestCase {
 
     private func makeSpace(tabs: [TabState.Seed]) -> SpaceState.Seed {
         SpaceState.Seed(
-            name: "Shared", symbol: "globe", accent: .indigo,
+            name: "Shared",
             folders: [], tabs: tabs)
     }
 }

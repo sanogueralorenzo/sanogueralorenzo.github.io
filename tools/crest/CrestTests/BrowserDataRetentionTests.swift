@@ -58,6 +58,42 @@ final class BrowserDataRetentionTests: XCTestCase {
         XCTAssertEqual(record.deletionReason, .retention)
     }
 
+    func testDownloadCenterSweepUsesSpacePoliciesAndDeterministicSpacing() {
+        let now = Date(timeIntervalSinceReferenceDate: 60_000_000)
+        let oldDate = now.addingTimeInterval(-(31 * 24 * 60 * 60))
+        var session = SessionState.Seed.preview
+        let cleanedProfileID = session.spaces[0].profileID
+        Self.retain(.init(history: .forever, archive: .forever, downloads: .thirtyDays), in: &session.spaces[0])
+        let store = BrowserStore(seed: session)
+        let spaces = store.spaceModels
+        let center = BrowserDownloadCenter()
+        let expiredID = center.begin(
+            profileID: cleanedProfileID,
+            filename: "expired.pdf",
+            createdAt: oldDate
+        )
+        center.send(FinishDownload(downloadID: expiredID, finalByteCount: nil))
+
+        XCTAssertTrue(center.sweepExpiredRecords(in: spaces, now: now))
+        XCTAssertTrue(center.items.isEmpty)
+        XCTAssertFalse(
+            center.sweepExpiredRecords(
+                in: spaces,
+                now: now.addingTimeInterval(
+                    BrowserDataRetentionSchedule.minimumSweepSpacing - 1
+                )
+            )
+        )
+        XCTAssertTrue(
+            center.sweepExpiredRecords(
+                in: spaces,
+                now: now.addingTimeInterval(
+                    BrowserDataRetentionSchedule.minimumSweepSpacing
+                )
+            )
+        )
+    }
+
     private static func history(title: String, visitedAt: Date) -> HistoryEntryState {
         HistoryEntryState(
             url: URL(string: "https://\(title.lowercased().replacingOccurrences(of: " ", with: "-")).example")!,

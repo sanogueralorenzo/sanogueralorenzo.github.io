@@ -26,7 +26,6 @@ extension MobileBrowserCommandContext {
             commands: MobileBrowserCommand.all.filter { isOffered($0.command) && $0.isAvailable(self) }.map(\.command),
             perform: performFromPalette,
             switchSpace: selectSpace,
-            reopenArchivedTab: reopenArchivedTab,
             copy: { UIPasteboard.general.string = $0 }
         )
     }

@@ -7,7 +7,6 @@ final class MobileBrowserSettingsPresentation {
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
     let navigation: MobileBrowserNavigationState
-    let spaceAccess: BrowserSpaceAccessController
     private var style: MobileBrowserSettingsStyle?
     private(set) var sheetAssignment: BrowserSpaceRuntimeAssignment?
     private var sheetTabID: UUID?
@@ -16,12 +15,11 @@ final class MobileBrowserSettingsPresentation {
 
     init(
         browser: BrowserStore, pages: MobileBrowserPageStore,
-        navigation: MobileBrowserNavigationState, spaceAccess: BrowserSpaceAccessController
+        navigation: MobileBrowserNavigationState
     ) {
         self.browser = browser
         self.pages = pages
         self.navigation = navigation
-        self.spaceAccess = spaceAccess
     }
 
     func destination(for tab: TabStateModel) -> BrowserTabActivationDestination {
@@ -35,16 +33,15 @@ final class MobileBrowserSettingsPresentation {
     }
 
     func open() {
-        guard let style, let space = browser.shownSpace, !spaceAccess.isLocked(space) else { return }
+        guard let style, let space = browser.shownSpace else { return }
         style.open(in: space, on: self)
     }
 
     @discardableResult
     func present(matching assignment: BrowserTabRuntimeAssignment) -> Bool {
         guard let style,
-            let space = browser.selectedUnlockedSpace(
-                matching: BrowserSpaceRuntimeAssignment(spaceID: assignment.spaceID, profileID: assignment.profileID),
-                accessController: spaceAccess),
+            let space = browser.selectedAvailableSpace(
+                matching: BrowserSpaceRuntimeAssignment(spaceID: assignment.spaceID, profileID: assignment.profileID)),
             let tab = space.tabs.model(assignment.tabID), tab.nativeTabContent == .settings
         else { return false }
         return style.present(tab, in: space, on: self)
@@ -53,7 +50,7 @@ final class MobileBrowserSettingsPresentation {
     @discardableResult
     func routeSelectedSettingsAction() -> Bool {
         guard style?.showsSettingsAsSheet == true,
-            let space = browser.shownSpace, !spaceAccess.isLocked(space),
+            let space = browser.shownSpace,
             let tab = browser.shownTab, tab.nativeTabContent == .settings
         else { return false }
         guard let retained = retainedState(for: tab, in: space) else { return false }
@@ -67,7 +64,7 @@ final class MobileBrowserSettingsPresentation {
     @discardableResult
     func selectLiveSpace(_ id: UUID, matching source: BrowserTabRuntimeAssignment) -> Bool {
         guard style?.showsSettingsAsSheet == false,
-            BrowserSettingsSpaceSelectionAction(browser: browser, spaceAccess: spaceAccess)
+            BrowserSettingsSpaceSelectionAction(browser: browser)
                 .select(id, matching: source) != nil
         else { return false }
         synchronizeEmbeddedSettings()
@@ -78,7 +75,7 @@ final class MobileBrowserSettingsPresentation {
     func reconcile() {
         guard showsSheet else { return }
         guard let sheetAssignment,
-            let space = browser.selectedUnlockedSpace(matching: sheetAssignment, accessController: spaceAccess),
+            let space = browser.selectedAvailableSpace(matching: sheetAssignment),
             sheetTabID == nil || sheetTabID.flatMap({ space.tabs.model($0) })?.nativeTabContent == .settings
         else {
             dismissSheet()

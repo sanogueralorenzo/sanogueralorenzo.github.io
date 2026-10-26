@@ -18,16 +18,10 @@ struct BrowserSettingsDestination: Hashable, Identifiable, Sendable {
     /// switches on the kind to choose that pane's concrete view.
     enum Kinds: Sendable {
         case general
-        case tabs
-        case search
         case engines
-        case lookAndFeel
-        case links
-        case shortcuts
         case spaces
         case sync
         case privacy
-        case passwords
         case extensions
         case featureFlags
         case advanced
@@ -37,90 +31,59 @@ struct BrowserSettingsDestination: Hashable, Identifiable, Sendable {
 
     // MARK: - Static Variables
 
-    // Each destination wears a template tincture: the templates' main colors
-    // first, in list order, then their other colors, so neighbouring rows never
-    // share a hue on either platform and read the same in both appearances.
     static let general = BrowserSettingsDestination(
-        kind: .general, name: "general", title: "General", subtitle: "Browsing and startup",
+        kind: .general, name: "general", title: "General", subtitle: "Browsing",
         searchTerms:
-            "browser startup default Space typing spelling spell check text editing Picture in Picture video developer toolbar localhost local pages translation system permissions access camera microphone location notifications passkeys files folders downloads allow blocked repair new tab floating sidebar",
-        symbol: "gearshape", tincture: .vigilAsh)
-    static let tabs = BrowserSettingsDestination(
-        kind: .tabs, name: "tabs", title: "Tabs", subtitle: "New, pinned and saved tabs",
-        searchTerms:
-            "focus switch new tabs follow move between Spaces Command-click middle-click Shift pinned saved close resume restore root URL favicon Split View focus follows mouse pointer sidebar widgets Now Playing media cards",
-        symbol: "square.on.square", tincture: .riverAzure)
-    static let search = BrowserSettingsDestination(
-        kind: .search, name: "search", title: "Search", subtitle: "Search engine, command palette and site searches",
-        searchTerms:
-            "search engine Google suggestions command palette address bar results order top hit blended sections complete addresses inline autocomplete learn choices clear site searches shortcuts Tab YouTube Wikipedia scopes calculator paste and go reasons",
-        symbol: "magnifyingglass", tincture: .sunTenne)
-    static let lookAndFeel = BrowserSettingsDestination(
-        kind: .lookAndFeel, name: "lookAndFeel", title: "Appearance", subtitle: "Window, tabs, zoom and motion",
-        searchTerms:
-            "look and feel theme accent color transparency page zoom percentage sidebar left right borderless window fullscreen layout interface animation motion page cards folder highlights counts borders preview density spacing padding scale icons space size fit automatic",
-        symbol: "paintpalette", tincture: .lionGules)
+            "search provider Google DuckDuckGo Bing Brave zoom default browser translate translation language floating sidebar",
+        symbol: "gearshape")
     static let engines = BrowserSettingsDestination(
-        kind: .engines, name: "engines", title: "Engines", subtitle: "Default engine and website rules",
-        searchTerms: "Chromium WebKit hybrid default browser engine websites rules protected video DRM compatibility",
-        symbol: "cpu", tincture: .riverLapis)
-    static let links = BrowserSettingsDestination(
-        kind: .links, name: "links", title: "Links", subtitle: "Quick Window and Peek",
-        searchTerms: "external apps Quick Window Peek pinned saved routing open", symbol: "link",
-        tincture: .meadowVert)
-    static let shortcuts = BrowserSettingsDestination(
-        kind: .shortcuts, name: "shortcuts", title: "Shortcuts", subtitle: "Keyboard commands",
-        searchTerms: "keyboard keys commands rebind remap Arc hotkeys navigation tabs Spaces page", symbol: "keyboard",
-        tincture: .lionOr)
+        kind: .engines, name: "engines", title: "Engines", subtitle: "Default browsing engine",
+        searchTerms: "Chromium WebKit hybrid default browser engine protected video DRM compatibility",
+        symbol: "cpu", isMacOnly: true)
     static let spaces = BrowserSettingsDestination(
-        kind: .spaces, name: "spaces", title: "Spaces", subtitle: "Profiles and appearance",
+        kind: .spaces, name: "spaces", title: "Spaces", subtitle: "Profiles and browsing",
         searchTerms:
-            "profile name identity icon color appearance theme search cleanup isolation reorder browsing archive independence folder intensity text color light dark automatic preview",
-        symbol: "square.grid.2x2", tincture: .stormOr)
+            "profile name identity initial letter search isolation reorder browsing independence",
+        symbol: "square.grid.2x2")
     static let sync = BrowserSettingsDestination(
         kind: .sync, name: "sync", title: "Sync", subtitle: "iCloud setup and status",
         searchTerms: "iCloud CloudKit account upload download conflict status monitor diagnostics pending records",
-        symbol: "arrow.triangle.2.circlepath.icloud", tincture: .winterIce)
+        symbol: "arrow.triangle.2.circlepath.icloud")
     // The macOS sidebar row cannot fit "Privacy & Permissions" on one line at
     // its compact row height.
     static let privacy = BrowserSettingsDestination(
         kind: .privacy, name: "privacy", title: "Privacy & Permissions", navigationTitle: "Privacy",
         subtitle: "Site access and data",
-        searchTerms:
-            "content blocking ads trackers camera microphone site access history cookies data website cache clear browsing",
-        symbol: "hand.raised", tincture: .dragonFire)
-    static let passwords = BrowserSettingsDestination(
-        kind: .passwords, name: "passwords", title: "Passwords", subtitle: "Credentials and autofill",
-        searchTerms: "credentials autofill iCloud Keychain passkeys synchronization", symbol: "key",
-        tincture: .ironPatina)
+        searchTerms: "content blocking ads trackers camera microphone site access history cookies data",
+        symbol: "hand.raised")
+
     static let extensions = BrowserSettingsDestination(
         kind: .extensions, name: "extensions", title: "Extensions", subtitle: "Space extensions and permissions",
         searchTerms: "extensions permissions Chromium Chrome Web Store install copies Spaces",
-        symbol: "puzzlepiece.extension", tincture: .meadowMoss,
+        symbol: "puzzlepiece.extension",
         requiredCapability: .extensions)
     static let featureFlags = BrowserSettingsDestination(
         kind: .featureFlags, name: "featureFlags", title: "Feature Flags", subtitle: "Engine experiments",
         searchTerms: "WebKit Chromium experimental preview testable developer stable runtime flags features",
-        symbol: "flag.2.crossed", tincture: .sunTerracotta,
+        symbol: "flag.2.crossed", isMacOnly: true,
         requiredCapability: .featureFlags)
     static let advanced = BrowserSettingsDestination(
         kind: .advanced, name: "advanced", title: "Advanced", subtitle: "Import, export, and runtime",
-        searchTerms: "import export backup portability data records", symbol: "switch.2",
-        tincture: .stormGunmetal)
+        searchTerms: "import export backup portability data records", symbol: "switch.2")
     static let agents = BrowserSettingsDestination(
         kind: .agents, name: "agents", title: "Agents", subtitle: "Coding agents and scripts",
         searchTerms:
             "agents AI MCP model context protocol coding agents scripts automation Claude Codex Cursor command line terminal",
-        symbol: "sparkles", tincture: .meadowForest)
+        symbol: "sparkles", isMacOnly: true)
     static let about = BrowserSettingsDestination(
         kind: .about, name: "about", title: "About", subtitle: "Version, updates, and support",
         searchTerms:
             "version build updates changelog what's new feedback Reddit GitHub issues roadmap support community",
-        symbol: "info.circle", tincture: .sunDune)
+        symbol: "info.circle")
 
     /// Every destination, in catalog order.
     static let all: [BrowserSettingsDestination] = [
-        general, tabs, search, engines, lookAndFeel, links, shortcuts, spaces, sync, privacy, passwords, extensions,
+        general, engines, spaces, sync, privacy, extensions,
         featureFlags, agents, advanced, about,
     ]
 
@@ -143,16 +106,16 @@ struct BrowserSettingsDestination: Hashable, Identifiable, Sendable {
 
     let symbol: String
 
-    /// The template tincture that stands for the destination: the fill of
-    /// its tile, or its glyph's tint where the glyph is not tiled.
-    let tincture: Tincture
-
-    /// The tincture's color, which fills the destination's tile.
-    var color: Color { tincture.color.color }
+    /// Monochrome tint for settings navigation.
+    var color: Color { CrestBrandTheme.textDisplay }
 
     /// The engine capability the destination's whole subject depends on. An
     /// engine without it never offers the destination.
     let requiredCapability: EngineCapability?
+
+    /// Whether the subject exists only on the Mac: the engine choice,
+    /// and WebKit's private feature registry.
+    let isMacOnly: Bool
 
     var id: String { name }
 
@@ -161,7 +124,7 @@ struct BrowserSettingsDestination: Hashable, Identifiable, Sendable {
     private init(
         kind: Kinds, name: String, title: LocalizedStringResource, navigationTitle: LocalizedStringResource? = nil,
         subtitle: LocalizedStringResource, searchTerms: LocalizedStringResource, symbol: String,
-        tincture: Tincture, requiredCapability: EngineCapability? = nil
+        isMacOnly: Bool = false, requiredCapability: EngineCapability? = nil
     ) {
         self.kind = kind
         self.name = name
@@ -170,7 +133,7 @@ struct BrowserSettingsDestination: Hashable, Identifiable, Sendable {
         self.subtitle = subtitle
         self.searchTerms = searchTerms
         self.symbol = symbol
-        self.tincture = tincture
+        self.isMacOnly = isMacOnly
         self.requiredCapability = requiredCapability
     }
 

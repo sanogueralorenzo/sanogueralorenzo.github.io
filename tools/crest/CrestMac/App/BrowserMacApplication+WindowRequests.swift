@@ -20,11 +20,9 @@ extension BrowserMacApplication {
 
     // MARK: - Variables
 
-    /// The Spaces the engine's extensions may act in: every one this window
-    /// family holds that is neither locked nor being deleted.
     var extensionSpaces: [BrowserSpaceIdentity] {
         browser.spaceModels.filter {
-            !browser.deletingSpaceIDs.contains($0.id) && !spaceAccess.isLocked($0)
+            !browser.deletingSpaceIDs.contains($0.id)
         }.map(\.identity)
     }
 
@@ -40,8 +38,7 @@ extension BrowserMacApplication {
     /// Shows `space` in `window` and opens `url` there as its selected tab.
     @discardableResult
     func openTab(_ url: URL, in space: BrowserSpaceRuntimeAssignment, window: UUID) -> Bool {
-        guard let host = hostWindow(window), let target = host.browser.spaceModel(matching: space),
-            !spaceAccess.isLocked(target)
+        guard let host = hostWindow(window), let target = host.browser.spaceModel(matching: space)
         else { return false }
         host.browser.selectSpace(target.id)
         guard host.browser.openNewTab(url: url, matching: space) != nil else { return false }
@@ -71,12 +68,6 @@ extension BrowserMacApplication {
         guard let host = hostWindow(window) else { return }
         host.settings.present(.extensions, assignment: space)
         host.browser.openSettings()
-        host.pages.select()
-    }
-
-    func openGettingStarted(in window: UUID) {
-        guard let host = hostWindow(window) else { return }
-        host.browser.openGettingStarted()
         host.pages.select()
     }
 

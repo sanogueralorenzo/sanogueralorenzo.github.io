@@ -11,7 +11,6 @@ struct BrowserPageContextMenuAction {
     /// Which row this is, with what it does it to.
     enum Kind: Equatable {
         case search
-        case peek
         case split
         case space(UUID)
     }
@@ -65,20 +64,6 @@ struct BrowserPageContextMenuAction {
             else { return false }
             return page.linkDestinationHost.openLink(
                 linkURL, from: source, in: BrowserSpaceRuntimeAssignment(space: space))
-        }
-    }
-
-    /// Opens `linkURL` in Peek over the page.
-    static func peek(_ linkURL: URL) -> BrowserPageContextMenuAction {
-        BrowserPageContextMenuAction(
-            kind: .peek, title: String(localized: "Open Link in Peek"), symbolName: "rectangle.on.rectangle",
-            linkURL: linkURL, selectionText: nil
-        ) { page, context, _ in
-            page.openPeek(
-                BrowserPeekRequest(
-                    url: linkURL, sourceTabID: context.tabID, sourceTitle: context.title,
-                    spaceAssignment: context.assignment, trigger: .contextMenu))
-            return true
         }
     }
 
@@ -187,7 +172,7 @@ struct BrowserPageContextMenu {
         // The menu item keeps its row alive.
         item.representedObject = row
         item.image =
-            action.space.flatMap { BrowserSpaceSymbolArtworkRenderer.shared.menuImage(for: $0) }
+            action.space.flatMap { BrowserSpaceArtworkRenderer.shared.menuImage(for: $0) }
             ?? NSImage(systemSymbolName: action.symbolName, accessibilityDescription: nil)
         return item
     }
@@ -207,7 +192,6 @@ extension BrowserPage: BrowserPageContextMenuHost {
             for space in linkDestinationHost.otherSpaces(from: source) {
                 actions.append(.space(space, opening: linkURL))
             }
-            actions.append(.peek(linkURL))
             if splitLinkHost.canOpenLink(context.tabID, context.assignment) {
                 actions.append(.split(linkURL))
             }

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Where the platform says a download's file goes: a place it chose, no place
-/// because the person cancelled, or no place because the Space's folder is
+/// because the person cancelled, or no place because Downloads is
 /// unavailable. Each answer carries what follows from it, both for the core's
 /// question about a download's place and for a file the app saves itself.
 protocol BrowserPlatformDownloadResolution: Sendable {
@@ -30,6 +30,6 @@ extension BrowserPlatformDownloadResolution where Self == BrowserDownloadDestina
 }
 
 extension BrowserPlatformDownloadResolution where Self == BrowserDownloadFolderUnavailable {
-    /// The Space's download folder is unavailable.
+    /// The Downloads folder is unavailable.
     static var unavailable: Self { BrowserDownloadFolderUnavailable() }
 }

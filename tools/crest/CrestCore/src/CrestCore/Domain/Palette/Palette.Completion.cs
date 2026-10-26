@@ -60,7 +60,7 @@ public sealed partial class Palette {
     /// already say, each as a search with `provider`.
     private IReadOnlyList<PaletteRow> Suggestions(string text, IReadOnlyList<string> remote, IReadOnlyList<PaletteRow> shown,
         SearchProvider provider) {
-        if (remote.Count == 0) return [];
+        if (!context.Suggests || context.IsPrivate || remote.Count == 0) return [];
         var claimed = new HashSet<string>(StringComparer.Ordinal) { Folded(Collapsed(text)) };
         foreach (var row in shown) claimed.Add(Folded(Collapsed(row.Title)));
         List<PaletteRow> rows = [];
@@ -78,7 +78,7 @@ public sealed partial class Palette {
     /// for none.
     private string? SuggestionAddress(string text) {
         string trimmed = text.Trim();
-        if (trimmed.Length == 0 || trimmed.Length > MaximumSuggestionLength || context.IsPrivate || context.Space is null)
+        if (trimmed.Length == 0 || trimmed.Length > MaximumSuggestionLength || context.IsPrivate || context.Space is null || !context.Suggests)
             return null;
         return context.Provider.Suggest(text);
     }

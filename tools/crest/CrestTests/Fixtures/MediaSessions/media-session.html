@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crest Media Session Fixture</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #16233c; }
+    main { width: min(32rem, calc(100vw - 3rem)); padding: 2rem; border-radius: 1.25rem; background: #f5efe4; color: #192238; box-shadow: 0 1rem 4rem #0006; }
+    h1 { margin-top: 0; }
+    p { color: #556078; line-height: 1.5; }
+    .controls { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1.25rem; }
+    button { min-height: 2.5rem; padding: .5rem .9rem; border: 0; border-radius: 999px; color: white; background: #425d91; font: inherit; font-weight: 650; }
+    output { display: block; margin-top: 1rem; font-size: .9rem; color: #556078; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 id="heading">Crest Media Session Fixture</h1>
+    <p>Small generated audio and the standard Media Session API exercise the same bridge used by live pages. No network media or private artwork is fetched.</p>
+    <div class="controls">
+      <button id="play" type="button">Play</button>
+      <button id="pause" type="button">Pause</button>
+      <button id="clear" type="button">Clear metadata</button>
+    </div>
+    <output id="status">Paused</output>
+    <audio id="media" loop></audio>
+  </main>
+  <script>
+    (() => {
+      "use strict";
+      const parameters = new URLSearchParams(location.search);
+      const title = parameters.get("title") || "Crest Fixture Track";
+      const artist = parameters.get("artist") || "Local Media Session";
+      const media = document.querySelector("#media");
+      const status = document.querySelector("#status");
+      document.querySelector("#heading").textContent = title;
+
+      // One second of an 8 kHz mono tone, looped by the media element. The
+      // fixture stays tiny because the WAV is generated locally in memory.
+      const samples = 8000;
+      const buffer = new ArrayBuffer(44 + samples * 2);
+      const view = new DataView(buffer);
+      const text = (offset, value) => {
+        for (let index = 0; index < value.length; index += 1) {
+          view.setUint8(offset + index, value.charCodeAt(index));
+        }
+      };
+      text(0, "RIFF");
+      view.setUint32(4, 36 + samples * 2, true);
+      text(8, "WAVEfmt ");
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, 8000, true);
+      view.setUint32(28, 16000, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      text(36, "data");
+      view.setUint32(40, samples * 2, true);
+      for (let index = 0; index < samples; index += 1) {
+        const sample = Math.sin(index * Math.PI * 2 * 220 / 8000) * 5000;
+        view.setInt16(44 + index * 2, sample, true);
+      }
+      media.src = URL.createObjectURL(new Blob([buffer], { type: "audio/wav" }));
+      // Loaded-and-paused is the ordinary state of a media page before the reader
+      // presses play. Both mute assignments fire volumechange, which is how the
+      // element becomes known to the browser without any autoplay.
+      navigator.mediaSession.playbackState = "paused";
+      media.muted = true;
+      media.muted = false;
+
+      const generatedArtwork = () => {
+        if (parameters.get("largeArtwork") !== "1") {
+          return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+        }
+        const canvas = document.createElement("canvas");
+        const artworkAspect = parameters.get("artworkAspect");
+        canvas.width = artworkAspect === "wide" ? 640 : artworkAspect === "tall" ? 360 : 512;
+        canvas.height = artworkAspect === "wide" ? 360 : artworkAspect === "tall" ? 640 : 512;
+        const context = canvas.getContext("2d");
+        const pixels = context.createImageData(canvas.width, canvas.height);
+        let value = 0x12345678;
+        for (let index = 0; index < pixels.data.length; index += 4) {
+          value = (value * 1664525 + 1013904223) >>> 0;
+          pixels.data[index] = value & 0xff;
+          pixels.data[index + 1] = (value >>> 8) & 0xff;
+          pixels.data[index + 2] = (value >>> 16) & 0xff;
+          pixels.data[index + 3] = 0xff;
+        }
+        context.putImageData(pixels, 0, 0);
+        return canvas.toDataURL("image/png");
+      };
+      const artworkSource = generatedArtwork();
+      const artworkAspect = parameters.get("artworkAspect");
+      const artworkSizes = artworkAspect === "wide"
+        ? "640x360"
+        : artworkAspect === "tall" ? "360x640" : "512x512";
+
+      const setMetadata = suffix => {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: suffix ? `${title} ${suffix}` : title,
+          artist,
+          album: "Deterministic WebKit Fixture",
+          artwork: [{
+            src: artworkSource,
+            sizes: parameters.get("largeArtwork") === "1" ? artworkSizes : "1x1",
+            type: "image/png"
+          }]
+        });
+      };
+      setMetadata("");
+
+      const play = async () => {
+        await media.play();
+        navigator.mediaSession.playbackState = "playing";
+        status.value = "Playing";
+      };
+      const pause = () => {
+        media.pause();
+        navigator.mediaSession.playbackState = "paused";
+        status.value = "Paused";
+      };
+      navigator.mediaSession.setActionHandler("play", play);
+      navigator.mediaSession.setActionHandler("pause", pause);
+      navigator.mediaSession.setActionHandler("previoustrack", () => setMetadata("Previous"));
+      navigator.mediaSession.setActionHandler("nexttrack", () => setMetadata("Next"));
+      if (parameters.get("qualifiedPlayback") === "1") {
+        // Computer-driven Simulator validation cannot address DOM controls
+        // through UIKit accessibility. This opt-in fixture state exposes the
+        // same observable unmuted playing element as a successful Play press,
+        // without starting network media or changing production behavior.
+        Object.defineProperty(media, "paused", {
+          configurable: true,
+          get: () => false
+        });
+        media.muted = false;
+        navigator.mediaSession.playbackState = "playing";
+        media.dispatchEvent(new Event("playing", { bubbles: true }));
+        status.value = "Qualified fixture playback";
+      } else if (parameters.get("mutedPreview") === "1") {
+        // A deterministic stand-in for a browser-allowed muted hover preview.
+        // XCTest's WebContent sandbox may deny autoplay, so expose the same
+        // observable HTMLMediaElement state without depending on audio output.
+        Object.defineProperty(media, "paused", {
+          configurable: true,
+          get: () => false
+        });
+        media.muted = true;
+        navigator.mediaSession.playbackState = "playing";
+        media.dispatchEvent(new Event("playing", { bubbles: true }));
+        status.value = "Muted preview";
+      }
+      document.querySelector("#play").addEventListener("click", play);
+      document.querySelector("#pause").addEventListener("click", pause);
+      document.querySelector("#clear").addEventListener("click", () => {
+        pause();
+        navigator.mediaSession.metadata = null;
+        status.value = "Metadata cleared";
+      });
+    })();
+  </script>
+</body>
+</html>

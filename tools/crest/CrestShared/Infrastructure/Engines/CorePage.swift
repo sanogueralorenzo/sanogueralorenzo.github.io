@@ -117,10 +117,6 @@ final class CorePage {
 
     // MARK: - Actions - Navigation
 
-    /// Asks the core to load what the person typed or chose, an address or
-    /// words to search for, which the core resolves by the rules of the
-    /// page's Space and engine. False when a rule refuses it, such as a locked
-    /// Space or input that names nothing a page can load.
     @discardableResult
     func navigate(to input: String) -> Bool {
         guard !isReleased, let core else { return false }
@@ -149,9 +145,6 @@ final class CorePage {
             return false
         }
     }
-
-    /// This device's link preferences, as the core last published them.
-    var linkPreferences: LinkPreferences? { core?.state.linkPreferences }
 
     /// Whether a window the page opened with `gesture`, which its engine
     /// accepted, comes to the front. A core that cannot answer brings it
@@ -214,24 +207,11 @@ final class CorePage {
     /// or nil before one registered.
     var engines: EngineRoster? { core?.state.engines }
 
-    /// Opens `origin`'s pages on `engine` from now on, as a choice made in
-    /// `spaceID`, and moves this page there, which loads what it showed.
-    /// False when a rule refuses either, such as a locked Space.
-    @discardableResult
-    func open(_ origin: SiteOrigin, in spaceID: UUID, on engine: EngineKind) -> Bool {
-        guard !isReleased, let core else { return false }
-        return core.open(origin, in: spaceID, on: engine, moving: id)
-    }
-
-    /// Moves this page alone to `engine`, which loads what it showed; the
-    /// site's other pages keep opening where they did. False when a rule
-    /// refuses it, such as a locked Space or an engine this device did not
-    /// register.
     @discardableResult
     func move(to engine: EngineKind) -> Bool {
         guard !isReleased, let core else { return false }
         do {
-            try core.send(RehostPage(pageID: id, engine: engine, remembersSite: false))
+            try core.send(RehostPage(pageID: id, engine: engine))
             return true
         } catch {
             Self.logger.debug(

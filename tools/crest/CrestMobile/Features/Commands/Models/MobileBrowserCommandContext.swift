@@ -29,8 +29,7 @@ struct MobileBrowserCommandContext {
     let isOffered: @MainActor (ShortcutCommand) -> Bool
     let readerModeActionTitle: LocalizedStringResource
     let canToggleReaderMode: Bool
-    let canToggleTranslationToolbar: Bool
-    let isTranslationToolbarVisible: Bool
+    let canTranslatePage: Bool
     let contentBlockingActionTitle: LocalizedStringResource
 
     let openNewTab: () -> Void
@@ -44,7 +43,7 @@ struct MobileBrowserCommandContext {
     let toggleSelectedTabPinned: () -> Void
     let duplicateSelectedTab: () -> Void
     let reopenClosedTab: () -> Void
-    let cleanupCurrentTabs: () -> Void
+    let clearCurrentTabs: () -> Void
     let dismissSelectedTab: () -> Void
     let archiveSelectedTab: () -> Void
     let selectPreviousTab: () -> Void
@@ -62,9 +61,8 @@ struct MobileBrowserCommandContext {
     let selectPreviousSpace: () -> Void
     let selectNextSpace: () -> Void
     let selectSpace: (UUID) -> Void
-    let reopenArchivedTab: (UUID) -> Void
     let toggleReaderMode: () -> Void
-    let setTranslationToolbarVisible: (Bool) -> Void
+    let translatePage: () -> Void
     let toggleContentBlocking: () async -> Void
     let presentFind: () -> Void
     let zoomIn: () -> Void

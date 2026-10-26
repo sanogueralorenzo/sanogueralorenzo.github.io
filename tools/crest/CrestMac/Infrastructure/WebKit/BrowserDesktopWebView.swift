@@ -8,17 +8,10 @@ final class BrowserDesktopWebView: WKWebView {
     /// The page-owned record of this view's public AppKit editing responder.
     weak var focusRestoration: BrowserWebFocusRestorationController?
     weak var linkHover: BrowserLinkHoverController?
-    weak var linkDrag: BrowserLinkDragController?
-
-    override func mouseDown(with event: NSEvent) {
-        linkDrag?.mouseDown(event)
-        super.mouseDown(with: event)
-    }
 
     override func viewWillMove(toSuperview newSuperview: NSView?) {
         if superview !== newSuperview {
             linkHover?.detach()
-            linkDrag?.detach()
         }
         super.viewWillMove(toSuperview: newSuperview)
     }
@@ -27,7 +20,6 @@ final class BrowserDesktopWebView: WKWebView {
         super.viewDidMoveToWindow()
         if window == nil {
             linkHover?.invalidate()
-            linkDrag?.detach()
         }
     }
 
@@ -53,6 +45,7 @@ final class BrowserDesktopWebView: WKWebView {
             menu.relabelWebKitLinkDestination()
         }
         menu.removeWebKitSelectionSearch()
+        menu.removeWebKitSpelling()
         guard let menuHost, let context = menuHost.takeMenuContext() else { return }
         BrowserPageContextMenu(
             actions: menuHost.contextMenuActions(linkURL: context.linkURL, selectionText: context.selectionText),

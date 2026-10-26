@@ -3,16 +3,6 @@ import Observation
 
 // MARK: - Types
 
-struct BrowserCredentialSaveResult: Equatable, Sendable {
-    let descriptor: CredentialDescriptor
-    let disposition: BrowserCredentialSaveDisposition
-}
-
-struct BrowserCredentialSaveOperation {
-    let id: UUID
-    let completion: Task<Void, Never>
-}
-
 @Observable
 @MainActor
 final class BrowserStore {
@@ -30,9 +20,6 @@ final class BrowserStore {
     let family: BrowserStoreFamily
     /// The process's core, which every window of every browsing mode shares.
     @ObservationIgnored let core: CrestCore
-    @ObservationIgnored let credentialVault: any CredentialVault
-    @ObservationIgnored var credentialSaveOperations: [BrowserCredentialSaveKey: BrowserCredentialSaveOperation] = [:]
-    @ObservationIgnored let linkPreferences: BrowserLinkPreferenceStore
     @ObservationIgnored var pendingMovedTabActivation: BrowserTabRuntimeAssignment?
     @ObservationIgnored weak var interactionObserver: (any BrowserStoreInteractionObserving)?
     @ObservationIgnored weak var tabLinkProvider: (any BrowserTabLinkProviding)?
@@ -209,17 +196,13 @@ final class BrowserStore {
         images: [UUID: Data] = [:],
         showing spaceID: UUID? = nil,
         tabs: [UUID: UUID] = [:],
-        credentialVault: any CredentialVault = InMemoryCredentialVault(),
         browsingMode: BrowserBrowsingMode = .standard,
-        linkPreferences: BrowserLinkPreferenceStore? = nil,
         core: CrestCore = CrestCore()
     ) {
         self.init(
             opening: BrowserWindowOpening(showingSpaceID: spaceID, showingTabs: tabs, restoresTabs: spaceID == nil),
-            credentialVault: credentialVault,
             browsingMode: browsingMode,
             family: BrowserStoreFamily(seed: seed, images: images, browsingMode: browsingMode, core: core),
-            linkPreferences: linkPreferences,
             core: core
         )
     }
@@ -228,16 +211,12 @@ final class BrowserStore {
     /// says.
     init(
         opening: BrowserWindowOpening = BrowserWindowOpening(),
-        credentialVault: any CredentialVault,
         browsingMode: BrowserBrowsingMode,
         family: BrowserStoreFamily,
-        linkPreferences: BrowserLinkPreferenceStore? = nil,
         core: CrestCore
     ) {
         windowID = opening.id
-        self.linkPreferences = linkPreferences ?? BrowserLinkPreferenceStore(core: core)
         self.core = core
-        self.credentialVault = credentialVault
         self.browsingMode = browsingMode
         self.family = family
         localSyncErrorDescription = nil
@@ -289,7 +268,6 @@ final class BrowserStore {
 extension BrowserStore {
     func resetPrivateBrowsingSession() {
         guard isPrivateBrowsing else { return }
-        credentialSaveOperations.removeAll()
         family.resetDeletionState()
         interactionObserver?.browserWillResetSession()
         guard
@@ -307,10 +285,8 @@ extension BrowserStore {
         opening.copying = opening.copying ?? windowID
         let store = BrowserStore(
             opening: opening,
-            credentialVault: credentialVault,
             browsingMode: browsingMode,
             family: family,
-            linkPreferences: linkPreferences,
             core: core
         )
         store.localSyncErrorDescription = localSyncErrorDescription

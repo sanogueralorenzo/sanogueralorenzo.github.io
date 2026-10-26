@@ -13,8 +13,7 @@ final class BrowserPageEngineMoveTests: XCTestCase {
     func testAMovedPageKeepsItsIdentityAndHostsTheNewEnginesView() async throws {
         let tab = TabState.Seed(title: "Moving", url: nil, placement: .current)
         let space = SpaceState.Seed(
-            id: UUID(), profileID: UUID(), name: "Moves", symbol: "arrow.left.arrow.right",
-            accent: .teal, folders: [], tabs: [tab])
+            id: UUID(), profileID: UUID(), name: "Moves", folders: [], tabs: [tab])
         let browser = BrowserStore.hostingPages(
             SessionState.Seed(spaces: [space]), showing: space.id, tabs: [space.id: tab.id])
         let pool = BrowserPagePool(browser: browser, usesEphemeralWebsiteDataStores: true)

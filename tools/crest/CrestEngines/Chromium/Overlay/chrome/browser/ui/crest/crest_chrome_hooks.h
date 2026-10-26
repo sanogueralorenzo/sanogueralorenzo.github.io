@@ -159,10 +159,6 @@ bool OpenExternalURLs(NSArray<NSURL*>* urls);
 // Dock shows only what macOS adds. Chromium's profiles and incognito window
 // are not Crest's, so the Dock never offers them.
 NSMenu* DockMenu();
-// An app's system sign-in (`ASWebAuthenticationSession`). Crest runs it in a
-// Quick Window of the Space the app's links route to, instead of Chromium's
-// Views popup in a profile no Space owns. Both return false only when Crest is
-// not hosting, which leaves Chromium's own handling in place.
 bool BeginAuthenticationSession(ASWebAuthenticationSessionRequest* request);
 bool CancelAuthenticationSession(ASWebAuthenticationSessionRequest* request);
 NSWindow* WindowForBrowser(Browser* browser);

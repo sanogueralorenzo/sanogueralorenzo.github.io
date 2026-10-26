@@ -12,7 +12,6 @@ struct BrowserStartPageContent: View {
     let space: SpaceModel?
     let browser: BrowserStore
     let pages: BrowserPagePool
-    let spaceAccess: BrowserSpaceAccessController
     let tabPromotionNamespace: Namespace.ID
     let focusRequest: Int
     let isCommandPalettePresented: Bool
@@ -59,8 +58,7 @@ struct BrowserStartPageContent: View {
         ) {
             BrowserStartPageNavigationAction(
                 browser: browser,
-                pages: pages,
-                spaceAccess: spaceAccess
+                pages: pages
             ).perform(source, url: url)
         }
     }
@@ -70,7 +68,7 @@ struct BrowserStartPageContent: View {
         _ target: BrowserTabRuntimeAssignment
     ) -> Bool {
         guard
-            let destination = browser.paletteTarget(target, from: source, accessController: spaceAccess)
+            let destination = browser.paletteTarget(target, from: source)
         else { return false }
         browser.selectSpace(destination.space.id)
         browser.selectTab(destination.tab.id)
@@ -81,6 +79,6 @@ struct BrowserStartPageContent: View {
     private func isSourceAvailable(
         _ source: BrowserTabRuntimeAssignment
     ) -> Bool {
-        browser.isPaletteSourceAvailable(source, accessController: spaceAccess)
+        browser.isPaletteSourceAvailable(source)
     }
 }

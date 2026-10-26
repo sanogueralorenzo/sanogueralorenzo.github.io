@@ -25,16 +25,14 @@ final class BrowserRecentTabSnapshots {
 
     private(set) var images: [UUID: NSImage] = [:]
     @ObservationIgnored private let context: BrowserMacWindowContext
-    @ObservationIgnored private let isLocked: @MainActor (SpaceModel) -> Bool
     @ObservationIgnored private var lastCaptures: [UUID: Date] = [:]
     @ObservationIgnored private var isFollowing = false
     @ObservationIgnored private var settling: Task<Void, Never>?
 
     // MARK: - Initializers
 
-    init(context: BrowserMacWindowContext, isLocked: @escaping @MainActor (SpaceModel) -> Bool) {
+    init(context: BrowserMacWindowContext) {
         self.context = context
-        self.isLocked = isLocked
     }
 
     // MARK: - Actions - Following
@@ -75,7 +73,7 @@ final class BrowserRecentTabSnapshots {
     /// Pictures `tabIDs` of the Space the window shows, when they are resident,
     /// skipping a tab pictured moments ago unless `refreshing`.
     func capture(_ tabIDs: [UUID], refreshing: Bool = false) {
-        guard BrowserAppPreferenceStore.shared.showsRecentTabs, let space = context.browser.shownSpace, !isLocked(space)
+        guard let space = context.browser.shownSpace
         else {
             return
         }

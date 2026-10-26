@@ -9,7 +9,7 @@ enum BrowserTranslationPreference {
     /// Every language Apple translates, and the ones its low-latency models
     /// cover. A pair outside the low-latency models uses Apple's default model.
     struct Languages: Sendable {
-        /// Before Apple answers: no languages, and low latency for every pair.
+        /// Before Apple answers, language metadata is empty.
         static let unloaded = Languages(all: [], lowLatencyIDs: [])
 
         let all: [Locale.Language]
@@ -46,11 +46,4 @@ enum BrowserTranslationPreference {
         return LanguageAvailability()
     }
 
-    nonisolated static func preferredTarget(
-        in available: [Locale.Language], preferred: Locale.Language
-    ) -> Locale.Language {
-        available.first { $0.minimalIdentifier == preferred.minimalIdentifier }
-            ?? available.first { $0.languageCode == preferred.languageCode && $0.script == preferred.script }
-            ?? preferred
-    }
 }

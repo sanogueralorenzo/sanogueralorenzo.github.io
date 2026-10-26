@@ -12,8 +12,6 @@ final class BrowserMacDownloadFeedbackState {
     }
 
     private(set) var flights: [Flight] = []
-    private(set) var arrivalID: UUID?
-    private(set) var arrivalCount = 0
     @ObservationIgnored private var observedIDs: Set<UUID> = []
     @ObservationIgnored private var previousContext: BrowserMacDownloadFeedbackContext?
 
@@ -29,7 +27,6 @@ final class BrowserMacDownloadFeedbackState {
         }
         guard previousContext != nil else { return false }
         if previousContext != context { cancel() }
-        if let arrivalID, !currentIDs.contains(arrivalID) { self.arrivalID = nil }
         // The flights are worked out apart and stored only when they differ:
         // every tab switch changes the context, and a write announces the
         // flights to the window even when there are none.
@@ -50,16 +47,11 @@ final class BrowserMacDownloadFeedbackState {
     }
 
     func arrive(_ id: UUID) {
-        guard arrivalID != id,
-            flights.contains(where: { $0.id == id && $0.path != nil })
-        else { return }
-        arrivalID = id
-        arrivalCount += 1
+        flights.removeAll { $0.id == id }
     }
 
     func cancel() {
         if !flights.isEmpty { flights.removeAll() }
-        if arrivalID != nil { arrivalID = nil }
     }
 
     private func path(

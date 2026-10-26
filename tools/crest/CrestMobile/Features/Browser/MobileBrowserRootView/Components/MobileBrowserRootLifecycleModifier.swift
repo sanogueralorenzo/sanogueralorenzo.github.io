@@ -4,10 +4,6 @@ import SwiftUI
 struct MobileBrowserRootLifecycleModifier: ViewModifier {
     let model: MobileBrowserRootModel
     let presentation: MobileBrowserPresentation
-    /// Opens a new tab with its address field focused, for a launch that
-    /// starts on one.
-    let openNewTab: () -> Void
-
     @Binding var isAddressEditing: Bool
     @Binding var storedSidebarWidth: Double
     @State private var runtimeSessionProjection: BrowserRuntimeSessionProjection
@@ -19,13 +15,11 @@ struct MobileBrowserRootLifecycleModifier: ViewModifier {
     init(
         model: MobileBrowserRootModel,
         presentation: MobileBrowserPresentation,
-        openNewTab: @escaping () -> Void,
         isAddressEditing: Binding<Bool>,
         storedSidebarWidth: Binding<Double>
     ) {
         self.model = model
         self.presentation = presentation
-        self.openNewTab = openNewTab
         _isAddressEditing = isAddressEditing
         _storedSidebarWidth = storedSidebarWidth
         _runtimeSessionProjection = State(
@@ -40,20 +34,12 @@ struct MobileBrowserRootLifecycleModifier: ViewModifier {
         let preparedContent =
             content
             .task {
-                if await model.prepareBrowser() {
-                    openNewTab()
-                }
+                await model.prepareBrowser()
             }
             .modifier(
                 BrowserRootSelectionObserver(
                     selection: model.selectionSnapshot,
-                    lock: model.lockSnapshot(presentation: presentation),
-                    // A Space already locked when the shell appears still needs
-                    // its locked arrangement — the tab viewer rather than a
-                    // page — so the first evaluation counts as a transition.
-                    evaluatesLockInitially: true,
-                    selectionChanged: synchronizeSelection,
-                    lockChanged: model.synchronizeLockTransition
+                    selectionChanged: synchronizeSelection
                 )
             )
 
@@ -90,12 +76,6 @@ struct MobileBrowserRootLifecycleModifier: ViewModifier {
             ) {
                 model.reconcileContentBlocking()
             }
-            .onChange(
-                of: runtimeSessionProjection.credentialAccessState,
-                initial: true
-            ) {
-                model.reconcileCredentialAccess()
-            }
 
         return
             runtimeObservedContent
@@ -106,9 +86,6 @@ struct MobileBrowserRootLifecycleModifier: ViewModifier {
                 of: model.navigation.regularSidebarPresentation
             ) { _, presentation in
                 model.regularSidebarPresentationChanged(presentation)
-            }
-            .onChange(of: model.lockedSpaceIDs, initial: true) { _, spaceIDs in
-                model.relockProtectedSpaces(spaceIDs)
             }
     }
 

@@ -19,17 +19,14 @@ struct BrowserMacApplicationAction: Hashable {
     static let stopAllAgents = BrowserMacApplicationAction(
         name: "stop-all-agents", title: "Stop All Agents", symbol: "stop.circle",
         isEnabled: { $0.hasConnectedAgents }, perform: { $0.stopAllAgents() })
-    static let gettingStarted = BrowserMacApplicationAction(
-        name: "getting-started", title: "Getting Started with Crest"
-    ) { $0.openGettingStarted() }
     /// Translates the whole shown page, offered while the translation toolbar
     /// is.
     static let translatePage = BrowserMacApplicationAction(
-        name: "translate-page", title: "Translate Page", symbol: "translate", offeredWith: .toggleTranslationToolbar,
-        isEnabled: { $0.pageActions?.canPerform(.toggleTranslationToolbar) == true },
+        name: "translate-page", title: "Translate Page", symbol: "translate", offeredWith: .translatePage,
+        isEnabled: { $0.pageActions?.canPerform(.translatePage) == true },
         perform: { $0.pageActions?.translatePage() })
     static let all: [BrowserMacApplicationAction] = [
-        about, updates, settings, stopAllAgents, gettingStarted, translatePage,
+        about, updates, settings, stopAllAgents, translatePage,
     ]
 
     // MARK: - Variables

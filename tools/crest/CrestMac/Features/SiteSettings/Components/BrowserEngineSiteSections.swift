@@ -16,14 +16,12 @@ struct BrowserEngineSitePermissionsSection: View {
     let page: BrowserPage
     let origin: SiteOrigin
     let permissionCenter: BrowserSitePermissionCenter
-    @Binding var isExpanded: Bool
 
     var body: some View {
-        BrowserSitePermissionDisclosure(
+        BrowserSitePermissionList(
             origin: origin,
             spaceID: page.spaceID,
-            permissionCenter: permissionCenter,
-            isExpanded: $isExpanded
+            permissionCenter: permissionCenter
         )
     }
 }

@@ -29,6 +29,11 @@ final class WebKitEngineBinding: EngineBinding {
         weak var value: WebKitEnginePage?
     }
 
+    struct WeakIntegrationSession {
+        weak var value: WebKitIntegrationSession?
+        let profileID: UUID
+    }
+
     struct WeakStore {
         weak var value: WKWebsiteDataStore?
     }
@@ -47,20 +52,17 @@ final class WebKitEngineBinding: EngineBinding {
     }
 
     /// A modified link's request one of this binding's pages staged for the
-    /// Peek the core opens for it, which replays the initiator's referrer.
+    /// page the core opens for it, which replays the initiator's referrer.
     struct StagedLink {
         let request: URLRequest
         /// The page the link was followed in.
         let sourcePageID: UUID
-        /// The store the source page browses in, which the Peek's page must
-        /// share.
         weak var dataStore: WKWebsiteDataStore?
         let stagedAt: Date
     }
 
     // MARK: - Static Variables
 
-    /// How long a staged link waits for its Peek, and how many may wait.
     private static let stagedLinkLifetime: TimeInterval = 300
     private static let stagedLinkLimit = 16
 
@@ -77,6 +79,7 @@ final class WebKitEngineBinding: EngineBinding {
     /// core erases the profile: every private profile's, and every profile's
     /// when the launch keeps nothing on disk.
     var memoryStores: [UUID: WKWebsiteDataStore] = [:]
+    var integrationSessions: [WeakIntegrationSession] = []
     /// The store on disk each other profile's pages use, while one holds it,
     /// which its next page shares and a site's data is cleared from.
     private(set) var liveStores: [UUID: WeakStore] = [:]
@@ -157,7 +160,7 @@ final class WebKitEngineBinding: EngineBinding {
     // MARK: - Actions - Staged links
 
     /// Keeps the request of a modified link `page` followed under a new
-    /// identity, so the Peek the core opens for it replays the initiator's
+    /// identity, so the page the core opens for it replays the initiator's
     /// referrer instead of a bare address. Only a plain GET is staged: WebKit
     /// has no public way to hand another view a form body, the initiating
     /// origin, user activation or sandbox flags.
@@ -213,19 +216,6 @@ final class WebKitEngineBinding: EngineBinding {
 
     // MARK: - Actions - Offered pages
 
-    /// Offers the core `popup`, the page WebKit made for `opener`'s document
-    /// to load `request`, as `PageOffered` from its opener, and answers the
-    /// page the core adopted it as, or nil when the core refused it. The core
-    /// decides where the page shows, and it runs on WebKit, its opener's
-    /// engine; one the core keeps in the opener instead, as a Quick Window or
-    /// Peek keeps what it opens, loads `request` there. A window asked for
-    /// with no address heads to the empty document. A popup that wants a
-    /// window of its own is offered as one, in
-    /// its opener's Space, on the Mac, whose Quick Windows show it; iPhone and
-    /// iPad show every popup as a tab. The core adopts or refuses it on this
-    /// stack, while WebKit waits, and the changes it made are applied before
-    /// this returns, so the page's owner hosts the page, and answers its
-    /// navigations, before WebKit starts the first one.
     func offer(
         _ popup: WebKitPopup, from opener: WebKitEnginePage, for request: URLRequest, foreground: Bool
     ) -> WebKitEnginePage? {
@@ -238,19 +228,13 @@ final class WebKitEngineBinding: EngineBinding {
         let url = request.url.map(\.absoluteString).flatMap { $0.isEmpty ? nil : $0 } ?? "about:blank"
         offers[offerID] = Offer(popup: popup, space: space, sourcePageID: opener.id, request: request)
         defer { offers[offerID] = nil }
-        #if os(macOS)
-            let window = popup.wantsWindow ? source?.spaceID : nil
-        #else
-            let window: UUID? = nil
-        #endif
         report(
             PageOffered(
-                offerID: offerID, profileID: opener.profileID, sourcePageID: opener.id, windowID: nil, spaceID: window,
+                offerID: offerID, profileID: opener.profileID, sourcePageID: opener.id, windowID: nil, spaceID: nil,
                 url: url, foreground: foreground))
         guard let page = adoptedOffers.removeValue(forKey: offerID) else {
             DiagnosticLog.popups.notice(
-                "The core gave the window page \(opener.id) asked for no page of its own "
-                    + "(window: \(popup.wantsWindow))")
+                "The core refused the popup from page \(opener.id)")
             return nil
         }
         engines.core.drain()
@@ -282,7 +266,7 @@ final class WebKitEngineBinding: EngineBinding {
             popup?.configuration
             ?? BrowserPageConfiguration.make(
                 for: BrowsingProfile(id: creation.profileID),
-                websiteDataStore: store(for: creation),
+                websiteDataStore: store(profileID: creation.profileID, isPrivate: creation.isPrivate),
                 contentRuleLists: contentRuleLists,
                 preferredContentMode: BrowserPlatformWebKit.preferredContentMode,
                 decorate: BrowserPlatformWebKit.decorate)
@@ -316,9 +300,8 @@ final class WebKitEngineBinding: EngineBinding {
     /// nothing on disk, made the first time a page of the profile asks for
     /// it; otherwise the profile's store on disk, which its pages share while
     /// one holds it.
-    private func store(for creation: CreatePage) -> WKWebsiteDataStore {
-        let profileID = creation.profileID
-        if creation.isPrivate || keepsProfilesInMemory {
+    func store(profileID: UUID, isPrivate: Bool) -> WKWebsiteDataStore {
+        if isPrivate || keepsProfilesInMemory {
             if let store = memoryStores[profileID] { return store }
             let store = WKWebsiteDataStore.nonPersistent()
             memoryStores[profileID] = store

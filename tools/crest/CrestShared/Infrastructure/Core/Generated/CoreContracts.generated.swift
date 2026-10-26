@@ -930,10 +930,19 @@ struct AppConfiguration: Equatable, Sendable {
 }
 
 struct AppPreferences: Equatable, Sendable {
-    static let `default` = AppPreferences(translationLanguage: "en", searchProvider: SearchProvider.google)
+    static let `default` = AppPreferences(
+        translationLanguage: "en",
+        searchProvider: SearchProvider.google,
+        translateAutomatically: false,
+        excludedTranslationLanguages: [],
+        searchSuggestionsEnabled: false
+    )
 
     var translationLanguage: String
     var searchProvider: SearchProvider
+    var translateAutomatically: Bool
+    var excludedTranslationLanguages: [String]
+    var searchSuggestionsEnabled: Bool
 }
 
 struct AppPreferencesChanged: CoreChange, Equatable, Sendable {

@@ -3,7 +3,6 @@ import SwiftUI
 struct MobileBrowserDetailSurface: View {
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
-    let spaceAccess: BrowserSpaceAccessController
     @Binding var address: String
     @Binding var isAddressEditing: Bool
     let addressFocusRequest: Int
@@ -21,15 +20,13 @@ struct MobileBrowserDetailSurface: View {
     let showCompactToolbar: () -> Void
     let showSwipedTab: (UUID) -> Void
     let compactTransitionEnded: (CGSize) -> Void
-    var transientBrowsing: BrowserTransientBrowsingCoordinator?
-    var didPromoteTransientPage: () -> Void = {}
+
     var showHistory: () -> Void = {}
 
     var body: some View {
         MobileBrowserDetailView(
             browser: browser,
             pages: pages,
-            spaceAccess: spaceAccess,
             address: $address,
             isAddressEditing: $isAddressEditing,
             addressFocusRequest: addressFocusRequest,
@@ -47,8 +44,7 @@ struct MobileBrowserDetailSurface: View {
             showCompactToolbar: showCompactToolbar,
             showSwipedTab: showSwipedTab,
             compactTransitionEnded: compactTransitionEnded,
-            transientBrowsing: transientBrowsing,
-            didPromoteTransientPage: didPromoteTransientPage,
+
             showHistory: showHistory
         )
     }

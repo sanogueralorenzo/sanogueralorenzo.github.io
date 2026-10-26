@@ -39,13 +39,10 @@ extension BrowserPagePool {
         }
     }
 
-    /// Each Space owns one content surface in the retained strip. A resident
-    /// page may be drawn there before activation, but it cannot own focus or
-    /// input until selection commits. Locked surfaces never mount live pages.
     func surfacePage(
-        for tabID: UUID, in space: SpaceModel, accessController: BrowserSpaceAccessController
+        for tabID: UUID, in space: SpaceModel
     ) -> BrowserPage? {
-        guard !accessController.isLocked(space), browser.cards(in: space).contains(where: { $0.id == tabID }) else {
+        guard browser.cards(in: space).contains(where: { $0.id == tabID }) else {
             return nil
         }
         return residentPage(

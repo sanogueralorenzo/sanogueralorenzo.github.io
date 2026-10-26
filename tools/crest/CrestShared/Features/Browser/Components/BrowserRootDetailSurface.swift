@@ -29,7 +29,7 @@ struct BrowserRootDetailSurface<Content: View>: View {
     var frameInsets: (EdgeInsets) -> EdgeInsets = { $0 }
     let content: Content
 
-    private var appearance: BrowserChromeAppearance { .device(windowCornerRadius: windowCornerRadius) }
+    private var appearance: BrowserChromeAppearance { .init(windowCornerRadius: windowCornerRadius) }
 
     var body: some View {
         BrowserRootContentSurface(

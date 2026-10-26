@@ -6,17 +6,17 @@ struct BrowserSpaceEditorSection: Hashable, Identifiable, Sendable {
 
     /// Each half shows its own pane, so the editor switches over the kind.
     enum Kinds: Sendable {
-        case appearance
+        case identity
         case settings
     }
 
     // MARK: - Static Variables
 
-    static let appearance = BrowserSpaceEditorSection(kind: .appearance, name: "appearance", title: "Appearance")
+    static let identity = BrowserSpaceEditorSection(kind: .identity, name: "identity", title: "Identity")
     static let settings = BrowserSpaceEditorSection(kind: .settings, name: "settings", title: "Details")
 
     /// Every half, in the picker's order.
-    static let all: [BrowserSpaceEditorSection] = [appearance, settings]
+    static let all: [BrowserSpaceEditorSection] = [identity, settings]
 
     // MARK: - Variables
 

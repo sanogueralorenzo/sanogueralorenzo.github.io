@@ -75,11 +75,7 @@ final class BrowserSystemNowPlayingCoordinator {
         guard let selectedSession,
             selectedSession.availableActions.contains(action)
         else { return false }
-        let widgetID = BrowserSidebarWidgetID(
-            kindID: .nowPlaying,
-            instanceID: selectedSession.id.id
-        )
-        store.perform(.mediaSession(action), on: widgetID)
+        store.perform(action, on: selectedSession.id)
         return true
     }
 }

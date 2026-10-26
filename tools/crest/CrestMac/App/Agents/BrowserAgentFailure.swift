@@ -53,10 +53,6 @@ struct BrowserAgentFailure: Error, Sendable {
         Self("The page has no element \(uid) now. Take a new snapshot and use its uids.")
     }
 
-    static func spaceLocked(_ name: String) -> Self {
-        Self("The \(name) Space is locked. Ask the person to unlock it in Crest.")
-    }
-
     static func script(_ message: String) -> Self {
         Self("The script threw: \(message)")
     }

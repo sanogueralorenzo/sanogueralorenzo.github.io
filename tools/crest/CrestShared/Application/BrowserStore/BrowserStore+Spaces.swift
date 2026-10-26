@@ -3,12 +3,6 @@ import Foundation
 // MARK: - Spaces and Import
 
 extension BrowserStore {
-    /// Composition gives the app's one access controller every store whose
-    /// workspace shows Spaces it may unlock, including private browsing. The
-    /// core's own records refuse a locked Space whatever the views believe.
-    func attachSpaceAccess(_ controller: BrowserSpaceAccessController) {
-        controller.attach(self)
-    }
 
     func addSpace() {
         family.send(
@@ -41,7 +35,6 @@ extension BrowserStore {
             from: self)
 
         try await dataDeleter.deleteData(for: space)
-        try await credentialVault.deleteAll(in: id)
 
         try family.commit(
             FinishDeletingSpace(
@@ -91,49 +84,11 @@ extension BrowserStore {
 
     func updateSpaceIdentity(
         _ spaceID: UUID,
-        name: String,
-        symbol: String,
-        accent: SpaceAccent
+        name: String
     ) {
         sendSpaceSettings(
             SetSpaceIdentity(
-                workspaceID: profileSettingsBrowser.family.workspaceID, spaceID: spaceID, name: name,
-                symbol: symbol, accent: accent))
-    }
-
-    /// The core applies its branding rules to the look before it keeps it.
-    func updateSpaceBranding(
-        _ branding: SpaceBranding,
-        in spaceID: UUID
-    ) {
-        sendSpaceSettings(
-            SetSpaceBranding(
-                workspaceID: profileSettingsBrowser.family.workspaceID, spaceID: spaceID,
-                branding: branding))
-    }
-
-    func setDefaultSpace(_ spaceID: UUID) {
-        sendSpaceSettings(
-            SetDefaultSpace(workspaceID: profileSettingsBrowser.family.workspaceID, spaceID: spaceID))
-    }
-
-    /// Sets who may open a Space through the core, and answers the rule that
-    /// refused it, such as the Space being locked, or nil once the core took
-    /// it. A refusal is the caller's to show; it is no sync failure.
-    @discardableResult
-    func updateSpaceAccessPolicy(
-        _ accessPolicy: SpaceAccessPolicy,
-        in spaceID: UUID
-    ) -> Rejection? {
-        let owner = profileSettingsBrowser
-        do throws(Rejection) {
-            try owner.family.commit(
-                SetSpaceAccess(workspaceID: owner.family.workspaceID, spaceID: spaceID, policy: accessPolicy),
-                from: owner)
-            return nil
-        } catch {
-            return error
-        }
+                workspaceID: profileSettingsBrowser.family.workspaceID, spaceID: spaceID, name: name))
     }
 
     /// Sends an intent about a Space's settings to the workspace that owns
@@ -153,10 +108,8 @@ extension BrowserStore {
             failure: "Core Space command failed")
     }
 
-    /// Sets a Space's browsing preferences through the core: when it cleans up
-    /// current tabs, how it blocks content and how long it keeps what it
-    /// browses, only when they differ from what the read model holds. What the
-    /// Space searches with is `setSearch`'s.
+    /// Sets how a Space blocks content and keeps browsing records through the core,
+    /// only when they differ from what the read model holds.
     func updateBrowsingPreferences(
         _ preferences: BrowsingPreferences,
         in spaceID: UUID
@@ -164,52 +117,20 @@ extension BrowserStore {
         let owner = profileSettingsBrowser
         guard let current = owner.spaceModel(spaceID)?.settings.browsingPreferences else { return }
         guard
-            preferences.currentTabCleanup != current.currentTabCleanup
-                || preferences.contentBlocking != current.contentBlocking
+            preferences.contentBlocking != current.contentBlocking
                 || preferences.dataRetention != current.dataRetention
         else { return }
         sendSpaceSettings(
             SetBrowsingPreferences(
                 workspaceID: owner.family.workspaceID, spaceID: spaceID,
-                currentTabCleanup: preferences.currentTabCleanup,
                 contentBlocking: preferences.contentBlocking, dataRetention: preferences.dataRetention))
     }
 
-    /// Makes a Space search with `provider`, or the device's default search for
-    /// nil, and suggest searches as `suggestions` says, or as the default does
-    /// for nil.
-    func setSearch(_ provider: SearchProvider?, suggestions: Bool?, in spaceID: UUID) {
-        let owner = profileSettingsBrowser
-        sendSpaceSettings(
-            SetSpaceSearch(
-                workspaceID: owner.family.workspaceID, spaceID: spaceID, provider: provider?.seed,
-                suggestionsEnabled: suggestions))
-    }
 }
 
 // MARK: - Folders
 
 extension BrowserStore {
-    @discardableResult
-    func setSavedTabsExpanded(
-        _ isExpanded: Bool,
-        in spaceID: UUID
-    ) -> Bool {
-        sendSpaceSettings(
-            ExpandSavedTabs(
-                workspaceID: profileSettingsBrowser.family.workspaceID, spaceID: spaceID,
-                isExpanded: isExpanded))
-    }
-
-    @discardableResult
-    func setSavedTabsExpanded(
-        _ isExpanded: Bool,
-        matching assignment: BrowserSpaceRuntimeAssignment
-    ) -> Bool {
-        guard spaceModel(matching: assignment) != nil else { return false }
-        return setSavedTabsExpanded(isExpanded, in: assignment.spaceID)
-    }
-
     @discardableResult
     func addFolder(
         title: String = BrowserStore.newFolderTitle,
@@ -222,7 +143,7 @@ extension BrowserStore {
             family.send(
                 CreateFolder(
                     workspaceID: family.workspaceID, spaceID: spaceID, folderID: folderID,
-                    placement: .saved, parentID: parentID, title: title, color: color, symbol: "folder",
+                    placement: .saved, parentID: parentID, title: title, color: color,
                     tabIDs: [], leavesSplits: false),
                 from: self)
         else { return nil }
@@ -236,7 +157,7 @@ extension BrowserStore {
         return family.canSend(
             CreateFolder(
                 workspaceID: family.workspaceID, spaceID: assignment.spaceID, folderID: UUID(),
-                placement: .saved, parentID: parentID, title: nil, color: nil, symbol: nil, tabIDs: [],
+                placement: .saved, parentID: parentID, title: nil, color: nil, tabIDs: [],
                 leavesSplits: false),
             from: self)
     }
@@ -299,34 +220,6 @@ extension BrowserStore {
             folderID,
             in: assignment.spaceID,
             color: color
-        )
-    }
-
-    @discardableResult
-    func setFolderSymbol(
-        _ folderID: UUID,
-        in spaceID: UUID,
-        symbol: String
-    ) -> Bool {
-        family.send(
-            SetFolderSymbol(
-                workspaceID: family.workspaceID, spaceID: spaceID, folderID: folderID,
-                symbol: symbol),
-            from: self)
-    }
-
-    @discardableResult
-    func setFolderSymbol(
-        _ folderID: UUID,
-        matching assignment: BrowserSpaceRuntimeAssignment,
-        symbol: String
-    ) -> Bool {
-        guard let space = spaceModel(matching: assignment), space.folders.contains(folderID)
-        else { return false }
-        return setFolderSymbol(
-            folderID,
-            in: assignment.spaceID,
-            symbol: symbol
         )
     }
 

@@ -98,8 +98,7 @@ final class WebKitEnginePage: EngineHostedPage {
     // MARK: - Actions - Links
 
     /// What a person's activation of the link to `url` in the page does, as
-    /// the core decides from the page's tab, how a page without one presents,
-    /// `gesture` and this device's link preferences. A link with no address
+    /// the core decides from the page's tab and `gesture`. A link with no address
     /// loads in the page. A page no binding holds lets a person's own
     /// top-level click open a new tab, so a pinned or saved tab never leaves
     /// the page it keeps.
@@ -111,8 +110,6 @@ final class WebKitEnginePage: EngineHostedPage {
         return answer.decision
     }
 
-    /// Stages `request`, a modified link the page followed, for the Peek the
-    /// core opens for it; nil for a link that cannot be staged.
     func stageLink(_ request: URLRequest) -> BrowserEngineNavigation? {
         binding?.stageLink(request, from: self)
     }

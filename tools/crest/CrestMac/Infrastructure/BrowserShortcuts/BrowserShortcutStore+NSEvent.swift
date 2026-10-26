@@ -1,7 +1,7 @@
 import AppKit
 
 extension BrowserShortcutStore {
-    /// Resolve live assignments before dispatch, including unassigned defaults.
+    /// Resolve the fixed bindings before dispatch.
     /// Disabled commands leave the event available to the focused native control.
     func command(for event: NSEvent, isEnabled: (ShortcutCommand) -> Bool) -> ShortcutCommand? {
         guard event.type == .keyDown, let shortcut = BrowserShortcut(event: event), shortcut.isValid else { return nil }

@@ -14,19 +14,14 @@ protocol BrowserAutomaticPictureInPictureClient: AnyObject {
 final class BrowserAutomaticPictureInPictureCoordinator {
     static let shared = BrowserAutomaticPictureInPictureCoordinator()
 
-    private let isEnabled: @MainActor () -> Bool
     private let isSystemOccupied: @MainActor () -> Bool
     private let clients = NSHashTable<AnyObject>.weakObjects()
     private weak var pendingClient: (any BrowserAutomaticPictureInPictureClient)?
     private var reservation: UUID?
 
     init(
-        isEnabled: @escaping @MainActor () -> Bool = {
-            BrowserAppPreferenceStore.shared.automaticallyEntersPictureInPicture
-        },
         isSystemOccupied: @escaping @MainActor () -> Bool = { BrowserDesktopPictureInPictureAccess.isSystemOccupied() }
     ) {
-        self.isEnabled = isEnabled
         self.isSystemOccupied = isSystemOccupied
     }
 
@@ -35,7 +30,7 @@ final class BrowserAutomaticPictureInPictureCoordinator {
     }
 
     func request(from client: any BrowserAutomaticPictureInPictureClient) {
-        guard isEnabled(), client.canAutomaticallyEnterPictureInPicture,
+        guard client.canAutomaticallyEnterPictureInPicture,
             pendingClient == nil,
             !clients.allObjects.contains(where: {
                 ($0 as? any BrowserAutomaticPictureInPictureClient)?.isPictureInPictureActive == true

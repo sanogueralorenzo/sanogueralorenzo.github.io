@@ -402,11 +402,6 @@ void EngineBrowsers::Offer(base::WeakPtr<content::WebContents> contents, bool fo
   if (!contents || binding.disposing() || binding.PageFor(contents.get())) {
     return;
   }
-  // A window whose link opened in Peek is never offered, and closes.
-  if (binding.Withholds(contents.get())) {
-    Destroy(contents.get());
-    return;
-  }
   KeptBrowser* host = HoldingKept(contents.get());
   // A window the engine created for itself has no Crest window until one of
   // its tabs needs it. A renderer's popup keeps its opener's window instead:

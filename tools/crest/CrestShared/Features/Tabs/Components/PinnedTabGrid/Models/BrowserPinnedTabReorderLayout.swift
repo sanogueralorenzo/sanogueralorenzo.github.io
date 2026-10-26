@@ -5,7 +5,7 @@ import CoreGraphics
 struct BrowserPinnedTabReorderLayout: Equatable {
     // MARK: - Static Variables
 
-    static let cellHeight: CGFloat = 47
+    static let cellHeight: CGFloat = 34
     static let spacing = CrestSpacing.small
 
     // MARK: - Types
@@ -79,10 +79,9 @@ struct BrowserPinnedTabReorderLayout: Equatable {
     func applyingPreferences(width: CGFloat, touch: Bool) -> Self {
         var value = self
         value.availableWidth = width.isFinite ? max(0, width) : BrowserChromeLayout.sidebarIdealWidth
-        let appearance = BrowserDeviceAppearanceStore.shared
-        value.preferredColumns = min(max(appearance.pinColumns, 0), 6)
-        value.fillsLastRow = appearance.pinsFillRow
-        let scale = appearance.tabScale
+        value.preferredColumns = 0
+        value.fillsLastRow = false
+        let scale = 1.0
         value.tabScale = scale
         value.tileHeight = BrowserSidebarDensity(scale).pinHeight(touch: touch)
         value.tileSpacing = BrowserSidebarDensity(scale).pinSpacing

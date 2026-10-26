@@ -3,17 +3,14 @@ import Foundation
 @MainActor
 struct BrowserSettingsSpaceSelectionAction {
     let browser: BrowserStore
-    let spaceAccess: BrowserSpaceAccessController
 
     @discardableResult
     func select(_ id: UUID, matching source: BrowserTabRuntimeAssignment) -> BrowserTabRuntimeAssignment? {
         guard
-            let sourceSpace = browser.selectedUnlockedSpace(
-                matching: BrowserSpaceRuntimeAssignment(spaceID: source.spaceID, profileID: source.profileID),
-                accessController: spaceAccess),
+            let sourceSpace = browser.selectedAvailableSpace(
+                matching: BrowserSpaceRuntimeAssignment(spaceID: source.spaceID, profileID: source.profileID)),
             sourceSpace.tabs.model(source.tabID)?.nativeTabContent == .settings,
-            let destination = browser.availableSpaces.first(where: { $0.id == id }),
-            !spaceAccess.isLocked(destination)
+            let destination = browser.availableSpaces.first(where: { $0.id == id })
         else { return nil }
 
         browser.selectSpace(id)

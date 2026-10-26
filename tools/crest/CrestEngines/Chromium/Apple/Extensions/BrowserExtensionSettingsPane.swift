@@ -2,7 +2,6 @@ import SwiftUI
 
 struct BrowserExtensionSettingsPane: View {
     let browser: BrowserStore
-    let spaceAccess: BrowserSpaceAccessController
     /// The one Space whose extensions the pane shows, or nil to pick one.
     var fixedSpaceID: UUID?
     @State private var selectedSpaceID: UUID?
@@ -20,12 +19,8 @@ struct BrowserExtensionSettingsPane: View {
                         spaces: CrestSpaceIdentity.list(browser.spaceModels))
                 }
             }
-            if let space, !spaceAccess.isLocked(space) {
+            if let space {
                 BrowserExtensionsView(space: space, store: store).id(space.profileID)
-            } else if let space {
-                BrowserSettingsPrivateSpaceAccessSection(
-                    space: space, accessController: spaceAccess,
-                    detail: "Unlock this Space to see its extensions.")
             }
         }
         .onAppear { if selectedSpaceID == nil { selectedSpaceID = browser.selectedSpaceID } }

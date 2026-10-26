@@ -7,7 +7,7 @@ import Foundation
 extension ExternalWebLink {
     // MARK: - Actions - Answer
 
-    /// Whether another application, a drop, a peek, a popup or a menu item may
+    /// Whether another application, a drop, a popup or a menu item may
     /// hand Crest this URL as a web link: HTTP or HTTPS with a host.
     static func accepts(_ url: URL) -> Bool {
         let question = ExternalWebLink(scheme: url.scheme.nonEmpty, host: url.host(percentEncoded: false).nonEmpty)

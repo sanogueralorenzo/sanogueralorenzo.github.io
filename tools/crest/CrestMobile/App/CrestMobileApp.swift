@@ -30,14 +30,10 @@ struct CrestMobileApp: App {
 private final class BrowserMobileApplication {
     let browser: BrowserStore
     let cloudSync: BrowserCloudSyncController
-    let onboardingProgress: BrowserOnboardingProgressStore
-    let onboardingCoordinator: BrowserOnboardingCoordinator
     let pages: MobileBrowserPageStore
-    let spaceAccess: BrowserSpaceAccessController
     /// The app's one passkey controller, which settings show.
     let passkeyAccess: BrowserPasskeyAccessController
     let shortcuts: BrowserShortcutStore
-    let sidebarWidgets: BrowserSidebarWidgetRuntime
     let permissionCenter: BrowserSitePermissionCenter
     let pageStoreRegistry: MobileBrowserPageStoreRegistry
     let mediaSessions: BrowserMediaSessionStore
@@ -47,8 +43,6 @@ private final class BrowserMobileApplication {
     let privateDownloads: MobileBrowserDownloads
     let tabStateArchive: (any BrowserTabStateArchiving)?
     let windowLayouts: BrowserWindowLayouts
-    let startupBehavior: StartupBehavior
-    let automaticallyPresentsOnboarding: Bool
     let usesEphemeralWebsiteDataStores: Bool
     let presentsInstalledApplicationUI: Bool
     /// The app's one memory pressure monitor, which relieves every window's
@@ -64,7 +58,6 @@ private final class BrowserMobileApplication {
             setenv("CREST_ISOLATED_PERSISTENCE_ID", "core-native-ui-review", 0)
         #endif
         let launchEnvironment = BrowserLaunchEnvironment.current
-        let forceOnboarding = launchEnvironment.forcesOnboardingWelcome
         let usesIsolatedLaunch = launchEnvironment.requiresIsolation
         BrowserAutomaticQuoteSubstitutionPreference.registerDefault()
         presentsInstalledApplicationUI =
@@ -78,14 +71,8 @@ private final class BrowserMobileApplication {
         // defaults, carried once; the link preferences come first, since every
         // window's store reads them.
         let legacyDevice = BrowserLegacyDeviceDefaults.read(for: launchEnvironment)
-        BrowserLinkPreferenceStore.adopt(legacyDevice.linkPreferences, into: core)
         let browser = try BrowserStore.production(core: core, launchEnvironment: launchEnvironment)
-        // The search catalog carries the engines the Spaces chose before the
-        // device kept one, so it restores once the stored session is open.
-        BrowserSearchCatalog.restore(into: core)
-        BrowserAppPreferenceStore.shared.bind(
-            to: browser, legacy: LegacyAppPreferences.read(for: launchEnvironment))
-        let transientBrowsing = BrowserTransientBrowsingCoordinator()
+        BrowserAppPreferenceStore.shared.bind(to: browser)
         let cloudSync =
             usesIsolatedLaunch
             ? BrowserCloudSyncController.isolated(core: core)
@@ -93,27 +80,14 @@ private final class BrowserMobileApplication {
         core.syncJournalChangeHandler = { [weak cloudSync] in
             Task { await cloudSync?.localChangesDidStage() }
         }
-        let spaceAccess = BrowserSpaceAccessController()
-        browser.attachSpaceAccess(spaceAccess)
         // The core keeps every Space's site permission choices and decides
         // which ones the device store keeps: never a private Space's.
         let permissionCenter = BrowserSitePermissionCenter(core: core)
         permissionCenter.adoptLegacyRecords(legacyDevice.sitePermissions)
-        // An unfinished manual setup waits in the device store for onboarding
-        // to go on with it.
-        _ = try? core.send(AdoptSetupDraft(draft: legacyDevice.manualSetupDraft))
         // An isolated launch keeps its engine session state behind the same
         // boundary as Crest's browser-session and sync owners.
         let tabStateArchive = BrowserTabStateArchive.forLaunch(launchEnvironment)
         let mediaSessions = BrowserMediaSessionStore()
-        let sidebarWidgetPreferences = BrowserSidebarWidgetPreferenceStore.launch(
-            environment: launchEnvironment
-        )
-        let sidebarWidgets = BrowserSidebarWidgetRuntime(
-            registrations: [.nowPlaying],
-            sources: [mediaSessions],
-            preferences: sidebarWidgetPreferences
-        )
         if launchEnvironment.presentsShowcaseSession, let profileID = browser.shownSpace?.profileID {
             core.addShowcaseDownloads(profileID: profileID)
         }
@@ -124,28 +98,24 @@ private final class BrowserMobileApplication {
             permissionCenter: permissionCenter
         )
         let pages = MobileBrowserPageStore(
-            window: browser, usesEphemeralWebsiteDataStores: usesIsolatedLaunch,
+            browser: browser, usesEphemeralWebsiteDataStores: usesIsolatedLaunch,
             permissionCenter: permissionCenter,
-            mediaSessionStore: mediaSessions, downloads: downloads, tabStateArchive: tabStateArchive,
-            spaceAccess: spaceAccess, transientBrowsing: transientBrowsing)
+            mediaSessionStore: mediaSessions,
+            downloads: downloads,
+            tabStateArchive: tabStateArchive,
+            linkDestinationHost: BrowserLinkDestinationHost(browser: browser),
+            openModifiedLink: { url, spaceID, selecting in
+                browser.openModifiedLink(url, in: spaceID, selecting: selecting)
+            },
+        )
 
         self.browser = browser
         self.cloudSync = cloudSync
-        // The device store keeps whether setup was completed here, carried
-        // once from what an older release kept in its defaults.
-        _ = try? core.send(AdoptSetupCompletion(completed: legacyDevice.setupCompleted))
-        onboardingProgress = BrowserOnboardingProgressStore(
-            core: core, environment: launchEnvironment.coreEnvironment,
-            forcesSetup: launchEnvironment.forcesMobileOnboardingSetup)
-        let onboardingCoordinator = BrowserOnboardingCoordinator()
-        self.onboardingCoordinator = onboardingCoordinator
         self.pages = pages
-        self.spaceAccess = spaceAccess
         passkeyAccess = BrowserPasskeyAccessController(core: core)
-        self.sidebarWidgets = sidebarWidgets
         // A hardware keyboard on iPad reads the same rebindable command table
         // the Mac menu bar does, composed exactly the way the Mac composes it.
-        shortcuts = BrowserShortcutStore(core: core, legacyOverrides: legacyDevice.shortcuts)
+        shortcuts = BrowserShortcutStore(core: core)
         self.permissionCenter = permissionCenter
         let pageStoreRegistry = MobileBrowserPageStoreRegistry(primary: pages)
         self.pageStoreRegistry = pageStoreRegistry
@@ -166,13 +136,6 @@ private final class BrowserMobileApplication {
         // one of them will show.
         windowLayouts.adoptLegacyRecords(into: core)
         browser.sweepAtLaunch()
-        automaticallyPresentsOnboarding =
-            MobileBrowserWindowScene
-            .presentsOnboardingAutomatically(
-                forceOnboarding: forceOnboarding,
-                usesIsolatedLaunch: usesIsolatedLaunch
-            )
-        startupBehavior = browser.startupBehavior(for: launchEnvironment)
         let memoryPressure = BrowserMemoryPressureMonitor(core: core) { [pageStoreRegistry] in
             pageStoreRegistry.liveStores
         }
@@ -187,26 +150,19 @@ private final class BrowserMobileApplication {
             rootBrowser: browser,
             permissionCenter: permissionCenter,
             pageStoreRegistry: pageStoreRegistry,
-            spaceAccess: spaceAccess,
             tabStateArchive: tabStateArchive,
             windowLayouts: windowLayouts,
-            startupBehavior: startupBehavior,
             memoryPressure: memoryPressure,
             usesEphemeralWebsiteDataStores: usesEphemeralWebsiteDataStores,
-            onboardingProgress: onboardingProgress,
-            onboardingCoordinator: onboardingCoordinator,
-            automaticallyPresentsOnboarding: automaticallyPresentsOnboarding,
             mediaSessions: mediaSessions,
             downloads: downloads,
-            privateDownloads: privateDownloads,
-            sidebarWidgets: sidebarWidgets
+            privateDownloads: privateDownloads
         )
         .environment(cloudSync)
-        .environment(onboardingCoordinator)
         .environment(passkeyAccess)
         .environment(
-            \.browserSidebarWidgetRuntime,
-            sidebarWidgets
+            \.browserMediaSessions,
+            mediaSessions
         )
         .task {
             self.browser.family.configureSpaceDataCleanup(self.pageStoreRegistry, from: self.browser)

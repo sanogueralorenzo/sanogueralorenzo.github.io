@@ -4,7 +4,7 @@ import Observation
 @Observable
 @MainActor
 final class BrowserSpaceSettingsPresentationState {
-    private(set) var request: any BrowserSettingsRequest = BrowserSettingsSpaceRequest(tab: .appearance)
+    private(set) var request: any BrowserSettingsRequest = BrowserSettingsSpaceRequest(tab: .identity)
     private(set) var requestedAssignment: BrowserSpaceRuntimeAssignment?
     /// The search the request carries over from the Settings tab it came from.
     private(set) var searchText: String?
@@ -13,7 +13,7 @@ final class BrowserSpaceSettingsPresentationState {
     var requestedSpaceID: UUID? { requestedAssignment?.spaceID }
 
     func present(assignment: BrowserSpaceRuntimeAssignment) {
-        present(BrowserSettingsSpaceRequest(tab: .appearance), assignment: assignment)
+        present(BrowserSettingsSpaceRequest(tab: .identity), assignment: assignment)
     }
 
     /// Presents `destination`. A destination whose subject belongs to one

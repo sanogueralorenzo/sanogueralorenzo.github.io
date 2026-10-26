@@ -53,8 +53,7 @@ struct BrowserTabFaviconSubject: Equatable {
     /// `maximumPixelSize` for `profileID`.
     func taskIdentity(
         profileID: UUID?,
-        maximumPixelSize: Int,
-        isUnlocked: Bool = true
+        maximumPixelSize: Int
     ) -> BrowserFaviconTaskIdentity {
         BrowserFaviconTaskIdentity(
             tabID: tabID,
@@ -65,27 +64,19 @@ struct BrowserTabFaviconSubject: Equatable {
             // evaluates this identity during every view update, so nothing
             // here may read the image bytes.
             payload: image?.identity,
-            maximumPixelSize: maximumPixelSize,
-            isUnlocked: isUnlocked
+            maximumPixelSize: maximumPixelSize
         )
     }
 
-    /// A locked Space must never reach the network for an icon: the request that
-    /// fetches `https://<host>/favicon.ico` would disclose the hostnames the lock
-    /// exists to hide, and would cache them under the locked Space's profile.
-    /// Redaction is a drawing effect and cannot stop that, so the fallback is
-    /// dropped at the request itself.
     func renderRequest(
         profileID: UUID?,
-        maximumPixelSize: Int,
-        isUnlocked: Bool = true
+        maximumPixelSize: Int
     ) -> BrowserFaviconRenderRequest {
         let identity = taskIdentity(
             profileID: profileID,
-            maximumPixelSize: maximumPixelSize,
-            isUnlocked: isUnlocked
+            maximumPixelSize: maximumPixelSize
         )
-        guard !isStartPage, emoji == nil, isUnlocked else {
+        guard !isStartPage, emoji == nil else {
             return BrowserFaviconRenderRequest(
                 identity: identity,
                 payload: nil,
@@ -98,7 +89,7 @@ struct BrowserTabFaviconSubject: Equatable {
         return BrowserFaviconRenderRequest(
             identity: identity,
             payload: payload,
-            fallbackPageURL: payload == nil ? pageURL : nil,
+            fallbackPageURL: payload == nil && !BrowserGitHubPullRequest.accepts(pageURL) ? pageURL : nil,
             fallbackProfileID: payload == nil ? profileID : nil
         )
     }

@@ -37,11 +37,11 @@ struct BrowserTabStatusBadgeHost: ViewModifier {
     /// Where the badge hangs when it sits beside the favicon.
     var anchor = BrowserTabStatusBadgeAnchor.favicon
 
-    private var iconScale: Double { BrowserDeviceAppearanceStore.shared.tabScale }
+    private let iconScale = 1.0
 
     func body(content: Content) -> some View {
         let mark = tab.flatMap { BrowserTabStatus.marks(of: $0).first }
-        let replacesIcon = BrowserDeviceAppearanceStore.shared.tabs.statusStyle == .icon
+        let replacesIcon = false
         content
             .environment(\.tabFaviconBadgeIsTaken, mark != nil && !replacesIcon && anchor.takesFaviconCorner)
             .environment(\.tabFaviconIsReplaced, mark != nil && replacesIcon)

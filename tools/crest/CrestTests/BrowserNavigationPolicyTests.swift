@@ -134,6 +134,33 @@ final class BrowserExternalSchemeCoordinatorTests: XCTestCase {
 
 @MainActor
 final class BrowserDownloadNavigationLifecycleTests: XCTestCase {
+    func testKnownDownloadIsHandledBeforeNavigationStarts() throws {
+        let sourceURL = try XCTUnwrap(URL(string: "https://saved.example/home"))
+        let downloadURL = try XCTUnwrap(URL(string: "https://files.example/report.pdf"))
+        let tab = TabState.Seed(
+            title: "Saved",
+            url: sourceURL,
+            savedURL: sourceURL,
+            placement: .pinned
+        )
+        let space = SpaceState.Seed(
+            name: "Test",
+            folders: [],
+            tabs: [tab]
+        )
+        let pool = BrowserPagePool(
+            browser: .hostingPages(SessionState.Seed(spaces: [space])))
+        pool.present(tab: tab.id, in: space.id)
+        let page = try XCTUnwrap(pool.activePage)
+        let recorder = DownloadPolicyRecorder()
+
+        page.webView(
+            page.webView,
+            decidePolicyFor: StubKnownDownloadNavigationAction(url: downloadURL)
+        ) { recorder.policy = $0 }
+
+        XCTAssertEqual(recorder.policy, .download)
+    }
 }
 
 @MainActor
@@ -218,4 +245,26 @@ private final class StubNewWindowNavigationAction: WKNavigationAction,
     override var navigationType: WKNavigationType { stubNavigationType }
     override var targetFrame: WKFrameInfo? { nil }
     var browserSourceOrigin: SiteOrigin? { nil }
+}
+
+private final class StubKnownDownloadNavigationAction: WKNavigationAction,
+    BrowserNavigationActionSourceOriginProviding
+{
+    private let stubRequest: URLRequest
+
+    init(url: URL) {
+        stubRequest = URLRequest(url: url)
+        super.init()
+    }
+
+    override var request: URLRequest { stubRequest }
+    override var navigationType: WKNavigationType { .linkActivated }
+    override var targetFrame: WKFrameInfo? { nil }
+    override var shouldPerformDownload: Bool { true }
+    var browserSourceOrigin: SiteOrigin? { nil }
+}
+
+@MainActor
+private final class DownloadPolicyRecorder {
+    var policy: WKNavigationActionPolicy?
 }

@@ -4,10 +4,6 @@ struct BrowserWebPageSurface: View {
     let page: BrowserPage
     let browser: BrowserStore
     let pagePresentation: PagePresentation
-    /// Whether the window's page commands act on this page: a Peek open over
-    /// the active tab, or else the tab's own page. That page alone takes the
-    /// keyboard, for its find bar and as focus returns to it, so the tab
-    /// under an open Peek never takes it from the Peek.
     let isPageActive: Bool
     let focusRestorationGate: BrowserWebFocusRestorationGate
     /// Where the tab holding a page sits in its Space and what it is called,
@@ -82,27 +78,8 @@ struct BrowserWebPageSurface: View {
 
             BrowserWebPageFailureOverlay(
                 page: page,
-                branding: browser.spaceModel(
-                    matching: BrowserSpaceRuntimeAssignment(spaceID: page.spaceID, profileID: page.profileID)
-                ).map(\.settings.look),
                 pagePresentation: pagePresentation
             )
-
-            BrowserCredentialChrome(
-                presentation: BrowserCredentialChromePresentation.resolve(
-                    saveCandidate: page.credentialSaveCandidate,
-                    fillRequest: page.credentialFillRequest
-                ),
-                fillPort: credentialFillPort,
-                savePort: credentialSavePort,
-                browser: browser,
-                capabilities: capabilities
-            )
-
-            if page.isRegionCapturePresented {
-                BrowserRegionCaptureOverlay(page: page)
-                    .zIndex(BrowserWebPageSurfaceMetrics.regionCaptureZIndex)
-            }
 
             if let offer = page.shareSourceOffer {
                 BrowserShareSourcePicker(
@@ -115,10 +92,6 @@ struct BrowserWebPageSurface: View {
                 .zIndex(BrowserWebPageSurfaceMetrics.sharePickerZIndex)
             }
 
-            if let feedback = page.developerCaptureFeedback {
-                BrowserDeveloperCaptureFeedbackView(feedback: feedback)
-                    .zIndex(BrowserWebPageSurfaceMetrics.feedbackZIndex)
-            }
         }
     }
 
@@ -134,38 +107,6 @@ struct BrowserWebPageSurface: View {
             focusRequest: { page.findFocusRequest },
             focusesQueryField: { page.findFocusesQueryField },
             dismiss: page.dismissFind
-        )
-    }
-
-    /// What a credential fill prompt asks of this surface's page.
-    ///
-    /// The zoom is carried because this shell anchors the prompt under the
-    /// field that raised it, and the page reports that field in its own CSS
-    /// pixels. The chrome is a sibling of the web view inside one box, so the
-    /// zoom is the only thing between the two.
-    private var credentialFillPort: BrowserCredentialFillPort {
-        BrowserCredentialFillPort(
-            spaceID: page.spaceID,
-            contentScale: page.renderedPageZoom,
-            siteIconData: page.faviconData,
-            fill: { credential, requestID in
-                try await page.fillCredential(credential, for: requestID)
-            },
-            fillGeneratedPassword: { password, requestID in
-                try await page.fillGeneratedPassword(password, for: requestID)
-            },
-            dismiss: page.dismissCredentialFillRequest
-        )
-    }
-
-    /// What the save prompt asks of this surface's page. This shell makes no
-    /// offer to the system's Passwords app, so it binds none.
-    private var credentialSavePort: BrowserCredentialSavePort {
-        BrowserCredentialSavePort(
-            spaceID: page.spaceID,
-            presentedCandidateID: { page.credentialSaveCandidate?.id },
-            dismiss: page.dismissCredentialSaveCandidate,
-            offerToSystemPasswords: nil
         )
     }
 

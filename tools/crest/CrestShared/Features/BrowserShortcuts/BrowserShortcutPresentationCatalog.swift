@@ -1,6 +1,6 @@
 import Foundation
 
-struct BrowserShortcutPresentationCatalog: BrowserShortcutSearchProviding {
+struct BrowserShortcutPresentationCatalog {
     let locale: Locale
 
     init(locale: Locale = .current) {

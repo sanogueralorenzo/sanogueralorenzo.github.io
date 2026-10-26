@@ -25,28 +25,28 @@ extension BrowserStore {
     // MARK: - Actions - Bindings
 
     /// A Space's name. Writing routes through `updateSpaceIdentity`, which is
-    /// the only door into a Space's name, symbol, and accent.
+    /// the only door into a Space's name.
     func spaceNameBinding(in space: SpaceModel) -> Binding<String> {
         Binding {
             space.settings.name
         } set: { [self] name in
             updateSpaceIdentity(
-                space.id, name: name, symbol: space.settings.symbol, accent: space.settings.accent)
+                space.id, name: name)
         }
     }
 
-    /// A Space's symbol, through the same door as its name.
-    func spaceSymbolBinding(in space: SpaceModel) -> Binding<String> {
+    /// The Space's dot color, persisted by the core.
+    func spaceColorBinding(in space: SpaceModel) -> Binding<SpaceColor> {
         Binding {
-            space.settings.symbol
-        } set: { [self] symbol in
-            updateSpaceIdentity(
-                space.id, name: space.settings.name, symbol: symbol, accent: space.settings.accent)
+            space.settings.color
+        } set: { [self] color in
+            sendSpaceSettings(
+                SetSpaceColor(
+                    workspaceID: profileSettingsBrowser.family.workspaceID, spaceID: space.id, color: color))
         }
     }
 
-    /// One field of a Space's browsing preferences — its search provider, its
-    /// current-tab cleanup policy, its content-blocking policy.
+    /// One field of a Space's browsing preferences.
     func browsingPreferenceBinding<Value>(
         _ keyPath: WritableKeyPath<BrowsingPreferences, Value>,
         in space: SpaceModel
@@ -79,38 +79,4 @@ extension BrowserStore {
         }
     }
 
-    /// One field of a Space's credential preferences. Synchronization is *not*
-    /// written through here: turning iCloud Keychain on or off rewrites existing
-    /// items and can fail, so it goes through ``BrowserCredentialSpaceStore``.
-    func credentialPreferenceBinding<Value>(
-        _ keyPath: WritableKeyPath<CredentialPreferences, Value>,
-        in space: SpaceModel
-    ) -> Binding<Value> {
-        Binding {
-            space.settings.credentialPreferences[keyPath: keyPath]
-        } set: { [self] value in
-            var preferences = space.settings.credentialPreferences
-            preferences[keyPath: keyPath] = value
-            updateCredentialPreferences(preferences, in: space.id)
-        }
-    }
-
-    /// A Space's branding, which is edited as a whole value rather than field by
-    /// field because the branding editor composes it.
-    func spaceBrandingBinding(in space: SpaceModel) -> Binding<SpaceBranding> {
-        Binding {
-            space.settings.look
-        } set: { [self] branding in
-            updateSpaceBranding(branding, in: space.id)
-        }
-    }
-
-    /// The Space a pane defaults to, for preferences that always resolve to one.
-    func defaultSpaceBinding() -> Binding<UUID> {
-        Binding { [self] in
-            workspaceModel?.defaultSpaceID ?? selectedSpaceID
-        } set: { [self] spaceID in
-            setDefaultSpace(spaceID)
-        }
-    }
 }

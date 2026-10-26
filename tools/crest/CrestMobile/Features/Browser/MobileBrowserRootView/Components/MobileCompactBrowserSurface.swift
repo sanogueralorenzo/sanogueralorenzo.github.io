@@ -32,7 +32,7 @@ struct MobileCompactBrowserSurface<
     let floatingSidebar: FloatingSidebar
     let page: Page
 
-    private var appearance: BrowserChromeAppearance { .device(windowCornerRadius: windowCornerRadius) }
+    private var appearance: BrowserChromeAppearance { .init(windowCornerRadius: windowCornerRadius) }
 
     var body: some View {
         dockedSidebar
@@ -75,7 +75,7 @@ struct MobileCompactBrowserSurface<
                     .environment(\.spacePagerPresentation, floatingPagerPresentation)
                     .modifier(
                         MobileBrowserSideToolbarHost(
-                            colorScheme: space?.settings.look.colorScheme(over: colorScheme)
+                            colorScheme: colorScheme
                         )
                     )
                     .environment(\.mobileBrowserSideToolbarIsHosted, false)

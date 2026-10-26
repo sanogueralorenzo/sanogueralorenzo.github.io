@@ -8,6 +8,7 @@ struct BrowserUtilityFanDestinationButton: View {
     let newDownloadCount: Int
     let select: (BrowserUtilitySurface) -> Void
 
+    @Environment(\.browserShortcutBindings) private var bindings
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -37,18 +38,21 @@ struct BrowserUtilityFanDestinationButton: View {
         Button {
             select(surface)
         } label: {
-            Image(systemName: symbol)
-                .foregroundStyle(.primary)
-                .symbolVariant(selectedSurface == surface ? .fill : .none)
-                .symbolEffect(
-                    .bounce,
-                    value: reduceMotion ? 0 : newDownloadCount
-                )
-                .frame(
-                    width: BrowserUtilitySwitcherLayout.buttonSize,
-                    height: BrowserUtilitySwitcherLayout.buttonSize
-                )
-                .contentShape(.circle)
+            VStack(spacing: CrestSpacing.extraExtraSmall) {
+                Image(systemName: symbol)
+                    .foregroundStyle(.primary)
+                    .symbolVariant(selectedSurface == surface ? .fill : .none)
+                    .symbolEffect(
+                        .bounce,
+                        value: reduceMotion ? 0 : newDownloadCount
+                    )
+                BrowserShortcutHint(shortcut: surface.command.shortcut(in: bindings))
+            }
+            .frame(
+                width: BrowserUtilitySwitcherLayout.buttonSize,
+                height: BrowserUtilitySwitcherLayout.buttonSize
+            )
+            .contentShape(.circle)
         }
         .labelStyle(.iconOnly)
         .buttonBorderShape(.circle)

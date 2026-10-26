@@ -3,7 +3,6 @@ import SwiftUI
 struct MobileBrowserSettingsContent: View {
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
-    let spaceAccess: BrowserSpaceAccessController
     let dataDeleter: any BrowserSpaceDataDeleting
     @Binding var selection: BrowserSettingsDestination
     @Binding var searchText: String
@@ -19,7 +18,6 @@ struct MobileBrowserSettingsContent: View {
                 MobileBrowserRegularSettingsLayout(
                     browser: browser,
                     pages: pages,
-                    spaceAccess: spaceAccess,
                     dataDeleter: dataDeleter,
                     selection: $selection,
                     searchText: $searchText,
@@ -29,7 +27,6 @@ struct MobileBrowserSettingsContent: View {
                 MobileBrowserCompactSettingsLayout(
                     browser: browser,
                     pages: pages,
-                    spaceAccess: spaceAccess,
                     dataDeleter: dataDeleter,
                     searchText: $searchText,
                     path: $path,

@@ -45,7 +45,7 @@ struct MobileBrowserSideToolbarHost: ViewModifier {
     }
 
     private var barColorScheme: ColorScheme? {
-        browser?.shownSpace?.settings.look.colorScheme(over: contentColorScheme) ?? colorScheme
+        colorScheme
     }
 }
 

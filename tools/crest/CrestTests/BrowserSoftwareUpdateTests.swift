@@ -34,89 +34,78 @@ final class BrowserSoftwareUpdateTests: XCTestCase {
             Bundle.main.object(forInfoDictionaryKey: "SUAutomaticallyUpdate") as? Bool,
             true
         )
-        // The packaged default follows the branch (Experimental on a branch
-        // build, Development or Stable on main); it must always name a
-        // channel the app understands, or updates would fall back silently.
-        XCTAssertNotNil(
-            (Bundle.main.object(forInfoDictionaryKey: "CrestDefaultUpdateChannel") as? String)
-                .flatMap(BrowserSoftwareUpdateChannel.named)
-        )
     }
 
-    func testReleaseChannelsMapToTheirSignedFeedsAndSparkleChannels() {
-        XCTAssertEqual(BrowserSoftwareUpdateChannel.stable.allowedSparkleChannels, [])
-        XCTAssertEqual(BrowserSoftwareUpdateChannel.nightly.allowedSparkleChannels, ["nightly"])
-        XCTAssertEqual(BrowserSoftwareUpdateChannel.development.allowedSparkleChannels, ["development"])
-        XCTAssertEqual(BrowserSoftwareUpdateChannel.experimental.allowedSparkleChannels, ["experimental"])
-
-        // Each product keeps its own feeds whichever engine this test host
-        // runs: the dual-engine product reads the main feed from its
-        // Info.plist, and WebKit-only installs follow the -webkit feeds.
-        let feeds = "https://raw.githubusercontent.com/pauljoda/Crest/updates/"
-        let expected: [(channel: BrowserSoftwareUpdateChannel, chromium: String?, webKit: String)] = [
-            (.stable, nil, "appcast-webkit.xml"),
-            (.nightly, nil, "appcast-webkit.xml"),
-            (.development, "appcast-development.xml", "appcast-development-webkit.xml"),
-            (.experimental, "appcast-experimental.xml", "appcast-experimental-webkit.xml"),
-        ]
-        for feed in expected {
-            XCTAssertEqual(
-                feed.channel.feedURL(for: .chromium)?.absoluteString,
-                feed.chromium.map { feeds + $0 },
-                feed.channel.name
-            )
-            XCTAssertEqual(feed.channel.feedURL(for: .webKit)?.absoluteString, feeds + feed.webKit, feed.channel.name)
-        }
-    }
-
-    func testInstallingAnArtifactFromAnotherChannelAdoptsItsBundledChannel() {
-        let suiteName = "BrowserSoftwareUpdateTests.\(UUID().uuidString)"
-        let preferences = UserDefaults(suiteName: suiteName)!
-        defer { preferences.removePersistentDomain(forName: suiteName) }
-        preferences.set(
-            BrowserSoftwareUpdateChannel.stable.name,
-            forKey: BrowserSoftwareUpdateService.channelPreferenceKey
-        )
-        preferences.set(
-            BrowserSoftwareUpdateChannel.stable.name,
-            forKey: BrowserSoftwareUpdateService.bundledChannelPreferenceKey
-        )
-
-        let service = BrowserSoftwareUpdateService(
-            isEnabled: false,
-            preferences: preferences,
-            defaultChannel: .development
-        )
-
-        XCTAssertEqual(service.channel, .development)
+    func testStableUpdatesKeepTheInstalledEngineComposition() {
+        XCTAssertNil(BrowserSoftwareUpdateFeed(for: .chromium).url)
         XCTAssertEqual(
-            preferences.string(
-                forKey: BrowserSoftwareUpdateService.channelPreferenceKey
-            ),
-            BrowserSoftwareUpdateChannel.development.name
-        )
+            BrowserSoftwareUpdateFeed(for: .webKit).url?.absoluteString,
+            "https://raw.githubusercontent.com/pauljoda/Crest/updates/appcast-webkit.xml")
     }
 
-    func testUserChoiceSurvivesRelaunchesOfTheSameArtifactChannel() {
-        let suiteName = "BrowserSoftwareUpdateTests.\(UUID().uuidString)"
-        let preferences = UserDefaults(suiteName: suiteName)!
-        defer { preferences.removePersistentDomain(forName: suiteName) }
-        preferences.set(
-            BrowserSoftwareUpdateChannel.nightly.name,
-            forKey: BrowserSoftwareUpdateService.channelPreferenceKey
-        )
-        preferences.set(
-            BrowserSoftwareUpdateChannel.development.name,
-            forKey: BrowserSoftwareUpdateService.bundledChannelPreferenceKey
+    func testDownloadProgressAccumulatesAndClampsToTheExpectedLength() throws {
+        let model = BrowserSoftwareUpdateModel()
+
+        model.presentDownload(cancellation: {})
+        model.setExpectedDownloadLength(100)
+        model.receiveDownloadedBytes(30)
+        XCTAssertEqual(try XCTUnwrap(model.progress), 0.3, accuracy: 0.001)
+
+        model.receiveDownloadedBytes(90)
+        XCTAssertEqual(try XCTUnwrap(model.progress), 1, accuracy: 0.001)
+    }
+
+    func testARelaunchCrestDidNotQuitForIsOfferedAgain() throws {
+        let model = BrowserSoftwareUpdateModel()
+        var relaunchRequests = 0
+        model.presentAutomaticUpdateReady(
+            title: "Crest 0.5.1",
+            version: "0.5.1",
+            build: "501",
+            releaseNotes: nil,
+            informationURL: nil,
+            installAndRelaunch: { relaunchRequests += 1 }
         )
 
-        let service = BrowserSoftwareUpdateService(
-            isEnabled: false,
-            preferences: preferences,
-            defaultChannel: .development
-        )
+        model.installAndRelaunchNow()
+        XCTAssertEqual(relaunchRequests, 1)
+        XCTAssertEqual(model.phase, .installing)
 
-        XCTAssertEqual(service.channel, .nightly)
+        model.applicationStayedOpen()
+        XCTAssertEqual(model.phase, .readyToInstall)
+
+        model.installAndRelaunchNow()
+        XCTAssertEqual(relaunchRequests, 2)
+    }
+
+    func testSkippingAnUpdateUsesTheOfferedBuildAndANewOfferReplacesIt() {
+        let model = BrowserSoftwareUpdateModel()
+        var skippedBuilds: [String] = []
+
+        model.presentUpdate(
+            title: "Crest 0.5.1",
+            version: "0.5.1",
+            build: "501",
+            isInformationOnly: false,
+            install: {},
+            skip: { skippedBuilds.append("501") }
+        )
+        XCTAssertEqual(model.updateBuild, "501")
+        model.skipUpdate()
+        XCTAssertEqual(skippedBuilds, ["501"])
+        XCTAssertEqual(model.phase, .idle)
+
+        model.presentUpdate(
+            title: "Crest 0.5.2",
+            version: "0.5.2",
+            build: "502",
+            isInformationOnly: false,
+            install: {},
+            skip: { skippedBuilds.append("502") }
+        )
+        XCTAssertEqual(model.updateBuild, "502")
+        model.skipUpdate()
+        XCTAssertEqual(skippedBuilds, ["501", "502"])
     }
 
 }

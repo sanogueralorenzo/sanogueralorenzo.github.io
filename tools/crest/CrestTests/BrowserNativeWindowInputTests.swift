@@ -5,6 +5,40 @@ import XCTest
 
 @MainActor
 final class BrowserNativeWindowInputTests: XCTestCase {
+    func testBrowserChromeKeepsTheNativeTitleBarAndControls() throws {
+        let window = makeWindow()
+        defer { window.close() }
+        let content = try XCTUnwrap(window.contentView)
+        let buttons = BrowserNativeWindowControlsHostView.buttonTypes.compactMap(window.standardWindowButton)
+        let input = NSTextField(frame: NSRect(x: 350, y: 560, width: 200, height: 28))
+        content.addSubview(input)
+        let chrome = BrowserNativeWindowControlsHostView()
+        content.addSubview(chrome)
+        window.layoutIfNeeded()
+
+        // The window stays movable, so the system's window commands move it;
+        // content under the title bar still receives its own clicks.
+        XCTAssertTrue(window.isMovable)
+        XCTAssertTrue(window.styleMask.contains(.resizable))
+        XCTAssertTrue(window.styleMask.contains(.titled))
+        XCTAssertTrue(content.hitTest(NSPoint(x: 400, y: 574)) === input)
+        for (type, button) in zip(BrowserNativeWindowControlsHostView.buttonTypes, buttons) {
+            XCTAssertTrue(window.standardWindowButton(type) === button)
+            XCTAssertTrue(button.isEnabled)
+            let parent = try XCTUnwrap(button.superview)
+            for y in [button.bounds.minY + 1, button.bounds.midY, button.bounds.maxY - 1] {
+                let point = button.convert(NSPoint(x: button.bounds.midX, y: y), to: parent.superview)
+                XCTAssertTrue(parent.hitTest(point) === button, "The native window control must remain clickable.")
+            }
+        }
+
+        chrome.isVisible = false
+        chrome.sidebarOnRight = true
+        chrome.applyBrowserChrome()
+        XCTAssertTrue(window.isMovable)
+        XCTAssertTrue(content.hitTest(NSPoint(x: 400, y: 574)) === input)
+    }
+
     func testAPageHoldsTheWindowStillOnlyWhileThePointerIsOnItsTop() throws {
         let window = makeWindow()
         defer { window.close() }

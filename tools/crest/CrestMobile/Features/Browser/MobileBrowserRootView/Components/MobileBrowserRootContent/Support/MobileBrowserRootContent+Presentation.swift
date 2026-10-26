@@ -5,7 +5,6 @@ extension MobileBrowserRootContent {
     var browser: BrowserStore { model.browser }
     var pages: MobileBrowserPageStore { model.pages }
     var navigation: MobileBrowserNavigationState { model.navigation }
-    var spaceAccess: BrowserSpaceAccessController { model.spaceAccess }
     var address: String { model.address }
 
     var presentation: MobileBrowserPresentation {
@@ -15,7 +14,7 @@ extension MobileBrowserRootContent {
     }
 
     var presentsSplitView: Bool {
-        guard let space = browser.shownSpace, !spaceAccess.isLocked(space) else { return false }
+        guard let space = browser.shownSpace else { return false }
         return model.presentedSplitMembers.count > 1
     }
 
@@ -28,7 +27,7 @@ extension MobileBrowserRootContent {
         presentation.usesBorderlessPageFrame(
             // Only whether the page has a frame, so a drag of the border
             // width leaves the root alone.
-            preferenceIsEnabled: BrowserDeviceAppearanceStore.shared.isBorderless,
+            preferenceIsEnabled: BrowserChromeAppearance().borderless,
             sidebarPresentation: navigation.regularSidebarPresentation
         )
     }
@@ -69,10 +68,8 @@ extension MobileBrowserRootContent {
         Binding(
             get: {
                 navigation.compactShowsPage
-                    && !suspendsCompactPagePresentation
             },
             set: { isPresented in
-                guard !suspendsCompactPagePresentation else { return }
                 if isPresented {
                     navigation.selectTab()
                 } else {
@@ -99,7 +96,7 @@ extension MobileBrowserRootContent {
 
     var settingsSheetContent: some View {
         MobileBrowserSettingsView(
-            browser: browser, pages: pages, spaceAccess: spaceAccess, dataDeleter: dataDeleter,
+            browser: browser, pages: pages, dataDeleter: dataDeleter,
             state: model.settings.state)
     }
 
@@ -113,7 +110,7 @@ extension MobileBrowserRootContent {
     }
 
     func historySheetContent(_ assignment: BrowserSpaceRuntimeAssignment) -> some View {
-        MobileHistoryView(browser: browser, assignment: assignment, spaceAccess: spaceAccess, openURL: openURL)
+        MobileHistoryView(browser: browser, assignment: assignment, openURL: openURL)
     }
 
     /// Asks about a risky download from the page, or from the window.
@@ -158,12 +155,8 @@ extension MobileBrowserRootContent {
 
     var mobileBrowserCommandContext: MobileBrowserCommandContext {
         model.commandContext(
-            transientBrowsing: transientBrowsing,
+
             layoutDirection: layoutDirection,
-            usesPageToolbars: !presentation.usesEdgeToEdgeWebViewport(
-                isPhone: UIDevice.current.userInterfaceIdiom == .phone,
-                sidebarPresentation: navigation.regularSidebarPresentation
-            ),
             togglePrivateBrowsing: togglePrivateBrowsing,
             openNewTab: beginNewTab,
             openLocation: openLocation,

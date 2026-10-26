@@ -12,7 +12,6 @@ final class MobileBrowserWindowSceneModel {
         let browser: BrowserStore
         let pages: MobileBrowserPageStore
         let navigation: MobileBrowserNavigationState
-        let transientBrowsing: BrowserTransientBrowsingCoordinator
     }
 
     // MARK: - Variables
@@ -20,14 +19,11 @@ final class MobileBrowserWindowSceneModel {
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
     let navigation: MobileBrowserNavigationState
-    let transientBrowsing: BrowserTransientBrowsingCoordinator
     /// This window's private browsing. A window shown again after it closed
     /// browses in a new private workspace, never in the one that closed.
     private(set) var privateRuntime: PrivateBrowsingRuntime
     let windowState: BrowserWindowStateStore
     let pageStoreRegistry: MobileBrowserPageStoreRegistry
-    let spaceAccess: BrowserSpaceAccessController
-    let startupBehavior: StartupBehavior
 
     @ObservationIgnored private let privateDownloads: MobileBrowserDownloads?
     /// Whether the window closed, taking its private workspace with it.
@@ -36,7 +32,6 @@ final class MobileBrowserWindowSceneModel {
     var privateBrowser: BrowserStore { privateRuntime.browser }
     var privatePages: MobileBrowserPageStore { privateRuntime.pages }
     var privateNavigation: MobileBrowserNavigationState { privateRuntime.navigation }
-    var privateTransientBrowsing: BrowserTransientBrowsingCoordinator { privateRuntime.transientBrowsing }
 
     // MARK: - Initializers
 
@@ -45,62 +40,47 @@ final class MobileBrowserWindowSceneModel {
         rootBrowser: BrowserStore,
         permissionCenter: BrowserSitePermissionCenter,
         pageStoreRegistry: MobileBrowserPageStoreRegistry,
-        spaceAccess: BrowserSpaceAccessController,
         tabStateArchive: (any BrowserTabStateArchiving)?,
         windowLayouts: BrowserWindowLayouts,
-        startupBehavior: StartupBehavior,
         usesEphemeralWebsiteDataStores: Bool = false,
         mediaSessionStore: BrowserMediaSessionStore? = nil,
         downloads: MobileBrowserDownloads? = nil,
         privateDownloads: MobileBrowserDownloads? = nil
     ) {
-        // A scene restores the Space it showed and starts without a tab.
-        let browser = rootBrowser.makeWindowStore(BrowserWindowOpening(id: id, saved: true, restoresTabs: false))
+        // A scene restores the Space and tab it last showed.
+        let browser = rootBrowser.makeWindowStore(BrowserWindowOpening(id: id, saved: true, restoresTabs: true))
         let windowState = BrowserWindowStateStore(id: id, browser: browser, layouts: windowLayouts)
         let sidebarIsPresented = windowState.sidebarIsPresented ?? true
         let navigation = MobileBrowserNavigationState(
             regularSidebarIsPresented: sidebarIsPresented,
-            initiallyShowsCompactPage: !sidebarIsPresented,
+            initiallyShowsCompactPage: browser.shownTab != nil,
             allowsCompactFloatingSidebar: MobileBrowserRootPreferences.allowsFloatingSidebar
         )
-        let transientBrowsing = BrowserTransientBrowsingCoordinator()
         let pages = MobileBrowserPageStore(
-            window: browser, usesEphemeralWebsiteDataStores: usesEphemeralWebsiteDataStores,
+            browser: browser, usesEphemeralWebsiteDataStores: usesEphemeralWebsiteDataStores,
             permissionCenter: permissionCenter,
-            mediaSessionStore: mediaSessionStore, downloads: downloads, tabStateArchive: tabStateArchive,
-            spaceAccess: spaceAccess, transientBrowsing: transientBrowsing)
+            mediaSessionStore: mediaSessionStore,
+            downloads: downloads,
+            tabStateArchive: tabStateArchive,
+            linkDestinationHost: BrowserLinkDestinationHost(browser: browser),
+            openModifiedLink: { url, spaceID, selecting in
+                browser.openModifiedLink(url, in: spaceID, selecting: selecting)
+            },
+        )
         browser.tabLinkProvider = pages
         browser.tabCopying = pages
         self.browser = browser
         self.navigation = navigation
         self.pages = pages
-        self.transientBrowsing = transientBrowsing
         privateRuntime = Self.openPrivateBrowsing(
-            core: rootBrowser.core, sidebarIsPresented: sidebarIsPresented, spaceAccess: spaceAccess,
+            core: rootBrowser.core, sidebarIsPresented: sidebarIsPresented,
             downloads: privateDownloads)
         self.privateDownloads = privateDownloads
         self.windowState = windowState
         self.pageStoreRegistry = pageStoreRegistry
-        self.spaceAccess = spaceAccess
-        self.startupBehavior = startupBehavior
     }
 
     // MARK: - Actions - Window
-
-    @discardableResult
-    func presentGettingStartedAfterSetup(matching assignment: BrowserTabRuntimeAssignment) -> Bool {
-        guard
-            let space = browser.selectedUnlockedSpace(
-                matching: BrowserSpaceRuntimeAssignment(spaceID: assignment.spaceID, profileID: assignment.profileID),
-                accessController: spaceAccess),
-            browser.spaceModels.first?.id == space.id,
-            browser.selectedTabID(in: space.id) == assignment.tabID,
-            space.tabs.model(assignment.tabID)?.nativeTabContent == .gettingStarted
-        else { return false }
-        pages.select()
-        navigation.presentSelectedTabAfterSetup()
-        return true
-    }
 
     func activateWindow() {
         reopenIfClosed()
@@ -119,12 +99,10 @@ final class MobileBrowserWindowSceneModel {
     }
 
     func prepareForInactiveScene() {
-        spaceAccess.lockAllForInactiveScene()
         flushPendingPersistence()
     }
 
     func prepareForBackgroundScene() {
-        spaceAccess.lockAll()
         flushPendingPersistence()
     }
 
@@ -159,28 +137,20 @@ final class MobileBrowserWindowSceneModel {
         privatePages.closePrivateBrowsingSession(closingSpaces)
         privateBrowser.resetPrivateBrowsingSession()
         privateNavigation.showTabViewer()
-        privateTransientBrowsing.dismissPeek()
         synchronizeSidebarPresentation(navigation)
         return .standard
     }
 
-    /// Opens a link another app handed this window where the core routes it,
-    /// which is never a locked Space.
     @discardableResult
     func routeExternalURL(_ url: URL) async -> Bool {
         guard ExternalWebLink.accepts(url),
             let placement = try? browser.core.query(
-                RouteExternalLink(windowIDs: [browser.windowID], url: url.absoluteString)),
+                ExternalOpenDestination(windowIDs: [browser.windowID])),
             let spaceID = placement.spaceID,
-            let space = browser.spaceModel(spaceID),
-            await spaceAccess.unlock(space)
+            let space = browser.spaceModel(spaceID)
         else { return false }
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
         guard browser.spaceModel(matching: assignment) != nil else { return false }
-        if placement.opensQuickWindow {
-            transientBrowsing.presentQuickWindow(BrowserQuickWindowRequest(url: url, spaceAssignment: assignment))
-            return true
-        }
         guard browser.openNewTab(url: url, matching: assignment) != nil else { return false }
         pages.selectAndNavigate(to: url.absoluteString)
         navigation.selectTab()
@@ -191,7 +161,7 @@ final class MobileBrowserWindowSceneModel {
 
     /// A new private workspace in `core` and what shows it in this window.
     private static func openPrivateBrowsing(
-        core: CrestCore, sidebarIsPresented: Bool, spaceAccess: BrowserSpaceAccessController,
+        core: CrestCore, sidebarIsPresented: Bool,
         downloads: MobileBrowserDownloads?
     ) -> PrivateBrowsingRuntime {
         let privateBrowser = BrowserStore.privateBrowsing(core: core)
@@ -199,26 +169,21 @@ final class MobileBrowserWindowSceneModel {
             regularSidebarIsPresented: sidebarIsPresented,
             allowsCompactFloatingSidebar: MobileBrowserRootPreferences.allowsFloatingSidebar
         )
-        let privateTransientBrowsing = BrowserTransientBrowsingCoordinator()
         let privatePages = MobileBrowserPageStore(
             browser: privateBrowser,
             browsingMode: .privateBrowsing,
             permissionCenter: downloads?.center.permissionCenter ?? BrowserSitePermissionCenter(),
             downloads: downloads,
-            linkDestinationHost: BrowserLinkDestinationHost(browser: privateBrowser, spaceAccess: spaceAccess),
+            linkDestinationHost: BrowserLinkDestinationHost(browser: privateBrowser),
             openModifiedLink: { url, spaceID, selecting in
                 privateBrowser.openModifiedLink(url, in: spaceID, selecting: selecting)
-            },
-            openPeek: { request in
-                privateTransientBrowsing.presentPeek(request)
             }
         )
 
         privateBrowser.tabLinkProvider = privatePages
         privateBrowser.tabCopying = privatePages
         return PrivateBrowsingRuntime(
-            browser: privateBrowser, pages: privatePages, navigation: privateNavigation,
-            transientBrowsing: privateTransientBrowsing)
+            browser: privateBrowser, pages: privatePages, navigation: privateNavigation)
     }
 
     /// Closes this window's private workspace, once: its pages, downloads and
@@ -238,7 +203,7 @@ final class MobileBrowserWindowSceneModel {
         guard isClosed else { return }
         isClosed = false
         privateRuntime = Self.openPrivateBrowsing(
-            core: browser.core, sidebarIsPresented: windowState.sidebarIsPresented ?? true, spaceAccess: spaceAccess,
+            core: browser.core, sidebarIsPresented: windowState.sidebarIsPresented ?? true,
             downloads: privateDownloads)
     }
 

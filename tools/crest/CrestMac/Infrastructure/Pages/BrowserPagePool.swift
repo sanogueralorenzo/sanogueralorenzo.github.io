@@ -10,25 +10,10 @@ final class BrowserPagePool:
     BrowserDefaultPageZoomObserving
 {
 
-    /// How long a window a page asked for waits for its Quick Window to take
-    /// its page before the page goes.
-    private static let popupWindowWait: Duration = .seconds(30)
     @ObservationIgnored private static let lifecycleSignposter = OSSignposter(
         subsystem: "com.pauldavis.crest",
         category: "WebKitLifecycle"
     )
-
-    typealias HTTPAuthenticationCredentialLoader =
-        @MainActor (
-            BrowserHTTPAuthenticationProtectionSpace,
-            UUID
-        ) async throws -> BrowserCredential?
-
-    typealias HTTPAuthenticationCredentialSaver =
-        @MainActor (
-            BrowserHTTPAuthenticationSaveRequest,
-            UUID
-        ) async throws -> Void
 
     typealias ModifiedLinkOpener =
         @MainActor (URL, UUID, Bool) -> BrowserModifiedLinkRegistration?
@@ -69,10 +54,6 @@ final class BrowserPagePool:
     /// from this window, in its workspace.
     @ObservationIgnored let browser: BrowserStore
     var windowID: UUID { browser.windowID }
-    /// Whether this pool's window is still open. A pool outlives its window
-    /// while a Quick Window opened over it lasts, and the window reopened
-    /// under the same identity has a pool of its own, so a pool whose window
-    /// closed never registers under that identity again.
     var isWindowOpen: Bool { !browser.isClosed }
     /// The native window this pool's window is on screen as, while it is.
     @ObservationIgnored private(set) weak var presentationWindow: NSWindow?
@@ -99,28 +80,16 @@ final class BrowserPagePool:
     @ObservationIgnored let usesEphemeralWebsiteDataStores: Bool
     @ObservationIgnored private let pageZoomPreferences: BrowserDefaultPageZoomStore
     @ObservationIgnored private let dialogPresenter: BrowserDialogPresenter
-    /// Opens a Quick Window for a window a page asked for; the window's
-    /// presentation installs it. Without one, such a page has nowhere to show
-    /// and goes.
-    @ObservationIgnored var popupWindowPresenter: ((BrowserQuickWindowRequest) -> Void)?
-    /// Whether a Peek is open for the person rather than staged while they
-    /// still drag its link; the window's transient browsing answers.
-    @ObservationIgnored var isPeekOpen: (BrowserPeekRequest) -> Bool = { _ in false }
-    /// Closes a Peek the window shows; the window's transient browsing does.
-    @ObservationIgnored var dismissPeek: (BrowserPeekRequest) -> Void = { _ in }
+    @ObservationIgnored private let openNewTab: (URL) -> Void
     @ObservationIgnored private let openModifiedLink: ModifiedLinkOpener
-    @ObservationIgnored private let openPeek: (BrowserPeekRequest) -> Void
-    @ObservationIgnored private let handleLinkDrag: (BrowserPeekInteractionEvent) -> Void
     @ObservationIgnored private let splitLinkHost: BrowserSplitLinkHost
     @ObservationIgnored let linkDestinationHost: BrowserLinkDestinationHost
     @ObservationIgnored private let hostedNotificationCenter: (any BrowserHostedWebNotificationCentering)?
     @ObservationIgnored private let mediaSessionStore: BrowserMediaSessionStore?
     @ObservationIgnored private let activateHostedNotificationSource: (UUID, UUID) -> Void
-    @ObservationIgnored private let loadHTTPAuthenticationCredential: HTTPAuthenticationCredentialLoader
-    @ObservationIgnored private let saveHTTPAuthenticationCredential: HTTPAuthenticationCredentialSaver
     /// Built-in content blocking, which only the WebKit engine applies.
     @ObservationIgnored let contentBlocking: BrowserContentBlockingController
-    /// The pages every window over this workspace shares: tabs', leases' and
+    /// The pages every window over this workspace shares: tabs' pages and
     /// the state tabs leave when their pages go.
     var host: BrowserPageHost { runtimeStore.host }
 
@@ -138,14 +107,9 @@ final class BrowserPagePool:
         mediaSessionStore: BrowserMediaSessionStore? = nil,
         downloadCenter: BrowserDownloadCenter? = nil,
         passkeyAccess: BrowserPasskeyAccessController? = nil,
-        loadHTTPAuthenticationCredential:
-            @escaping HTTPAuthenticationCredentialLoader = { _, _ in nil },
-        saveHTTPAuthenticationCredential:
-            @escaping HTTPAuthenticationCredentialSaver = { _, _ in },
         tabStateArchive: (any BrowserTabStateArchiving)? = nil,
+        openNewTab: @escaping (URL) -> Void = { _ in },
         openModifiedLink: @escaping ModifiedLinkOpener = { _, _, _ in nil },
-        openPeek: @escaping (BrowserPeekRequest) -> Void = { _ in },
-        handleLinkDrag: @escaping (BrowserPeekInteractionEvent) -> Void = { _ in },
         splitLinkHost: BrowserSplitLinkHost = .unavailable,
         linkDestinationHost: BrowserLinkDestinationHost = .unavailable,
         activateHostedNotificationSource:
@@ -170,12 +134,9 @@ final class BrowserPagePool:
         self.hostedNotificationCenter = hostedNotificationCenter
         self.mediaSessionStore = browsingMode.isPrivate ? nil : mediaSessionStore
         self.dialogPresenter = dialogPresenter
-        self.loadHTTPAuthenticationCredential = loadHTTPAuthenticationCredential
-        self.saveHTTPAuthenticationCredential = saveHTTPAuthenticationCredential
         contentBlocking = BrowserContentBlockingController(rules: core.engines.webKit?.contentRules)
+        self.openNewTab = openNewTab
         self.openModifiedLink = openModifiedLink
-        self.openPeek = openPeek
-        self.handleLinkDrag = handleLinkDrag
         self.splitLinkHost = splitLinkHost
         self.linkDestinationHost = linkDestinationHost
         self.activateHostedNotificationSource = activateHostedNotificationSource
@@ -201,12 +162,11 @@ final class BrowserPagePool:
         }
         followAdoptedPages()
         followPutAwayPages()
+        host.startAutomaticUnloading(core: browser.core)
         core.followWindowsBroughtForward(self) { [weak self] brought in
             guard let self, self.browser.isOpen(as: brought.windowID) else { return }
             bringForward()
         }
-        core.followAdoptedWindows(self) { [weak self] in self?.popupWindowAdopted($0) }
-        core.followClosedTransientPages(self) { [weak self] in self?.transientPageClosed($0) }
     }
 
     var nativeTabs: BrowserNativeTabStore { runtimeStore.nativeTabs }
@@ -295,8 +255,6 @@ final class BrowserPagePool:
         matching assignment: BrowserTabRuntimeAssignment,
         in space: SpaceModel
     ) -> Bool {
-        // The core's tear-off question already refused a Space being deleted
-        // or locked, and moving the page asks the core again.
         guard assignment.spaceID == space.id, assignment.profileID == space.profileID else { return false }
         let tabID = assignment.tabID
         guard source.runtimeStore !== runtimeStore else { return true }
@@ -311,7 +269,6 @@ final class BrowserPagePool:
     func closeWindowWorkspace() {
         releaseWindowPresentation()
         reconcile(validTabIDs: [])
-        host.releaseAllTransientPages()
     }
 
     func bindRuntimeRouting(_ runtime: BrowserTabRuntime, tabID: UUID) {
@@ -327,9 +284,7 @@ final class BrowserPagePool:
 
     func makeWindowPool(
         browser: BrowserStore,
-        sharesRuntimes: Bool,
-        transientBrowsing: BrowserTransientBrowsingCoordinator,
-        spaceAccess: BrowserSpaceAccessController
+        sharesRuntimes: Bool
     ) -> BrowserPagePool {
         let owner = sharesRuntimes ? runtimeStore : BrowserPageRuntimeStore()
         owner.publishesPageMetadataCentrally = true
@@ -342,21 +297,12 @@ final class BrowserPagePool:
             permissionCenter: permissionCenter,
             hostedNotificationCenter: hostedNotificationCenter, mediaSessionStore: mediaSessionStore,
             downloadCenter: downloadCenter, passkeyAccess: passkeyAccess,
-            loadHTTPAuthenticationCredential: { [weak browser] protectionSpace, spaceID in
-                try await browser?.httpAuthenticationCredential(for: protectionSpace, in: spaceID)
-            },
-            saveHTTPAuthenticationCredential: { [weak browser] request, spaceID in
-                try await browser?.saveHTTPAuthenticationCredential(
-                    username: request.username, password: request.password, protectionSpace: request.protectionSpace,
-                    in: spaceID, replacing: request.replacing)
-            },
+            openNewTab: { [weak browser] url in browser?.openNewTab(url: url) },
             openModifiedLink: { [weak browser] url, spaceID, selecting in
                 browser?.openModifiedLink(url, in: spaceID, selecting: selecting)
             },
-            openPeek: { [weak transientBrowsing] in transientBrowsing?.presentPeek($0) },
-            handleLinkDrag: { [weak transientBrowsing] in transientBrowsing?.handleLinkDrag($0) },
             splitLinkHost: browser.splitLinkHost,
-            linkDestinationHost: BrowserLinkDestinationHost(browser: browser, spaceAccess: spaceAccess),
+            linkDestinationHost: BrowserLinkDestinationHost(browser: browser),
             activateHostedNotificationSource: { [weak browser] spaceID, tabID in
                 browser?.selectSpace(spaceID)
                 browser?.selectTab(tabID)
@@ -410,23 +356,14 @@ final class BrowserPagePool:
         activePage?.live.documentURL != nil
     }
 
-    /// The Peek open over the active tab, which shows in front of it. A Peek
-    /// still staged by a link drag is not open yet.
-    var peekPage: BrowserPage? {
-        activeTabID.flatMap { host.peekPage(over: $0, where: isPeekOpen) }
-    }
-
-    /// The page the page commands act on: the Peek open over the active tab,
-    /// or else the tab's own page.
     var commandPage: BrowserPage? {
-        peekPage ?? activePage
+        activePage
     }
 
     /// Presents what the window shows: the tab it shows and the cards beside
     /// it, each on the page the core opens for it.
     func select(at time: Date = .now) {
         startInitialNavigations(presentCards(tab: browser.shownTab, space: browser.shownSpace, at: time))
-        reconcileCredentialAccess()
     }
 
     /// Builds and presents the cards `tab` brings on screen without navigating
@@ -457,8 +394,6 @@ final class BrowserPagePool:
         // the destination page can hide the previous native surface first.
         requestAutomaticPictureInPicture(forDeparturesBefore: members.map(\.id))
         for member in members { nativeTabs.load(tab: member, space: space, at: time) }
-        // A card the core refuses a page, such as one in a locked Space,
-        // presents without one.
         let images = browser.core.state.favicons
         let memberPages = members.filter { $0.nativeContent == nil }.compactMap { member in
             let pageTab = BrowserPageTab(member, images: images)
@@ -512,7 +447,6 @@ final class BrowserPagePool:
         let pageTab = BrowserPageTab(tab, images: browser.core.state.favicons)
         guard let page = page(for: pageTab, space: space) else { return nil }
         loadInitialURL(for: pageTab, into: page)
-        reconcileCredentialAccess()
         return page
     }
 
@@ -534,7 +468,6 @@ final class BrowserPagePool:
         }
         page.load(request)
         if selecting { select() }
-        reconcileCredentialAccess()
     }
 
     /// The cards `tab` brings on screen: the ones the core shows beside it in
@@ -544,20 +477,10 @@ final class BrowserPagePool:
         return members.contains { $0.id == tab.id } ? members : [tab]
     }
 
-    /// An unlocked empty Space or start page is an ordinary departure. Keep
-    /// the same PiP lifecycle as switching between loaded tabs; security
-    /// teardown uses deactivatePagePresentation instead.
     func leavePagePresentation() {
         activate(nil, presenting: [])
     }
 
-    /// Removes every rendered page from presentation without evicting their
-    /// isolated WebKit runtimes. Re-selecting the tab restores the resident
-    /// page, while protected content cannot remain visible behind a lock gate.
-    ///
-    /// All of it goes at once, not just the focused card: a Space locking with
-    /// a split open has to take every card away, and half a split left on
-    /// screen would be the privacy failure the gate exists to prevent.
     func deactivatePagePresentation() {
         for runtime in tabRuntimes.values where runtime.presentationWindowID == windowID {
             runtime.page.pictureInPicture?.invalidate()
@@ -656,83 +579,9 @@ final class BrowserPagePool:
         }
     }
 
-    func makeTransientPageLease(
-        url: URL,
-        in space: SpaceModel,
-        presentation: TransientPresentation = .quickWindow,
-        engineNavigation: BrowserEngineNavigation? = nil,
-        opener: UUID? = nil,
-        onUserActivity: @escaping () -> Void = {},
-        onDownloadOnlyNavigation: (() -> Void)? = nil
-    ) -> BrowserTransientPageLease? {
-        host.makeTransientPageLease(
-            url: url, in: space, presentation: presentation, engineNavigation: engineNavigation,
-            balancedContentRuleLists: contentBlocking.balancedRuleLists ?? [], onUserActivity: onUserActivity,
-            onDownloadOnlyNavigation: onDownloadOnlyNavigation
-        ) { [weak self] in
-            self?.makePage(space: space, presentation: presentation, opener: opener)
-        }
-    }
-
-    @discardableResult
-    func adoptTransientPage(
-        _ lease: BrowserTransientPageLease,
-        as tabID: UUID,
-        in space: SpaceModel
-    ) -> Bool {
-        // Move the renderer before Quick Window dismissal destroys its old
-        // host. SwiftUI attaches the retained native view on a later update.
-        // An engine that cannot move a live page between windows leaves the
-        // caller to load the tab afresh instead, and so does the core when
-        // the tab may not take the page.
-        guard
-            let page = host.adoptTransientPage(
-                lease, as: tabID, in: space, through: browser,
-                prepare: { [windowID] page in
-                    page.pageEngine.registration.supports(.workspaceTransfer) && page.enginePage.move(to: windowID)
-                })
-        else { return false }
-        retainResidentPage(page, for: tabID)
-        residencyRevision &+= 1
-        activate(tabID)
-        if let tab = space.tabs.model(tabID) {
-            page.updateNavigationContext(tab: BrowserPageTab(tab, images: browser.core.state.favicons))
-        }
-        return true
-    }
-
-    /// Lets go of a tab's page its engine closed on its own authority. The
-    /// core already closed the tab as its close button would, or kept it, as
-    /// a locked Space does; either way the page is gone, so nothing of it is
-    /// kept, and a tab still there loads anew when shown. A Quick Window's or
-    /// Peek's page goes with what shows it, which the core closes.
     func releaseEngineClosedPage(_ page: BrowserPage) {
         guard let tabID = tabID(for: page) else { return }
         host.unloadPage(for: tabID, preservingTabState: false)
-    }
-
-    // MARK: - Actions - Peek
-
-    /// Closes the Peek open over the active tab, which Close Tab closes
-    /// before the tab under it; false when no Peek is open.
-    func closePeek() -> Bool {
-        guard let request = activeTabID.flatMap({ host.peekRequest(over: $0, where: isPeekOpen) })
-        else { return false }
-        if let peekPage { returnFocus(fromPeek: peekPage) }
-        dismissPeek(request)
-        return true
-    }
-
-    /// Hands the keyboard back to the active tab's page as the Peek page
-    /// holding it closes, as closing find hands it back to the page searched.
-    /// An engine that focuses a page it shows, as Chromium does, gives the
-    /// Peek the keyboard when it opens.
-    func returnFocus(fromPeek peek: BrowserPage) {
-        guard let page = activePage, page !== peek,
-            let responder = peek.nativeView.window?.firstResponder as? NSView,
-            responder.isDescendant(of: peek.nativeView)
-        else { return }
-        page.focusRestoration.requestPageFocus(displacing: peek.nativeView)
     }
 
     // MARK: - Actions - Media sessions
@@ -756,91 +605,7 @@ final class BrowserPagePool:
 
     // MARK: - Actions - Popup windows
 
-    /// Lets go of a popup window's page the core closed before its Quick
-    /// Window took it; a Quick Window that took one closes itself.
-    private func transientPageClosed(_ closed: TransientPageClosed) {
-        guard closed.workspaceID == browser.window.workspaceID, let parked = host.takePopupWindowPage(closed.pageID)
-        else { return }
-        parked.release(keepingState: false)
-    }
-
-    /// Hosts the page the core adopted for a window a page asked for, when
-    /// this pool routes that page now, and opens the Quick Window that shows
-    /// it over this window, which takes the page from the host every window
-    /// over the workspace shares. The page answers its navigations from now
-    /// on. The core names the opener's window, but a page another window shows
-    /// is routed there, and a pool left over from a window that closed under
-    /// the same identity routes nothing, so neither hosts it. A page no Quick
-    /// Window takes goes.
-    private func popupWindowAdopted(_ adopted: OfferedWindowAdopted) {
-        guard adopted.workspaceID == browser.window.workspaceID, routesPopupWindow(of: adopted) else { return }
-        guard let opened = browser.core.engines.host(adopted.pageID) else { return }
-        guard let space = browser.spaceModel(adopted.spaceID), let present = popupWindowPresenter,
-            let url = URL(string: adopted.url),
-            let page = makePage(space: space, presentation: .quickWindow, opened: opened)
-        else {
-            DiagnosticLog.popups.notice("No Quick Window can show popup page \(adopted.pageID) over window \(windowID)")
-            opened.page.release(keepingState: false)
-            return
-        }
-        page.markOpenedAsPopup()
-        guard host.keepPopupWindowPage(page) else {
-            page.release(keepingState: false)
-            return
-        }
-        present(
-            BrowserQuickWindowRequest(
-                url: url, spaceAssignment: BrowserSpaceRuntimeAssignment(space: space), targetWindowID: windowID,
-                openedPageID: adopted.pageID))
-        Task { @MainActor [weak host] in
-            try? await Task.sleep(for: Self.popupWindowWait)
-            guard let page = host?.takePopupWindowPage(adopted.pageID) else { return }
-            DiagnosticLog.popups.notice("No Quick Window took popup page \(adopted.pageID); it goes")
-            page.release(keepingState: false)
-        }
-    }
-
-    /// Whether this pool is the one to host the window `adopted` names: the
-    /// pool that routes the page that asked for it now, or, when no window
-    /// routes that page, the pool of the open window the core names.
-    private func routesPopupWindow(of adopted: OfferedWindowAdopted) -> Bool {
-        guard let source = host.livePages.first(where: { $0.corePage.id == adopted.sourcePageID }),
-            let router = source.host
-        else { return browser.isOpen(as: adopted.windowID) }
-        return router === self
-    }
-
-    /// A lease on the page the core adopted for a popup window, `pageID`, for
-    /// the Quick Window that shows it in `space`. Nil when the host keeps no
-    /// such page, or it went. The page is already heading where the window
-    /// asked, so the lease loads nothing; `url` is what it loads again after
-    /// memory pressure.
-    func makePopupWindowLease(
-        for pageID: UUID, url: URL, in space: SpaceModel, onUserActivity: @escaping () -> Void
-    ) -> BrowserTransientPageLease? {
-        guard let page = host.takePopupWindowPage(pageID) else {
-            DiagnosticLog.popups.notice("Popup page \(pageID) is gone before its Quick Window took it")
-            return nil
-        }
-        guard page.spaceID == space.id, page.profileID == space.profileID else {
-            DiagnosticLog.popups.notice("Popup page \(pageID) belongs to another Space than its Quick Window")
-            page.release(keepingState: false)
-            return nil
-        }
-        let lease = BrowserTransientPageLease(
-            page: page, url: url, contentBlockingPolicy: space.settings.browsingPreferences.contentBlocking,
-            balancedContentRuleLists: contentBlocking.balancedRuleLists ?? [],
-            rebuild: { [weak self] in self?.makePage(space: space, presentation: .quickWindow) },
-            userActivity: onUserActivity, loadsURL: false)
-        host.keep(lease)
-        return lease
-    }
-
-    /// Retires an empty surface whose initial navigation became a download:
-    /// a transient one closes, and a tab's page asks the core to close it as
-    /// its own script would.
     func discardDownloadOnlyPage(_ page: BrowserPage) {
-        guard !host.discardDownloadOnlyTransientPage(page) else { return }
         page.corePage.report(PageCloseRequested(pageID: page.corePage.id))
     }
 
@@ -862,29 +627,6 @@ final class BrowserPagePool:
     func activateNotificationSourcePage(_ page: BrowserPage) {
         guard let tabID = tabID(for: page) else { return }
         activateHostedNotificationSource(page.spaceID, tabID)
-    }
-
-    /// Hides a protected Space without unloading its tabs. Unlocking can reuse
-    /// the same WebKit pages, including scroll position and unsaved form state.
-    /// Resident pages remain subject to normal idle and memory-pressure limits.
-    ///
-    /// Previously archived state is still purged from disk. This preserves only
-    /// live pages, not a disk snapshot of a protected Space. The access views
-    /// gate ordinary and transient content until authentication succeeds.
-    func relockProtectedSpace(_ space: SpaceModel) {
-        guard space.settings.requiresAuthentication else { return }
-        // A background Space can still remember its editor after departure.
-        // Locking ends that focus session even though its pages stay resident.
-        for page in host.livePages where page.spaceID == space.id {
-            page.focusRestoration.invalidate()
-            page.pictureInPicture?.invalidate()
-        }
-        if activePage?.spaceID == space.id
-            || presentedTabIDs.contains(where: { tabRuntimes[$0]?.page.spaceID == space.id })
-        {
-            deactivatePagePresentation()
-        }
-        host.tabState.removeStates(profileID: space.profileID)
     }
 
     /// Reloads the shown tab, or brings its page back when it went.
@@ -928,9 +670,6 @@ final class BrowserPagePool:
                 existingPage.profileID == space.profileID
             {
                 let page = existingPage
-                page.setCredentialAccessEnabled(
-                    space.settings.credentialPreferences.isEnabled
-                )
                 page.updateNavigationContext(tab: tab)
                 return page
             }
@@ -954,6 +693,22 @@ final class BrowserPagePool:
         page.updateNavigationContext(tab: tab)
         retainResidentPage(page, for: tab.id)
         residencyRevision &+= 1
+        return page
+    }
+
+    /// The page of a system sign-in window, in its routed profile. It is never archived, promoted, or unloaded by an idle timer.
+    func makeAuthenticationPage(_ url: URL, in space: SpaceModel) -> BrowserPage? {
+        guard
+            let opened = browser.core.engines.open(
+                OpenPage(
+                    pageID: UUID(), workspaceID: browser.window.workspaceID, spaceID: space.id,
+                    tabID: nil, windowID: browser.windowID, transient: .authentication, openerPageID: nil)),
+            let page = makePage(space: space, opened: opened)
+        else { return nil }
+        page.applyContentBlocking(
+            policy: space.settings.browsingPreferences.contentBlocking,
+            balancedRuleLists: contentBlocking.balancedRuleLists ?? [])
+        page.corePage.load(url)
         return page
     }
 
@@ -993,21 +748,11 @@ final class BrowserPagePool:
             spaceID: space.id,
             profileID: space.profileID,
             spaceName: space.settings.name,
-            allowsCredentialAccess: !browsingMode.isPrivate,
-            isCredentialAccessEnabled:
-                space.settings.credentialPreferences.isEnabled,
             defaultPageZoom: pageZoomPreferences.defaultZoom,
-            loadHTTPAuthenticationCredential: { [weak routing] protectionSpace in
-                try await routing?.pool?.loadHTTPAuthenticationCredential(protectionSpace, space.id)
-            },
-            saveHTTPAuthenticationCredential: { [weak routing] request in
-                try await routing?.pool?.saveHTTPAuthenticationCredential(request, space.id)
-            },
+            openNewTab: { [weak routing] url in routing?.pool?.openNewTab(url) },
             openModifiedLink: { [weak routing, pageID = opened.page.id] url, spaceID, selecting in
                 routing?.pool?.openModifiedLink(url, in: spaceID, selecting: selecting, opener: pageID)
             },
-            openPeek: { [weak routing] in routing?.pool?.openPeek($0) },
-            handleLinkDrag: { [weak routing] in routing?.pool?.handleLinkDrag($0) },
             splitLinkHost: pageSplitLinkHost,
             linkDestinationHost: linkDestinationHost
         )

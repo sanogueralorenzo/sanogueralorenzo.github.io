@@ -4,32 +4,16 @@ struct BrowserSiteSettingsContent: View {
     let page: BrowserPage
     let permissionCenter: BrowserSitePermissionCenter
     var reviewCertificate: (() -> Void)?
-    @Binding private var isPermissionsExpanded: Bool
-
-    init(
-        page: BrowserPage,
-        permissionCenter: BrowserSitePermissionCenter,
-        reviewCertificate: (() -> Void)? = nil,
-        permissionsExpansion: Binding<Bool>
-    ) {
-        self.page = page
-        self.permissionCenter = permissionCenter
-        self.reviewCertificate = reviewCertificate
-        _isPermissionsExpanded = permissionsExpansion
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: CrestSpacing.medium) {
             BrowserSiteDeveloperModeStatus(page: page)
 
             if let origin {
-                BrowserSiteEngineRow(page: page, origin: origin)
                 BrowserSiteOriginSettings(
                     page: page,
                     origin: origin,
                     reviewCertificate: reviewCertificate,
-                    permissionCenter: permissionCenter,
-                    isExpanded: $isPermissionsExpanded
+                    permissionCenter: permissionCenter
                 )
             }
         }
@@ -43,12 +27,10 @@ struct BrowserSiteSettingsContent: View {
 }
 
 #Preview("Site Settings") {
-    @Previewable @State var isExpanded = true
     let preview = BrowserSiteSettingsPreviewFixture.makePage()
     BrowserSiteSettingsContent(
         page: preview.page,
-        permissionCenter: preview.permissionCenter,
-        permissionsExpansion: $isExpanded
+        permissionCenter: preview.permissionCenter
     )
     .padding()
     .frame(width: 300)

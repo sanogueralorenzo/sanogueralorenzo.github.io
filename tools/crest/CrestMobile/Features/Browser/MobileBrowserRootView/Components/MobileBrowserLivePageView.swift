@@ -48,15 +48,6 @@ struct MobileBrowserLivePageView: View {
             )
         )
         .modifier(
-            BrowserPageToolbarHost {
-                if !viewport.obscuresSystemSafeAreas, isActive,
-                    !page.readerModeState.isActive, page.translation.showsToolbar
-                {
-                    BrowserTranslationToolbar(translation: page.translation)
-                }
-            }
-        )
-        .modifier(
             BrowserTranslationHost(
                 translation: page.translation, page: page,
                 isActive: isActive, isLoading: page.live.isLoading,

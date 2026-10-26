@@ -174,24 +174,12 @@ final class BrowserDialogPresenter {
         password.placeholderString = "Password"
         password.setAccessibilityLabel("Password")
 
-        let savePassword = NSButton(
-            checkboxWithTitle: "Save in \(spaceName)",
-            target: nil,
-            action: nil
-        )
-        savePassword.state = .on
-        savePassword.setAccessibilityLabel("Save this sign-in in the \(spaceName) Space")
-
-        let accessoryHeight: CGFloat = prompt.allowsSaving ? 84 : 56
+        let accessoryHeight: CGFloat = 56
         let fields = NSView(frame: NSRect(x: 0, y: 0, width: 280, height: accessoryHeight))
         username.frame = NSRect(x: 0, y: accessoryHeight - 24, width: 280, height: 24)
         password.frame = NSRect(x: 0, y: accessoryHeight - 56, width: 280, height: 24)
         fields.addSubview(username)
         fields.addSubview(password)
-        if prompt.allowsSaving {
-            savePassword.frame = NSRect(x: 0, y: 0, width: 280, height: 20)
-            fields.addSubview(savePassword)
-        }
         alert.accessoryView = fields
         alert.addButton(withTitle: "Sign In")
         alert.addButton(withTitle: "Cancel")
@@ -206,8 +194,7 @@ final class BrowserDialogPresenter {
                 continuation.resume(
                     returning: BrowserHTTPAuthenticationPromptResponse(
                         username: username.stringValue,
-                        password: password.stringValue,
-                        shouldSave: prompt.allowsSaving && savePassword.state == .on
+                        password: password.stringValue
                     )
                 )
             }
@@ -222,17 +209,6 @@ final class BrowserDialogPresenter {
         var components: [String] = []
         if let realm = descriptor.realm, !realm.isEmpty {
             components.append("Realm: \(realm)")
-        }
-        if prompt.allowsSaving {
-            components.append(
-                "This sign-in belongs only to the \(spaceName) Space. "
-                    + "Crest saves it only after the site accepts it."
-            )
-        } else {
-            components.append(
-                "This sign-in belongs only to the \(spaceName) Space and cannot "
-                    + "be saved because the connection is not protected by HTTPS."
-            )
         }
         if descriptor.previousFailureCount > 0 {
             components.append("The previous credentials were not accepted.")

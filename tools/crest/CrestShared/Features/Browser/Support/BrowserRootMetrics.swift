@@ -1,7 +1,6 @@
 import CoreGraphics
 
 enum BrowserRootMetrics {
-    static let utilityFanAdditionalEdgeOffset: CGFloat = 12
     static let sidebarResizeHandleOffset: CGFloat = 8
     static let floatingSidebarBorderWidth: CGFloat = 0.75
     static let floatingSidebarBorderOpacity = 0.2
@@ -22,6 +21,5 @@ enum BrowserRootMetrics {
     static let floatingSidebarZIndex: Double = 4
     static let utilityFanZIndex: Double = 8
     static let commandPaletteZIndex: Double = 10
-    static let peekZIndex: Double = 20
     static let feedbackZIndex: Double = 30
 }

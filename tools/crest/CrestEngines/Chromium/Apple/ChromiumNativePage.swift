@@ -29,7 +29,6 @@
         /// engine's context menu for it.
         weak var menuHost: (any BrowserPageContextMenuHost)?
         /// Crest's own drag of a link out of the page.
-        weak var linkDrag: BrowserLinkDragController?
         private var host: (any CrestMacShell)? { engine?.host }
         private var created = false
         /// Whether the engine shows the page now, as this page last asked it
@@ -395,7 +394,7 @@
         /// leaves the drag to the engine.
         func beginLinkDrag(_ url: URL, title: String) -> Bool {
             guard !disposed, ExternalWebLink.accepts(url) else { return false }
-            return linkDrag?.beginNativeLink(url: url, label: title) == true
+            return false
         }
     }
 

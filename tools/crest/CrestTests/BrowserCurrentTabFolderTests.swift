@@ -6,6 +6,27 @@ import XCTest
 @MainActor
 final class BrowserCurrentTabFolderTests: XCTestCase {
 
+    func testNestedCurrentFoldersSyncToAnotherDeviceWithMetadataAndMembership() async throws {
+        let root = FolderState.Seed(
+            title: "Research", location: .current, color: BrandColor(red: 0.2, green: 0.4, blue: 0.6),
+            isCollapsed: true,
+            collapseModifiedAt: Date(timeIntervalSince1970: 1_800_000_000))
+        let nested = FolderState.Seed(
+            title: "Nested", location: .current, color: BrandColor(red: 0.7, green: 0.2, blue: 0.4), parentID: root.id)
+        let child = nested.id
+        let browser = makeBrowser { space in
+            space.folders = [root, nested]
+            space.tabs[1].folderID = child
+        }
+        let space = try XCTUnwrap(browser.shownSpace)
+        let firstCurrent = try XCTUnwrap(space.currentTabs.first?.id)
+        let remote = try await BrowserStoredSessionHarness.staged(seed: browser.sessionSeed).joiningDevice().store
+        let restored = try XCTUnwrap(remote.spaceModel(space.id))
+        XCTAssertEqual(restored.folders.values, space.folders.values)
+        XCTAssertEqual(restored.tabs.model(firstCurrent)?.folderID, child)
+        XCTAssertEqual(restored.tabs.model(firstCurrent)?.placement, .current)
+    }
+
     func testSyncPreferencesIncludeEachFolderWithItsSectionAndPreserveDisabledLocalSections() async throws {
         let browser = makeBrowser()
         let space = try XCTUnwrap(browser.shownSpace)

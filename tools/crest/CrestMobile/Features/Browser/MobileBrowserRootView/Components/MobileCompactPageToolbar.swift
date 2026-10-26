@@ -13,8 +13,6 @@ struct MobileCompactPageToolbar: View {
     let hideToolbar: () -> Void
     /// The swipe through the shown Space's tabs this bar drives.
     let tabSwipe: MobileTabSwipe
-    /// The bar may swipe through the shown Space's tabs and show its split's
-    /// cards: false while the Space is locked, whose tabs it must not show.
     let canSwipeTabs: Bool
     /// The tabs a swipe reaches either side, as the core answers it.
     let swipeNeighbors: () -> SwipeNeighborTabs

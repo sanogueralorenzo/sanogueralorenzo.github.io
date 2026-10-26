@@ -7,6 +7,5 @@ struct BrowserPageInteracted: BrowserPageEngineEvent {
             page.awaitsInputSincePresented = false
             DiagnosticLog.pages.notice("Page \(page.corePage.id) takes the person's input")
         }
-        page.userActivityHandler?()
     }
 }

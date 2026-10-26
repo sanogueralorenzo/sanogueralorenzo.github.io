@@ -1,26 +1,24 @@
 import SwiftUI
 
-/// Startup, browsing preferences, and the platform's default-browser actions.
+/// Browsing preferences and the platform's default-browser actions.
 struct BrowserGeneralSettingsPane: View {
     let browser: BrowserStore
-    let spaceAccess: BrowserSpaceAccessController
 
     @State private var defaultBrowser = BrowserDefaultBrowserController()
     @State private var isCheckingDefaultBrowser = true
-    @Bindable private var appPreferences = BrowserAppPreferenceStore.shared
     #if os(iOS)
         @AppStorage(
             MobileBrowserRootPreferences.allowsFloatingSidebarKey, store: BrowserChromeAppearancePreference.defaults)
         private var allowsFloatingSidebar = false
     #endif
 
-    init(browser: BrowserStore, spaceAccess: BrowserSpaceAccessController) {
+    init(browser: BrowserStore) {
         self.browser = browser
-        self.spaceAccess = spaceAccess
     }
 
     var body: some View {
         BrowserSettingsPane(.general) {
+            BrowserDefaultPageZoomSettingsSection()
             Section {
                 // The Mac keeps the status and its action on one line; a
                 // phone's row is too narrow, so the action takes a row of
@@ -49,25 +47,8 @@ struct BrowserGeneralSettingsPane: View {
                 }
             }
 
-            Section("Startup") {
-                #if os(macOS)
-                    Picker("When Crest opens", selection: $appPreferences.startupBehavior) {
-                        ForEach(StartupBehavior.settingsOrder, id: \.self) { behavior in
-                            Text(behavior.title).tag(behavior)
-                        }
-                    }
-                #else
-                    Toggle("Start on new tab", isOn: startsOnNewTab)
-                        .accessibilityIdentifier("start-on-new-tab")
-                #endif
-
-                CrestSpaceMenuPicker(
-                    "Default Space",
-                    selection: browser.defaultSpaceBinding(),
-                    spaces: CrestSpaceIdentity.list(browser.spaceModels),
-                    accessibilityIdentifier: "default-space-picker"
-                )
-            }
+            BrowserSearchProviderSettingsSection()
+            BrowserTranslationSettingsSection()
 
             #if os(iOS)
                 Section("Sidebar") {
@@ -76,23 +57,6 @@ struct BrowserGeneralSettingsPane: View {
                 }
             #endif
 
-            // Whole-page translation preferences, which reach only the pages of
-            // an engine with page translation.
-            if browser.core.state.offers(.translation) {
-                BrowserTranslationSettingsSection()
-            }
-
-            #if os(macOS)
-                Section {
-                    BrowserSpellCheckingToggle()
-                    BrowserPictureInPictureToggle()
-                } header: {
-                    Text("Webpages")
-                } footer: {
-                    CrestFormFootnote("Spelling changes apply after Crest restarts.")
-                }
-                BrowserDeveloperToolbarSettingsSection()
-            #endif
         }
         .task {
             guard defaultBrowser.status == .unknown else {
@@ -102,20 +66,6 @@ struct BrowserGeneralSettingsPane: View {
             await refreshDefaultBrowserStatus()
         }
     }
-
-    #if os(iOS)
-        // MARK: - Startup
-
-        /// A phone opens on a new tab in the default Space, or on its tab
-        /// viewer, which is its Start Page.
-        private var startsOnNewTab: Binding<Bool> {
-            Binding {
-                appPreferences.startupBehavior.opensNewTab
-            } set: { startsOnNewTab in
-                appPreferences.startupBehavior = startsOnNewTab ? .newTab : .showStartPage
-            }
-        }
-    #endif
 
     // MARK: - Default browser
 
@@ -184,27 +134,3 @@ struct BrowserGeneralSettingsPane: View {
         }
     }
 }
-
-#if os(macOS)
-    /// WebKit reads this spelling preference once per process.
-    struct BrowserSpellCheckingToggle: View {
-        static let controlIdentifier = "continuous-spell-checking-toggle"
-
-        private let preferences = BrowserAppPreferenceStore.shared
-
-        /// Read while the body evaluates, so the row follows the core's value.
-        private var isEnabled: Binding<Bool> {
-            let isEnabled = preferences.checksSpelling
-            return Binding {
-                isEnabled
-            } set: {
-                preferences.setChecksSpellingForWebKit($0)
-            }
-        }
-
-        var body: some View {
-            Toggle("Check spelling", isOn: isEnabled)
-                .accessibilityIdentifier(Self.controlIdentifier)
-        }
-    }
-#endif

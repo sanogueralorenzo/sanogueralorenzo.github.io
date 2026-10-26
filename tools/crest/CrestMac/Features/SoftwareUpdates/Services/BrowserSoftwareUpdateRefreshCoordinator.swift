@@ -11,7 +11,6 @@ protocol BrowserSoftwareUpdateChecking: AnyObject {
 
     func checkForUpdates()
     func checkForUpdatesInBackground()
-    func resetUpdateCycleAfterShortDelay()
 }
 
 extension SPUUpdater: BrowserSoftwareUpdateChecking {}
@@ -60,18 +59,6 @@ final class BrowserSoftwareUpdateRefreshCoordinator {
 
     private func downloadLatestUpdate() {
         _ = request(.downloadLatest)
-    }
-
-    func channelDidChange() {
-        downloadsNextOffer = false
-        updater.resetUpdateCycleAfterShortDelay()
-
-        guard updater.sessionInProgress else { return }
-        pendingCheck = updater.automaticallyChecksForUpdates ? .background : nil
-        guard model.beginRefreshingAvailableUpdate() else {
-            pendingCheck = nil
-            return
-        }
     }
 
     func updateCycleDidFinish() {

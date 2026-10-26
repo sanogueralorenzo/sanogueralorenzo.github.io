@@ -1,24 +1,14 @@
 import AppKit
 
-/// Opens what another app hands Crest, a web link or a document, where the
-/// core places it, for either engine's product. The core names the window
-/// and the Space: the frontmost window over the person's own Spaces, never a
-/// private or torn-off tab's window, or with none open, one to open, or for a
-/// link, a Quick Window alone, whether or not any window is open. Unlocking a
-/// Space that asks for it stays here, since it asks the person.
 @MainActor
 final class BrowserMacExternalOpening {
     // MARK: - Types
 
     /// Where a link from another app lands, once its Space is open to this
     /// process.
-    struct LinkDestination {
-        let placement: ExternalLinkPlacement
+    struct Destination {
+        let placement: ExternalOpenPlacement
         let assignment: BrowserSpaceRuntimeAssignment
-
-        /// The window a Quick Window for the link promotes into: the open
-        /// window the core named, or none when no window is open.
-        var quickWindowTarget: UUID? { placement.opensWindow ? nil : placement.windowID }
     }
 
     // MARK: - Variables
@@ -42,18 +32,10 @@ final class BrowserMacExternalOpening {
         for url in urls where !url.isFileURL { await openLink(url) }
     }
 
-    /// Opens a link from another app where the core routes it: in a Quick
-    /// Window, or as a new tab in the window it names. Answers whether it
-    /// opened.
+    /// Opens an external link as a tab in the current regular Space.
     @discardableResult
     func openLink(_ url: URL) async -> Bool {
-        guard let destination = await destination(for: url) else { return false }
-        if destination.placement.opensQuickWindow {
-            windows.openQuickWindow(
-                BrowserQuickWindowRequest(
-                    url: url, spaceAssignment: destination.assignment, targetWindowID: destination.quickWindowTarget))
-            return true
-        }
+        guard let destination = await destination() else { return false }
         guard
             let request = preparedWindow(destination.placement.windowID, opens: destination.placement.opensWindow),
             application.openExternalLink(url, in: destination.assignment, window: request.id)
@@ -62,42 +44,30 @@ final class BrowserMacExternalOpening {
         return true
     }
 
-    /// Opens documents another app handed Crest as tabs in the Space the core
-    /// names, which is the one on screen, unlocking it first when it asks.
     func openDocuments(_ urls: [URL]) async {
-        let browser = application.browser
-        guard
-            let placement = try? browser.core.query(RouteLocalDocument(windowIDs: application.stackedWindowIDs)),
-            let spaceID = placement.spaceID, let space = browser.spaceModel(spaceID)
-        else { return }
-        let assignment = BrowserSpaceRuntimeAssignment(space: space)
-        guard await application.spaceAccess.unlock(space),
-            let request = preparedWindow(placement.windowID, opens: placement.opensWindow),
+        guard let destination = await destination(),
+            let request = preparedWindow(destination.placement.windowID, opens: destination.placement.opensWindow),
             let model = application.windowCoordinator.existingModel(for: request.id),
-            model.browser.spaceModel(matching: assignment) != nil
+            model.browser.spaceModel(matching: destination.assignment) != nil
         else { return }
         BrowserCommandActions(
-            browser: model.browser, pages: model.pages, chrome: model.chrome, windows: windows,
-            spaceAccess: application.spaceAccess, targetWindowID: model.id
-        ).openLocalDocuments(urls, in: assignment)
+            browser: model.browser, pages: model.pages, chrome: model.chrome, windows: windows, targetWindowID: model.id
+        ).openLocalDocuments(urls, in: destination.assignment)
         present(request)
     }
 
-    /// Where a link from another app lands, or nil when it lands nowhere. The
-    /// core never routes one to a locked Space, so the unlock only confirms
-    /// the Space is still open to this process.
-    func destination(for url: URL) async -> LinkDestination? {
+    func destination() async -> Destination? {
         let browser = application.browser
         guard
             let placement = try? browser.core.query(
-                RouteExternalLink(windowIDs: application.stackedWindowIDs, url: url.absoluteString)),
+                ExternalOpenDestination(windowIDs: application.stackedWindowIDs)),
             let spaceID = placement.spaceID, let space = browser.spaceModel(spaceID)
         else { return nil }
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
-        guard await application.spaceAccess.unlock(space), browser.spaceModel(matching: assignment) != nil else {
+        guard browser.spaceModel(matching: assignment) != nil else {
             return nil
         }
-        return LinkDestination(placement: placement, assignment: assignment)
+        return Destination(placement: placement, assignment: assignment)
     }
 
     // MARK: - Actions - Windows

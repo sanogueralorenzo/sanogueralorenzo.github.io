@@ -188,22 +188,19 @@ extension BrowserStore {
         before destinationTabID: UUID? = nil
     ) -> Bool {
         guard spaceModel(sourceSpaceID) != nil, let destination = spaceModel(destinationSpaceID) else { return false }
-        let follows = linkPreferences.preferences.followsMovedTabs
         do {
             try family.commit(
                 MoveTabToSpace(
                     workspaceID: family.workspaceID, windowID: windowID, spaceID: sourceSpaceID,
                     tabID: id, destinationSpaceID: destinationSpaceID, placement: placement,
-                    folderID: folderID, beforeTabID: destinationTabID, follows: follows),
+                    folderID: folderID, beforeTabID: destinationTabID, follows: true),
                 from: self)
         } catch {
             localSyncErrorDescription = "Core tab move failed: \(error)"
             return false
         }
-        if follows {
-            pendingMovedTabActivation = BrowserTabRuntimeAssignment(
-                tabID: id, spaceID: destinationSpaceID, profileID: destination.profileID)
-        }
+        pendingMovedTabActivation = BrowserTabRuntimeAssignment(
+            tabID: id, spaceID: destinationSpaceID, profileID: destination.profileID)
         return true
     }
 
@@ -364,46 +361,6 @@ extension BrowserStore {
         return family.send(
             DissolveSplit(workspaceID: family.workspaceID, spaceID: space.id, groupID: groupID),
             from: self)
-    }
-
-    @discardableResult
-    func setSplitGroupTitle(
-        _ title: String?,
-        groupID: UUID,
-        matching assignment: BrowserSpaceRuntimeAssignment
-    ) -> Bool {
-        guard spaceModel(matching: assignment) != nil else { return false }
-        return family.send(
-            NameSplit(
-                workspaceID: family.workspaceID, spaceID: assignment.spaceID, groupID: groupID,
-                name: title),
-            from: self, failure: "Core record command failed")
-    }
-
-    @discardableResult
-    func setSplitGroupEmojiIcon(
-        _ emoji: String?,
-        groupID: UUID,
-        matching assignment: BrowserSpaceRuntimeAssignment
-    ) -> Bool {
-        guard spaceModel(matching: assignment) != nil else { return false }
-        return family.send(
-            SetSplitIcon(workspaceID: family.workspaceID, spaceID: assignment.spaceID, groupID: groupID, emoji: emoji),
-            from: self, failure: "Core record command failed")
-    }
-
-    @discardableResult
-    func setSplitGroupTint(
-        _ tint: BrandColor?,
-        groupID: UUID,
-        matching assignment: BrowserSpaceRuntimeAssignment
-    ) -> Bool {
-        guard spaceModel(matching: assignment) != nil else { return false }
-        return family.send(
-            TintSplit(
-                workspaceID: family.workspaceID, spaceID: assignment.spaceID, groupID: groupID,
-                tint: tint),
-            from: self, failure: "Core record command failed")
     }
 
     /// Whether the core would join `tabID` to the split of `targetTabID`: no

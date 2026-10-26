@@ -246,20 +246,19 @@ The patch forwards the application events Crest answers to Crest's UI
 (`CrestMacUI` in `Apple/CrestChromiumHost.h`): `crest::DeferQuit`,
 `crest::Reopen`, `crest::OpenExternalURLs`, `crest::DockMenu`, and a system
 sign-in and its end. Crest's Mac shell, which the WebKit product runs too, answers each
-one from the core: it opens external links and documents where the core routes
-them, queuing anything that arrives before its launch finishes; a reopen brings
+one from the core: it opens external links and documents in the current regular Space, queuing anything that arrives before its launch finishes; a reopen brings
 a window forward or opens the one the core names, so Chromium never creates a
 browser with no registered window; and a quit waits until the core allows it
 and every edit is saved, then disposes the pages and completes Chromium's quit.
 At startup the shell reopens the windows the core kept at the last quit, their
 contents from each window's state and their frames from AppKit's autosave
-records. Private and Quick Windows are not restored.
+records. Private and system sign-in windows are not restored.
 
 An app's system sign-in (`ASWebAuthenticationSession`) reaches the host through
 the same `AppController`. Chromium's handler would open a Views popup in the
 last-used engine profile, which belongs to no Space, so
-`crest::BeginAuthenticationSession` runs the session in a Quick Window of the
-Space a link from that app routes to. A navigation throttle completes the
+`crest::BeginAuthenticationSession` runs the session in a system sign-in window of the
+current regular Space. A navigation throttle completes the
 request when that window's page reaches the app's callback URL and then closes
 the window; closing the window first cancels the request. Chromium's toasts,
 which anchor to a Views frame this build never creates, become Crest notices,
@@ -399,7 +398,7 @@ Chrome. A tab that leaves its strip because its page closed, was put away or
 moved to another window has not left the group. Its tab stays in the folder,
 and its next page rejoins the group, which is made again under the same token
 so the group ID the extension knew still works. Pinned and saved tabs, and
-Quick Window pages, stay where they are and stay in the extension's group.
+system sign-in pages, stay where they are and stay in the extension's group.
 The engine forgets its groups when it quits. For the persistent session,
 Crest's device store keeps each group with its title and color, and never
 syncs it. Once the folder's tabs have pages again after a launch, the group is
@@ -447,8 +446,7 @@ Chromium's own sheet, so passkeys there are not a test of Crest's behaviour.
 A private window works like incognito. Its pages use an off-the-record
 profile that is new each time private browsing opens, is always derived from
 the engine's own startup profile, which no Space owns and no page browses in,
-and is destroyed when the window closes, with every page, popup, Quick Window
-and Peek in it. No extension a person installed runs in a private window: the
+and is destroyed when the window closes, with every page and popup in it. No extension a person installed runs in a private window: the
 host patch reports every extension outside Chromium's own components as not
 allowed in private browsing, whatever its setting.
 
@@ -473,7 +471,7 @@ A page's own `window.close()` does not close its WebContents. After its
 document agreed to go, the renderer's close request reaches
 `WebContentsDelegate::CrestPageAskedToClose` instead of `Browser::CloseContents`,
 and the page reports `PageCloseRequested`; Crest's core closes the page's tab
-or Quick Window only when another page opened it, as it does for WebKit. A close
+or system sign-in window only when another page opened it, as it does for WebKit. A close
 the browser starts, such as an extension's `chrome.tabs.remove` or
 `chrome.windows.remove`, keeps Chromium's own unload flow and destroys the
 WebContents, and the core then closes the Crest tab once. A `Browser` whose last

@@ -48,6 +48,11 @@ extension BrowserPage: WKUIDelegate {
         completionHandler: @escaping @MainActor @Sendable (Bool) -> Void
     ) {
         let engine = webKitEngine
+        if engine?.rejectsCloseDialogs == true {
+            completionHandler(false)
+            engine?.beforeUnloadPanelDidFinish(leaving: false)
+            return
+        }
         engine?.beforeUnloadPanelWillAppear()
         askScriptDialog(.beforeUnload, message: message, defaultText: nil, frame: frame) { leaving, _ in
             completionHandler(leaving)
@@ -65,14 +70,6 @@ extension BrowserPage: WKUIDelegate {
         corePage.report(PictureInPictureReturned(pageID: corePage.id))
     }
 
-    /// Returns the popup's web view built from WebKit's own configuration, which
-    /// is what keeps `window.open()` non-null, `window.opener` connected, and
-    /// `about:blank` popups writable. The page offers the popup to the core,
-    /// which decides where it shows, a Quick Window for one that asked for a
-    /// window of its own and a tab beside this one otherwise, and keeps it on
-    /// WebKit, this page's engine; Crest never loads that web view itself:
-    /// WebKit drives the navigation it already scheduled. A popup the core
-    /// refuses gets no window, and never a tab of its own.
     func webView(
         _ webView: WKWebView,
         createWebViewWith configuration: WKWebViewConfiguration,
@@ -86,7 +83,7 @@ extension BrowserPage: WKUIDelegate {
         })
         let webKitPage = webKitAdapter?.webKitPage
         let foreground = corePage.selectsOpenedWindow(gesture: navigationAction.linkGesture)
-        let popup = WebKitPopup(configuration: configuration, wantsWindow: windowFeatures.requestsPopupWindow)
+        let popup = WebKitPopup(configuration: configuration)
         let request = navigationAction.request
         return popups.resolveOpen(for: navigationAction, currentURL: webView.url) { _ in
             webKitPage?.offer(popup, for: request, foreground: foreground)?.webView

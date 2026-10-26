@@ -2,8 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>NSDockTilePlugIn</key>
-    <string>CrestDockTilePlugin.docktileplugin</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -122,8 +120,6 @@
 	<real>3600</real>
 	<key>SUAutomaticallyUpdate</key>
 	<true/>
-	<key>CrestDefaultUpdateChannel</key>
-	<string>$(CREST_DEFAULT_UPDATE_CHANNEL)</string>
 	<key>SUPublicEDKey</key>
 	<string>x/dBoNAjtYIa+JKUUHY48NYepidnElHTo3w2VMyqzLA=</string>
 	<key>SURequireSignedFeed</key>

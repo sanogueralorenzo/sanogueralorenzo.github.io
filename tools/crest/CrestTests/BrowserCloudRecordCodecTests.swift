@@ -9,6 +9,53 @@ import XCTest
 /// the server's system fields, and the payload or tombstone bytes the core
 /// spelled, copied as they are. What a payload holds is the core's codec's.
 final class BrowserCloudRecordCodecTests: XCTestCase {
+    /// Members a newer build writes survive this device's edit: the core keeps
+    /// them through the CloudKit mapping and uploads them again.
+    @MainActor
+    func testAdditiveCloudPayloadSurvivesCoreEditAndUpload() async throws {
+        let session = SessionState.Seed.preview
+        let sender = try BrowserStoredSessionHarness(seed: session)
+        await sender.store.flushPendingSyncPersistence()
+        let receiver = try BrowserStoredSessionHarness(seed: session)
+        await receiver.store.flushPendingSyncPersistence()
+        let codec = BrowserCloudRecordCodec()
+        let space = SyncRecordReference(kind: .space, id: session.spaces[0].id)
+        let upload = try XCTUnwrap(try sender.core.query(RecordsToUpload(records: [space])).records.first)
+        let cloud = try codec.record(for: upload)
+        var raw = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: XCTUnwrap(cloud.encryptedValues["payload"] as? Data)) as? [String: Any])
+        var body = try XCTUnwrap(raw["value"] as? [String: Any])
+        var browsing = try XCTUnwrap(body["browsingPreferences"] as? [String: Any])
+        var retention = try XCTUnwrap(browsing["dataRetention"] as? [String: Any])
+        raw["futureEnvelope"] = ["values": [true, "retained", NSNull()] as [Any]]
+        body["futureSpace"] = NSNumber(value: UInt64.max)
+        retention["futureRetention"] = ["enabled": true]
+        browsing["dataRetention"] = retention
+        body["browsingPreferences"] = browsing
+        raw["value"] = body
+        cloud.encryptedValues["payload"] = try JSONSerialization.data(withJSONObject: raw) as CKRecordValue
+        // A newer writer advances the record's version along with its data.
+        cloud["logicalClock"] = NSNumber(value: upload.version.clock + 1_000)
+
+        try receiver.deliverNow(MergeSyncRecords(records: [try XCTUnwrap(codec.syncRecord(from: cloud))]))
+        receiver.store.updateSpaceIdentity(
+            session.spaces[0].id, name: "Renamed by the older client")
+        await receiver.store.flushPendingSyncPersistence()
+
+        let saved = try XCTUnwrap(try receiver.core.query(RecordsToUpload(records: [space])).records.first)
+        let result = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: XCTUnwrap(codec.record(for: saved).encryptedValues["payload"] as? Data))
+                as? [String: Any])
+        let value = try XCTUnwrap(result["value"] as? [String: Any])
+        let resultRetention = try XCTUnwrap(
+            (value["browsingPreferences"] as? [String: Any])?["dataRetention"] as? [String: Any])
+        XCTAssertEqual(value["name"] as? String, "Renamed by the older client")
+        XCTAssertEqual((value["futureSpace"] as? NSNumber)?.uint64Value, UInt64.max)
+        XCTAssertEqual((resultRetention["futureRetention"] as? [String: Bool])?["enabled"], true)
+        XCTAssertNotNil(result["futureEnvelope"])
+    }
+
+    @MainActor
     func testRecordsMapToCloudKitFieldsAndBackWithTheirBytes() throws {
         let codec = BrowserCloudRecordCodec()
         for source in [makeTabRecord(), makeTombstone(), makeSpaceRecord()] {

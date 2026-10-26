@@ -5,6 +5,7 @@ extension EraseProfileData {
     /// nothing on disk goes with its store in memory, which no page it builds
     /// uses again.
     @MainActor func perform(on binding: WebKitEngineBinding) {
+        binding.invalidateIntegrationSessions(profileID: profileID)
         binding.memoryStores[profileID] = nil
         guard !ephemeral else {
             binding.report(DataErased(erasureID: erasureID, erased: true))

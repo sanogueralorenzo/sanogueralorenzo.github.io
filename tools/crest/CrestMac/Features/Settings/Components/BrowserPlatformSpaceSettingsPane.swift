@@ -5,7 +5,6 @@ import SwiftUI
 struct BrowserPlatformSpaceSettingsPane: View {
     @Environment(\.browserSettingsOpenSpace) private var openSpace
     let browser: BrowserStore
-    let spaceAccess: BrowserSpaceAccessController
     let dataDeleter: any BrowserSpaceDataDeleting
     let requestedSpaceID: UUID?
     let requestRevision: Int

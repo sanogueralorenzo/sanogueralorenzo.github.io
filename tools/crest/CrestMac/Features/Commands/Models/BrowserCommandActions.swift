@@ -15,13 +15,8 @@ struct BrowserCommandActions: BrowserNumberedSelectionPerformer {
     /// The shell's windows, which the window commands open; nil where no
     /// window can open, such as outside a shell window.
     let windows: BrowserMacWindows?
-    var spaceAccess = BrowserSpaceAccessController()
-    /// The window a Quick Window should hand its result back to, when the
-    /// command was issued from a focused browser window.
     var targetWindowID: UUID?
-    /// The page a Quick Window in front shows, which the page commands act on
-    /// in place of the browser window's; nil in a browser window.
-    var quickWindowPage: BrowserPage?
+    var authenticationPage: BrowserPage?
     /// Which way the cards are laid out, for the commands that name a side of
     /// the screen. Only the split-card moves read it; see
     /// `BrowserSplitCardMoveDirection`.
@@ -45,28 +40,8 @@ struct BrowserCommandActions: BrowserNumberedSelectionPerformer {
             perform: perform,
             openSettings: openSettings,
             switchSpace: selectSpace,
-            reopenArchivedTab: reopenArchivedTab,
             copy: copy
         )
-    }
-
-    /// Reopens the archived tab `id` in the Space it left, and shows it.
-    func reopenArchivedTab(_ id: UUID) {
-        browser.restoreArchivedTab(id)
-        pages.select()
-    }
-
-    /// Whether the page the page commands act on shows a site, whose data
-    /// the site commands clear.
-    var commandPageShowsSite: Bool {
-        commandPage?.live.displayURL?.host()?.isEmpty == false
-    }
-
-    /// Clears what the command page's site keeps in `category`, and says how
-    /// it went.
-    func clearCommandPageSiteData(_ category: BrowsingDataCategory) {
-        guard let page = commandPage else { return }
-        Task { [chrome] in await page.clearSiteData(category) { chrome.showNotice($0) } }
     }
 
     /// Copies `text` and says so.
@@ -90,11 +65,8 @@ struct BrowserCommandActions: BrowserNumberedSelectionPerformer {
         windowAllows(command) && BrowserMacCommand.of(command)?.isAvailable(self, command) == true
     }
 
-    /// Whether what the window shows allows `command`. The core judges a
-    /// browser window's contents; a Quick Window shows only its page, so only
-    /// the commands on the page run there.
     private func windowAllows(_ command: ShortcutCommand) -> Bool {
-        guard quickWindowPage != nil else { return browser.allows(command) }
+        guard authenticationPage != nil else { return browser.allows(command) }
         return BrowserMacCommand.of(command)?.actsOnPage == true
     }
 
@@ -122,24 +94,16 @@ struct BrowserCommandActions: BrowserNumberedSelectionPerformer {
         selection.select(on: self)
     }
 
-    /// The page the page commands act on: a Quick Window's in front, or else
-    /// the one the window's pool names, a Peek open over the active tab or
-    /// the tab's own page.
     var commandPage: BrowserPage? {
-        quickWindowPage ?? pages.commandPage
+        authenticationPage ?? pages.commandPage
     }
 
-    /// The page the window shows: a Quick Window's in front, or else the
-    /// active tab's, even under a Peek. Reader, translation, the inspector,
-    /// content blocking and engine moves act on it.
     var shownPage: BrowserPage? {
-        quickWindowPage ?? pages.activePage
+        authenticationPage ?? pages.activePage
     }
 
-    /// The Space of the page the window shows: a Quick Window's own, or else
-    /// the one the browser window shows.
     var shownPageSpace: SpaceModel? {
-        guard let page = quickWindowPage else { return browser.shownSpace }
+        guard let page = authenticationPage else { return browser.shownSpace }
         let assignment = BrowserSpaceRuntimeAssignment(spaceID: page.spaceID, profileID: page.profileID)
         return browser.spaceModel(matching: assignment)
     }
@@ -195,7 +159,7 @@ struct BrowserCommandActions: BrowserNumberedSelectionPerformer {
     }
 
     func openBlankWindow() {
-        guard !browser.isPrivateBrowsing, let space = browser.shownSpace, !spaceAccess.isLocked(space) else {
+        guard !browser.isPrivateBrowsing, let space = browser.shownSpace else {
             return
         }
         windows?.open(
@@ -207,35 +171,29 @@ struct BrowserCommandActions: BrowserNumberedSelectionPerformer {
         windows?.openPrivateWindow()
     }
 
-    func openQuickWindow() {
-        guard let space = browser.shownSpace else { return }
-        windows?.openQuickWindow(
-            .empty(spaceAssignment: BrowserSpaceRuntimeAssignment(space: space), targetWindowID: targetWindowID))
-    }
-
     func closeKeyWindow() {
         NSApp.keyWindow?.performClose(nil)
     }
 
-    /// Closes the selected tab the way the core closes it, or the window when
-    /// the core says only the window is left to close.
+    /// Returns a durable tab home before putting it away. An ordinary tab
+    /// closes, or the window closes when the core says only it is left.
     func closeTabOrWindow() {
-        // A Peek open over the tab closes first, as it is what shows.
-        if pages.closePeek() { return }
         guard let selectedTab = browser.shownTab, let space = browser.shownSpace,
             !browser.closingLeavesOnlyTheWindow(selectedTab.id, in: space.id)
         else {
             closeKeyWindow()
             return
         }
-        // A saved or pinned tab puts its page away, which the page host
-        // follows once the core records it.
+        // A saved or pinned tab returns home before a second close puts its
+        // page away. The core compares the live URL, including a pending load.
         if selectedTab.placement.isDurable {
-            if BrowserDurableTabCloseAction(browser: browser, spaceAccess: spaceAccess).perform(
-                BrowserTabRuntimeAssignment(
-                    tabID: selectedTab.id, spaceID: space.id, profileID: space.profileID
-                ))
-            {
+            let assignment = BrowserTabRuntimeAssignment(
+                tabID: selectedTab.id, spaceID: space.id, profileID: space.profileID)
+            if browser.returnsToSavedAddress(selectedTab.id, in: space.id) {
+                BrowserSavedLocationRestoreAction(browser: browser, pages: pages).perform(assignment)
+                return
+            }
+            if BrowserDurableTabCloseAction(browser: browser).perform(assignment) {
                 pages.select()
             }
         } else if selectedTab.surface == .startPage {
@@ -261,14 +219,6 @@ struct BrowserCommandActions: BrowserNumberedSelectionPerformer {
     }
 
     // MARK: - Chrome
-
-    func toggleSidebar() {
-        if chrome.columnVisibility == .detailOnly {
-            chrome.showSidebar()
-        } else {
-            chrome.hideSidebar()
-        }
-    }
 
     func openLocation() {
         chrome.openLocation(browser.shownTab?.url ?? "")
@@ -325,10 +275,9 @@ struct BrowserCommandActions: BrowserNumberedSelectionPerformer {
         shownPage?.corePage.move(to: engine)
     }
 
-    /// Translates the whole shown page, which its translation toolbar then
-    /// follows.
+    /// Translates the whole shown page.
     func translatePage() {
-        shownPage?.translation.present()
+        shownPage?.translation.performAction()
     }
 
     func copyPageLink() {
@@ -365,10 +314,8 @@ struct BrowserCommandActions: BrowserNumberedSelectionPerformer {
         chrome.showPageZoomFeedback(page.pageZoom.pageZoomPercentage)
     }
 
-    /// Reloads a Quick Window's page in front or a Peek open over the active
-    /// tab, or else the tab, which the pool brings back when its page went.
     func reload(_ mode: BrowserPageReloadMode) {
-        if let page = quickWindowPage ?? pages.peekPage {
+        if let page = authenticationPage {
             page.performReload(mode)
         } else {
             pages.reload(mode)
@@ -393,8 +340,8 @@ struct BrowserCommandActions: BrowserNumberedSelectionPerformer {
         pages.select()
     }
 
-    func cleanupCurrentTabs() {
-        browser.cleanupCurrentTabs()
+    func clearCurrentTabs() {
+        browser.clearCurrentTabs()
         pages.reconcile()
         pages.select()
     }

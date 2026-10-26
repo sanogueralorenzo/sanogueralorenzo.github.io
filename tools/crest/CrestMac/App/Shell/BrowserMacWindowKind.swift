@@ -35,22 +35,17 @@ struct BrowserMacWindowKind: Hashable {
     static let `private` = BrowserMacWindowKind(
         name: "private", title: String(localized: "Private Browsing"), styleMask: browsingStyle, hidesTitle: true,
         contentSize: CGSize(width: 1200, height: 820), hasPageRow: true, isSingleton: true)
-    /// A Quick Window, which shows one page of a Space.
-    static let quick = BrowserMacWindowKind(
-        name: "quick", title: String(localized: "Quick Window"), styleMask: browsingStyle, hidesTitle: true,
-        contentSize: CGSize(
-            width: BrowserQuickWindowLayout.defaultWidth, height: BrowserQuickWindowLayout.defaultHeight),
-        minimumContentSize: CGSize(
-            width: BrowserQuickWindowLayout.minimumWidth, height: BrowserQuickWindowLayout.minimumHeight))
-    /// Crest Setup, which fills the screen it opens on. The setup content is
-    /// fully flexible above its minimum, so the window keeps the size it opens
-    /// at rather than the content's ideal one, which is that minimum.
-    static let setup = BrowserMacWindowKind(
-        name: "setup", title: BrowserOnboardingWindowActivation.windowTitle,
+    /// A system sign-in window, never offered as a browsing destination.
+    static let authentication = BrowserMacWindowKind(
+        name: "authentication", title: String(localized: "Sign In"), styleMask: browsingStyle,
+        contentSize: CGSize(width: 800, height: 700), minimumContentSize: CGSize(width: 480, height: 400))
+    /// The importer opens only when requested from Settings.
+    static let browserImport = BrowserMacWindowKind(
+        name: "browserImport", title: String(localized: "Import from Another Browser"),
         styleMask: [.titled, .closable, .resizable, .fullSizeContentView], hidesTitle: true,
         hidesTitleBarSeparator: true, contentSize: CGSize(width: 1440, height: 900),
         minimumContentSize: CGSize(width: 980, height: 660),
-        sizingOptions: [], fillsScreen: true, isSingleton: true, identifier: "onboarding")
+        sizingOptions: [], fillsScreen: false, isSingleton: true, identifier: "browser-import")
     /// The release notes for the update the sidebar card presents, which keep
     /// their content's minimum size.
     static let updateDetails = BrowserMacWindowKind(
@@ -58,7 +53,9 @@ struct BrowserMacWindowKind: Hashable {
         styleMask: [.titled, .closable, .miniaturizable, .resizable],
         contentSize: CGSize(width: 620, height: 520), sizingOptions: [.minSize], isSingleton: true,
         identifier: "software-update-details")
-    static let all: [BrowserMacWindowKind] = [browser, temporary, `private`, quick, setup, updateDetails]
+    static let all: [BrowserMacWindowKind] = [
+        browser, temporary, `private`, authentication, browserImport, updateDetails,
+    ]
 
     // MARK: - Variables
 

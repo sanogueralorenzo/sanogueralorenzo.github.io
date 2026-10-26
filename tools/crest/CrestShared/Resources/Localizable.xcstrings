@@ -1,7 +1,109 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Website Settings" : {
+
+    },
+    "Changes apply to all Spaces." : {
+
+    },
+    "search provider Google DuckDuckGo Bing Brave zoom default browser translate translation language floating sidebar" : {
+
+    },
+    "name initial letter delete Space" : {
+
+    },
+    "profile name identity initial letter search isolation reorder browsing independence" : {
+
+    },
+    "Clear Current Tabs" : {
+
+    },
+    "Crest could not save to Downloads. Review Files & Folders in System Settings." : {
+
+    },
+    "Crest can save files in Downloads." : {
+
+    },
+    "Check Access verifies that Crest can save files in Downloads." : {
+
+    },
+    "The Downloads folder is unavailable." : {
+
+    },
+    "Edit Space" : {
+
+    },
+    "Drag to move the window" : {
+
+    },
+    "Delete Space" : {
+
+    },
     "" : {
+
+    },
+    "1 hour" : {
+
+    },
+    "15 minutes" : {
+
+    },
+    "2 hours" : {
+
+    },
+    "30 minutes" : {
+
+    },
+    "4 hours" : {
+
+    },
+    "8 hours" : {
+
+    },
+    "Assigned to Me" : {
+
+    },
+    "Created by Me" : {
+
+    },
+    "Failed to update" : {
+
+    },
+    "Fetch Interval" : {
+
+    },
+    "Filter is not set" : {
+
+    },
+    "Include Draft Pull Requests" : {
+
+    },
+    "Last fetch: %@" : {
+
+    },
+    "Live Folder Options" : {
+
+    },
+    "Not fetched yet" : {
+
+    },
+    "Not signed in to GitHub" : {
+
+    },
+    "Review Requests" : {
+
+    },
+    "This list is generated based on your currently active pull requests." : {
+
+    },
+    "Connect GitHub" : {
+
+    },
+    "Live Folder" : {
+
+    },
+    "No open pull requests" : {
 
     },
     "·" : {
@@ -13,12 +115,6 @@
           }
         }
       }
-    },
-    "“%@” locked again. Try again." : {
-
-    },
-    "@ Filters" : {
-
     },
     "%@" : {
       "localizations" : {
@@ -325,16 +421,6 @@
     },
     "%@ runs other programs. Allowing it lets any program it runs that calls itself “%@” use Crest." : {
 
-    },
-    "%@ saved tabs" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ من علامات التبويب المحفوظة"
-          }
-        }
-      }
     },
     "%@ sent Crest through too many redirects." : {
       "localizations" : {
@@ -754,71 +840,6 @@
         }
       }
     },
-    "%lld passwords" : {
-      "comment" : "Password count shown while reviewing a browser import.",
-      "localizations" : {
-        "ar" : {
-          "variations" : {
-            "plural" : {
-              "few" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld كلمات سر"
-                }
-              },
-              "many" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld كلمة سر"
-                }
-              },
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "كلمة سر واحدة"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld كلمة سر"
-                }
-              },
-              "two" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "كلمتا سر"
-                }
-              },
-              "zero" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "لا كلمات سر"
-                }
-              }
-            }
-          }
-        },
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "1 password"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld passwords"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "%lld points" : {
       "localizations" : {
         "ar" : {
@@ -833,12 +854,6 @@
 
     },
     "%lld pt" : {
-
-    },
-    "%lld saved passwords can’t be read" : {
-
-    },
-    "%lld symbols" : {
 
     },
     "%lld tabs" : {
@@ -902,368 +917,6 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld tabs selected"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "%lld tabs selected · %lld passwords" : {
-      "comment" : "Browser-import review summary. The first count is tabs; the second is passwords.",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%#@tabs@ · %#@passwords@"
-          },
-          "substitutions" : {
-            "passwords" : {
-              "argNum" : 2,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "few" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld كلمات سر"
-                    }
-                  },
-                  "many" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld كلمة سر"
-                    }
-                  },
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "كلمة سر واحدة"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld كلمة سر"
-                    }
-                  },
-                  "two" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "كلمتا سر"
-                    }
-                  },
-                  "zero" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "لا كلمات سر"
-                    }
-                  }
-                }
-              }
-            },
-            "tabs" : {
-              "argNum" : 1,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "few" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "تم تحديد %lld علامات تبويب"
-                    }
-                  },
-                  "many" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "تم تحديد %lld علامة تبويب"
-                    }
-                  },
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "تم تحديد علامة تبويب واحدة"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "تم تحديد %lld علامة تبويب"
-                    }
-                  },
-                  "two" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "تم تحديد علامتي تبويب"
-                    }
-                  },
-                  "zero" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "لم يتم تحديد أي علامة تبويب"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%#@tabs@ · %#@passwords@"
-          },
-          "substitutions" : {
-            "passwords" : {
-              "argNum" : 2,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "1 password"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld passwords"
-                    }
-                  }
-                }
-              }
-            },
-            "tabs" : {
-              "argNum" : 1,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "1 tab selected"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld tabs selected"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "%lld tabs selected · %lld passwords · %lld pinned tabs move to a saved folder" : {
-      "comment" : "Browser-import review summary. Counts are selected tabs, passwords, then pinned tabs that must become saved tabs.",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%#@tabs@ · %#@passwords@ · %#@overflow@"
-          },
-          "substitutions" : {
-            "overflow" : {
-              "argNum" : 3,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "few" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "ستُنقل %lld علامات تبويب مثبّتة إلى مجلد محفوظ"
-                    }
-                  },
-                  "many" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "ستُنقل %lld علامة تبويب مثبّتة إلى مجلد محفوظ"
-                    }
-                  },
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "ستُنقل علامة تبويب مثبّتة واحدة إلى مجلد محفوظ"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "ستُنقل %lld علامة تبويب مثبّتة إلى مجلد محفوظ"
-                    }
-                  },
-                  "two" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "ستُنقل علامتا تبويب مثبّتتان إلى مجلد محفوظ"
-                    }
-                  },
-                  "zero" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "لن تُنقل أي علامات تبويب مثبّتة إلى مجلد محفوظ"
-                    }
-                  }
-                }
-              }
-            },
-            "passwords" : {
-              "argNum" : 2,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "few" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld كلمات سر"
-                    }
-                  },
-                  "many" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld كلمة سر"
-                    }
-                  },
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "كلمة سر واحدة"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld كلمة سر"
-                    }
-                  },
-                  "two" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "كلمتا سر"
-                    }
-                  },
-                  "zero" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "لا كلمات سر"
-                    }
-                  }
-                }
-              }
-            },
-            "tabs" : {
-              "argNum" : 1,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "few" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "تم تحديد %lld علامات تبويب"
-                    }
-                  },
-                  "many" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "تم تحديد %lld علامة تبويب"
-                    }
-                  },
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "تم تحديد علامة تبويب واحدة"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "تم تحديد %lld علامة تبويب"
-                    }
-                  },
-                  "two" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "تم تحديد علامتي تبويب"
-                    }
-                  },
-                  "zero" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "لم يتم تحديد أي علامة تبويب"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%#@tabs@ · %#@passwords@ · %#@overflow@"
-          },
-          "substitutions" : {
-            "overflow" : {
-              "argNum" : 3,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "1 pinned tab moves to a saved folder"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld pinned tabs move to a saved folder"
-                    }
-                  }
-                }
-              }
-            },
-            "passwords" : {
-              "argNum" : 2,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "1 password"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld passwords"
-                    }
-                  }
-                }
-              }
-            },
-            "tabs" : {
-              "argNum" : 1,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "1 tab selected"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld tabs selected"
-                    }
-                  }
                 }
               }
             }
@@ -1510,24 +1163,8 @@
         }
       }
     },
-    "⇧⌘← / → moves the focused card." : {
-
-    },
     "×" : {
 
-    },
-    "⌃⌘← / → focuses the previous or next card." : {
-
-    },
-    "01 — Appearance" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "01 — المظهر"
-          }
-        }
-      }
     },
     "1 Day" : {
 
@@ -1553,16 +1190,10 @@
     "1 Year" : {
 
     },
-    "02 — Your Spaces" : {
-
-    },
     "30 Days" : {
 
     },
     "90 Days" : {
-
-    },
-    "A field in this password file is too large to import safely." : {
 
     },
     "A firewall, filter, or device policy may also be responsible." : {
@@ -1581,9 +1212,6 @@
     "A patterned band behind the sidebar." : {
 
     },
-    "A place for every tab" : {
-
-    },
     "A record can’t be read." : {
 
     },
@@ -1594,9 +1222,6 @@
 
     },
     "A recovery checkpoint is available from %@." : {
-
-    },
-    "A rule for a site doesn’t include its subdomains." : {
 
     },
     "A secure connection couldn’t be made" : {
@@ -1647,15 +1272,6 @@
 
     },
     "About Page Translation" : {
-
-    },
-    "Accent" : {
-
-    },
-    "Accent outline on selected tabs" : {
-
-    },
-    "Accent outline while editing" : {
 
     },
     "Accept URL completion" : {
@@ -1715,9 +1331,6 @@
     "Activity" : {
 
     },
-    "Actual sidebar preview" : {
-
-    },
     "Actual Size" : {
       "localizations" : {
         "ar" : {
@@ -1738,51 +1351,7 @@
         }
       }
     },
-    "Add Accent Color" : {
-
-    },
-    "Add another Space" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "أضف مساحة أخرى"
-          }
-        }
-      }
-    },
-    "Add Background Color" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إضافة لون الخلفية"
-          }
-        }
-      }
-    },
-    "Add color" : {
-
-    },
     "Add Extension" : {
-
-    },
-    "Add folder" : {
-
-    },
-    "Add languages in System Settings › General › Language & Region." : {
-
-    },
-    "Add Packing list" : {
-
-    },
-    "Add Pattern Color" : {
-
-    },
-    "Add Provider" : {
-
-    },
-    "Add Provider…" : {
 
     },
     "Add site" : {
@@ -1822,12 +1391,6 @@
         }
       }
     },
-    "Add Website Rule" : {
-
-    },
-    "Add Website Rule…" : {
-
-    },
     "Adding extension" : {
 
     },
@@ -1854,12 +1417,6 @@
         }
       }
     },
-    "Address field" : {
-
-    },
-    "Address field preview" : {
-
-    },
     "Address, %@" : {
       "localizations" : {
         "ar" : {
@@ -1869,9 +1426,6 @@
           }
         }
       }
-    },
-    "Adds or removes this password from the selection." : {
-
     },
     "ads trackers privacy protection" : {
       "localizations" : {
@@ -1905,24 +1459,6 @@
     "After 6 Hours" : {
 
     },
-    "After 7 Days" : {
-
-    },
-    "After 12 Hours" : {
-
-    },
-    "After 24 Hours" : {
-
-    },
-    "After 30 Days" : {
-
-    },
-    "After a shortcut" : {
-
-    },
-    "After closing" : {
-
-    },
     "After content started loading" : {
       "localizations" : {
         "ar" : {
@@ -1942,9 +1478,6 @@
     "Agents are turned off in Crest’s settings." : {
 
     },
-    "Agents can open a private window but never reach into one, and see only the name of a locked Space." : {
-
-    },
     "Agents can’t reach this copy of Crest." : {
 
     },
@@ -1952,15 +1485,6 @@
 
     },
     "Agents never reach into a private window." : {
-
-    },
-    "AI Assistant" : {
-
-    },
-    "AI Assistants" : {
-
-    },
-    "Albums" : {
 
     },
     "All" : {
@@ -1979,12 +1503,6 @@
     "All Statuses" : {
 
     },
-    "All tabs" : {
-
-    },
-    "All Time" : {
-
-    },
     "Allow" : {
       "localizations" : {
         "ar" : {
@@ -1999,9 +1517,6 @@
 
     },
     "Allow 120 FPS" : {
-
-    },
-    "Allow Access to a Download Folder" : {
 
     },
     "Allow agents to use Crest" : {
@@ -2070,18 +1585,6 @@
     "Also share tab audio" : {
       "comment" : "Screen sharing picker option to include the shared tab's sound."
     },
-    "Also show" : {
-
-    },
-    "Always List Results" : {
-
-    },
-    "Always show folder highlights" : {
-
-    },
-    "Always Translate %@" : {
-
-    },
     "An export is already in progress for this page." : {
 
     },
@@ -2096,37 +1599,13 @@
         }
       }
     },
-    "Animals & Nature" : {
-
-    },
-    "Animate into command palette" : {
-
-    },
-    "Animate pages when switching Spaces" : {
-
-    },
     "Another browser" : {
 
     },
     "Another copy of Crest is already open to agents. Quit it, then turn agents off and on again." : {
 
     },
-    "Another search provider already uses this name." : {
-
-    },
-    "Another search provider already uses this shortcut." : {
-
-    },
     "Another Space already uses this Space’s browsing data." : {
-
-    },
-    "Answers arithmetic such as 24 * 7. Return copies the answer." : {
-
-    },
-    "Antique Gold" : {
-
-    },
-    "App icon" : {
 
     },
     "Appearance" : {
@@ -2154,9 +1633,6 @@
     "Applies to %@" : {
 
     },
-    "Applies to every Space on this device. Doesn’t sync." : {
-
-    },
     "Apply Custom Viewport" : {
 
     },
@@ -2181,19 +1657,6 @@
       }
     },
     "Archive applies to current tabs. Use Unload Pages to close saved or pinned pages, or Delete Tabs to remove their saved entries." : {
-
-    },
-    "Archive current tabs" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "أرشفة علامات التبويب الحالية"
-          }
-        }
-      }
-    },
-    "Archive Now" : {
 
     },
     "Archive Selected Tabs" : {
@@ -2228,31 +1691,6 @@
     "Archived Tabs" : {
 
     },
-    "Argent" : {
-
-    },
-    "Arrangement" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الترتيب"
-          }
-        }
-      }
-    },
-    "Artists" : {
-
-    },
-    "Artwork credits" : {
-
-    },
-    "Artwork Credits" : {
-
-    },
-    "Ash" : {
-
-    },
     "Ask" : {
       "localizations" : {
         "ar" : {
@@ -2262,9 +1700,6 @@
           }
         }
       }
-    },
-    "Ask %@" : {
-
     },
     "Ask after First" : {
 
@@ -2278,110 +1713,6 @@
           }
         }
       }
-    },
-    "Ask where to save" : {
-
-    },
-    "Ask where to save each download" : {
-
-    },
-    "Audio visualizer" : {
-
-    },
-    "Authenticate to commit the password import into %@." : {
-
-    },
-    "Authenticate to copy the Crest password for %@." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "قم بالمصادقة لنسخ كلمة مرور Crest لـ %@."
-          }
-        }
-      }
-    },
-    "Authenticate to copy the Crest password for %arg." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "قم بالمصادقة لنسخ كلمة مرور Crest لـ %arg."
-          }
-        }
-      }
-    },
-    "Authenticate to delete selected passwords from %@." : {
-
-    },
-    "Authenticate to export passwords from %@." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "قم بالمصادقة لتصدير كلمات المرور من %@."
-          }
-        }
-      }
-    },
-    "Authenticate to export passwords from %arg." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "قم بالمصادقة لتصدير كلمات المرور من %arg."
-          }
-        }
-      }
-    },
-    "Authenticate to import passwords into %@." : {
-
-    },
-    "Authenticate to reveal the Crest password for %@." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "قم بالمصادقة لإظهار كلمة مرور Crest لـ %@."
-          }
-        }
-      }
-    },
-    "Authenticate to reveal the Crest password for %arg." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "قم بالمصادقة لإظهار كلمة مرور Crest لـ %arg."
-          }
-        }
-      }
-    },
-    "Authenticate to unlock the %@ Space in Crest." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "قم بالمصادقة لفتح مساحة %@ في Crest."
-          }
-        }
-      }
-    },
-    "Authenticate to view this Crest password." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "قم بالمصادقة لعرض كلمة مرور Crest هذه."
-          }
-        }
-      }
-    },
-    "Authenticates before showing the saved password." : {
-
     },
     "Authenticating" : {
       "localizations" : {
@@ -2409,9 +1740,6 @@
     "Authentication failed. Try again." : {
 
     },
-    "Authentication tokens and other secrets cannot be stored in a search template. Sign in on the search engine website instead." : {
-
-    },
     "Auto-archive" : {
       "localizations" : {
         "ar" : {
@@ -2436,51 +1764,6 @@
     },
     "Automatic pop-ups are blocked. Allow them for this site, then retry the action on the page." : {
 
-    },
-    "Automatic translation is unavailable. Tap Translate to try manually." : {
-
-    },
-    "Automatically cleaned" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "منظفة تلقائيًا"
-          }
-        }
-      }
-    },
-    "Automatically Cleaned" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "المنظفة تلقائيًا"
-          }
-        }
-      }
-    },
-    "Automatically Translate is off by default. Choose which languages to translate and their destination languages in Settings → General → Page Translation. Only enabled language mappings with downloaded languages translate automatically. Automatic translation never opens a translation bar or asks to download languages. Open the translation controls to check status or download missing languages. Turn off Offer to Translate to stop automatic offers. Show Original keeps that page in its original language until you navigate or reload." : {
-
-    },
-    "Automatically translated available text to %@. Some content was too large or changed during translation." : {
-
-    },
-    "Automatically translated to %@" : {
-
-    },
-    "Automatically translating to %@…" : {
-
-    },
-    "Automatically translating… %lld of %lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Automatically translating… %1$lld of %2$lld"
-          }
-        }
-      }
     },
     "Available" : {
 
@@ -2531,25 +1814,12 @@
         }
       }
     },
-    "Azure" : {
-
-    },
     "Back" : {
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "رجوع"
-          }
-        }
-      }
-    },
-    "Back (⌘[)" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "رجوع (⌘[)"
           }
         }
       }
@@ -2570,58 +1840,11 @@
     "Back to review" : {
 
     },
-    "Background" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الخلفية"
-          }
-        }
-      }
-    },
     "Background tab activity" : {
 
     },
-    "Badge" : {
-      "extractionState" : "manual"
-    },
     "Balanced" : {
 
-    },
-    "Balanced rows" : {
-
-    },
-    "Band" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الشريط"
-          }
-        }
-      }
-    },
-    "Band color" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "لون الشريط"
-          }
-        }
-      }
-    },
-    "Bands" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "أشرطة"
-          }
-        }
-      }
     },
     "Banner" : {
       "localizations" : {
@@ -2632,20 +1855,6 @@
           }
         }
       }
-    },
-    "Banners" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الرايات"
-          }
-        }
-      }
-    },
-    "Bars" : {
-      "extractionState" : "manual"
     },
     "Bat" : {
       "extractionState" : "manual",
@@ -2658,9 +1867,6 @@
         }
       }
     },
-    "Beaded" : {
-      "extractionState" : "manual"
-    },
     "Bear" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2668,17 +1874,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bear"
-          }
-        }
-      }
-    },
-    "Beetle" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الخنفساء"
           }
         }
       }
@@ -2696,23 +1891,6 @@
         }
       }
     },
-    "Below the line are open tabs. They close automatically on your Space's cleanup schedule. Clear sends them to Archive in one click; your pinned and saved tabs stay put." : {
-
-    },
-    "Bend" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "شريط مائل"
-          }
-        }
-      }
-    },
-    "Best Match" : {
-
-    },
     "Bird" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -2725,9 +1903,6 @@
       }
     },
     "Bitwarden CSV" : {
-
-    },
-    "Blended" : {
 
     },
     "Block" : {
@@ -2752,9 +1927,6 @@
     "Blocked for Session" : {
 
     },
-    "Blood" : {
-
-    },
     "Boar" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2766,22 +1938,8 @@
         }
       }
     },
-    "Bold" : {
-      "extractionState" : "manual"
-    },
     "Bone" : {
 
-    },
-    "Book" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الكتاب"
-          }
-        }
-      }
     },
     "BOOKMARKS" : {
       "comment" : "A section heading in a browser import review. Keep it uppercase."
@@ -2799,42 +1957,8 @@
     "Bookmarks, windows, and open tabs" : {
       "comment" : "What importing from another browser brings. Keep product names as they are."
     },
-    "Border" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الإطار"
-          }
-        }
-      }
-    },
-    "Border color" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "لون الإطار"
-          }
-        }
-      }
-    },
-    "Bordered" : {
-
-    },
     "Borderless" : {
 
-    },
-    "Bordure" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إطار محيط"
-          }
-        }
-      }
     },
     "Branding" : {
       "extractionState" : "stale",
@@ -2860,16 +1984,10 @@
         }
       }
     },
-    "Brass" : {
-
-    },
     "Bring All to Front" : {
 
     },
     "Browse all emblems (%lld)" : {
-
-    },
-    "Browse symbols" : {
 
     },
     "Browser" : {
@@ -2902,12 +2020,6 @@
     "Browser data found · Review it" : {
 
     },
-    "browser startup default Space typing spelling spell check text editing Picture in Picture video developer toolbar localhost local pages translation system permissions access camera microphone location notifications passkeys files folders downloads allow blocked repair new tab floating sidebar" : {
-
-    },
-    "Browser window preview" : {
-
-    },
     "Browsing" : {
       "localizations" : {
         "ar" : {
@@ -2917,9 +2029,6 @@
           }
         }
       }
-    },
-    "Browsing and startup" : {
-
     },
     "Building your review…" : {
 
@@ -2971,13 +2080,7 @@
     "Cancel Translation" : {
 
     },
-    "Canton" : {
-      "extractionState" : "manual"
-    },
     "Capitalize" : {
-
-    },
-    "Capsule" : {
 
     },
     "Capture" : {
@@ -2992,17 +2095,6 @@
     "Capture Window" : {
 
     },
-    "Castle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Castle"
-          }
-        }
-      }
-    },
     "Category" : {
 
     },
@@ -3010,9 +2102,6 @@
 
     },
     "Certificate Not Trusted" : {
-
-    },
-    "Change Color…" : {
 
     },
     "change current tab url address focus" : {
@@ -3025,20 +2114,11 @@
         }
       }
     },
-    "Change emoji" : {
-
-    },
-    "Change Icon…" : {
-
-    },
     "Changed Only" : {
 
     },
     "Changes appear live in your sidebar." : {
       "extractionState" : "manual"
-    },
-    "Changes appear live in your Space." : {
-
     },
     "Changes couldn’t be saved for sync." : {
 
@@ -3047,12 +2127,6 @@
 
     },
     "Channels" : {
-
-    },
-    "Char" : {
-
-    },
-    "Charcoal" : {
 
     },
     "Charge" : {
@@ -3079,25 +2153,7 @@
         }
       }
     },
-    "Check Automatically" : {
-
-    },
-    "Check Document Now" : {
-
-    },
-    "Check for updates automatically" : {
-
-    },
     "Check for Updates…" : {
-
-    },
-    "Check Grammar With Spelling" : {
-
-    },
-    "Check spelling" : {
-
-    },
-    "Check Spelling While Typing" : {
 
     },
     "Check that your device’s date and time are correct." : {
@@ -3143,9 +2199,6 @@
     "Check your internet connection and try again." : {
 
     },
-    "Checkered" : {
-      "extractionState" : "manual"
-    },
     "Checking" : {
 
     },
@@ -3161,26 +2214,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "جارٍ التحقق من الوصول إلى مفاتيح المرور"
-          }
-        }
-      }
-    },
-    "Checking password…" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "جارٍ التحقق من كلمة المرور…"
-          }
-        }
-      }
-    },
-    "Checking saved passwords" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "جارٍ التحقق من كلمات المرور المحفوظة"
           }
         }
       }
@@ -3205,65 +2238,10 @@
         }
       }
     },
-    "Checks" : {
-      "extractionState" : "manual"
-    },
-    "Chevron" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "شيفرون"
-          }
-        }
-      }
-    },
-    "Chief" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "رأس الدرع"
-          }
-        }
-      }
-    },
-    "Choose a band to color it" : {
-
-    },
-    "Choose a border to color it" : {
-
-    },
     "Choose a browser session to build an import review." : {
 
     },
-    "Choose a name, crest, and theme. Add more Spaces whenever you need them." : {
-
-    },
-    "Choose a search engine or an AI assistant." : {
-
-    },
-    "Choose a shape to color its field" : {
-
-    },
-    "Choose a starting point, then make it yours. Reset controls return to this preset." : {
-
-    },
-    "Choose an emblem to color it" : {
-
-    },
-    "Choose an emoji" : {
-
-    },
-    "Choose another shortcut." : {
-
-    },
     "Choose at least one Space to import." : {
-
-    },
-    "Choose Crest under Emblem to color the crest" : {
 
     },
     "Choose Destination Space" : {
@@ -3275,27 +2253,6 @@
           }
         }
       }
-    },
-    "Choose Emoji" : {
-
-    },
-    "Choose Folder…" : {
-
-    },
-    "Choose Language" : {
-
-    },
-    "Choose Quick Window Space" : {
-
-    },
-    "Choose SF Symbol" : {
-
-    },
-    "Choose sidebar widget" : {
-
-    },
-    "Choose the focused card" : {
-
     },
     "Choose what to bring over" : {
 
@@ -3315,17 +2272,11 @@
     "Choose which copy to keep" : {
 
     },
-    "Chosen Space" : {
-
-    },
     "Chrome Web Store extensions" : {
 
     },
     "Chromium" : {
       "comment" : "The name of a browser engine. Keep the product name as it is."
-    },
-    "Chromium WebKit hybrid default browser engine websites rules protected video DRM compatibility" : {
-
     },
     "Claude Code" : {
 
@@ -3336,16 +2287,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "تنظيف ترتيب أرشفة علامات التبويب غير المثبتة"
-          }
-        }
-      }
-    },
-    "Clean Up Current Tabs" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تنظيف علامات التبويب الحالية"
           }
         }
       }
@@ -3423,25 +2364,6 @@
         }
       }
     },
-    "Clear Icon" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "مسح الأيقونة"
-          }
-        }
-      }
-    },
-    "Clear Learned Choices" : {
-
-    },
-    "Clear Learned Choices…" : {
-
-    },
-    "Clear open tabs" : {
-
-    },
     "Clear Open Tabs" : {
 
     },
@@ -3451,44 +2373,10 @@
     "Clear Search" : {
 
     },
-    "Clear Shortcut" : {
-
-    },
-    "Clear Unpinned Tabs" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "مسح علامات التبويب غير المثبتة"
-          }
-        }
-      }
-    },
-    "Clear what the palette learned?" : {
-
-    },
-    "Clear…" : {
-
-    },
-    "Cleared" : {
-
-    },
-    "Click a shortcut, then press the new keys." : {
-
-    },
     "Click anything you don’t want" : {
 
     },
-    "Click either card. Its border shows which page receives your keyboard commands." : {
-
-    },
     "Click the favicon to return to the saved URL" : {
-
-    },
-    "Click the name to rename" : {
-
-    },
-    "Click, then press the new shortcut" : {
 
     },
     "Clipboard" : {
@@ -3556,52 +2444,12 @@
         }
       }
     },
-    "Close Peek" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إغلاق Peek"
-          }
-        }
-      }
-    },
-    "Close Peek (Esc or ⌘W)" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إغلاق Peek ‏(Esc أو ⌘W)"
-          }
-        }
-      }
-    },
     "Close Private Tabs" : {
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "إغلاق علامات التبويب الخاصة"
-          }
-        }
-      }
-    },
-    "Close Quick Window" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إغلاق النافذة السريعة"
-          }
-        }
-      }
-    },
-    "Close Quick Window (Esc or ⌘W)" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إغلاق النافذة السريعة ‏(Esc أو ⌘W)"
           }
         }
       }
@@ -3714,16 +2562,6 @@
         }
       }
     },
-    "Collapses saved tabs" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "يطوي علامات التبويب المحفوظة"
-          }
-        }
-      }
-    },
     "Collapses this folder" : {
       "localizations" : {
         "ar" : {
@@ -3755,26 +2593,7 @@
         }
       }
     },
-    "Color borders" : {
-
-    },
-    "Color fill" : {
-
-    },
-    "Color intensity" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "شدة اللون"
-          }
-        }
-      }
-    },
     "Combine in Split View" : {
-
-    },
-    "Comfortable" : {
 
     },
     "command" : {
@@ -3803,36 +2622,13 @@
     "Command-click" : {
 
     },
-    "Comments" : {
-
-    },
     "Common Lists" : {
 
     },
     "Community and support" : {
 
     },
-    "Compact" : {
-
-    },
     "Compact Phone" : {
-
-    },
-    "Companies" : {
-
-    },
-    "Compass" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "البوصلة"
-          }
-        }
-      }
-    },
-    "Complete addresses inline" : {
 
     },
     "Complete or Search Site" : {
@@ -3880,9 +2676,6 @@
 
     },
     "Connection Secure" : {
-
-    },
-    "Contains" : {
 
     },
     "Content blocking" : {
@@ -4005,16 +2798,6 @@
         }
       }
     },
-    "Copy Password" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "نسخ كلمة المرور"
-          }
-        }
-      }
-    },
     "Copy Setup" : {
 
     },
@@ -4038,38 +2821,7 @@
         }
       }
     },
-    "Corner radius" : {
-
-    },
-    "Correct Spelling Automatically" : {
-
-    },
     "Could not determine" : {
-
-    },
-    "Couldn’t change app icon" : {
-
-    },
-    "Couldn’t change the lock on “%@”" : {
-
-    },
-    "Couldn’t check password" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تعذّر التحقق من كلمة المرور"
-          }
-        }
-      }
-    },
-    "Couldn’t Clear Cache" : {
-
-    },
-    "Couldn’t Clear Cookies" : {
-
-    },
-    "Couldn’t clear everything" : {
 
     },
     "Couldn’t Complete Extension Action" : {
@@ -4087,25 +2839,6 @@
     },
     "Couldn’t Open Crest" : {
 
-    },
-    "Couldn’t open language downloads." : {
-
-    },
-    "Country" : {
-
-    },
-    "Create folders and nested folders" : {
-
-    },
-    "Create your first Space" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "أنشئ مساحتك الأولى"
-          }
-        }
-      }
     },
     "Created %lld Spaces and added %lld tabs." : {
       "comment" : "Completion summary after manual setup. The first count is new Spaces; the second is added tabs.",
@@ -4256,57 +2989,6 @@
         }
       }
     },
-    "Creating strong password" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "جارٍ إنشاء كلمة مرور قوية"
-          }
-        }
-      }
-    },
-    "Creative" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إبداعي"
-          }
-        }
-      }
-    },
-    "Credentials and autofill" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "بيانات الاعتماد والتعبئة التلقائية"
-          }
-        }
-      }
-    },
-    "credentials autofill iCloud Keychain passkeys synchronization" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "بيانات الاعتماد التعبئة التلقائية سلسلة مفاتيح iCloud مفاتيح المرور المزامنة"
-          }
-        }
-      }
-    },
-    "Crescent" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الهلال"
-          }
-        }
-      }
-    },
     "Crest" : {
       "localizations" : {
         "ar" : {
@@ -4324,9 +3006,6 @@
 
     },
     "Crest can keep up to %lld saved site permissions. Reset some to save more." : {
-
-    },
-    "Crest can save files in %@." : {
 
     },
     "Crest can’t open this address" : {
@@ -4349,16 +3028,7 @@
         }
       }
     },
-    "Crest can’t show or fill them. This cannot be undone." : {
-
-    },
-    "Crest colors" : {
-
-    },
     "Crest could not build this %@ Space preview." : {
-
-    },
-    "Crest could not load this icon. Please try again." : {
 
     },
     "Crest could not read %@ data there. Try Allow Access again, or choose the %@ data folder if it moved." : {
@@ -4408,47 +3078,11 @@
         }
       }
     },
-    "Crest could not save to %@. Choose the folder again or review Files & Folders in System Settings." : {
-
-    },
-    "Crest could not update its icon. Please try again." : {
-
-    },
     "Crest couldn’t apply the latest changes from iCloud." : {
 
     },
-    "Crest couldn’t authenticate and read that password from this Space." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تعذّر على Crest المصادقة وقراءة كلمة المرور هذه من هذه المساحة."
-          }
-        }
-      }
-    },
-    "Crest couldn’t check this Space’s saved passwords." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تعذّر على Crest التحقق من كلمات المرور المحفوظة في هذه المساحة."
-          }
-        }
-      }
-    },
     "Crest couldn’t complete that. Try again." : {
 
-    },
-    "Crest couldn’t copy that password." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تعذّر على Crest نسخ كلمة المرور هذه."
-          }
-        }
-      }
     },
     "Crest couldn’t find another browser. Not every browser can be found." : {
 
@@ -4475,44 +3109,8 @@
     "Crest couldn’t read the Spaces to import." : {
 
     },
-    "Crest couldn’t read this Space’s passwords." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "لم يتمكن Crest من قراءة كلمات مرور هذه المساحة."
-          }
-        }
-      }
-    },
-    "Crest couldn’t remove the passwords it can’t read." : {
-
-    },
-    "Crest couldn’t save a strong password. Nothing was filled." : {
-
-    },
     "Crest couldn’t save this change. Try again." : {
 
-    },
-    "Crest couldn’t save this password to the %@ Space." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تعذّر على Crest حفظ كلمة المرور هذه في مساحة %@."
-          }
-        }
-      }
-    },
-    "Crest couldn’t save this password to this Space." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تعذّر على Crest حفظ كلمة المرور هذه في هذه المساحة."
-          }
-        }
-      }
     },
     "Crest couldn’t tell which program this agent is." : {
 
@@ -4523,16 +3121,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "تعذّر على Crest التحقق من اتصال خاص وآمن بـ %@."
-          }
-        }
-      }
-    },
-    "Crest does not save this session or use Crest Passwords. Website data stays in memory only." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "لا يحفظ Crest هذه الجلسة ولا يستخدم كلمات مرور Crest. تبقى بيانات مواقع الويب في الذاكرة فقط."
           }
         }
       }
@@ -4595,29 +3183,6 @@
     "Crest needs at least one Space." : {
 
     },
-    "Crest password suggestions" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "اقتراحات كلمات مرور Crest"
-          }
-        }
-      }
-    },
-    "Crest Passwords" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "كلمات مرور Crest"
-          }
-        }
-      }
-    },
-    "Crest preview" : {
-      "extractionState" : "manual"
-    },
     "Crest reads its data when you continue, which may ask for access" : {
 
     },
@@ -4634,59 +3199,7 @@
         }
       }
     },
-    "Crest requires Touch ID, Face ID, or the device password before every reveal or copy. A revealed password hides after 30 seconds; a copied password expires after 60 seconds." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "يتطلب Crest استخدام بصمة الإصبع أو بصمة الوجه أو رمز دخول الجهاز قبل كل إظهار أو نسخ. تُخفى كلمة المرور الظاهرة بعد 30 ثانية، وتنتهي صلاحية النسخة بعد 60 ثانية."
-          }
-        }
-      }
-    },
-    "Crest saves a unique 20-character password in %@ first, then fills it here and in the confirmation field." : {
-
-    },
-    "Crest saves in %@ first; Passwords asks separately" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "يحفظ Crest في %@ أولاً؛ ثم تطلب «كلمات السر» تأكيدًا منفصلاً"
-          }
-        }
-      }
-    },
-    "Crest saves in this Space first; Passwords asks separately" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "يحفظ Crest في هذه المساحة أولاً؛ ثم تطلب «كلمات السر» تأكيدًا منفصلاً"
-          }
-        }
-      }
-    },
-    "Crest Setup" : {
-
-    },
     "Crest software update" : {
-
-    },
-    "Crest Studio" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "استوديو الشعار"
-          }
-        }
-      }
-    },
-    "crest studio name icon emblem colors theme banner background sidebar pattern gradient accent" : {
-
-    },
-    "Crest Studio step" : {
 
     },
     "Crest supports up to %lld Spaces." : {
@@ -4727,56 +3240,6 @@
     "crestbrowser.com" : {
 
     },
-    "Crimson" : {
-
-    },
-    "Cross" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "صليب"
-          }
-        }
-      }
-    },
-    "Crossed" : {
-      "extractionState" : "manual"
-    },
-    "Crossed Axes" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Crossed Axes"
-          }
-        }
-      }
-    },
-    "Crossed Swords" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Crossed Swords"
-          }
-        }
-      }
-    },
-    "Crown" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "التاج"
-          }
-        }
-      }
-    },
     "Current" : {
       "localizations" : {
         "ar" : {
@@ -4788,9 +3251,6 @@
       }
     },
     "Current destination" : {
-
-    },
-    "Current Quick Window Space" : {
 
     },
     "Current Space" : {
@@ -4809,19 +3269,6 @@
         }
       }
     },
-    "Custom accent" : {
-
-    },
-    "Custom Color" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "لون مخصص"
-          }
-        }
-      }
-    },
     "Customize" : {
       "localizations" : {
         "ar" : {
@@ -4831,9 +3278,6 @@
           }
         }
       }
-    },
-    "Customize current Spaces or add new Spaces" : {
-
     },
     "Customize Space" : {
       "localizations" : {
@@ -4848,13 +3292,7 @@
     "Cut" : {
 
     },
-    "Daily builds. May be less reliable." : {
-
-    },
     "Dangerous Site" : {
-
-    },
-    "Dark" : {
 
     },
     "Data Detectors" : {
@@ -4869,9 +3307,6 @@
           }
         }
       }
-    },
-    "Default (%@)" : {
-
     },
     "Default (Ask after First)" : {
 
@@ -4898,24 +3333,8 @@
     "Default engine" : {
 
     },
-    "Default engine and website rules" : {
-
-    },
     "Default page zoom" : {
 
-    },
-    "Default search" : {
-
-    },
-    "Default Space" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "المساحة الافتراضية"
-          }
-        }
-      }
     },
     "delete" : {
       "localizations" : {
@@ -4961,16 +3380,6 @@
         }
       }
     },
-    "Delete %@?" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "هل تريد حذف %@؟"
-          }
-        }
-      }
-    },
     "Delete %arg?" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -4982,13 +3391,7 @@
         }
       }
     },
-    "Delete %lld Passwords" : {
-
-    },
     "Delete %lld Tabs" : {
-
-    },
-    "Delete 1 Password" : {
 
     },
     "Delete Folder" : {
@@ -4997,26 +3400,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "حذف المجلد"
-          }
-        }
-      }
-    },
-    "Delete Password" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "حذف كلمة المرور"
-          }
-        }
-      }
-    },
-    "Delete Password?" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "هل تريد حذف كلمة المرور؟"
           }
         }
       }
@@ -5032,9 +3415,6 @@
       }
     },
     "Delete Selected" : {
-
-    },
-    "Delete Selected Passwords?" : {
 
     },
     "Delete Space and Data" : {
@@ -5147,9 +3527,6 @@
     "Developer Toolbar" : {
 
     },
-    "Developer toolbar on local pages" : {
-
-    },
     "developer toolbar viewport preview responsive custom size" : {
 
     },
@@ -5182,34 +3559,6 @@
         }
       }
     },
-    "Diagonal" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "قطري"
-          }
-        }
-      }
-    },
-    "Dim Space colors in dark" : {
-
-    },
-    "Dim unloaded tabs" : {
-
-    },
-    "Direwolf" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Direwolf"
-          }
-        }
-      }
-    },
     "Disable Extension" : {
 
     },
@@ -5225,9 +3574,6 @@
     "Disconnect Agent" : {
       "comment" : "Disconnects the agent using a tab from Crest."
     },
-    "Discussions" : {
-
-    },
     "Dismiss" : {
 
     },
@@ -5235,12 +3581,6 @@
 
     },
     "Dismiss Translation Bar" : {
-
-    },
-    "Distance: 4.2 miles\nDuration: 2 hours\nRoute: lakeside loop" : {
-
-    },
-    "Divide the field to use a second color" : {
 
     },
     "Divider %lld" : {
@@ -5252,12 +3592,6 @@
           }
         }
       }
-    },
-    "Division" : {
-
-    },
-    "Dock Sidebar" : {
-
     },
     "Don’t Allow" : {
 
@@ -5280,20 +3614,6 @@
     },
     "Done Customizing" : {
 
-    },
-    "Double Line" : {
-      "extractionState" : "manual"
-    },
-    "Double Ring" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "حلقة مزدوجة"
-          }
-        }
-      }
     },
     "Double-click to return to the saved URL" : {
       "localizations" : {
@@ -5331,12 +3651,6 @@
     "Download and Install" : {
 
     },
-    "Download and install updates automatically" : {
-
-    },
-    "Download both languages to translate" : {
-
-    },
     "download files transfers" : {
       "localizations" : {
         "ar" : {
@@ -5347,25 +3661,7 @@
         }
       }
     },
-    "Download folder for %@" : {
-
-    },
-    "Download folder: %@. Check Access verifies that Crest can save a file there." : {
-
-    },
     "Download Languages" : {
-
-    },
-    "Download languages in the Translate app." : {
-
-    },
-    "Download languages to translate automatically. Tap Translate to continue." : {
-
-    },
-    "Download Languages…" : {
-
-    },
-    "Download location" : {
 
     },
     "Download More Languages…" : {
@@ -5438,68 +3734,17 @@
         }
       }
     },
-    "Draft" : {
-
-    },
     "Drag a rectangle to copy that part of the page" : {
-
-    },
-    "Drag another tab here" : {
-
-    },
-    "Drag links to Peek" : {
 
     },
     "Drag one tab at a time to pin it." : {
 
     },
-    "Drag Packing list from the sidebar onto this page. Or right-click it and choose Split with Current Tab." : {
-
-    },
     "Drag to capture a portion of this page" : {
-
-    },
-    "Drag to change the order." : {
-
-    },
-    "Drag to move the window or open Space actions" : {
 
     },
     "Drag to reorder" : {
 
-    },
-    "Dragon" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "التنين"
-          }
-        }
-      }
-    },
-    "Dragon Head" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dragon Head"
-          }
-        }
-      }
-    },
-    "Drop" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "القطرة"
-          }
-        }
-      }
     },
     "Drop a tab here to make it a current tab" : {
       "localizations" : {
@@ -5531,9 +3776,6 @@
         }
       }
     },
-    "Dune" : {
-
-    },
     "Duplicate %lld Tabs" : {
 
     },
@@ -5547,33 +3789,10 @@
         }
       }
     },
-    "Each device keeps its own default search. Search suggestions send what you type to the search engine." : {
-
-    },
     "Each Space gets an independent copy with the permissions you choose. Extension data stays separate." : {
 
     },
     "Each Space keeps its own history, site permissions and blocking." : {
-
-    },
-    "Eagle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eagle"
-          }
-        }
-      }
-    },
-    "Edge" : {
-
-    },
-    "Edge & outline" : {
-
-    },
-    "Edge weight" : {
 
     },
     "Edit" : {
@@ -5589,49 +3808,11 @@
     "Edit %@, %@" : {
 
     },
-    "Edit Crest…" : {
-
-    },
-    "Edit Provider" : {
-
-    },
-    "Edit Shortcuts…" : {
-
-    },
     "Edit Space name" : {
 
     },
     "Edit Space name: %@" : {
 
-    },
-    "Edit Space…" : {
-
-    },
-    "Edit Tab" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تحرير علامة التبويب"
-          }
-        }
-      }
-    },
-    "Edit Website Rule" : {
-
-    },
-    "Edit…" : {
-
-    },
-    "Embedded password form from %@" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "نموذج كلمة مرور مضمن من %@"
-          }
-        }
-      }
     },
     "Embedded sign-in from %@" : {
       "localizations" : {
@@ -5643,39 +3824,7 @@
         }
       }
     },
-    "Ember" : {
-
-    },
-    "Emblem" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الرمز"
-          }
-        }
-      }
-    },
-    "Emblem color" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "لون الرمز"
-          }
-        }
-      }
-    },
-    "Emblem source" : {
-
-    },
-    "Embossed" : {
-      "extractionState" : "manual"
-    },
     "Emoji" : {
-
-    },
-    "Empty Quick Window using %@" : {
 
     },
     "Enable Extension" : {
@@ -5708,18 +3857,6 @@
 
     },
     "Engines" : {
-
-    },
-    "Enter a name for this search engine." : {
-
-    },
-    "Enter a shortcut without spaces, slashes or colons." : {
-
-    },
-    "Enter a valid URL template." : {
-
-    },
-    "Enter an HTTP or HTTPS website." : {
 
     },
     "Enter Full Screen" : {
@@ -5761,13 +3898,7 @@
     "ESSENTIALS" : {
       "comment" : "A section heading in a browser import review. Keep it uppercase."
     },
-    "Every accepted credential will be stored only in this Space’s Keychain inventory." : {
-
-    },
     "Every change appears in the Crest branding preview." : {
-
-    },
-    "Every Crest command will return to its default shortcut." : {
 
     },
     "Everyday Use" : {
@@ -5779,18 +3910,6 @@
           }
         }
       }
-    },
-    "Everything in its Space" : {
-
-    },
-    "Exact Words" : {
-
-    },
-    "Example folder" : {
-
-    },
-    "EXAMPLE PAGE" : {
-
     },
     "example.com" : {
       "localizations" : {
@@ -5815,16 +3934,6 @@
         }
       }
     },
-    "Expands saved tabs" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "يوسع علامات التبويب المحفوظة"
-          }
-        }
-      }
-    },
     "Expands the browser controls" : {
       "localizations" : {
         "ar" : {
@@ -5844,12 +3953,6 @@
           }
         }
       }
-    },
-    "Experimental" : {
-
-    },
-    "Explore" : {
-
     },
     "Export as PDF" : {
       "localizations" : {
@@ -5887,26 +3990,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "تصدير بيانات المتصفح…"
-          }
-        }
-      }
-    },
-    "Export Passwords as Plaintext?" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "هل تريد تصدير كلمات المرور كنص عادي؟"
-          }
-        }
-      }
-    },
-    "Export Passwords…" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تصدير كلمات المرور…"
           }
         }
       }
@@ -5972,29 +4055,8 @@
     "External Apps" : {
 
     },
-    "external apps Quick Window Peek pinned saved routing open" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "التطبيقات الخارجية النافذة السريعة Peek المثبتة المحفوظة التوجيه فتح"
-          }
-        }
-      }
-    },
     "FairPlay protected video" : {
 
-    },
-    "Falcon" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Falcon"
-          }
-        }
-      }
     },
     "favorite bookmark pin unpin" : {
       "localizations" : {
@@ -6017,37 +4079,6 @@
     },
     "Feature state" : {
 
-    },
-    "Fess" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "حزام"
-          }
-        }
-      }
-    },
-    "Field" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الحقل"
-          }
-        }
-      }
-    },
-    "Field color" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "لون الحقل"
-          }
-        }
-      }
     },
     "Field Division" : {
       "extractionState" : "stale",
@@ -6112,9 +4143,6 @@
     "Find" : {
 
     },
-    "Find an emblem" : {
-
-    },
     "Find in Page" : {
       "localizations" : {
         "ar" : {
@@ -6133,19 +4161,6 @@
     },
     "Find…" : {
 
-    },
-    "Finds Settings pages by name." : {
-
-    },
-    "Finish" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "اللمسات الأخيرة"
-          }
-        }
-      }
     },
     "Finish setting up passkeys in System Settings, then check again." : {
 
@@ -6187,52 +4202,7 @@
         }
       }
     },
-    "Fit Space icons to sidebar" : {
-
-    },
     "Flags" : {
-
-    },
-    "Flame" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "اللهب"
-          }
-        }
-      }
-    },
-    "Flat" : {
-      "extractionState" : "manual"
-    },
-    "Fleur-de-lis" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fleur-de-lis"
-          }
-        }
-      }
-    },
-    "Flight tickets" : {
-
-    },
-    "Flower" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الزهرة"
-          }
-        }
-      }
-    },
-    "Focus follows pointer" : {
 
     },
     "Focus Next Split Card" : {
@@ -6255,12 +4225,6 @@
         }
       }
     },
-    "focus switch new tabs follow move between Spaces Command-click middle-click Shift pinned saved close resume restore root URL favicon Split View focus follows mouse pointer sidebar widgets Now Playing media cards" : {
-
-    },
-    "Focus this card" : {
-
-    },
     "Focus This Split View Card" : {
       "localizations" : {
         "ar" : {
@@ -6274,38 +4238,6 @@
     "Folder" : {
 
     },
-    "Folder Color" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "لون المجلد"
-          }
-        }
-      }
-    },
-    "Folder color intensity" : {
-
-    },
-    "Folder Color…" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "لون المجلد…"
-          }
-        }
-      }
-    },
-    "Folder colors" : {
-
-    },
-    "Folder Icon" : {
-
-    },
-    "Folder Icon…" : {
-
-    },
     "Folder Name" : {
       "localizations" : {
         "ar" : {
@@ -6316,31 +4248,7 @@
         }
       }
     },
-    "Folders" : {
-
-    },
     "Folders are nested inside each other." : {
-
-    },
-    "Folders can hold tabs and other folders. Add Weekends, then put Ideas inside it. You can also use folders below the line for open tabs." : {
-
-    },
-    "Folders hold tabs and other folders. Add Weekends, then nest Ideas inside it. Folders also work below the line with open tabs." : {
-
-    },
-    "Follow Space accent" : {
-
-    },
-    "Follow Space color" : {
-
-    },
-    "Follow Space colors" : {
-
-    },
-    "Follow tabs moved to another Space" : {
-
-    },
-    "Food & Drink" : {
 
     },
     "For an intranet site, confirm that you are on the required network." : {
@@ -6352,9 +4260,6 @@
           }
         }
       }
-    },
-    "Forest" : {
-
     },
     "Forever" : {
 
@@ -6371,16 +4276,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "تقدم"
-          }
-        }
-      }
-    },
-    "Forward (⌘])" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تقدم (⌘])"
           }
         }
       }
@@ -6405,9 +4300,6 @@
         }
       }
     },
-    "Four" : {
-      "extractionState" : "manual"
-    },
     "Fox" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6418,9 +4310,6 @@
           }
         }
       }
-    },
-    "French Shield" : {
-      "extractionState" : "manual"
     },
     "From" : {
 
@@ -6435,32 +4324,8 @@
         }
       }
     },
-    "Frond" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "السعفة"
-          }
-        }
-      }
-    },
-    "Full" : {
-
-    },
     "Full URL" : {
 
-    },
-    "Games" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الألعاب"
-          }
-        }
-      }
     },
     "General" : {
       "localizations" : {
@@ -6471,31 +4336,6 @@
           }
         }
       }
-    },
-    "Getting Started" : {
-
-    },
-    "Getting Started opens next with practice for tabs and folders." : {
-
-    },
-    "Getting Started opens next with practice for tabs, folders, and Split View." : {
-
-    },
-    "Getting Started with Crest" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "بدء استخدام Crest"
-          }
-        }
-      }
-    },
-    "Give the shape an edge to color it" : {
-
-    },
-    "Glow" : {
-
     },
     "Go Back" : {
       "localizations" : {
@@ -6516,9 +4356,6 @@
     "Go to the other tab" : {
       "comment" : "Tooltip on a sharing bar's message that shows the tab at the other end."
     },
-    "Gold" : {
-
-    },
     "Gradient" : {
       "localizations" : {
         "ar" : {
@@ -6529,106 +4366,10 @@
         }
       }
     },
-    "Gradient angle" : {
-
-    },
-    "Gradient rotation" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تدوير التدرج"
-          }
-        }
-      }
-    },
-    "Gray" : {
-
-    },
-    "Grid" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "شبكة"
-          }
-        }
-      }
-    },
-    "Griffin" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Griffin"
-          }
-        }
-      }
-    },
-    "Gules" : {
-
-    },
-    "Gunmetal" : {
-
-    },
-    "Hammer" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "المطرقة"
-          }
-        }
-      }
-    },
-    "Hare" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الأرنب"
-          }
-        }
-      }
-    },
     "Height" : {
 
     },
     "Help" : {
-
-    },
-    "Heraldry" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Heraldry"
-          }
-        }
-      }
-    },
-    "Hexagon" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "سداسي"
-          }
-        }
-      }
-    },
-    "Hide AI Answers" : {
-
-    },
-    "Hide AI Features" : {
-
-    },
-    "Hide AI Overviews" : {
 
     },
     "Hide Crest" : {
@@ -6648,19 +4389,6 @@
 
     },
     "Hide Others" : {
-
-    },
-    "Hide Password" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إخفاء كلمة المرور"
-          }
-        }
-      }
-    },
-    "Hide Passwords" : {
 
     },
     "Hide Reader" : {
@@ -6705,9 +4433,6 @@
     "Hide Update" : {
 
     },
-    "Hides its options" : {
-
-    },
     "Hides recent changes" : {
 
     },
@@ -6734,9 +4459,6 @@
         }
       }
     },
-    "Hold Shift as you open a link to do the opposite." : {
-
-    },
     "home" : {
       "localizations" : {
         "ar" : {
@@ -6757,72 +4479,11 @@
         }
       }
     },
-    "Horizontal" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "أفقي"
-          }
-        }
-      }
-    },
-    "Horn" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "البوق"
-          }
-        }
-      }
-    },
-    "Horse" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Horse"
-          }
-        }
-      }
-    },
-    "Hound" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "كلب الصيد"
-          }
-        }
-      }
-    },
-    "Hover tint" : {
-
-    },
     "HTTP" : {
 
     },
     "https://example.com" : {
 
-    },
-    "Hybrid" : {
-
-    },
-    "Hydra" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hydra"
-          }
-        }
-      }
     },
     "Ice" : {
 
@@ -6857,12 +4518,6 @@
         }
       }
     },
-    "iCloud Keychain and Passwords choices apply to this device only." : {
-
-    },
-    "iCloud Keychain, per Space" : {
-
-    },
     "iCloud setup and status" : {
       "localizations" : {
         "ar" : {
@@ -6893,15 +4548,6 @@
         }
       }
     },
-    "Icon color" : {
-
-    },
-    "Icon Only Folders" : {
-
-    },
-    "Icon Type" : {
-
-    },
     "Identity" : {
       "localizations" : {
         "ar" : {
@@ -6911,9 +4557,6 @@
           }
         }
       }
-    },
-    "Identity style" : {
-
     },
     "If it happens again, try closing and reopening the tab." : {
       "localizations" : {
@@ -7000,12 +4643,6 @@
     "Import No Longer Available" : {
 
     },
-    "Import passwords for %@" : {
-
-    },
-    "Import Passwords…" : {
-
-    },
     "Import Reviewed Data" : {
       "comment" : "Button that imports the reviewed data from the final selected browser.",
       "localizations" : {
@@ -7028,17 +4665,6 @@
     },
     "Import this Space" : {
 
-    },
-    "Import with Crest on macOS" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الاستيراد باستخدام Crest على macOS"
-          }
-        }
-      }
     },
     "Import, export, and runtime" : {
       "localizations" : {
@@ -7205,219 +4831,6 @@
         }
       }
     },
-    "Imported %lld reviewed tabs and %lld passwords across %lld Spaces." : {
-      "comment" : "Browser-import completion summary. Counts are imported tabs, imported passwords, then destination Spaces.",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تم استيراد %#@tabs@ و%#@passwords@ إلى %#@spaces@."
-          },
-          "substitutions" : {
-            "passwords" : {
-              "argNum" : 2,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "few" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld كلمات سر"
-                    }
-                  },
-                  "many" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld كلمة سر"
-                    }
-                  },
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "كلمة سر واحدة"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld كلمة سر"
-                    }
-                  },
-                  "two" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "كلمتي سر"
-                    }
-                  },
-                  "zero" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "لا كلمات سر"
-                    }
-                  }
-                }
-              }
-            },
-            "spaces" : {
-              "argNum" : 3,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "few" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld مساحات"
-                    }
-                  },
-                  "many" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld مساحة"
-                    }
-                  },
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "مساحة واحدة"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld مساحة"
-                    }
-                  },
-                  "two" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "مساحتين"
-                    }
-                  },
-                  "zero" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "لا مساحات"
-                    }
-                  }
-                }
-              }
-            },
-            "tabs" : {
-              "argNum" : 1,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "few" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld علامات تبويب تمت مراجعتها"
-                    }
-                  },
-                  "many" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld علامة تبويب تمت مراجعتها"
-                    }
-                  },
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "علامة تبويب واحدة تمت مراجعتها"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld علامة تبويب تمت مراجعتها"
-                    }
-                  },
-                  "two" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "علامتي تبويب تمت مراجعتهما"
-                    }
-                  },
-                  "zero" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "صفر من علامات التبويب التي تمت مراجعتها"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Imported %#@tabs@ and %#@passwords@ across %#@spaces@."
-          },
-          "substitutions" : {
-            "passwords" : {
-              "argNum" : 2,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "1 password"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld passwords"
-                    }
-                  }
-                }
-              }
-            },
-            "spaces" : {
-              "argNum" : 3,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "1 Space"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld Spaces"
-                    }
-                  }
-                }
-              }
-            },
-            "tabs" : {
-              "argNum" : 1,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "1 reviewed tab"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%lld reviewed tabs"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "Imported %lld Spaces, %lld tabs, and %lld history entries." : {
       "localizations" : {
         "ar" : {
@@ -7448,12 +4861,6 @@
         }
       }
     },
-    "Imported from an insecure HTTP site. Crest keeps it available for manual access but does not autofill it on insecure connections." : {
-
-    },
-    "Imported password" : {
-
-    },
     "Imported Zen Space %lld" : {
       "localizations" : {
         "ar" : {
@@ -7480,9 +4887,6 @@
     "Importing into" : {
 
     },
-    "Importing passwords" : {
-
-    },
     "Importing…" : {
 
     },
@@ -7502,9 +4906,6 @@
     "Include all" : {
 
     },
-    "Include exactly one %s or {searchTerms} query placeholder." : {
-
-    },
     "Include this Space" : {
       "extractionState" : "stale"
     },
@@ -7520,15 +4921,6 @@
           }
         }
       }
-    },
-    "Indigo" : {
-
-    },
-    "Ink" : {
-
-    },
-    "Inserts any emoji through the system text input experience." : {
-
     },
     "Inside %@" : {
 
@@ -7569,27 +4961,7 @@
     "Installing Update" : {
 
     },
-    "Intensity" : {
-
-    },
-    "Interactive sidebar preview" : {
-
-    },
     "Into Crest" : {
-
-    },
-    "Iron" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الحديد"
-          }
-        }
-      }
-    },
-    "Is Exactly" : {
 
     },
     "Issues" : {
@@ -7627,9 +4999,6 @@
     "Its content is still saved. Update Crest to open it." : {
 
     },
-    "Its tabs stay in this section, and any nested folders move up one level." : {
-
-    },
     "Jump to Selection" : {
 
     },
@@ -7639,29 +5008,7 @@
     "Keep Browsing" : {
 
     },
-    "Keep Crest Up to Date" : {
-
-    },
-    "Keep current password" : {
-
-    },
     "Keep History" : {
-
-    },
-    "Keep Loaded" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إبقاء علامة التبويب محمّلة"
-          }
-        }
-      }
-    },
-    "Keep Pages Loaded" : {
-
-    },
-    "Keep work, personal browsing, and projects in separate Spaces." : {
 
     },
     "Key" : {
@@ -7675,44 +5022,7 @@
         }
       }
     },
-    "Keyboard commands" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "أوامر لوحة المفاتيح"
-          }
-        }
-      }
-    },
-    "keyboard keys commands rebind remap Arc hotkeys navigation tabs Spaces page" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "لوحة المفاتيح المفاتيح الأوامر إعادة التعيين تغيير التعيين Arc الاختصارات التنقل علامات التبويب المساحات الصفحة"
-          }
-        }
-      }
-    },
-    "Keywords" : {
-
-    },
     "Kind" : {
-
-    },
-    "Kraken" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kraken"
-          }
-        }
-      }
-    },
-    "Kraken Gold" : {
 
     },
     "Language" : {
@@ -7722,9 +5032,6 @@
 
     },
     "Languages confirmed as downloaded appear first. Other choices may need a download; choose a language and tap Translate to let Apple prepare it." : {
-
-    },
-    "Lapis" : {
 
     },
     "Large Phone" : {
@@ -7782,20 +5089,6 @@
         }
       }
     },
-    "Latest First" : {
-
-    },
-    "Laurel" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إكليل غار"
-          }
-        }
-      }
-    },
     "Layered Crest" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -7808,23 +5101,6 @@
       }
     },
     "Layout" : {
-
-    },
-    "Leaf" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الورقة"
-          }
-        }
-      }
-    },
-    "Learn from my choices" : {
-
-    },
-    "Learned choices stay on this device." : {
 
     },
     "Leave all" : {
@@ -7859,37 +5135,11 @@
     "Let “%@” open a private window?" : {
 
     },
-    "Let “%@” open a Quick Window?" : {
-
-    },
     "Let “%@” open a window?" : {
 
     },
     "Let agents run scripts in pages" : {
 
-    },
-    "Letter style" : {
-
-    },
-    "Lifted" : {
-      "extractionState" : "manual"
-    },
-    "Light" : {
-
-    },
-    "Lightning" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "البرق"
-          }
-        }
-      }
-    },
-    "Line" : {
-      "extractionState" : "manual"
     },
     "Link destination" : {
 
@@ -7900,16 +5150,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "الروابط"
-          }
-        }
-      }
-    },
-    "Links from other apps" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الروابط من التطبيقات الأخرى"
           }
         }
       }
@@ -7958,9 +5198,6 @@
     "Loading Languages…" : {
 
     },
-    "Loading Peek" : {
-
-    },
     "Loading Stage" : {
       "localizations" : {
         "ar" : {
@@ -7971,13 +5208,7 @@
         }
       }
     },
-    "Loading symbols…" : {
-
-    },
     "Loading…" : {
-
-    },
-    "Local pages are localhost, private network addresses, .local, .test and files." : {
 
     },
     "Local records" : {
@@ -7993,43 +5224,11 @@
     "Location" : {
 
     },
-    "Lock" : {
-
-    },
-    "Lock Space" : {
-
-    },
-    "Locked" : {
-
-    },
-    "Locks again when Crest goes to the background." : {
-
-    },
-    "Long press or open the context menu for skin tone variations." : {
-
-    },
-    "Long press to choose a skin tone variation." : {
-
-    },
     "look and feel theme accent color transparency page zoom percentage sidebar left right borderless window fullscreen layout interface animation motion page cards folder highlights counts borders preview density spacing padding scale icons" : {
 
     },
     "Looks through other browsers’ data on this Mac" : {
 
-    },
-    "Lozenge" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "معيّن"
-          }
-        }
-      }
-    },
-    "Lozenges" : {
-      "extractionState" : "manual"
     },
     "macOS has not returned a location decision. Respond to its prompt, or open System Settings > Privacy & Security > Location Services to allow Crest." : {
 
@@ -8080,16 +5279,6 @@
     },
     "Manage Filter Lists" : {
 
-    },
-    "Manage Saved Passwords…" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إدارة كلمات المرور المحفوظة…"
-          }
-        }
-      }
     },
     "Manual access only for insecure HTTP site" : {
 
@@ -8151,27 +5340,7 @@
     "Matches the title" : {
 
     },
-    "Material" : {
-
-    },
-    "Meadow" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "المرج"
-          }
-        }
-      }
-    },
-    "Meeting notes" : {
-
-    },
     "Microphone" : {
-
-    },
-    "Midnight" : {
 
     },
     "Minimize" : {
@@ -8180,30 +5349,10 @@
     "Model" : {
 
     },
-    "Moderate" : {
-
-    },
-    "Monogram" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Monogram"
-          }
-        }
-      }
-    },
     "More" : {
 
     },
     "More Languages" : {
-
-    },
-    "Moss" : {
-
-    },
-    "Most Recent Space" : {
 
     },
     "Most Recent Tab" : {
@@ -8212,26 +5361,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "أحدث علامة تبويب"
-          }
-        }
-      }
-    },
-    "Most Recent Tab Backward" : {
-
-    },
-    "Most Stars" : {
-
-    },
-    "Most Votes" : {
-
-    },
-    "Mountain" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الجبل"
           }
         }
       }
@@ -8252,13 +5381,7 @@
         }
       }
     },
-    "Move left" : {
-
-    },
     "Move Left" : {
-
-    },
-    "Move right" : {
 
     },
     "Move Right" : {
@@ -8277,15 +5400,6 @@
 
     },
     "Move Split Card Right" : {
-
-    },
-    "Move the pointer to the leading edge to preview the sidebar" : {
-
-    },
-    "Move the pointer to the trailing edge to preview the sidebar" : {
-
-    },
-    "Move this card to either side. Hold ⇧⌘, then click and drag a card to move it in the browser." : {
 
     },
     "Move this page here without reloading it." : {
@@ -8359,9 +5473,6 @@
     "Name your Space" : {
 
     },
-    "Name, crest, colors, and background" : {
-
-    },
     "Native macOS handling" : {
 
     },
@@ -8374,9 +5485,6 @@
           }
         }
       }
-    },
-    "Navy" : {
-
     },
     "Need review" : {
 
@@ -8402,12 +5510,6 @@
       }
     },
     "Needs review" : {
-
-    },
-    "Nest a folder" : {
-
-    },
-    "Neutral" : {
 
     },
     "Never" : {
@@ -8459,26 +5561,6 @@
         }
       }
     },
-    "New Quick Window" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "نافذة سريعة جديدة"
-          }
-        }
-      }
-    },
-    "New Route" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "مسار جديد"
-          }
-        }
-      }
-    },
     "New Saved Folder" : {
 
     },
@@ -8515,19 +5597,6 @@
         }
       }
     },
-    "New Tab (⌘T)" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "علامة تبويب جديدة (⌘T)"
-          }
-        }
-      }
-    },
-    "New tabs" : {
-
-    },
     "New Window" : {
       "localizations" : {
         "ar" : {
@@ -8538,16 +5607,7 @@
         }
       }
     },
-    "New, pinned and saved tabs" : {
-
-    },
     "Newest" : {
-
-    },
-    "Next" : {
-
-    },
-    "Next chapter" : {
 
     },
     "Next Match" : {
@@ -8607,12 +5667,6 @@
     "Next Widget" : {
 
     },
-    "Night" : {
-
-    },
-    "Nightly" : {
-
-    },
     "No agents yet" : {
 
     },
@@ -8635,19 +5689,6 @@
           }
         }
       }
-    },
-    "No Crest passwords are saved for this site in this Space." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "لا توجد كلمات مرور Crest محفوظة لهذا الموقع في هذه المساحة."
-          }
-        }
-      }
-    },
-    "No downloaded languages" : {
-
     },
     "No Downloads" : {
       "localizations" : {
@@ -8736,19 +5777,7 @@
     "No matches" : {
 
     },
-    "No matching emblems. Try an SF Symbol or a monogram." : {
-
-    },
-    "No Matching Emoji" : {
-
-    },
     "No Matching Feature Flags" : {
-
-    },
-    "No other Spaces are available. Unlock a Space to include it; Spaces that already have this extension are excluded." : {
-
-    },
-    "No passwords saved for this site" : {
 
     },
     "No recovery checkpoint is available. Retry after checking that your disk is available and has free space." : {
@@ -8765,12 +5794,6 @@
       }
     },
     "No room for another Space" : {
-
-    },
-    "No routes yet." : {
-
-    },
-    "No saved passwords" : {
 
     },
     "No saved permissions" : {
@@ -8803,12 +5826,6 @@
 
     },
     "No username" : {
-
-    },
-    "No website data" : {
-
-    },
-    "No website rules" : {
 
     },
     "None" : {
@@ -8873,9 +5890,6 @@
     "Not signed in" : {
 
     },
-    "Notes why each result is there, such as “Often visited” or “Already open”." : {
-
-    },
     "Nothing to Review" : {
 
     },
@@ -8888,25 +5902,8 @@
     "Now Playing" : {
 
     },
-    "Oak" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "البلوط"
-          }
-        }
-      }
-    },
     "Objects" : {
 
-    },
-    "Ocean" : {
-
-    },
-    "Octagon" : {
-      "extractionState" : "manual"
     },
     "Off" : {
       "localizations" : {
@@ -8918,23 +5915,10 @@
         }
       }
     },
-    "Offer a copy to Passwords" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "عرض نسخة على «كلمات السر»"
-          }
-        }
-      }
-    },
     "Offer to Translate" : {
 
     },
     "Offer to translate pages" : {
-
-    },
-    "Offers the address you copied when the palette opens." : {
 
     },
     "Often visited" : {
@@ -8963,27 +5947,7 @@
     "On-device Translation" : {
 
     },
-    "One" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "واحد"
-          }
-        }
-      }
-    },
-    "One or two letters" : {
-
-    },
-    "One per row" : {
-
-    },
     "One-time macOS permission · No folder search" : {
-
-    },
-    "Onyx" : {
 
     },
     "Opacity" : {
@@ -9009,33 +5973,7 @@
         }
       }
     },
-    "Open a New Tab" : {
-
-    },
     "Open a regular window to do this." : {
-
-    },
-    "Open Crest" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "فتح Crest"
-          }
-        }
-      }
-    },
-    "Open cross-site links from pinned and saved tabs in Peek" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "فتح الروابط بين المواقع من علامات التبويب المثبتة والمحفوظة في Peek"
-          }
-        }
-      }
-    },
-    "Open Emoji Picker" : {
 
     },
     "Open File" : {
@@ -9128,16 +6066,10 @@
     "Open in Other Space" : {
 
     },
-    "Open in Quick Window" : {
-
-    },
     "Open in Space" : {
 
     },
     "Open in Split View" : {
-
-    },
-    "Open Last Active Tab" : {
 
     },
     "Open Link in Another Space" : {
@@ -9149,9 +6081,6 @@
           }
         }
       }
-    },
-    "Open Link in Peek" : {
-
     },
     "Open Link in Split View" : {
       "localizations" : {
@@ -9192,16 +6121,6 @@
     "Open pages keep their engine." : {
 
     },
-    "Open Peek with" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "فتح النظرة السريعة بـ"
-          }
-        }
-      }
-    },
     "Open Settings" : {
 
     },
@@ -9237,12 +6156,6 @@
     "OPEN TABS" : {
 
     },
-    "Open tabs cleared" : {
-
-    },
-    "Open Translate…" : {
-
-    },
     "Opened a private window" : {
 
     },
@@ -9263,36 +6176,6 @@
     },
     "Opening page…" : {
       "comment" : "Initial status while a web page begins navigating."
-    },
-    "Opening Passwords" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "جارٍ فتح «كلمات السر»"
-          }
-        }
-      }
-    },
-    "Opening Peek…" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "جارٍ فتح Peek…"
-          }
-        }
-      }
-    },
-    "Opening Quick Window…" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "جارٍ فتح النافذة السريعة…"
-          }
-        }
-      }
     },
     "Opening the site’s home page may avoid the redirect loop." : {
       "localizations" : {
@@ -9324,9 +6207,6 @@
           }
         }
       }
-    },
-    "Opens in" : {
-
     },
     "Opens the address field for editing" : {
       "localizations" : {
@@ -9367,9 +6247,6 @@
     "Optional" : {
 
     },
-    "Or" : {
-
-    },
     "Order" : {
 
     },
@@ -9384,9 +6261,6 @@
         }
       }
     },
-    "Organize with folders" : {
-
-    },
     "Organize your browsing into Spaces, each with its own tabs and appearance." : {
 
     },
@@ -9394,18 +6268,6 @@
 
     },
     "Other agents" : {
-
-    },
-    "Outline" : {
-
-    },
-    "Oval" : {
-      "extractionState" : "manual"
-    },
-    "Oxblood" : {
-
-    },
-    "Packing list" : {
 
     },
     "Page" : {
@@ -9480,23 +6342,6 @@
         }
       }
     },
-    "Page zoom %@" : {
-
-    },
-    "Pale" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "عمود"
-          }
-        }
-      }
-    },
-    "Pall" : {
-      "extractionState" : "manual"
-    },
     "Partly Secure" : {
 
     },
@@ -9536,38 +6381,6 @@
         }
       }
     },
-    "Password Actions" : {
-
-    },
-    "Password hidden" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "كلمة المرور مخفية"
-          }
-        }
-      }
-    },
-    "Password Import Finished" : {
-
-    },
-    "Password to keep" : {
-
-    },
-    "Password value shown visually" : {
-
-    },
-    "Password visible" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "كلمة المرور ظاهرة"
-          }
-        }
-      }
-    },
     "Passwords" : {
       "localizations" : {
         "ar" : {
@@ -9577,43 +6390,6 @@
           }
         }
       }
-    },
-    "passwords credentials autofill iCloud Keychain import export" : {
-
-    },
-    "Passwords in %@" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "كلمات المرور في %@"
-          }
-        }
-      }
-    },
-    "Passwords in %arg" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "كلمات المرور في %arg"
-          }
-        }
-      }
-    },
-    "Passwords Off in Private Browsing" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "كلمات المرور متوقفة في التصفح الخاص"
-          }
-        }
-      }
-    },
-    "Passwords remain encrypted in this Space’s Keychain and never appear in logs, notifications, or diagnostics." : {
-
     },
     "Past Month" : {
       "localizations" : {
@@ -9638,28 +6414,11 @@
     "Paste" : {
 
     },
-    "Paste and Go" : {
-
-    },
     "Paste and Match Style" : {
 
     },
     "Paste the setup in your agent’s terminal or settings. Crest must be open while the agent works." : {
 
-    },
-    "Patina" : {
-
-    },
-    "Pattern" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "النمط"
-          }
-        }
-      }
     },
     "Pause" : {
 
@@ -9668,54 +6427,6 @@
 
     },
     "Paused" : {
-
-    },
-    "Paw" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "المخلب"
-          }
-        }
-      }
-    },
-    "Peek" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Peek"
-          }
-        }
-      }
-    },
-    "Peek from %@" : {
-
-    },
-    "Peek from %arg" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Peek من %arg"
-          }
-        }
-      }
-    },
-    "Peek Released" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تم تحرير Peek"
-          }
-        }
-      }
-    },
-    "Peek Unavailable" : {
 
     },
     "Pending uploads" : {
@@ -9727,9 +6438,6 @@
           }
         }
       }
-    },
-    "People" : {
-
     },
     "Performance" : {
 
@@ -9794,31 +6502,13 @@
         }
       }
     },
-    "Pewter" : {
-
-    },
     "Phone" : {
 
-    },
-    "Picture in Picture when switching tabs" : {
-
-    },
-    "Pile" : {
-      "extractionState" : "manual"
     },
     "Pin %lld Tabs" : {
 
     },
-    "Pin everyday apps" : {
-
-    },
     "Pin Extension" : {
-
-    },
-    "Pin Gmail" : {
-
-    },
-    "Pin layout" : {
 
     },
     "Pin or Unpin Current Tab" : {
@@ -9854,17 +6544,6 @@
     "Pin to Toolbar" : {
 
     },
-    "Pine" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pine"
-          }
-        }
-      }
-    },
     "Pinned" : {
       "localizations" : {
         "ar" : {
@@ -9888,16 +6567,7 @@
         }
       }
     },
-    "Pinned and saved tabs" : {
-
-    },
-    "Pinned apps stay at the top, saved tabs above the line, and open tabs below it." : {
-
-    },
     "Pinned Extensions" : {
-
-    },
-    "Pinned fill" : {
 
     },
     "Pinned or saved" : {
@@ -9906,72 +6576,16 @@
     "Pinned tabs cannot join a drag with saved or current tabs. Start the drag again." : {
 
     },
-    "Pinned tabs live at the top and are for your everyday apps. Right-click Gmail and choose Pin Tab, or use the button below." : {
-
-    },
-    "Pins" : {
-
-    },
-    "Plain" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "غير مقسّم"
-          }
-        }
-      }
-    },
-    "Plate" : {
-
-    },
-    "Plate size" : {
-
-    },
     "Play" : {
 
     },
     "Playing Audio" : {
       "comment" : "A tab's mark while its page plays sound."
     },
-    "Playlists" : {
-
-    },
-    "Podcasts & Shows" : {
-
-    },
     "Pop-up blocked for %@" : {
 
     },
     "Pop-ups allowed for %@" : {
-
-    },
-    "Popular" : {
-
-    },
-    "Practice" : {
-
-    },
-    "Practice again" : {
-
-    },
-    "Practice changes affect only this example Space." : {
-
-    },
-    "Practice pinning, saving, and organizing tabs after setup." : {
-
-    },
-    "Practice Space actions" : {
-
-    },
-    "Practice uses an example Space. Your tabs are unchanged." : {
-
-    },
-    "Practice window" : {
-
-    },
-    "Prefer open tabs" : {
 
     },
     "Preparing" : {
@@ -10016,9 +6630,6 @@
     "Press Tab to %@" : {
 
     },
-    "Press Tab, enter your query, then press Return." : {
-
-    },
     "Preview open" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -10042,9 +6653,6 @@
       }
     },
     "Preview Unavailable" : {
-
-    },
-    "Previous" : {
 
     },
     "Previous Match" : {
@@ -10144,9 +6752,6 @@
         }
       }
     },
-    "privacy lock Touch ID password private history retention archive downloads records content blocking ads trackers site permissions camera microphone location notifications" : {
-
-    },
     "Private" : {
       "localizations" : {
         "ar" : {
@@ -10177,9 +6782,6 @@
         }
       }
     },
-    "Private windows" : {
-
-    },
     "Proceed Anyway" : {
       "localizations" : {
         "ar" : {
@@ -10190,23 +6792,7 @@
         }
       }
     },
-    "profile name identity icon color appearance theme search cleanup isolation reorder browsing archive independence folder intensity text color light dark automatic preview" : {
-
-    },
-    "Profiles and appearance" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الملفات الشخصية والمظهر"
-          }
-        }
-      }
-    },
     "Profiles, bookmarks, and open tabs" : {
-      "comment" : "What importing from another browser brings. Keep product names as they are."
-    },
-    "Profiles, bookmarks, open tabs, and passwords" : {
       "comment" : "What importing from another browser brings. Keep product names as they are."
     },
     "Pull and Merge" : {
@@ -10214,16 +6800,6 @@
     },
     "Pull from iCloud…" : {
 
-    },
-    "Pull New Icon" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "جلب أيقونة جديدة"
-          }
-        }
-      }
     },
     "Pull Requests" : {
 
@@ -10242,84 +6818,6 @@
         }
       }
     },
-    "Put the query placeholder in the path or query, not the fragment." : {
-
-    },
-    "Quartered" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "أرباع"
-          }
-        }
-      }
-    },
-    "Quick Window" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "النافذة السريعة"
-          }
-        }
-      }
-    },
-    "Quick Window address" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "عنوان النافذة السريعة"
-          }
-        }
-      }
-    },
-    "Quick Window and Peek" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "النافذة السريعة وPeek"
-          }
-        }
-      }
-    },
-    "Quick Window Released" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تم تحرير النافذة السريعة"
-          }
-        }
-      }
-    },
-    "Quick Window using %@" : {
-
-    },
-    "Quick Window using %arg" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "النافذة السريعة باستخدام %arg"
-          }
-        }
-      }
-    },
-    "Quick Windows" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "النوافذ السريعة"
-          }
-        }
-      }
-    },
     "Quit" : {
 
     },
@@ -10334,27 +6832,6 @@
     },
     "Ran a script" : {
 
-    },
-    "Raven" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Raven"
-          }
-        }
-      }
-    },
-    "Readability fade" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تلاشي تحسين قابلية القراءة"
-          }
-        }
-      }
     },
     "Reader Mode" : {
       "localizations" : {
@@ -10396,22 +6873,6 @@
         }
       }
     },
-    "Reading list" : {
-
-    },
-    "Reading this Space’s Keychain…" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "جارٍ قراءة سلسلة مفاتيح هذه المساحة…"
-          }
-        }
-      }
-    },
-    "Ready" : {
-
-    },
     "Ready for %@" : {
 
     },
@@ -10437,9 +6898,6 @@
     "Ready to Install" : {
 
     },
-    "Rearrange cards" : {
-
-    },
     "Rearrange Spaces" : {
 
     },
@@ -10449,9 +6907,6 @@
     "Recent Tabs" : {
 
     },
-    "Recently Updated" : {
-
-    },
     "Recently used" : {
 
     },
@@ -10459,9 +6914,6 @@
 
     },
     "Recommended" : {
-
-    },
-    "Recommended for everyday use." : {
 
     },
     "Reconnect to Wi-Fi or Ethernet, then try again." : {
@@ -10486,16 +6938,10 @@
     "Region" : {
 
     },
-    "Regular" : {
-      "extractionState" : "manual"
-    },
     "Rejected rows" : {
 
     },
     "Release Notes" : {
-
-    },
-    "Relevance" : {
 
     },
     "Reload" : {
@@ -10504,16 +6950,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "إعادة تحميل"
-          }
-        }
-      }
-    },
-    "Reload (⌘R)" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إعادة تحميل ‏(⌘R)"
           }
         }
       }
@@ -10568,16 +7004,6 @@
         }
       }
     },
-    "Reload Peek" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إعادة تحميل Peek"
-          }
-        }
-      }
-    },
     "Remember in %@" : {
 
     },
@@ -10615,31 +7041,6 @@
       }
     },
     "Remove %@?" : {
-
-    },
-    "Remove Accent Color" : {
-
-    },
-    "Remove All" : {
-
-    },
-    "Remove all website data in “%@”?" : {
-
-    },
-    "Remove All…" : {
-
-    },
-    "Remove Background Color" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إزالة لون الخلفية"
-          }
-        }
-      }
-    },
-    "Remove data for %@" : {
 
     },
     "Remove Download" : {
@@ -10712,31 +7113,6 @@
         }
       }
     },
-    "Remove last color" : {
-
-    },
-    "Remove Passwords Crest Can’t Read?" : {
-
-    },
-    "Remove Pattern Color" : {
-
-    },
-    "Remove Provider" : {
-
-    },
-    "Remove Rule" : {
-
-    },
-    "Remove Space" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إزالة المساحة"
-          }
-        }
-      }
-    },
     "Remove Tab From Split" : {
       "localizations" : {
         "ar" : {
@@ -10783,9 +7159,6 @@
         }
       }
     },
-    "Rename Split View…" : {
-
-    },
     "Rename Tab" : {
       "localizations" : {
         "ar" : {
@@ -10829,12 +7202,6 @@
         }
       }
     },
-    "Repeats" : {
-
-    },
-    "Replace Existing Shortcut" : {
-
-    },
     "Replace iCloud with This Device" : {
       "localizations" : {
         "ar" : {
@@ -10844,9 +7211,6 @@
           }
         }
       }
-    },
-    "Replace Icon" : {
-
     },
     "Replace the iCloud Copy?" : {
       "localizations" : {
@@ -10874,16 +7238,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "هل تريد استبدال نسخة هذا الجهاز؟"
-          }
-        }
-      }
-    },
-    "Replace with Current URL" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "استبدال بعنوان URL الحالي"
           }
         }
       }
@@ -10950,12 +7304,6 @@
     "Requests permission" : {
 
     },
-    "Require Touch ID or password" : {
-
-    },
-    "Rerun onboarding" : {
-
-    },
     "Research" : {
 
     },
@@ -10978,37 +7326,13 @@
         }
       }
     },
-    "Reset all Crest shortcuts?" : {
-
-    },
     "Reset All Feature Flags" : {
-
-    },
-    "Reset all Look and Feel settings?" : {
 
     },
     "Reset All…" : {
 
     },
-    "Reset Appearance" : {
-
-    },
-    "Reset appearance to starting point" : {
-
-    },
-    "Reset Crest Shortcuts" : {
-
-    },
     "Reset every WebKit feature flag?" : {
-
-    },
-    "Reset Icon" : {
-
-    },
-    "Reset Order" : {
-
-    },
-    "Reset practice" : {
 
     },
     "Reset to Default" : {
@@ -11056,9 +7380,6 @@
     "Restart Crest to apply these changes." : {
 
     },
-    "Restart setup from the welcome screen" : {
-
-    },
     "Restore %@" : {
       "localizations" : {
         "ar" : {
@@ -11083,15 +7404,6 @@
     "Restore Checkpoint" : {
 
     },
-    "Restore Defaults" : {
-
-    },
-    "Restore Defaults…" : {
-
-    },
-    "Restore the built-in providers?" : {
-
-    },
     "Restore the last checkpoint?" : {
 
     },
@@ -11107,13 +7419,7 @@
     "Results" : {
 
     },
-    "Results shown" : {
-
-    },
     "Resume Download" : {
-
-    },
-    "Resume last location" : {
 
     },
     "Retries the failed address" : {
@@ -11142,12 +7448,6 @@
         }
       }
     },
-    "Return this website to the default engine" : {
-
-    },
-    "Return to saved URL" : {
-
-    },
     "Return to Saved URL" : {
       "localizations" : {
         "ar" : {
@@ -11157,9 +7457,6 @@
           }
         }
       }
-    },
-    "Return to your tabs" : {
-
     },
     "Returns to the last page" : {
       "localizations" : {
@@ -11171,20 +7468,7 @@
         }
       }
     },
-    "Reveal Password" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إظهار كلمة المرور"
-          }
-        }
-      }
-    },
     "Review" : {
-
-    },
-    "Review & Customize Setup…" : {
 
     },
     "Review Access and Compatibility" : {
@@ -11199,16 +7483,7 @@
     "Review Certificate" : {
 
     },
-    "Review every valid account. Choose which password to keep, or skip any account." : {
-
-    },
     "Review its Spaces and tabs" : {
-
-    },
-    "Review Password Import" : {
-
-    },
-    "Review Passwords" : {
 
     },
     "Review this Space’s content and network settings." : {
@@ -11224,9 +7499,6 @@
     "Review update details" : {
 
     },
-    "Review your Spaces or add another before opening Crest." : {
-
-    },
     "right arrow" : {
       "localizations" : {
         "ar" : {
@@ -11240,31 +7512,6 @@
     "Ring" : {
       "extractionState" : "manual"
     },
-    "Rising Sun" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الشمس الشارقة"
-          }
-        }
-      }
-    },
-    "River" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "النهر"
-          }
-        }
-      }
-    },
-    "River Red" : {
-
-    },
     "Rose" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -11276,40 +7523,8 @@
         }
       }
     },
-    "Rose Gold" : {
-
-    },
-    "Round" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "دائري"
-          }
-        }
-      }
-    },
-    "Rounded Square" : {
-      "extractionState" : "manual"
-    },
-    "Roundel" : {
-      "extractionState" : "manual"
-    },
     "Route actions" : {
 
-    },
-    "Routes apply to links from other apps. The first matching route wins." : {
-
-    },
-    "Routing" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "التوجيه"
-          }
-        }
-      }
     },
     "Row %lld" : {
 
@@ -11319,12 +7534,6 @@
     },
     "Runs in WebKit" : {
       "comment" : "Said of a tab whose page runs in this browser engine rather than the default one. Keep the product name as it is."
-    },
-    "Rust" : {
-
-    },
-    "Sable" : {
-
     },
     "Safari" : {
       "localizations" : {
@@ -11339,69 +7548,10 @@
     "Safari CSV" : {
 
     },
-    "Safe Search" : {
-
-    },
-    "SafeSearch" : {
-
-    },
-    "Saffron" : {
-
-    },
-    "Sage" : {
-
-    },
-    "Sailboat" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "المركب الشراعي"
-          }
-        }
-      }
-    },
-    "Saltire" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "صليب مائل"
-          }
-        }
-      }
-    },
     "Sample page" : {
 
     },
-    "Sand" : {
-
-    },
-    "Sans" : {
-      "extractionState" : "manual"
-    },
-    "Satellite" : {
-
-    },
     "Save" : {
-
-    },
-    "Save & Offer to Passwords" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "حفظ وعرض نسخة على «كلمات السر»"
-          }
-        }
-      }
-    },
-    "Save a tab" : {
-
-    },
-    "Save A weekend away" : {
 
     },
     "Save downloads and open files you select." : {
@@ -11437,20 +7587,7 @@
         }
       }
     },
-    "Save password?" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "هل تريد حفظ كلمة المرور؟"
-          }
-        }
-      }
-    },
     "Save Setup" : {
-
-    },
-    "Save this tab" : {
 
     },
     "Save to Files…" : {
@@ -11516,42 +7653,12 @@
         }
       }
     },
-    "Saved in %@. The Passwords offer wasn’t completed." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تم الحفظ في %@. لم يكتمل عرض النسخة على «كلمات السر»."
-          }
-        }
-      }
-    },
     "Saved in this Space" : {
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "تم الحفظ في هذه المساحة"
-          }
-        }
-      }
-    },
-    "Saved in this Space. The Passwords offer wasn’t completed." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تم الحفظ في هذه المساحة. لم يكتمل عرض النسخة على «كلمات السر»."
-          }
-        }
-      }
-    },
-    "Saved passwords" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "كلمات المرور المحفوظة"
           }
         }
       }
@@ -11566,55 +7673,14 @@
         }
       }
     },
-    "Saved tabs stay above the line until you delete them. The minus button unloads a saved tab while keeping it in your sidebar." : {
-
-    },
-    "Saved tabs stay below your pins until you delete them. Save A weekend away and watch it move above the line." : {
-
-    },
     "Saves this permission in the current Space. Retry the action on the site afterward" : {
 
-    },
-    "Saving password" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "جارٍ حفظ كلمة المرور"
-          }
-        }
-      }
-    },
-    "Scales" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Scales"
-          }
-        }
-      }
     },
     "Scan for more" : {
 
     },
-    "Scarlet" : {
-
-    },
     "Scope" : {
 
-    },
-    "Scorpion" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Scorpion"
-          }
-        }
-      }
     },
     "Screen Sharing" : {
 
@@ -11624,17 +7690,6 @@
     },
     "Scripts run with the page’s own access to the site." : {
 
-    },
-    "Seahorse" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Seahorse"
-          }
-        }
-      }
     },
     "Seal" : {
       "extractionState" : "stale",
@@ -11686,34 +7741,7 @@
         }
       }
     },
-    "Search Engine" : {
-
-    },
-    "search engine Google suggestions command palette address bar results order top hit blended sections complete addresses inline autocomplete learn choices clear site searches shortcuts Tab YouTube Wikipedia scopes calculator paste and go reasons" : {
-
-    },
-    "Search engine names must be 64 characters or fewer." : {
-
-    },
-    "search engine suggestions archive tabs cleanup downloads folder save location delete Space" : {
-
-    },
-    "Search engine templates may only use the standard HTTPS port." : {
-
-    },
-    "Search engine templates must use HTTPS." : {
-
-    },
-    "Search engine, command palette and site searches" : {
-
-    },
-    "Search Engines" : {
-
-    },
     "Search feature flags" : {
-
-    },
-    "Search For" : {
 
     },
     "Search History…" : {
@@ -11726,16 +7754,7 @@
         }
       }
     },
-    "Search Icons" : {
-
-    },
-    "Search imported passwords" : {
-
-    },
     "Search or enter a website" : {
-
-    },
-    "Search or Enter Emoji" : {
 
     },
     "Search or Enter URL…" : {
@@ -11758,15 +7777,6 @@
         }
       }
     },
-    "Search Passwords" : {
-
-    },
-    "Search providers" : {
-
-    },
-    "Search saved passwords" : {
-
-    },
     "Search settings" : {
       "localizations" : {
         "ar" : {
@@ -11777,22 +7787,7 @@
         }
       }
     },
-    "Search shortcuts" : {
-
-    },
-    "Search suggestions" : {
-
-    },
     "Search Suggestions" : {
-
-    },
-    "Search suggestions send what you type to the search engine." : {
-
-    },
-    "Search symbols" : {
-
-    },
-    "Search the Web" : {
 
     },
     "Search this Space" : {
@@ -11804,12 +7799,6 @@
           }
         }
       }
-    },
-    "Search URL" : {
-
-    },
-    "Search Websites" : {
-
     },
     "Search with" : {
 
@@ -11827,9 +7816,6 @@
           }
         }
       }
-    },
-    "Second field" : {
-
     },
     "Sections" : {
 
@@ -11860,9 +7846,6 @@
           }
         }
       }
-    },
-    "Select a tab in the sidebar, or choose New Tab to start browsing." : {
-
     },
     "Select All" : {
 
@@ -11944,12 +7927,6 @@
     "Selected for tab actions" : {
 
     },
-    "Selected tab glow" : {
-
-    },
-    "Selected tabs, pins, the address field and the Space picker" : {
-
-    },
     "Selected, Open Space" : {
       "localizations" : {
         "ar" : {
@@ -11983,23 +7960,6 @@
     "Separate Selected Splits" : {
 
     },
-    "Separate shortcuts with commas." : {
-
-    },
-    "Serif" : {
-      "extractionState" : "manual"
-    },
-    "Serpent" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Serpent"
-          }
-        }
-      }
-    },
     "Server not found" : {
       "localizations" : {
         "ar" : {
@@ -12013,19 +7973,6 @@
     "Services" : {
 
     },
-    "Set Up Without iCloud" : {
-
-    },
-    "Set up your Spaces" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إعداد مساحاتك"
-          }
-        }
-      }
-    },
     "Settings" : {
       "localizations" : {
         "ar" : {
@@ -12036,60 +7983,11 @@
         }
       }
     },
-    "Settings Pages" : {
-
-    },
     "Settings unavailable" : {
       "extractionState" : "manual"
     },
     "Settings…" : {
 
-    },
-    "Setup" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الإعداد"
-          }
-        }
-      }
-    },
-    "Setup is no longer in progress. Start it again." : {
-
-    },
-    "Setup is no longer open. Open it again." : {
-
-    },
-    "Setup progress" : {
-
-    },
-    "SF Symbol" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SF Symbol"
-          }
-        }
-      }
-    },
-    "SF Symbols" : {
-
-    },
-    "Shadow" : {
-
-    },
-    "Shape" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الشكل"
-          }
-        }
-      }
     },
     "Share & Export…" : {
       "localizations" : {
@@ -12139,34 +8037,6 @@
     "Sharing a Tab" : {
       "comment" : "A tab's mark while its page shares another tab."
     },
-    "Sheen" : {
-      "extractionState" : "manual"
-    },
-    "Sheen angle" : {
-
-    },
-    "Shell" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الصدفة"
-          }
-        }
-      }
-    },
-    "Shield" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الدرع"
-          }
-        }
-      }
-    },
     "shift" : {
       "localizations" : {
         "ar" : {
@@ -12176,12 +8046,6 @@
           }
         }
       }
-    },
-    "Shortcut Actions" : {
-
-    },
-    "Shortcut Already in Use" : {
-
     },
     "Shortcut for %@" : {
 
@@ -12196,16 +8060,7 @@
         }
       }
     },
-    "Shortcuts and options you changed go back to how they ship. Providers you added stay." : {
-
-    },
-    "Shorts" : {
-
-    },
     "Show" : {
-
-    },
-    "Show a static custom icon or emoji instead of folder artwork." : {
 
     },
     "Show All" : {
@@ -12237,18 +8092,6 @@
         }
       }
     },
-    "Show Emoji Variations" : {
-
-    },
-    "Show fewer emblems" : {
-
-    },
-    "Show folder color borders" : {
-
-    },
-    "Show folder tab counts" : {
-
-    },
     "Show Full History" : {
 
     },
@@ -12271,9 +8114,6 @@
           }
         }
       }
-    },
-    "Show match reasons" : {
-
     },
     "Show more tabs" : {
 
@@ -12335,16 +8175,7 @@
     "Show sidebar" : {
 
     },
-    "Show sidebar on hover in full screen" : {
-
-    },
     "Show Sidebar Temporarily" : {
-
-    },
-    "Show Spelling and Grammar" : {
-
-    },
-    "Show Start Page" : {
 
     },
     "Show Substitutions" : {
@@ -12388,16 +8219,10 @@
     "Show…" : {
 
     },
-    "Shows its options" : {
-
-    },
     "Shows recent changes" : {
 
     },
     "Shows what the import leaves out and why" : {
-
-    },
-    "Shuffle" : {
 
     },
     "Sidebar" : {
@@ -12406,31 +8231,10 @@
     "Sidebar background" : {
 
     },
-    "Sidebar hover area" : {
-
-    },
-    "Sidebar on left" : {
-
-    },
-    "Sidebar on right" : {
-
-    },
-    "Sidebar widgets" : {
-
-    },
-    "Sidebar Widgets" : {
-
-    },
     "Sign in to websites using passkeys saved with your system providers." : {
 
     },
     "Signed by %@." : {
-
-    },
-    "Signs you out of most sites." : {
-
-    },
-    "Silver" : {
 
     },
     "Simple Symbol" : {
@@ -12469,9 +8273,6 @@
     "Site Settings" : {
 
     },
-    "Size" : {
-
-    },
     "Skip" : {
 
     },
@@ -12481,9 +8282,6 @@
     "Skip Space" : {
       "extractionState" : "stale"
     },
-    "Skip the AI Answer" : {
-
-    },
     "Skip this account" : {
 
     },
@@ -12491,12 +8289,6 @@
       "extractionState" : "stale"
     },
     "Skip This Version" : {
-
-    },
-    "Sky" : {
-
-    },
-    "Slate" : {
 
     },
     "Smart Copy/Paste" : {
@@ -12511,28 +8303,8 @@
     "Smart Quotes" : {
 
     },
-    "Smileys & People" : {
-
-    },
-    "Smoke" : {
-
-    },
     "Smooth webpage performance" : {
 
-    },
-    "Snowflake" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ندفة الثلج"
-          }
-        }
-      }
-    },
-    "Soft" : {
-      "extractionState" : "manual"
     },
     "Software Update" : {
 
@@ -12545,17 +8317,6 @@
     },
     "Software updates" : {
 
-    },
-    "Solid" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "سادة"
-          }
-        }
-      }
     },
     "Some changes couldn’t be read. Update Crest on every device, then pull from iCloud." : {
 
@@ -12570,21 +8331,6 @@
 
     },
     "Some of this browsing session can’t be synced." : {
-
-    },
-    "Some sites may be missing." : {
-
-    },
-    "Songs" : {
-
-    },
-    "Sort By" : {
-
-    },
-    "Source" : {
-
-    },
-    "Source Space" : {
 
     },
     "space" : {
@@ -12637,39 +8383,10 @@
         }
       }
     },
-    "Space appearance" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "مظهر المساحة"
-          }
-        }
-      }
-    },
-    "Space background" : {
-
-    },
     "Space extensions and permissions" : {
 
     },
-    "Space Icon" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "أيقونة المساحة"
-          }
-        }
-      }
-    },
-    "Space icon size" : {
-
-    },
     "Space in review" : {
-
-    },
-    "Space Locked" : {
 
     },
     "Space name" : {
@@ -12716,39 +8433,8 @@
     "Spaces, tabs and history" : {
 
     },
-    "Spaces, tabs, folders, colors, icons, and passwords" : {
-      "comment" : "What importing from another browser brings. Keep product names as they are."
-    },
-    "Sparkles" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "البريق"
-          }
-        }
-      }
-    },
     "Speech" : {
 
-    },
-    "Spelling and Grammar" : {
-
-    },
-    "Spelling changes apply after Crest restarts." : {
-
-    },
-    "Split" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "منقسم"
-          }
-        }
-      }
     },
     "Split View" : {
       "comment" : "The title of a split view no one has named.",
@@ -12817,9 +8503,6 @@
         }
       }
     },
-    "Split View Color" : {
-
-    },
     "Split View Columns" : {
       "localizations" : {
         "ar" : {
@@ -12836,16 +8519,7 @@
     "Split View groups stay in their Space. Separate the split before moving it to another Space." : {
 
     },
-    "Split View Icon" : {
-
-    },
-    "Split View Name" : {
-
-    },
     "Split View needs 2 to %lld tabs. Select fewer tabs or use a smaller split." : {
-
-    },
-    "SPLIT VIEW PRACTICE" : {
 
     },
     "Split View with %lld tabs" : {
@@ -12932,22 +8606,8 @@
         }
       }
     },
-    "Square" : {
-
-    },
     "Stable" : {
 
-    },
-    "Stag" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stag"
-          }
-        }
-      }
     },
     "Star" : {
       "extractionState" : "stale",
@@ -12959,12 +8619,6 @@
           }
         }
       }
-    },
-    "Start from" : {
-
-    },
-    "Start on new tab" : {
-
     },
     "Start Page" : {
       "localizations" : {
@@ -12979,26 +8633,6 @@
     "Start Speaking" : {
 
     },
-    "Startup" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "بدء التشغيل"
-          }
-        }
-      }
-    },
-    "Startup choices take effect the next time Crest opens a window." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تسري خيارات بدء التشغيل في المرة التالية التي يفتح فيها Crest نافذة."
-          }
-        }
-      }
-    },
     "State for %@" : {
 
     },
@@ -13011,9 +8645,6 @@
           }
         }
       }
-    },
-    "Steel" : {
-
     },
     "Step %lld of 3" : {
 
@@ -13032,19 +8663,6 @@
       "comment" : "Stops the agent using a tab from using it."
     },
     "Stop All Agents" : {
-
-    },
-    "Stop Keeping Loaded" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إيقاف إبقاء علامة التبويب محمّلة"
-          }
-        }
-      }
-    },
-    "Stop Keeping Pages Loaded" : {
 
     },
     "Stop Loading" : {
@@ -13126,75 +8744,13 @@
         }
       }
     },
-    "Stories" : {
-
-    },
-    "Storm" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "العاصفة"
-          }
-        }
-      }
-    },
-    "Storm Gold" : {
-
-    },
-    "Stretch pins to fill the row" : {
-
-    },
     "Strict" : {
 
-    },
-    "Strict SafeSearch" : {
-
-    },
-    "Stripes" : {
-      "extractionState" : "manual"
-    },
-    "Strong" : {
-
-    },
-    "Strong password for %@" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "كلمة مرور قوية لـ %@"
-          }
-        }
-      }
-    },
-    "Strong Password for %@" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "كلمة مرور قوية لـ %@"
-          }
-        }
-      }
-    },
-    "Study" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الدراسة"
-          }
-        }
-      }
     },
     "Substitutions" : {
 
     },
     "Suggestion" : {
-
-    },
-    "Suggestions URL" : {
 
     },
     "Sun" : {
@@ -13208,34 +8764,7 @@
         }
       }
     },
-    "Sunburst" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "أشعة شمس"
-          }
-        }
-      }
-    },
-    "Sunset Red" : {
-
-    },
     "Suspend" : {
-
-    },
-    "Swipe between Spaces" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "اسحب بين المساحات"
-          }
-        }
-      }
-    },
-    "Swipe up on the URL bar or tap the tabs button on its right to return to your Space and start browsing." : {
 
     },
     "switch cycle spaces left right arrow" : {
@@ -13277,23 +8806,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "التبديل إلى علامة التبويب"
-          }
-        }
-      }
-    },
-    "Switch to tabs opened from links" : {
-
-    },
-    "Switching" : {
-
-    },
-    "Sword" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sword"
           }
         }
       }
@@ -13344,16 +8856,6 @@
     "Sync with iCloud" : {
 
     },
-    "Sync with iCloud Keychain" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "المزامنة مع سلسلة مفاتيح iCloud"
-          }
-        }
-      }
-    },
     "Synced from another device" : {
       "localizations" : {
         "ar" : {
@@ -13374,20 +8876,7 @@
         }
       }
     },
-    "Synchronized through Crest’s iCloud Keychain item" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تتم المزامنة عبر عنصر سلسلة مفاتيح iCloud الخاص بـ Crest"
-          }
-        }
-      }
-    },
     "Syncing" : {
-
-    },
-    "System" : {
 
     },
     "System passkeys" : {
@@ -13425,9 +8914,6 @@
 
     },
     "System Settings could not open. Open it from the Apple menu and choose Privacy & Security." : {
-
-    },
-    "System Settings…" : {
 
     },
     "tab" : {
@@ -13472,18 +8958,6 @@
         }
       }
     },
-    "Tab scale" : {
-
-    },
-    "Tab status" : {
-
-    },
-    "Tab to search providers" : {
-
-    },
-    "Tab, address bar, and sidebar sizing are in Look and Feel. These choices belong to this Space." : {
-
-    },
     "Tabs" : {
       "localizations" : {
         "ar" : {
@@ -13494,28 +8968,10 @@
         }
       }
     },
-    "Tabs & folders" : {
-
-    },
-    "Tabs and folders" : {
-
-    },
-    "Tabs and pins" : {
-
-    },
-    "Tabs below the line close automatically on your Space’s cleanup schedule. Open the Space’s ••• menu and choose Clean Up Current Tabs to archive them now. Pinned and saved tabs stay." : {
-
-    },
     "Tap for options. Touch and hold to translate now." : {
 
     },
     "Tap the address bar’s translation button for options, or touch and hold it to translate immediately." : {
-
-    },
-    "Tap the name to rename" : {
-
-    },
-    "Teal" : {
 
     },
     "Technical Details" : {
@@ -13528,22 +8984,10 @@
         }
       }
     },
-    "Teeth" : {
-
-    },
     "Temporarily unavailable" : {
 
     },
-    "Temporary Chat" : {
-
-    },
     "temporary disposable unsynced window" : {
-
-    },
-    "Tenné" : {
-
-    },
-    "Terracotta" : {
 
     },
     "TEST" : {
@@ -13552,27 +8996,11 @@
     "Test fixture" : {
 
     },
-    "Text" : {
-
-    },
     "Text and images grow together. Choose a comfortable size for your everyday browsing." : {
-
-    },
-    "Text color" : {
 
     },
     "Text Replacement" : {
 
-    },
-    "Texture" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "النسيج"
-          }
-        }
-      }
     },
     "That browser is no longer available on this Mac." : {
       "comment" : "Browser-import error shown when a selected source app disappears.",
@@ -13642,46 +9070,7 @@
     "The connection was interrupted." : {
 
     },
-    "The credential belongs to the embedded %@ frame, not %@." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تنتمي بيانات الاعتماد إلى إطار %1$@ المضمّن، وليس إلى %2$@."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The credential belongs to the embedded %1$@ frame, not %2$@."
-          }
-        }
-      }
-    },
-    "The credential belongs to the embedded %arg frame, not %arg." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تنتمي بيانات الاعتماد هذه إلى إطار %1$arg المضمّن، وليس إلى %2$arg."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "The credential belongs to the embedded %1$arg frame, not %2$arg."
-          }
-        }
-      }
-    },
-    "The CSV file will contain readable usernames and passwords from only the selected Space. Anyone with the file can read them. Crest will authenticate you before opening the %@." : {
-
-    },
     "The destination Space changed. Choose the file again." : {
-
-    },
-    "The download folder is unavailable. Choose another folder in Space settings." : {
 
     },
     "The download stopped because of a network problem." : {
@@ -13736,21 +9125,6 @@
     "The page was closed." : {
 
     },
-    "The palette forgets which results you chose for what you typed." : {
-
-    },
-    "The password could not be saved. Try again." : {
-
-    },
-    "The password is empty." : {
-
-    },
-    "The password is saved in this Space, but the form changed before Crest could fill it." : {
-
-    },
-    "The pattern’s last band and the gradient’s end" : {
-
-    },
     "The person hasn’t allowed this agent to use Crest." : {
 
     },
@@ -13779,19 +9153,10 @@
         }
       }
     },
-    "The sidebar behind your tabs" : {
-
-    },
     "The site is not a valid web address." : {
 
     },
-    "The Space is locked or no longer active. Unlock it and select the tabs again." : {
-
-    },
     "The Space is no longer available." : {
-
-    },
-    "The Space that opened this Peek is no longer available." : {
 
     },
     "The split changed. Select the whole group again." : {
@@ -13823,19 +9188,10 @@
     "There isn’t enough disk space to save the file." : {
 
     },
-    "These credentials are valid and will be imported. Review the security limitation before continuing." : {
-
-    },
     "These items cannot be placed here. Choose another destination." : {
 
     },
     "These rows are excluded from the import. Correct the source file to import them later." : {
-
-    },
-    "Thick" : {
-
-    },
-    "Thin" : {
 
     },
     "This action requires webpage tabs. Deselect built-in pages first." : {
@@ -13886,22 +9242,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "جلسة Chromium هذه مشفرة بالملف الشخصي ولا يمكن استيرادها بأمان خارج متصفحها المصدر."
-          }
-        }
-      }
-    },
-    "This credential belongs to the embedded %@ frame, not %@." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تنتمي بيانات الاعتماد هذه إلى إطار %1$@ المضمّن، وليس إلى %2$@."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "This credential belongs to the embedded %1$@ frame, not %2$@."
           }
         }
       }
@@ -13988,12 +9328,6 @@
       }
     },
     "This file was transferred over an insecure connection and could have been changed by someone else. Keep it only if you trust its source." : {
-
-    },
-    "This guide stays in your Saved tabs." : {
-
-    },
-    "This HTTP site is not encrypted. Crest will import the password for manual access but will not autofill it on an insecure connection." : {
 
     },
     "This immediately and permanently deletes %@ older than %@ in this Space, including synced copies. Downloaded files stay on disk." : {
@@ -14085,48 +9419,6 @@
         }
       }
     },
-    "This password file contains malformed CSV quoting or columns." : {
-
-    },
-    "This password file contains more than 10,000 credential rows." : {
-
-    },
-    "This password file contains supported headers but no credential rows." : {
-
-    },
-    "This password file contains too many columns." : {
-
-    },
-    "This password file has more than one possible password column. Remove the ambiguity and try again." : {
-
-    },
-    "This password file has more than one possible site column. Remove the ambiguity and try again." : {
-
-    },
-    "This password file has more than one possible username column. Remove the ambiguity and try again." : {
-
-    },
-    "This password file has no supported password column." : {
-
-    },
-    "This password file has no supported site column." : {
-
-    },
-    "This password file has no supported username column." : {
-
-    },
-    "This password file is empty." : {
-
-    },
-    "This password file is larger than Crest’s 16 MB import limit." : {
-
-    },
-    "This password file is not valid UTF-8 text." : {
-
-    },
-    "This password was imported from an insecure HTTP site. Crest keeps it available to view or copy but will not autofill it on an insecure connection." : {
-
-    },
     "This policy applies only to %arg. Eligible tabs remain recoverable from Archive." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -14139,9 +9431,6 @@
       }
     },
     "This program isn’t signed by a developer." : {
-
-    },
-    "This Quick Window cannot reconnect to its original browsing profile." : {
 
     },
     "This removes %@ from this Space." : {
@@ -14211,36 +9500,16 @@
     "This type of file can change your computer. Keep it only if you trust its source." : {
 
     },
-    "Three" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ثلاثة"
-          }
-        }
-      }
-    },
     "Throttle" : {
 
     },
     "Throttle keeps background tabs working and uses more power. Applies to new tabs." : {
 
     },
-    "Time range" : {
-
-    },
-    "Tint Folder Title" : {
-
-    },
     "Titles" : {
 
     },
     "To" : {
-
-    },
-    "To focus by hovering, enable Focus Follows Mouse in Split View in Settings → General. Shortcuts can also be changed in Settings." : {
 
     },
     "Today" : {
@@ -14295,9 +9564,6 @@
     "Too many agents are using Crest right now." : {
 
     },
-    "Top Hit" : {
-
-    },
     "Top Level" : {
       "localizations" : {
         "ar" : {
@@ -14311,20 +9577,6 @@
     "Touch and hold for options to reorder Spaces" : {
 
     },
-    "Touch and hold Gmail, then choose Pin Tab. Pinned tabs stay at the top for your everyday apps." : {
-
-    },
-    "Tower" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "البرج"
-          }
-        }
-      }
-    },
     "Transformations" : {
 
     },
@@ -14337,16 +9589,7 @@
     "Translate %@ to" : {
 
     },
-    "Translate automatically" : {
-
-    },
-    "Translate automatically from" : {
-
-    },
     "Translate From" : {
-
-    },
-    "Translate Into" : {
 
     },
     "Translate Now" : {
@@ -14394,41 +9637,6 @@
     },
     "Translation Options" : {
 
-    },
-    "Travel" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "السفر"
-          }
-        }
-      }
-    },
-    "Travel & Places" : {
-
-    },
-    "Tree" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الشجرة"
-          }
-        }
-      }
-    },
-    "Trident" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trident"
-          }
-        }
-      }
     },
     "Trim" : {
       "extractionState" : "stale",
@@ -14481,19 +9689,6 @@
         }
       }
     },
-    "TRY IT" : {
-
-    },
-    "Try Passwords Again" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إعادة المحاولة مع «كلمات السر»"
-          }
-        }
-      }
-    },
     "Try Quitting Again" : {
 
     },
@@ -14507,9 +9702,6 @@
         }
       }
     },
-    "Try Split View" : {
-
-    },
     "Try the address again or open a different page." : {
       "localizations" : {
         "ar" : {
@@ -14519,9 +9711,6 @@
           }
         }
       }
-    },
-    "Try the browser" : {
-
     },
     "Try this" : {
       "localizations" : {
@@ -14572,17 +9761,6 @@
     "Turn on Move Space to include it in this import." : {
       "extractionState" : "stale"
     },
-    "Two" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "اثنان"
-          }
-        }
-      }
-    },
     "Two records share one identity." : {
 
     },
@@ -14599,34 +9777,10 @@
         }
       }
     },
-    "Type @tabs, @saved, @history, @actions or @spaces, then a space or Tab, to show only that kind." : {
-
-    },
-    "Type $yt and a space to search YouTube." : {
-
-    },
-    "Type a provider’s name or shortcut and press Tab." : {
-
-    },
-    "Type Shortcut" : {
-
-    },
-    "Type yt or $yt and a space to search YouTube." : {
-
-    },
     "Typing" : {
 
     },
-    "Ultra Thick" : {
-
-    },
-    "Ultra Thin" : {
-
-    },
     "Ultrawide" : {
-
-    },
-    "Umber" : {
 
     },
     "unassigned" : {
@@ -14660,92 +9814,6 @@
 
     },
     "Undo" : {
-
-    },
-    "Undo shuffle" : {
-
-    },
-    "Undock Sidebar" : {
-
-    },
-    "Unicorn" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unicorn"
-          }
-        }
-      }
-    },
-    "Unload %@" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إلغاء تحميل %@"
-          }
-        }
-      }
-    },
-    "Unload %arg" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إلغاء تحميل %arg"
-          }
-        }
-      }
-    },
-    "Unload %lld Pages" : {
-
-    },
-    "Unload Tab" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إلغاء تحميل علامة التبويب"
-          }
-        }
-      }
-    },
-    "Unlock" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إلغاء القفل"
-          }
-        }
-      }
-    },
-    "Unlock %@" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "فتح قفل %@"
-          }
-        }
-      }
-    },
-    "Unlock a Space to check its download folder" : {
-
-    },
-    "Unlock these Spaces to export their tabs and history." : {
-
-    },
-    "Unlock these Spaces to see the routes that open in them." : {
-
-    },
-    "Unlock to view your tabs." : {
-
-    },
-    "Unlock your first Space to open Getting Started." : {
 
     },
     "Unmute" : {
@@ -14791,23 +9859,7 @@
     "Up to date" : {
 
     },
-    "Up to four colors, independent of the sidebar background." : {
-
-    },
-    "Update & Offer to Passwords" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تحديث وعرض نسخة على «كلمات السر»"
-          }
-        }
-      }
-    },
     "Update Available" : {
-
-    },
-    "Update channel" : {
 
     },
     "Update Check Failed" : {
@@ -14838,16 +9890,6 @@
     },
     "Update Installed" : {
 
-    },
-    "Update password?" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "هل تريد تحديث كلمة المرور؟"
-          }
-        }
-      }
     },
     "Updated your Spaces and added %lld tabs." : {
       "comment" : "Completion summary after updating existing Spaces.",
@@ -14934,19 +9976,6 @@
         }
       }
     },
-    "Updates several times a day." : {
-
-    },
-    "Updating existing credentials…" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "جارٍ تحديث بيانات الاعتماد الموجودة…"
-          }
-        }
-      }
-    },
     "Updating Space protection…" : {
       "localizations" : {
         "ar" : {
@@ -14980,9 +10009,6 @@
         }
       }
     },
-    "URL templates must be 2,048 characters or fewer." : {
-
-    },
     "Use %@" : {
       "localizations" : {
         "ar" : {
@@ -14999,39 +10025,6 @@
     "Use %s or {searchTerms} where the search goes. HTTPS only." : {
 
     },
-    "Use a public search engine host, not a local or numeric address." : {
-
-    },
-    "Use a supported key with Command, Option, Control, or Shift." : {
-
-    },
-    "Use Built-In Shortcuts" : {
-
-    },
-    "Use Clear on the line in the practice sidebar." : {
-
-    },
-    "Use Crest Passwords" : {
-
-    },
-    "Use Default Color" : {
-
-    },
-    "Use Downloads" : {
-
-    },
-    "Use Emoji Keyboard" : {
-
-    },
-    "Use exactly one query placeholder." : {
-
-    },
-    "Use Folder" : {
-
-    },
-    "Use Folder Icon" : {
-
-    },
     "Use iCloud" : {
       "localizations" : {
         "ar" : {
@@ -15042,40 +10035,11 @@
         }
       }
     },
-    "Use imported password" : {
-
-    },
-    "Use imported password %lld" : {
-
-    },
     "Use Recommended" : {
 
     },
     "Use Selection for Find" : {
 
-    },
-    "Use Stacked Icons" : {
-
-    },
-    "Use Strong Password" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "استخدام كلمة مرور قوية"
-          }
-        }
-      }
-    },
-    "Use the arrow keys or drag to rotate the gradient line" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "استخدم مفاتيح الأسهم أو اسحب لتدوير خط التدرج"
-          }
-        }
-      }
     },
     "Use This Device" : {
       "localizations" : {
@@ -15088,9 +10052,6 @@
       }
     },
     "Use Translate Page Again after a page loads new content. Show Original restores text changed by Crest while preserving later website changes and your edits." : {
-
-    },
-    "Use Website Icon" : {
 
     },
     "Use your camera on websites for video calls and other features." : {
@@ -15112,12 +10073,6 @@
         }
       }
     },
-    "Usernames and passwords cannot be stored in a search template." : {
-
-    },
-    "Users" : {
-
-    },
     "Verified Chrome Web Store package" : {
 
     },
@@ -15134,23 +10089,6 @@
 
     },
     "Version, updates, and support" : {
-
-    },
-    "Vert" : {
-
-    },
-    "Vertical" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "رأسي"
-          }
-        }
-      }
-    },
-    "Vertical offset" : {
 
     },
     "Videos" : {
@@ -15170,22 +10108,6 @@
       }
     },
     "View on Chrome Web Store" : {
-
-    },
-    "View pages side by side, change focus, and rearrange cards." : {
-
-    },
-    "View Password" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "عرض كلمة المرور"
-          }
-        }
-      }
-    },
-    "View Passwords" : {
 
     },
     "View Release" : {
@@ -15209,17 +10131,6 @@
     "Viewport Width" : {
 
     },
-    "Vigil" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "اليقظة"
-          }
-        }
-      }
-    },
     "visited pages history" : {
       "localizations" : {
         "ar" : {
@@ -15229,9 +10140,6 @@
           }
         }
       }
-    },
-    "Wait for setup to finish reading or importing." : {
-
     },
     "Waiting for approval…" : {
       "localizations" : {
@@ -15273,20 +10181,6 @@
     "Warnings" : {
 
     },
-    "Waves" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الأمواج"
-          }
-        }
-      }
-    },
-    "Web Access" : {
-
-    },
     "WebKit" : {
       "comment" : "The name of a browser engine. Keep the product name as it is."
     },
@@ -15306,9 +10200,6 @@
     "WebKit fallback for protected video" : {
 
     },
-    "Webpages" : {
-
-    },
     "Website" : {
       "localizations" : {
         "ar" : {
@@ -15319,42 +10210,11 @@
         }
       }
     },
-    "Website colors for pins" : {
-
-    },
-    "Website data" : {
-
-    },
     "Website release" : {
-
-    },
-    "Website rules" : {
 
     },
     "Websites" : {
 
-    },
-    "Wedges" : {
-      "extractionState" : "manual"
-    },
-    "Weekend plans" : {
-
-    },
-    "Weekend trail guide" : {
-
-    },
-    "Weight" : {
-
-    },
-    "Welcome to Crest" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "مرحبًا بك في Crest"
-          }
-        }
-      }
     },
     "What syncs" : {
 
@@ -15368,26 +10228,10 @@
     "What's New in Crest %@" : {
 
     },
-    "Wheat" : {
-
-    },
-    "When Crest opens" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "عند فتح Crest"
-          }
-        }
-      }
-    },
     "When URL" : {
 
     },
     "Wide Desktop" : {
-
-    },
-    "Widget deck" : {
 
     },
     "Width" : {
@@ -15396,48 +10240,14 @@
     "Width and height in CSS pixels, from 1 to 8192. Apply to resize the preview." : {
 
     },
-    "Willow" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Willow"
-          }
-        }
-      }
-    },
     "Window" : {
-
-    },
-    "Window border" : {
 
     },
     "Window or Screen…" : {
       "comment" : "Screen sharing picker button that opens the system picker."
     },
-    "Window, tab, address field, folder, and app icon choices return to their defaults." : {
-
-    },
-    "Window, tabs, zoom and motion" : {
-
-    },
     "Windows, open tabs, and pinned tabs" : {
       "comment" : "What importing from another browser brings. Keep product names as they are."
-    },
-    "Winter" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "الشتاء"
-          }
-        }
-      }
-    },
-    "Wolf Grey" : {
-
     },
     "Work" : {
       "localizations" : {
@@ -15448,29 +10258,6 @@
           }
         }
       }
-    },
-    "Work in testing before it reaches Development." : {
-
-    },
-    "Working" : {
-
-    },
-    "Wyvern" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wyvern"
-          }
-        }
-      }
-    },
-    "You approve each destination in the Save dialog." : {
-
-    },
-    "You can add up to %lld search providers." : {
-
     },
     "You can also download languages in Apple’s Translate app, or manage them in Settings → Apps → Translate → Downloaded Languages." : {
 
@@ -15484,23 +10271,7 @@
     "You can also swipe inward from the trailing edge" : {
 
     },
-    "You can still create and rename Spaces on this device." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "لا يزال بإمكانك إنشاء المساحات وإعادة تسميتها على هذا الجهاز."
-          }
-        }
-      }
-    },
     "You can still set up Spaces manually." : {
-
-    },
-    "You chose this before" : {
-
-    },
-    "You’ll be signed out of every site in this Space." : {
 
     },
     "You’re offline" : {
@@ -15516,12 +10287,6 @@
     "Your browser is ready" : {
 
     },
-    "Your example Space" : {
-
-    },
-    "Your pinned and saved tabs are still in the sidebar." : {
-
-    },
     "Your saved files are preserved. Browsing and iCloud sync will stay stopped until your session can be opened." : {
 
     },
@@ -15535,13 +10300,7 @@
         }
       }
     },
-    "Your Spaces are ready" : {
-
-    },
     "Your Spaces are ready." : {
-
-    },
-    "Yours on every device" : {
 
     },
     "Zoom" : {
@@ -15566,6 +10325,27 @@
           }
         }
       }
+    },
+    "Name and icon" : {
+
+    },
+    "Profiles and browsing" : {
+
+    },
+    "Import Complete" : {
+
+    },
+    "Import from Another Browser" : {
+
+    },
+    "Import is no longer open. Open it again." : {
+
+    },
+    "Wait for the import to finish." : {
+
+    },
+    "Choose Scan for more to look for another browser." : {
+
     }
   },
   "version" : "1.3"

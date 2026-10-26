@@ -5,19 +5,18 @@ struct BrowserSpaceDeletionSection: View {
     let spaceID: UUID
     let dataDeleter: any BrowserSpaceDataDeleting
 
-    @State private var isConfirmingDeletion = false
     @State private var isDeleting = false
     @State private var errorMessage: String?
 
     var body: some View {
         Section {
             Button(
-                isDeleting ? "Deleting Space…" : "Delete “\(spaceName)”…",
+                isDeleting ? "Deleting Space…" : "Delete “\(spaceName)”",
                 role: .destructive
             ) {
-                isConfirmingDeletion = true
+                deleteSpace()
             }
-            .disabled(isDeleting || browser.spaceModels.count <= 1)
+            .disabled(isDeleting || browser.isDeleting(spaceID) || browser.spaceModels.count <= 1)
             .accessibilityIdentifier("delete-selected-space")
 
             if isDeleting {
@@ -36,22 +35,6 @@ struct BrowserSpaceDeletionSection: View {
             Text(disclosure)
                 .crestFormFootnote()
                 .accessibilityIdentifier("space-deletion-disclosure")
-        }
-        .alert(
-            "Delete “\(spaceName)”?",
-            isPresented: $isConfirmingDeletion
-        ) {
-            Button("Delete Space and Data", role: .destructive) {
-                deleteSpace()
-            }
-            .accessibilityIdentifier("confirm-delete-space")
-
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text(
-                "This permanently removes this Space’s browser data from Crest. "
-                    + "Downloaded files you already saved are kept."
-            )
         }
     }
 

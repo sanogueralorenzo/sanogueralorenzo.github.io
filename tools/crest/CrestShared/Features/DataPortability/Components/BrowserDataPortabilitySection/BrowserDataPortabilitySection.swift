@@ -8,13 +8,11 @@ struct BrowserDataPortabilitySection: View {
 
     init(
         browser: BrowserStore,
-        spaceAccess: BrowserSpaceAccessController,
         showsMacOSImportRequirement: Bool = false
     ) {
         _model = State(
             initialValue: BrowserDataPortabilityModel(
-                browser: browser,
-                spaceAccess: spaceAccess
+                browser: browser
             )
         )
         self.showsMacOSImportRequirement = showsMacOSImportRequirement
@@ -40,11 +38,6 @@ struct BrowserDataPortabilitySection: View {
                 model: model,
                 showsMacOSImportRequirement: showsMacOSImportRequirement
             )
-        }
-        .onChange(of: model.lockedSpaceIDs) { _, spaceIDs in
-            if !spaceIDs.isEmpty {
-                model.cancelSensitiveExports()
-            }
         }
     }
 }

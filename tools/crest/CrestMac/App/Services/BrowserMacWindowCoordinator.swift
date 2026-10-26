@@ -13,10 +13,7 @@ final class BrowserMacWindowCoordinator {
 
     let browser: BrowserStore
     private let pages: BrowserPagePool
-    let spaceAccess: BrowserSpaceAccessController
     private let windowLayouts: BrowserWindowLayouts
-    /// Where every window's utility lists keep the person's choices.
-    private let utilityDefaults: UserDefaults?
     @ObservationIgnored private var windows: [UUID: BrowserMacWindowModel] = [:]
     /// Temporary windows that closed or whose transfer was canceled. They are
     /// never restored, so a scene that asks for one again once it went, as
@@ -27,14 +24,12 @@ final class BrowserMacWindowCoordinator {
     @ObservationIgnored private var transferExpirations: [UUID: Task<Void, Never>] = [:]
 
     init(
-        browser: BrowserStore, pages: BrowserPagePool, spaceAccess: BrowserSpaceAccessController,
-        windowLayouts: BrowserWindowLayouts, utilityDefaults: UserDefaults?
+        browser: BrowserStore, pages: BrowserPagePool,
+        windowLayouts: BrowserWindowLayouts
     ) {
         self.browser = browser
         self.pages = pages
-        self.spaceAccess = spaceAccess
         self.windowLayouts = windowLayouts
-        self.utilityDefaults = utilityDefaults
     }
 
     func existingModel(for id: UUID) -> BrowserMacWindowModel? { windows[id] }
@@ -44,7 +39,7 @@ final class BrowserMacWindowCoordinator {
 
     @discardableResult
     func activateExistingWindow(for source: BrowserStore) -> Bool {
-        guard let space = source.shownSpace, !spaceAccess.isLocked(space) else { return false }
+        guard let space = source.shownSpace else { return false }
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
         let candidates = windows.values.filter {
             !$0.isTemporary && $0.window != nil && $0.browser.family === source.family
@@ -99,13 +94,11 @@ final class BrowserMacWindowCoordinator {
                 BrowserWindowOpening(id: request.id, saved: true, copying: source.windowID))
             state = BrowserWindowStateStore(id: request.id, browser: windowBrowser, layouts: windowLayouts)
         }
-        let transient = BrowserTransientBrowsingCoordinator()
         let windowPages = pages.makeWindowPool(
-            browser: windowBrowser, sharesRuntimes: request.kind == .normal,
-            transientBrowsing: transient, spaceAccess: spaceAccess)
+            browser: windowBrowser, sharesRuntimes: request.kind == .normal)
         let model = BrowserMacWindowModel(
             request: request, browser: windowBrowser, pages: windowPages,
-            transientBrowsing: transient, windowState: state, utilityDefaults: utilityDefaults)
+            windowState: state)
         windows[request.id] = model
         return model
     }
@@ -237,10 +230,6 @@ final class BrowserMacWindowCoordinator {
         windows[id]?.window?.frame.contains(screenPoint) == true
     }
 
-    /// The core decides whether the dragged tab may leave its window: the
-    /// window still shows the Space with its profile and it is unlocked, holds
-    /// the tab, and the drag carries that tab alone. A Space this window is
-    /// deleting never lets a tab go.
     private func canTearOff(_ item: BrowserTabDragItem, from model: BrowserMacWindowModel) -> Bool {
         guard model.browser.spaceModel(matching: item.spaceAssignment) != nil else { return false }
         let question = CanTearOff(
@@ -255,7 +244,6 @@ final class BrowserMacWindowCoordinator {
     ) -> Bool {
         guard canTearOff(item, from: source),
             let targetSpace = destination.browser.spaceModel(matching: item.spaceAssignment),
-            !spaceAccess.isLocked(targetSpace),
             source.browser.canTransferTab(
                 item.tabID, matching: item.spaceAssignment,
                 to: destination.browser, in: item.spaceAssignment)

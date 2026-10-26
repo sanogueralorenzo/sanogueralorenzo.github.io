@@ -4,7 +4,6 @@ struct MobileDownloadsView: View {
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
     let assignment: BrowserSpaceRuntimeAssignment
-    let spaceAccess: BrowserSpaceAccessController
 
     @Environment(\.dismiss) private var dismiss
 
@@ -43,12 +42,12 @@ struct MobileDownloadsView: View {
         for action: BrowserUtilityDownloadAction
     ) -> DownloadState? {
         action.downloadItem(
-            matching: assignment, in: browser, accessController: spaceAccess,
+            matching: assignment, in: browser,
             itemsForProfile: pages.downloadCenter.items(for:))
     }
 
     private var space: SpaceModel? {
-        browser.selectedUnlockedSpace(matching: assignment, accessController: spaceAccess)
+        browser.selectedAvailableSpace(matching: assignment)
     }
 }
 
@@ -63,7 +62,7 @@ extension MobileDownloadsView: BrowserDownloadActionPerformer {
 
     func retryDownload(_ item: DownloadState, matching assignment: BrowserSpaceRuntimeAssignment) {
         pages.downloadCenter.retryAutomaticDownload(item.id, matching: assignment) { expectedAssignment in
-            browser.unlockedSpace(matching: expectedAssignment, accessController: spaceAccess) != nil
+            browser.availableSpace(matching: expectedAssignment) != nil
         }
     }
 

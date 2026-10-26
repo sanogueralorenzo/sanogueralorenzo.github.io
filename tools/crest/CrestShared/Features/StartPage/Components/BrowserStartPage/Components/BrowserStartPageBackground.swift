@@ -20,12 +20,5 @@ struct BrowserStartPageBackground: View {
         }
     }
 
-    @ViewBuilder
-    private var backdrop: some View {
-        if page.layout.showsSpaceBanner, let space = page.space {
-            BrowserSpaceBannerBackground(branding: space.settings.look.shown)
-        } else {
-            Color.clear
-        }
-    }
+    private var backdrop: some View { CrestBrandTheme.canvas }
 }

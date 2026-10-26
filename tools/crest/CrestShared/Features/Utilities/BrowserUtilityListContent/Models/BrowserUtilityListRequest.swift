@@ -60,25 +60,20 @@ struct BrowserUtilityListRequest: Equatable, Sendable {
         )
     }
 
-    /// A locked Space yields no rows at all. Copying its history, archive or
-    /// downloads into a request and then blurring the result still materialises
-    /// the titles and URLs the lock exists to withhold, so the gate belongs here
-    /// rather than in the drawing layer.
     @MainActor
     init(
         surface: BrowserUtilitySurface,
         space: SpaceModel,
         downloads: [DownloadState],
         searchText: String,
-        filter: BrowserUtilityListFilter,
-        isUnlocked: Bool = true
+        filter: BrowserUtilityListFilter
     ) {
         self.init(
             surface: surface,
             assignment: BrowserSpaceRuntimeAssignment(space: space),
-            archivedTabs: isUnlocked && surface == .archive ? space.archive.entries : [],
-            history: isUnlocked && surface == .history ? space.history.entries : [],
-            downloads: isUnlocked && surface == .downloads ? downloads : [],
+            archivedTabs: surface == .archive ? space.archive.entries : [],
+            history: surface == .history ? space.history.entries : [],
+            downloads: surface == .downloads ? downloads : [],
             searchText: searchText,
             filter: filter
         )

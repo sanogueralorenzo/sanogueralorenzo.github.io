@@ -6,7 +6,7 @@
         /// keeps no disposable seed's marker, so the seed carries none.
         var sessionSeed: SessionState.Seed {
             SessionState.Seed(
-                spaces: spaces.models.map(\.value.seed), defaultSpaceID: defaultSpaceID, disposableSeedMarker: nil,
+                spaces: spaces.models.map(\.value.seed), disposableSeedMarker: nil,
                 spaceDeletions: spaceDeletions, appPreferences: appPreferences)
         }
     }

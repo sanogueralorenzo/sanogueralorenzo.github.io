@@ -9,8 +9,8 @@ struct BrowserSystemPermission: Hashable, Identifiable, Sendable {
     // MARK: - Types
 
     typealias StatusReader =
-        @MainActor @Sendable (BrowserSystemPermissionService, UUID?) async -> BrowserSystemPermissionStatus
-    typealias AccessRequest = @MainActor @Sendable (BrowserSystemPermissionService, UUID?) async throws -> Void
+        @MainActor @Sendable (BrowserSystemPermissionService) async -> BrowserSystemPermissionStatus
+    typealias AccessRequest = @MainActor @Sendable (BrowserSystemPermissionService) async throws -> Void
 
     // MARK: - Static Variables
 
@@ -18,47 +18,44 @@ struct BrowserSystemPermission: Hashable, Identifiable, Sendable {
         name: "camera", title: "Camera",
         explanation: "Use your camera on websites for video calls and other features.", symbol: "camera.fill",
         tint: .green, settingsPane: "com.apple.preference.security?Privacy_Camera",
-        status: { service, _ in await service.captureStatus(.video) },
-        request: { _, _ in _ = await AVCaptureDevice.requestAccess(for: .video) })
+        status: { service in await service.captureStatus(.video) },
+        request: { _ in _ = await AVCaptureDevice.requestAccess(for: .video) })
     static let microphone = BrowserSystemPermission(
         name: "microphone", title: "Microphone",
         explanation: "Use your microphone on websites for calls and recording.", symbol: "mic.fill", tint: .orange,
         settingsPane: "com.apple.preference.security?Privacy_Microphone",
-        status: { service, _ in await service.captureStatus(.audio) },
-        request: { _, _ in _ = await AVCaptureDevice.requestAccess(for: .audio) })
+        status: { service in await service.captureStatus(.audio) },
+        request: { _ in _ = await AVCaptureDevice.requestAccess(for: .audio) })
     static let location = BrowserSystemPermission(
         name: "location", title: "Location",
         explanation: "Share your location with websites you allow.", symbol: "location.fill", tint: .blue,
         settingsPane: "com.apple.preference.security?Privacy_LocationServices",
-        status: { service, _ in await service.locationStatus() },
-        request: { service, _ in try await service.requestLocation() })
+        status: { service in await service.locationStatus() },
+        request: { service in try await service.requestLocation() })
     static let notifications = BrowserSystemPermission(
         name: "notifications", title: "Notifications",
         explanation: "Show notifications from websites you allow.", symbol: "bell.badge.fill", tint: .red,
         settingsPane:
             "com.apple.Notifications-Settings.extension?id=\(Bundle.main.bundleIdentifier ?? "com.pauldavis.crest")",
-        status: { service, _ in await service.notificationStatus() },
-        request: { _, _ in
+        status: { service in await service.notificationStatus() },
+        request: { _ in
             _ = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
         })
     static let passkeys = BrowserSystemPermission(
         name: "passkeys", title: "Passkeys",
         explanation: "Sign in to websites using passkeys saved with your system providers.",
         symbol: "person.badge.key.fill", tint: .purple, settingsPane: "com.apple.preference.security",
-        status: { service, _ in await service.passkeyStatus() },
-        request: { service, _ in
+        status: { service in await service.passkeyStatus() },
+        request: { service in
             service.passkeyAccess.refreshStatus()
             await service.passkeyAccess.requestAccess()
         })
     static let files = BrowserSystemPermission(
         name: "files", title: "Files & Folders", explanation: "Save downloads and open files you select.",
         symbol: "folder.fill", tint: .blue, settingsPane: "com.apple.preference.security?Privacy_FilesAndFolders",
-        checksSpaceFolder: true,
-        status: { service, spaceID in service.folderAccess.status(spaceID: spaceID) },
-        request: { service, spaceID in
-            guard let spaceID else { return }
-            try await service.folderAccess.check(spaceID: spaceID)
-        })
+        checksFiles: true,
+        status: { service in service.folderAccess.status },
+        request: { service in try await service.folderAccess.check() })
 
     /// Every permission, in the order the pane lists them.
     static let all: [BrowserSystemPermission] = [camera, microphone, location, notifications, passkeys, files]
@@ -76,12 +73,10 @@ struct BrowserSystemPermission: Hashable, Identifiable, Sendable {
     /// Where System Settings shows the permission, after its URL scheme.
     let settingsPane: String
 
-    /// The permission covers the selected Space's download folder rather than
-    /// the app, so it is checked per Space and a folder can be chosen for it.
-    let checksSpaceFolder: Bool
+    /// The permission is checked with a write into Downloads.
+    let checksFiles: Bool
 
-    /// Reads where the permission stands from its system API, for the selected
-    /// Space where it covers one.
+    /// Reads where the permission stands from its system API.
     let status: StatusReader
 
     /// Asks its system API for the permission.
@@ -98,7 +93,7 @@ struct BrowserSystemPermission: Hashable, Identifiable, Sendable {
 
     private init(
         name: String, title: LocalizedStringResource, explanation: LocalizedStringResource,
-        symbol: String, tint: Color, settingsPane: String, checksSpaceFolder: Bool = false,
+        symbol: String, tint: Color, settingsPane: String, checksFiles: Bool = false,
         status: @escaping StatusReader, request: @escaping AccessRequest
     ) {
         self.name = name
@@ -107,7 +102,7 @@ struct BrowserSystemPermission: Hashable, Identifiable, Sendable {
         self.symbol = symbol
         self.tint = tint
         self.settingsPane = settingsPane
-        self.checksSpaceFolder = checksSpaceFolder
+        self.checksFiles = checksFiles
         self.status = status
         self.request = request
     }
@@ -142,8 +137,8 @@ struct BrowserSystemPermissionState: Hashable, Sendable {
         name: "allowed", title: "Allowed", symbol: "checkmark.circle.fill", tint: .green,
         primaryAction: { row in
             Button(
-                row.permission.checksSpaceFolder ? "Check Again" : "Settings…",
-                action: row.permission.checksSpaceFolder ? row.request : row.openSettings)
+                row.permission.checksFiles ? "Check Again" : "Settings…",
+                action: row.permission.checksFiles ? row.request : row.openSettings)
         })
     static let blocked = BrowserSystemPermissionState(
         name: "blocked", title: "Needs attention", symbol: "exclamationmark.circle.fill", tint: .orange,
@@ -155,7 +150,6 @@ struct BrowserSystemPermissionState: Hashable, Sendable {
     static let notChecked = BrowserSystemPermissionState(
         name: "notChecked", title: "Not checked",
         primaryAction: { row in Button("Check Access", action: row.request) })
-    static let chooseEachTime = BrowserSystemPermissionState(name: "chooseEachTime", title: "Ask where to save")
 
     // MARK: - Variables
 

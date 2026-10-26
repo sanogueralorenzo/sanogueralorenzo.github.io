@@ -39,7 +39,6 @@ struct MobileRegularPageSurface: View {
         let space = model.browser.shownSpace
         return BrowserPageSurfacePresentation(
             space: space,
-            isLocked: space.map(model.spaceAccess.isLocked) ?? false,
             cards: model.browser.shownCards,
             hasEnteredSplitContent:
                 model.sidebarInteraction.sidebarReorderState.hasEnteredSplitContent,
@@ -57,8 +56,7 @@ struct MobileRegularPageSurface: View {
             )
             .modifier(
                 MobileSplitContentDropFeed(
-                    browser: model.browser,
-                    spaceAccess: model.spaceAccess
+                    browser: model.browser
                 )
             )
     }
@@ -95,7 +93,6 @@ struct MobileRegularPageSurface: View {
                 content: MobileBrowserDetailSurface(
                     browser: model.browser,
                     pages: model.pages,
-                    spaceAccess: model.spaceAccess,
                     address: $address,
                     isAddressEditing: $isAddressEditing,
                     addressFocusRequest: addressFocusRequest,
@@ -145,7 +142,7 @@ private struct MobileRegularPageSwipeBorder: View {
     var body: some View {
         MobileHistorySwipeBorder(
             insets: controlPlacement.pageInsets(
-                BrowserChromeAppearance.device(windowCornerRadius: nil)
+                BrowserChromeAppearance(windowCornerRadius: nil)
                     .pageInsets(docked: adjoinsSidebar, direction: layoutDirection)),
             leadingPage: page,
             trailingPage: page

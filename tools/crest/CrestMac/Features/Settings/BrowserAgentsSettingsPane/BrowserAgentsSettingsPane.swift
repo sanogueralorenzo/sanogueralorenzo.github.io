@@ -81,7 +81,7 @@ struct BrowserAgentsSettingsPane: View {
                 Text("Spaces")
             } footer: {
                 CrestFormFootnote(
-                    "Agents can open a private window but never reach into one, and see only the name of a locked Space."
+                    "Agents can open a private window but never reach into one."
                 )
             }
             .disabled(!preferences.isOn)

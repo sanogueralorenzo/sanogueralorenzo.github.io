@@ -6,9 +6,7 @@ final class BrowserSettingsTabState {
     var navigation = BrowserSettingsNavigationState()
     var featureFilter = BrowserWebKitFeatureFlagFilter()
     /// The page shown for a Space, kept as the selection moves between Spaces.
-    var spaceTab = BrowserSpaceSettingsTab.appearance
-    /// The Crest Studio step shown on a Space's Appearance page.
-    var forgeStep = BrowserCrestStudioStep.shape
+    var spaceTab = BrowserSpaceSettingsTab.identity
     /// Whether the sidebar's Spaces can be dragged into a new order.
     var isArrangingSpaces = false
     /// The Space whose name is waiting to be put into editing.
@@ -16,14 +14,6 @@ final class BrowserSettingsTabState {
     let sidebarScroll = BrowserNativeScrollState()
     private(set) var consumedRouteRevision = 0
     @ObservationIgnored private var scrollStates: [String: BrowserNativeScrollState] = [:]
-    @ObservationIgnored private var shortcuts: BrowserShortcutSettingsModel?
-
-    func retainShortcuts(_ initial: BrowserShortcutSettingsModel) -> BrowserShortcutSettingsModel {
-        if let shortcuts { return shortcuts }
-        shortcuts = initial
-        return initial
-    }
-
     func scroll(for destination: BrowserSettingsDestination) -> BrowserNativeScrollState {
         scroll(forKey: destination.name)
     }
@@ -39,10 +29,8 @@ final class BrowserSettingsTabState {
     /// Shows a Space's page, asking it for `intent` on arrival.
     func showSpace(_ id: UUID, tab: BrowserSpaceSettingsTab, intent: BrowserSettingsSpaceIntent = .none) {
         navigation.selection = .space(id)
-        spaceTab = tab
+        spaceTab = intent == .none ? tab : .identity
         if intent != .none { renameSpaceID = id }
-        // A new Space starts by choosing the template it is made from.
-        if intent == .newSpace { forgeStep = .start }
     }
 
     func applyExternalRoute(

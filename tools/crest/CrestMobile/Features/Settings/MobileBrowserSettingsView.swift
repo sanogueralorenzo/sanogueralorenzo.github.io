@@ -3,7 +3,6 @@ import SwiftUI
 struct MobileBrowserSettingsView: View {
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
-    let spaceAccess: BrowserSpaceAccessController
     let dataDeleter: any BrowserSpaceDataDeleting
 
     let isInTab: Bool
@@ -13,7 +12,6 @@ struct MobileBrowserSettingsView: View {
     init(
         browser: BrowserStore,
         pages: MobileBrowserPageStore,
-        spaceAccess: BrowserSpaceAccessController = BrowserSpaceAccessController(),
         dataDeleter: (any BrowserSpaceDataDeleting)? = nil,
         state: MobileBrowserSettingsState = MobileBrowserSettingsState(),
         isInTab: Bool = false,
@@ -24,7 +22,6 @@ struct MobileBrowserSettingsView: View {
         self.liveSpaceSelection = liveSpaceSelection
         self.browser = browser
         self.pages = pages
-        self.spaceAccess = spaceAccess
         self.dataDeleter = dataDeleter ?? pages
     }
 
@@ -32,7 +29,6 @@ struct MobileBrowserSettingsView: View {
         MobileBrowserSettingsContent(
             browser: browser,
             pages: pages,
-            spaceAccess: spaceAccess,
             dataDeleter: dataDeleter,
             selection: $state.selection,
             searchText: $state.searchText,
@@ -50,10 +46,8 @@ struct MobileBrowserSettingsView: View {
     let fixture = MobileBrowserPreviewFixture()
     MobileBrowserSettingsView(
         browser: fixture.browser,
-        pages: fixture.pages,
-        spaceAccess: fixture.spaceAccess
+        pages: fixture.pages
     )
     .environment(fixture.cloudSync)
-    .environment(fixture.onboardingCoordinator)
     .environment(fixture.passkeyAccess)
 }

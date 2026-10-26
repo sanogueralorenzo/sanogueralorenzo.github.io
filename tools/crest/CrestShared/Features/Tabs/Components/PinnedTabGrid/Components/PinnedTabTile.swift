@@ -9,8 +9,9 @@ struct PinnedTabTile: View {
     let tab: TabStateModel
     let grid: PinnedTabGrid
     let reorder: BrowserSidebarReorderContext?
-    @Binding var iconRequest: BrowserTabRuntimeAssignment?
-    let renameTab: () -> Void
+    @State private var renameRequest: BrowserTabRuntimeAssignment?
+    @State private var draftTitle = ""
+    @FocusState private var isTitleFocused: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -23,165 +24,165 @@ struct PinnedTabTile: View {
         let loaded = context?.isLoaded(tab.id) ?? true
         let isShared = context?.isSharedAsTab(tab.id) ?? false
         let multiSelection = context?.browser.tabMultiSelection
-        PinnedTabSelectionButton(
-            tab: tab,
-            favicons: grid.favicons,
-            profileID: assignment.profileID,
-            isSelected: isSelected,
-            isLoaded: loaded,
-            siteTheme: tab.iconMode.followsPage
-                ? (grid.siteThemeAccent(runtimeAssignment) ?? tab.iconTint)
-                : tab.iconTint,
-            select: {
-                guard isCurrentAndUnlocked else { return }
-                // The touch-up that ends a lift also reaches this button;
-                // opening the tile that was just dragged is not a select.
-                if let reorder, reorder.state.suppressesActivation { return }
-                grid.select(runtimeAssignment)
-            },
-            isMultiSelected: context.map { BrowserSidebarSelection.showsSelected(.tab(tab.id), in: $0) } ?? false,
-            branding: context.map(\.space.settings.look),
-            statusSource: statusSource,
-            iconCustomization: iconCustomization
-        )
-        .browserPinnedTabPromotionDestination(
-            id: BrowserTabPromotionID.value(for: tab.id),
-            in: grid.promotionNamespace,
-            anchor: BrowserPinnedTabPromotionAnchor(
-                hasNamespace: grid.promotionNamespace != nil,
-                isTransitionSource: isSelected,
-                capabilities: grid.capabilities
+        tile(isSelected: isSelected, loaded: loaded)
+            .browserPinnedTabPromotionDestination(
+                id: BrowserTabPromotionID.value(for: tab.id),
+                in: grid.promotionNamespace,
+                anchor: BrowserPinnedTabPromotionAnchor(
+                    hasNamespace: grid.promotionNamespace != nil,
+                    isTransitionSource: isSelected,
+                    capabilities: grid.capabilities
+                )
             )
-        )
-        .accessibilityLabel(tab.shownTitle)
-        .accessibilityValue(
-            isShared
-                ? Text(
-                    "\(BrowserChromeAccessibility.tabValue(isLoaded: loaded)), Shared",
-                    comment: "Accessibility value of a pinned tab another page shares; the value is its loaded state.")
-                : Text(BrowserChromeAccessibility.tabValue(isLoaded: loaded))
-        )
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .help(tab.shownTitle)
-        .modifier(
-            BrowserTabSelectionAccessibility(
-                tabID: tab.id, spaceID: assignment.spaceID, browser: context?.browser,
-                isActive: isSelected, isLoaded: loaded)
-        )
-        .modifier(
-            BrowserTabSelectionTarget(
-                tabID: tab.id, browser: context?.browser, assignment: assignment,
-                isEnabled: context?.isCurrent(assignment) ?? false)
-        )
-        .phaseAnimator(
-            [0.0, -4.0, 4.0, -3.0, 3.0, 0.0],
-            trigger: multiSelection?.pinnedRejectionGeneration ?? 0
-        ) { content, offset in
-            content.offset(
-                x: !reduceMotion && multiSelection?.rejectedPinnedIDs.contains(tab.id) == true
-                    ? offset : 0)
-        } animation: { _ in
-            .linear(duration: 0.055)
-        }
-        .simultaneousGesture(
-            TapGesture(count: 2).onEnded {
-                guard tab.placement == .pinned, tab.supportsSavedLocationEditing, isCurrentAndUnlocked else {
-                    return
-                }
-                context?.restoreSavedLocation?(tab.id)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(tab.shownTitle)
+            .accessibilityValue(
+                isShared
+                    ? Text(
+                        "\(BrowserChromeAccessibility.tabValue(isLoaded: loaded)), Shared",
+                        comment:
+                            "Accessibility value of a pinned tab another page shares; the value is its loaded state.")
+                    : Text(BrowserChromeAccessibility.tabValue(isLoaded: loaded))
+            )
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
+            .help(tab.shownTitle)
+            .modifier(
+                BrowserTabSelectionAccessibility(
+                    tabID: tab.id, spaceID: assignment.spaceID, browser: context?.browser,
+                    isActive: isSelected, isLoaded: loaded)
+            )
+            .modifier(
+                BrowserTabSelectionTarget(
+                    tabID: tab.id, browser: context?.browser, assignment: assignment,
+                    isEnabled: !isRenaming && (context?.isCurrent(assignment) ?? false))
+            )
+            .phaseAnimator(
+                [0.0, -4.0, 4.0, -3.0, 3.0, 0.0],
+                trigger: multiSelection?.pinnedRejectionGeneration ?? 0
+            ) { content, offset in
+                content.offset(
+                    x: !reduceMotion && multiSelection?.rejectedPinnedIDs.contains(tab.id) == true
+                        ? offset : 0)
+            } animation: { _ in
+                .linear(duration: 0.055)
             }
-        )
-        .browserPinnedTabMiddleClick {
-            guard context?.isLoaded(tab.id) == true, isCurrentAndUnlocked else { return }
-            context?.unload(tab.id)
-        }
-        .modifier(
-            PinnedTabDragModifier(
+            .modifier(
+                PinnedTabDragModifier(
+                    tab: tab,
+                    favicons: grid.favicons,
+                    assignment: assignment,
+                    dragState: grid.dragState,
+                    reorder: isRenaming ? nil : reorder
+                )
+            )
+            .contextMenu {
+                if grid.capabilities.supportsOrganization, let context {
+                    PinnedTabOrganizationMenu(
+                        tab: tab,
+                        context: context,
+                        assignment: runtimeAssignment,
+                        dragState: grid.dragState,
+                        renameTab: beginRenaming
+                    )
+                }
+            }
+            .modifier(BrowserTabStatusBadgeHost(tab: statusSource))
+            .animation(
+                CrestMotion.contentState.unlessReducingMotion(reduceMotion),
+                value: loaded
+            )
+            .onChange(of: isTitleFocused) { _, focused in
+                if !focused, isRenaming { commitTitle() }
+            }
+            .onChange(of: isCurrentAndAvailable) { _, isAvailable in
+                if !isAvailable { cancelTitleEditing() }
+            }
+            .onChange(of: runtimeAssignment) { _, _ in cancelTitleEditing() }
+            .crestCollectionItemTransition()
+    }
+
+    @ViewBuilder
+    private func tile(isSelected: Bool, loaded: Bool) -> some View {
+        if isRenaming {
+            BrowserSidebarTabRenameField(
+                tab: tab, favicons: grid.favicons, profileID: assignment.profileID,
+                metrics: grid.capabilities.tabRowMetrics,
+                draftTitle: $draftTitle, isTitleFocused: $isTitleFocused,
+                commitTitle: commitTitle, cancelTitleEditing: cancelTitleEditing
+            )
+            .padding(.horizontal, grid.capabilities.tabRowMetrics.contentLeadingInset)
+            .frame(height: BrowserSidebarDensity(1).pinHeight(touch: grid.capabilities.supportsTouch))
+            .crestInteractiveSurface(isSelected: isSelected, isHovering: false)
+        } else {
+            PinnedTabSelectionButton(
                 tab: tab,
                 favicons: grid.favicons,
-                assignment: assignment,
-                dragState: grid.dragState,
-                reorder: reorder
+                profileID: assignment.profileID,
+                isSelected: isSelected,
+                isLoaded: loaded,
+                siteTheme: tab.iconMode.followsPage
+                    ? (grid.siteThemeAccent(runtimeAssignment) ?? tab.iconTint)
+                    : tab.iconTint,
+                select: {
+                    guard isCurrentAndAvailable else { return }
+                    // The touch-up that ends a lift also reaches this button;
+                    // opening the tile that was just dragged is not a select.
+                    if let reorder, reorder.state.suppressesActivation { return }
+                    grid.select(runtimeAssignment)
+                },
+                isMultiSelected: context.map { BrowserSidebarSelection.showsSelected(.tab(tab.id), in: $0) } ?? false,
+
+                statusSource: statusSource,
+                returnToSavedURL: canReturnToSavedAddress
+                    ? {
+                        guard isCurrentAndAvailable else { return }
+                        context?.restoreSavedLocation?(tab.id)
+                    } : nil
+
             )
-        )
-        .contextMenu {
-            if grid.capabilities.supportsOrganization, let context {
-                PinnedTabOrganizationMenu(
-                    tab: tab,
-                    context: context,
-                    assignment: runtimeAssignment,
-                    isLoaded: loaded,
-                    dragState: grid.dragState,
-                    renameTab: renameTab,
-                    changeIcon: beginChangingIcon
-                )
-            }
         }
-        .modifier(BrowserTabStatusBadgeHost(tab: statusSource, anchor: .tile))
-        .animation(
-            CrestMotion.contentState.unlessReducingMotion(reduceMotion),
-            value: loaded
-        )
-        .crestCollectionItemTransition()
+    }
+
+    private var isRenaming: Bool {
+        renameRequest == runtimeAssignment && isCurrentAndAvailable
+    }
+
+    private var canReturnToSavedAddress: Bool {
+        guard let context else { return false }
+        return BrowserSidebarTabRowConfiguration(
+            tab: tab, context: context, isSelected: true, isLoaded: context.isLoaded(tab.id)
+        ).canReturnToSavedAddress
+    }
+
+    private func beginRenaming() {
+        guard isCurrentAndAvailable else { return }
+        draftTitle = tab.shownTitle
+        renameRequest = runtimeAssignment
+        Task { @MainActor in isTitleFocused = true }
+    }
+
+    private func commitTitle() {
+        guard isRenaming, let context else { return }
+        renameRequest = nil
+        context.browser.setTabCustomTitle(draftTitle, for: tab.id, matching: assignment)
+    }
+
+    private func cancelTitleEditing() {
+        renameRequest = nil
+        isTitleFocused = false
     }
 
     private var runtimeAssignment: BrowserTabRuntimeAssignment {
         BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: assignment.spaceID, profileID: assignment.profileID)
     }
 
-    private var isCurrentAndUnlocked: Bool {
+    private var isCurrentAndAvailable: Bool {
         context?.isTabCurrent(runtimeAssignment) ?? false
     }
 
     /// The tab's page as its status badge reads it and acts on it.
     private var statusSource: BrowserTabStatusSource? {
         guard let context else { return nil }
-        return BrowserTabStatusSource(tabID: tab.id, context: context, canAct: { isCurrentAndUnlocked })
-    }
-
-    private var iconActions: BrowserTabOrganizationAction? {
-        guard let context else { return nil }
-        return BrowserTabOrganizationAction(browser: context.browser, spaceAccess: context.spaceAccess)
-    }
-
-    private var isIconRequestLive: Bool {
-        guard iconRequest == runtimeAssignment, grid.capabilities.supportsOrganization else { return false }
-        return iconActions?.canCustomizePinnedIcon(for: runtimeAssignment) == true
-    }
-
-    private func beginChangingIcon() {
-        guard grid.capabilities.supportsOrganization,
-            iconActions?.canCustomizePinnedIcon(for: runtimeAssignment) == true
-        else { return }
-        iconRequest = runtimeAssignment
-    }
-
-    private var iconCustomization: BrowserIconCustomizationPresentation {
-        let request = runtimeAssignment
-        return BrowserIconCustomizationPresentation(
-            isPresented: Binding(
-                get: { isIconRequestLive },
-                set: { isPresented in
-                    if isPresented {
-                        beginChangingIcon()
-                    } else if iconRequest == request {
-                        iconRequest = nil
-                    }
-                }
-            ),
-            title: "Tab Icon",
-            currentEmoji: tab.emojiIcon,
-            // Reset applies to explicit icon overrides.
-            showsReset: !tab.iconMode.followsPage,
-            resetTitle: "Use Website Icon",
-            setEmoji: { emoji in
-                guard isIconRequestLive else { return }
-                iconActions?.setPinnedTabEmoji(emoji, for: request)
-            },
-            reset: {
-                guard isIconRequestLive else { return }
-                iconActions?.clearPinnedTabIcon(for: request)
-            }
-        )
+        return BrowserTabStatusSource(tabID: tab.id, context: context, canAct: { isCurrentAndAvailable })
     }
 }

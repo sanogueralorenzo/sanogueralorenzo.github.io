@@ -1,6 +1,6 @@
 import Foundation
 
-/// The Space's download folder is unavailable, so a download's file has no
+/// The Downloads folder is unavailable, so a download's file has no
 /// place to go.
 struct BrowserDownloadFolderUnavailable: BrowserPlatformDownloadResolution {
     // MARK: - Actions - Downloads
@@ -14,15 +14,9 @@ struct BrowserDownloadFolderUnavailable: BrowserPlatformDownloadResolution {
     func abandon() {}
 
     @MainActor func save(_ data: Data, as itemID: UUID, from originatingURL: URL, in center: BrowserDownloadCenter) {
-        #if os(macOS)
-            center.send(
-                FailDownload(
-                    downloadID: itemID, reason: .folderUnavailable,
-                    message:
-                        "The download folder is unavailable. Open Crest Settings > General > System Permissions to check folder access or choose another folder."
-                ))
-        #else
-            center.send(FailDownload(downloadID: itemID, reason: .folderUnavailable, message: nil))
-        #endif
+        center.send(
+            FailDownload(
+                downloadID: itemID, reason: .folderUnavailable,
+                message: String(localized: DownloadFailure.folderUnavailable.message)))
     }
 }

@@ -4,11 +4,8 @@ import SwiftUI
 struct BrowserPrivacySettingsPane: View {
     let browser: BrowserStore
     let downloadCenter: BrowserDownloadCenter
-    let spaceAccess: BrowserSpaceAccessController
     let permissionCenter: BrowserSitePermissionCenter
     let contentBlockingErrorDescription: String?
-    /// The one Space whose privacy the pane shows, with its lock, or nil to
-    /// pick one.
     var fixedSpaceID: UUID? = nil
 
     @State private var pickedSpaceID: UUID?
@@ -30,9 +27,6 @@ struct BrowserPrivacySettingsPane: View {
             }
 
             if canRevealSelectedSpaceData {
-                if fixedSpaceID != nil, let selectedSpace {
-                    BrowserSpaceAccessPolicySection(browser: browser, space: selectedSpace, spaceAccess: spaceAccess)
-                }
 
                 if let selectedSpaceID {
                     BrowserDataRetentionSettingsSection(
@@ -58,21 +52,6 @@ struct BrowserPrivacySettingsPane: View {
                         resetAll: { confirmsReset = true }
                     )
                 }
-
-                if let selectedSpace {
-                    BrowserWebsiteDataSection(
-                        list: websiteData?.profileID == selectedSpace.profileID ? websiteData : nil,
-                        spaceName: selectedSpace.settings.name)
-                    BrowserClearBrowsingDataSection(browser: browser, space: selectedSpace) {
-                        Task { await websiteData?.read() }
-                    }
-                }
-            } else if let selectedSpace {
-                BrowserSettingsPrivateSpaceAccessSection(
-                    space: selectedSpace,
-                    accessController: spaceAccess,
-                    detail: "Unlock this Space to see its privacy settings."
-                )
             }
         }
         .crestRepairsSpaceSelection(selectedSpaceBinding, in: browser)
@@ -115,7 +94,7 @@ struct BrowserPrivacySettingsPane: View {
 
     private var canRevealSelectedSpaceData: Bool {
         guard let selectedSpace else { return false }
-        return !spaceAccess.isLocked(selectedSpace)
+        return true
     }
 
     /// Crest's own blocking is a WebKit content-rule list. An engine either

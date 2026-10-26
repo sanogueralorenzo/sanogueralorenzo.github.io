@@ -18,8 +18,6 @@ struct BrowserPageNavigationCommitted: BrowserPageEngineEvent {
         page.mediaSessionCoordinator?.didCommitNavigation()
         page.committedNavigationCount += 1
         if !isLoading { page.completedNavigationCount += 1 }
-        let authentication = page.httpAuthenticationSession
-        Task { await authentication.authenticationSucceeded() }
         page.synchronizePopupPermission(for: url)
         page.sitePermissionSession.synchronize(for: url)
     }

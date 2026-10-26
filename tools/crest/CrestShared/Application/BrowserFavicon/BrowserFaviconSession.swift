@@ -21,6 +21,11 @@ final class BrowserFaviconSession {
         self.schedule = schedule
         self.wait = wait
         self.receive = receive
+        document.observeIconChanges { [weak self] in
+            guard let self, !isStopped else { return }
+            invalidate()
+            refresh()
+        }
     }
 
     deinit { task?.cancel() }
@@ -37,26 +42,11 @@ final class BrowserFaviconSession {
         invalidate()
     }
 
-    func refresh() {
-        // Page reconciliation can repeat for every chrome update. A missing
-        // icon is still a completed attempt; only navigation, icon changes,
-        // or an explicit pull should start another discovery sequence.
-        guard let url = document.url, requestedDocumentURL != url else { return }
-        _ = start()
-    }
-
-    func pull() async -> Data? {
-        guard !Task.isCancelled, let task = start() else { return nil }
-        return await withTaskCancellationHandler {
-            await task.value
-        } onCancel: {
-            task.cancel()
-        }
-    }
-
-    private func start() -> Task<Data?, Never>? {
+    /// Starts automatic discovery once per document; navigation invalidates it.
+    @discardableResult
+    func refresh() -> Task<Data?, Never>? {
+        guard !isStopped, let url = document.url, requestedDocumentURL != url else { return nil }
         invalidate()
-        guard !isStopped, let url = document.url else { return nil }
         requestedDocumentURL = url
         let requestGeneration = generation
         let document = document

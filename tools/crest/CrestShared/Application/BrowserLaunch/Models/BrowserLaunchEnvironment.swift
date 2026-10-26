@@ -10,11 +10,10 @@ struct BrowserLaunchEnvironment: Equatable, Sendable {
     let requestsIsolatedCloudSync: Bool
     let resetsSession: Bool
     let presentsShowcaseSession: Bool
-    let usesInMemoryCredentialVault: Bool
-    let forcesOnboardingWelcome: Bool
-    let forcesMacOnboardingSetup: Bool
-    let forcesMobileOnboardingSetup: Bool
-    let softwareUpdateWidgetFixture: String?
+    let performanceBaseURLString: String?
+    let performanceTabCount: String?
+    let performanceHeavySession: Bool
+    let performanceRunID: String
     let isolatedSoftwareUpdateFeedURL: URL?
     let isXCTestRuntime: Bool
     let isSwiftUIPreviewRuntime: Bool
@@ -47,20 +46,15 @@ struct BrowserLaunchEnvironment: Equatable, Sendable {
         }
         resetsSession = Self.isEnabled(.resetSession, in: values)
         presentsShowcaseSession = Self.isEnabled(.showcaseSession, in: values)
-        usesInMemoryCredentialVault = Self.isEnabled(
-            .useInMemoryCredentials,
+        performanceBaseURLString = values[Key.performanceBaseURL.rawValue]
+        performanceTabCount = values[Key.performanceTabCount.rawValue]
+        performanceHeavySession = Self.isEnabled(
+            .performanceHeavySession,
             in: values
         )
-        forcesOnboardingWelcome = Self.isEnabled(.showOnboarding, in: values)
-        forcesMacOnboardingSetup = Self.isEnabled(.showSetup, in: values)
-        forcesMobileOnboardingSetup = Self.isEnabled(
-            .forceOnboardingSetup,
-            in: values
-        )
-        softwareUpdateWidgetFixture =
-            values[
-                Key.softwareUpdateWidgetFixture.rawValue
-            ]
+        performanceRunID =
+            values[Key.performanceRunID.rawValue]
+            ?? Defaults.performanceRunID
         isolatedSoftwareUpdateFeedURL = Self.loopbackSoftwareUpdateFeedURL(
             values[Key.softwareUpdateTestFeedURL.rawValue]
         )
@@ -69,20 +63,13 @@ struct BrowserLaunchEnvironment: Equatable, Sendable {
         // Isolation is decided before any core exists, so the core answers it
         // without an app.
         let plan =
-            (try? CrestCore.answer(LaunchIsolation(platform: .current, environment: coreEnvironment)))
+            (try? CrestCore.answer(LaunchIsolation(environment: coreEnvironment)))
             ?? LaunchDecision.unavailable
         requiresIsolation = plan.requiresIsolation
         usesEphemeralProfileStorage = plan.usesEphemeralProfileStorage
         presentsInstalledApplicationUI = plan.presentsInstalledApplicationUI
     }
 
-    /// The preferences domain a named isolated profile persists into.
-    ///
-    /// Every owner of that profile's state — the browser session, the
-    /// credential vault prefix, the extension registry — is addressed through
-    /// this one name, so a relaunch with the same
-    /// `CREST_ISOLATED_PERSISTENCE_ID` finds all of it again and none of it
-    /// lands in the installed app's own domain.
     static func isolatedDefaultsSuiteName(isolationID: String) -> String {
         "\(ProductIdentity.serviceNamespace).isolated.\(isolationID)"
     }
@@ -125,11 +112,14 @@ struct BrowserLaunchEnvironment: Equatable, Sendable {
         case persistentIsolationID = "CREST_ISOLATED_PERSISTENCE_ID"
         case resetSession = "CREST_RESET_SESSION"
         case showcaseSession = "CREST_SHOWCASE_SESSION"
-        case useInMemoryCredentials = "CREST_USE_IN_MEMORY_CREDENTIALS"
-        case showOnboarding = "CREST_SHOW_ONBOARDING"
-        case showSetup = "CREST_SHOW_SETUP"
-        case forceOnboardingSetup = "CREST_FORCE_ONBOARDING_SETUP"
-        case softwareUpdateWidgetFixture = "CREST_UPDATE_WIDGET_FIXTURE"
+        case performanceBaseURL = "CREST_PERFORMANCE_BASE_URL"
+        case performanceTabCount = "CREST_PERFORMANCE_TAB_COUNT"
+        case performanceHeavySession = "CREST_PERFORMANCE_HEAVY_SESSION"
+        case performanceRunID = "CREST_PERFORMANCE_RUN_ID"
         case softwareUpdateTestFeedURL = "CREST_UPDATE_TEST_FEED_URL"
+    }
+
+    private enum Defaults {
+        static let performanceRunID = "release-soak"
     }
 }

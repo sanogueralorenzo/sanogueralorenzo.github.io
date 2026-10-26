@@ -8,7 +8,6 @@ struct BrowserPageContentProcessTerminated: BrowserPageEngineEvent {
         // when it does not; the page drops what belonged to the document that
         // is gone.
         page.hasCommittedNavigationAwaitingCompletion = false
-        page.credentialState.webContentProcessDidTerminate()
         page.mediaSessionCoordinator?.webContentProcessDidTerminate()
     }
 }

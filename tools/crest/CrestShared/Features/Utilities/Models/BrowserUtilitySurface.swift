@@ -19,6 +19,7 @@ struct BrowserUtilitySurface: Hashable, Identifiable, Sendable {
 
     static let archive = BrowserUtilitySurface(
         kind: .archive,
+        command: .showArchive,
         name: "archive",
         title: "Archive",
         systemImage: "archivebox",
@@ -34,6 +35,7 @@ struct BrowserUtilitySurface: Hashable, Identifiable, Sendable {
     )
     static let history = BrowserUtilitySurface(
         kind: .history,
+        command: .showHistory,
         name: "history",
         title: "History",
         systemImage: "clock.arrow.circlepath",
@@ -48,6 +50,7 @@ struct BrowserUtilitySurface: Hashable, Identifiable, Sendable {
     )
     static let downloads = BrowserUtilitySurface(
         kind: .downloads,
+        command: .showDownloads,
         name: "downloads",
         title: "Downloads",
         systemImage: "arrow.down.circle",
@@ -64,6 +67,7 @@ struct BrowserUtilitySurface: Hashable, Identifiable, Sendable {
     static let all = [archive, history, downloads]
 
     let kind: Kind
+    let command: ShortcutCommand
     let name: String
     let title: LocalizedStringResource
     let systemImage: String
@@ -87,6 +91,7 @@ struct BrowserUtilitySurface: Hashable, Identifiable, Sendable {
 
     private init(
         kind: Kind,
+        command: ShortcutCommand,
         name: String,
         title: LocalizedStringResource,
         systemImage: String,
@@ -100,6 +105,7 @@ struct BrowserUtilitySurface: Hashable, Identifiable, Sendable {
         clearsHistory: Bool = false
     ) {
         self.kind = kind
+        self.command = command
         self.name = name
         self.title = title
         self.systemImage = systemImage

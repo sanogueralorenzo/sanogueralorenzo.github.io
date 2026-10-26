@@ -25,7 +25,11 @@ final class BrowserEngineMoveNotices {
                 message: String(localized: "Opened in \(engine) for protected video"),
                 systemImage: "play.rectangle",
                 action: BrowserNoticeAction(title: String(localized: "Move Back")) { [weak self] in
-                    self?.core?.open(origin, in: move.spaceID, on: move.from, moving: move.pageID)
+                    guard let core = self?.core, let page = core.state.pages[move.pageID],
+                        page.spaceID == move.spaceID, page.engine == move.to,
+                        page.live.address.flatMap({ URL(string: $0) }).flatMap({ SiteOrigin(url: $0) }) == origin
+                    else { return }
+                    _ = try? core.send(RehostPage(pageID: move.pageID, engine: move.from))
                 }))
     }
 }

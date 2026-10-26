@@ -13,14 +13,12 @@
         let page: BrowserPage
         let origin: SiteOrigin
         let permissionCenter: BrowserSitePermissionCenter
-        @Binding var isExpanded: Bool
 
         var body: some View {
-            BrowserSitePermissionDisclosure(
+            BrowserSitePermissionList(
                 origin: origin,
                 spaceID: page.spaceID,
-                permissionCenter: permissionCenter,
-                isExpanded: $isExpanded
+                permissionCenter: permissionCenter
             )
         }
     }
@@ -69,12 +67,11 @@
     /// The Extensions settings destination, composed by the engine that has them.
     struct BrowserEngineExtensionSettingsPane: View {
         let browser: BrowserStore
-        let spaceAccess: BrowserSpaceAccessController
         /// The one Space whose extensions the pane shows, or nil to pick one.
         var spaceID: UUID?
 
         var body: some View {
-            BrowserExtensionSettingsPane(browser: browser, spaceAccess: spaceAccess, fixedSpaceID: spaceID)
+            BrowserExtensionSettingsPane(browser: browser, fixedSpaceID: spaceID)
         }
     }
 #endif

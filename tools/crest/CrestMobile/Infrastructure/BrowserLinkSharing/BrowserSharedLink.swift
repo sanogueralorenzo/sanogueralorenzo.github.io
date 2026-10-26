@@ -1,11 +1,5 @@
 import Foundation
 
-/// A web link shared to Crest from another app. The share extension hands it
-/// to the app as a `crest://open` URL.
-///
-/// Any app can open that URL, so it carries the web link and nothing else,
-/// and the app routes the link as it would any link another app opens: link
-/// routes, Quick Windows and locked Spaces behave the same.
 struct BrowserSharedLink: Equatable, Sendable {
     // MARK: - Static Variables
 

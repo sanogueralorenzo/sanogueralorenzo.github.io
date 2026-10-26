@@ -72,7 +72,7 @@ final class CoreReadModelTests: XCTestCase {
         assertStoredFirst(
             "SpaceSettingsModel", reading: { space.settings.name },
             after: {
-                store.updateSpaceIdentity(space.id, name: "Stored", symbol: "book", accent: .teal)
+                store.updateSpaceIdentity(space.id, name: "Stored")
             })
         assertStoredFirst(
             "WindowStateModel", reading: { window.shownTabs },
@@ -100,14 +100,17 @@ final class CoreReadModelTests: XCTestCase {
                 _ = store.moveSessionTab(nextPinned.id, in: space.id, to: .pinned, before: pinned.id)
             })
         assertStoredFirst(
-            "FaviconAssets", reading: { state.favicons.image(of: current.id) },
+            "FaviconAssets", reading: { state.favicons.image(of: pinned.id) },
             after: {
-                store.setTabFavicon(Data([2]), iconAccent: nil, for: current.id, in: space.id)
+                page.report(PageIconChanged(pageID: page.id, url: page.live.url ?? "", accent: nil), icon: Data([2]))
+                core.drain()
             })
         assertStoredFirst(
-            "WorkspaceModel", reading: { workspace.defaultSpaceID },
+            "WorkspaceModel", reading: { workspace.appPreferences?.translationLanguage ?? "en" },
             after: {
-                store.setDefaultSpace(workspace.defaultSpaceID == other.id ? space.id : other.id)
+                var preferences = workspace.appPreferences ?? .default
+                preferences.translationLanguage = preferences.translationLanguage == "fr" ? "en" : "fr"
+                _ = try? core.send(SetAppPreferences(workspaceID: workspace.id, preferences: preferences))
             })
         assertStoredFirst(
             "HistoryModel", reading: { space.history.entries.count },
@@ -131,14 +134,6 @@ final class CoreReadModelTests: XCTestCase {
                     TabsChanged(
                         workspaceID: workspace.id, spaceID: space.id, updated: [], removed: [pinned.id], order: nil))
             })
-        let split = SplitGroupState(
-            id: UUID(), customTitle: "Stored", titleModifiedAt: nil, customIconSymbol: nil, iconModifiedAt: nil,
-            tint: nil, tintModifiedAt: nil, displayTitle: "Stored", displayEmojiIcon: nil)
-        assertStoredFirst(
-            "SpaceModel", reading: { detachedSpace.splitGroups },
-            after: {
-                detachedSpace.apply(SplitGroupsChanged(workspaceID: workspace.id, spaceID: space.id, groups: [split]))
-            })
         let workspaceID = UUID()
         assertStoredFirst(
             "CoreState.workspaces", reading: { detached.workspaces[workspaceID] != nil },
@@ -146,7 +141,7 @@ final class CoreReadModelTests: XCTestCase {
                 WorkspaceOpened(
                     workspaceID: workspaceID, kind: .private,
                     session: SessionState(
-                        spaces: [], defaultSpaceID: nil, disposableSeedMarker: nil, spaceDeletions: [],
+                        spaces: [], disposableSeedMarker: nil, spaceDeletions: [],
                         appPreferences: nil)
                 ).apply(to: detached)
             })
@@ -204,7 +199,7 @@ final class CoreReadModelTests: XCTestCase {
     private static func values(of state: CoreState, _ workspaceID: UUID) -> [String] {
         guard let workspace = state.workspaces[workspaceID] else { return [] }
         return [
-            String(describing: workspace.spaces.values), String(describing: workspace.defaultSpaceID),
+            String(describing: workspace.spaces.values),
             String(describing: workspace.isDisposableSeed), String(describing: workspace.spaceDeletions),
             String(describing: workspace.appPreferences),
             String(describing: state.windows.values.map(\.value).sorted { $0.id.uuidString < $1.id.uuidString }),
@@ -217,10 +212,10 @@ final class CoreReadModelTests: XCTestCase {
             {
                 for workspace in state.workspaces.values {
                     _ = workspace.spaces.values
-                    _ = (workspace.defaultSpaceID, workspace.isDisposableSeed, workspace.spaceDeletions)
+                    _ = (workspace.isDisposableSeed, workspace.spaceDeletions)
                     _ = workspace.appPreferences
                     for space in workspace.spaces.models {
-                        _ = (space.splitGroups, space.history.entries, space.archive.entries)
+                        _ = (space.history.entries, space.archive.entries)
                         for tab in space.tabs.models { _ = state.favicons.image(of: tab.id) }
                     }
                 }

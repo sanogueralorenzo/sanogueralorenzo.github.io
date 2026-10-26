@@ -48,7 +48,7 @@ enum BrowserFaviconCapture {
             .absoluteURL
         let candidates = prioritizedCandidateURLs(
             discoveredIconURLs: discovered.iconURLs,
-            manifestIconURLs: manifestIcons,
+            manifestIconURLs: BrowserGitHubPullRequest.accepts(pageURL) ? [] : manifestIcons,
             fallbackURL: fallbackURL
         )
 
@@ -361,7 +361,7 @@ enum BrowserFaviconCapture {
                 .max() ?? 0
             return IconCandidate(
                 url: url,
-                preference: isBrowserIcon ? 1 : 0,
+                preference: isBrowserIcon ? (relationships.contains("alternate") ? 1 : 2) : 0,
                 maximumSize: maximumSize,
                 documentOrder: index
             )

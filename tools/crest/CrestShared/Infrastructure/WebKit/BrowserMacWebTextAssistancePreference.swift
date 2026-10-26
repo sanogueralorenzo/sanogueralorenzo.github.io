@@ -5,15 +5,13 @@ import Foundation
     ///
     /// WebKit snapshots these app-domain defaults the first time its text checker
     /// is used. Configure them before creating a page so website editors receive
-    /// literal input. Explicit text replacements and continuous spell checking
-    /// remain user-controlled.
+    /// literal input. Explicit text replacements remain user-controlled.
     enum BrowserMacWebTextAssistancePreference {
-        static let spellCheckingKey = "WebContinuousSpellCheckingEnabled"
-        static let defaultIsSpellCheckingEnabled = false
         private static let textReplacementKey = "WebAutomaticTextReplacementEnabled"
         private static let textReplacementMigrationKey = "crest.text-replacement.follows-system.v1"
 
         static let disabledSmartTextKeys = [
+            "WebContinuousSpellCheckingEnabled",
             "WebAutomaticSpellingCorrectionEnabled",
             "WebGrammarCheckingEnabled",
             "WebSmartInsertDeleteEnabled",
@@ -33,9 +31,6 @@ import Foundation
                 }
                 defaults.set(true, forKey: textReplacementMigrationKey)
             }
-            defaults.register(
-                defaults: [spellCheckingKey: defaultIsSpellCheckingEnabled]
-            )
             for key in disabledSmartTextKeys {
                 defaults.set(false, forKey: key)
             }

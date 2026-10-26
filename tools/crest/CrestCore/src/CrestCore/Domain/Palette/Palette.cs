@@ -31,9 +31,9 @@ public sealed partial class Palette {
     /// engine opens internal pages or not, offering the workspace's other
     /// `spaces` and ranking its history at `now`.
     public Palette(SpaceState? space, Guid? shownTabId, bool isPrivate, bool allowsInternalPages,
-        IReadOnlyList<SpaceState> spaces, DateTimeOffset now, SearchProvider provider) {
+        IReadOnlyList<SpaceState> spaces, DateTimeOffset now, SearchProvider provider, bool suggests) {
         ArgumentNullException.ThrowIfNull(spaces);
-        context = new(space, shownTabId, isPrivate, allowsInternalPages, spaces, now, provider);
+        context = new(space, shownTabId, isPrivate, allowsInternalPages, spaces, now, provider, suggests);
     }
 
     #endregion

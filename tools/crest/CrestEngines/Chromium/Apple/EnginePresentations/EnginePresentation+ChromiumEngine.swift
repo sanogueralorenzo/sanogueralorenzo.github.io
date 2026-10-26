@@ -28,7 +28,6 @@
             case .pageViewClosed(let presentation): presentation.present(on: engine)
             case .pageViewReady(let presentation): presentation.present(on: engine)
             case .pageViewUnavailable(let presentation): presentation.present(on: engine)
-            case .peekRequested(let presentation): presentation.present(on: engine)
             case .popupBlocked(let presentation): presentation.present(on: engine)
             case .profilePrepared(let presentation): presentation.present(on: engine)
             case .profileNotificationPosted(let presentation): presentation.present(on: engine)

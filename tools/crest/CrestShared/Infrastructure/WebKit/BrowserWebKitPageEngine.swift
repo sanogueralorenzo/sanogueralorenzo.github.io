@@ -9,6 +9,7 @@ final class BrowserWebKitPageEngine: BrowserPageEngine {
     let registration = BrowserEngineRegistration.webKit
     let webView: WKWebView
     var history = BrowserPageNavigationHistory()
+    @ObservationIgnored private(set) var rejectsCloseDialogs = false
     var nativeView: BrowserEngineView { webView }
     /// WebKit reports its native video presentation only to the UI delegate,
     /// which covers PiP entered from its own controls and cross-origin frames.
@@ -129,19 +130,21 @@ final class BrowserWebKitPageEngine: BrowserPageEngine {
         /// immediately when no document in the process needs the event, and
         /// otherwise ends in `webViewDidClose` or a beforeunload panel the person
         /// can decline. Approval leaves the page alive; the caller releases it.
-        func prepareToClose(completion: @escaping @MainActor (Bool) -> Void) {
+        func prepareToClose(automatically: Bool = false, completion: @escaping @MainActor (Bool) -> Void) {
             let selector = NSSelectorFromString("_tryClose")
             guard closeCompletion == nil else {
                 completion(false)
                 return
             }
             guard webView.responds(to: selector) else {
-                completion(true)
+                completion(!automatically)
                 return
             }
             typealias TryClose = @convention(c) (AnyObject, Selector) -> Bool
             let tryClose = unsafeBitCast(webView.method(for: selector), to: TryClose.self)
+            rejectsCloseDialogs = automatically
             if tryClose(webView, selector) {
+                rejectsCloseDialogs = false
                 completion(true)
                 return
             }
@@ -173,11 +176,12 @@ final class BrowserWebKitPageEngine: BrowserPageEngine {
             closeTimeout?.cancel()
             closeTimeout = Task { @MainActor [weak self] in
                 do { try await Task.sleep(for: .seconds(3)) } catch { return }
-                self?.finishClose(true)
+                self?.finishClose(self?.rejectsCloseDialogs == false)
             }
         }
 
         private func finishClose(_ allowed: Bool) {
+            rejectsCloseDialogs = false
             closeTimeout?.cancel()
             closeTimeout = nil
             let completion = closeCompletion

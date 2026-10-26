@@ -20,7 +20,7 @@
                 ContentUnavailableView(
                     "Feature Flags Unavailable",
                     systemImage: "flag.slash",
-                    description: Text("Open Settings from an unlocked Space to view Chromium flags.")
+                    description: Text("Open Settings from a Space to view Chromium flags.")
                 )
             }
         }

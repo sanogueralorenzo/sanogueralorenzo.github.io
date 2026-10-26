@@ -9,7 +9,6 @@ extension BrowserAuthenticationChallenge {
             ),
             isProxy: protectionSpace.isProxy(),
             previousFailureCount: challenge.previousFailureCount,
-            protectionSpace: BrowserHTTPAuthenticationProtectionSpace(protectionSpace),
             descriptor: BrowserHTTPAuthenticationDescriptor(challenge: challenge),
             proposedUsername: challenge.proposedCredential?.user
         )

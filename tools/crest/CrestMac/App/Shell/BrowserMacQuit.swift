@@ -25,16 +25,6 @@ final class BrowserMacQuit {
 
     // MARK: - Actions - Quitting
 
-    /// Asks to quit, which `finish` completes with whether it may: on a later
-    /// turn of the main actor, once the core asked every page and the person
-    /// about downloads in progress. Once allowed, the core keeps the windows
-    /// open now for the next launch, the Quick Windows close and every edit is
-    /// flushed before `finish` runs. Answers false when the shell has nothing
-    /// to hold, having finished already, so the entry point quits at once.
-    ///
-    /// A quit the core defers while a Space is deleted is asked for again once
-    /// the deletion moves on, through the application's own `terminate`, which
-    /// reaches this again from the entry point.
     func request(finish: @escaping @MainActor (_ allowed: Bool) -> Void) -> Bool {
         guard !hasFinished else { return false }
         guard !isQuitting else { return true }
@@ -54,7 +44,7 @@ final class BrowserMacQuit {
                 // before any of them closes as the app goes.
                 application.rememberWindowsForLaunch()
                 Task { @MainActor in
-                    self.windows.closeQuickWindowsWithoutAsking()
+                    self.windows.closeAuthenticationWindows()
                     await self.application.flushPendingPersistenceBeforeQuit()
                     self.hasFinished = true
                     finish(true)

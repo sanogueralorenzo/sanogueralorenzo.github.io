@@ -27,7 +27,6 @@ final class MobileBrowserNavigationState {
     @ObservationIgnored
     private var transientSidebarDismissalIsPaused = false
     @ObservationIgnored
-    private var lockedSpaceKeepsSidebarVisible = false
     /// The window has measured itself, so `presentation` is its own.
     @ObservationIgnored
     private var hasAdaptedPresentation = false
@@ -112,14 +111,6 @@ final class MobileBrowserNavigationState {
         compactPagePresentationPhase = .presentingPage
     }
 
-    /// Setup can finish before the new browser root has resolved its width.
-    /// Retain the requested page even if the previous presentation was regular.
-    func presentSelectedTabAfterSetup() {
-        dockRegularSidebar()
-        compactToolbarIsHidden = false
-        compactPagePresentationPhase = .presentingPage
-    }
-
     func showTabViewer() {
         compactToolbarIsHidden = false
         compactPagePresentationPhase = .tabViewer
@@ -130,44 +121,11 @@ final class MobileBrowserNavigationState {
         showTabViewer()
     }
 
-    /// A lock is a privacy-state change inside the selected Space, not a new
-    /// navigation mode. Keep the sidebar presentation the user is already in:
-    /// a docked phone returns to its full-screen tab viewer, while a floating
-    /// or collapsed sidebar becomes a persistent floating lock surface over
-    /// the existing window.
-    func prepareForLockedSpace() {
-        lockedSpaceKeepsSidebarVisible = true
-        compactToolbarIsHidden = false
-        presentation.prepareForLockedSpace(on: self)
-    }
-
     /// A narrow window keeps an undocked sidebar floating over the page it
     /// shows, and otherwise returns to its full-screen tab viewer.
-    func keepLockedSpaceOverCompactPage() {
-        if compactShowsPage, regularSidebarPresentation != .docked {
-            cancelTransientSidebarDismissal()
-            regularSidebarPresentation = .floating
-        } else {
-            showTabViewer()
-        }
-    }
 
     /// A regular window floats a hidden sidebar over the page, so the lock
     /// stays on screen.
-    func keepLockedSpaceBesidePage() {
-        cancelTransientSidebarDismissal()
-        if regularSidebarPresentation == .collapsed {
-            regularSidebarPresentation = .floating
-        }
-    }
-
-    func finishLockedSpaceTransition() -> MobileBrowserSpaceSwitchDestination {
-        lockedSpaceKeepsSidebarVisible = false
-        return MobileBrowserSpaceSwitchDestination.afterLeavingLockedSpace(
-            in: presentation,
-            sidebarPresentation: regularSidebarPresentation
-        )
-    }
 
     func hideCompactToolbar() {
         guard presentation.presentsPageOverTabViewer, compactShowsPage else { return }
@@ -299,7 +257,7 @@ final class MobileBrowserNavigationState {
     private func scheduleTransientSidebarDismissal() {
         guard regularSidebarPresentation == .floating,
             !transientSidebarDismissalIsPaused,
-            !lockedSpaceKeepsSidebarVisible
+            true
         else { return }
         transientSidebarDismissalTask?.cancel()
         let delay = transientSidebarDismissalDelay

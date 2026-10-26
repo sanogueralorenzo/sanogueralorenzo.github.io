@@ -3,7 +3,6 @@ import SwiftUI
 struct MobileHistoryView: View {
     let browser: BrowserStore
     let assignment: BrowserSpaceRuntimeAssignment
-    let spaceAccess: BrowserSpaceAccessController
     let openURL: (URL) -> Void
 
     var body: some View {
@@ -16,7 +15,7 @@ struct MobileHistoryView: View {
     }
 
     private var space: SpaceModel? {
-        browser.selectedUnlockedSpace(matching: assignment, accessController: spaceAccess)
+        browser.selectedAvailableSpace(matching: assignment)
     }
 
     private func clearHistory() {

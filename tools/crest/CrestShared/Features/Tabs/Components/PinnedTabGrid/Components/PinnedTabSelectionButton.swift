@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct PinnedTabSelectionButton: View {
+    // MARK: - Variables
+
     let tab: TabStateModel
     let favicons: FaviconAssets
     let profileID: UUID
@@ -9,45 +11,65 @@ struct PinnedTabSelectionButton: View {
     let siteTheme: BrowserTabIconAccent?
     let select: () -> Void
     var isMultiSelected = false
-    var branding: SpaceBranding? = nil
+
     /// The tab's page, whose statuses dress the tile while they last.
     var statusSource: BrowserTabStatusSource? = nil
-    let iconCustomization: BrowserIconCustomizationPresentation
+    var returnToSavedURL: (() -> Void)?
+
+    @Environment(\.browserShortcutBindings) private var shortcutBindings
 
     @Environment(\.browserInteractionCapabilities) private var capabilities
     @Environment(\.tabFaviconIsReplaced) private var isIconReplaced
     @State private var isHovering = false
-    private var iconScale: Double { BrowserDeviceAppearanceStore.shared.tabScale }
+    private let iconScale = 1.0
+
+    // MARK: - Actions - Content
 
     var body: some View {
-        Button(action: select) {
-            icon
-                .opacity(isIconReplaced ? 0 : 1)
-                .font(.system(size: 17 * BrowserSidebarDensity(iconScale).scale, weight: .medium))
-                .browserTabResidency(isLoaded: tab.nativeContent != nil || isLoaded)
-                .browserIconCustomizationPopover(iconCustomization, arrowEdge: iconPickerArrowEdge)
-                .overlay(alignment: .bottomTrailing) {
-                    TabEngineBadge(tabID: tab.id, scale: BrowserSidebarDensity(iconScale).scale)
+        HStack(spacing: CrestSpacing.extraSmall) {
+            Button(action: select) {
+                icon
+                    .opacity(isIconReplaced ? 0 : 1)
+                    .font(.system(size: 17 * BrowserSidebarDensity(iconScale).scale, weight: .medium))
+                    .browserTabResidency(isLoaded: tab.nativeContent != nil || isLoaded)
+                    .overlay(alignment: .bottomTrailing) {
+                        TabEngineBadge(tabID: tab.id, scale: BrowserSidebarDensity(iconScale).scale)
+                    }
+                    .anchorPreference(key: TabFaviconBoundsKey.self, value: .bounds) { $0 }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(
+                CrestChromeButtonStyle(controlSize: nil, cornerRadius: BrowserSidebarMetrics.layerCornerRadius())
+            )
+            .accessibilityLabel(tab.shownTitle)
+            if isSelected {
+                BrowserShortcutHint(shortcut: ShortcutCommand.closeTabOrWindow.shortcut(in: shortcutBindings))
+                if let returnToSavedURL {
+                    Button(action: returnToSavedURL) {
+                        Image(systemName: "arrow.uturn.backward")
+                            .font(.system(size: capabilities.trailingControlMetrics.glyphSize, weight: .medium))
+                    }
+                    .buttonStyle(CrestChromeButtonStyle(controlSize: capabilities.trailingControlMetrics.controlSize))
+                    .accessibilityLabel("Return to Saved URL")
+                    .accessibilityIdentifier("return-tab-to-saved-url")
+                    .help("Return to Saved URL")
                 }
-                .anchorPreference(key: TabFaviconBoundsKey.self, value: .bounds) { $0 }
-                .frame(maxWidth: .infinity)
-                .frame(
-                    height: BrowserSidebarDensity(iconScale).pinHeight(touch: capabilities.supportsTouch)
-                )
-                .contentShape(.rect)
-                .modifier(
-                    PinnedTabInteractionSurface(
-                        favicon: tab.iconMode.showsFavicon ? favicons.icon(of: tab.id) : nil,
-                        siteTheme: siteTheme,
-                        isSelected: isSelected,
-                        isHovering: isHovering || isMultiSelected,
-                        isMultiSelected: isMultiSelected,
-                        branding: branding,
-                        statusSource: statusSource
-                    )
-                )
+            }
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, CrestSpacing.extraSmall)
+        .frame(maxWidth: .infinity)
+        .frame(height: BrowserSidebarDensity(iconScale).pinHeight(touch: capabilities.supportsTouch))
+        .modifier(
+            PinnedTabInteractionSurface(
+                favicon: tab.iconMode.showsFavicon ? favicons.icon(of: tab.id) : nil,
+                siteTheme: siteTheme,
+                isSelected: isSelected,
+                isHovering: isHovering || isMultiSelected,
+                isMultiSelected: isMultiSelected,
+                statusSource: statusSource
+            )
+        )
         .onHover { isHovering = $0 }
     }
 
@@ -55,14 +77,20 @@ struct PinnedTabSelectionButton: View {
         TabStateFaviconView(
             tab: tab, favicons: favicons, profileID: profileID, size: 19 * BrowserSidebarDensity(iconScale).scale)
     }
-
-    private var iconPickerArrowEdge: Edge? {
-        #if os(macOS)
-            .leading
-        #else
-            // Let the native popover fit around the pin on either sidebar side.
-            // A forced leading arrow clips the picker beside a right-docked sidebar.
-            nil
-        #endif
-    }
 }
+
+#if DEBUG
+    #Preview("Pinned tab chip") {
+        PinnedTabSelectionButton(
+            tab: BrowserSidebarTabRowPreviewFixture.tab(placement: .pinned),
+            favicons: FaviconAssets(),
+            profileID: BrowserSidebarTabRowPreviewFixture.profileID,
+            isSelected: false,
+            isLoaded: false,
+            siteTheme: nil,
+            select: {}
+        )
+        .padding()
+        .frame(width: 160)
+    }
+#endif

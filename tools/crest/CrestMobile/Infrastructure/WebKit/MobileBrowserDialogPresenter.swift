@@ -160,14 +160,6 @@ enum MobileBrowserDialogPresenter {
         if let realm = descriptor.realm, !realm.isEmpty {
             paragraphs.append("Realm: \(realm)")
         }
-        if prompt.allowsSaving {
-            paragraphs.append(
-                "This sign-in belongs only to the \(spaceName) Space. Crest saves it only after the site accepts it.")
-        } else {
-            paragraphs.append(
-                "This sign-in belongs only to the \(spaceName) Space and cannot be saved because the connection is not protected by HTTPS."
-            )
-        }
         if descriptor.previousFailureCount > 0 {
             paragraphs.append("The previous credentials were not accepted.")
         }
@@ -192,7 +184,8 @@ enum MobileBrowserDialogPresenter {
             field.isSecureTextEntry = true
             field.textContentType = .password
         }
-        return await withCheckedContinuation { continuation in
+        return await withCheckedContinuation {
+            (continuation: CheckedContinuation<BrowserHTTPAuthenticationPromptResponse?, Never>) in
             // An action or the question's dismissal answers, whichever comes first.
             let answer = AlertAnswer(continuation)
             alert.addAction(
@@ -200,37 +193,24 @@ enum MobileBrowserDialogPresenter {
                     answer.resume(nil)
                 })
             alert.addAction(
-                UIAlertAction(title: "Sign In Once", style: .default) { [weak alert] _ in
+                UIAlertAction(title: "Sign In", style: .default) { [weak alert] _ in
                     answer.resume(
                         authenticationResponse(
-                            from: alert,
-                            shouldSave: false
+                            from: alert
                         ))
                 })
-            if prompt.allowsSaving {
-                alert.addAction(
-                    UIAlertAction(title: "Sign In & Save", style: .default) { [weak alert] _ in
-                        answer.resume(
-                            authenticationResponse(
-                                from: alert,
-                                shouldSave: true
-                            ))
-                    })
-            }
             dismissal?.attach { answer.resume(nil) }
             present(alert, dismissal: dismissal) { answer.resume(nil) }
         }
     }
 
     private static func authenticationResponse(
-        from alert: UIAlertController?,
-        shouldSave: Bool
+        from alert: UIAlertController?
     ) -> BrowserHTTPAuthenticationPromptResponse {
         let fields = alert?.textFields ?? []
         return BrowserHTTPAuthenticationPromptResponse(
             username: fields.first?.text ?? "",
-            password: fields.dropFirst().first?.text ?? "",
-            shouldSave: shouldSave
+            password: fields.dropFirst().first?.text ?? ""
         )
     }
 

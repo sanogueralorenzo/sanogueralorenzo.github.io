@@ -81,22 +81,6 @@ final class BrowserMacRecentTabSwitcher {
             },
         ]
         followKeyWindow()
-        followPreference()
-    }
-
-    /// Lets go of every picture once the preference goes off.
-    private func followPreference() {
-        withObservationTracking {
-            _ = BrowserAppPreferenceStore.shared.showsRecentTabs
-        } onChange: { [weak self] in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                if !BrowserAppPreferenceStore.shared.showsRecentTabs {
-                    for pictures in snapshots.values { pictures.removeAll() }
-                }
-                followPreference()
-            }
-        }
     }
 
     // MARK: - Actions - Holding
@@ -106,7 +90,7 @@ final class BrowserMacRecentTabSwitcher {
     /// list, or when the shortcut has no modifier to hold; the command then
     /// jumps at once.
     func begin(direction: RecentTabSwitchDirection) -> Bool {
-        guard hold == nil, BrowserAppPreferenceStore.shared.showsRecentTabs, let shell, let windows = shell.windows,
+        guard hold == nil, let shell, let windows = shell.windows,
             let context = windows.activeContext, let actions = windows.activeActions,
             let window = NSApp.keyWindow, let shortcuts = shell.application?.shortcuts
         else { return false }
@@ -245,8 +229,7 @@ final class BrowserMacRecentTabSwitcher {
 
     private func snapshots(for context: BrowserMacWindowContext) -> BrowserRecentTabSnapshots {
         if let existing = snapshots[context.windowID] { return existing }
-        let access = shell?.application?.spaceAccess
-        let created = BrowserRecentTabSnapshots(context: context) { access?.isLocked($0) ?? true }
+        let created = BrowserRecentTabSnapshots(context: context)
         snapshots[context.windowID] = created
         created.followShownTabs()
         return created

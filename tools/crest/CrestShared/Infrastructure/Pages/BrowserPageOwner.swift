@@ -37,18 +37,6 @@ protocol BrowserPageOwner: AnyObject, BrowserTabCopying, BrowserTabLinkProviding
     /// Mutes or unmutes the page of the tab `assignment` names.
     func setMuted(_ muted: Bool, matching assignment: BrowserTabRuntimeAssignment)
 
-    /// A lease on a page the core opens in `space` for a transient request,
-    /// on `opener`'s engine when another page opened it.
-    func makeTransientPageLease(
-        url: URL,
-        in space: SpaceModel,
-        presentation: TransientPresentation,
-        engineNavigation: BrowserEngineNavigation?,
-        opener: UUID?,
-        onUserActivity: @escaping () -> Void,
-        onDownloadOnlyNavigation: (() -> Void)?
-    ) -> BrowserPlatformTransientPageLease?
-
     /// Hosts `opened`, a page the core opened itself for `tab` in `space`, as
     /// the tab's resident page, and brings the tab forward when `shows`.
     func hostAdoptedPage(_ opened: Engines.OpenedPage, as tab: BrowserPageTab, in space: SpaceModel, shows: Bool)
@@ -96,9 +84,6 @@ extension BrowserPageOwner {
 // MARK: - Reconciliation
 
 extension BrowserPageOwner {
-    /// What the owner's runtime state follows in the window's workspace: tab
-    /// icons, content blocking and credential access, compared between
-    /// changes so each is reconciled only when it moved.
     var runtimeProjection: BrowserRuntimeSessionProjection {
         BrowserRuntimeSessionProjection(workspace: browser.workspaceModel, images: browser.core.state.favicons)
     }
@@ -107,11 +92,6 @@ extension BrowserPageOwner {
     /// keeps the rest current.
     func reconcile() {
         host.reconcile(workspace: browser.workspaceModel, images: browser.core.state.favicons)
-    }
-
-    /// Gives every page its Space's password preference.
-    func reconcileCredentialAccess() {
-        host.reconcileCredentialAccess(in: browser.workspaceModel)
     }
 
     /// Gives each resident page its tab's current context, such as its icon.
@@ -141,12 +121,6 @@ extension BrowserPageOwner {
                 policy: update.policy(for: page.spaceID),
                 balancedRuleLists: contentBlocking.balancedRuleLists ?? [],
                 activation: update.activation(for: page.spaceID, isPresented: presented.contains(tabID))
-            )
-        }
-        for lease in host.liveTransientLeases {
-            lease.applyContentBlocking(
-                policy: update.policy(for: lease.spaceID),
-                balancedRuleLists: contentBlocking.balancedRuleLists ?? []
             )
         }
     }
@@ -215,8 +189,6 @@ extension BrowserPageOwner {
     /// Every page resident in the host's tabs.
     var residentPages: [BrowserPlatformPage] { host.residentPages }
 
-    var retainedTransientPageCount: Int { host.retainedTransientPageCount }
-
     func containsResidentPage(for tabID: UUID) -> Bool {
         host.residentTabIDs.contains(tabID)
     }
@@ -246,8 +218,6 @@ extension BrowserPageOwner {
         host.unloadPage(for: tabID, matching: assignment)
     }
 
-    /// Releases a Space's resident pages without archiving them. Normal Space
-    /// switching and locking preserve residency and do not call this teardown.
     func unloadPages(in spaceID: UUID) {
         host.unloadPages(in: spaceID)
     }
@@ -262,16 +232,6 @@ extension BrowserPageOwner {
         await host.flushPendingTabStateWrites()
     }
 
-    func pullFavicon(for tabID: UUID) async -> (data: Data, iconAccent: BrowserTabIconAccent?)? {
-        await host.pullFavicon(for: tabID)
-    }
-
-    func pullFavicon(
-        for tabID: UUID, matching assignment: BrowserSpaceRuntimeAssignment
-    ) async -> (data: Data, iconAccent: BrowserTabIconAccent?)? {
-        await host.pullFavicon(for: tabID, matching: assignment)
-    }
-
     func prepareTabCopy(from source: TabState, copyID: UUID, in space: BrowserSpaceRuntimeAssignment) {
         host.prepareTabCopy(from: source, copyID: copyID, in: space)
     }
@@ -281,33 +241,7 @@ extension BrowserPageOwner {
     }
 }
 
-// MARK: - Transient leases
-
 extension BrowserPageOwner {
-    /// The Peek's lease on a page for `request` in `space`, reused while the
-    /// Peek asks for the same request. The Peek runs on the engine of the page
-    /// it opened from: the one that staged its link, or its source tab's.
-    func makePeekPageLease(
-        request: BrowserPeekRequest,
-        in space: SpaceModel,
-        onDownloadOnlyNavigation: @escaping () -> Void
-    ) -> BrowserPlatformTransientPageLease? {
-        guard request.assignment == BrowserSpaceRuntimeAssignment(space: space) else { return nil }
-        let opener = request.engineNavigation?.sourcePageID ?? host.page(for: request.sourceTabID)?.corePage.id
-        return host.peekPageLease(for: request) {
-            makeTransientPageLease(
-                url: request.url, in: space, presentation: .peek, engineNavigation: request.engineNavigation,
-                opener: opener, onUserActivity: {}, onDownloadOnlyNavigation: onDownloadOnlyNavigation)
-        }
-    }
-
-    func retainPeekPages(for requests: [BrowserPeekRequest]) {
-        host.retainPeekPages(for: requests)
-    }
-
-    func pruneTransientLeases() {
-        host.pruneTransientLeases()
-    }
 }
 
 // MARK: - Page commands

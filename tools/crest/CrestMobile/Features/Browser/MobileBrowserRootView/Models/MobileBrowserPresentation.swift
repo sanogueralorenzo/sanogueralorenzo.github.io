@@ -17,12 +17,11 @@ struct MobileBrowserPresentation: Equatable, Sendable {
         overlayTopPadding: MobileBrowserRootLayout.compactOverlayTopPadding,
         selectsTab: { $0.presentPageFromTabViewer() },
         placesSidebarForTabViewer: { $0.dockRegularSidebar() },
-        preparesForLockedSpace: { $0.keepLockedSpaceOverCompactPage() },
         adaptsNavigation: { _ in },
         revealsSidebar: { $0.showTabViewer() },
         togglesSidebar: { $0.toggleCompactSidebar(reduceMotion: $1) },
         presentsHistory: { content in
-            guard let space = content.browser.shownSpace, !content.spaceAccess.isLocked(space) else { return }
+            guard let space = content.browser.shownSpace else { return }
             content.historyAssignment = BrowserSpaceRuntimeAssignment(space: space)
         },
         beginsNewTab: { content in
@@ -49,7 +48,6 @@ struct MobileBrowserPresentation: Equatable, Sendable {
         // A regular window shows the page beside its sidebar already.
         selectsTab: { _ in },
         placesSidebarForTabViewer: { _ in },
-        preparesForLockedSpace: { $0.keepLockedSpaceBesidePage() },
         adaptsNavigation: { $0.leaveNarrowWidth() },
         revealsSidebar: { $0.showRegularSidebar() },
         togglesSidebar: { $0.toggleRegularSidebar(reduceMotion: $1) },
@@ -91,7 +89,6 @@ struct MobileBrowserPresentation: Equatable, Sendable {
 
     private let selectsTab: @MainActor @Sendable (MobileBrowserNavigationState) -> Void
     private let placesSidebarForTabViewer: @MainActor @Sendable (MobileBrowserNavigationState) -> Void
-    private let preparesForLockedSpace: @MainActor @Sendable (MobileBrowserNavigationState) -> Void
     private let adaptsNavigation: @MainActor @Sendable (MobileBrowserNavigationState) -> Void
     private let revealsSidebar: @MainActor @Sendable (MobileBrowserNavigationState) -> Void
     private let togglesSidebar: @MainActor @Sendable (MobileBrowserRootModel, Bool) -> Void
@@ -113,7 +110,6 @@ struct MobileBrowserPresentation: Equatable, Sendable {
         overlayTopPadding: CGFloat,
         selectsTab: @escaping @MainActor @Sendable (MobileBrowserNavigationState) -> Void,
         placesSidebarForTabViewer: @escaping @MainActor @Sendable (MobileBrowserNavigationState) -> Void,
-        preparesForLockedSpace: @escaping @MainActor @Sendable (MobileBrowserNavigationState) -> Void,
         adaptsNavigation: @escaping @MainActor @Sendable (MobileBrowserNavigationState) -> Void,
         revealsSidebar: @escaping @MainActor @Sendable (MobileBrowserNavigationState) -> Void,
         togglesSidebar: @escaping @MainActor @Sendable (MobileBrowserRootModel, Bool) -> Void,
@@ -126,7 +122,6 @@ struct MobileBrowserPresentation: Equatable, Sendable {
         self.overlayTopPadding = overlayTopPadding
         self.selectsTab = selectsTab
         self.placesSidebarForTabViewer = placesSidebarForTabViewer
-        self.preparesForLockedSpace = preparesForLockedSpace
         self.adaptsNavigation = adaptsNavigation
         self.revealsSidebar = revealsSidebar
         self.togglesSidebar = togglesSidebar
@@ -180,13 +175,6 @@ struct MobileBrowserPresentation: Equatable, Sendable {
     @MainActor
     func placeSidebarForTabViewer(on navigation: MobileBrowserNavigationState) {
         placesSidebarForTabViewer(navigation)
-    }
-
-    /// Keeps a locked Space's sidebar on screen in the placement the person
-    /// is already in.
-    @MainActor
-    func prepareForLockedSpace(on navigation: MobileBrowserNavigationState) {
-        preparesForLockedSpace(navigation)
     }
 
     /// Settles the window's navigation once it takes this size.

@@ -9,7 +9,7 @@ struct MobileRegularBrowserLayout<Sidebar: View, Detail: View>: View,
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.mobileBrowserControlPlacement) private var controlPlacement
 
-    private var appearance: BrowserDeviceAppearanceStore { .shared }
+    private var appearance: BrowserChromeAppearance { .init() }
     private var sidebarOnRight: Bool { appearance.sidebarOnRight }
     private var sidebarEdge: HorizontalEdge {
         BrowserChromeAppearance.sidebarEdge(onRight: sidebarOnRight, in: layoutDirection)
@@ -35,7 +35,7 @@ struct MobileRegularBrowserLayout<Sidebar: View, Detail: View>: View,
                 // Extend only the page; sidebar controls keep their safe-area placement.
                 .ignoresSafeArea(
                     .container,
-                    edges: appearance.isBorderless || controlPlacement.movesControlsToToolbar ? .bottom : []
+                    edges: appearance.borderless || controlPlacement.movesControlsToToolbar ? .bottom : []
                 )
         } sidebar: {
             BrowserRootSidebarSurfaceLayer(
@@ -44,8 +44,7 @@ struct MobileRegularBrowserLayout<Sidebar: View, Detail: View>: View,
                 edge: sidebarEdge,
                 space: space,
                 reduceTransparency: reduceTransparency,
-                spaces: spaces,
-                hoverChanged: { _ in }
+                spaces: spaces
             ) {
                 sidebar
             }
@@ -57,9 +56,6 @@ struct MobileRegularBrowserLayout<Sidebar: View, Detail: View>: View,
         } controls: {
             if effectivePresentation == .collapsed {
                 BrowserCollapsedSidebarRevealControl(
-                    capabilities: BrowserInteractionCapabilities(
-                        supportsTouch: true
-                    ),
                     showSidebar: showSidebar, edge: sidebarEdge
                 )
                 .zIndex(BrowserRootMetrics.floatingSidebarZIndex)
@@ -78,15 +74,7 @@ struct MobileRegularBrowserLayout<Sidebar: View, Detail: View>: View,
                 .zIndex(BrowserRootMetrics.sidebarResizeControlZIndex)
             }
         }
-        .animation(chromeAnimation(CrestMotion.collection), value: sidebarOnRight)
-        .animation(
-            chromeAnimation(
-                effectivePresentation == .docked
-                    ? CrestMotion.sidebarDockAttachment
-                    : CrestMotion.sidebarMorph
-            ),
-            value: effectivePresentation
-        )
+        .animation(chromeAnimation(CrestMotion.collection), value: appearance.sidebarOnRight)
     }
 
     /// How far the sidebar stands from the display's top edge where nothing

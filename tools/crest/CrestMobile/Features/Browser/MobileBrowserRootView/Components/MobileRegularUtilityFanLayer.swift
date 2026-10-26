@@ -16,7 +16,7 @@ struct MobileRegularUtilityFanLayer: View {
     let spaceID: UUID?
     let select: (BrowserUtilitySurface) -> Void
 
-    private var sidebarOnRight: Bool { BrowserDeviceAppearanceStore.shared.sidebarOnRight }
+    private var sidebarOnRight: Bool { BrowserChromeAppearance().sidebarOnRight }
 
     var body: some View {
         GeometryReader { proxy in

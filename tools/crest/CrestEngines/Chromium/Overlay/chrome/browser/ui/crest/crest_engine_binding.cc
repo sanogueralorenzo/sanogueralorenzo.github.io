@@ -52,11 +52,6 @@ namespace {
 constexpr double kReferenceDateOffset = 978307200;
 // The longest link address the binding asks the core about or stages.
 constexpr size_t kLinkBytes = 8192;
-// The most links staged at once, and how long one waits for its Peek.
-constexpr size_t kStagedLinks = 32;
-constexpr base::TimeDelta kStagedLinkLifetime = base::Seconds(30);
-// The modifier bits Blink records for a trusted click on a link, and those of
-// them that make it a modified click: Command, Option or the middle button.
 constexpr uint32_t kLinkCommand = 1;
 constexpr uint32_t kLinkOption = 2;
 constexpr uint32_t kLinkShift = 4;
@@ -81,12 +76,6 @@ engine::LinkGesture Clicked(uint32_t modifiers) {
       .user_activated = true, .top_level = true, .modifiers = held, .middle_click = (modifiers & kLinkMiddleButton) != 0};
 }
 
-// Whether the core's decision opens the link in Peek.
-bool OpensPeek(engine::LinkNavigationDecision decision) {
-  return decision == engine::LinkNavigationDecision::kPeekModifier ||
-         decision == engine::LinkNavigationDecision::kPeekSavedSite;
-}
-
 // Crest's vault owns credentials in every window, so the engine's own password
 // manager never saves, offers fills or shows its bubbles, in a private window
 // as much as in a Space, whether or not a credential bridge is installed. A
@@ -105,13 +94,9 @@ void DisableEnginePasswordManager(content::WebContents* contents) {
   }
 }
 
-// Stops a person's plain click on a link in one of Crest's pages from loading
-// when the core opens it in Peek instead, whether the link loads in its page
-// or in a window of its own. Only an actual link can: forms, scripts,
-// browser commands, subframes and redirects keep the engine's own handling.
-class PeekLinkThrottle final : public content::NavigationThrottle {
+class LinkTabThrottle final : public content::NavigationThrottle {
  public:
-  explicit PeekLinkThrottle(content::NavigationThrottleRegistry& registry) : NavigationThrottle(registry) {}
+  explicit LinkTabThrottle(content::NavigationThrottleRegistry& registry) : NavigationThrottle(registry) {}
   const char* GetNameForLogging() override { return "CrestLinkNavigationThrottle"; }
   ThrottleCheckResult WillStartRequest() override {
     auto* navigation = navigation_handle();
@@ -122,10 +107,10 @@ class PeekLinkThrottle final : public content::NavigationThrottle {
     }
     EngineBinding& binding = EngineBinding::Get();
     if (navigation->WasInitiatedByLinkClick() &&
-        binding.KeepsLinkForPeek(navigation->GetWebContents(), navigation->GetURL())) {
+        binding.RoutesLinkToTab(*navigation)) {
       return CANCEL_AND_IGNORE;
     }
-    return binding.KeepsWindowLinkForPeek(*navigation) ? CANCEL_AND_IGNORE : PROCEED;
+    return PROCEED;
   }
 };
 
@@ -645,148 +630,35 @@ bool EngineBinding::FollowModifiedLink(content::WebContents* contents, content::
   switch (answer->decision) {
     case engine::LinkNavigationDecision::kForegroundTab:
     case engine::LinkNavigationDecision::kBackgroundTab:
-      // The engine opens the tab, which it offers to the core. Its first
-      // load is no plain click's, so it never turns into a Peek.
       params.disposition = answer->decision == engine::LinkNavigationDecision::kForegroundTab
                                ? WindowOpenDisposition::NEW_FOREGROUND_TAB
                                : WindowOpenDisposition::NEW_BACKGROUND_TAB;
       params.crest_download_fallback = nullptr;
-      if (routed_tabs_.empty()) {
-        base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-            FROM_HERE, base::BindOnce(&EngineBinding::ForgetRoutedTabs, weak_factory_.GetWeakPtr()));
-      }
-      routed_tabs_.emplace_back(page->key(), params.url.spec());
       return false;
-    case engine::LinkNavigationDecision::kPeekModifier:
-      return StageForPeek(*page, params);
     case engine::LinkNavigationDecision::kNavigate:
-    case engine::LinkNavigationDecision::kPeekSavedSite:
       return false;
   }
   return false;
 }
 
-bool EngineBinding::StageForPeek(EnginePage& page, content::OpenURLParams& params) {
-  if (staged_links_.size() >= kStagedLinks) {
-    return false;
-  }
-  params.crest_download_fallback = nullptr;
-  const engine::Guid link = RandomGuid();
-  const std::string token = GuidText(link);
-  staged_links_.emplace(token, std::make_unique<StagedLink>(StagedLink{.request = params,
-                                                                        .source = page.key(),
-                                                                        .revision = page.navigation_revision(),
-                                                                        .generation = page.navigation_generation()}));
-  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-      FROM_HERE, base::BindOnce(&EngineBinding::DropStagedLink, weak_factory_.GetWeakPtr(), token),
-      kStagedLinkLifetime);
-  PresentPeekSoon(page, engine::PeekRequested{.page_id = page.id(),
-                                              .url = PresentedURL(params.url),
-                                              .decision = engine::LinkNavigationDecision::kPeekModifier,
-                                              .staged_link_id = link});
-  return true;
-}
-
-bool EngineBinding::KeepsLinkForPeek(content::WebContents* contents, const GURL& url) {
-  EnginePage* page = PageFor(contents);
-  if (!page) {
-    return false;
-  }
+// Keeps saved tabs on their own site by handing ordinary link clicks to a
+// normal tab. The verified navigation parameters retain the referrer and initiator.
+bool EngineBinding::RoutesLinkToTab(content::NavigationHandle& navigation) {
+  EnginePage* page = PageFor(navigation.GetWebContents());
+  if (!page) return false;
   const auto answer = Ask(engine::LinkActivation{
-      .page_id = page->id(), .url = PresentedURL(url), .gesture = {.user_activated = true, .top_level = true}});
-  if (!answer || !OpensPeek(answer->decision)) {
-    return false;
-  }
-  // Nothing is mounted or moved while Chromium's navigation stack is live.
-  PresentPeekSoon(*page, engine::PeekRequested{
-                             .page_id = page->id(), .url = PresentedURL(url), .decision = answer->decision});
-  return true;
-}
-
-// The link opens a window of its own, as target="_blank" does: the engine
-// made the window's WebContents and loads the link there first, before the
-// core is offered the window. The page the link was in is the window's
-// opener, or for a window opened without one, the navigation's initiator. A
-// window that keeps its opener counts only for a link click, so a script's
-// window.open keeps its window, as it does on WebKit.
-bool EngineBinding::KeepsWindowLinkForPeek(content::NavigationHandle& navigation) {
-  content::WebContents* contents = navigation.GetWebContents();
-  if (!contents || disposing_ || PageFor(contents) || !contents->GetController().IsInitialNavigation() ||
-      !ui::PageTransitionCoreTypeIs(navigation.GetPageTransition(), ui::PAGE_TRANSITION_LINK) ||
-      std::any_of(offers_.begin(), offers_.end(),
-                  [contents](const auto& entry) { return entry.second.contents.get() == contents; })) {
-    return false;
-  }
-  content::RenderFrameHost* source_frame = contents->GetOpener();
-  if (source_frame && !navigation.WasInitiatedByLinkClick()) {
-    return false;
-  }
-  if (!source_frame && navigation.GetInitiatorFrameToken()) {
-    source_frame = content::RenderFrameHost::FromFrameToken(
-        content::GlobalRenderFrameHostToken(navigation.GetInitiatorProcessId(), *navigation.GetInitiatorFrameToken()));
-  }
-  content::WebContents* source_contents =
-      source_frame ? content::WebContents::FromRenderFrameHost(source_frame) : nullptr;
-  EnginePage* source = source_contents && source_contents != contents ? PageFor(source_contents) : nullptr;
-  if (!source) {
-    return false;
-  }
-  // A new tab a modified click asked for stays a tab.
-  const auto routed = std::find(routed_tabs_.begin(), routed_tabs_.end(),
-                                std::make_pair(source->key(), navigation.GetURL().spec()));
-  if (routed != routed_tabs_.end()) {
-    routed_tabs_.erase(routed);
-    return false;
-  }
-  const std::string url = PresentedURL(navigation.GetURL());
-  const auto answer = Ask(engine::LinkActivation{
-      .page_id = source->id(), .url = url, .gesture = {.user_activated = true, .top_level = true}});
-  if (!answer || !OpensPeek(answer->decision)) {
-    return false;
-  }
-  // The window closes once Chromium's navigation stack has unwound.
-  withheld_.push_back(contents->GetWeakPtr());
+      .page_id = page->id(), .url = PresentedURL(navigation.GetURL()),
+      .gesture = {.user_activated = true, .top_level = true}});
+  if (!answer || answer->decision == engine::LinkNavigationDecision::kNavigate) return false;
+  auto params = content::OpenURLParams::FromNavigationHandle(&navigation);
+  params.disposition = answer->decision == engine::LinkNavigationDecision::kForegroundTab
+                           ? WindowOpenDisposition::NEW_FOREGROUND_TAB
+                           : WindowOpenDisposition::NEW_BACKGROUND_TAB;
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(&EngineBinding::CloseWithheld, weak_factory_.GetWeakPtr(), contents->GetWeakPtr()));
-  PresentPeekSoon(*source, engine::PeekRequested{.page_id = source->id(), .url = url, .decision = answer->decision});
+      FROM_HERE, base::BindOnce([](base::WeakPtr<content::WebContents> contents, content::OpenURLParams params) {
+        if (contents) contents->OpenURL(params, {});
+      }, navigation.GetWebContents()->GetWeakPtr(), std::move(params)));
   return true;
-}
-
-bool EngineBinding::Withholds(content::WebContents* contents) const {
-  return contents && std::any_of(withheld_.begin(), withheld_.end(),
-                                 [contents](const auto& held) { return held.get() == contents; });
-}
-
-void EngineBinding::CloseWithheld(base::WeakPtr<content::WebContents> contents) {
-  std::erase_if(withheld_, [](const auto& held) { return !held; });
-  if (contents && Browsers().Holding(contents.get())) {
-    Browsers().Destroy(contents.get());
-  }
-}
-
-void EngineBinding::ForgetRoutedTabs() {
-  routed_tabs_.clear();
-}
-
-void EngineBinding::PresentPeekSoon(const EnginePage& page, engine::PeekRequested request) {
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(&EngineBinding::PresentPeek, weak_factory_.GetWeakPtr(), page.key(),
-                                page.navigation_revision(), page.navigation_generation(), std::move(request)));
-}
-
-void EngineBinding::PresentPeek(const std::string& key,
-                                uint64_t revision,
-                                uint64_t generation,
-                                engine::PeekRequested request) {
-  EnginePage* page = Find(key);
-  if (!disposing_ && page && page->web_contents() && page->navigation_revision() == revision &&
-      page->navigation_generation() == generation) {
-    Present(std::move(request));
-    return;
-  }
-  if (request.staged_link_id) {
-    DropStagedLink(GuidText(*request.staged_link_id));
-  }
 }
 
 bool EngineBinding::LoadStagedLink(const std::string& key, const std::string& token, const GURL& url) {
@@ -820,7 +692,7 @@ void EngineBinding::DropStagedLinksFrom(const std::string& key) {
 // static
 std::unique_ptr<content::NavigationThrottle> EngineBinding::LinkThrottle(
     content::NavigationThrottleRegistry& registry) {
-  return std::make_unique<PeekLinkThrottle>(registry);
+  return std::make_unique<LinkTabThrottle>(registry);
 }
 
 // The platform's side.
@@ -1487,10 +1359,6 @@ bool KeepsPageLoaded(content::WebContents* contents) {
   return page && page->MediaActivity() != engine::PageMediaActivity::kNone;
 }
 
-// A modified click the core sends to a tab or to Peek. Any other, in a page
-// Crest does not show or one the core leaves to the engine, keeps Chromium's
-// own path, including an Option-click's original renderer download with
-// Chromium's download validation and restrictions.
 bool RouteModifiedLink(content::WebContents* source, content::OpenURLParams& params) {
   if (!IsEnabled() || !params.crest_link_modifiers) {
     return false;

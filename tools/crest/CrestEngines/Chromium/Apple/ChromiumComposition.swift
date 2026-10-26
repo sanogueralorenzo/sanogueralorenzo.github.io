@@ -41,7 +41,6 @@
             // The Dock plug-in runs outside the browser process, including after
             // quit. App artwork uses the isolated app's domain, not an
             // environment-only browsing profile name that the Dock cannot find.
-            BrowserMacDockTile.shared.defaults = .standard
             engineHost = host
             let shell = BrowserMacShell(engineHost: ChromiumShellHost(host: host))
             self.shell = shell
@@ -79,7 +78,6 @@
 
         static func startNative() {
             guard shell == nil else { return }
-            BrowserMacDockTile.shared.defaults = .standard
             let runtime = ChromiumRuntime()
             self.runtime = runtime
             let shell = BrowserMacShell(engineHost: ChromiumRuntimeShell())
@@ -165,9 +163,10 @@
                 && !browser.isPrivateBrowsing && !browser.isTemporaryWorkspace
         }
 
-        static func isSpaceLocked(_ space: BrowserSpaceIdentity) -> Bool {
+        static func isSpaceUnavailable(_ space: BrowserSpaceIdentity) -> Bool {
             guard let application = shell?.application else { return true }
-            return application.browser.deletingSpaceIDs.contains(space.id) || application.spaceAccess.isLocked(space)
+            return application.browser.deletingSpaceIDs.contains(space.id)
+                || application.browser.spaceModel(matching: space.assignment) == nil
         }
 
         /// The browser window the person is using, which an extension's popup
@@ -186,7 +185,7 @@
 
         static func openExtensionSettings() {
             guard let application = shell?.application, let model = shell?.windows?.activeWindowModel,
-                let space = model.browser.shownSpace, !application.spaceAccess.isLocked(space)
+                let space = model.browser.shownSpace, !application.browser.spaceModel(matching: space.assignment) == nil
             else { return }
             application.openExtensionSettings(for: BrowserSpaceRuntimeAssignment(space: space), in: model.id)
         }
@@ -202,8 +201,6 @@
             guard let windowID = shell.windows?.pageRowWindowID(of: window),
                 let host = BrowserExtensionSidePanelHosts.host(for: windowID)
             else {
-                // A Quick Window or setup page has no card row to hold a panel,
-                // and a panel belongs to its page, so say where it can open.
                 if requested.request != .close {
                     showNativeNotice(
                         String(localized: "Side panels open in the main window. Open this page there to use it."),

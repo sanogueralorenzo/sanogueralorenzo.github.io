@@ -6,8 +6,6 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
 
     let model: MobileBrowserRootModel
     let dataDeleter: any BrowserSpaceDataDeleting
-    let transientBrowsing: BrowserTransientBrowsingCoordinator
-    let suspendsCompactPagePresentation: Bool
     let togglePrivateBrowsing: () -> Void
     let closePrivateBrowsing: () -> Void
 
@@ -35,15 +33,12 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
     init(
         model: MobileBrowserRootModel,
         dataDeleter: any BrowserSpaceDataDeleting,
-        transientBrowsing: BrowserTransientBrowsingCoordinator,
-        suspendsCompactPagePresentation: Bool,
+
         togglePrivateBrowsing: @escaping () -> Void,
         closePrivateBrowsing: @escaping () -> Void
     ) {
         self.model = model
         self.dataDeleter = dataDeleter
-        self.transientBrowsing = transientBrowsing
-        self.suspendsCompactPagePresentation = suspendsCompactPagePresentation
         self.togglePrivateBrowsing = togglePrivateBrowsing
         self.closePrivateBrowsing = closePrivateBrowsing
         _storedRegularSidebarWidth = State(
@@ -60,14 +55,12 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
             browser: browser,
             pages: pages,
             navigation: navigation,
-            transientBrowsing: transientBrowsing,
-            spaceAccess: spaceAccess,
+
             preferredSidebarWidth: model.sidebarWidth,
             isCommandPalettePresented: commandPaletteMode != nil,
             isURLCopiedFeedbackVisible: isURLCopiedFeedbackVisible,
             pageFeedback: visiblePageFeedback,
             reduceMotion: reduceMotion,
-            didPromoteTransientPage: model.activateSelectedTab,
             compact: MobileCompactBrowserSurface(
                 compactShowsPage: navigation.compactShowsPage,
                 isPagePresented: compactPagePresentation,
@@ -93,7 +86,6 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                 dockedSidebar: MobileBrowserSidebarSurface(
                     browser: browser,
                     pages: pages,
-                    spaceAccess: spaceAccess,
                     utilityPresentationStyle: .sheet,
                     showsPageBackdrop: true,
                     reservesBottomChromeInset: true,
@@ -129,7 +121,6 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                 floatingSidebar: MobileBrowserSidebarSurface(
                     browser: browser,
                     pages: pages,
-                    spaceAccess: spaceAccess,
                     utilityPresentationStyle: .inline,
                     showsPageBackdrop: false,
                     reservesBottomChromeInset: false,
@@ -194,7 +185,6 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                     detail: MobileBrowserDetailSurface(
                         browser: browser,
                         pages: pages,
-                        spaceAccess: spaceAccess,
                         address: model.addressBinding,
                         isAddressEditing: $isAddressEditing,
                         addressFocusRequest: addressFocusRequest,
@@ -220,8 +210,7 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                             navigation.showCompactToolbar,
                         showSwipedTab: showSwipedTab,
                         compactTransitionEnded: finishCompactTransition,
-                        transientBrowsing: transientBrowsing,
-                        didPromoteTransientPage: model.activateSelectedTab,
+
                         showHistory: presentHistoryFromCommand
                     )
                 )
@@ -247,7 +236,6 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                     sidebar: MobileBrowserSidebarSurface(
                         browser: browser,
                         pages: pages,
-                        spaceAccess: spaceAccess,
                         utilityPresentationStyle: .inline,
                         showsPageBackdrop: false,
                         reservesBottomChromeInset: false,
@@ -306,11 +294,6 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                             && layout.reservesSidebarWidth,
                         commands: commandContext.paletteRegistry
                     )
-                    .overlay {
-                        MobileTransientBrowsingOverlay(
-                            browser: browser, pages: pages, coordinator: transientBrowsing,
-                            spaceAccess: spaceAccess, didPromote: model.activateSelectedTab)
-                    }
                     .clipped()
                     .environment(
                         \.browserSettingsUsesLiveSidebar,
@@ -330,9 +313,7 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                         isExpanded: navigation.utilityPresentation
                             .isSwitcherExpanded,
                         selectedSurface: navigation.utilityPresentation.surface,
-                        badgeColor: browser.shownSpace.flatMap {
-                            $0.settings.look.colors.first?.color
-                        } ?? .accentColor,
+                        badgeColor: CrestBrandTheme.accent,
                         downloads: model.selectedUtilityDownloads,
                         newDownloadCount: model.newUtilityDownloads.count,
                         downloadCenter: pages.downloadCenter,
@@ -370,12 +351,6 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
             model.settings.reconcile()
             model.routeSelectedSettingsAction()
         }
-        .onChange(of: suspendsCompactPagePresentation) { _, isSuspended in
-            if isSuspended { model.settings.dismissSheet() }
-        }
-        .onChange(of: model.lockedSpaceIDs) {
-            model.settings.reconcile()
-        }
         .sheet(item: historySheet(overPage: false)) { historySheetContent($0) }
         .modifier(downloadRiskConfirmation(overPage: false))
         .onChange(of: pages.urlCopyFeedbackRevision) { _, revision in
@@ -388,7 +363,6 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
             MobileBrowserRootLifecycleModifier(
                 model: model,
                 presentation: presentation,
-                openNewTab: beginNewTab,
                 isAddressEditing: $isAddressEditing,
                 storedSidebarWidth: $storedRegularSidebarWidth
             )

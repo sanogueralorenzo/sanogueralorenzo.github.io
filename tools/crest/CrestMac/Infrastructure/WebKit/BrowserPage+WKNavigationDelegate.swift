@@ -9,7 +9,6 @@ extension BrowserPage: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation?) {
         translation.reset()
         linkHover?.beginNavigation()
-        linkDrag?.beginNavigation()
         focusRestoration.invalidate()
         sitePermissionSession.resetMediaGrants()
         sitePermissionRequests.cancelAll()
@@ -27,7 +26,6 @@ extension BrowserPage: WKNavigationDelegate {
         // that came with it is spent.
         consumeAppInitiatedURL()
         pendingServerTrustIdentity = nil
-        credentialState.didStartNavigation()
         readerModeSession?.invalidate()
         faviconSession?.invalidate()
         webKitAdapter?.reporter?.started(webView.url)
@@ -37,7 +35,6 @@ extension BrowserPage: WKNavigationDelegate {
         guard isCurrentNavigation(navigation) else { return }
         if let url = webView.url { webKitAdapter?.reporter?.committed(url) }
         linkHover?.didCommitNavigation()
-        linkDrag?.didFinishNavigation()
         mediaSessionCoordinator?.didCommitNavigation()
         pictureInPicture?.navigationDidCommit()
         committedNavigationCount += 1
@@ -76,35 +73,8 @@ extension BrowserPage: WKNavigationDelegate {
         ).apply(to: self, for: navigationAction, in: webView, decisionHandler: decisionHandler)
     }
 
-    /// Where the pointer clicked the link `navigationAction` follows, for a
-    /// link the person activated, which a Peek grows from.
-    func linkSourcePresentation(
-        for navigationAction: WKNavigationAction, in webView: WKWebView
-    ) -> BrowserPeekSourcePresentation? {
-        navigationAction.navigationType == .linkActivated
-            ? peekSourcePresentation(for: navigationAction.request.url, in: webView) : nil
-    }
-
-    /// Opens a modified click's link in a new tab of the page's Space.
     func routeModifiedLink(_ request: URLRequest, selecting: Bool) {
         openModifiedLink(request, spaceID, selecting)
-    }
-
-    private func peekSourcePresentation(
-        for destinationURL: URL?,
-        in webView: WKWebView
-    ) -> BrowserPeekSourcePresentation? {
-        guard let window = webView.window, let content = window.contentView else { return nil }
-        let pointInWindow = window.convertPoint(fromScreen: NSEvent.mouseLocation)
-        let pointInWebView = webView.convert(pointInWindow, from: nil)
-        guard webView.bounds.contains(pointInWebView) else { return nil }
-
-        return BrowserPeekSourcePresentation(
-            touchPoint: content.convert(pointInWindow, from: nil),
-            in: content.bounds.size,
-            hasTopLeadingOrigin: content.isFlipped,
-            label: destinationURL?.host ?? "Link"
-        )
     }
 
     private func downloadFeedbackSource(
@@ -210,12 +180,9 @@ extension BrowserPage: WKNavigationDelegate {
         translation.reset()
         readerModeSession?.invalidate()
         linkHover?.beginNavigation()
-        linkDrag?.beginNavigation()
         focusRestoration.invalidate()
         mediaSessionCoordinator?.webContentProcessDidTerminate()
         pictureInPicture?.invalidate()
-        credentialState.webContentProcessDidTerminate()
-        httpAuthenticationSession.authenticationFailed()
         reportWebContentProcessStopped()
     }
 
@@ -258,7 +225,6 @@ extension BrowserPage: WKNavigationDelegate {
             await self?.refreshReaderModeAvailability()
         }
         Task {
-            await httpAuthenticationSession.authenticationSucceeded()
         }
     }
 
@@ -269,9 +235,7 @@ extension BrowserPage: WKNavigationDelegate {
     ) {
         if isCurrentNavigation(navigation) {
             linkHover?.didFailNavigation()
-            linkDrag?.didFinishNavigation()
         }
-        httpAuthenticationSession.authenticationFailed()
         recordNavigationFailure(
             error,
             replacedDocument: true,
@@ -286,9 +250,7 @@ extension BrowserPage: WKNavigationDelegate {
     ) {
         if isCurrentNavigation(navigation) {
             linkHover?.didFailNavigation()
-            linkDrag?.didFinishNavigation()
         }
-        httpAuthenticationSession.authenticationFailed()
         recordNavigationFailure(
             error,
             replacedDocument: false,

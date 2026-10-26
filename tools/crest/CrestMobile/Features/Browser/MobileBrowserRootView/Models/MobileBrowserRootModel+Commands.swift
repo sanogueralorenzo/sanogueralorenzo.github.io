@@ -2,13 +2,12 @@ import SwiftUI
 
 extension MobileBrowserRootModel {
     var commandController: MobileBrowserCommandController {
-        MobileBrowserCommandController(browser: browser, pages: pages, spaceAccess: spaceAccess)
+        MobileBrowserCommandController(browser: browser, pages: pages)
     }
 
     func commandContext(
-        transientBrowsing: BrowserTransientBrowsingCoordinator,
+
         layoutDirection: LayoutDirection,
-        usesPageToolbars: Bool,
         togglePrivateBrowsing: @escaping () -> Void,
         openNewTab: @escaping () -> Void,
         openLocation: @escaping () -> Void,
@@ -31,12 +30,8 @@ extension MobileBrowserRootModel {
             hasActivePage: pageActions?.isAvailable == true,
             showsSite: pageActions?.activeURL?.host()?.isEmpty == false,
             isLoading: pageActions?.activePage?.live.isLoading == true,
-            canDismissSelectedTab: controller.canDismissSelectedTab
-                && transientBrowsing.peekRequest == nil
-                && transientBrowsing.quickWindowRequest == nil,
-            canArchiveSelectedTab: controller.canArchiveSelectedTab
-                && transientBrowsing.peekRequest == nil
-                && transientBrowsing.quickWindowRequest == nil,
+            canDismissSelectedTab: controller.canDismissSelectedTab,
+            canArchiveSelectedTab: controller.canArchiveSelectedTab,
             canDuplicateSelectedTab: controller.canDuplicateSelectedTab,
             canReopenClosedTab: controller.canReopenClosedTab,
             tabCount: controller.tabCount,
@@ -49,9 +44,8 @@ extension MobileBrowserRootModel {
             isOffered: { [state = browser.core.state] in $0.isOffered(in: state) },
             readerModeActionTitle: pageActions?.readerModeActionTitle ?? "Show Reader",
             canToggleReaderMode: pageActions?.readerModeState.canToggle == true,
-            canToggleTranslationToolbar: usesPageToolbars && pageActions?.isAvailable == true
+            canTranslatePage: pageActions?.activePage?.pageEngine.registration.supports(.translation) == true
                 && pageActions?.readerModeState.isActive != true,
-            isTranslationToolbarVisible: pageActions?.activePage?.translation.showsToolbar == true,
             contentBlockingActionTitle: ContentBlockingPolicy.switchTitle(
                 for: browser.shownSpace?.settings.browsingPreferences.contentBlocking),
             openNewTab: openNewTab,
@@ -77,8 +71,8 @@ extension MobileBrowserRootModel {
                     beforeSynchronization: prepareForSelectionSynchronization
                 )
             },
-            cleanupCurrentTabs: {
-                self.cleanupCurrentTabsFromCommand(
+            clearCurrentTabs: {
+                self.clearCurrentTabsFromCommand(
                     beforeSynchronization: prepareForSelectionSynchronization
                 )
             },
@@ -167,13 +161,10 @@ extension MobileBrowserRootModel {
                     beforeSynchronization: prepareForSelectionSynchronization
                 )
             },
-            reopenArchivedTab: { tabID in
-                self.browser.restoreArchivedTab(tabID)
-            },
             toggleReaderMode: { pageActions?.toggleReaderMode() },
-            setTranslationToolbarVisible: { visible in
-                guard usesPageToolbars, pageActions?.readerModeState.isActive != true else { return }
-                pageActions?.activePage?.translation.setToolbarVisible(visible)
+            translatePage: {
+                guard pageActions?.readerModeState.isActive != true else { return }
+                pageActions?.activePage?.translation.performAction()
             },
             toggleContentBlocking: {
                 guard let contentBlockingAction else { return }
@@ -226,10 +217,10 @@ extension MobileBrowserRootModel {
         return true
     }
 
-    func cleanupCurrentTabsFromCommand(
+    func clearCurrentTabsFromCommand(
         beforeSynchronization: () -> Void = {}
     ) {
-        commandController.cleanupCurrentTabs()
+        commandController.clearCurrentTabs()
         beforeSynchronization()
         synchronizeAfterCommandSelection()
     }

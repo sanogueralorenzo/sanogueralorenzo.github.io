@@ -94,7 +94,6 @@ final class BrowserMacShell {
         recovery?.close()
         recovery = nil
         guard application.presentsInstalledApplicationUI else { return }
-        BrowserMacAppearance.shared.start()
         BrowserMacDockTile.shared.start(following: application.browser.core)
         let background = application.launchesInBackground
         windows.openLaunchWindows(activation: background ? .background : .key)
@@ -138,18 +137,13 @@ final class BrowserMacShell {
     }
 
     /// A Dock click or `Open` with no Crest window. An open window comes
-    /// forward; with none, setup does while it holds the launch back, and
-    /// otherwise the window the core names opens. Answers false when the shell
+    /// forward; with none, the window the core names opens. Answers false when the shell
     /// is not running or is quitting.
     func reopen() -> Bool {
         guard let running, !running.quit.isQuitting else { return false }
         let application = running.application
         if let window = running.windows.windowToBringForward {
             window.bringForward()
-        } else if let setup = try? application.browser.core.query(
-            LaunchSetup(environment: application.launchEnvironment)
-        ).setup {
-            running.windows.openOnboardingWindow(BrowserOnboardingRequest(entryPoint: setup))
         } else if let reopened = try? application.browser.core.query(
             WindowToReopen(windowIDs: application.stackedWindowIDs))
         {
@@ -186,12 +180,6 @@ final class BrowserMacShell {
 
     // MARK: - Actions - System sign-in
 
-    /// An app's `ASWebAuthenticationSession` sign-in. It lands in the Space a
-    /// link from that app routes to, always as a Quick Window named
-    /// `windowID`: the session is transient and the engine closes the window
-    /// when the page reaches the app's callback. `declined` runs when the core
-    /// places it nowhere, so the app learns at once. Answers whether Crest
-    /// takes it.
     func openAuthenticationSession(
         _ url: URL, window windowID: UUID, declined: @escaping @MainActor () -> Void
     ) -> Bool {
@@ -201,28 +189,24 @@ final class BrowserMacShell {
             return true
         }
         Task { @MainActor in
-            guard let destination = await running.externalOpening.destination(for: url) else {
+            guard let destination = await running.externalOpening.destination() else {
                 declined()
                 return
             }
-            running.windows.openQuickWindow(
-                BrowserQuickWindowRequest(
-                    id: windowID, url: url, spaceAssignment: destination.assignment,
-                    targetWindowID: destination.quickWindowTarget))
-            guard let window = running.windows.quickWindow(windowID) else {
+            guard
+                running.windows.openAuthenticationWindow(
+                    url, in: destination.assignment, id: windowID, targetWindowID: destination.placement.windowID)
+            else {
                 declined()
                 return
             }
-            window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
         }
         return true
     }
 
-    /// The sign-in in the Quick Window `windowID` is over; a before-unload
-    /// prompt would only get in the way.
     func closeAuthenticationSession(_ windowID: UUID) {
-        running?.windows.closeQuickWindowWithoutAsking(windowID)
+        running?.windows.closeAuthenticationWindow(windowID)
     }
 
     // MARK: - Actions - Engine windows
@@ -233,17 +217,6 @@ final class BrowserMacShell {
         running?.windows.window(for: id)
     }
 
-    /// Reserves the Crest window that will host a browser the engine created
-    /// for itself and names the Space its tabs belong to, as the core places
-    /// them over the windows as AppKit stacks them.
-    ///
-    /// Crest is one window. The browser's tabs join the window the person is
-    /// using, and only one an extension asked for by name (`ownWindow`) opens
-    /// another. Nothing is presented here: the engine creates the browser
-    /// first and offers its tabs afterwards. The core declines a profile with
-    /// no Space to host it, so the engine drops those tabs rather than routing
-    /// them into an unrelated Space, an off-the-record profile once the
-    /// private window is closed, and a Space that is locked or being deleted.
     func reserveEngineWindow(forProfile profileID: UUID, ownWindow: Bool) -> (window: UUID, space: UUID)? {
         guard let running, !running.quit.isQuitting else { return nil }
         let application = running.application

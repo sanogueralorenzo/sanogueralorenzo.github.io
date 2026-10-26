@@ -14,9 +14,6 @@ struct BrowserAgentWindowKind: Equatable, Sendable {
     static let blankWindow = Self(
         name: "blank", asksEachTime: false, asking: { String(localized: "Let “\($0)” open a Blank Window?") },
         describing: Self.spaceAndAddress)
-    static let quickWindow = Self(
-        name: "quick", asksEachTime: false, asking: { String(localized: "Let “\($0)” open a Quick Window?") },
-        describing: Self.spaceAndAddress)
     static let privateWindow = Self(
         name: "private", asksEachTime: true, asking: { String(localized: "Let “\($0)” open a private window?") },
         describing: { _, address in

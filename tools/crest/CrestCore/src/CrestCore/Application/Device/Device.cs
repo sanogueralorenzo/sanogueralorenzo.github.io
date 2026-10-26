@@ -58,6 +58,7 @@ internal sealed partial class Device {
     private Guid? persistentWorkspace;
     internal Guid? PersistentWorkspace => persistentWorkspace;
     internal SearchProvider SearchProvider => Persistent()?.Authority.Current.AppPreferences?.SearchProvider ?? AppPreferences.Default.SearchProvider;
+    internal bool SearchSuggestionsEnabled => Persistent()?.Authority.Current.AppPreferences?.SearchSuggestionsEnabled ?? AppPreferences.Default.SearchSuggestionsEnabled;
     private long lastUse;
     internal long LastUse { get => lastUse; set => lastUse = value; }
 

@@ -1,20 +1,8 @@
 import Foundation
 
-// MARK: - History and Cleanup
+// MARK: - History and Retention
 
 extension BrowserStore {
-    /// Keeps a Quick Window's page, `pageID`, in the archive of the Space it
-    /// lived in, at the address and title the core holds for it, and answers
-    /// whether the core kept it. The page may already be gone, as one memory
-    /// pressure took back is; the core keeps what it showed last.
-    @discardableResult
-    func archiveTransientPage(_ pageID: UUID, matching assignment: BrowserSpaceRuntimeAssignment) -> Bool {
-        let archive = ArchiveTransientPage(workspaceID: family.workspaceID, pageID: pageID, spaceID: assignment.spaceID)
-        // The core archives a page once, and never one kept as a tab.
-        guard spaceModel(matching: assignment) != nil, family.canSend(archive, from: self) else { return false }
-        return family.perform(archive, from: self) != nil
-    }
-
     func clearHistory() {
         guard shownSpace != nil else { return }
         clearHistory(in: selectedSpaceID)
@@ -41,11 +29,7 @@ extension BrowserStore {
         sendRecords(RemoveHistoryAddress(workspaceID: family.workspaceID, spaceID: spaceID, address: address))
     }
 
-    func cleanupCurrentTabs() {
-        sendRecords(CleanUpCurrentTabs(workspaceID: family.workspaceID, spaceID: nil))
-    }
-
-    /// Applies every Space's tab and stored-record retention policies to a
+    /// Applies every Space's stored-record retention policies to a
     /// session that is already running, rather than only at launch. Windows
     /// share one session, and the core sweeps it at most once a minute unless
     /// a Space's retention changed, so every window may ask whenever it
@@ -55,7 +39,7 @@ extension BrowserStore {
     }
 
     /// Sweeps once for the scene that just became active, then keeps sweeping on
-    /// `BrowserCurrentTabCleanupSchedule.sweepInterval`.
+    /// `BrowserDataRetentionSchedule.sweepInterval`.
     ///
     /// The caller owns the lifetime: a scene ties this to being active, so the
     /// loop is cancelled — and the sweep suspends — as soon as the scene stops
@@ -68,7 +52,7 @@ extension BrowserStore {
         while !Task.isCancelled {
             do {
                 try await Task.sleep(
-                    for: .seconds(BrowserCurrentTabCleanupSchedule.sweepInterval)
+                    for: .seconds(BrowserDataRetentionSchedule.sweepInterval)
                 )
             } catch {
                 return
@@ -76,11 +60,6 @@ extension BrowserStore {
             sweepExpiredBrowsingData()
             additionalSweep()
         }
-    }
-
-    func cleanupCurrentTabs(in spaceID: UUID) {
-        guard spaceModel(spaceID) != nil else { return }
-        sendRecords(CleanUpCurrentTabs(workspaceID: family.workspaceID, spaceID: spaceID))
     }
 
     func restoreArchivedTab(_ id: UUID) {

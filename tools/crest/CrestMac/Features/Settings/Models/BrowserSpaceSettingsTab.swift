@@ -7,37 +7,30 @@ struct BrowserSpaceSettingsTab: Hashable, Identifiable, Sendable {
     /// Each page shows its own pane. ``BrowserSettingsSpacePage`` switches on
     /// the kind to choose that pane's concrete view.
     enum Kinds: Sendable {
-        case appearance
-        case browsing
+        case identity
         case privacy
-        case passwords
         case extensions
     }
 
     // MARK: - Static Variables
 
-    static let appearance = BrowserSpaceSettingsTab(
-        kind: .appearance, name: "appearance", title: "Appearance",
-        searchTerms: "crest studio name icon emblem colors theme banner background sidebar pattern gradient accent",
+    static let identity = BrowserSpaceSettingsTab(
+        kind: .identity, name: "identity", title: "Identity",
+        searchTerms: "name initial letter delete Space",
         destination: .spaces)
-    static let browsing = BrowserSpaceSettingsTab(
-        kind: .browsing, name: "browsing", title: "Browsing",
-        searchTerms: "search engine suggestions archive tabs cleanup downloads folder save location delete Space")
     static let privacy = BrowserSpaceSettingsTab(
         kind: .privacy, name: "privacy", title: "Privacy",
         searchTerms:
-            "privacy lock Touch ID password private history retention archive downloads records content blocking ads trackers site permissions camera microphone location notifications"
+            "privacy password private history retention archive downloads records content blocking ads trackers site permissions camera microphone location notifications"
     )
-    static let passwords = BrowserSpaceSettingsTab(
-        kind: .passwords, name: "passwords", title: "Passwords",
-        searchTerms: "passwords credentials autofill iCloud Keychain import export", destination: .passwords)
+
     static let extensions = BrowserSpaceSettingsTab(
         kind: .extensions, name: "extensions", title: "Extensions",
         searchTerms: "extensions add-ons Chrome Web Store install remove", destination: .extensions,
         requiredCapability: .extensions)
 
     /// Every page, in tab-bar order.
-    static let all: [BrowserSpaceSettingsTab] = [appearance, browsing, privacy, passwords, extensions]
+    static let all: [BrowserSpaceSettingsTab] = [identity, privacy, extensions]
 
     // MARK: - Variables
 

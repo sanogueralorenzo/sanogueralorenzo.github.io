@@ -10,18 +10,29 @@ namespace CrestCore.Tests;
 
 /// The persistent workspace keeps app preferences on this device.
 public sealed partial class BrowserContractsTests {
-    [Fact]
-    public void AppPreferencesPersistWithTheSession() {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AppPreferencesPersistWithTheSession(bool automatically) {
         var session = SavedSession().Document["session"]!;
         byte[] saved;
         using (var device = new TestDevice(session)) {
             var authority = device.Authority;
-            device.Send(new SetAppPreferences(device.Workspace, AppPreferences.Default with { TranslationLanguage = "fr", SearchProvider = SearchProvider.DuckDuckGo }));
+            device.Send(new SetAppPreferences(device.Workspace, AppPreferences.Default with {
+                TranslationLanguage = "fr",
+                SearchProvider = SearchProvider.DuckDuckGo,
+                TranslateAutomatically = automatically,
+                SearchSuggestionsEnabled = automatically,
+                ExcludedTranslationLanguages = ["es", "de"]
+            }));
             saved = authority.Checkpoint().Read("core");
         }
         var stored = JsonNode.Parse(saved)!["appPreferences"]!;
         Assert.Equal("fr", stored["translationLanguage"]!.GetValue<string>());
         Assert.Equal("duckDuckGo", stored["searchProvider"]!.GetValue<string>());
+        Assert.Equal(automatically, stored["translateAutomatically"]?.GetValue<bool>() ?? false);
+        Assert.Equal(automatically, stored["searchSuggestionsEnabled"]?.GetValue<bool>() ?? false);
+        Assert.Equal(["es", "de"], stored["excludedTranslationLanguages"]!.AsArray().Select(value => value!.GetValue<string>()));
 
         // A later launch keeps the saved choices.
         using var relaunched = new TestDevice(JsonNode.Parse(saved)!);
@@ -29,6 +40,9 @@ public sealed partial class BrowserContractsTests {
         var kept = restored.Current.AppPreferences;
         Assert.Equal("fr", kept!.TranslationLanguage);
         Assert.Same(SearchProvider.DuckDuckGo, kept.SearchProvider);
+        Assert.Equal(automatically, kept.TranslateAutomatically);
+        Assert.Equal(automatically, kept.SearchSuggestionsEnabled);
+        Assert.Equal(["es", "de"], kept.ExcludedTranslationLanguages);
     }
 
     [Fact]

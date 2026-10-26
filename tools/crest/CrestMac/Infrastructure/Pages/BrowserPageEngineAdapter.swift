@@ -15,7 +15,6 @@ protocol BrowserPageEngineAdapter: EngineHostedPage {
     var enginePage: EnginePage { get }
 
     var linkHover: BrowserLinkHoverController? { get }
-    var linkDrag: BrowserLinkDragController? { get }
     var pictureInPicture: (any BrowserPagePictureInPictureController)? { get }
     var readerModeSession: BrowserReaderModeSession? { get }
     var faviconSession: BrowserFaviconSession? { get }
@@ -23,9 +22,6 @@ protocol BrowserPageEngineAdapter: EngineHostedPage {
     /// Tells the core what the page's engine shows and what its navigations
     /// do, once the adapter is attached to its page.
     var reporter: EnginePageReporter? { get }
-    /// Evaluates a credential fill in the document that asked for it, for an
-    /// engine whose bridges are not installed through `contentScripting`.
-    var credentialEvaluator: BrowserCredentialSession.Evaluate? { get }
     /// The page's main document as whole-page translation rewrites it, or
     /// nil for an engine that does not translate whole pages.
     var translationDocument: BrowserTranslationDocument? { get }
@@ -37,14 +33,13 @@ protocol BrowserPageEngineAdapter: EngineHostedPage {
         store: BrowserMediaSessionStore
     ) -> BrowserMediaSessionPageCoordinator?
     /// Wires the engine's delegates, bridges and observers to `page`, once.
-    func attach(to page: BrowserPage, allowsCredentialAccess: Bool)
+    func attach(to page: BrowserPage)
     /// Releases everything `attach` installed. The page is going away.
     func detach(from page: BrowserPage)
 
     /// Lets the engine view take part in restoring the page's editing focus.
     func install(_ focusRestoration: BrowserWebFocusRestorationController)
     /// Starts reporting the person's input in the page as `.userActivity`.
-    func monitorUserActivity(for page: BrowserPage)
     func styleVisitedLinks(history: [HistoryEntryState]) async
     /// Runs after a change to one of the page's site permissions reached the
     /// engine, so bridges the adapter runs inside the page follow it.

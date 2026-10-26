@@ -1,7 +1,7 @@
 import CoreGraphics
 
 enum PinnedTabGridLayout {
-    static let maximumColumns = 4
+    static let maximumColumns = 2
 
     static func columnCount(for itemCount: Int, maximumColumns: Int = maximumColumns) -> Int {
         let count = max(1, itemCount)

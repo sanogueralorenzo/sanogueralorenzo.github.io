@@ -8,7 +8,6 @@ import SwiftUI
 /// Chromium framework supplies its own pane and excludes this file.
 struct BrowserEngineExtensionSettingsPane: View {
     let browser: BrowserStore
-    let spaceAccess: BrowserSpaceAccessController
     var spaceID: UUID?
 
     var body: some View { EmptyView() }

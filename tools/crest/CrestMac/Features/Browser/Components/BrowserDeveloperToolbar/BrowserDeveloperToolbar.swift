@@ -9,9 +9,6 @@ struct BrowserDeveloperToolbar: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var address = ""
     @State private var showsSiteSettings = false
-    @State private var showsCaptureOptions = false
-    @State private var isSiteSettingsPermissionsExpanded =
-        BrowserSitePermissionDisclosure.defaultIsExpanded
 
     var body: some View {
         BrowserPageToolbarSurface(label: "Developer Toolbar", identifier: "developer-toolbar") {
@@ -30,8 +27,7 @@ struct BrowserDeveloperToolbar: View {
             BrowserDeveloperSiteSettingsControl(
                 page: page,
                 permissionCenter: permissionCenter,
-                isPresented: $showsSiteSettings,
-                permissionsExpansion: $isSiteSettingsPermissionsExpanded
+                isPresented: $showsSiteSettings
             )
             BrowserDeveloperAddressField(
                 address: $address,
@@ -49,12 +45,7 @@ struct BrowserDeveloperToolbar: View {
             BrowserDeveloperToolbarButton(
                 label: "Copy Link",
                 systemImage: "link",
-                action: page.copyDeveloperPageLink
-            )
-            BrowserDeveloperToolbarDivider()
-            BrowserDeveloperCaptureControls(
-                page: page,
-                showsCaptureOptions: $showsCaptureOptions
+                action: { page.copyPageLink() }
             )
             BrowserDeveloperToolbarDivider()
             BrowserDeveloperInspectorControls(page: page)
@@ -63,18 +54,7 @@ struct BrowserDeveloperToolbar: View {
 
     private var overflowMenu: some View {
         Menu {
-            Button("Copy Link", systemImage: "link", action: page.copyDeveloperPageLink)
-            Menu("Capture Window", systemImage: "rectangle.inset.filled") {
-                Button("Capture in Portrait Mode", systemImage: "rectangle.portrait.on.rectangle.portrait") {
-                    page.savePortraitCapture()
-                }
-                Button("Copy Full Page Capture", systemImage: "doc.on.clipboard") {
-                    page.copyFullPageCapture()
-                }
-            }
-            .disabled(!page.pageEngine.registration.supports(.fullPageCapture))
-            Button("Capture", systemImage: "camera", action: page.beginRegionCapture)
-                .disabled(!page.pageEngine.registration.supports(.viewportCapture))
+            Button("Copy Link", systemImage: "link", action: { page.copyPageLink() })
             Divider()
             Button("Toggle Console", systemImage: "apple.terminal") { page.toggleDeveloperPanel(.console) }
             Button("Toggle Network Panel", systemImage: "network") { page.toggleDeveloperPanel(.network) }

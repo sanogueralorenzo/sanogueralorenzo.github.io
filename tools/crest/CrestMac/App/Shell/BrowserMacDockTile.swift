@@ -28,20 +28,11 @@ final class BrowserMacDockTile {
 
     // MARK: - Variables
 
-    /// Where the icon choice is kept. A composition whose Dock plug-in reads
-    /// another domain names it before the tile starts.
-    var defaults = BrowserFolderAppearancePreference.defaults
     private let view = BrowserMacDockTileView()
     /// The read model whose downloads the tile shows.
     private weak var state: CoreState?
-    private var appearanceObserver: BrowserMacAppIconAppearanceObserver?
     /// The face as last drawn.
     private var face: Face?
-
-    /// Whether the person picked a palette icon rather than Crest's own.
-    private var hasPaletteIcon: Bool {
-        !(defaults.string(forKey: BrowserMacAppIconAssets.preferenceKey) ?? "").isEmpty
-    }
 
     // MARK: - Initializers
 
@@ -54,38 +45,8 @@ final class BrowserMacDockTile {
     func start(following core: CrestCore) {
         guard state == nil else { return }
         state = core.state
-        appearanceObserver = BrowserMacAppIconAppearanceObserver { [weak self] in self?.refreshIcon() }
-        refreshIcon()
+        view.image = NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
         followDownloads()
-    }
-
-    // MARK: - Actions - Icon
-
-    /// Picks the palette icon `name`, or Crest's own icon for an empty name,
-    /// and tells the Dock tile plug-in. False when there is no such icon.
-    @discardableResult
-    func select(_ name: String) -> Bool {
-        guard name.isEmpty || BrowserMacAppIconAssets.image(named: name, in: .main) != nil else { return false }
-        defaults.set(name, forKey: BrowserMacAppIconAssets.preferenceKey)
-        defaults.synchronize()
-        refreshIcon()
-        let domain =
-            Bundle.main.object(forInfoDictionaryKey: BrowserMacAppIconAssets.preferenceDomainKey) as? String
-            ?? Bundle.main.bundleIdentifier
-        DistributedNotificationCenter.default().postNotificationName(
-            BrowserMacAppIconAssets.changedNotification, object: domain, userInfo: nil, deliverImmediately: true)
-        return true
-    }
-
-    /// Makes the picked icon the application's, which the About panel and
-    /// notifications show too, and redraws the tile.
-    private func refreshIcon() {
-        let name = defaults.string(forKey: BrowserMacAppIconAssets.preferenceKey) ?? ""
-        NSApp.applicationIconImage =
-            BrowserMacAppIconAssets.usesSystemAppearance ? nil : BrowserMacAppIconAssets.image(named: name, in: .main)
-        view.image = NSApp.applicationIconImage
-        face = nil
-        redraw()
     }
 
     // MARK: - Actions - Downloads
@@ -105,10 +66,9 @@ final class BrowserMacDockTile {
     /// and takes the tile back if anything else drew there.
     private func redraw() {
         let live = state?.downloads.filter(\.phase.isLive) ?? []
-        let systemRendered = BrowserMacAppIconAssets.usesSystemAppearance
-        let progress = systemRendered ? nil : Self.progress(of: live)
+        let progress = Self.progress(of: live)
         let next = Face(
-            drawsIcon: !systemRendered && (hasPaletteIcon || progress != nil),
+            drawsIcon: progress != nil,
             badge: live.isEmpty ? nil : live.count.formatted(), progress: progress)
         let tile = NSApp.dockTile
         let ownsTile = next.drawsIcon ? tile.contentView === view : tile.contentView == nil

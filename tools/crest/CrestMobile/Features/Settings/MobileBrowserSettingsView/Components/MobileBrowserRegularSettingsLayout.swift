@@ -3,7 +3,6 @@ import SwiftUI
 struct MobileBrowserRegularSettingsLayout: View {
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
-    let spaceAccess: BrowserSpaceAccessController
     let dataDeleter: any BrowserSpaceDataDeleting
     @Binding var selection: BrowserSettingsDestination
     @Binding var searchText: String
@@ -22,7 +21,6 @@ struct MobileBrowserRegularSettingsLayout: View {
                 destination: selection,
                 browser: browser,
                 pages: pages,
-                spaceAccess: spaceAccess,
                 dataDeleter: dataDeleter
             )
             .navigationTitle(Text(selection.title))

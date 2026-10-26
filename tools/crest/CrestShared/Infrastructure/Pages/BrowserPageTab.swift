@@ -43,17 +43,4 @@ struct BrowserPageTab: Equatable {
         self.init(state: tab.value, faviconData: images.image(of: tab.id))
     }
 
-    /// The stand-in a transient request's page takes: a current tab showing
-    /// `url`, which no Space holds.
-    static func transient(showing url: URL) -> BrowserPageTab {
-        let title = url.host() ?? url.absoluteString
-        return BrowserPageTab(
-            state: TabState(
-                id: UUID(), title: title, url: url.absoluteString, nativeContent: nil, savedURL: nil, symbol: "globe",
-                faviconURL: nil, iconAccent: nil, storedIconMode: nil, placement: .current, folderID: nil,
-                splitGroupID: nil, lastActivatedAt: .now, positionModifiedAt: nil, customTitle: nil,
-                titleModifiedAt: nil, keepsPageLoaded: false, iconMode: .automatic, displayTitle: title,
-                isAwayFromSavedAddress: false, pageIconIsCurrent: false, surface: .webPage, nativeView: nil),
-            faviconData: nil)
-    }
 }

@@ -201,11 +201,11 @@ private struct BrowserAboutReleaseNoteRow: View {
 private struct BrowserAboutReleaseNoteMark: Sendable {
     // MARK: - Static Variables
 
-    static let new = BrowserAboutReleaseNoteMark(category: .new, symbol: "sparkles", color: CrestBrandPalette.sky)
+    static let new = BrowserAboutReleaseNoteMark(category: .new, symbol: "sparkles", color: CrestBrandTheme.accent)
     static let improved = BrowserAboutReleaseNoteMark(
-        category: .improved, symbol: "arrow.up.circle.fill", color: CrestBrandPalette.butter)
+        category: .improved, symbol: "arrow.up.circle.fill", color: CrestBrandTheme.accent)
     static let fixed = BrowserAboutReleaseNoteMark(
-        category: .fixed, symbol: "checkmark.circle.fill", color: CrestBrandPalette.sage)
+        category: .fixed, symbol: "checkmark.circle.fill", color: CrestBrandTheme.accent)
     static let `internal` = BrowserAboutReleaseNoteMark(
         category: .internal, symbol: "wrench.and.screwdriver.fill", color: .secondary)
 

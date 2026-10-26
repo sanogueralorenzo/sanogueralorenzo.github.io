@@ -4,11 +4,10 @@ import Foundation
 struct BrowserStartPageNavigationAction {
     let browser: BrowserStore
     let pages: BrowserPagePool
-    let spaceAccess: BrowserSpaceAccessController
 
     func perform(_ source: BrowserTabRuntimeAssignment, url: URL) -> Bool {
         guard
-            browser.isPaletteSourceAvailable(source, accessController: spaceAccess),
+            browser.isPaletteSourceAvailable(source),
             browser.shownTab?.surface == .startPage
         else { return false }
         browser.navigateSelectedTab(to: url.absoluteString)

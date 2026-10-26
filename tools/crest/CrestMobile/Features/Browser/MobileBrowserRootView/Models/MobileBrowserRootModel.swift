@@ -9,10 +9,8 @@ final class MobileBrowserRootModel {
     let sidebarInteraction: BrowserSidebarInteractionState
     let pages: MobileBrowserPageStore
     let navigation: MobileBrowserNavigationState
-    let spaceAccess: BrowserSpaceAccessController
     let windowState: BrowserWindowStateStore?
     private let layoutPersistence: BrowserWindowLayoutPersistence
-    let startupBehavior: StartupBehavior
 
     var address = ""
     var hasPreparedBrowser = false
@@ -32,9 +30,7 @@ final class MobileBrowserRootModel {
         browser: BrowserStore,
         pages: MobileBrowserPageStore,
         navigation: MobileBrowserNavigationState,
-        spaceAccess: BrowserSpaceAccessController,
         windowState: BrowserWindowStateStore?,
-        startupBehavior: StartupBehavior,
         persistedSidebarWidth: CGFloat
     ) {
         self.browser = browser
@@ -42,11 +38,9 @@ final class MobileBrowserRootModel {
         self.pages = pages
         self.navigation = navigation
         settings = MobileBrowserSettingsPresentation(
-            browser: browser, pages: pages, navigation: navigation, spaceAccess: spaceAccess)
-        self.spaceAccess = spaceAccess
+            browser: browser, pages: pages, navigation: navigation)
         self.windowState = windowState
         layoutPersistence = BrowserWindowLayoutPersistence(windowState: windowState)
-        self.startupBehavior = startupBehavior
         sidebarWidthTransaction = BrowserSidebarWidthTransaction(
             persistedWidth: persistedSidebarWidth
         )
@@ -67,33 +61,13 @@ extension MobileBrowserRootModel {
         )
     }
 
-    /// Prepares the window's pages once, then applies the launch's startup
-    /// choice. True when the launch starts on a new tab in the default Space,
-    /// which this shows first; the view opens the tab, since it owns the
-    /// address field the tab focuses.
-    @discardableResult
-    func prepareBrowser() async -> Bool {
-        guard !hasPreparedBrowser else { return false }
+    /// Prepares the window's pages and restores its selection once.
+    func prepareBrowser() async {
+        guard !hasPreparedBrowser else { return }
         await pages.prepareContentBlocking()
         hasPreparedBrowser = true
-        if startupBehavior.opensNewTab {
-            return showDefaultSpaceForNewTab()
-        }
-        guard startupBehavior.activatesRestoredTab,
-            !navigation.defersPageActivation
-        else { return false }
+        guard !navigation.defersPageActivation else { return }
         synchronizeSelection()
-        return false
-    }
-
-    /// Shows the default Space for the launch's new tab, unless the window
-    /// already shows a tab, such as one a link opened, or the Space is locked.
-    private func showDefaultSpaceForNewTab() -> Bool {
-        guard browser.shownTab == nil else { return false }
-        if let defaultSpaceID = browser.workspaceModel?.defaultSpaceID {
-            browser.selectSpace(defaultSpaceID)
-        }
-        return browser.shownSpace != nil && !selectedSpaceIsLocked
     }
 
     /// Releases moved pages and discards archived state for removed tabs.
@@ -105,11 +79,6 @@ extension MobileBrowserRootModel {
         pages.reconcileTabIcons()
     }
 
-    /// Applies current Space credential preferences to resident pages.
-    func reconcileCredentialAccess() {
-        pages.reconcileCredentialAccess()
-    }
-
     func reconcileContentBlocking() {
         guard hasPreparedBrowser else { return }
         Task { await pages.reconcileContentBlocking() }
@@ -118,15 +87,6 @@ extension MobileBrowserRootModel {
     func reloadContentBlocking() {
         guard hasPreparedBrowser else { return }
         Task { await pages.reloadContentBlocking() }
-    }
-
-    func relockProtectedSpaces(_ spaceIDs: Set<UUID>) {
-        // The Space itself, not just its ID: relocking has to reach the
-        // profile its archived tab state is filed under, and that state
-        // outlives the resident pages an ID alone can find.
-        for space in browser.spaceModels where spaceIDs.contains(space.id) {
-            pages.relockProtectedSpace(space)
-        }
     }
 
     func regularSidebarPresentationChanged(
@@ -159,8 +119,6 @@ extension MobileBrowserRootModel {
 // MARK: - Page Synchronization
 
 extension MobileBrowserRootModel {
-    /// Shows the address the selected page reads in the core in the address
-    /// field, unless the person is editing it or the Space is locked.
     func synchronizePageMetadata(isAddressEditing: Bool) {
         guard !isAddressEditing, selectedPage != nil else { return }
         restoreAddress()
@@ -171,7 +129,6 @@ extension MobileBrowserRootModel {
     /// page's address as the core reads it, including one it is heading to,
     /// or the tab's own when it has no page.
     func restoreAddress() {
-        guard !selectedSpaceIsLocked else { return }
         address = (selectedPage?.live.displayURL ?? browser.shownTab?.address)?.absoluteString ?? ""
     }
 
@@ -181,7 +138,7 @@ extension MobileBrowserRootModel {
 
 extension MobileBrowserRootModel {
     func selectTab(_ id: UUID) {
-        guard let space = browser.shownSpace, !spaceAccess.isLocked(space), let tab = space.tabs.model(id) else {
+        guard let space = browser.shownSpace, let tab = space.tabs.model(id) else {
             return
         }
         if settings.destination(for: tab) == .settings {
@@ -196,7 +153,7 @@ extension MobileBrowserRootModel {
     }
 
     /// Loads what the person typed, which the core resolves by the Space's
-    /// address rules. A native Settings or Getting Started tab takes the
+    /// address rules. A native Settings tab takes the
     /// address first, so a page can open for it. False when a rule refused it.
     @discardableResult
     func submitAddress() -> Bool {
@@ -279,33 +236,12 @@ extension MobileBrowserRootModel {
         )
     }
 
-    func lockSnapshot(
-        presentation: MobileBrowserPresentation
-    ) -> MobileBrowserRootLockSnapshot {
-        MobileBrowserRootLockSnapshot(
-            sessionRevision: browser.sessionRevision,
-            selectedSpaceID: browser.selectedSpaceID,
-            selectedProfileID: browser.shownSpace?.profileID,
-            isLocked: selectedSpaceIsLocked,
-            presentation: presentation
-        )
-    }
-
     var selectedPageActions: MobileSelectedPageActionPort? {
-        MobileSelectedPageActionPort(browser: browser, pages: pages, spaceAccess: spaceAccess)
+        MobileSelectedPageActionPort(browser: browser, pages: pages)
     }
 
     var selectedPage: MobileBrowserPage? {
         selectedPageActions?.activePage
-    }
-
-    var selectedSpaceIsLocked: Bool {
-        guard let space = browser.shownSpace else { return false }
-        return spaceAccess.isLocked(space)
-    }
-
-    var lockedSpaceIDs: Set<UUID> {
-        Set(browser.spaceModels.filter(spaceAccess.isLocked).map(\.id))
     }
 
     @discardableResult
@@ -323,27 +259,8 @@ extension MobileBrowserRootModel {
         return true
     }
 
-    func synchronizeLockTransition(
-        from previous: MobileBrowserRootLockSnapshot,
-        to current: MobileBrowserRootLockSnapshot
-    ) {
-        if current.isLocked {
-            navigation.prepareForLockedSpace()
-            pages.deactivatePagePresentation()
-            address = ""
-            return
-        }
-        guard previous.isLocked, hasPreparedBrowser else { return }
-        navigation.finishLockedSpaceTransition().settle(on: self)
-    }
-
     func synchronizeSelection() {
         browser.consumeMovedTabActivation()
-        guard !selectedSpaceIsLocked else {
-            pages.deactivatePagePresentation()
-            address = ""
-            return
-        }
         pages.select()
         address = browser.shownTab?.url ?? ""
     }
@@ -469,7 +386,7 @@ extension MobileBrowserRootModel {
     /// choosing it in the tab viewer would but without leaving the page. A
     /// Settings tab opens Settings instead, as a tap on it does.
     private func showInPlace(_ tabID: UUID) {
-        guard tabID != browser.shownTab?.id, let space = browser.shownSpace, !spaceAccess.isLocked(space),
+        guard tabID != browser.shownTab?.id, let space = browser.shownSpace,
             let tab = space.tabs.model(tabID)
         else { return }
         if settings.destination(for: tab) == .settings {
@@ -508,7 +425,7 @@ extension MobileBrowserRootModel {
     func isPaletteSourceAvailable(
         _ source: BrowserTabRuntimeAssignment
     ) -> Bool {
-        browser.isPaletteSourceAvailable(source, accessController: spaceAccess)
+        browser.isPaletteSourceAvailable(source)
     }
 
     @discardableResult
@@ -517,7 +434,7 @@ extension MobileBrowserRootModel {
         to target: BrowserTabRuntimeAssignment
     ) -> Bool {
         guard
-            let destination = browser.paletteTarget(target, from: source, accessController: spaceAccess)
+            let destination = browser.paletteTarget(target, from: source)
         else { return false }
         if settings.destination(for: destination.tab) == .settings {
             browser.selectSpace(destination.space.id)
@@ -540,7 +457,7 @@ extension MobileBrowserRootModel {
         opening: BrowserCommandPaletteOpening = .here
     ) -> Bool {
         guard
-            browser.isPaletteSourceAvailable(source, accessController: spaceAccess)
+            browser.isPaletteSourceAvailable(source)
         else { return false }
         return opening.open(url, from: source, with: MobilePaletteOpener(model: self, mode: mode))
     }
@@ -552,10 +469,6 @@ extension MobileBrowserRootModel {
     }
 }
 
-/// How an iPhone or iPad window opens an address from its palette: in place
-/// of the source tab, or in a new tab when the palette opened for one, or in
-/// a new tab behind or in front. Neither Split View nor a Quick Window opens
-/// from the palette here.
 @MainActor
 private struct MobilePaletteOpener: BrowserCommandPaletteOpener {
     let model: MobileBrowserRootModel
@@ -577,7 +490,6 @@ private struct MobilePaletteOpener: BrowserCommandPaletteOpener {
 
     func openInSplit(_ url: URL, from source: BrowserTabRuntimeAssignment) -> Bool { false }
 
-    func openInQuickWindow(_ url: URL, from source: BrowserTabRuntimeAssignment) -> Bool { false }
 }
 
 // MARK: - Animation

@@ -10,12 +10,11 @@
         var snapshot: SessionState {
             guard let workspace = core.state.workspaces[family.workspaceID] else {
                 return SessionState(
-                    spaces: [], defaultSpaceID: nil, disposableSeedMarker: nil, spaceDeletions: [],
+                    spaces: [], disposableSeedMarker: nil, spaceDeletions: [],
                     appPreferences: nil)
             }
             return SessionState(
-                spaces: workspace.spaces.values, defaultSpaceID: workspace.defaultSpaceID,
-                disposableSeedMarker: workspace.isDisposableSeed ? workspace.id : nil,
+                spaces: workspace.spaces.values, disposableSeedMarker: workspace.isDisposableSeed ? workspace.id : nil,
                 spaceDeletions: workspace.spaceDeletions, appPreferences: workspace.appPreferences)
         }
     }

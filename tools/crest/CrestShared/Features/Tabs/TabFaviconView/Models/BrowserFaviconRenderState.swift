@@ -53,7 +53,4 @@ struct BrowserFaviconTaskIdentity: Hashable, Sendable {
     let iconMode: String
     let payload: BrowserFaviconPayloadIdentity?
     let maximumPixelSize: Int
-    /// Part of the identity so unlocking a Space restarts the render task that
-    /// was deliberately starved of its network fallback while locked.
-    var isUnlocked: Bool = true
 }

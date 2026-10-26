@@ -6,9 +6,7 @@ struct BrowserSettingsView: View {
     let browser: BrowserStore
     let pages: BrowserPagePool
     let cloudSync: BrowserCloudSyncController
-    let spaceAccess: BrowserSpaceAccessController
     let dataDeleter: any BrowserSpaceDataDeleting
-    let shortcuts: BrowserShortcutStore
     let spaceSettingsPresentation: BrowserSpaceSettingsPresentationState
     let usesLiveSidebar: Bool
 
@@ -19,9 +17,7 @@ struct BrowserSettingsView: View {
         browser: BrowserStore,
         pages: BrowserPagePool,
         cloudSync: BrowserCloudSyncController,
-        spaceAccess: BrowserSpaceAccessController = BrowserSpaceAccessController(),
         dataDeleter: (any BrowserSpaceDataDeleting)? = nil,
-        shortcuts: BrowserShortcutStore,
         spaceSettingsPresentation: BrowserSpaceSettingsPresentationState =
             BrowserSpaceSettingsPresentationState(),
         usesLiveSidebar: Bool = true,
@@ -33,9 +29,7 @@ struct BrowserSettingsView: View {
         self.browser = browser
         self.pages = pages
         self.cloudSync = cloudSync
-        self.spaceAccess = spaceAccess
         self.dataDeleter = dataDeleter ?? pages
-        self.shortcuts = shortcuts
         self.spaceSettingsPresentation = spaceSettingsPresentation
         self.usesLiveSidebar = usesLiveSidebar
     }
@@ -43,7 +37,7 @@ struct BrowserSettingsView: View {
     var body: some View {
         HStack(spacing: 0) {
             BrowserSettingsSidebar(
-                tabState: tabState, browser: browser, spaceAccess: spaceAccess, dataDeleter: dataDeleter,
+                tabState: tabState, browser: browser, dataDeleter: dataDeleter,
                 openSpace: openSpaceAction, addSpace: addSpace
             )
             .frame(width: 224)
@@ -63,7 +57,6 @@ struct BrowserSettingsView: View {
         .environment(\.browserSettingsUsesLiveSidebar, usesLiveSidebar)
         .environment(\.browserSettingsOpenSpace, openSpaceAction)
         .onChange(of: scenePhase) { previousPhase, phase in
-            lockPrivateSettings(previousPhase, phase)
         }
         .onChange(of: spaceSettingsPresentation.revision, initial: true) {
             _, revision in
@@ -98,16 +91,14 @@ struct BrowserSettingsView: View {
                 browser: browser,
                 pages: pages,
                 cloudSync: cloudSync,
-                spaceAccess: spaceAccess,
                 dataDeleter: dataDeleter,
-                shortcuts: shortcuts,
                 spaceSettingsPresentation: spaceSettingsPresentation,
                 select: { tabState.navigation.selection = .destination($0) }
             )
         case .space(let id):
             if let space = browser.spaceModel(id) {
                 BrowserSettingsSpacePage(
-                    browser: browser, pages: pages, space: space, spaceAccess: spaceAccess,
+                    browser: browser, pages: pages, space: space,
                     dataDeleter: dataDeleter, tabState: tabState, openSpace: openSpaceAction
                 )
             }
@@ -131,11 +122,9 @@ struct BrowserSettingsView: View {
             return
         }
         guard
-            let selected = BrowserSettingsSpaceSelectionAction(browser: browser, spaceAccess: spaceAccess)
+            let selected = BrowserSettingsSpaceSelectionAction(browser: browser)
                 .select(id, matching: tabAssignment)
         else {
-            // A locked Space asks to be unlocked in the window first.
-            if spaceAccess.isLocked(space) { browser.selectSpace(id) }
             return
         }
         spaceSettingsPresentation.present(
@@ -152,32 +141,14 @@ struct BrowserSettingsView: View {
         browser.addSpace()
         guard let space = browser.spaceModel(browser.selectedSpaceID) else { return }
         guard usesLiveSidebar, tabAssignment != nil else {
-            tabState.showSpace(space.id, tab: .appearance, intent: .newSpace)
+            tabState.showSpace(space.id, tab: .identity, intent: .newSpace)
             return
         }
         spaceSettingsPresentation.present(
-            BrowserSettingsSpaceRequest(tab: .appearance, intent: .newSpace),
+            BrowserSettingsSpaceRequest(tab: .identity, intent: .newSpace),
             assignment: BrowserSpaceRuntimeAssignment(space: space))
         browser.openSettings()
         pages.select()
-    }
-
-    private func lockPrivateSettings(
-        _ previousPhase: ScenePhase,
-        _ phase: ScenePhase
-    ) {
-        guard phase != previousPhase, !NSApp.isActive else { return }
-
-        switch phase {
-        case .active:
-            break
-        case .inactive:
-            spaceAccess.lockAllForInactiveScene()
-        case .background:
-            spaceAccess.lockAll()
-        @unknown default:
-            spaceAccess.lockAll()
-        }
     }
 }
 
@@ -186,7 +157,6 @@ struct BrowserSettingsView: View {
     BrowserSettingsView(
         browser: browser,
         pages: BrowserPagePool(browser: browser),
-        cloudSync: BrowserCloudSyncController(core: browser.core, configuration: nil),
-        shortcuts: BrowserShortcutStore()
+        cloudSync: BrowserCloudSyncController(core: browser.core, configuration: nil)
     )
 }

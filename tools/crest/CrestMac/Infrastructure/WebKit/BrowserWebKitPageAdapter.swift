@@ -36,9 +36,7 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
     private let recoverGeolocationSystemAuthorization: BrowserGeolocationCoordinator.RecoverSystemAuthorization?
     private weak var page: BrowserPage?
     private var observations: Set<AnyCancellable> = []
-    private var credentialMessageProxy: BrowserScriptMessageProxy?
     private var linkContextMessageProxy: BrowserScriptMessageProxy?
-    private var userActivityMessageProxy: BrowserScriptMessageProxy?
     private var geolocationMessageProxy: BrowserScriptMessageProxy?
     private var blockedPopupMessageProxy: BrowserScriptMessageProxy?
     private var mediaSessionMessageProxy: BrowserScriptMessageProxy?
@@ -55,12 +53,6 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
         return controller
     }()
     private(set) lazy var linkHover: BrowserLinkHoverController? = BrowserLinkHoverController(webView: webView)
-    private(set) lazy var linkDrag: BrowserLinkDragController? = BrowserLinkDragController(
-        webView: webView,
-        context: { [weak self] in self?.page?.navigationContext },
-        dragsLinksToPeek: { [weak self] in self?.page?.corePage.linkPreferences?.dragsLinksToPeek == true },
-        handle: { [weak self] event in self?.page?.handleLinkDrag(event) }
-    )
     private(set) lazy var readerModeSession: BrowserReaderModeSession? = page.map {
         BrowserReaderModeSession(
             document: BrowserWebKitReaderModeDocument(webView: webView, translation: $0.translation))
@@ -77,9 +69,6 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
     }
 
     var isContentBlockingActive: Bool { contentRuleSession.isActive }
-    var credentialEvaluator: BrowserCredentialSession.Evaluate? {
-        BrowserCredentialSession.evaluator(in: webView)
-    }
     var translationDocument: BrowserTranslationDocument? { BrowserTranslationDocument(webView: webView) }
 
     // MARK: - Initializers
@@ -126,7 +115,7 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
             owner: page.mediaSessionOwner, fallbackTitle: page.mediaSessionFallbackTitle)
     }
 
-    func attach(to page: BrowserPage, allowsCredentialAccess: Bool) {
+    func attach(to page: BrowserPage) {
         self.page = page
         reporter = EnginePageReporter(
             page: page.corePage,
@@ -139,7 +128,6 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
             history: { [weak self] in self?.webKit.reportedHistory })
         webView.menuHost = page
         webView.linkHover = linkHover
-        webView.linkDrag = linkDrag
         webView.isInspectable = true
         webView.navigationDelegate = page
         webView.uiDelegate = page
@@ -148,18 +136,12 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
         webView.allowsLinkPreview = true
         observeWebViewState()
         let controller = webView.configuration.userContentController
-        if allowsCredentialAccess, ownsUserContentController {
-            credentialMessageProxy = BrowserCredentialContentBridge.install(in: controller) { [weak page] message in
-                page?.receiveCredentialMessage(message)
-            }
-        }
         // Private and isolated launches split exactly like a standard one, and
         // the bridge reports a destination rather than storing anything, so the
         // only gate is the shared-controller one every bridge has: a popup runs
         // its opener's scripts against its opener's handlers.
         if ownsUserContentController {
             BrowserLinkHoverContentBridge.install(in: controller)
-            BrowserLinkDragContentBridge.install(in: controller)
             linkContextMessageProxy = BrowserLinkContextContentBridge.install(in: controller) { [weak page] message in
                 page?.receiveLinkContextMessage(message)
             }
@@ -201,7 +183,6 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
     func detach(from page: BrowserPage) {
         enginePage.close()
         webView.linkHover = nil
-        webView.linkDrag = nil
         webView.stopLoading()
         webView.removeFromSuperview()
         webView.navigationDelegate = nil
@@ -211,11 +192,7 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
         page.removeGeolocationRequests()
         defer { geolocationCoordinator = nil }
         guard ownsUserContentController else {
-            // A popup shares its opener's content controller. Removing handlers
-            // here would silence them for the opener too.
-            credentialMessageProxy = nil
             linkContextMessageProxy = nil
-            userActivityMessageProxy = nil
             geolocationMessageProxy = nil
             blockedPopupMessageProxy = nil
             hostedNotificationMessageProxy = nil
@@ -228,17 +205,9 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
             controller.removeScriptMessageHandler(forName: name, contentWorld: world)
         }
         remove(
-            credentialMessageProxy, name: BrowserCredentialContentBridge.messageHandlerName,
-            world: BrowserCredentialContentBridge.contentWorld)
-        credentialMessageProxy = nil
-        remove(
             linkContextMessageProxy, name: BrowserLinkContextContentBridge.messageHandlerName,
             world: BrowserLinkContextContentBridge.contentWorld)
         linkContextMessageProxy = nil
-        remove(
-            userActivityMessageProxy, name: BrowserUserActivityBridge.messageHandlerName,
-            world: BrowserUserActivityBridge.contentWorld)
-        userActivityMessageProxy = nil
         remove(
             geolocationMessageProxy, name: BrowserGeolocationContentBridge.messageHandlerName,
             world: BrowserGeolocationContentBridge.contentWorld)
@@ -261,15 +230,6 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
 
     func install(_ focusRestoration: BrowserWebFocusRestorationController) {
         webView.focusRestoration = focusRestoration
-    }
-
-    func monitorUserActivity(for page: BrowserPage) {
-        guard ownsUserContentController, userActivityMessageProxy == nil else { return }
-        userActivityMessageProxy = BrowserUserActivityBridge.install(
-            in: webView.configuration.userContentController
-        ) { [weak page] in
-            page?.receive(BrowserPageInteracted())
-        }
     }
 
     func styleVisitedLinks(history: [HistoryEntryState]) async {

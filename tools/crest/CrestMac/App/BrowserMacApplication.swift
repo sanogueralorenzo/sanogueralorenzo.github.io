@@ -9,16 +9,12 @@ final class BrowserMacApplication {
     let hostedNotificationCenter: BrowserHostedWebNotificationSystemCenter
     let browser: BrowserStore
     let cloudSync: BrowserCloudSyncController
-    let onboardingProgress: BrowserOnboardingProgressStore
     let pages: BrowserPagePool
     let chrome: BrowserChromeState
-    let transientBrowsing: BrowserTransientBrowsingCoordinator
     let windowCoordinator: BrowserMacWindowCoordinator
     let privateBrowser: BrowserStore
     let privatePages: BrowserPagePool
     let privateChrome: BrowserChromeState
-    let privateTransientBrowsing: BrowserTransientBrowsingCoordinator
-    let spaceAccess: BrowserSpaceAccessController
     /// The app's one passkey controller: pages refresh it and settings show it.
     let passkeyAccess: BrowserPasskeyAccessController
     /// Whether agents can reach Crest now: the agent service keeps it and
@@ -27,7 +23,7 @@ final class BrowserMacApplication {
     let shortcuts: BrowserShortcutStore
     let spaceSettingsPresentation: BrowserSpaceSettingsPresentationState
     let softwareUpdates: BrowserSoftwareUpdateService
-    let sidebarWidgets: BrowserSidebarWidgetRuntime
+    let mediaSessions: BrowserMediaSessionStore
     let pagePoolRegistry: BrowserPagePoolRegistry
     /// Asks the core whether the app may quit, and the person about downloads
     /// in progress.
@@ -45,10 +41,6 @@ final class BrowserMacApplication {
     /// an isolated launch, which leaves its pages alone.
     let memoryPressure: BrowserMemoryPressureMonitor?
     let systemNowPlaying: BrowserSystemNowPlayingCoordinator?
-    let startupBehavior: StartupBehavior
-    /// The window that opens on `startupBehavior`: the frontmost of the
-    /// windows the launch opened. Every other window opens on the tab it left.
-    var startupWindowID = BrowserMacWindowRequest.initial.id
     let presentsInstalledApplicationUI: Bool
     /// Whether a tool started Crest in the background, so the launch's
     /// windows open without taking focus.
@@ -79,7 +71,7 @@ final class BrowserMacApplication {
     init(
         defaultEngine: (any NativeEngineBinding)? = nil,
         siteControlAnchor: BrowserSiteControlAnchor? = nil,
-        reviewPersistenceID: String = "core-native-ui-review"
+        reviewPersistenceID: String = "browser-local"
     ) throws {
         self.siteControlAnchor = siteControlAnchor
         #if CREST_REVIEW_BUILD
@@ -102,11 +94,6 @@ final class BrowserMacApplication {
         presentsInstalledApplicationUI =
             launchEnvironment.presentsInstalledApplicationUI
         launchesInBackground = launchEnvironment.launchesInBackground
-        // Import review and manual setup belong to the currently open wizard.
-        // Retire drafts written by earlier releases before any new window opens.
-        if !usesIsolatedLaunch {
-            BrowserOnboardingLegacyDraftCleanup.clear()
-        }
         // One core per process. It keeps the session file, every window of
         // both browsing modes shares it, and standard and private windows each
         // share one download center over it.
@@ -118,14 +105,8 @@ final class BrowserMacApplication {
         // defaults, carried once; the link preferences come first, since every
         // window's store reads them.
         let legacyDevice = BrowserLegacyDeviceDefaults.read(for: launchEnvironment)
-        BrowserLinkPreferenceStore.adopt(legacyDevice.linkPreferences, into: core)
         let browser = try BrowserStore.production(core: core, launchEnvironment: launchEnvironment)
-        // The search catalog carries the engines the Spaces chose before the
-        // device kept one, so it restores once the stored session is open.
-        BrowserSearchCatalog.restore(into: core)
-        BrowserAppPreferenceStore.shared.bind(
-            to: browser, legacy: LegacyAppPreferences.read(for: launchEnvironment))
-        BrowserAppPreferenceStore.shared.reconcileWebKitSpellChecking()
+        BrowserAppPreferenceStore.shared.bind(to: browser)
         let privateBrowser = BrowserStore.privateBrowsing(core: core)
         let passkeyAccess = BrowserPasskeyAccessController(core: core)
         let cloudSync =
@@ -135,14 +116,6 @@ final class BrowserMacApplication {
         core.syncJournalChangeHandler = { [weak cloudSync] in
             Task { await cloudSync?.localChangesDidStage() }
         }
-        let transientBrowsing = BrowserTransientBrowsingCoordinator()
-        let privateTransientBrowsing = BrowserTransientBrowsingCoordinator()
-        let spaceAccess = BrowserSpaceAccessController()
-        spaceAccess.announce = { message in
-            BrowserNoticeCenter.shared.post(BrowserNotice(message: message, systemImage: "lock.fill"))
-        }
-        browser.attachSpaceAccess(spaceAccess)
-        privateBrowser.attachSpaceAccess(spaceAccess)
         let spaceSettingsPresentation =
             BrowserSpaceSettingsPresentationState()
         // The core keeps every Space's site permission choices and decides
@@ -172,26 +145,8 @@ final class BrowserMacApplication {
         let softwareUpdates = BrowserSoftwareUpdateService(
             isEnabled: presentsInstalledApplicationUI
                 && (!usesIsolatedLaunch || isolatedSoftwareUpdateFeed != nil),
-            preferences: usesIsolatedLaunch ? nil : .standard,
-            defaultChannel: isolatedSoftwareUpdateFeed.map { _ in .development },
             feedURLOverride: isolatedSoftwareUpdateFeed
         )
-        if usesIsolatedLaunch,
-            let fixture = launchEnvironment.softwareUpdateWidgetFixture
-        {
-            softwareUpdates.presentIsolatedSidebarWidgetFixture(fixture)
-        }
-        let sidebarWidgetPreferences = BrowserSidebarWidgetPreferenceStore.launch(
-            environment: launchEnvironment
-        )
-        let sidebarWidgets = BrowserSidebarWidgetRuntime(
-            registrations: [.softwareUpdate, .nowPlaying],
-            sources: [softwareUpdates.widgetSource, mediaSessions],
-            preferences: sidebarWidgetPreferences
-        )
-        if launchEnvironment.presentsShowcaseSession, let profileID = browser.shownSpace?.profileID {
-            core.addShowcaseDownloads(profileID: profileID)
-        }
         let pages = BrowserPagePool(
             browser: browser,
             usesEphemeralWebsiteDataStores: usesEphemeralProfileStorage,
@@ -199,29 +154,12 @@ final class BrowserMacApplication {
             hostedNotificationCenter: hostedNotificationCenter,
             mediaSessionStore: mediaSessions,
             passkeyAccess: passkeyAccess,
-            loadHTTPAuthenticationCredential: { protectionSpace, spaceID in
-                try await browser.httpAuthenticationCredential(
-                    for: protectionSpace,
-                    in: spaceID
-                )
-            },
-            saveHTTPAuthenticationCredential: { request, spaceID in
-                try await browser.saveHTTPAuthenticationCredential(
-                    username: request.username,
-                    password: request.password,
-                    protectionSpace: request.protectionSpace,
-                    in: spaceID,
-                    replacing: request.replacing
-                )
-            },
             tabStateArchive: tabStateArchive,
             openModifiedLink: { url, spaceID, selecting in
                 browser.openModifiedLink(url, in: spaceID, selecting: selecting)
             },
-            openPeek: { request in transientBrowsing.presentPeek(request) },
-            handleLinkDrag: { transientBrowsing.handleLinkDrag($0) },
             splitLinkHost: browser.splitLinkHost,
-            linkDestinationHost: BrowserLinkDestinationHost(browser: browser, spaceAccess: spaceAccess),
+            linkDestinationHost: BrowserLinkDestinationHost(browser: browser),
             activateHostedNotificationSource: { spaceID, tabID in
                 browser.selectSpace(spaceID)
                 browser.selectTab(tabID)
@@ -235,58 +173,41 @@ final class BrowserMacApplication {
             openModifiedLink: { url, spaceID, selecting in
                 privateBrowser.openModifiedLink(url, in: spaceID, selecting: selecting)
             },
-            openPeek: { request in privateTransientBrowsing.presentPeek(request) },
-            handleLinkDrag: { privateTransientBrowsing.handleLinkDrag($0) },
             splitLinkHost: privateBrowser.splitLinkHost,
-            linkDestinationHost: BrowserLinkDestinationHost(browser: privateBrowser, spaceAccess: spaceAccess)
+            linkDestinationHost: BrowserLinkDestinationHost(browser: privateBrowser)
         )
         browser.tabLinkProvider = pages
         privateBrowser.tabLinkProvider = privatePages
         browser.tabCopying = pages
         privateBrowser.tabCopying = privatePages
         let windowLayouts = BrowserWindowLayouts(defaults: sidebarDefaults)
-        // The device store keeps whether setup was completed here, carried
-        // once from what an older release kept in its defaults.
-        _ = try? core.send(AdoptSetupCompletion(completed: legacyDevice.setupCompleted))
-        let onboardingProgress = BrowserOnboardingProgressStore(
-            core: core, environment: launchEnvironment.coreEnvironment,
-            forcesSetup: launchEnvironment.forcesMacOnboardingSetup)
-        let startupBehavior = browser.startupBehavior(for: launchEnvironment)
-        // The core carries what each window showed into its own records once;
-        // launch cleanup then keeps every tab a saved window will show.
+        // The core carries what each window showed into its own records once.
         windowLayouts.adoptLegacyRecords(into: core)
         browser.sweepAtLaunch()
         self.browser = browser
         self.cloudSync = cloudSync
-        self.onboardingProgress = onboardingProgress
-        let initialLayout = windowLayouts.layout(for: BrowserMacWindowRequest.initial.id)
         self.chrome = BrowserChromeState(
-            sidebarIsPresented: initialLayout?.sidebarIsPresented ?? true,
             utilityPresentation: BrowserUtilityPresentationState(
                 defaults: utilityDefaults
             )
         )
-        self.transientBrowsing = transientBrowsing
         self.windowCoordinator = BrowserMacWindowCoordinator(
-            browser: browser, pages: pages, spaceAccess: spaceAccess, windowLayouts: windowLayouts,
-            utilityDefaults: utilityDefaults)
+            browser: browser, pages: pages, windowLayouts: windowLayouts)
         self.privateBrowser = privateBrowser
         // A private window keeps nothing past its session, and its Space is
         // new each time it opens, so its lists choice stays in memory.
         self.privateChrome = BrowserChromeState(
             utilityPresentation: BrowserUtilityPresentationState(defaults: nil)
         )
-        self.privateTransientBrowsing = privateTransientBrowsing
-        self.spaceAccess = spaceAccess
         self.spaceSettingsPresentation = spaceSettingsPresentation
-        let shortcuts = BrowserShortcutStore(core: core, legacyOverrides: legacyDevice.shortcuts)
+        let shortcuts = BrowserShortcutStore(core: core)
         self.shortcuts = shortcuts
         self.passkeyAccess = passkeyAccess
         self.softwareUpdates = softwareUpdates
-        self.sidebarWidgets = sidebarWidgets
+        self.mediaSessions = mediaSessions
         self.pages = pages
         self.privatePages = privatePages
-        pagePoolRegistry = BrowserPagePoolRegistry(primary: pages, spaceAccess: spaceAccess)
+        pagePoolRegistry = BrowserPagePoolRegistry(primary: pages)
         quitPreparation = BrowserQuitPreparation(core: core) {
             browser.family.activeSpaceDeletions.union(privateBrowser.family.activeSpaceDeletions)
         }
@@ -302,7 +223,6 @@ final class BrowserMacApplication {
             return await downloadDialogs.approveDownload(asked, spaceName: spaceName, dismissal: dismissal)
         }
         self.systemNowPlaying = systemNowPlaying
-        self.startupBehavior = startupBehavior
         self.launchEnvironment = launchEnvironment.coreEnvironment
         memoryPressure =
             usesIsolatedLaunch
@@ -318,7 +238,7 @@ final class BrowserMacApplication {
         BrowserSettingsTabContent { [self] runtime in
             BrowserSettingsView(
                 browser: browser.profileSettingsBrowser, pages: pages, cloudSync: cloudSync,
-                spaceAccess: spaceAccess, dataDeleter: pagePoolRegistry, shortcuts: shortcuts,
+                dataDeleter: pagePoolRegistry,
                 spaceSettingsPresentation: presentation ?? spaceSettingsPresentation,
                 usesLiveSidebar: !browser.isTemporaryWorkspace,
                 tabState: runtime.model(BrowserSettingsTabState.self) { BrowserSettingsTabState() },
@@ -331,10 +251,9 @@ final class BrowserMacApplication {
     func browserWindowContent(_ model: BrowserMacWindowModel) -> some View {
         BrowserMacWindowScene(
             model: model, coordinator: windowCoordinator,
-            pagePoolRegistry: pagePoolRegistry, spaceAccess: spaceAccess,
+            pagePoolRegistry: pagePoolRegistry,
             spaceSettingsPresentation: spaceSettingsPresentation,
-            startupBehavior: model.id == startupWindowID ? startupBehavior : .lastActiveTab,
-            shortcuts: shortcuts, sidebarWidgets: sidebarWidgets, softwareUpdates: softwareUpdates
+            shortcuts: shortcuts, softwareUpdates: softwareUpdates
         )
         .environment(
             \.browserSettingsTabContent,
@@ -346,7 +265,7 @@ final class BrowserMacApplication {
         .environment(agentEndpoint)
         .environment(browser.core)
         .environment(browser.core.engines)
-        .environment(\.browserSidebarWidgetRuntime, sidebarWidgets)
+        .environment(\.browserMediaSessions, mediaSessions)
         .environment(\.browserSiteControlAnchor, siteControlAnchor)
         .modifier(BrowserSoftwareUpdateDetailsPresentation())
     }
@@ -356,8 +275,6 @@ final class BrowserMacApplication {
             browser: privateBrowser,
             pages: privatePages,
             chrome: privateChrome,
-            transientBrowsing: privateTransientBrowsing,
-            startupBehavior: .lastActiveTab,
             shortcuts: shortcuts
         )
         .modifier(BrowserChromeAppearancePersistence())
@@ -367,11 +284,10 @@ final class BrowserMacApplication {
         .environment(privateBrowser.core)
         .environment(privateBrowser.core.engines)
         .environment(
-            \.browserSidebarWidgetRuntime,
-            sidebarWidgets
+            \.browserMediaSessions,
+            mediaSessions
         )
         .frame(minWidth: 900, minHeight: 600)
-        .preferredColorScheme(.dark)
         .environment(
             \.browserSettingsTabContent, settingsTabContent(browser: privateBrowser, pages: privatePages)
         )
@@ -404,7 +320,6 @@ final class BrowserMacApplication {
             privateBrowser.spaceModels.map(BrowserSpaceRuntimeAssignment.init(space:)))
         privateBrowser.resetPrivateBrowsingSession()
         privateChrome.dismissCommandPalette()
-        privateTransientBrowsing.dismissPeek()
     }
 
 }

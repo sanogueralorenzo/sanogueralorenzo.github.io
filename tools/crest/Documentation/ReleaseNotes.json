@@ -4597,6 +4597,18 @@
     "fork-streamlined-core": {
       "category": "improved",
       "message": "Browsing uses consistent session, tab, search, download and shortcut defaults, with optional modes removed."
+    },
+    "fork-streamlined-browsing": {
+      "category": "improved",
+      "message": "Open directly into browsing with simpler settings, automatic background sleeping, saved-location return, regular preview tabs and one-click translation."
+    },
+    "automatic-page-translation-with-language-exclusions": {
+      "category": "new",
+      "message": "Translate pages automatically to your chosen language, with excluded languages selected in General settings."
+    },
+    "global-search-suggestions-toggle": {
+      "category": "improved",
+      "message": "Search suggestions are optional, off by default, and controlled for all Spaces in General settings."
     }
   }
 }

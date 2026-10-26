@@ -10,26 +10,25 @@ struct BrowserLinkDestinationHost {
     // MARK: - Variables
 
     weak var browser: BrowserStore?
-    weak var spaceAccess: BrowserSpaceAccessController?
 
     // MARK: - Actions - Link Destinations
 
     func canOpenLink(from source: BrowserTabRuntimeAssignment) -> Bool {
-        guard let browser, let spaceAccess,
-            let space = browser.selectedUnlockedSpace(
+        guard let browser,
+            let space = browser.selectedAvailableSpace(
                 matching: BrowserSpaceRuntimeAssignment(
                     spaceID: source.spaceID, profileID: source.profileID
-                ), accessController: spaceAccess)
+                ))
         else { return false }
         return space.tabs.model(source.tabID) != nil
     }
 
     func otherSpaces(from source: BrowserTabRuntimeAssignment) -> [SpaceModel] {
-        guard canOpenLink(from: source), let browser, let spaceAccess else { return [] }
+        guard canOpenLink(from: source), let browser else { return [] }
         return browser.availableTabMoveDestinationSpaces(
             from: BrowserSpaceRuntimeAssignment(
                 spaceID: source.spaceID, profileID: source.profileID
-            ), accessController: spaceAccess)
+            ))
     }
 
     func selectionSearch(
@@ -51,8 +50,8 @@ struct BrowserLinkDestinationHost {
         in destination: BrowserSpaceRuntimeAssignment
     ) -> Bool {
         guard ExternalWebLink.accepts(url),
-            canOpenLink(from: source), let browser, let spaceAccess,
-            browser.unlockedSpace(matching: destination, accessController: spaceAccess) != nil
+            canOpenLink(from: source), let browser,
+            browser.availableSpace(matching: destination) != nil
         else { return false }
         guard let tabID = browser.openNewTab(url: url, matching: destination) else { return false }
         if destination.spaceID != source.spaceID {

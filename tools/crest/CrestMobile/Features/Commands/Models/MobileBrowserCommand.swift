@@ -10,77 +10,46 @@ import UIKit
 struct MobileBrowserCommand {
     // MARK: - Static Variables
 
-    static let closeTabOrWindow = MobileBrowserCommand(
-        .closeTabOrWindow, menuTitle: { _ in "Close Tab" }, isEnabled: { $0.canDismissSelectedTab },
-        run: { $0.dismissSelectedTab() })
-    static let back = MobileBrowserCommand(.back, isEnabled: { $0.canGoBack }, run: { $0.goBack() })
-    static let forward = MobileBrowserCommand(.forward, isEnabled: { $0.canGoForward }, run: { $0.goForward() })
-    static let reloadPage = MobileBrowserCommand(
-        .reloadPage, isEnabled: { $0.hasActivePage }, run: { $0.reloadOrStop() })
-    static let stopLoading = MobileBrowserCommand(.stopLoading, isEnabled: { $0.isLoading }, run: { $0.stopLoading() })
-    static let reloadFromOrigin = MobileBrowserCommand(
-        .reloadFromOrigin, isEnabled: { $0.hasActivePage }, run: { $0.reloadFromOrigin() })
-    static let toggleSelectedTabPinned = MobileBrowserCommand(
-        .toggleSelectedTabPinned, isEnabled: { $0.hasSelectedTab }, run: { $0.toggleSelectedTabPinned() })
-    static let duplicateTab = MobileBrowserCommand(
-        .duplicateTab, isEnabled: { $0.canDuplicateSelectedTab }, run: { $0.duplicateSelectedTab() })
-    static let reopenClosedTab = MobileBrowserCommand(
-        .reopenClosedTab, isEnabled: { $0.canReopenClosedTab }, run: { $0.reopenClosedTab() })
-    static let clearUnpinnedTabs = MobileBrowserCommand(.clearUnpinnedTabs) { $0.cleanupCurrentTabs() }
-    static let archiveTab = MobileBrowserCommand(
-        .archiveTab, isEnabled: { $0.canArchiveSelectedTab }, run: { $0.archiveSelectedTab() })
-    static let previousTab = MobileBrowserCommand(
-        .previousTab, isEnabled: { $0.tabCount > 1 }, run: { $0.selectPreviousTab() })
-    static let nextTab = MobileBrowserCommand(.nextTab, isEnabled: { $0.tabCount > 1 }, run: { $0.selectNextTab() })
-    static let mostRecentTab = MobileBrowserCommand(
-        .mostRecentTab, isEnabled: { $0.canJumpToRecentTab }, run: { $0.selectMostRecentTab() })
-    static let mostRecentTabBackward = MobileBrowserCommand(
-        .mostRecentTabBackward, isEnabled: { $0.canJumpToRecentTab }, run: { $0.selectLeastRecentTab() })
-    static let splitWithNextTab = MobileBrowserCommand(
-        .splitWithNextTab, isEnabled: { $0.canSplitWithNextTab }, run: { $0.splitWithNextTab() })
-    static let focusNextSplitCard = MobileBrowserCommand(
-        .focusNextSplitCard, isEnabled: { $0.isSelectedTabInSplit }, run: { $0.focusNextSplitCard() })
-    static let focusPreviousSplitCard = MobileBrowserCommand(
-        .focusPreviousSplitCard, isEnabled: { $0.isSelectedTabInSplit }, run: { $0.focusPreviousSplitCard() })
-    static let removeTabFromSplit = MobileBrowserCommand(
-        .removeTabFromSplit, isEnabled: { $0.isSelectedTabInSplit }, run: { $0.removeTabFromSplit() })
-    static let separateSplitTabs = MobileBrowserCommand(
-        .separateSplitTabs, isEnabled: { $0.isSelectedTabInSplit }, run: { $0.separateSplitTabs() })
-    static let moveSplitCardLeft = MobileBrowserCommand(
-        .moveSplitCardLeft, isEnabled: { $0.canMoveFocusedSplitCard(.left) }, run: { $0.moveFocusedSplitCard(.left) })
-    static let moveSplitCardRight = MobileBrowserCommand(
-        .moveSplitCardRight, isEnabled: { $0.canMoveFocusedSplitCard(.right) },
-        run: { $0.moveFocusedSplitCard(.right) })
-    static let previousSpace = MobileBrowserCommand(
-        .previousSpace, isEnabled: { $0.spaceCount > 1 }, run: { $0.selectPreviousSpace() })
-    static let nextSpace = MobileBrowserCommand(
-        .nextSpace, isEnabled: { $0.spaceCount > 1 }, run: { $0.selectNextSpace() })
-    static let toggleReaderMode = MobileBrowserCommand(
-        .toggleReaderMode, menuTitle: { $0?.readerModeActionTitle ?? "Show Reader" },
-        isEnabled: { $0.canToggleReaderMode }, run: { $0.toggleReaderMode() })
-    static let toggleContentBlocking = MobileBrowserCommand(
-        .toggleContentBlocking, menuTitle: { $0?.contentBlockingActionTitle ?? "Content Blocking" },
-        isEnabled: { $0.hasActivePage }, run: { $0.beginTogglingContentBlocking() })
-    static let findInPage = MobileBrowserCommand(
-        .findInPage, isEnabled: { $0.hasActivePage }, run: { $0.presentFind() })
-    static let zoomIn = MobileBrowserCommand(.zoomIn, isEnabled: { $0.hasActivePage }, run: { $0.zoomIn() })
-    static let zoomOut = MobileBrowserCommand(.zoomOut, isEnabled: { $0.hasActivePage }, run: { $0.zoomOut() })
-    static let actualSize = MobileBrowserCommand(.actualSize, isEnabled: { $0.hasActivePage }, run: { $0.resetZoom() })
-    static let copyPageLink = MobileBrowserCommand(
-        .copyPageLink, isEnabled: { $0.hasActivePage }, run: { $0.copyPageLink() })
-    static let copyPageLinkAsMarkdown = MobileBrowserCommand(
-        .copyPageLinkAsMarkdown, isEnabled: { $0.hasActivePage }, run: { $0.copyPageLinkAsMarkdown() })
-    static let printPage = MobileBrowserCommand(.printPage, isEnabled: { $0.hasActivePage }, run: { $0.printPage() })
-    static let clearSiteCookies = MobileBrowserCommand(
-        .clearSiteCookies, isEnabled: { $0.showsSite }, run: { $0.beginClearingSiteData(.siteData) })
-    static let clearSiteCache = MobileBrowserCommand(
-        .clearSiteCache, isEnabled: { $0.showsSite }, run: { $0.beginClearingSiteData(.cache) })
+    static let closeTabOrWindow = MobileBrowserCommand(.closeTabOrWindow) { $0.dismissSelectedTab() }
+    static let back = MobileBrowserCommand(.back) { $0.goBack() }
+    static let forward = MobileBrowserCommand(.forward) { $0.goForward() }
+    static let reloadPage = MobileBrowserCommand(.reloadPage) { $0.reloadOrStop() }
+    static let stopLoading = MobileBrowserCommand(.stopLoading) { $0.stopLoading() }
+    static let reloadFromOrigin = MobileBrowserCommand(.reloadFromOrigin) { $0.reloadFromOrigin() }
+    static let toggleSelectedTabPinned = MobileBrowserCommand(.toggleSelectedTabPinned) { $0.toggleSelectedTabPinned() }
+    static let duplicateTab = MobileBrowserCommand(.duplicateTab) { $0.duplicateSelectedTab() }
+    static let reopenClosedTab = MobileBrowserCommand(.reopenClosedTab) { $0.reopenClosedTab() }
+    static let clearUnpinnedTabs = MobileBrowserCommand(.clearUnpinnedTabs) { $0.clearCurrentTabs() }
+    static let archiveTab = MobileBrowserCommand(.archiveTab) { $0.archiveSelectedTab() }
+    static let previousTab = MobileBrowserCommand(.previousTab) { $0.selectPreviousTab() }
+    static let nextTab = MobileBrowserCommand(.nextTab) { $0.selectNextTab() }
+    static let mostRecentTab = MobileBrowserCommand(.mostRecentTab) { $0.selectMostRecentTab() }
+    static let mostRecentTabBackward = MobileBrowserCommand(.mostRecentTabBackward) { $0.selectLeastRecentTab() }
+    static let splitWithNextTab = MobileBrowserCommand(.splitWithNextTab) { $0.splitWithNextTab() }
+    static let focusNextSplitCard = MobileBrowserCommand(.focusNextSplitCard) { $0.focusNextSplitCard() }
+    static let focusPreviousSplitCard = MobileBrowserCommand(.focusPreviousSplitCard) { $0.focusPreviousSplitCard() }
+    static let removeTabFromSplit = MobileBrowserCommand(.removeTabFromSplit) { $0.removeTabFromSplit() }
+    static let separateSplitTabs = MobileBrowserCommand(.separateSplitTabs) { $0.separateSplitTabs() }
+    static let moveSplitCardLeft = MobileBrowserCommand(.moveSplitCardLeft) { $0.moveFocusedSplitCard(.left) }
+    static let moveSplitCardRight = MobileBrowserCommand(.moveSplitCardRight) { $0.moveFocusedSplitCard(.right) }
+    static let previousSpace = MobileBrowserCommand(.previousSpace) { $0.selectPreviousSpace() }
+    static let nextSpace = MobileBrowserCommand(.nextSpace) { $0.selectNextSpace() }
+    static let toggleReaderMode = MobileBrowserCommand(.toggleReaderMode) { $0.toggleReaderMode() }
+    static let toggleContentBlocking = MobileBrowserCommand(.toggleContentBlocking) {
+        $0.beginTogglingContentBlocking()
+    }
+    static let findInPage = MobileBrowserCommand(.findInPage) { $0.presentFind() }
+    static let zoomIn = MobileBrowserCommand(.zoomIn) { $0.zoomIn() }
+    static let zoomOut = MobileBrowserCommand(.zoomOut) { $0.zoomOut() }
+    static let actualSize = MobileBrowserCommand(.actualSize) { $0.resetZoom() }
+    static let copyPageLink = MobileBrowserCommand(.copyPageLink) { $0.copyPageLink() }
+    static let copyPageLinkAsMarkdown = MobileBrowserCommand(.copyPageLinkAsMarkdown) { $0.copyPageLinkAsMarkdown() }
+    static let printPage = MobileBrowserCommand(.printPage) { $0.printPage() }
     static let toggleSidebar = MobileBrowserCommand(.toggleSidebar) { $0.toggleSidebar() }
-    static let toggleTranslationToolbar = MobileBrowserCommand(
-        .toggleTranslationToolbar, isAvailable: { $0.canToggleTranslationToolbar },
-        isEnabled: { $0.canToggleTranslationToolbar },
+    static let translatePage = MobileBrowserCommand(
+        .translatePage, isAvailable: { $0.canTranslatePage },
         run: { context in
-            context.setTranslationToolbarVisible(!context.isTranslationToolbarVisible)
+            context.translatePage()
         })
     static let showHistory = MobileBrowserCommand(.showHistory) { $0.presentHistory() }
     static let showArchive = MobileBrowserCommand(.showArchive) { $0.presentArchive() }
@@ -95,8 +64,7 @@ struct MobileBrowserCommand {
         focusPreviousSplitCard, removeTabFromSplit, separateSplitTabs, moveSplitCardLeft, moveSplitCardRight,
         previousSpace,
         nextSpace, toggleReaderMode, toggleContentBlocking, findInPage, zoomIn, zoomOut, actualSize, copyPageLink,
-        copyPageLinkAsMarkdown, printPage, clearSiteCookies, clearSiteCache, toggleSidebar, toggleTranslationToolbar,
-        showHistory, showArchive,
+        copyPageLinkAsMarkdown, printPage, toggleSidebar, translatePage, showHistory, showArchive,
         showDownloads,
     ]
 

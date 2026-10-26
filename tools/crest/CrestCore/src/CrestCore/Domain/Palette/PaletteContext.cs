@@ -23,6 +23,7 @@ internal sealed class PaletteContext {
 
     public DateTimeOffset Now { get; }
     public SearchProvider Provider { get; }
+    public bool Suggests { get; }
 
     /// The Space's history by address, or null without a Space.
     public AddressIndex? History { get; }
@@ -32,7 +33,7 @@ internal sealed class PaletteContext {
     #region Constructors
 
     public PaletteContext(SpaceState? space, Guid? shownTabId, bool isPrivate, bool allowsInternalPages,
-        IReadOnlyList<SpaceState> spaces, DateTimeOffset now, SearchProvider provider) {
+        IReadOnlyList<SpaceState> spaces, DateTimeOffset now, SearchProvider provider, bool suggests) {
         Space = space;
         ShownTabId = shownTabId;
         IsPrivate = isPrivate;
@@ -40,6 +41,7 @@ internal sealed class PaletteContext {
         Spaces = spaces;
         Now = now;
         Provider = provider;
+        Suggests = suggests;
         History = space is null ? null : AddressIndex.Of(space.History);
     }
 

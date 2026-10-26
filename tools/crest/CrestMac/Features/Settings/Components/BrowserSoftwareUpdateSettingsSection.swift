@@ -7,35 +7,6 @@ struct BrowserSoftwareUpdateSettingsSection: View {
 
     var body: some View {
         Section {
-            Toggle(
-                "Check for updates automatically",
-                isOn: Binding(
-                    get: { softwareUpdates.automaticallyChecksForUpdates },
-                    set: softwareUpdates.setAutomaticallyChecksForUpdates
-                )
-            )
-
-            Toggle(
-                "Download and install updates automatically",
-                isOn: Binding(
-                    get: { softwareUpdates.automaticallyDownloadsUpdates },
-                    set: softwareUpdates.setAutomaticallyDownloadsUpdates
-                )
-            )
-            .disabled(!softwareUpdates.automaticallyChecksForUpdates)
-
-            Picker(
-                "Update channel",
-                selection: Binding(
-                    get: { softwareUpdates.channel },
-                    set: { softwareUpdates.channel = $0 }
-                )
-            ) {
-                ForEach(BrowserSoftwareUpdateChannel.offered) { channel in
-                    Text(channel.title).tag(channel)
-                }
-            }
-
             if softwareUpdates.model.phase == .idle {
                 HStack {
                     Spacer()
@@ -59,8 +30,6 @@ struct BrowserSoftwareUpdateSettingsSection: View {
             }
         } header: {
             Text("Software updates")
-        } footer: {
-            Text(softwareUpdates.channel.guidance).crestFormFootnote()
         }
     }
 }

@@ -55,26 +55,14 @@ extension BrowserStore {
             reselection: .items)
     }
 
-    /// Keeps the selected tabs' pages loaded, or lets them unload.
-    func keepingLoaded(_ request: BrowserCapturedSelection, _ keeps: Bool) -> BrowserTabBatch {
-        BrowserTabBatch(
-            KeepTabsLoaded(
-                workspaceID: family.workspaceID, windowID: windowID, spaceID: request.spaceID,
-                selection: request.selection,
-                keeps: keeps),
-            reselection: .items)
-    }
-
-    /// Moves the selected tabs to another Space, which the window follows
-    /// them to when the person's link preferences say so.
+    /// Moves the selected tabs to another Space and follows them there.
     func moving(_ request: BrowserCapturedSelection, to destination: BrowserSpaceRuntimeAssignment) -> BrowserTabBatch {
-        let follows = linkPreferences.preferences.followsMovedTabs
         return BrowserTabBatch(
             MoveTabsToSpace(
                 workspaceID: family.workspaceID, windowID: windowID, spaceID: request.spaceID,
                 selection: request.selection,
-                destinationSpaceID: destination.spaceID, follows: follows),
-            reselection: .cleared, following: follows ? destination : nil)
+                destinationSpaceID: destination.spaceID, follows: true),
+            reselection: .cleared, following: destination)
     }
 
     /// Files the selection into `folder` or at the top level of `placement`'s

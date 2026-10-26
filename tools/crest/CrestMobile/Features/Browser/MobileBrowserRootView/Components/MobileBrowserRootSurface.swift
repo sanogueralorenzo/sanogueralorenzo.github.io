@@ -7,20 +7,17 @@ struct MobileBrowserRootSurface<Compact: View, Regular: View, Palette: View>:
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
     let navigation: MobileBrowserNavigationState
-    let transientBrowsing: BrowserTransientBrowsingCoordinator
-    let spaceAccess: BrowserSpaceAccessController
     let preferredSidebarWidth: CGFloat
     let isCommandPalettePresented: Bool
     let isURLCopiedFeedbackVisible: Bool
     let pageFeedback: MobilePageFeedback?
     let reduceMotion: Bool
-    let didPromoteTransientPage: () -> Void
     let compact: Compact
     let regular: (MobileRegularWindowLayout) -> Regular
     let palette: (EdgeInsets) -> Palette
     @Environment(\.layoutDirection) private var layoutDirection
 
-    private var sidebarOnRight: Bool { BrowserDeviceAppearanceStore.shared.sidebarOnRight }
+    private var sidebarOnRight: Bool { BrowserChromeAppearance().sidebarOnRight }
 
     var body: some View {
         ZStack {
@@ -64,18 +61,6 @@ struct MobileBrowserRootSurface<Compact: View, Regular: View, Palette: View>:
                 }
             }
         }
-        .overlay {
-            if presentation.presentsPageOverTabViewer && !navigation.compactShowsPage {
-                MobileTransientBrowsingOverlay(
-                    browser: browser,
-                    pages: pages,
-                    coordinator: transientBrowsing,
-                    spaceAccess: spaceAccess,
-                    didPromote: didPromoteTransientPage,
-                    showsPeeks: false
-                )
-            }
-        }
         .overlay(alignment: .top) {
             if !presentation.presentsPageOverTabViewer || !navigation.compactShowsPage {
                 MobileURLCopyFeedback(
@@ -89,12 +74,6 @@ struct MobileBrowserRootSurface<Compact: View, Regular: View, Palette: View>:
                     )
                 }
             }
-        }
-        .onChange(of: transientBrowsing.orphanedPeeks(in: browser), initial: true) {
-            transientBrowsing.reconcilePeeks(in: browser)
-        }
-        .onChange(of: transientBrowsing.peekRequests, initial: true) {
-            pages.retainPeekPages(for: transientBrowsing.peekRequests)
         }
         .transaction { transaction in
             if reduceMotion {

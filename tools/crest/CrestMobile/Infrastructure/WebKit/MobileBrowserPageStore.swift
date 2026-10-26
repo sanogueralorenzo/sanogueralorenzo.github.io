@@ -9,18 +9,6 @@ final class MobileBrowserPageStore:
     BrowserPageOwner,
     BrowserDefaultPageZoomObserving
 {
-    typealias HTTPAuthenticationCredentialLoader =
-        @MainActor (
-            BrowserHTTPAuthenticationProtectionSpace,
-            UUID
-        ) async throws -> BrowserCredential?
-
-    typealias HTTPAuthenticationCredentialSaver =
-        @MainActor (
-            BrowserHTTPAuthenticationSaveRequest,
-            UUID
-        ) async throws -> Void
-
     typealias ModifiedLinkOpener =
         @MainActor (URL, UUID, Bool) -> BrowserModifiedLinkRegistration?
 
@@ -65,12 +53,9 @@ final class MobileBrowserPageStore:
     @ObservationIgnored private let mediaSessionStore: BrowserMediaSessionStore?
     @ObservationIgnored let linkDestinationHost: BrowserLinkDestinationHost
     @ObservationIgnored private let openModifiedLink: ModifiedLinkOpener
-    @ObservationIgnored private let openPeek: (BrowserPeekRequest) -> Void
     @ObservationIgnored private let browsingMode: BrowserBrowsingMode
     @ObservationIgnored let usesEphemeralWebsiteDataStores: Bool
     @ObservationIgnored private let pageZoomPreferences: BrowserDefaultPageZoomStore
-    @ObservationIgnored private let loadHTTPAuthenticationCredential: HTTPAuthenticationCredentialLoader
-    @ObservationIgnored private let saveHTTPAuthenticationCredential: HTTPAuthenticationCredentialSaver
     @ObservationIgnored let contentBlocking: BrowserContentBlockingController
     /// The window this store hosts pages for. Its pages open through the core
     /// from this window, in its workspace.
@@ -85,14 +70,9 @@ final class MobileBrowserPageStore:
         permissionCenter: BrowserSitePermissionCenter = BrowserSitePermissionCenter(),
         mediaSessionStore: BrowserMediaSessionStore? = nil,
         downloads: MobileBrowserDownloads? = nil,
-        loadHTTPAuthenticationCredential:
-            @escaping HTTPAuthenticationCredentialLoader = { _, _ in nil },
-        saveHTTPAuthenticationCredential:
-            @escaping HTTPAuthenticationCredentialSaver = { _, _ in },
         tabStateArchive: (any BrowserTabStateArchiving)? = nil,
         linkDestinationHost: BrowserLinkDestinationHost = .unavailable,
-        openModifiedLink: @escaping ModifiedLinkOpener = { _, _, _ in nil },
-        openPeek: @escaping (BrowserPeekRequest) -> Void = { _ in }
+        openModifiedLink: @escaping ModifiedLinkOpener = { _, _, _ in nil }
     ) {
         self.browser = browser
         self.browsingMode = browsingMode
@@ -104,11 +84,8 @@ final class MobileBrowserPageStore:
         host = BrowserPageHost(archive: self.usesEphemeralWebsiteDataStores ? nil : tabStateArchive)
         self.mediaSessionStore = browsingMode.isPrivate ? nil : mediaSessionStore
         self.permissionCenter = permissionCenter
-        self.loadHTTPAuthenticationCredential = loadHTTPAuthenticationCredential
-        self.saveHTTPAuthenticationCredential = saveHTTPAuthenticationCredential
         self.linkDestinationHost = linkDestinationHost
         self.openModifiedLink = openModifiedLink
-        self.openPeek = openPeek
         // Windows share their browsing mode's downloads; a store made on its
         // own, such as a preview's, keeps them over its window's core.
         let downloads =
@@ -128,34 +105,7 @@ final class MobileBrowserPageStore:
         browser.core.followUnloadedPages(self) { [weak self] in self?.host.pageUnloaded($0) }
         followAdoptedPages()
         followPutAwayPages()
-    }
-
-    /// A standard window's store: its pages' saved sign-ins, link destinations
-    /// and modified clicks go through `browser`, and `transientBrowsing` shows
-    /// their Peeks.
-    convenience init(
-        window browser: BrowserStore, usesEphemeralWebsiteDataStores: Bool,
-        permissionCenter: BrowserSitePermissionCenter, mediaSessionStore: BrowserMediaSessionStore?,
-        downloads: MobileBrowserDownloads?, tabStateArchive: (any BrowserTabStateArchiving)?,
-        spaceAccess: BrowserSpaceAccessController, transientBrowsing: BrowserTransientBrowsingCoordinator
-    ) {
-        self.init(
-            browser: browser, usesEphemeralWebsiteDataStores: usesEphemeralWebsiteDataStores,
-            permissionCenter: permissionCenter, mediaSessionStore: mediaSessionStore, downloads: downloads,
-            loadHTTPAuthenticationCredential: { protectionSpace, spaceID in
-                try await browser.httpAuthenticationCredential(for: protectionSpace, in: spaceID)
-            },
-            saveHTTPAuthenticationCredential: { request, spaceID in
-                try await browser.saveHTTPAuthenticationCredential(
-                    username: request.username, password: request.password,
-                    protectionSpace: request.protectionSpace, in: spaceID, replacing: request.replacing)
-            },
-            tabStateArchive: tabStateArchive,
-            linkDestinationHost: BrowserLinkDestinationHost(browser: browser, spaceAccess: spaceAccess),
-            openModifiedLink: { url, spaceID, selecting in
-                browser.openModifiedLink(url, in: spaceID, selecting: selecting)
-            },
-            openPeek: { request in transientBrowsing.presentPeek(request) })
+        host.startAutomaticUnloading(core: browser.core)
     }
 
     var activeURL: URL? { activePage?.live.displayURL }
@@ -182,7 +132,6 @@ final class MobileBrowserPageStore:
         if !prepareSelectedPage(at: time) {
             deactivatePagePresentation()
         }
-        reconcileCredentialAccess()
     }
 
     /// Presents what the scene shows and asks the core to load what the
@@ -190,7 +139,7 @@ final class MobileBrowserPageStore:
     /// False when there is no page or a rule refused the load.
     @discardableResult
     func selectAndNavigate(to input: String, at time: Date = .now) -> Bool {
-        defer { reconcileCredentialAccess() }
+        defer {}
         guard prepareSelectedPage(at: time, loadsInitialURL: false) else {
             deactivatePagePresentation()
             return false
@@ -236,14 +185,12 @@ final class MobileBrowserPageStore:
         if let existing = host.page(
             matching: BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profileID))
         {
-            existing.setCredentialAccessEnabled(space.settings.credentialPreferences.isEnabled)
             existing.updateNavigationContext(tab: pageTab)
             activate(existing, presenting: presented)
             return true
         }
         releaseMismatchedPage(of: tab.id)
 
-        // The core refuses a page in a locked Space or one being deleted.
         guard let page = makeResidentPage(for: pageTab, in: space, loadsInitialURL: loadsInitialURL) else {
             return false
         }
@@ -288,7 +235,6 @@ final class MobileBrowserPageStore:
         if let existing = host.page(
             matching: BrowserTabRuntimeAssignment(tabID: tabID, spaceID: space.id, profileID: space.profileID))
         {
-            existing.setCredentialAccessEnabled(space.settings.credentialPreferences.isEnabled)
             existing.updateNavigationContext(tab: pageTab)
             return existing
         }
@@ -332,14 +278,6 @@ final class MobileBrowserPageStore:
             matching: BrowserTabRuntimeAssignment(tabID: tabID, spaceID: space.id, profileID: space.profileID))
     }
 
-    /// Removes every rendered page from presentation without evicting their
-    /// isolated WebKit runtimes. Selecting that tab again can reuse the resident
-    /// page, but no previous Space can remain visible underneath the tab viewer
-    /// or a private-Space lock transition.
-    ///
-    /// All of it goes at once, not just the focused card: a Space locking with a
-    /// split open has to take every card away, and half a split left on screen
-    /// would be the privacy failure the gate exists to prevent.
     func deactivatePagePresentation() {
         guard activePage != nil || !presentedTabIDs.isEmpty else { return }
         presentedTabIDs = []
@@ -400,63 +338,6 @@ final class MobileBrowserPageStore:
         Task { @MainActor [weak self] in await self?.styleVisitedLinks(in: space) }
     }
 
-    func makeTransientPageLease(
-        url: URL,
-        in space: SpaceModel,
-        presentation: TransientPresentation = .quickWindow,
-        engineNavigation: BrowserEngineNavigation? = nil,
-        opener: UUID? = nil,
-        onUserActivity: @escaping () -> Void = {},
-        onDownloadOnlyNavigation: (() -> Void)? = nil
-    ) -> MobileBrowserTransientPageLease? {
-        let transientTab = BrowserPageTab.transient(showing: url)
-        return host.makeTransientPageLease(
-            url: url, in: space, presentation: presentation, engineNavigation: engineNavigation,
-            balancedContentRuleLists: contentBlocking.balancedRuleLists ?? [], onUserActivity: onUserActivity,
-            onDownloadOnlyNavigation: onDownloadOnlyNavigation
-        ) { [weak self] in
-            self?.makeTransientPage(tab: transientTab, in: space, presenting: presentation, opener: opener)
-        }
-    }
-
-    /// Opens a transient request's page through the core, presenting as
-    /// `presentation`, on `opener`'s engine when another page opened it;
-    /// `tab` is the request's own stand-in, which no Space holds. Nil when
-    /// the core refuses it.
-    private func makeTransientPage(
-        tab: BrowserPageTab,
-        in space: SpaceModel,
-        presenting presentation: TransientPresentation,
-        opener: UUID?
-    ) -> MobileBrowserPage? {
-        guard let opening = browser.openPage(in: space.id, for: nil, presenting: presentation, opener: opener) else {
-            return nil
-        }
-        return host(
-            MobileBrowserPage(
-                corePage: opening.page,
-                webKitPage: webKitPage(opening),
-                tab: tab,
-                space: space,
-                downloadCenter: downloadCenter,
-                permissionCenter: permissionCenter,
-                serverTrustOverrides: serverTrustOverrides,
-                allowsCredentialAccess: !browsingMode.isPrivate,
-                isCredentialAccessEnabled: space.settings.credentialPreferences.isEnabled,
-                defaultPageZoom: pageZoomPreferences.defaultZoom,
-                loadsInitialURL: false,
-                loadHTTPAuthenticationCredential: { [loadHTTPAuthenticationCredential] protectionSpace in
-                    try await loadHTTPAuthenticationCredential(protectionSpace, space.id)
-                },
-                saveHTTPAuthenticationCredential: { [saveHTTPAuthenticationCredential] request in
-                    try await saveHTTPAuthenticationCredential(request, space.id)
-                },
-                linkDestinationHost: linkDestinationHost,
-                openModifiedLink: openModifiedLink,
-                openPeek: openPeek
-            ))
-    }
-
     /// What WebKit's binding built for a page the core opened.
     private func webKitPage(_ opening: Engines.OpenedPage) -> WebKitEnginePage {
         guard let page = opening.built as? WebKitEnginePage else {
@@ -471,44 +352,8 @@ final class MobileBrowserPageStore:
         return page
     }
 
-    @discardableResult
-    func adoptTransientPage(
-        _ lease: MobileBrowserTransientPageLease,
-        as tabID: UUID,
-        in space: SpaceModel
-    ) -> Bool {
-        guard let tab = space.tabs.model(tabID),
-            let page = host.adoptTransientPage(lease, as: tabID, in: space, through: browser, prepare: { _ in true })
-        else { return false }
-        page.adopt(tabID: tabID, tab: BrowserPageTab(tab, images: browser.core.state.favicons))
-        host.retain(page, for: tabID)
-        activate(page)
-        return true
-    }
-
-    /// Retires an empty surface whose initial navigation became a download:
-    /// a transient one closes, and a tab's page asks the core to close it as
-    /// its own script would.
     func discardDownloadOnlyPage(_ page: MobileBrowserPage) {
-        guard !host.discardDownloadOnlyTransientPage(page) else { return }
         page.corePage.report(PageCloseRequested(pageID: page.corePage.id))
-    }
-
-    /// Hides a protected Space without unloading its tabs. Unlocking can reuse
-    /// the same WebKit pages, including scroll position and unsaved form state.
-    /// Resident pages remain subject to normal idle and memory-pressure limits.
-    ///
-    /// Previously archived state is still purged from disk. This preserves only
-    /// live pages, not a disk snapshot of a protected Space. The access views
-    /// gate ordinary and transient content until authentication succeeds.
-    func relockProtectedSpace(_ space: SpaceModel) {
-        guard space.settings.requiresAuthentication else { return }
-        if activePage?.spaceID == space.id
-            || presentedTabIDs.contains(where: { host.page(for: $0)?.spaceID == space.id })
-        {
-            deactivatePagePresentation()
-        }
-        host.tabState.removeStates(profileID: space.profileID)
     }
 
     func reloadOrStop() {
@@ -641,20 +486,11 @@ final class MobileBrowserPageStore:
                 permissionCenter: permissionCenter,
                 serverTrustOverrides: serverTrustOverrides,
                 mediaSessionStore: mediaSessionStore,
-                allowsCredentialAccess: !browsingMode.isPrivate,
-                isCredentialAccessEnabled: space.settings.credentialPreferences.isEnabled,
                 defaultPageZoom: pageZoomPreferences.defaultZoom,
                 // The core loads the tab's address once the page is open.
                 loadsInitialURL: false,
-                loadHTTPAuthenticationCredential: { [loadHTTPAuthenticationCredential] protectionSpace in
-                    try await loadHTTPAuthenticationCredential(protectionSpace, space.id)
-                },
-                saveHTTPAuthenticationCredential: { [saveHTTPAuthenticationCredential] request in
-                    try await saveHTTPAuthenticationCredential(request, space.id)
-                },
                 linkDestinationHost: linkDestinationHost,
-                openModifiedLink: openModifiedLink,
-                openPeek: openPeek
+                openModifiedLink: openModifiedLink
             ))
     }
 

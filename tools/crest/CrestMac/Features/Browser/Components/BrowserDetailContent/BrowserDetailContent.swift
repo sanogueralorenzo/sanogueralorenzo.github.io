@@ -10,7 +10,6 @@ struct BrowserDetailContent: View {
     let pagePresentation: PagePresentation
     let browser: BrowserStore
     let pages: BrowserPagePool
-    let spaceAccess: BrowserSpaceAccessController
     let tabPromotionNamespace: Namespace.ID
     let startPageFocusRequest: Int
     let isCommandPalettePresented: Bool
@@ -18,7 +17,7 @@ struct BrowserDetailContent: View {
     let commands: BrowserCommandPaletteCommandRegistry
 
     var body: some View {
-        if let tab, let space, !spaceAccess.isLocked(space), pages.isMirroringPage(for: tab.id) {
+        if let tab, let space, pages.isMirroringPage(for: tab.id) {
             BrowserMirroredPageContent(tabID: tab.id, pages: pages)
         } else {
             content
@@ -32,11 +31,6 @@ struct BrowserDetailContent: View {
             if let tab, let space {
                 BrowserNativeTabHost(tab: tab, space: space)
                     .environment(\.browserNativeTabs, pages.nativeTabs)
-                    .environment(
-                        \.browserNativeTabActions,
-                        BrowserNativeTabActions(
-                            browser: browser, spaceAccess: spaceAccess,
-                            didOpenURL: { pages.select() }))
             }
         case .startPage:
             BrowserStartPageContent(
@@ -44,7 +38,6 @@ struct BrowserDetailContent: View {
                 space: space,
                 browser: browser,
                 pages: pages,
-                spaceAccess: spaceAccess,
                 tabPromotionNamespace: tabPromotionNamespace,
                 focusRequest: startPageFocusRequest,
                 isCommandPalettePresented: isCommandPalettePresented,

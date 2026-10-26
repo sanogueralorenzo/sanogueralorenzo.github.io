@@ -27,6 +27,8 @@ protocol BrowserPageEngine: AnyObject {
     /// The engine's measure of the sound the page plays, band by band, or nil
     /// when the engine does not measure it.
     var audioSpectrum: BrowserAudioSpectrumFeed? { get }
+    /// A conservative, silent check for unsaved work and active media.
+    func canAutomaticallyUnload() async -> Bool
 }
 
 extension BrowserPageEngine {
@@ -35,6 +37,7 @@ extension BrowserPageEngine {
     func stageNavigation(_ navigation: BrowserEngineNavigation, expecting url: URL) -> Bool { false }
     var contentScripting: (any BrowserPageContentScripting)? { nil }
     var audioSpectrum: BrowserAudioSpectrumFeed? { nil }
+    func canAutomaticallyUnload() async -> Bool { false }
 }
 
 /// A link an engine staged for a new page's first load, which keeps the

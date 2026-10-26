@@ -17,7 +17,7 @@ extension EnginePresentation {
             .extensionsChanged, .infoBarRemoved, .infoBarShown, .inspectorClosed, .inspectorLayoutChanged,
             .linkHovered, .mediaSessionChanged, .pageInteracted, .pageLoadingChanged,
             .pageNavigationStarted, .pageRendererGone, .pageThemeChanged, .pageViewClosed, .pageViewUnavailable,
-            .peekRequested, .popupBlocked, .profileNotificationClosed, .profileNotificationPosted, .profilePrepared,
+            .popupBlocked, .profileNotificationClosed, .profileNotificationPosted, .profilePrepared,
             .profileReleased, .screenCaptureAccessMissing, .shareSourcesOffered, .shareSourcesWithdrawn,
             .sidePanelRequested, .storeInstallRequested, .storeRemovalRequested, .tabSharingChanged,
             .webNotificationClosed, .webNotificationPosted:

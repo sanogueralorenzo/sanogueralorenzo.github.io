@@ -1,19 +1,10 @@
 import Foundation
 import Observation
 
-/// The pages the core opened for a workspace's tabs and transient requests
-/// that this platform hosts: each tab's page while it stays resident, the
-/// Quick Window and Peek pages leased for a while, and the state a tab's page
-/// leaves behind when it goes. The core decides which pages open, move and
-/// unload; windows present what the host keeps. Every window over one
-/// workspace on the Mac shares its host; a phone or tablet scene has its own.
 @Observable
 @MainActor
 final class BrowserPageHost {
     // MARK: - Types
-
-    /// One Peek's lease, kept while the Peek asks for the same request.
-    private typealias PeekLease = (request: BrowserPeekRequest, lease: BrowserPlatformTransientPageLease)
 
     // MARK: - Variables
 
@@ -40,13 +31,7 @@ final class BrowserPageHost {
     /// Takes a tab's card off every window that presents it, once its page or
     /// native content went.
     @ObservationIgnored var dropPresentation: @MainActor (UUID) -> Void = { _ in }
-    @ObservationIgnored private(set) var transientLeases: [UUID: WeakBrowserTransientPageLease] = [:]
-    @ObservationIgnored private var peekLeases: [UUID: PeekLease] = [:]
-    /// The pages the core adopted as windows pages asked for, by page, until
-    /// the Quick Window that shows each takes it. Every window over the
-    /// workspace shares them, so the Quick Window finds its page whichever
-    /// window's pool it opens over.
-    @ObservationIgnored private var popupWindowPages: [UUID: BrowserPlatformPage] = [:]
+    @ObservationIgnored var automaticUnloadTask: Task<Void, Never>?
 
     // MARK: - Initializers
 
@@ -55,33 +40,18 @@ final class BrowserPageHost {
         tabState = BrowserTabStateCoordinator(archive: archive)
     }
 
+    deinit { automaticUnloadTask?.cancel() }
+
     // MARK: - Actions - Resident pages
 
     /// Every tab's resident page.
     var residentPages: [BrowserPlatformPage] { runtimes.values.map(\.page) }
 
-    /// Every page the host keeps: the tabs', the leases' and the popup
-    /// windows' waiting for their Quick Window.
     var livePages: [BrowserPlatformPage] {
-        runtimes.values.flatMap(\.allPages) + transientLeases.values.compactMap { $0.value?.page }
-            + popupWindowPages.values
+        runtimes.values.flatMap(\.allPages)
     }
 
     // MARK: - Actions - Popup windows
-
-    /// Keeps `page`, which the core adopted for a window a page asked for,
-    /// until its Quick Window takes it; false when the host already keeps it.
-    func keepPopupWindowPage(_ page: BrowserPlatformPage) -> Bool {
-        guard popupWindowPages[page.corePage.id] == nil else { return false }
-        popupWindowPages[page.corePage.id] = page
-        return true
-    }
-
-    /// The popup window's page `pageID` names, which leaves the host for the
-    /// Quick Window that shows it; nil when the host keeps no such page.
-    func takePopupWindowPage(_ pageID: UUID) -> BrowserPlatformPage? {
-        popupWindowPages.removeValue(forKey: pageID)
-    }
 
     /// The tab's resident page.
     func page(for tabID: UUID) -> BrowserPlatformPage? {
@@ -121,20 +91,6 @@ final class BrowserPageHost {
         revision &+= 1
     }
 
-    /// The icon of the tab's resident page, with the accent its site's theme
-    /// gives it; nil when the tab has no page of the Space and profile
-    /// `assignment` names, or it went while the icon loaded.
-    func pullFavicon(
-        for tabID: UUID, matching assignment: BrowserSpaceRuntimeAssignment? = nil
-    ) async -> (data: Data, iconAccent: BrowserTabIconAccent?)? {
-        guard let page = runtimes[tabID]?.page,
-            assignment.map({ page.spaceID == $0.spaceID && page.profileID == $0.profileID }) ?? true,
-            let data = await page.pullFavicon(),
-            runtimes[tabID]?.page === page
-        else { return nil }
-        return (data, page.siteThemeIconAccent)
-    }
-
     // MARK: - Actions - Reconciliation
 
     /// Lets go of the pages of tabs that are gone. Their state is not written
@@ -148,11 +104,6 @@ final class BrowserPageHost {
         }
     }
 
-    /// Brings the resident pages in line with `workspace` in the read model,
-    /// whose tabs wear the icons `images` keeps: pages whose tab is gone or
-    /// moved go, a closed tab's state is kept first, and every page takes its
-    /// tab's context and its Space's password preference. A workspace the
-    /// core no longer holds keeps no page.
     func reconcile(workspace: WorkspaceModel?, images: FaviconAssets) {
         nativeTabs.reconcile(spaces: workspace?.spaces.models ?? [])
         let reconciliation = BrowserPageReconciliation(
@@ -166,24 +117,6 @@ final class BrowserPageHost {
             context.page.updateNavigationContext(tab: context.tab)
         }
         tabState.prune(keeping: reconciliation.retainedTabIDsByProfileID)
-        reconcileCredentialAccess(in: workspace)
-    }
-
-    /// Brings every resident and leased page in line with its Space's "save
-    /// passwords" preference: a background tab can hold a pending save offer,
-    /// and a Peek runs a page with no tab of its own.
-    func reconcileCredentialAccess(in workspace: WorkspaceModel?) {
-        let enabledBySpaceID = Dictionary(
-            uniqueKeysWithValues: (workspace?.spaces.models ?? []).map {
-                ($0.id, $0.settings.credentialPreferences.isEnabled)
-            })
-        for page in runtimes.values.lazy.map(\.page) {
-            page.setCredentialAccessEnabled(enabledBySpaceID[page.spaceID] ?? false)
-        }
-        pruneTransientLeases()
-        for lease in transientLeases.values.compactMap(\.value) {
-            lease.setCredentialAccessEnabled(enabledBySpaceID[lease.spaceID] ?? false)
-        }
     }
 
     /// Gives each resident page its tab's current context in `workspace`,
@@ -330,14 +263,11 @@ final class BrowserPageHost {
         return true
     }
 
-    /// Releases a Space's resident and leased pages without keeping their
-    /// state. Switching or locking a Space keeps its pages resident.
     func unloadPages(in spaceID: UUID) {
         let nativeTabIDs = nativeTabs.tabIDs(in: spaceID)
         nativeTabs.remove(in: spaceID)
         let tabIDs = Set(runtimes.compactMap { $0.value.page.spaceID == spaceID ? $0.key : nil })
         releasePages(for: tabIDs.union(nativeTabIDs))
-        releaseTransientPages(in: spaceID)
     }
 
     /// Lets go of the tab's page and native content, keeping its engine state
@@ -383,7 +313,6 @@ final class BrowserPageHost {
     /// the native content of tabs no window shows. The core unloads tabs'
     /// pages itself once the platform reports the pressure.
     func relieveMemoryPressure(_ level: MemoryPressureLevel, presenting presented: [UUID]) {
-        releaseTransientPages(for: level)
         guard level == .critical else { return }
         for tabID in nativeTabs.inactiveTabIDs(excluding: presented) {
             evictPage(tabID)
@@ -402,7 +331,7 @@ final class BrowserPageHost {
                 runtime.page.spaceID == space.spaceID || runtime.page.profileID == space.profileID ? tabID : nil
             }
         ).union(nativeTabIDs)
-        let probes = releasePages(for: tabIDs) + releaseTransientPages(in: space.spaceID)
+        let probes = releasePages(for: tabIDs)
         await BrowserSpaceDataReleaseBarrier.waitForRetainedViews(probes)
     }
 
@@ -430,134 +359,11 @@ final class BrowserPageHost {
     func closePrivateBrowsingSession() {
         releasePages(for: Set(runtimes.keys).union(nativeTabs.tabIDs))
         nativeTabs.reconcile(validTabIDs: [])
-        releaseAllTransientPages()
     }
 
     // MARK: - Actions - Leases
 
-    var retainedTransientPageCount: Int {
-        pruneTransientLeases()
-        return transientLeases.values.compactMap(\.value).filter { $0.page != nil }.count
-    }
-
-    /// The Peek's lease for `request`: the one it already holds while it can
-    /// still show its page, or a new one `makeLease` opens.
-    func peekPageLease(
-        for request: BrowserPeekRequest,
-        makeLease: () -> BrowserPlatformTransientPageLease?
-    ) -> BrowserPlatformTransientPageLease? {
-        if let entry = peekLeases[request.id], entry.request == request,
-            case let lease = entry.lease, lease.assignment == request.assignment,
-            lease.page != nil || lease.wasReleasedForMemoryPressure
-        {
-            return lease
-        }
-        peekLeases.removeValue(forKey: request.id)?.lease.release()
-        let lease = makeLease()
-        if let lease { peekLeases[request.id] = (request, lease) }
-        return lease
-    }
-
-    /// The Peek over tab `tabID` that `isOpen` accepts, which shows in front
-    /// of the tab's own page; nil when no such Peek is there. A staged Peek
-    /// keeps its lease to draw, but is not open.
-    func peekRequest(over tabID: UUID, where isOpen: (BrowserPeekRequest) -> Bool) -> BrowserPeekRequest? {
-        peekLeases.values.first { $0.request.sourceTabID == tabID && isOpen($0.request) }?.request
-    }
-
-    /// The page of the Peek `peekRequest(over:where:)` finds.
-    func peekPage(over tabID: UUID, where isOpen: (BrowserPeekRequest) -> Bool) -> BrowserPlatformPage? {
-        peekRequest(over: tabID, where: isOpen).flatMap { peekLeases[$0.id]?.lease.page }
-    }
-
-    /// Lets go of the Peeks' leases no longer asked for.
-    func retainPeekPages(for requests: [BrowserPeekRequest]) {
-        for (id, entry) in peekLeases where !requests.contains(entry.request) {
-            peekLeases.removeValue(forKey: id)?.lease.release()
-        }
-    }
-
-    /// Takes the page `lease` holds for tab `tabID` of `space`, once `prepare`
-    /// readied it and the core gave it to the tab through `browser`; nil when
-    /// the lease holds no page of that Space, or either refused.
-    func adoptTransientPage(
-        _ lease: BrowserPlatformTransientPageLease, as tabID: UUID, in space: SpaceModel,
-        through browser: BrowserStore,
-        prepare: (BrowserPlatformPage) -> Bool
-    ) -> BrowserPlatformPage? {
-        guard let page = lease.page else { return nil }
-        let assignment = BrowserSpaceRuntimeAssignment(space: space)
-        guard lease.assignment == assignment, page.spaceID == assignment.spaceID,
-            page.profileID == assignment.profileID, prepare(page),
-            // The core gives the tab the page only while the tab has none.
-            browser.adoptPage(page.corePage, in: space.id, as: tabID)
-        else { return nil }
-        guard lease.relinquishPage() === page else {
-            _ = browser.adoptPage(page.corePage, in: space.id, as: nil)
-            return nil
-        }
-        transientLeases.removeValue(forKey: lease.id)
-        return page
-    }
-
-    /// Keeps `lease`, which a platform made around a page it already hosts,
-    /// as it keeps the leases it makes.
-    func keep(_ lease: BrowserPlatformTransientPageLease) {
-        transientLeases[lease.id] = WeakBrowserTransientPageLease(lease)
-    }
-
-    /// Ends the lease holding `page` when its only navigation turned out to
-    /// be a download; false when no lease holds it or the lease keeps it.
-    func discardDownloadOnlyTransientPage(_ page: BrowserPlatformPage) -> Bool {
-        guard let entry = transientLeases.first(where: { $0.value.value?.page === page }),
-            let lease = entry.value.value, lease.discardForDownloadOnlyNavigation()
-        else { return false }
-        transientLeases.removeValue(forKey: entry.key)
-        return true
-    }
-
-    /// Whether a lease holds `page`.
-    func leases(_ page: BrowserPlatformPage) -> Bool {
-        transientLeases.values.contains { $0.value?.page === page }
-    }
-
-    /// Every live lease.
-    var liveTransientLeases: [BrowserPlatformTransientPageLease] {
-        pruneTransientLeases()
-        return transientLeases.values.compactMap(\.value)
-    }
-
-    func releaseTransientPages(for level: MemoryPressureLevel) {
-        for lease in liveTransientLeases where level.releasesActiveTransientPages || !lease.isActive {
-            lease.releaseForMemoryPressure()
-        }
-    }
-
-    @discardableResult
-    func releaseTransientPages(in spaceID: UUID) -> [BrowserSpaceDataReleaseProbe] {
-        pruneTransientLeases()
-        var probes: [BrowserSpaceDataReleaseProbe] = []
-        for (id, weakLease) in transientLeases where weakLease.value?.spaceID == spaceID {
-            if let page = weakLease.value?.page { probes.append(BrowserSpaceDataReleaseProbe(page)) }
-            weakLease.value?.release()
-            transientLeases.removeValue(forKey: id)
-        }
-        return probes
-    }
-
-    func releaseAllTransientPages() {
-        for lease in transientLeases.values.compactMap(\.value) {
-            lease.release()
-        }
-        transientLeases.removeAll()
-        peekLeases.removeAll()
-    }
-
-    func pruneTransientLeases() {
-        transientLeases = transientLeases.filter { $0.value.value != nil }
-    }
 }
-
 extension BrowserTabRuntimeAssignment {
     /// Tab `tabID` of the Space `space` names, in its profile.
     init(tabID: UUID, in space: BrowserSpaceRuntimeAssignment) {

@@ -12,6 +12,5 @@ struct BrowserPageURLChanged: BrowserPageEngineEvent {
     func apply(to page: BrowserPage) {
         page.translation.documentURLDidChange(from: previous, to: current)
         page.refreshNavigationState()
-        page.credentialState.didChangeTopLevelURL(to: current)
     }
 }

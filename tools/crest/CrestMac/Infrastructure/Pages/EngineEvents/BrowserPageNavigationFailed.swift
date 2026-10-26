@@ -8,6 +8,5 @@ struct BrowserPageNavigationFailed: BrowserPageEngineEvent {
         // retries a network error on its own, and a retry that fails again
         // commits no new error page.
         page.hasCommittedNavigationAwaitingCompletion = false
-        page.httpAuthenticationSession.authenticationFailed()
     }
 }

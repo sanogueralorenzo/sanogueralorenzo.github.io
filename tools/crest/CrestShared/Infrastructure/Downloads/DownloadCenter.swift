@@ -57,11 +57,10 @@ final class BrowserDownloadCenter: NSObject {
         resolveDownloadDestination:
             @escaping DownloadDestinationChooser = {
                 suggestedFilename,
-                spaceID,
+                _,
                 forcesPrompt in
                 await BrowserPlatformDownloadDirectory.resolve(
                     suggestedFilename: suggestedFilename,
-                    spaceID: spaceID,
                     forcesPrompt: forcesPrompt
                 )
             }
@@ -146,7 +145,7 @@ final class BrowserDownloadCenter: NSObject {
     ) -> Bool {
         guard
             force
-                || BrowserCurrentTabCleanupSchedule.allowsSweep(
+                || BrowserDataRetentionSchedule.allowsSweep(
                     lastSweptAt: lastRetentionSweepAt,
                     now: now
                 )

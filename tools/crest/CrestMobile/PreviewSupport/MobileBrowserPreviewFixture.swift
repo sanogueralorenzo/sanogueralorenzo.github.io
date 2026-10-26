@@ -5,8 +5,6 @@ struct MobileBrowserPreviewFixture {
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
     let cloudSync: BrowserCloudSyncController
-    let onboardingCoordinator: BrowserOnboardingCoordinator
-    let spaceAccess: BrowserSpaceAccessController
     let passkeyAccess: BrowserPasskeyAccessController
     let windowState: BrowserWindowStateStore
     let space: SpaceModel
@@ -27,9 +25,7 @@ struct MobileBrowserPreviewFixture {
                 )
             ),
             name: "Work",
-            symbol: "briefcase.fill",
-            accent: .indigo,
-            branding: SpaceHouse.lion.look,
+
             tabs: []
         )
         let alternateSpace = SpaceState.Seed(
@@ -46,19 +42,20 @@ struct MobileBrowserPreviewFixture {
                 )
             ),
             name: "Personal",
-            symbol: "house.fill",
-            accent: .orange,
-            branding: SpaceHouse.winter.look,
+
             tabs: []
         )
         let browser = BrowserStore(
             seed: SessionState.Seed(spaces: [space, alternateSpace]), browsingMode: .privateBrowsing)
         guard let workSpace = browser.spaceModel(space.id), let personalSpace = browser.spaceModel(alternateSpace.id)
         else { preconditionFailure("The preview store must open both preview Spaces.") }
+        let previewEnvironment = BrowserLaunchEnvironment(
+            values: [:], isXCTestRuntime: false, isSwiftUIPreviewRuntime: true)
         browser.core.engines.register(
             WebKitEngineBinding(
                 keepsProfilesInMemory: true,
-                contentRuleLists: BrowserContentRuleListProvider(core: browser.core, ruleListStore: nil)),
+                contentRuleLists: BrowserContentRuleListProvider.forLaunch(
+                    core: browser.core, launchEnvironment: previewEnvironment)),
             isDefault: true)
         let pages = MobileBrowserPageStore(
             browser: browser,
@@ -86,10 +83,6 @@ struct MobileBrowserPreviewFixture {
             isPresented: true
         )
         cloudSync = .isolated(core: browser.core)
-        onboardingCoordinator = BrowserOnboardingCoordinator()
-        spaceAccess = BrowserSpaceAccessController(
-            authenticator: BrowserPreviewAuthenticator(result: false)
-        )
         passkeyAccess = BrowserPasskeyAccessController(
             core: browser.core,
             capabilityCheck: { true },

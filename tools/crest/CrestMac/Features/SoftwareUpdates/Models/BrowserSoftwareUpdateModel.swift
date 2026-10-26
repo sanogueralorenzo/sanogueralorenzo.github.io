@@ -27,18 +27,10 @@ final class BrowserSoftwareUpdateModel {
     private(set) var canRetryTermination = false
     private(set) var isFixture = false
     private(set) var allowsOfferRefresh = true
-    /// The person hid the sidebar card, which stays hidden until they check
-    /// for updates or Crest restarts. Sparkle's pending choice is untouched,
-    /// and Settings still shows where the update stands.
-    private(set) var isHidden = false
-
     @ObservationIgnored var refreshBeforeDownload: (() -> Void)?
-
-    @ObservationIgnored private weak var widgetSource: BrowserSoftwareUpdateWidgetSource?
 
     @ObservationIgnored private var expectedDownloadLength: UInt64?
     @ObservationIgnored private var receivedDownloadLength: UInt64 = 0
-    @ObservationIgnored private var permissionResponse: ((Bool) -> Void)?
     @ObservationIgnored private var cancellation: (() -> Void)?
     @ObservationIgnored private var install: (() -> Void)?
     @ObservationIgnored private var skip: (() -> Void)?
@@ -52,54 +44,13 @@ final class BrowserSoftwareUpdateModel {
     @ObservationIgnored private var retryTermination: (() -> Void)?
     @ObservationIgnored private var acknowledgement: (() -> Void)?
 
-    var sidebarWidgetSnapshot: BrowserSoftwareUpdateWidgetSnapshot? {
-        guard phase != .idle, !isHidden else { return nil }
-        return snapshot
-    }
-
-    /// Where the update stands now, whether or not the sidebar shows it.
-    var snapshot: BrowserSoftwareUpdateWidgetSnapshot {
-        BrowserSoftwareUpdateWidgetSnapshot(
-            phase: phase,
-            title: updateTitle ?? "Crest Update",
-            version: updateVersion,
-            build: updateBuild,
-            releaseNotes: releaseNotes,
+    /// Where the update stands now.
+    var snapshot: BrowserSoftwareUpdateSnapshot {
+        BrowserSoftwareUpdateSnapshot(
             informationURL: informationURL,
-            message: message,
-            progress: progress,
             isInformationOnly: isInformationOnly,
-            allowsInstallation: install != nil && !isInformationOnly,
-            allowsSkipping: skip != nil,
-            allowsCancellation: cancellation != nil,
-            allowsInstallAndRelaunch: installAndRelaunch != nil,
-            allowsInstallationRetry: canRetryTermination,
-            isFixture: isFixture
+            allowsInstallationRetry: canRetryTermination
         )
-    }
-
-    // MARK: - Initializers
-
-    init(widgetSource: BrowserSoftwareUpdateWidgetSource? = nil) {
-        self.widgetSource = widgetSource
-        widgetSource?.bind(self)
-    }
-
-    // MARK: - Actions - Permission
-
-    func presentPermissionRequest(response: @escaping (Bool) -> Void) {
-        resetCallbacks()
-        phase = .permission
-        message = "Crest can check for updates automatically without sending a system profile."
-        permissionResponse = response
-        present()
-    }
-
-    func chooseAutomaticChecks(_ isEnabled: Bool) {
-        let response = permissionResponse
-        permissionResponse = nil
-        response?(isEnabled)
-        reset()
     }
 
     // MARK: - Actions - Checking
@@ -109,7 +60,6 @@ final class BrowserSoftwareUpdateModel {
         phase = .checking
         message = "Checking for a newer version of Crest…"
         self.cancellation = cancellation
-        present()
     }
 
     func presentNoUpdate(
@@ -120,7 +70,6 @@ final class BrowserSoftwareUpdateModel {
         phase = .upToDate
         self.message = message
         self.acknowledgement = acknowledgement
-        present()
     }
 
     func presentError(
@@ -131,7 +80,6 @@ final class BrowserSoftwareUpdateModel {
         phase = .failed
         self.message = message
         self.acknowledgement = acknowledgement
-        present()
     }
 
     /// Ends only an undownloaded available-update choice so Sparkle can run a
@@ -145,7 +93,6 @@ final class BrowserSoftwareUpdateModel {
         self.cancellation = cancellation
         phase = .checking
         message = "Checking whether a newer Crest update is available…"
-        present()
         dismiss()
         return true
     }
@@ -202,18 +149,15 @@ final class BrowserSoftwareUpdateModel {
             isInformationOnly
             ? "This release is available from the Crest website."
             : "A new version of Crest is ready to download."
-        present()
     }
 
     func setReleaseNotes(_ releaseNotes: String) {
         self.releaseNotes = releaseNotes
-        publishWidgetState()
     }
 
     func presentReleaseNotesFailure(_ description: String) {
         guard releaseNotes == nil else { return }
         releaseNotes = description
-        publishWidgetState()
     }
 
     func installUpdate() {
@@ -230,7 +174,6 @@ final class BrowserSoftwareUpdateModel {
         self.install = nil
         skip = nil
         phase = .downloading
-        publishWidgetState()
         install()
     }
 
@@ -277,7 +220,6 @@ final class BrowserSoftwareUpdateModel {
         self.isFixture = isFixture
         expectedDownloadLength = nil
         receivedDownloadLength = 0
-        present()
         return true
     }
 
@@ -297,7 +239,6 @@ final class BrowserSoftwareUpdateModel {
         isInformationOnly = false
         isAutomaticUpdate = true
         acknowledgement = { [weak self] in self?.reset() }
-        present()
     }
 
     func presentDownload(cancellation: @escaping () -> Void) {
@@ -307,20 +248,17 @@ final class BrowserSoftwareUpdateModel {
         expectedDownloadLength = nil
         receivedDownloadLength = 0
         self.cancellation = cancellation
-        present()
     }
 
     func setExpectedDownloadLength(_ length: UInt64) {
         expectedDownloadLength = length > 0 ? length : nil
         updateDownloadProgress()
-        publishWidgetState()
     }
 
     func receiveDownloadedBytes(_ length: UInt64) {
         let addition = receivedDownloadLength.addingReportingOverflow(length)
         receivedDownloadLength = addition.overflow ? .max : addition.partialValue
         updateDownloadProgress()
-        publishWidgetState()
     }
 
     func presentExtraction() {
@@ -328,12 +266,10 @@ final class BrowserSoftwareUpdateModel {
         message = "Preparing the update…"
         progress = nil
         cancellation = nil
-        present()
     }
 
     func setExtractionProgress(_ progress: Double) {
         self.progress = min(max(progress, 0), 1)
-        publishWidgetState()
     }
 
     private func updateDownloadProgress() {
@@ -374,7 +310,6 @@ final class BrowserSoftwareUpdateModel {
         self.isFixture = isFixture
         self.installAndRelaunch = installAndRelaunch
         relaunchRepeats = true
-        present()
     }
 
     func presentReadyToInstall(
@@ -386,7 +321,6 @@ final class BrowserSoftwareUpdateModel {
         installAndRelaunch = install
         relaunchRepeats = false
         skip = cancel
-        present()
     }
 
     func presentInstalling(
@@ -400,7 +334,6 @@ final class BrowserSoftwareUpdateModel {
             : Self.waitingToQuitMessage
         self.retryTermination = applicationTerminated ? nil : retryTermination
         canRetryTermination = !applicationTerminated
-        present()
     }
 
     func presentInstalled(
@@ -415,7 +348,6 @@ final class BrowserSoftwareUpdateModel {
             ? "Crest was updated and relaunched successfully."
             : "Crest was updated successfully."
         self.acknowledgement = acknowledgement
-        present()
     }
 
     /// Asks Crest to quit so the update installs and Crest opens again. Until
@@ -431,7 +363,6 @@ final class BrowserSoftwareUpdateModel {
             retryTermination = reply
             canRetryTermination = reply != nil
         }
-        publishWidgetState()
         reply?()
     }
 
@@ -451,35 +382,13 @@ final class BrowserSoftwareUpdateModel {
         relaunchRepeats = true
         self.retryTermination = nil
         canRetryTermination = false
-        present()
     }
 
     func dismissInstallation() {
         reset()
     }
 
-    // MARK: - Actions - Visibility
-
-    /// Hides the sidebar card until the person checks for updates or Crest
-    /// restarts. Sparkle is not told, so the update carries on as it was.
-    func hide() {
-        guard !isHidden else { return }
-        isHidden = true
-        publishWidgetState()
-    }
-
-    /// Shows the sidebar card again once the person checks for updates.
-    func reveal() {
-        guard isHidden else { return }
-        isHidden = false
-        publishWidgetState()
-    }
-
-    // MARK: - Actions - Presentation
-
-    private func present() {
-        publishWidgetState()
-    }
+    // MARK: - Actions - Reset
 
     private func reset() {
         resetCallbacks()
@@ -498,11 +407,9 @@ final class BrowserSoftwareUpdateModel {
         canRetryTermination = false
         expectedDownloadLength = nil
         receivedDownloadLength = 0
-        publishWidgetState()
     }
 
     private func resetCallbacks() {
-        permissionResponse = nil
         cancellation = nil
         install = nil
         skip = nil
@@ -514,9 +421,4 @@ final class BrowserSoftwareUpdateModel {
         acknowledgement = nil
     }
 
-    private func publishWidgetState() {
-        widgetSource?.publish(sidebarWidgetSnapshot)
-    }
 }
-
-extension BrowserSoftwareUpdateModel: BrowserSoftwareUpdateActionPerformer {}

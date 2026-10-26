@@ -10,7 +10,6 @@ final class BrowserDataPortabilityModel {
     // MARK: - Variables
 
     let browser: BrowserStore
-    let spaceAccess: BrowserSpaceAccessController
 
     /// The file an export is saving, and whether its panel is up.
     var exportDocument: BrowserExportDocument?
@@ -20,29 +19,16 @@ final class BrowserDataPortabilityModel {
     var isImporting = false
     var status: BrowserDataPortabilityOperationStatus?
 
-    /// The workspace's Spaces that ask for authentication and are locked,
-    /// which keep an export from being written.
-    var lockedSpaces: [SpaceModel] {
-        (browser.workspaceModel?.spaces.models ?? []).filter(spaceAccess.isLocked)
-    }
-
-    var lockedSpaceIDs: [UUID] {
-        lockedSpaces.map(\.id)
-    }
-
     // MARK: - Initializers
 
-    init(browser: BrowserStore, spaceAccess: BrowserSpaceAccessController) {
+    init(browser: BrowserStore) {
         self.browser = browser
-        self.spaceAccess = spaceAccess
     }
 
     // MARK: - Actions - Export
 
-    /// Asks the core for `format`'s file of this workspace, then offers to
-    /// save it. A Space locked meanwhile keeps the file from being saved.
     func prepareExport(_ format: ExportFormat) {
-        guard lockedSpaces.isEmpty, preparingFormat == nil else { return }
+        guard preparingFormat == nil else { return }
         preparingFormat = format
         status = nil
         let core = browser.core
@@ -51,7 +37,6 @@ final class BrowserDataPortabilityModel {
             defer { preparingFormat = nil }
             do {
                 let document = try await Task.detached(priority: .userInitiated) { try core.query(query) }.value
-                guard lockedSpaces.isEmpty else { return }
                 exportDocument = BrowserExportDocument(document)
                 isExporting = true
             } catch {

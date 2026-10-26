@@ -9,7 +9,6 @@ struct BrowserPageLoadingChanged: BrowserPageEngineEvent {
 
     func apply(to page: BrowserPage) {
         guard !isLoading else { return }
-        page.linkDrag?.didFinishNavigation()
         // A navigation that failed or turned into a download ends here
         // without committing.
         page.linkHover?.didFailNavigation()

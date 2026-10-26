@@ -9,7 +9,6 @@ import SwiftUI
 /// one scrolling pane holds ``BrowserSpaceSettingsSections``.
 struct BrowserPlatformSpaceSettingsPane: View {
     let browser: BrowserStore
-    let spaceAccess: BrowserSpaceAccessController
     let dataDeleter: any BrowserSpaceDataDeleting
     let requestedSpaceID: UUID?
     let requestRevision: Int
@@ -17,7 +16,6 @@ struct BrowserPlatformSpaceSettingsPane: View {
     var body: some View {
         MobileSpaceSettingsView(
             browser: browser,
-            spaceAccess: spaceAccess,
             dataDeleter: dataDeleter
         )
     }

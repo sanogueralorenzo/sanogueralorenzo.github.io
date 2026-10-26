@@ -20,7 +20,6 @@ struct BrowserMacCommand {
     static let openFile = BrowserMacCommand(
         .openFile, isAvailable: { $0.supportsEngineCapability(.localFiles) },
         run: { $0.openFile() })
-    static let newQuickWindow = BrowserMacCommand(.newQuickWindow) { $0.openQuickWindow() }
     static let newPrivateWindow = BrowserMacCommand(
         .newPrivateWindow, withoutWindow: .always { $0.openPrivateWindow() },
         run: { $0.openPrivateWindow() })
@@ -43,7 +42,7 @@ struct BrowserMacCommand {
     static let toggleSelectedTabPinned = BrowserMacCommand(.toggleSelectedTabPinned) { $0.toggleSelectedTabPinned() }
     static let duplicateTab = BrowserMacCommand(.duplicateTab) { $0.duplicateSelectedTab() }
     static let reopenClosedTab = BrowserMacCommand(.reopenClosedTab) { $0.reopenClosedTab() }
-    static let clearUnpinnedTabs = BrowserMacCommand(.clearUnpinnedTabs) { $0.cleanupCurrentTabs() }
+    static let clearUnpinnedTabs = BrowserMacCommand(.clearUnpinnedTabs) { $0.clearCurrentTabs() }
     static let archiveTab = BrowserMacCommand(.archiveTab) { $0.archiveSelectedTab() }
     static let previousTab = BrowserMacCommand(.previousTab) { $0.selectPreviousTab() }
     static let nextTab = BrowserMacCommand(.nextTab) { $0.selectNextTab() }
@@ -106,17 +105,6 @@ struct BrowserMacCommand {
     static let printPage = BrowserMacCommand(
         .printPage, actsOnPage: true, isAvailable: { $0.commandPageSupports(.print) },
         run: { $0.commandPage?.printPage() })
-    static let capturePage = BrowserMacCommand(
-        .capturePage, actsOnPage: true, isAvailable: { $0.commandPageSupports(.viewportCapture) },
-        isOn: { $0.commandPage?.isRegionCapturePresented == true },
-        run: { $0.commandPage?.toggleRegionCapture() })
-    static let clearSiteCookies = BrowserMacCommand(
-        .clearSiteCookies, actsOnPage: true, isAvailable: { $0.commandPageShowsSite },
-        run: { $0.clearCommandPageSiteData(.siteData) })
-    static let clearSiteCache = BrowserMacCommand(
-        .clearSiteCache, actsOnPage: true, isAvailable: { $0.commandPageShowsSite },
-        run: { $0.clearCommandPageSiteData(.cache) })
-    static let toggleSidebar = BrowserMacCommand(.toggleSidebar) { $0.toggleSidebar() }
     static let showHistory = BrowserMacCommand(.showHistory) { $0.chrome.toggleUtility(.history) }
     static let showArchive = BrowserMacCommand(.showArchive) { $0.chrome.toggleUtility(.archive) }
     static let showDownloads = BrowserMacCommand(
@@ -125,13 +113,12 @@ struct BrowserMacCommand {
     static let showWebInspector = BrowserMacCommand(
         .showWebInspector, actsOnPage: true, isAvailable: { $0.supportsPageCapability(.inspector) },
         run: { _ = $0.shownPage?.showWebInspector() })
-    static let toggleTranslationToolbar = BrowserMacCommand(
-        .toggleTranslationToolbar, actsOnPage: true,
+    static let translatePage = BrowserMacCommand(
+        .translatePage, actsOnPage: true,
         isAvailable: { $0.supportsPageCapability(.translation) && $0.shownPage?.readerModeState.isActive != true },
-        isOn: { $0.shownPage?.translation.showsToolbar == true },
         run: { actions in
             guard let page = actions.shownPage, !page.readerModeState.isActive else { return }
-            page.translation.toggleToolbarVisibility()
+            page.translation.performAction()
         })
     static let toggleDeveloperToolbar = BrowserMacCommand(
         .toggleDeveloperToolbar, isAvailable: { $0.pages.hasActivePage },
@@ -150,7 +137,7 @@ struct BrowserMacCommand {
 
     /// Every command the Mac shell runs, one for each kind the core names.
     static let all = [
-        newWindow, newBlankWindow, newTab, openLocation, openFile, newQuickWindow, newPrivateWindow, closeTabOrWindow,
+        newWindow, newBlankWindow, newTab, openLocation, openFile, newPrivateWindow, closeTabOrWindow,
         closeWindow,
         back, forward, reloadPage, stopLoading, reloadFromOrigin, toggleSelectedTabPinned, duplicateTab,
         reopenClosedTab,
@@ -161,10 +148,10 @@ struct BrowserMacCommand {
         toggleReaderMode, toggleContentBlocking, findInPage, findNext, findPrevious, zoomIn, zoomOut, actualSize,
         copyPageLink,
         copyPageLinkAsMarkdown,
-        sharePage, exportPDF, saveWebArchive, printPage, capturePage, clearSiteCookies, clearSiteCache,
-        toggleSidebar, showHistory, showArchive, showDownloads,
+        sharePage, exportPDF, saveWebArchive, printPage,
+        showHistory, showArchive, showDownloads,
         showWebInspector,
-        toggleTranslationToolbar, toggleDeveloperToolbar, selectNumbered,
+        translatePage, toggleDeveloperToolbar, selectNumbered,
     ]
 
     // MARK: - Variables
@@ -189,8 +176,6 @@ struct BrowserMacCommand {
     /// command that needs one.
     let withoutWindow: BrowserMacWindowlessCommand?
 
-    /// Whether the command acts on a page, which a Quick Window in front
-    /// shows too, so a key Quick Window runs it on its own page.
     let actsOnPage: Bool
 
     /// Whether the palette lists the command only while it can run, for a
@@ -254,9 +239,6 @@ struct BrowserMacCommand {
     }
 }
 
-/// What a command does while no browser window is key: a new window opens
-/// from nothing, and a window the shell opened, such as a Quick Window or
-/// setup, closes itself.
 @MainActor
 struct BrowserMacWindowlessCommand {
     // MARK: - Static Variables

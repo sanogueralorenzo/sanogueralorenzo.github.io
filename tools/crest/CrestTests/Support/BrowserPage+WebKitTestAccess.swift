@@ -26,16 +26,9 @@ extension BrowserPage {
         profileID: UUID,
         spaceName: String,
         contentRuleList: WKContentRuleList? = nil,
-        allowsCredentialAccess: Bool = true,
-        isCredentialAccessEnabled: Bool = true,
         defaultPageZoom: CGFloat = BrowserDefaultPageZoomStore.defaultLevel,
-        loadHTTPAuthenticationCredential:
-            @escaping BrowserHTTPAuthenticationSession.LoadCredential = { _ in nil },
-        saveHTTPAuthenticationCredential:
-            @escaping BrowserHTTPAuthenticationSession.SaveCredential = { _ in },
+        openNewTab: @escaping (URL) -> Void = { _ in },
         openModifiedLink: @escaping (URLRequest, UUID, Bool) -> Void = { _, _, _ in },
-        openPeek: @escaping (BrowserPeekRequest) -> Void = { _ in },
-        handleLinkDrag: @escaping (BrowserPeekInteractionEvent) -> Void = { _ in },
         splitLinkHost: BrowserSplitLinkHost = .unavailable,
         linkDestinationHost: BrowserLinkDestinationHost = .unavailable,
         opensExternalURL: @escaping (URL) -> Void = { NSWorkspace.shared.open($0) }
@@ -58,14 +51,9 @@ extension BrowserPage {
             spaceID: spaceID,
             profileID: profileID,
             spaceName: spaceName,
-            allowsCredentialAccess: allowsCredentialAccess,
-            isCredentialAccessEnabled: isCredentialAccessEnabled,
             defaultPageZoom: defaultPageZoom,
-            loadHTTPAuthenticationCredential: loadHTTPAuthenticationCredential,
-            saveHTTPAuthenticationCredential: saveHTTPAuthenticationCredential,
+            openNewTab: openNewTab,
             openModifiedLink: openModifiedLink,
-            openPeek: openPeek,
-            handleLinkDrag: handleLinkDrag,
             splitLinkHost: splitLinkHost,
             linkDestinationHost: linkDestinationHost,
             opensExternalURL: opensExternalURL

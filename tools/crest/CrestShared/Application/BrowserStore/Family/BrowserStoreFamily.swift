@@ -22,7 +22,7 @@ final class BrowserStoreFamily {
     var locallyDeletingSpaceIDs: Set<UUID> {
         activeSpaceDeletions.union(temporarySettingsBrowser?.deletingSpaceIDs ?? [])
     }
-    @ObservationIgnored private weak var spaceDataDeleter: (any BrowserSpaceDataDeleting)?
+    @ObservationIgnored private(set) weak var spaceDataDeleter: (any BrowserSpaceDataDeleting)?
     @ObservationIgnored private weak var spaceCleanupStore: BrowserStore?
     @ObservationIgnored private(set) var spaceCleanupTask: Task<Void, Never>?
     @ObservationIgnored weak var pageDismissalAuthorizer: (any BrowserPageDismissalAuthorizing)?

@@ -9,8 +9,6 @@ struct BrowserSelectionScope: Equatable {
     let spaceID: UUID
     /// The Space's profile, or nil while the core holds no such Space.
     let profileID: UUID?
-    /// The Space's access policy, or nil while the core holds no such Space.
-    let accessPolicy: SpaceAccessPolicy?
 
     // MARK: - Initializers
 
@@ -20,6 +18,5 @@ struct BrowserSelectionScope: Equatable {
     init(spaceID: UUID, space: SpaceModel?) {
         self.spaceID = spaceID
         profileID = space?.profileID
-        accessPolicy = space?.settings.accessPolicy
     }
 }

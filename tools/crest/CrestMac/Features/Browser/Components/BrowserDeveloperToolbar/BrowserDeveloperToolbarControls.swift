@@ -21,7 +21,6 @@ struct BrowserDeveloperSiteSettingsControl: View {
     let page: BrowserPage
     let permissionCenter: BrowserSitePermissionCenter
     @Binding var isPresented: Bool
-    @Binding var permissionsExpansion: Bool
 
     var body: some View {
         BrowserDeveloperToolbarButton(
@@ -33,8 +32,7 @@ struct BrowserDeveloperSiteSettingsControl: View {
         .popover(isPresented: $isPresented, arrowEdge: .top) {
             BrowserSiteSettingsContent(
                 page: page,
-                permissionCenter: permissionCenter,
-                permissionsExpansion: $permissionsExpansion
+                permissionCenter: permissionCenter
             )
             .padding(14)
             .frame(width: 300)

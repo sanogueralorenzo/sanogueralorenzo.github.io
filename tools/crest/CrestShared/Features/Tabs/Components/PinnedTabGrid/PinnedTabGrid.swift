@@ -15,7 +15,7 @@ struct PinnedTabGrid: View {
     var window: WindowStateModel? = nil
     var selectedTabID: UUID? = nil
     let select: (BrowserTabRuntimeAssignment) -> Void
-    /// The live sidebar's lists, which organize, drag and unload tiles; nil
+    /// The live sidebar's lists, which organize and drag tiles; nil
     /// for a preview that is only for looking at.
     var context: BrowserSidebarListContext? = nil
     var dragState: BrowserTabDragState? = nil

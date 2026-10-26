@@ -47,8 +47,6 @@ extension MobileBrowserPage: WKNavigationDelegate {
         // that came with it is spent.
         consumeAppInitiatedURL()
         pendingServerTrustIdentity = nil
-        linkActivationSourceStore.removeAll()
-        credentialState.didStartNavigation()
         readerModeSession.invalidate()
         faviconSession.invalidate()
         reporter.started(webView.url)
@@ -83,9 +81,6 @@ extension MobileBrowserPage: WKNavigationDelegate {
         Task { [weak self] in
             await self?.refreshReaderModeAvailability()
         }
-        Task {
-            await httpAuthenticationSession.authenticationSucceeded()
-        }
     }
 
     func webView(
@@ -97,16 +92,6 @@ extension MobileBrowserPage: WKNavigationDelegate {
             for: navigationAction,
             isAppInitiated: isAppInitiated(navigationAction)
         ).apply(to: self, for: navigationAction, in: webView, decisionHandler: decisionHandler)
-    }
-
-    /// Where the person touched the link `navigationAction` follows, for a
-    /// link they activated at the top level, which a Peek grows from.
-    func linkSourcePresentation(
-        for navigationAction: WKNavigationAction, in webView: WKWebView
-    ) -> BrowserPeekSourcePresentation? {
-        let gesture = navigationAction.linkGesture
-        return gesture.userActivated && gesture.topLevel
-            ? linkActivationSourceStore.consume(destinationURL: navigationAction.request.url) : nil
     }
 
     func webView(
@@ -178,7 +163,6 @@ extension MobileBrowserPage: WKNavigationDelegate {
         translation.reset()
         readerModeSession.invalidate()
         mediaSessionCoordinator?.webContentProcessDidTerminate()
-        httpAuthenticationSession.authenticationFailed()
         recordWebContentTermination()
     }
 
@@ -187,7 +171,6 @@ extension MobileBrowserPage: WKNavigationDelegate {
         didFail navigation: WKNavigation?,
         withError error: any Error
     ) {
-        httpAuthenticationSession.authenticationFailed()
         recordNavigationFailure(
             error,
             replacedDocument: true,
@@ -200,7 +183,6 @@ extension MobileBrowserPage: WKNavigationDelegate {
         didFailProvisionalNavigation navigation: WKNavigation?,
         withError error: any Error
     ) {
-        httpAuthenticationSession.authenticationFailed()
         recordNavigationFailure(
             error,
             replacedDocument: false,

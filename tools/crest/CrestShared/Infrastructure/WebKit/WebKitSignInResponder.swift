@@ -26,7 +26,6 @@ struct WebKitSignInResponder: AuthenticationResponder {
     }
 
     func cancelChallenge() {
-        session?.authenticationFailed()
         completionHandler(.cancelAuthenticationChallenge, nil)
     }
 

@@ -26,8 +26,8 @@ enum BrowserSiteSettingsPreviewFixture {
             id: tabID, title: "Example", url: pageURL, symbol: "globe", placement: .current,
             lastActivatedAt: fixedDate)
         let space = SpaceState.Seed(
-            id: spaceID, profileID: profileID, name: "Preview", symbol: "globe", accent: .teal,
-            branding: SpaceAccent.teal.house, tabs: [tab])
+            id: spaceID, profileID: profileID, name: "Preview",
+            tabs: [tab])
         let permissionCenter = BrowserSitePermissionCenter()
         let core = CrestCore()
         core.engines.register(WebKitEngineBinding(keepsProfilesInMemory: true), isDefault: true)

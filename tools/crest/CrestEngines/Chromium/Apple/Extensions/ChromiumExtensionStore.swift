@@ -52,10 +52,10 @@ final class ChromiumExtensionStore {
     /// window's own store publishes its Spaces before the application-wide list
     /// a start-up read would see. A Space from an unrelated family — another
     /// family's window, a borrowed settings workspace, a private window, which
-    /// has no persistent engine profile of its own — and a locked Space are all
+    /// has no persistent engine profile of its own — are all
     /// refused. Callers with no window fall back to the application list.
     func authorized(_ space: BrowserSpaceIdentity, in browser: BrowserStore? = nil) -> Bool {
-        guard !ChromiumComposition.isSpaceLocked(space) else { return false }
+        guard !ChromiumComposition.isSpaceUnavailable(space) else { return false }
         guard let browser else {
             return spaces.contains { $0.id == space.id && $0.profileID == space.profileID }
         }

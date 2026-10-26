@@ -8,10 +8,8 @@ extension BrowserMacShell {
         windows?.activeActions
     }
 
-    /// The commands as they run on the page in front: a key Quick Window's
-    /// own page, or else the key browser window's.
     var pageActions: BrowserCommandActions? {
-        windows?.activeQuickWindowActions ?? activeActions
+        windows?.activeAuthenticationActions ?? activeActions
     }
 
     /// Whether the application can check for updates, which an isolated
@@ -40,7 +38,6 @@ extension BrowserMacShell {
         if event.type == .keyDown, recentTabSwitcher.handleKeyDown(event) { return true }
         guard let windows, let application, event.type == .keyDown,
             NSApp.modalWindow == nil, NSApp.keyWindow?.attachedSheet == nil,
-            (NSApp.keyWindow?.firstResponder as? ShortcutRecorderButton)?.isRecording != true,
             let shortcut = BrowserShortcut(event: event), shortcut.isValid
         else { return false }
         if shortcut == BrowserShortcut(key: .character("q"), modifiers: .command) {
@@ -56,7 +53,7 @@ extension BrowserMacShell {
         // Inspector, extension popup and system dialog responders are not a
         // browser workspace. Their editing and close shortcuts stay local.
         let context = windows.activeContext
-        guard context != nil || windows.isQuickWindowKey else { return false }
+        guard context != nil || windows.isAuthenticationWindowKey else { return false }
         if let command = application.shortcuts.command(for: event, isEnabled: canPerform) {
             guard command.isReservedFromPages || !pageSeesFirst else { return false }
             if let direction = BrowserMacCommand.of(command)?.recentTabDirection,
@@ -76,10 +73,6 @@ extension BrowserMacShell {
 
     // MARK: - Actions - Commands
 
-    /// Whether `command` can run now: never while a quit is prepared or a
-    /// modal window or sheet is up, and otherwise as the key window's own
-    /// commands say. A new window needs no window, and any window the shell
-    /// opened, such as a Quick Window or setup, can close itself.
     func canPerform(_ command: ShortcutCommand) -> Bool {
         guard !isQuitting, NSApp.modalWindow == nil, NSApp.keyWindow?.attachedSheet == nil else { return false }
         if let windowless = BrowserMacCommand.of(command)?.withoutWindow, let windows {
@@ -88,8 +81,6 @@ extension BrowserMacShell {
         return actions(for: command)?.canPerform(command) == true
     }
 
-    /// Runs `command` in the key browser window, or on the page of a key
-    /// Quick Window, or with neither, the commands that need no window.
     func perform(_ command: ShortcutCommand) {
         guard canPerform(command) else { return }
         if let actions = actions(for: command) {
@@ -138,6 +129,7 @@ extension BrowserMacShell {
 
     func checkForUpdates() {
         application?.softwareUpdates.checkForUpdates()
+        windows?.openSoftwareUpdateDetails()
     }
 
     /// Opens Settings in the browser window the person is using, opening one
@@ -157,10 +149,4 @@ extension BrowserMacShell {
         _ = try? application?.browser.core.send(StopAllAgents())
     }
 
-    /// Opens Getting Started in the browser window the person is using,
-    /// opening one only when none is open.
-    func openGettingStarted() {
-        guard let context = windows?.contextBringingBrowserWindowForward() else { return }
-        application?.openGettingStarted(in: context.windowID)
-    }
 }

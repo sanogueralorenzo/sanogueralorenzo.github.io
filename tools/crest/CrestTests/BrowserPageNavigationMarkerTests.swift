@@ -39,8 +39,6 @@ final class BrowserPageNavigationMarkerTests: XCTestCase {
         let tab = TabState.Seed.startPage()
         let space = SpaceState.Seed(
             name: "Marker",
-            symbol: "circle",
-            accent: .indigo,
             folders: [],
             tabs: [tab]
         )

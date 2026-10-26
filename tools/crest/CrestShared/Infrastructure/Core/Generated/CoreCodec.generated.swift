@@ -7,7 +7,7 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0xde, 0xa7, 0xa0, 0x4a, 0x73, 0x02, 0xd4, 0xe5, 0x85, 0x16, 0x4e, 0xd9, 0x20, 0x5f, 0x08, 0x78, 0xfd, 0x85, 0xd8, 0x95, 0x92, 0x2d, 0x6b, 0x36, 0x03, 0xb3, 0x69, 0x7e, 0x96, 0x03, 0x1a, 0xbd
+        0x10, 0xe6, 0xf1, 0xee, 0x75, 0x2a, 0x8e, 0xc2, 0x7a, 0x77, 0x4b, 0x74, 0x04, 0xe6, 0xcc, 0x1c, 0x76, 0x99, 0x3b, 0xcf, 0xa9, 0xdc, 0xef, 0xbf, 0x10, 0xe9, 0xe3, 0x9b, 0xda, 0x8e, 0xbb, 0x9f
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
@@ -2429,12 +2429,27 @@ extension AppPreferences {
     init(from reader: inout WireReader) throws(WireError) {
         let translationLanguage = try reader.readString()
         let searchProvider = try SearchProvider(from: &reader)
-        self.init(translationLanguage: translationLanguage, searchProvider: searchProvider)
+        let translateAutomatically = try reader.readBool()
+        let excludedTranslationLanguagesCount = try reader.readCount()
+        var excludedTranslationLanguages: [String] = []
+        excludedTranslationLanguages.reserveCapacity(excludedTranslationLanguagesCount)
+        for _ in 0..<excludedTranslationLanguagesCount {
+            let excludedTranslationLanguagesElement = try reader.readString()
+            excludedTranslationLanguages.append(excludedTranslationLanguagesElement)
+        }
+        let searchSuggestionsEnabled = try reader.readBool()
+        self.init(translationLanguage: translationLanguage, searchProvider: searchProvider, translateAutomatically: translateAutomatically, excludedTranslationLanguages: excludedTranslationLanguages, searchSuggestionsEnabled: searchSuggestionsEnabled)
     }
 
     func encode(into writer: inout WireWriter) {
         writer.writeString(translationLanguage)
         searchProvider.encode(into: &writer)
+        writer.writeBool(translateAutomatically)
+        writer.writeCount(excludedTranslationLanguages.count)
+        for element0 in excludedTranslationLanguages {
+            writer.writeString(element0)
+        }
+        writer.writeBool(searchSuggestionsEnabled)
     }
 }
 

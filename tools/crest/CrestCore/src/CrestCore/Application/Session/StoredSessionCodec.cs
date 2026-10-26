@@ -27,12 +27,15 @@ internal static partial class StoredSessionCodec {
         public const string Alpha = "alpha";
         public const string AppPreferences = "appPreferences";
         public const string SearchProvider = "searchProvider";
+        public const string SearchSuggestionsEnabled = "searchSuggestionsEnabled";
         public const string Archive = "archive";
         public const string ArchivedAt = "archivedAt";
         public const string ArchivedTabs = "archivedTabs";
         public const string Blue = "blue";
         public const string BrowsingPreferences = "browsingPreferences";
         public const string TranslationLanguage = "translationLanguage";
+        public const string TranslateAutomatically = "translateAutomatically";
+        public const string ExcludedTranslationLanguages = "excludedTranslationLanguages";
         public const string CollapseModifiedAt = "collapseModifiedAt";
         public const string Color = "color";
         public const string ContentBlockingPolicy = "contentBlockingPolicy";

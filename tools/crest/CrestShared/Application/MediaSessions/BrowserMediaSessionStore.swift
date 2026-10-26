@@ -112,7 +112,7 @@ enum BrowserMediaSessionPageEventDecoder {
 
 @Observable
 @MainActor
-final class BrowserMediaSessionStore: BrowserSidebarWidgetEventSource {
+final class BrowserMediaSessionStore {
     private final class WeakEndpoint {
         weak var value: (any BrowserMediaSessionCommandEndpoint)?
 
@@ -121,7 +121,6 @@ final class BrowserMediaSessionStore: BrowserSidebarWidgetEventSource {
         }
     }
 
-    let kindID = BrowserSidebarWidgetKindID.nowPlaying
     /// Published sessions in the core's display order.
     private(set) var sessions: [BrowserMediaSessionSnapshot] = []
 
@@ -133,13 +132,12 @@ final class BrowserMediaSessionStore: BrowserSidebarWidgetEventSource {
     @ObservationIgnored private var retiredIDs: Set<BrowserMediaSessionID> = []
     @ObservationIgnored private var ordinalByID: [BrowserMediaSessionID: UInt64] = [:]
     @ObservationIgnored private var nextOrdinal: UInt64 = 1
-    @ObservationIgnored private var subscribers: [UUID: AsyncStream<[BrowserSidebarWidgetInstance]>.Continuation] = [:]
     @ObservationIgnored
     private var sessionSubscribers: [UUID: AsyncStream<[BrowserMediaSessionSnapshot]>.Continuation] = [:]
     /// Sessions the reader has hidden. The session itself keeps running and keeps
     /// reporting; only its card is withheld until the tab plays again.
     @ObservationIgnored private var dismissedIDs: Set<BrowserMediaSessionID> = []
-    @ObservationIgnored private var publishedInstances: [BrowserSidebarWidgetInstance] = []
+    private(set) var sidebarSessions: [BrowserMediaSessionSnapshot] = []
 
     /// Applies one page report. Which reports count, what they do to the
     /// session, the ordinal it is shown by, the remembered-identity window and
@@ -220,22 +218,8 @@ final class BrowserMediaSessionStore: BrowserSidebarWidgetEventSource {
         publishIfChanged()
     }
 
-    func events() -> AsyncStream<[BrowserSidebarWidgetInstance]> {
-        let subscriberID = UUID()
-        let (stream, continuation) = AsyncStream<[BrowserSidebarWidgetInstance]>.makeStream(
-            bufferingPolicy: .bufferingNewest(1))
-        subscribers[subscriberID] = continuation
-        continuation.onTermination = { @Sendable [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.subscribers.removeValue(forKey: subscriberID)
-            }
-        }
-        continuation.yield(widgetInstances)
-        return stream
-    }
-
     /// The authoritative page-session stream. Platform adapters consume this
-    /// rather than observing widget visibility, because hiding a card must not
+    /// rather than observing sidebar visibility, because hiding a card must not
     /// erase the page's actual media session.
     func sessionEvents() -> AsyncStream<[BrowserMediaSessionSnapshot]> {
         let subscriberID = UUID()
@@ -250,18 +234,6 @@ final class BrowserMediaSessionStore: BrowserSidebarWidgetEventSource {
         }
         continuation.yield(sessions)
         return stream
-    }
-
-    func perform(
-        _ action: BrowserSidebarWidgetAction,
-        on instanceID: BrowserSidebarWidgetID
-    ) {
-        guard instanceID.kindID == kindID,
-            let snapshot = snapshotsByID.values.first(where: {
-                $0.id.id == instanceID.instanceID
-            })
-        else { return }
-        action.perform(on: self, session: snapshot)
     }
 
     /// The session the tab's page publishes, or nil while it publishes none.
@@ -296,32 +268,6 @@ final class BrowserMediaSessionStore: BrowserSidebarWidgetEventSource {
         snapshot.playbackState != .none
     }
 
-    /// What the sidebar deck currently shows: every observed session except the
-    /// ones the reader has hidden.
-    var widgetInstances: [BrowserSidebarWidgetInstance] {
-        sessions.compactMap { snapshot in
-            guard !dismissedIDs.contains(snapshot.id) else { return nil }
-            var actions: Set<BrowserSidebarWidgetAction> = [
-                .activateOwner,
-                .dismissMediaSession,
-            ]
-            if Self.exposesMuteControl(snapshot) {
-                actions.insert(.toggleMute)
-            }
-            actions.formUnion(snapshot.availableActions.map(BrowserSidebarWidgetAction.mediaSession))
-            return BrowserSidebarWidgetInstance(
-                id: BrowserSidebarWidgetID(
-                    kindID: kindID,
-                    instanceID: snapshot.id.id
-                ),
-                scope: .profile(snapshot.owner.profileID),
-                orderingOrdinal: snapshot.orderingOrdinal,
-                presentation: .nowPlaying(snapshot),
-                availableActions: actions
-            )
-        }
-    }
-
     private func retire(_ id: BrowserMediaSessionID) {
         snapshotsByID[id] = nil
         endpointsByID[id] = nil
@@ -353,10 +299,6 @@ final class BrowserMediaSessionStore: BrowserSidebarWidgetEventSource {
         sequenceOrder.removeFirst(overflow)
     }
 
-    /// `sessions` stays the truth of what Crest observes; the widget stream is
-    /// what a dismissal withholds. They are therefore published against separate
-    /// guards, so hiding a card still reaches subscribers.
-    ///
     /// The order is the core's `media.arbitrate` rule. Without an answer the
     /// published order stands: surviving sessions keep their places and new
     /// ones follow in the order they arrived.
@@ -377,12 +319,8 @@ final class BrowserMediaSessionStore: BrowserSidebarWidgetEventSource {
                 continuation.yield(next)
             }
         }
-        let instances = widgetInstances
-        guard instances != publishedInstances else { return }
-        publishedInstances = instances
-        for continuation in subscribers.values {
-            continuation.yield(instances)
-        }
+        let visible = sessions.filter { !dismissedIDs.contains($0.id) }
+        if visible != sidebarSessions { sidebarSessions = visible }
     }
 
     private static func boundedFallbackTitle(_ title: String?) -> String? {
@@ -395,20 +333,21 @@ final class BrowserMediaSessionStore: BrowserSidebarWidgetEventSource {
     }
 }
 
-extension BrowserMediaSessionStore: BrowserNowPlayingActionPerformer {
-    func dismissCard(of session: BrowserMediaSessionSnapshot) {
+extension BrowserMediaSessionStore {
+    func dismissCard(of id: BrowserMediaSessionID) {
         // Hiding a card is Crest's own state, so it does not need the page to
         // still be reachable.
-        guard dismissedIDs.insert(session.id).inserted else { return }
+        guard snapshotsByID[id] != nil, dismissedIDs.insert(id).inserted else { return }
         publishIfChanged()
     }
 
-    func toggleMute(of session: BrowserMediaSessionSnapshot) {
+    func toggleMute(of id: BrowserMediaSessionID) {
+        guard let session = snapshotsByID[id] else { return }
         setMuted(!session.isMuted, session)
     }
 
-    func perform(_ action: MediaSessionAction, on session: BrowserMediaSessionSnapshot) {
-        guard let endpoint = endpointsByID[session.id]?.value,
+    func perform(_ action: MediaSessionAction, on id: BrowserMediaSessionID) {
+        guard let session = snapshotsByID[id], let endpoint = endpointsByID[session.id]?.value,
             session.availableActions.contains(action)
         else { return }
         endpoint.performMediaSessionAction(

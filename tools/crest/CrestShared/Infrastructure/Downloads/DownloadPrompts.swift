@@ -36,7 +36,7 @@ final class BrowserDownloadPrompts {
         claims: @escaping @MainActor (UUID?) -> Bool = { _ in true },
         approve: @escaping Approve,
         resolveDestination: @escaping BrowserDownloadCenter.DownloadDestinationChooser = {
-            await BrowserPlatformDownloadDirectory.resolve(suggestedFilename: $0, spaceID: $1, forcesPrompt: $2)
+            await BrowserPlatformDownloadDirectory.resolve(suggestedFilename: $0, forcesPrompt: $2)
         }
     ) {
         self.core = core
@@ -52,8 +52,7 @@ final class BrowserDownloadPrompts {
 
     // MARK: - Actions - Prompts
 
-    /// Where a download's file goes: the Space's download folder, or where
-    /// the person chooses when the Space or the engine asks for that.
+    /// Downloads go to Downloads unless the person explicitly chooses Save As.
     private func choose(_ asked: DownloadDestinationAsked) {
         Task { @MainActor [weak self, resolveDestination] in
             let resolution = await resolveDestination(asked.suggestedFilename, asked.spaceID, asked.forcesPrompt)

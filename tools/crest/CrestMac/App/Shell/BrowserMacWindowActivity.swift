@@ -2,15 +2,6 @@ import AppKit
 import Observation
 import SwiftUI
 
-/// How active one shell window is, which its SwiftUI content reads as its
-/// scene phase. A view an `NSHostingController` hosts belongs to no SwiftUI
-/// scene, so nothing else would tell it; what the phase drives, such as
-/// retention sweeps, flushing the window's edits, pausing its sidebar widgets
-/// and its Quick Window and Peek pages, would never follow the window.
-///
-/// The phase follows SwiftUI's own on the Mac: a window on screen is active
-/// whether or not it is key and whether or not the app is, and one that is
-/// minimized or hidden with the app is in the background.
 @Observable
 @MainActor
 final class BrowserMacWindowActivity: NSObject {
@@ -58,9 +49,6 @@ final class BrowserMacWindowActivity: NSObject {
         if next != phase { phase = next }
     }
 
-    /// The window closed, and its content goes with it: the phase stays as
-    /// it was, so nothing its content does on leaving the foreground, such as
-    /// a Quick Window locking every Space, runs for a window that is going.
     func end() {
         NotificationCenter.default.removeObserver(self)
         window = nil

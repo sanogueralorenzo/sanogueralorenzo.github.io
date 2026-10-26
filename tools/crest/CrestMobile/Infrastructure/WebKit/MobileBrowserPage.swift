@@ -72,11 +72,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     var readerModeState: BrowserReaderModeState { readerModeSession.state }
     var isContentBlockingActive: Bool { contentRuleSession.isActive }
     private(set) var isRequestingDesktopSite = false
-    var isCredentialAccessEnabled: Bool { credentialSession.isEnabled }
-    /// True once iOS reclaimed this page's web-content process while it was off
-    /// screen. Selecting the tab again is what brings the page back.
-    var credentialFillRequest: BrowserCredentialFillRequest? { credentialState.fillRequest }
-    var credentialSaveCandidate: BrowserCredentialSaveCandidate? { credentialState.saveCandidate }
+    var hasActiveLinkActivationBridge: Bool { linkActivationMessageProxy != nil }
 
     @ObservationIgnored private var observations: [NSKeyValueObservation] = []
     @ObservationIgnored private let pullToRefreshControl = UIRefreshControl()
@@ -102,7 +98,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// The URL Crest asked this page to load, as opposed to one web content
     /// asked for. Only an app-initiated load may reach a `file:` URL.
     @ObservationIgnored var appInitiatedURL: URL?
-    @ObservationIgnored let openPeek: (BrowserPeekRequest) -> Void
+    @ObservationIgnored private(set) var appInitiatedNavigationCount = 0
     @ObservationIgnored var contextMenuPreviewCommit: (() -> Void)?
     @ObservationIgnored var navigationContext: BrowserPageNavigationContext?
     @ObservationIgnored var activeNavigation: WKNavigation?
@@ -131,15 +127,8 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         history: { [weak self] in self?.pageEngine.reportedHistory })
     /// The reporter that tells the core what the page's engine shows.
     var navigationReporter: EnginePageReporter? { reporter }
-    @ObservationIgnored private let credentialSession: BrowserCredentialSession
-    var credentialState: BrowserCredentialPageState<BrowserCredentialSession.FillTarget> {
-        credentialSession.state
-    }
-    @ObservationIgnored private var credentialMessageProxy: BrowserScriptMessageProxy?
     @ObservationIgnored private var linkActivationMessageProxy: MobileLinkActivationScriptMessageProxy?
-    @ObservationIgnored var linkActivationSourceStore = MobileLinkActivationSourceStore()
     @ObservationIgnored var downloadSourceStore = BrowserDownloadSourceStore()
-    @ObservationIgnored private var userActivityMessageProxy: BrowserScriptMessageProxy?
     @ObservationIgnored private var geolocationMessageProxy: BrowserScriptMessageProxy?
     @ObservationIgnored private var blockedPopupMessageProxy: BrowserScriptMessageProxy?
     @ObservationIgnored private var mediaSessionMessageProxy: BrowserScriptMessageProxy?
@@ -150,7 +139,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     @ObservationIgnored lazy var systemConsent: any BrowserSystemConsenting = BrowserSystemConsent(
         location: { [weak self] in await self?.geolocationCoordinator?.systemAuthorizes() ?? false },
         notifications: { false })
-    @ObservationIgnored private var userActivityHandler: (() -> Void)?
     @ObservationIgnored let httpAuthenticationSession: BrowserHTTPAuthenticationSession
     @ObservationIgnored private let contentRuleSession: BrowserPageContentRuleSession
 
@@ -178,19 +166,12 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         serverTrustOverrides: BrowserServerTrustOverrideStore = BrowserServerTrustOverrideStore(),
         mediaSessionStore: BrowserMediaSessionStore? = nil,
         contentRuleList: WKContentRuleList? = nil,
-        allowsCredentialAccess: Bool = true,
-        isCredentialAccessEnabled: Bool = true,
         defaultPageZoom: CGFloat = BrowserDefaultPageZoomStore.defaultLevel,
         loadsInitialURL: Bool = true,
-        loadHTTPAuthenticationCredential:
-            @escaping BrowserHTTPAuthenticationSession.LoadCredential = { _ in nil },
-        saveHTTPAuthenticationCredential:
-            @escaping BrowserHTTPAuthenticationSession.SaveCredential = { _ in },
         linkDestinationHost: BrowserLinkDestinationHost = .unavailable,
         openModifiedLink: @escaping MobileBrowserPageStore.ModifiedLinkOpener = {
             _, _, _ in nil
         },
-        openPeek: @escaping (BrowserPeekRequest) -> Void = { _ in },
         opensExternalURL: @escaping (URL) -> Void = { UIApplication.shared.open($0) }
     ) {
         self.corePage = corePage
@@ -203,7 +184,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         self.serverTrustOverrides = serverTrustOverrides
         self.linkDestinationHost = linkDestinationHost
         self.openModifiedLink = openModifiedLink
-        self.openPeek = openPeek
         contentRuleSession = BrowserPageContentRuleSession(
             ruleLists: webKitPage.contentRuleLists,
             additionalRuleList: contentRuleList
@@ -244,21 +224,8 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         let normalizedDefaultPageZoom = BrowserDefaultPageZoomStore.normalized(defaultPageZoom)
         self.defaultPageZoom = normalizedDefaultPageZoom
         pageZoom = normalizedDefaultPageZoom
-        let httpAuthenticationSession = BrowserHTTPAuthenticationSession(
-            spaceID: space.id,
-            allowsCredentialSaving: allowsCredentialAccess
-                && isCredentialAccessEnabled,
-            loadCredential: loadHTTPAuthenticationCredential,
-            saveCredential: saveHTTPAuthenticationCredential
-        )
+        let httpAuthenticationSession = BrowserHTTPAuthenticationSession()
         self.httpAuthenticationSession = httpAuthenticationSession
-        credentialSession = BrowserCredentialSession(
-            spaceID: space.id,
-            core: downloadCenter.core,
-            supportsAccess: allowsCredentialAccess,
-            isEnabled: isCredentialAccessEnabled,
-            httpAuthentication: httpAuthenticationSession
-        )
 
         // A popup's configuration is the one WebKit derived from its opener's,
         // which shares the opener's user content controller, so its scripts,
@@ -353,13 +320,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             }
         }
         installObservations()
-        if allowsCredentialAccess, ownsUserContentController {
-            credentialMessageProxy = BrowserCredentialContentBridge.install(
-                in: webView.configuration.userContentController
-            ) { [weak self] message in
-                self?.receiveCredentialMessage(message)
-            }
-        }
         pullToRefreshControl.addTarget(
             self,
             action: #selector(refreshFromPull),
@@ -464,22 +424,11 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         isAwaitingPopupNavigation = true
     }
 
-    func monitorUserActivity(_ handler: @escaping () -> Void) {
-        userActivityHandler = handler
-        guard ownsUserContentController, userActivityMessageProxy == nil else { return }
-        userActivityMessageProxy = BrowserUserActivityBridge.install(
-            in: webView.configuration.userContentController
-        ) { [weak self] in
-            self?.userActivityHandler?()
-        }
-    }
-
     func styleVisitedLinks(history: [HistoryEntryState]) async {
         await BrowserVisitedLinkStyler.apply(history: history, to: webView)
     }
 
     func stopMonitoringUserActivity() {
-        userActivityHandler = nil
     }
 
     func adopt(tabID: UUID, tab: BrowserPageTab) {
@@ -551,27 +500,15 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         observations.removeAll()
         removeGeolocationRequests()
         guard ownsUserContentController else {
-            // A popup shares its opener's content controller. Removing handlers
-            // here would silence them for the opener too.
-            credentialMessageProxy = nil
             linkActivationMessageProxy = nil
-            userActivityMessageProxy = nil
             geolocationMessageProxy = nil
             blockedPopupMessageProxy = nil
             mediaSessionMessageProxy = nil
             mediaSessionCoordinator = nil
             geolocationCoordinator = nil
-            userActivityHandler = nil
             return
         }
-        if credentialMessageProxy != nil {
-            webView.configuration.userContentController
-                .removeScriptMessageHandler(
-                    forName: BrowserCredentialContentBridge.messageHandlerName,
-                    contentWorld: BrowserCredentialContentBridge.contentWorld
-                )
-        }
-        credentialMessageProxy = nil
+
         if linkActivationMessageProxy != nil {
             webView.configuration.userContentController
                 .removeScriptMessageHandler(
@@ -581,14 +518,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         }
         linkActivationMessageProxy?.receive = { _ in }
         linkActivationMessageProxy = nil
-        if userActivityMessageProxy != nil {
-            webView.configuration.userContentController
-                .removeScriptMessageHandler(
-                    forName: BrowserUserActivityBridge.messageHandlerName,
-                    contentWorld: BrowserUserActivityBridge.contentWorld
-                )
-        }
-        userActivityMessageProxy = nil
         if geolocationMessageProxy != nil {
             webView.configuration.userContentController
                 .removeScriptMessageHandler(
@@ -615,7 +544,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         mediaSessionMessageProxy = nil
         mediaSessionCoordinator = nil
         geolocationCoordinator = nil
-        userActivityHandler = nil
     }
 
     func reloadOrStop() {
@@ -792,26 +720,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         }
     }
 
-    func dismissCredentialFillRequest() {
-        credentialState.dismissFillRequest()
-    }
-
-    func dismissCredentialSaveCandidate() {
-        credentialState.dismissSaveCandidate()
-    }
-
-    func setCredentialAccessEnabled(_ isEnabled: Bool) {
-        credentialSession.setEnabled(isEnabled)
-    }
-
-    func fillCredential(_ credential: BrowserCredential, for requestID: UUID) async throws {
-        try await credentialSession.fill(credential, for: requestID, in: webView)
-    }
-
-    func fillGeneratedPassword(_ password: String, for requestID: UUID) async throws {
-        try await credentialSession.fillGeneratedPassword(password, for: requestID, in: webView)
-    }
-
     private func installObservations() {
         observations = [
             webView.observe(\.url, options: [.initial, .new]) { [weak self] webView, _ in
@@ -823,7 +731,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
                         self.refreshNavigationState()
                         self.reportMoveWithinDocument(to: url)
                     }
-                    self.credentialState.didChangeTopLevelURL(to: webView.url ?? self.documentURL)
                 }
             },
             webView.observe(\.title, options: [.initial, .new]) { [weak self] _, _ in
@@ -933,10 +840,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         faviconSession.refresh()
     }
 
-    func pullFavicon() async -> Data? {
-        await faviconSession.pull()
-    }
-
     var siteThemeIconAccent: BrowserTabIconAccent? {
         guard let themeColor else { return nil }
         var red: CGFloat = 0
@@ -958,7 +861,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// reclaims a background tab's process to get its memory back, and the
     /// core brings such a page back once a window shows it.
     func recordWebContentTermination() {
-        credentialState.webContentProcessDidTerminate()
         reportWebContentProcessStopped()
     }
 
@@ -1043,10 +945,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             media: pageEngine.knownMediaActivity)
     }
 
-    private func receiveCredentialMessage(_ scriptMessage: WKScriptMessage) {
-        credentialSession.receive(scriptMessage, in: webView)
-    }
-
     /// Whether this page's own web view sent `scriptMessage`.
     ///
     /// A popup shares its opener's `WKUserContentController`, so the opener's
@@ -1081,67 +979,8 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
                 )
             )
         }
-        let sourcePresentation =
-            message.frameInfo.isMainFrame
-            ? sourcePresentation(for: event)
-            : nil
-        if let destinationURL = event.destinationURL,
-            let sourcePresentation
-        {
-            linkActivationSourceStore.record(
-                destinationURL: destinationURL,
-                sourcePresentation: sourcePresentation
-            )
-        }
     }
 
-    func sourcePresentation(
-        for event: MobileLinkActivationEvent
-    ) -> BrowserPeekSourcePresentation? {
-        guard let normalizedSourceRect = event.normalizedSourceRect else { return nil }
-
-        let rectInWebView = CGRect(
-            x: normalizedSourceRect.minX * webView.bounds.width,
-            y: normalizedSourceRect.minY * webView.bounds.height,
-            width: normalizedSourceRect.width * webView.bounds.width,
-            height: normalizedSourceRect.height * webView.bounds.height
-        )
-        let normalizedTouchPoint =
-            event.normalizedTouchPoint
-            ?? CGPoint(
-                x: normalizedSourceRect.midX,
-                y: normalizedSourceRect.midY
-            )
-        let touchPointInWebView = CGPoint(
-            x: normalizedTouchPoint.x * webView.bounds.width,
-            y: normalizedTouchPoint.y * webView.bounds.height
-        )
-        guard let window = webView.window,
-            window.bounds.width > 0,
-            window.bounds.height > 0
-        else {
-            return BrowserPeekSourcePresentation(
-                normalizedMinX: normalizedSourceRect.minX,
-                normalizedMinY: normalizedSourceRect.minY,
-                normalizedWidth: normalizedSourceRect.width,
-                normalizedHeight: normalizedSourceRect.height,
-                normalizedTouchX: normalizedTouchPoint.x,
-                normalizedTouchY: normalizedTouchPoint.y,
-                label: event.label
-            )
-        }
-        let rectInWindow = webView.convert(rectInWebView, to: window)
-        let touchPointInWindow = webView.convert(touchPointInWebView, to: window)
-        return BrowserPeekSourcePresentation(
-            normalizedMinX: rectInWindow.minX / window.bounds.width,
-            normalizedMinY: rectInWindow.minY / window.bounds.height,
-            normalizedWidth: rectInWindow.width / window.bounds.width,
-            normalizedHeight: rectInWindow.height / window.bounds.height,
-            normalizedTouchX: touchPointInWindow.x / window.bounds.width,
-            normalizedTouchY: touchPointInWindow.y / window.bounds.height,
-            label: event.label
-        )
-    }
 }
 
 extension MobileBrowserPage: WebKitPageHosting {}

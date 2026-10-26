@@ -13,6 +13,16 @@ protocol EngineBinding: AnyObject {
     /// requests in and reports through.
     func attach(to engines: Engines)
 
+    func makeIntegrationSession(
+        profileID: UUID, origin: URL, isAuthorized: @escaping @MainActor () -> Bool
+    ) -> (any BrowserIntegrationSession)?
+
     /// Runs one command the core issued, never on the stack of another.
     func run(_ command: EngineCommand)
+}
+
+extension EngineBinding {
+    func makeIntegrationSession(
+        profileID: UUID, origin: URL, isAuthorized: @escaping @MainActor () -> Bool
+    ) -> (any BrowserIntegrationSession)? { nil }
 }

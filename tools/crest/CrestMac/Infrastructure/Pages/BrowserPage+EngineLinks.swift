@@ -12,19 +12,4 @@ extension BrowserPage {
         _ = splitLinkHost.openLink(url, context.tabID, context.assignment)
     }
 
-    /// Opens the Peek the core chose for a link the engine kept in the page.
-    /// A page that has no tab to open it from, or is out of its window, drops
-    /// the link its engine staged for the Peek's first load.
-    func openRequestedPeek(
-        to destination: URL, decision: LinkNavigationDecision, stagedLink: BrowserEngineNavigation?
-    ) {
-        guard nativeView.window != nil,
-            let request = decision.peekRequest(
-                destinationURL: destination, context: navigationContext, engineNavigation: stagedLink)
-        else {
-            if let stagedLink { corePage.discardStagedLink(stagedLink) }
-            return
-        }
-        openPeek(request)
-    }
 }

@@ -3,7 +3,6 @@ import SwiftUI
 struct MobileArchiveView: View {
     let browser: BrowserStore
     let assignment: BrowserSpaceRuntimeAssignment
-    let spaceAccess: BrowserSpaceAccessController
     let selectTab: (UUID) -> Void
 
     var body: some View {
@@ -23,6 +22,6 @@ struct MobileArchiveView: View {
     }
 
     private var space: SpaceModel? {
-        browser.selectedUnlockedSpace(matching: assignment, accessController: spaceAccess)
+        browser.selectedAvailableSpace(matching: assignment)
     }
 }

@@ -64,11 +64,50 @@ struct MobileBrowserCommands: Commands {
         }
 
         CommandMenu("Tabs") {
-            button(.toggleSelectedTabPinned)
-            button(.duplicateTab)
-            button(.reopenClosedTab)
-            button(.clearUnpinnedTabs)
-            button(.archiveTab)
+            Button(
+                "Pin or Unpin Tab",
+                systemImage: ShortcutCommand.toggleSelectedTabPinned.symbol
+            ) {
+                context?.toggleSelectedTabPinned()
+            }
+            .keyboardShortcut(shortcut(.toggleSelectedTabPinned))
+            .disabled(context?.hasSelectedTab != true)
+
+            Button(
+                "Duplicate Tab",
+                systemImage: ShortcutCommand.duplicateTab.symbol
+            ) {
+                context?.duplicateSelectedTab()
+            }
+            .keyboardShortcut(shortcut(.duplicateTab))
+            .disabled(context?.canDuplicateSelectedTab != true)
+
+            Button(
+                "Reopen Closed Tab",
+                systemImage: ShortcutCommand.reopenClosedTab.symbol
+            ) {
+                context?.reopenClosedTab()
+            }
+            .keyboardShortcut(shortcut(.reopenClosedTab))
+            .disabled(context?.canReopenClosedTab != true)
+
+            Button(
+                "Clear Current Tabs",
+                systemImage: ShortcutCommand.clearUnpinnedTabs.symbol
+            ) {
+                context?.clearCurrentTabs()
+            }
+            .keyboardShortcut(shortcut(.clearUnpinnedTabs))
+            .disabled(context == nil)
+
+            Button(
+                "Archive Tab",
+                systemImage: ShortcutCommand.archiveTab.symbol
+            ) {
+                context?.archiveSelectedTab()
+            }
+            .keyboardShortcut(shortcut(.archiveTab))
+            .disabled(context?.canArchiveSelectedTab != true)
 
             Divider()
 
@@ -148,18 +187,11 @@ struct MobileBrowserCommands: Commands {
         }
 
         CommandGroup(after: .sidebar) {
-            Toggle(
-                isOn: Binding(
-                    get: { context?.isTranslationToolbarVisible == true },
-                    set: { context?.setTranslationToolbarVisible($0) }
-                )
-            ) {
-                Label(
-                    "Show Translation Toolbar",
-                    systemImage: ShortcutCommand.toggleTranslationToolbar.symbol)
+            Button("Translate Page", systemImage: ShortcutCommand.translatePage.symbol) {
+                context?.translatePage()
             }
-            .keyboardShortcut(shortcut(.toggleTranslationToolbar))
-            .disabled(context?.canToggleTranslationToolbar != true)
+            .keyboardShortcut(shortcut(.translatePage))
+            .disabled(context?.canTranslatePage != true)
 
             button(.toggleSidebar)
             button(.showHistory)

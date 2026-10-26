@@ -14,10 +14,10 @@ struct TabFaviconContent: View {
                 Text(emoji)
                     .font(.system(size: size * TabFaviconMetrics.emojiSizeRatio))
                     .minimumScaleFactor(TabFaviconMetrics.emojiMinimumScaleFactor)
-            } else if subject.nativeContent == .gettingStarted {
-                PlatformGettingStartedIcon()
             } else if subject.nativeContent != nil {
                 Image(systemName: subject.symbol).symbolRenderingMode(.hierarchical)
+            } else if subject.image == nil, BrowserGitHubPullRequest.accepts(subject.pageURL) {
+                Image("AboutGitHub").resizable().scaledToFit()
             } else if let image = renderedImage?.image(matching: requestIdentity) {
                 image
                     .resizable()

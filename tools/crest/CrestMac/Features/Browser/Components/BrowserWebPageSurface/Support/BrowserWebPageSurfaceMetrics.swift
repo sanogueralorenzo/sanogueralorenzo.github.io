@@ -9,7 +9,6 @@ enum BrowserWebPageSurfaceMetrics {
     static let infoBarCornerRadius: CGFloat = 16
     static let initialLoadingSpacing = CrestSpacing.small
     static let loadingProgressHeight: CGFloat = 2
-    static let regionCaptureZIndex: Double = 20
     static let sharePickerZIndex: Double = 25
     /// The share picker uses the page prompts' panel: the permission prompt's
     /// header and spacing, the credential prompt's surface and rows.
@@ -37,7 +36,6 @@ enum BrowserWebPageSurfaceMetrics {
     /// around the corner stays even.
     static let sharePickerRowHighlightCornerRadius =
         sharePickerCornerRadius - (sharePickerPadding - sharePickerRowHighlightBleed)
-    static let feedbackZIndex: Double = 30
     static let feedbackHorizontalPadding: CGFloat = 14
     static let feedbackHeight: CGFloat = 38
     static let feedbackShadowOpacity = 0.18

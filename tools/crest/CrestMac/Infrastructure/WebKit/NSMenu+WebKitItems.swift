@@ -22,6 +22,19 @@ extension NSMenu {
         }
     }
 
+    /// Removes spelling controls using WebKit's identifiers in any language.
+    func removeWebKitSpelling() {
+        for item in items {
+            if let identifier = item.identifier,
+                NSUserInterfaceItemIdentifier.webKitSpellingItems.contains(identifier)
+            {
+                removeItem(item)
+            } else {
+                item.submenu?.removeWebKitSpelling()
+            }
+        }
+    }
+
     /// Names WebKit's open-link item for where Crest actually opens it,
     /// keeping its action and shortcut.
     func relabelWebKitLinkDestination() {

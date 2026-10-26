@@ -34,8 +34,7 @@ enum BrowserUtilityListPreviewFixture {
         id: assignment.spaceID,
         profileID: assignment.profileID,
         name: "Research",
-        symbol: "books.vertical.fill",
-        accent: .indigo,
+
         folders: [],
         tabs: [
             TabState.Seed(

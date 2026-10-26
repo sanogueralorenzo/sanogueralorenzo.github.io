@@ -8,11 +8,10 @@ extension BrowserCommandActions {
         canSearchUtility || commandPageSupports(.find)
     }
 
-    /// Search is available only in this window's visible utility and an unlocked Space.
     private var canSearchUtility: Bool {
         guard chrome.utilityPresentation.surface != nil,
-            chrome.columnVisibility != .detailOnly || chrome.isFloatingSidebarPresented,
-            let space = browser.shownSpace, !spaceAccess.isLocked(space)
+            chrome.isSidebarPresented,
+            browser.shownSpace != nil
         else { return false }
         return true
     }

@@ -43,11 +43,6 @@ extension TabStateModel {
         iconAccent.map { BrowserTabIconAccent(red: $0.red, green: $0.green, blue: $0.blue) }
     }
 
-    /// Whether a person can replace or return to the address the tab keeps.
-    var supportsSavedLocationEditing: Bool {
-        placement.isDurable && (savedURL ?? url) != nil
-    }
-
     // MARK: - Actions - Titles
 
     /// The name the tab surfaces show, reading the tab's page in `state` when

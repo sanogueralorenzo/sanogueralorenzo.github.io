@@ -18,7 +18,7 @@ extension BrowserStore {
         let favicons: any BrowserFaviconStoring = BrowserFaviconFileStore.production() ?? InMemoryBrowserFaviconStore()
         let stored = try migratedStorage(core: core, legacy: .installed, favicons: favicons, seed: nil)
         return production(
-            stored: stored, core: core, favicons: favicons, credentialVault: KeychainCredentialVault())
+            stored: stored, core: core, favicons: favicons)
     }
 
     /// The store over the session the core keeps in its file, which `stored`
@@ -26,11 +26,9 @@ extension BrowserStore {
     /// journal it accepts with the session; the cloud transport reaches that
     /// journal through the core alone.
     static func production(
-        stored: BrowserCoreSessionAuthority, core: CrestCore, favicons: any BrowserFaviconStoring,
-        credentialVault: any CredentialVault
+        stored: BrowserCoreSessionAuthority, core: CrestCore, favicons: any BrowserFaviconStoring
     ) -> BrowserStore {
         BrowserStore(
-            credentialVault: credentialVault,
             browsingMode: .standard,
             family: BrowserStoreFamily(stored: stored, storage: core, favicons: favicons),
             core: core
@@ -63,11 +61,10 @@ extension BrowserStore {
         launchEnvironment: BrowserLaunchEnvironment,
         core: CrestCore
     ) -> BrowserStore {
-        // The fixture opens as a seed, which the core repairs and never saves
-        // or syncs: only the session the core keeps in its file syncs.
+        // An anonymous isolated session opens as a seed, which the core repairs
+        // and never saves or syncs: only the session kept in its file syncs.
         return BrowserStore(
-            seed: isolatedFixtureSeed(for: launchEnvironment) ?? .firstInstall,
-            credentialVault: InMemoryCredentialVault(), core: core)
+            seed: isolatedFixtureSeed(for: launchEnvironment) ?? .firstInstall, core: core)
     }
 
     private static func persistentIsolatedLaunch(
@@ -83,8 +80,7 @@ extension BrowserStore {
             core: core, legacy: BrowserLegacySessionDefaults(defaults: defaults, journalDefaults: []),
             favicons: favicons, seed: isolatedFixtureSeed(for: launchEnvironment))
         return production(
-            stored: stored, core: core, favicons: favicons,
-            credentialVault: KeychainCredentialVault(servicePrefix: namespace))
+            stored: stored, core: core, favicons: favicons)
     }
 
     /// Where the core keeps this launch's session file: the installed app's
@@ -166,25 +162,30 @@ extension BrowserStore {
         }
     }
 
-    /// The session an isolated launch starts from, or nil for the one a first
-    /// launch starts with, which an isolated run of cloud sync or onboarding
-    /// takes.
+    /// Sample content is opt-in. Nil lets the core create its blank
+    /// first-install session; existing stored sessions always take precedence.
     private static func isolatedFixtureSeed(for launchEnvironment: BrowserLaunchEnvironment) -> SessionState.Seed? {
-        if launchEnvironment.requestsIsolatedCloudSync
-            || launchEnvironment.forcesOnboardingWelcome
-            || launchEnvironment.forcesMacOnboardingSetup
-            || launchEnvironment.forcesMobileOnboardingSetup
-        {
+        if launchEnvironment.requestsIsolatedCloudSync {
             return nil
         }
-        return launchEnvironment.presentsShowcaseSession ? .showcase : .preview
+        #if CREST_PERFORMANCE_HARNESS
+            if let performanceSeed = BrowserPerformanceSoakFixture.makeSeed(
+                baseURLString: launchEnvironment.performanceBaseURLString,
+                rawTabCount: launchEnvironment.performanceTabCount,
+                isHeavy: launchEnvironment.performanceHeavySession,
+                runID: launchEnvironment.performanceRunID
+            ) {
+                return performanceSeed
+            }
+        #endif
+        if launchEnvironment.presentsShowcaseSession { return .showcase }
+        return launchEnvironment.isSwiftUIPreviewRuntime ? .preview : nil
     }
 
     /// A window over a new private workspace, which starts from the core's
     /// private template and keeps nothing.
     static func privateBrowsing(core: CrestCore = CrestCore()) -> BrowserStore {
         BrowserStore(
-            credentialVault: PrivateBrowsingCredentialVault(),
             browsingMode: .privateBrowsing,
             family: BrowserStoreFamily(privateIn: core),
             core: core
