@@ -120,6 +120,7 @@ struct BrowserSidebarSpacePage: View {
         // keyboard navigation for a newly focused Start Page command field.
         // An empty interaction set avoids adding a focus stop for the container.
         .focusable(isSelected && !isLocked, interactions: [])
+        .focusEffectDisabled()
         .accessibilityHidden(!isSelected || isLocked)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(space.settings.name) Space")

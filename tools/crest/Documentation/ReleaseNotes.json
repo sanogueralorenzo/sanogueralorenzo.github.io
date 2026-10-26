@@ -4589,6 +4589,10 @@
     "website-data-locked-space-guard": {
       "category": "internal",
       "message": "Listing or clearing a locked Space's website data is refused until it is unlocked, Remove All clears every site's data in the Space, and the site commands on iPhone and iPad need a page that shows a site."
+    },
+    "hide-sidebar-container-focus-effect": {
+      "category": "fixed",
+      "message": "New Mac windows no longer show a blue focus outline around the sidebar."
     }
   }
 }
