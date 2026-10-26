@@ -42,6 +42,9 @@ protocol EngineQuestion: Sendable {
 /// The members of `Intent` that derive from the core's `AgentIntent`.
 protocol AgentIntent: Intent {}
 
+/// The members of `Intent` that derive from the core's `BrowserImportIntent`.
+protocol BrowserImportIntent: Intent {}
+
 /// The members of `Intent` that derive from the core's `CloseIntent`.
 protocol CloseIntent: Intent {}
 
@@ -66,17 +69,11 @@ protocol EngineDownloadEvent: EngineEvent {}
 /// The members of `Intent` that derive from the core's `ImportWorkspace`.
 protocol ImportWorkspace: Intent {}
 
-/// The members of `Intent` that derive from the core's `LinkIntent`.
-protocol LinkIntent: Intent {}
-
 /// The members of `EngineEvent` that derive from the core's `PageEvent`.
 protocol PageEvent: EngineEvent {}
 
 /// The members of `Intent` that derive from the core's `PageIntent`.
 protocol PageIntent: Intent {}
-
-/// The members of `Intent` that derive from the core's `PaletteIntent`.
-protocol PaletteIntent: Intent {}
 
 /// The members of `EngineEvent` that derive from the core's `PromptEvent`.
 protocol PromptEvent: EngineEvent {}
@@ -84,29 +81,14 @@ protocol PromptEvent: EngineEvent {}
 /// The members of `Intent` that derive from the core's `PromptIntent`.
 protocol PromptIntent: Intent {}
 
-/// The members of `Intent` that derive from the core's `SearchCatalogIntent`.
-protocol SearchCatalogIntent: Intent {}
-
 /// The members of `Intent` that derive from the core's `SessionIntent`.
 protocol SessionIntent: Intent {}
-
-/// The members of `Intent` that derive from the core's `SetupDraftIntent`.
-protocol SetupDraftIntent: Intent {}
-
-/// The members of `Intent` that derive from the core's `SetupFlowIntent`.
-protocol SetupFlowIntent: Intent {}
-
-/// The members of `Intent` that derive from the core's `ShortcutIntent`.
-protocol ShortcutIntent: Intent {}
 
 /// The members of `Intent` that derive from the core's `SidebarDrop`.
 protocol SidebarDrop: Intent {}
 
 /// The members of `Intent` that derive from the core's `SitePermissionIntent`.
 protocol SitePermissionIntent: Intent {}
-
-/// The members of `Intent` that derive from the core's `SpaceAccessIntent`.
-protocol SpaceAccessIntent: Intent {}
 
 /// The members of `Intent` that derive from the core's `WindowIntent`.
 protocol WindowIntent: Intent {}
@@ -136,10 +118,9 @@ enum Change: Equatable, Sendable {
     case extensionInstallAsked(ExtensionInstallAsked)
     case foldersChanged(FoldersChanged)
     case historyChanged(HistoryChanged)
-    case linkPreferencesChanged(LinkPreferencesChanged)
+    case importFlowChanged(ImportFlowChanged)
     case navigationRecorded(NavigationRecorded)
     case offeredPageAdopted(OfferedPageAdopted)
-    case offeredWindowAdopted(OfferedWindowAdopted)
     case pageChanged(PageChanged)
     case pageOpened(PageOpened)
     case pageRehosted(PageRehosted)
@@ -150,19 +131,12 @@ enum Change: Equatable, Sendable {
     case quitWithDownloadsAsked(QuitWithDownloadsAsked)
     case saved(Saved)
     case scriptDialogAsked(ScriptDialogAsked)
-    case searchCatalogChanged(SearchCatalogChanged)
     case sessionAdopted(SessionAdopted)
-    case setupCompletedChanged(SetupCompletedChanged)
-    case setupDraftChanged(SetupDraftChanged)
-    case setupFinished(SetupFinished)
-    case setupFlowChanged(SetupFlowChanged)
     case shortcutsChanged(ShortcutsChanged)
     case sidebarChanged(SidebarChanged)
     case sitePermissionsChanged(SitePermissionsChanged)
-    case spaceLockChanged(SpaceLockChanged)
     case spaceSettingsChanged(SpaceSettingsChanged)
     case spacesChanged(SpacesChanged)
-    case splitGroupsChanged(SplitGroupsChanged)
     case storageFailed(StorageFailed)
     case syncJournalChanged(SyncJournalChanged)
     case syncRecordsSkipped(SyncRecordsSkipped)
@@ -173,7 +147,6 @@ enum Change: Equatable, Sendable {
     case tabsChanged(TabsChanged)
     case tabsImported(TabsImported)
     case transientPageClosed(TransientPageClosed)
-    case transientPagePromoted(TransientPagePromoted)
     case websiteDataRead(WebsiteDataRead)
     case windowBroughtForward(WindowBroughtForward)
     case windowChanged(WindowChanged)
@@ -198,27 +171,23 @@ enum Rejection: Equatable, Error, Sendable {
     case alreadyInSplit(AlreadyInSplit)
     case archiveInvalid(ArchiveInvalid)
     case archiveTooLarge(ArchiveTooLarge)
-    case authenticationBusy(AuthenticationBusy)
     case bookmarksHaveNoLinks(BookmarksHaveNoLinks)
     case bookmarksOverLimits(BookmarksOverLimits)
     case bookmarksTooLarge(BookmarksTooLarge)
     case bookmarksUnrecognized(BookmarksUnrecognized)
     case borrowedProfileRequiresOwner(BorrowedProfileRequiresOwner)
     case borrowedWorkspaceRequiresSpace(BorrowedWorkspaceRequiresSpace)
+    case browserImportBusy(BrowserImportBusy)
     case cannotDeleteLastSpace(CannotDeleteLastSpace)
     case cannotMoveSplitAcrossSpaces(CannotMoveSplitAcrossSpaces)
     case cannotPinSplit(CannotPinSplit)
     case closePreparationUnderway(ClosePreparationUnderway)
-    case credentialRecordLimitReached(CredentialRecordLimitReached)
     case currentTabsOnly(CurrentTabsOnly)
     case defaultEngineAlreadyRegistered(DefaultEngineAlreadyRegistered)
     case downloadLimitReached(DownloadLimitReached)
-    case duplicateCredential(DuplicateCredential)
     case duplicateDownload(DuplicateDownload)
     case duplicateMediaSession(DuplicateMediaSession)
     case duplicatePage(DuplicatePage)
-    case duplicateSearchEngineName(DuplicateSearchEngineName)
-    case duplicateSearchShortcut(DuplicateSearchShortcut)
     case engineAlreadyRegistered(EngineAlreadyRegistered)
     case engineLacksCapability(EngineLacksCapability)
     case engineNotRegistered(EngineNotRegistered)
@@ -227,29 +196,19 @@ enum Rejection: Equatable, Error, Sendable {
     case folderCycle(FolderCycle)
     case folderDepthLimitReached(FolderDepthLimitReached)
     case folderLimitReached(FolderLimitReached)
-    case guideSpaceLocked(GuideSpaceLocked)
     case incompleteSplit(IncompleteSplit)
     case invalidAgent(InvalidAgent)
     case invalidBlockedPopup(InvalidBlockedPopup)
-    case invalidCredentialDate(InvalidCredentialDate)
-    case invalidCredentialFile(InvalidCredentialFile)
-    case invalidCredentialOrigin(InvalidCredentialOrigin)
-    case invalidCredentialRecord(InvalidCredentialRecord)
-    case invalidCredentialUsername(InvalidCredentialUsername)
     case invalidDownloadIdentity(InvalidDownloadIdentity)
     case invalidDownloadProgress(InvalidDownloadProgress)
     case invalidDownloadSample(InvalidDownloadSample)
     case invalidDownloadText(InvalidDownloadText)
     case invalidFolderPlacement(InvalidFolderPlacement)
-    case invalidFolderSymbol(InvalidFolderSymbol)
     case invalidImport(InvalidImport)
-    case invalidLinkRouteEdit(InvalidLinkRouteEdit)
+    case invalidLiveFolder(InvalidLiveFolder)
     case invalidMediaSessionCount(InvalidMediaSessionCount)
     case invalidName(InvalidName)
-    case invalidPasswordLength(InvalidPasswordLength)
     case invalidRetentionLifetime(InvalidRetentionLifetime)
-    case invalidSearchEngine(InvalidSearchEngine)
-    case invalidSearchShortcut(InvalidSearchShortcut)
     case invalidSession(InvalidSession)
     case invalidShortcut(InvalidShortcut)
     case invalidSiteHost(InvalidSiteHost)
@@ -258,24 +217,17 @@ enum Rejection: Equatable, Error, Sendable {
     case invalidSitePermissionGrant(InvalidSitePermissionGrant)
     case invalidSpaceOrder(InvalidSpaceOrder)
     case invalidSplitColumnShares(InvalidSplitColumnShares)
-    case invalidSplitIcon(InvalidSplitIcon)
     case invalidSyncRecords(InvalidSyncRecords)
     case invalidTabContent(InvalidTabContent)
-    case invalidTabIcon(InvalidTabIcon)
-    case languageTooLong(LanguageTooLong)
     case lastStartPage(LastStartPage)
     case legacyCloudStateUnreadable(LegacyCloudStateUnreadable)
-    case linkPatternTooLong(LinkPatternTooLong)
-    case linkRouteExists(LinkRouteExists)
-    case linkRoutesFull(LinkRoutesFull)
     case mediaSessionLimitReached(MediaSessionLimitReached)
     case noArchivedTabs(NoArchivedTabs)
+    case noBrowserImport(NoBrowserImport)
     case noBrowsingDataCategory(NoBrowsingDataCategory)
     case noCurrentTabs(NoCurrentTabs)
     case noIncludedSpaces(NoIncludedSpaces)
-    case noManualSetup(NoManualSetup)
     case noSavedAddress(NoSavedAddress)
-    case noSetup(NoSetup)
     case noSplitStep(NoSplitStep)
     case noStoredSession(NoStoredSession)
     case notAnArchive(NotAnArchive)
@@ -292,7 +244,6 @@ enum Rejection: Equatable, Error, Sendable {
     case promptAnswerMismatch(PromptAnswerMismatch)
     case recoveryCheckpointUnusable(RecoveryCheckpointUnusable)
     case saveFailed(SaveFailed)
-    case searchEngineLimitReached(SearchEngineLimitReached)
     case selectionChanged(SelectionChanged)
     case selectionHoldsFolders(SelectionHoldsFolders)
     case sessionEncrypted(SessionEncrypted)
@@ -300,22 +251,17 @@ enum Rejection: Equatable, Error, Sendable {
     case sessionOverLimits(SessionOverLimits)
     case sessionTooLarge(SessionTooLarge)
     case sessionUnrecognized(SessionUnrecognized)
-    case setupBusy(SetupBusy)
-    case shortcutInUse(ShortcutInUse)
     case sitePermissionLimitReached(SitePermissionLimitReached)
     case spaceAlreadyExists(SpaceAlreadyExists)
     case spaceBeingDeleted(SpaceBeingDeleted)
     case spaceDataNotErased(SpaceDataNotErased)
     case spaceDeletionUnderway(SpaceDeletionUnderway)
     case spaceLimitReached(SpaceLimitReached)
-    case spaceLocked(SpaceLocked)
     case spaceProfileChanged(SpaceProfileChanged)
     case splitBoundary(SplitBoundary)
     case splitLimitReached(SplitLimitReached)
     case splitNeedsTwoTabs(SplitNeedsTwoTabs)
     case stagedLinkElsewhere(StagedLinkElsewhere)
-    case staleCredentialComparison(StaleCredentialComparison)
-    case staleUnlockRequest(StaleUnlockRequest)
     case startPageNotCopied(StartPageNotCopied)
     case storageFromNewerApp(StorageFromNewerApp)
     case storageRestoreInterrupted(StorageRestoreInterrupted)
@@ -325,17 +271,12 @@ enum Rejection: Equatable, Error, Sendable {
     case tabAlreadyExists(TabAlreadyExists)
     case tabAlreadyHasPage(TabAlreadyHasPage)
     case tabLimitReached(TabLimitReached)
-    case transientAlreadyCompleted(TransientAlreadyCompleted)
-    case translationRuleLimitReached(TranslationRuleLimitReached)
     case unknownAgentSession(UnknownAgentSession)
     case unknownArchivedTab(UnknownArchivedTab)
     case unknownCloudMerge(UnknownCloudMerge)
     case unknownFolder(UnknownFolder)
-    case unknownLinkRoute(UnknownLinkRoute)
     case unknownPage(UnknownPage)
     case unknownPrompt(UnknownPrompt)
-    case unknownSearchEngine(UnknownSearchEngine)
-    case unknownSearchOption(UnknownSearchOption)
     case unknownSpace(UnknownSpace)
     case unknownSplitGroup(UnknownSplitGroup)
     case unknownTab(UnknownTab)
@@ -343,7 +284,6 @@ enum Rejection: Equatable, Error, Sendable {
     case unregisteredEngine(UnregisteredEngine)
     case unrelatedWorkspaces(UnrelatedWorkspaces)
     case unsavedWorkspace(UnsavedWorkspace)
-    case unsuitableDefaultSearch(UnsuitableDefaultSearch)
     case unsupportedAddress(UnsupportedAddress)
     case unsupportedArchiveVersion(UnsupportedArchiveVersion)
     case webPagesOnly(WebPagesOnly)
@@ -367,23 +307,19 @@ enum Rejection: Equatable, Error, Sendable {
         case .bookmarksOverLimits(let value): value.message
         case .bookmarksTooLarge(let value): value.message
         case .bookmarksUnrecognized(let value): value.message
+        case .browserImportBusy(let value): value.message
         case .cannotDeleteLastSpace(let value): value.message
         case .cannotMoveSplitAcrossSpaces(let value): value.message
         case .cannotPinSplit(let value): value.message
         case .currentTabsOnly(let value): value.message
-        case .duplicateSearchEngineName(let value): value.message
-        case .duplicateSearchShortcut(let value): value.message
         case .fileUnreadable(let value): value.message
-        case .guideSpaceLocked(let value): value.message
         case .incompleteSplit(let value): value.message
         case .invalidAgent(let value): value.message
         case .invalidImport(let value): value.message
-        case .invalidSearchShortcut(let value): value.message
         case .invalidSyncRecords(let value): value.message
         case .legacyCloudStateUnreadable(let value): value.message
+        case .noBrowserImport(let value): value.message
         case .noIncludedSpaces(let value): value.message
-        case .noManualSetup(let value): value.message
-        case .noSetup(let value): value.message
         case .notAnArchive(let value): value.message
         case .persistentWorkspaceRequired(let value): value.message
         case .pinnedTabsDragAlone(let value): value.message
@@ -392,7 +328,6 @@ enum Rejection: Equatable, Error, Sendable {
         case .pinsOneTabAtATime(let value): value.message
         case .profileInUse(let value): value.message
         case .saveFailed(let value): value.message
-        case .searchEngineLimitReached(let value): value.message
         case .selectionChanged(let value): value.message
         case .selectionHoldsFolders(let value): value.message
         case .sessionEncrypted(let value): value.message
@@ -400,19 +335,16 @@ enum Rejection: Equatable, Error, Sendable {
         case .sessionOverLimits(let value): value.message
         case .sessionTooLarge(let value): value.message
         case .sessionUnrecognized(let value): value.message
-        case .setupBusy(let value): value.message
         case .sitePermissionLimitReached(let value): value.message
         case .spaceAlreadyExists(let value): value.message
         case .spaceBeingDeleted(let value): value.message
         case .spaceDeletionUnderway(let value): value.message
         case .spaceLimitReached(let value): value.message
-        case .spaceLocked(let value): value.message
         case .spaceProfileChanged(let value): value.message
         case .splitLimitReached(let value): value.message
         case .splitNeedsTwoTabs(let value): value.message
         case .unknownAgentSession(let value): value.message
         case .unknownCloudMerge(let value): value.message
-        case .unsuitableDefaultSearch(let value): value.message
         case .unsupportedArchiveVersion(let value): value.message
         case .webPagesOnly(let value): value.message
         default: nil
@@ -478,7 +410,6 @@ enum EnginePresentation: Equatable, Sendable {
     case pageViewClosed(PageViewClosed)
     case pageViewReady(PageViewReady)
     case pageViewUnavailable(PageViewUnavailable)
-    case peekRequested(PeekRequested)
     case popupBlocked(PopupBlocked)
     case profileNotificationClosed(ProfileNotificationClosed)
     case profileNotificationPosted(ProfileNotificationPosted)
@@ -523,7 +454,6 @@ enum EnginePresentation: Equatable, Sendable {
         case .pageViewClosed(let value): value.pageID
         case .pageViewReady(let value): value.pageID
         case .pageViewUnavailable(let value): value.pageID
-        case .peekRequested(let value): value.pageID
         case .popupBlocked(let value): value.pageID
         case .screenCaptureAccessMissing(let value): value.pageID
         case .shareSourcesOffered(let value): value.pageID
@@ -562,10 +492,9 @@ extension Change {
         case .extensionInstallAsked(let change): change.apply(to: state)
         case .foldersChanged(let change): change.apply(to: state)
         case .historyChanged(let change): change.apply(to: state)
-        case .linkPreferencesChanged(let change): change.apply(to: state)
+        case .importFlowChanged(let change): change.apply(to: state)
         case .navigationRecorded(let change): change.apply(to: state)
         case .offeredPageAdopted(let change): change.apply(to: state)
-        case .offeredWindowAdopted(let change): change.apply(to: state)
         case .pageChanged(let change): change.apply(to: state)
         case .pageOpened(let change): change.apply(to: state)
         case .pageRehosted(let change): change.apply(to: state)
@@ -576,19 +505,12 @@ extension Change {
         case .quitWithDownloadsAsked(let change): change.apply(to: state)
         case .saved(let change): change.apply(to: state)
         case .scriptDialogAsked(let change): change.apply(to: state)
-        case .searchCatalogChanged(let change): change.apply(to: state)
         case .sessionAdopted(let change): change.apply(to: state)
-        case .setupCompletedChanged(let change): change.apply(to: state)
-        case .setupDraftChanged(let change): change.apply(to: state)
-        case .setupFinished(let change): change.apply(to: state)
-        case .setupFlowChanged(let change): change.apply(to: state)
         case .shortcutsChanged(let change): change.apply(to: state)
         case .sidebarChanged(let change): change.apply(to: state)
         case .sitePermissionsChanged(let change): change.apply(to: state)
-        case .spaceLockChanged(let change): change.apply(to: state)
         case .spaceSettingsChanged(let change): change.apply(to: state)
         case .spacesChanged(let change): change.apply(to: state)
-        case .splitGroupsChanged(let change): change.apply(to: state)
         case .storageFailed(let change): change.apply(to: state)
         case .syncJournalChanged(let change): change.apply(to: state)
         case .syncRecordsSkipped(let change): change.apply(to: state)
@@ -599,7 +521,6 @@ extension Change {
         case .tabsChanged(let change): change.apply(to: state)
         case .tabsImported(let change): change.apply(to: state)
         case .transientPageClosed(let change): change.apply(to: state)
-        case .transientPagePromoted(let change): change.apply(to: state)
         case .websiteDataRead(let change): change.apply(to: state)
         case .windowBroughtForward(let change): change.apply(to: state)
         case .windowChanged(let change): change.apply(to: state)
@@ -635,10 +556,9 @@ extension Change {
         case .extensionInstallAsked(let change): change.apply(to: core, in: &batch)
         case .foldersChanged(let change): change.apply(to: core, in: &batch)
         case .historyChanged(let change): change.apply(to: core, in: &batch)
-        case .linkPreferencesChanged(let change): change.apply(to: core, in: &batch)
+        case .importFlowChanged(let change): change.apply(to: core, in: &batch)
         case .navigationRecorded(let change): change.apply(to: core, in: &batch)
         case .offeredPageAdopted(let change): change.apply(to: core, in: &batch)
-        case .offeredWindowAdopted(let change): change.apply(to: core, in: &batch)
         case .pageChanged(let change): change.apply(to: core, in: &batch)
         case .pageOpened(let change): change.apply(to: core, in: &batch)
         case .pageRehosted(let change): change.apply(to: core, in: &batch)
@@ -649,19 +569,12 @@ extension Change {
         case .quitWithDownloadsAsked(let change): change.apply(to: core, in: &batch)
         case .saved(let change): change.apply(to: core, in: &batch)
         case .scriptDialogAsked(let change): change.apply(to: core, in: &batch)
-        case .searchCatalogChanged(let change): change.apply(to: core, in: &batch)
         case .sessionAdopted(let change): change.apply(to: core, in: &batch)
-        case .setupCompletedChanged(let change): change.apply(to: core, in: &batch)
-        case .setupDraftChanged(let change): change.apply(to: core, in: &batch)
-        case .setupFinished(let change): change.apply(to: core, in: &batch)
-        case .setupFlowChanged(let change): change.apply(to: core, in: &batch)
         case .shortcutsChanged(let change): change.apply(to: core, in: &batch)
         case .sidebarChanged(let change): change.apply(to: core, in: &batch)
         case .sitePermissionsChanged(let change): change.apply(to: core, in: &batch)
-        case .spaceLockChanged(let change): change.apply(to: core, in: &batch)
         case .spaceSettingsChanged(let change): change.apply(to: core, in: &batch)
         case .spacesChanged(let change): change.apply(to: core, in: &batch)
-        case .splitGroupsChanged(let change): change.apply(to: core, in: &batch)
         case .storageFailed(let change): change.apply(to: core, in: &batch)
         case .syncJournalChanged(let change): change.apply(to: core, in: &batch)
         case .syncRecordsSkipped(let change): change.apply(to: core, in: &batch)
@@ -672,7 +585,6 @@ extension Change {
         case .tabsChanged(let change): change.apply(to: core, in: &batch)
         case .tabsImported(let change): change.apply(to: core, in: &batch)
         case .transientPageClosed(let change): change.apply(to: core, in: &batch)
-        case .transientPagePromoted(let change): change.apply(to: core, in: &batch)
         case .websiteDataRead(let change): change.apply(to: core, in: &batch)
         case .windowBroughtForward(let change): change.apply(to: core, in: &batch)
         case .windowChanged(let change): change.apply(to: core, in: &batch)
@@ -708,10 +620,9 @@ extension Change {
         case .extensionInstallAsked(let change): change.note(in: &receipts)
         case .foldersChanged(let change): change.note(in: &receipts)
         case .historyChanged(let change): change.note(in: &receipts)
-        case .linkPreferencesChanged(let change): change.note(in: &receipts)
+        case .importFlowChanged(let change): change.note(in: &receipts)
         case .navigationRecorded(let change): change.note(in: &receipts)
         case .offeredPageAdopted(let change): change.note(in: &receipts)
-        case .offeredWindowAdopted(let change): change.note(in: &receipts)
         case .pageChanged(let change): change.note(in: &receipts)
         case .pageOpened(let change): change.note(in: &receipts)
         case .pageRehosted(let change): change.note(in: &receipts)
@@ -722,19 +633,12 @@ extension Change {
         case .quitWithDownloadsAsked(let change): change.note(in: &receipts)
         case .saved(let change): change.note(in: &receipts)
         case .scriptDialogAsked(let change): change.note(in: &receipts)
-        case .searchCatalogChanged(let change): change.note(in: &receipts)
         case .sessionAdopted(let change): change.note(in: &receipts)
-        case .setupCompletedChanged(let change): change.note(in: &receipts)
-        case .setupDraftChanged(let change): change.note(in: &receipts)
-        case .setupFinished(let change): change.note(in: &receipts)
-        case .setupFlowChanged(let change): change.note(in: &receipts)
         case .shortcutsChanged(let change): change.note(in: &receipts)
         case .sidebarChanged(let change): change.note(in: &receipts)
         case .sitePermissionsChanged(let change): change.note(in: &receipts)
-        case .spaceLockChanged(let change): change.note(in: &receipts)
         case .spaceSettingsChanged(let change): change.note(in: &receipts)
         case .spacesChanged(let change): change.note(in: &receipts)
-        case .splitGroupsChanged(let change): change.note(in: &receipts)
         case .storageFailed(let change): change.note(in: &receipts)
         case .syncJournalChanged(let change): change.note(in: &receipts)
         case .syncRecordsSkipped(let change): change.note(in: &receipts)
@@ -745,7 +649,6 @@ extension Change {
         case .tabsChanged(let change): change.note(in: &receipts)
         case .tabsImported(let change): change.note(in: &receipts)
         case .transientPageClosed(let change): change.note(in: &receipts)
-        case .transientPagePromoted(let change): change.note(in: &receipts)
         case .websiteDataRead(let change): change.note(in: &receipts)
         case .windowBroughtForward(let change): change.note(in: &receipts)
         case .windowChanged(let change): change.note(in: &receipts)
@@ -783,16 +686,6 @@ struct AddContentScript: PageRequest, Equatable, Sendable {
     let mainFrameOnly: Bool
 }
 
-struct AddLinkRoute: Intent, LinkIntent, Equatable, Sendable {
-    static let maximumRoutes: Int = 64
-
-    let routeID: UUID
-    let destinationSpaceID: UUID
-}
-
-struct AddSetupSpace: Intent, SetupDraftIntent, Equatable, Sendable {
-}
-
 struct AddressCompletion: Equatable, Sendable {
     let typed: String
     let suffix: String
@@ -802,10 +695,6 @@ struct AddressCompletion: Equatable, Sendable {
 struct AdoptLegacySession: Intent, Equatable, Sendable {
     let installed: LegacySession
     let seed: SessionState.Seed?
-}
-
-struct AdoptLinkPreferences: Intent, LinkIntent, Equatable, Sendable {
-    let preferences: Data?
 }
 
 struct AdoptOfferedPage: Equatable, Sendable {
@@ -818,18 +707,6 @@ struct AdoptOfferedPage: Equatable, Sendable {
 
 struct AdoptOpenWindows: Intent, WindowIntent, Equatable, Sendable {
     let windowIDs: [UUID]
-}
-
-struct AdoptSetupCompletion: Intent, SetupFlowIntent, Equatable, Sendable {
-    let completed: Bool
-}
-
-struct AdoptSetupDraft: Intent, SetupDraftIntent, Equatable, Sendable {
-    let draft: Data?
-}
-
-struct AdoptShortcuts: Intent, ShortcutIntent, Equatable, Sendable {
-    let overrides: Data?
 }
 
 struct AdoptSitePermissions: Intent, SitePermissionIntent, Equatable, Sendable {
@@ -912,7 +789,6 @@ struct AgentSessionsFull: Equatable, Sendable {
 struct AgentSpace: Equatable, Sendable {
     let spaceID: UUID
     let name: String
-    let isLocked: Bool
     let tabs: [AgentTab]
 }
 
@@ -1054,66 +930,15 @@ struct AppConfiguration: Equatable, Sendable {
 }
 
 struct AppPreferences: Equatable, Sendable {
-    static let `default` = AppPreferences(
-        startup: StartupBehavior.showStartPage,
-        offersTranslation: true,
-        automaticallyTranslates: false,
-        translationRules: [],
-        checksSpelling: false,
-        automaticallyEntersPictureInPicture: true,
-        savedTabClose: SavedTabClosePolicy.resumeLastLocation,
-        savedTabFaviconReturnsToSavedURL: false,
-        splitFocusFollowsMouse: false,
-        automaticallyShowsDeveloperToolbar: true,
-        showsRecentTabs: true,
-        palette: PalettePreferences(
-            layout: PaletteLayout.sections,
-            sources: [
-                PaletteSourceChoice(source: PaletteSource.recentTabs, isEnabled: true, limit: nil),
-                PaletteSourceChoice(source: PaletteSource.openTabs, isEnabled: true, limit: nil),
-                PaletteSourceChoice(source: PaletteSource.saved, isEnabled: true, limit: nil),
-                PaletteSourceChoice(source: PaletteSource.history, isEnabled: true, limit: nil),
-                PaletteSourceChoice(source: PaletteSource.actions, isEnabled: true, limit: nil),
-                PaletteSourceChoice(source: PaletteSource.spaces, isEnabled: true, limit: nil),
-                PaletteSourceChoice(source: PaletteSource.archivedTabs, isEnabled: false, limit: nil),
-                PaletteSourceChoice(source: PaletteSource.suggestions, isEnabled: true, limit: nil),
-                PaletteSourceChoice(source: PaletteSource.settingsPages, isEnabled: true, limit: nil),
-                PaletteSourceChoice(source: PaletteSource.scopes, isEnabled: true, limit: nil),
-                PaletteSourceChoice(source: PaletteSource.calculator, isEnabled: true, limit: nil),
-                PaletteSourceChoice(source: PaletteSource.pasteAndGo, isEnabled: false, limit: nil)
-            ],
-            showsTopHit: true,
-            prefersOpenTabs: true,
-            completesInline: true,
-            learnsChoices: true,
-            searchesSitesWithTab: true,
-            showsReasons: false,
-            providerSpaceTrigger: SearchProviderSpaceTrigger.prefixedShortcut
-        )
-    )
+    static let `default` = AppPreferences(translationLanguage: "en", searchProvider: SearchProvider.google)
 
-    var startup: StartupBehavior
-    var offersTranslation: Bool
-    var automaticallyTranslates: Bool
-    var translationRules: [TranslationRule]
-    var checksSpelling: Bool
-    var automaticallyEntersPictureInPicture: Bool
-    var savedTabClose: SavedTabClosePolicy
-    var savedTabFaviconReturnsToSavedURL: Bool
-    var splitFocusFollowsMouse: Bool
-    var automaticallyShowsDeveloperToolbar: Bool
-    var showsRecentTabs: Bool
-    var palette: PalettePreferences
+    var translationLanguage: String
+    var searchProvider: SearchProvider
 }
 
 struct AppPreferencesChanged: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let preferences: AppPreferences?
-}
-
-struct ApplyManualSetup: Intent, ImportWorkspace, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let windowID: UUID
 }
 
 struct ApproveAgent: Intent, AgentIntent, Equatable, Sendable {
@@ -1151,12 +976,6 @@ struct ArchiveTooLarge: Equatable, Sendable {
     }
 }
 
-struct ArchiveTransientPage: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let pageID: UUID
-    let spaceID: UUID
-}
-
 struct ArchivedPageHistory: Query, Equatable, Sendable {
     typealias Answer = PageHistoryArchive
 
@@ -1187,11 +1006,6 @@ struct AssessDownloadRisk: Intent, DownloadIntent, Equatable, Sendable {
     let assessment: DownloadRiskAssessment
 }
 
-struct AssignShortcut: Intent, ShortcutIntent, Equatable, Sendable {
-    let command: ShortcutCommand
-    let keys: KeyCombination
-}
-
 struct AudioSpectrumChanged: Equatable, Sendable {
     let pageID: UUID
     let bands: Data
@@ -1201,9 +1015,6 @@ struct AuthenticationAsked: CoreChange, Equatable, Sendable {
     let promptID: UUID
     let pageID: UUID
     let question: AuthenticationQuestion
-}
-
-struct AuthenticationBusy: Equatable, Sendable {
 }
 
 struct AuthenticationChallenged: EngineEvent, PromptEvent, Equatable, Sendable {
@@ -1291,13 +1102,7 @@ struct BeginDownload: Intent, DownloadIntent, Equatable, Sendable {
     let isAcknowledged: Bool
 }
 
-struct BeginImportCommit: Intent, SetupFlowIntent, Equatable, Sendable {
-}
-
-struct BeginUnlockingSpace: Intent, SpaceAccessIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let spaceID: UUID
-    let requestID: UUID
+struct BeginImportCommit: Intent, BrowserImportIntent, Equatable, Sendable {
 }
 
 struct BlockAutomaticDownload: Intent, DownloadIntent, Equatable, Sendable {
@@ -1372,14 +1177,13 @@ struct BrandColor: Equatable, Sendable {
     var alpha: Double
 }
 
+struct BrowserImportBusy: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Wait for the import to finish.")
+    }
+}
+
 struct BrowsingPreferences: Equatable, Sendable {
-    var selectedBuiltInEngine: BuiltInSearchProvider?
-    var selectedCustomEngineID: UUID?
-    var customSearchProviders: [CustomSearchProvider]
-    var searchSuggestionsEnabled: Bool
-    var followsDefaultSearch: Bool
-    var followsDefaultSuggestions: Bool
-    var currentTabCleanup: CurrentTabCleanup
     var contentBlocking: ContentBlockingPolicy
     var dataRetention: DataRetentionPreferences
 }
@@ -1419,7 +1223,7 @@ struct CancelEngineDownload: Equatable, Sendable {
     let downloadID: String
 }
 
-struct CancelImportRead: Intent, SetupFlowIntent, Equatable, Sendable {
+struct CancelImportRead: Intent, BrowserImportIntent, Equatable, Sendable {
 }
 
 struct CannotDeleteLastSpace: Equatable, Sendable {
@@ -1449,12 +1253,9 @@ struct CapacityLimits: Equatable, Sendable {
     let folderDepth: Int
     let historyEntries: Int
     let splitMembers: Int
-    let brandColors: Int
-    let crestPalette: Int
     let spaces: Int
     let tabsPerSpace: Int
     let syncRecords: Int
-    let credentialFileBytes: Int
 }
 
 struct CaptureDecision: Query, Equatable, Sendable {
@@ -1506,26 +1307,9 @@ struct ChooseCloudCopy: Intent, CloudSyncControlIntent, Equatable, Sendable {
     let usesCloud: Bool
 }
 
-struct ChooseExternalLinkDestination: Intent, LinkIntent, Equatable, Sendable {
-    let destination: ExternalLinkDestination
-    let spaceID: UUID?
-}
-
-struct ChooseImportDestination: Intent, SetupFlowIntent, Equatable, Sendable {
+struct ChooseImportDestination: Intent, BrowserImportIntent, Equatable, Sendable {
     let sourceSpaceID: UUID
     let destinationSpaceID: UUID?
-}
-
-struct ChoosePeekModifier: Intent, LinkIntent, Equatable, Sendable {
-    let modifier: LinkPeekModifier
-}
-
-struct ChooseQuickWindowArchivePolicy: Intent, LinkIntent, Equatable, Sendable {
-    let policy: QuickWindowArchivePolicy
-}
-
-struct ChooseSetupLook: Intent, SetupFlowIntent, Equatable, Sendable {
-    let look: SetupLook
 }
 
 struct ChooseShareSource: PageRequest, Equatable, Sendable {
@@ -1538,29 +1322,9 @@ struct ChooseShareSource: PageRequest, Equatable, Sendable {
     let audio: Bool
 }
 
-struct ChooseSiteEngine: Intent, Equatable, Sendable {
-    let spaceID: UUID
-    let origin: SiteOrigin
-    let engine: EngineKind
-}
-
-struct ChooseTabIcon: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let spaceID: UUID
-    let tabID: UUID
-    let mode: TabIconMode
-    let emoji: String?
-    let accent: TabIconAccent?
-}
-
 struct ClaimAgentTab: Intent, AgentIntent, Equatable, Sendable {
     let sessionID: UUID
     let tabID: UUID
-}
-
-struct CleanUpCurrentTabs: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let spaceID: UUID?
 }
 
 struct ClearCurrentTabs: Intent, SessionIntent, Equatable, Sendable {
@@ -1573,9 +1337,6 @@ struct ClearHistory: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID?
     let range: BrowsingDataRange
-}
-
-struct ClearPaletteChoices: Intent, PaletteIntent, Equatable, Sendable {
 }
 
 struct ClickPage: PageRequest, Equatable, Sendable {
@@ -1783,10 +1544,6 @@ struct CollapseFolder: Intent, SessionIntent, Equatable, Sendable {
     let collapsed: Bool
 }
 
-struct ColorPalette: Equatable, Sendable {
-    var colors: [BrandColor]
-}
-
 struct ConfigureCloudSync: Intent, CloudSyncControlIntent, Equatable, Sendable {
     let isEnabled: Bool
     let canReachCloud: Bool
@@ -1823,7 +1580,7 @@ struct ContentScriptEvaluated: Equatable, Sendable {
     let json: String?
 }
 
-struct ContinueImport: Intent, SetupFlowIntent, Equatable, Sendable {
+struct ContinueImport: Intent, BrowserImportIntent, Equatable, Sendable {
 }
 
 struct CreateFolder: Intent, SessionIntent, Equatable, Sendable {
@@ -1834,7 +1591,6 @@ struct CreateFolder: Intent, SessionIntent, Equatable, Sendable {
     let parentID: UUID?
     let title: String?
     let color: BrandColor?
-    let symbol: String?
     let tabIDs: [UUID]
     let leavesSplits: Bool
 }
@@ -1853,189 +1609,6 @@ struct CreateSpace: Intent, SessionIntent, Equatable, Sendable {
     let spaceID: UUID
 }
 
-struct CredentialCapture: Query, Equatable, Sendable {
-    typealias Answer = CredentialCaptureDecision
-
-    let facts: CredentialFormFacts
-    let hint: CredentialUsernameHint?
-    let pending: CredentialPendingCandidate?
-    let now: Double
-}
-
-struct CredentialCaptureDecision: Equatable, Sendable {
-    let action: CredentialCaptureAction
-    let usernameSource: CredentialUsernameSource
-    let clearsUsernameHint: Bool
-    let isCrossOriginFrame: Bool
-    let anchorsToField: Bool
-    let candidateLifetime: Double
-    let usernameHintLifetime: Double
-}
-
-struct CredentialChoice: Equatable, Sendable {
-    let credentialID: UUID?
-}
-
-struct CredentialExport: Query, Equatable, Sendable {
-    typealias Answer = CredentialExportFile
-
-    let credentials: [ExportedCredential]
-    let spaceName: String
-    let fallbackName: String
-}
-
-struct CredentialExportFile: Equatable, Sendable {
-    let fileName: String
-    let contents: Data
-}
-
-struct CredentialFill: Query, Equatable, Sendable {
-    typealias Answer = CredentialFillDecision
-
-    let source: CredentialFillSource
-    let passwordKind: CredentialPasswordKind
-}
-
-struct CredentialFillDecision: Equatable, Sendable {
-    let isAllowed: Bool
-}
-
-struct CredentialFormFacts: Equatable, Sendable {
-    var event: CredentialCaptureEvent
-    var frameOrigin: CredentialOrigin
-    var topLevelOrigin: CredentialOrigin
-    var isMainFrame: Bool
-    var hasFormID: Bool
-    var hasUsername: Bool
-    var hasPassword: Bool
-    var passwordKind: CredentialPasswordKind?
-    var hasVisiblePasswordField: Bool?
-    var hasFillTarget: Bool
-}
-
-struct CredentialImportCandidate: Equatable, Sendable {
-    let rowNumber: Int
-    let username: String
-    let displayName: String?
-    let password: String
-    let effect: CredentialImportEffect
-}
-
-struct CredentialImportGroup: Equatable, Sendable {
-    let origin: CredentialOrigin
-    let username: String
-    let candidates: [CredentialImportCandidate]
-    let collapsedDuplicateRowCount: Int
-    let existingID: UUID?
-    let suggestedRow: Int?
-    let requiresChoice: Bool
-}
-
-struct CredentialImportPlan: Equatable, Sendable {
-    let format: CredentialFileFormat
-    let groups: [CredentialImportGroup]
-    let rejections: [CredentialRowRejection]
-    let warnings: [CredentialRowWarning]
-    let validRowCount: Int
-}
-
-struct CredentialImportPreview: Query, Equatable, Sendable {
-    typealias Answer = CredentialImportPlan
-
-    let document: Data
-    let existing: [ExistingCredential]
-}
-
-struct CredentialOrigin: Equatable, Sendable {
-    static let maximumHostLength: Int = 1024
-
-    var scheme: String
-    var host: String
-    var port: Int
-}
-
-struct CredentialPendingCandidate: Equatable, Sendable {
-    var origin: CredentialOrigin
-    var submittedAt: Double
-}
-
-struct CredentialPreferences: Equatable, Sendable {
-    var isEnabled: Bool
-    var syncsCrestPasswordsWithICloud: Bool
-    var alsoOffersSaveToSystemPasswords: Bool
-}
-
-struct CredentialRecord: Equatable, Sendable, Identifiable {
-    var id: UUID
-    var username: String?
-    var updatedAt: Double
-    var lastUsedAt: Double?
-}
-
-struct CredentialRecordLimitReached: Equatable, Sendable {
-    let limit: Int
-}
-
-struct CredentialRowRejection: Equatable, Sendable {
-    let rowNumber: Int
-    let flaw: CredentialRowFlaw
-}
-
-struct CredentialRowWarning: Equatable, Sendable {
-    let rowNumber: Int
-    let caution: CredentialRowCaution
-}
-
-struct CredentialSave: Query, Equatable, Sendable {
-    typealias Answer = CredentialSavePlan
-
-    let matchID: UUID?
-    let stored: CredentialStoredComparison?
-}
-
-struct CredentialSaveCheck: Query, Equatable, Sendable {
-    typealias Answer = CredentialSaveVerdict
-
-    let origin: CredentialOrigin
-    let topLevelOrigin: CredentialOrigin
-    let submittedAt: Double
-    let now: Double
-}
-
-struct CredentialSaveMatch: Query, Equatable, Sendable {
-    typealias Answer = CredentialChoice
-
-    let username: String
-    let records: [CredentialRecord]
-}
-
-struct CredentialSavePlan: Equatable, Sendable, Identifiable {
-    let kind: CredentialSavePlanKind
-    let id: UUID?
-}
-
-struct CredentialSaveVerdict: Equatable, Sendable {
-    let validity: CredentialSaveValidity
-}
-
-struct CredentialStoredComparison: Equatable, Sendable, Identifiable {
-    var id: UUID
-    var passwordMatches: Bool
-}
-
-struct CredentialUsernameHint: Equatable, Sendable {
-    var origin: CredentialOrigin
-    var topLevelOrigin: CredentialOrigin
-    var capturedAt: Double
-}
-
-struct CrestCharge: Equatable, Sendable {
-    var kind: CrestChargeKind
-    var symbol: CrestSymbol?
-    var text: String?
-    var style: CrestMonogramStyle?
-}
-
 struct CurrentTabsOnly: Equatable, Sendable {
     let tabID: UUID
 
@@ -2044,26 +1617,8 @@ struct CurrentTabsOnly: Equatable, Sendable {
     }
 }
 
-struct CustomSearchProvider: Equatable, Sendable, Identifiable {
-    static let maximumNameLength: Int = 64
-    static let maximumShortcutLength: Int = 32
-
-    var id: UUID
-    var name: String
-    var searchURLTemplate: String
-    var suggestionURLTemplate: String?
-    var kind: SearchProviderKind
-    var shortcuts: [String]
-    var color: BrandColor?
-}
-
-struct CustomizeImportSpace: Intent, SetupFlowIntent, Equatable, Sendable {
+struct CustomizeImportSpace: Intent, BrowserImportIntent, Equatable, Sendable {
     let sourceSpaceID: UUID
-    let customization: SpaceCustomization
-}
-
-struct CustomizeSetupSpace: Intent, SetupDraftIntent, Equatable, Sendable {
-    let spaceID: UUID
     let customization: SpaceCustomization
 }
 
@@ -2176,11 +1731,8 @@ struct DockMenuSpace: Equatable, Sendable {
     let spaceID: UUID
     let profileID: UUID
     let name: String
-    let symbol: String
-    let accent: SpaceAccent
-    let look: SpaceBranding
     let isShown: Bool
-    let isLocked: Bool
+    let color: SpaceColor
 }
 
 struct DownloadApprovalAsked: CoreChange, Equatable, Sendable {
@@ -2383,9 +1935,6 @@ struct DropTargets: Query, Equatable, Sendable {
     let selection: TabSelection
 }
 
-struct DuplicateCredential: Equatable, Sendable {
-}
-
 struct DuplicateDownload: Equatable, Sendable {
 }
 
@@ -2395,18 +1944,6 @@ struct DuplicateMediaSession: Equatable, Sendable, Identifiable {
 
 struct DuplicatePage: Equatable, Sendable {
     let pageID: UUID
-}
-
-struct DuplicateSearchEngineName: Equatable, Sendable {
-    var message: LocalizedStringResource {
-        LocalizedStringResource("Another search provider already uses this name.")
-    }
-}
-
-struct DuplicateSearchShortcut: Equatable, Sendable {
-    var message: LocalizedStringResource {
-        LocalizedStringResource("Another search provider already uses this shortcut.")
-    }
 }
 
 struct DuplicateTab: Intent, SessionIntent, Equatable, Sendable {
@@ -2425,20 +1962,11 @@ struct DuplicateTabs: Intent, SessionIntent, Equatable, Sendable {
     let selection: TabSelection
 }
 
-struct EditEngineRule: Intent, Equatable, Sendable {
-    let previousOrigin: SiteOrigin?
-    let origin: SiteOrigin
-    let engine: EngineKind
-}
-
-struct EditLinkRoute: Intent, LinkIntent, Equatable, Sendable {
-    static let maximumPatternLength: Int = 2048
-
-    let routeID: UUID
-    let isEnabled: Bool?
-    let match: LinkRouteMatch?
-    let pattern: String?
-    let destinationSpaceID: UUID?
+struct EnableGitHubLiveFolder: Intent, SessionIntent, Equatable, Sendable {
+    let workspaceID: UUID
+    let spaceID: UUID
+    let profileID: UUID
+    let folderID: UUID
 }
 
 struct EndAgentSession: Intent, AgentIntent, Equatable, Sendable {
@@ -2498,7 +2026,6 @@ struct EngineNotRegistered: Equatable, Sendable {
 
 struct EnginePreferences: Equatable, Sendable {
     let defaultEngine: EngineKind?
-    let rules: [SiteEngineRule]
 }
 
 struct EnginePreferencesChanged: CoreChange, Equatable, Sendable {
@@ -2623,24 +2150,8 @@ struct EvaluatePageScript: PageRequest, Equatable, Sendable {
     let world: PageScriptWorld
 }
 
-struct ExistingCredential: Equatable, Sendable, Identifiable {
-    var id: UUID
-    var origin: CredentialOrigin
-    var username: String
-    var isWebForm: Bool
-    var updatedAt: Double
-    var lastUsedAt: Double?
-    var password: String
-}
-
 struct ExitPictureInPicture: Equatable, Sendable {
     let pageID: UUID
-}
-
-struct ExpandSavedTabs: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let spaceID: UUID
-    let isExpanded: Bool
 }
 
 struct ExpireDownloads: Intent, DownloadIntent, Equatable, Sendable {
@@ -2662,15 +2173,6 @@ struct ExportWorkspace: Query, Equatable, Sendable {
 
     let workspaceID: UUID
     let format: ExportFormat
-}
-
-struct ExportedCredential: Equatable, Sendable, Identifiable {
-    var id: UUID
-    var origin: CredentialOrigin
-    var username: String
-    var displayName: String?
-    var password: String
-    var note: String
 }
 
 struct ExportedDocument: Equatable, Sendable {
@@ -2722,18 +2224,22 @@ struct ExternalAddressVerdict: Equatable, Sendable {
     let accepted: Bool
 }
 
-struct ExternalLinkPlacement: Equatable, Sendable {
-    let spaceID: UUID?
-    let opensQuickWindow: Bool
-    let substitutesForLockedSpace: Bool
-    let windowID: UUID?
-    let opensWindow: Bool
-}
-
 struct ExternalLocalDocument: Query, Equatable, Sendable {
     typealias Answer = ExternalAddressVerdict
 
     let facts: LocalDocumentFacts
+}
+
+struct ExternalOpenDestination: Query, Equatable, Sendable {
+    typealias Answer = ExternalOpenPlacement
+
+    let windowIDs: [UUID]
+}
+
+struct ExternalOpenPlacement: Equatable, Sendable {
+    let windowID: UUID?
+    let spaceID: UUID?
+    let opensWindow: Bool
 }
 
 struct ExternalWebLink: Query, Equatable, Sendable {
@@ -2749,9 +2255,9 @@ struct FailDownload: Intent, DownloadIntent, Equatable, Sendable {
     let message: String?
 }
 
-struct FailImport: Intent, SetupFlowIntent, Equatable, Sendable {
+struct FailImport: Intent, BrowserImportIntent, Equatable, Sendable {
     let source: ImportSource
-    let reason: SetupFailureReason
+    let reason: ImportFailureReason
     let detail: String?
 }
 
@@ -2830,18 +2336,7 @@ struct FinishDownload: Intent, DownloadIntent, Equatable, Sendable {
     let finalByteCount: Int64?
 }
 
-struct FinishImportCommit: Intent, SetupFlowIntent, Equatable, Sendable {
-    let passwordCount: Int
-}
-
-struct FinishSetup: Intent, SetupFlowIntent, Equatable, Sendable {
-    let windowID: UUID
-}
-
-struct FinishUnlockingSpace: Intent, SpaceAccessIntent, Equatable, Sendable {
-    let spaceID: UUID
-    let requestID: UUID
-    let authenticated: Bool
+struct FinishImportCommit: Intent, BrowserImportIntent, Equatable, Sendable {
 }
 
 struct FirstInstallSession: Query, Equatable, Sendable {
@@ -2873,13 +2368,14 @@ struct FolderState: Equatable, Sendable, Identifiable {
     let id: UUID
     let location: TabPlacement
     let title: String
-    let symbol: String?
     let color: BrandColor?
     let parentID: UUID?
     let isCollapsed: Bool
     let collapseModifiedAt: Date?
     let orderAnchorTabID: UUID?
-    let displaySymbol: String
+    let source: LiveFolderSource?
+    let liveOptions: GitHubLiveFolderOptions?
+    let gitHubOptions: GitHubLiveFolderOptions
     let displayColor: BrandColor
 
     /// The fields of a `FolderState` alone, as a platform builds one to send. The
@@ -2888,12 +2384,13 @@ struct FolderState: Equatable, Sendable, Identifiable {
         var id: UUID
         var location: TabPlacement
         var title: String
-        var symbol: String?
         var color: BrandColor?
         var parentID: UUID?
         var isCollapsed: Bool
         var collapseModifiedAt: Date?
         var orderAnchorTabID: UUID?
+        var source: LiveFolderSource?
+        var liveOptions: GitHubLiveFolderOptions?
     }
 
     /// The record's fields alone, as a platform sends it back.
@@ -2902,12 +2399,13 @@ struct FolderState: Equatable, Sendable, Identifiable {
             id: id,
             location: location,
             title: title,
-            symbol: symbol,
             color: color,
             parentID: parentID,
             isCollapsed: isCollapsed,
             collapseModifiedAt: collapseModifiedAt,
-            orderAnchorTabID: orderAnchorTabID
+            orderAnchorTabID: orderAnchorTabID,
+            source: source,
+            liveOptions: liveOptions
         )
     }
 }
@@ -2946,15 +2444,6 @@ struct ForgetCloudZone: Intent, CloudTransportIntent, Equatable, Sendable {
     let loss: CloudZoneLoss
 }
 
-struct ForgetEngineRule: Intent, Equatable, Sendable {
-    let origin: SiteOrigin
-}
-
-struct ForgetPaletteChoices: Intent, PaletteIntent, Equatable, Sendable {
-    let windowID: UUID
-    let row: PaletteRow.Seed
-}
-
 struct GetAgentPreferences: Query, Equatable, Sendable {
     typealias Answer = AgentPreferences
 
@@ -2963,6 +2452,29 @@ struct GetAgentPreferences: Query, Equatable, Sendable {
 struct GetEnginePreferences: Query, Equatable, Sendable {
     typealias Answer = EnginePreferences
 
+}
+
+struct GetShortcuts: Query, Equatable, Sendable {
+    typealias Answer = ShortcutsChanged
+
+}
+
+struct GitHubLiveFolderOptions: Equatable, Sendable {
+    static let `default` = GitHubLiveFolderOptions(
+        authorMe: true,
+        assignedMe: true,
+        reviewRequested: false,
+        includeDrafts: true,
+        excludedRepositories: [],
+        interval: LiveFolderRefreshInterval.thirtyMinutes
+    )
+
+    var authorMe: Bool
+    var assignedMe: Bool
+    var reviewRequested: Bool
+    var includeDrafts: Bool
+    var excludedRepositories: [String]
+    var interval: LiveFolderRefreshInterval
 }
 
 struct GoToHistoryEntry: Equatable, Sendable {
@@ -2976,14 +2488,6 @@ struct GroupPages: Equatable, Sendable {
     let color: TabGroupColor
     let isCollapsed: Bool
     let pageIDs: [UUID]
-}
-
-struct GuideSpaceLocked: Equatable, Sendable {
-    let spaceID: UUID
-
-    var message: LocalizedStringResource {
-        LocalizedStringResource("Unlock your first Space to open Getting Started.")
-    }
 }
 
 struct HasSidePanel: PageRequest, Equatable, Sendable {
@@ -3049,9 +2553,19 @@ struct IdentifyAgent: Intent, AgentIntent, Equatable, Sendable {
     let color: BrandColor?
 }
 
-struct ImportAppPreferences: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let legacy: LegacyAppPreferences
+struct IdlePageCandidate: Equatable, Sendable {
+    let pageID: UUID
+    let documents: Int64
+    let hiddenSince: Date
+}
+
+struct IdlePageList: Equatable, Sendable {
+    let pages: [IdlePageCandidate]
+}
+
+struct IdlePages: Query, Equatable, Sendable {
+    typealias Answer = IdlePageList
+
 }
 
 struct ImportBrowserApp: Equatable, Sendable {
@@ -3061,7 +2575,6 @@ struct ImportBrowserApp: Equatable, Sendable {
 
 struct ImportData: Equatable, Sendable {
     let profiles: [ImportProfile]
-    let passwordStores: [ImportPasswordStore]
 }
 
 struct ImportExtension: Equatable, Sendable {
@@ -3077,6 +2590,29 @@ struct ImportExtensionInstall: Equatable, Sendable {
     let spaceIDs: [UUID]
 }
 
+struct ImportFailure: Equatable, Sendable {
+    let reason: ImportFailureReason
+    let source: ImportSource?
+    let detail: String?
+}
+
+struct ImportFlowChanged: CoreChange, Equatable, Sendable {
+    let flow: ImportFlowState?
+}
+
+struct ImportFlowState: Equatable, Sendable {
+    let workspaceID: UUID
+    let step: ImportStep
+    let phase: ImportPhase
+    let offered: [ImportSource]
+    let selected: [ImportSource]
+    let queue: ImportQueue?
+    let source: ImportSource?
+    let review: ImportReview?
+    let failure: ImportFailure?
+    let summary: ImportSummary?
+}
+
 struct ImportFoundBrowser: Equatable, Sendable {
     let bundleIdentifier: String
     let name: String
@@ -3087,32 +2623,6 @@ struct ImportFoundBrowser: Equatable, Sendable {
 struct ImportLeftOut: Equatable, Sendable {
     var name: String
     var reason: Rejection
-}
-
-struct ImportPasswordDestinations: Query, Equatable, Sendable {
-    typealias Answer = ImportPasswordRoutes
-
-    let workspaceID: UUID
-    let passwords: [ImportPasswordSource]
-}
-
-struct ImportPasswordRoute: Equatable, Sendable {
-    let spaceIDs: [UUID]
-}
-
-struct ImportPasswordRoutes: Equatable, Sendable {
-    let routes: [ImportPasswordRoute]
-}
-
-struct ImportPasswordSource: Equatable, Sendable {
-    var profileName: String
-    var host: String
-}
-
-struct ImportPasswordStore: Equatable, Sendable, Identifiable {
-    let id: String
-    let profileName: String
-    let path: String
 }
 
 struct ImportPreview: Query, Sendable {
@@ -3127,6 +2637,46 @@ struct ImportProfile: Equatable, Sendable, Identifiable {
     var bookmarksPath: String?
     var sessionPath: String?
     var profilePath: String?
+}
+
+struct ImportQueue: Equatable, Sendable {
+    let sources: [ImportSource]
+    let index: Int
+    let current: ImportSource?
+    let hasMoreAfterCurrent: Bool
+}
+
+struct ImportReview: Equatable, Sendable {
+    let source: ImportSource
+    let spaces: [ImportReviewSpace]
+    let overflowTabIDs: [UUID]
+    let shownSpaceID: UUID?
+    let leftOut: [ImportLeftOut]
+    let spaceRoom: Int
+    let browserTitle: String?
+    let title: String
+    let hasIncludedSpaces: Bool
+    let includedTabCount: Int
+    let includedExtensionCount: Int
+    let nextSpaceID: UUID?
+    let showsLastSpace: Bool
+    let newSpaceCapacity: Int
+    let extensionInstalls: [ImportExtensionInstall]
+}
+
+struct ImportReviewSpace: Equatable, Sendable {
+    let source: SpaceState
+    let included: Bool
+    let destinationID: UUID?
+    let customization: SpaceCustomization
+    let includedTabIDs: [UUID]
+    let duplicateTabIDs: [UUID]
+    let matchedTabIDs: [UUID]
+    let placements: [TabPlacementChoice]
+    let extensions: [ImportExtension]
+    let includedExtensionIDs: [String]
+    let shownName: String
+    let broughtExtensions: [ImportExtension]
 }
 
 struct ImportReviewedSpaces: Intent, ImportWorkspace, SessionIntent, Equatable, Sendable {
@@ -3151,12 +2701,9 @@ struct ImportSpaces: Intent, ImportWorkspace, SessionIntent, Equatable, Sendable
     let spaces: [SpaceState.Seed]
 }
 
-struct ImportedCredential: Equatable, Sendable {
-    var rowNumber: Int
-    var displayName: String?
-    var origin: CredentialOrigin
-    var username: String
-    var password: String
+struct ImportSummary: Equatable, Sendable {
+    let tabCount: Int
+    let spaceCount: Int
 }
 
 struct ImportedSpaces: Equatable, Sendable {
@@ -3177,23 +2724,18 @@ struct ImportedWorkspace: Equatable, Sendable {
     let copied: [TabCopied]
 }
 
-struct IncludeImportExtension: Intent, SetupFlowIntent, Equatable, Sendable {
+struct IncludeImportExtension: Intent, BrowserImportIntent, Equatable, Sendable {
     let sourceSpaceID: UUID
     let extensionID: String
     let included: Bool
 }
 
-struct IncludeImportPasswords: Intent, SetupFlowIntent, Equatable, Sendable {
+struct IncludeImportSpace: Intent, BrowserImportIntent, Equatable, Sendable {
     let sourceSpaceID: UUID
     let included: Bool
 }
 
-struct IncludeImportSpace: Intent, SetupFlowIntent, Equatable, Sendable {
-    let sourceSpaceID: UUID
-    let included: Bool
-}
-
-struct IncludeImportTabs: Intent, SetupFlowIntent, Equatable, Sendable {
+struct IncludeImportTabs: Intent, BrowserImportIntent, Equatable, Sendable {
     let sourceSpaceID: UUID
     let tabIDs: [UUID]
     let included: Bool
@@ -3272,22 +2814,6 @@ struct InvalidAgent: Equatable, Sendable {
 struct InvalidBlockedPopup: Equatable, Sendable {
 }
 
-struct InvalidCredentialDate: Equatable, Sendable {
-}
-
-struct InvalidCredentialFile: Equatable, Sendable {
-    let flaw: CredentialFileFlaw
-}
-
-struct InvalidCredentialOrigin: Equatable, Sendable {
-}
-
-struct InvalidCredentialRecord: Equatable, Sendable {
-}
-
-struct InvalidCredentialUsername: Equatable, Sendable {
-}
-
 struct InvalidDownloadIdentity: Equatable, Sendable {
 }
 
@@ -3304,10 +2830,6 @@ struct InvalidDownloadText: Equatable, Sendable {
 struct InvalidFolderPlacement: Equatable, Sendable {
 }
 
-struct InvalidFolderSymbol: Equatable, Sendable {
-    let maximumBytes: Int
-}
-
 struct InvalidImport: Equatable, Sendable {
     let flaw: ImportFlaw
 
@@ -3316,8 +2838,8 @@ struct InvalidImport: Equatable, Sendable {
     }
 }
 
-struct InvalidLinkRouteEdit: Equatable, Sendable {
-    let routeID: UUID
+struct InvalidLiveFolder: Equatable, Sendable {
+    let spaceID: UUID
 }
 
 struct InvalidMediaSessionCount: Equatable, Sendable {
@@ -3328,22 +2850,7 @@ struct InvalidName: Equatable, Sendable {
     let limit: Int
 }
 
-struct InvalidPasswordLength: Equatable, Sendable {
-    let minimum: Int
-    let maximum: Int
-}
-
 struct InvalidRetentionLifetime: Equatable, Sendable {
-}
-
-struct InvalidSearchEngine: Equatable, Sendable {
-    let flaw: SearchEngineFlaw
-}
-
-struct InvalidSearchShortcut: Equatable, Sendable {
-    var message: LocalizedStringResource {
-        LocalizedStringResource("Enter a shortcut without spaces, slashes or colons.")
-    }
 }
 
 struct InvalidSession: Equatable, Sendable {
@@ -3375,10 +2882,6 @@ struct InvalidSpaceOrder: Equatable, Sendable {
 struct InvalidSplitColumnShares: Equatable, Sendable {
 }
 
-struct InvalidSplitIcon: Equatable, Sendable {
-    let groupID: UUID
-}
-
 struct InvalidSyncRecords: Equatable, Sendable {
     let flaw: SyncRecordFlaw
     let subject: UUID?
@@ -3392,10 +2895,6 @@ struct InvalidTabContent: Equatable, Sendable {
     let tabID: UUID
 }
 
-struct InvalidTabIcon: Equatable, Sendable {
-    let mode: TabIconMode
-}
-
 struct JoinSplit: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
@@ -3405,33 +2904,14 @@ struct JoinSplit: Intent, SessionIntent, Equatable, Sendable {
     let index: Int?
 }
 
-struct KeepPageLoaded: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let spaceID: UUID
-    let tabID: UUID
-    let keeps: Bool
-}
-
-struct KeepTabsLoaded: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let windowID: UUID
-    let spaceID: UUID
-    let selection: TabSelection
-    let keeps: Bool
-}
-
 struct KeyCombination: Equatable, Sendable {
-    var key: String
-    var isSpecialKey: Bool
-    var modifiers: ShortcutModifiers
+    let key: String
+    let isSpecialKey: Bool
+    let modifiers: ShortcutModifiers
 }
 
 struct LanguageMatches: Equatable, Sendable {
     let matches: [Bool]
-}
-
-struct LanguageTooLong: Equatable, Sendable {
-    let limit: Int
 }
 
 struct LanguagesMatching: Query, Equatable, Sendable {
@@ -3449,7 +2929,6 @@ struct LaunchDecision: Equatable, Sendable {
     let requiresIsolation: Bool
     let usesEphemeralProfileStorage: Bool
     let presentsInstalledApplicationUI: Bool
-    let startup: StartupBehavior
 }
 
 struct LaunchEnvironment: Equatable, Sendable {
@@ -3461,10 +2940,7 @@ struct LaunchEnvironment: Equatable, Sendable {
         requestsIsolatedCloudSync: false,
         resetsSession: false,
         presentsShowcase: false,
-        usesInMemoryCredentials: false,
-        forcesOnboardingWelcome: false,
-        forcesDesktopSetup: false,
-        forcesMobileSetup: false,
+        runsPerformanceHarness: false,
         usesUpdateTestFeed: false
     )
 
@@ -3475,48 +2951,24 @@ struct LaunchEnvironment: Equatable, Sendable {
     var requestsIsolatedCloudSync: Bool
     var resetsSession: Bool
     var presentsShowcase: Bool
-    var usesInMemoryCredentials: Bool
-    var forcesOnboardingWelcome: Bool
-    var forcesDesktopSetup: Bool
-    var forcesMobileSetup: Bool
+    var runsPerformanceHarness: Bool
     var usesUpdateTestFeed: Bool
 }
 
 struct LaunchIsolation: Query, Equatable, Sendable {
     typealias Answer = LaunchDecision
 
-    let platform: DevicePlatform
     let environment: LaunchEnvironment
-}
-
-struct LaunchPlan: Query, Equatable, Sendable {
-    typealias Answer = LaunchDecision
-
-    let workspaceID: UUID
-    let platform: DevicePlatform
-    let environment: LaunchEnvironment
-}
-
-struct LaunchSetup: Query, Equatable, Sendable {
-    typealias Answer = LaunchSetupGate
-
-    let environment: LaunchEnvironment
-}
-
-struct LaunchSetupGate: Equatable, Sendable {
-    let setup: SetupEntry?
 }
 
 struct LaunchWindowPlan: Equatable, Sendable {
     let windowIDs: [UUID]
     let startupWindowID: UUID
-    let setup: SetupEntry?
 }
 
 struct LaunchWindows: Query, Equatable, Sendable {
     typealias Answer = LaunchWindowPlan
 
-    let environment: LaunchEnvironment
 }
 
 struct LayoutInspector: PageRequest, Equatable, Sendable {
@@ -3535,18 +2987,6 @@ struct LeaveSplit: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
     let tabID: UUID
-}
-
-struct LegacyAppPreferences: Equatable, Sendable {
-    var startupBehavior: String?
-    var offersTranslation: Bool?
-    var automaticallyTranslates: Bool?
-    var translationRules: String?
-    var checksSpelling: Bool?
-    var automaticallyEntersPictureInPicture: Bool?
-    var savedTabClosePolicy: String?
-    var savedTabFaviconReturnsToSavedURL: Bool?
-    var splitFocusFollowsMouse: Bool?
 }
 
 struct LegacyCloudStateUnreadable: Equatable, Sendable {
@@ -3599,47 +3039,14 @@ struct LinkNavigationAnswer: Equatable, Sendable {
     let decision: LinkNavigationDecision
 }
 
-struct LinkPatternTooLong: Equatable, Sendable {
-    let maximum: Int
-}
-
-struct LinkPreferences: Equatable, Sendable {
-    let destination: ExternalLinkDestination
-    let destinationSpaceID: UUID?
-    let focusesNewTabs: Bool
-    let followsMovedTabs: Bool
-    let opensPeekAutomatically: Bool
-    let peekModifier: LinkPeekModifier
-    let dragsLinksToPeek: Bool
-    let archivePolicy: QuickWindowArchivePolicy
-    let remembersSpaceBySite: Bool
-    let routes: [LinkRoute]
-    let rememberedSites: [RememberedSite]
-}
-
-struct LinkPreferencesChanged: CoreChange, Equatable, Sendable {
-    let preferences: LinkPreferences
-}
-
-struct LinkRoute: Equatable, Sendable, Identifiable {
-    let id: UUID
-    let isEnabled: Bool
-    let match: LinkRouteMatch
-    let pattern: String
-    let destinationSpaceID: UUID
-}
-
-struct LinkRouteExists: Equatable, Sendable {
-    let routeID: UUID
-}
-
-struct LinkRoutesFull: Equatable, Sendable {
-    let maximum: Int
-}
-
 struct ListDropTarget: Equatable, Sendable {
     let section: TabPlacement
     let folderID: UUID?
+}
+
+struct LiveFolderTab: Equatable, Sendable {
+    var url: String
+    var title: String
 }
 
 struct LoadAddress: Intent, PageIntent, Equatable, Sendable {
@@ -3658,20 +3065,6 @@ struct LocalDocumentFacts: Equatable, Sendable {
     var hasUser: Bool
     var hasPath: Bool
     var host: String?
-}
-
-struct LocalDocumentPlacement: Equatable, Sendable {
-    let windowID: UUID?
-    let spaceID: UUID?
-    let opensWindow: Bool
-}
-
-struct LockAllSpaces: Intent, SpaceAccessIntent, Equatable, Sendable {
-    let sceneWentInactive: Bool
-}
-
-struct LockSpace: Intent, SpaceAccessIntent, Equatable, Sendable {
-    let spaceID: UUID
 }
 
 struct MediaSessionArbitration: Equatable, Sendable {
@@ -3758,12 +3151,6 @@ struct MergeSyncRecords: Intent, CloudSyncIntent, Equatable, Sendable {
     let records: [SyncRecord]
 }
 
-struct MostRecentCredential: Query, Equatable, Sendable {
-    typealias Answer = CredentialChoice
-
-    let records: [CredentialRecord]
-}
-
 struct MoveFolder: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -3772,11 +3159,6 @@ struct MoveFolder: Intent, SessionIntent, Equatable, Sendable {
     let parentID: UUID?
     let beforeFolderID: UUID?
     let beforeTabID: UUID?
-}
-
-struct MoveLinkRoute: Intent, LinkIntent, Equatable, Sendable {
-    let routeID: UUID
-    let offset: Int
 }
 
 struct MovePage: Intent, PageIntent, Equatable, Sendable {
@@ -3792,11 +3174,6 @@ struct MovePageToWindow: PageRequest, Equatable, Sendable {
 
     let pageID: UUID
     let windowID: UUID
-}
-
-struct MoveSetupSpace: Intent, SetupDraftIntent, Equatable, Sendable {
-    let spaceID: UUID
-    let targetSpaceID: UUID
 }
 
 struct MoveSplitMember: Intent, SessionIntent, Equatable, Sendable {
@@ -3853,13 +3230,6 @@ struct MuteMediaSession: PageRequest, Equatable, Sendable {
     let muted: Bool
 }
 
-struct NameSplit: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let spaceID: UUID
-    let groupID: UUID
-    let name: String?
-}
-
 struct NativeTabContent: Equatable, Sendable {
     var kind: String
     var resourceID: UUID?
@@ -3912,6 +3282,12 @@ struct NoArchivedTabs: Equatable, Sendable {
     let spaceID: UUID
 }
 
+struct NoBrowserImport: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Import is no longer open. Open it again.")
+    }
+}
+
 struct NoBrowsingDataCategory: Equatable, Sendable {
 }
 
@@ -3925,20 +3301,8 @@ struct NoIncludedSpaces: Equatable, Sendable {
     }
 }
 
-struct NoManualSetup: Equatable, Sendable {
-    var message: LocalizedStringResource {
-        LocalizedStringResource("Setup is no longer in progress. Start it again.")
-    }
-}
-
 struct NoSavedAddress: Equatable, Sendable {
     let tabID: UUID
-}
-
-struct NoSetup: Equatable, Sendable {
-    var message: LocalizedStringResource {
-        LocalizedStringResource("Setup is no longer open. Open it again.")
-    }
 }
 
 struct NoSplitStep: Equatable, Sendable {
@@ -3947,16 +3311,6 @@ struct NoSplitStep: Equatable, Sendable {
 }
 
 struct NoStoredSession: Equatable, Sendable {
-}
-
-struct NormalizeBranding: Query, Equatable, Sendable {
-    typealias Answer = NormalizedBranding
-
-    let branding: SpaceBranding
-}
-
-struct NormalizedBranding: Equatable, Sendable {
-    let branding: SpaceBranding
 }
 
 struct NotAnArchive: Equatable, Sendable {
@@ -4038,7 +3392,7 @@ struct ObservePageActivity: PageRequest, Equatable, Sendable {
     let observing: Bool
 }
 
-struct OfferImportSources: Intent, SetupFlowIntent, Equatable, Sendable {
+struct OfferImportSources: Intent, BrowserImportIntent, Equatable, Sendable {
     let installed: [ImportSource]
 }
 
@@ -4049,15 +3403,6 @@ struct OfferedPageAdopted: CoreChange, Equatable, Sendable {
     let spaceID: UUID
     let tabID: UUID
     let shows: Bool
-}
-
-struct OfferedWindowAdopted: CoreChange, Equatable, Sendable {
-    let pageID: UUID
-    let sourcePageID: UUID
-    let workspaceID: UUID
-    let windowID: UUID
-    let spaceID: UUID
-    let url: String
 }
 
 struct OpenAddress: Intent, SessionIntent, Equatable, Sendable {
@@ -4495,9 +3840,7 @@ struct PaletteAnswer: Equatable, Sendable {
     let groups: [PaletteGroup]
     let completion: AddressCompletion?
     let suggestionAddress: String?
-    let offeredSearch: SearchOffer?
     let offeredScope: PaletteScope?
-    let matchingProviders: [SearchProvider]
     let entry: PaletteEntry?
 }
 
@@ -4508,52 +3851,13 @@ struct PaletteCommand: Equatable, Sendable {
 }
 
 struct PaletteEntry: Equatable, Sendable {
-    let provider: SearchProvider?
-    let scope: PaletteScope?
+    let scope: PaletteScope
     let text: String
 }
 
 struct PaletteGroup: Equatable, Sendable {
     let section: PaletteSection
     let rows: [PaletteRow]
-}
-
-struct PalettePreferences: Equatable, Sendable {
-    static let maximumLimit: Int = 50
-    static let `default` = PalettePreferences(
-        layout: PaletteLayout.sections,
-        sources: [
-            PaletteSourceChoice(source: PaletteSource.recentTabs, isEnabled: true, limit: nil),
-            PaletteSourceChoice(source: PaletteSource.openTabs, isEnabled: true, limit: nil),
-            PaletteSourceChoice(source: PaletteSource.saved, isEnabled: true, limit: nil),
-            PaletteSourceChoice(source: PaletteSource.history, isEnabled: true, limit: nil),
-            PaletteSourceChoice(source: PaletteSource.actions, isEnabled: true, limit: nil),
-            PaletteSourceChoice(source: PaletteSource.spaces, isEnabled: true, limit: nil),
-            PaletteSourceChoice(source: PaletteSource.archivedTabs, isEnabled: false, limit: nil),
-            PaletteSourceChoice(source: PaletteSource.suggestions, isEnabled: true, limit: nil),
-            PaletteSourceChoice(source: PaletteSource.settingsPages, isEnabled: true, limit: nil),
-            PaletteSourceChoice(source: PaletteSource.scopes, isEnabled: true, limit: nil),
-            PaletteSourceChoice(source: PaletteSource.calculator, isEnabled: true, limit: nil),
-            PaletteSourceChoice(source: PaletteSource.pasteAndGo, isEnabled: false, limit: nil)
-        ],
-        showsTopHit: true,
-        prefersOpenTabs: true,
-        completesInline: true,
-        learnsChoices: true,
-        searchesSitesWithTab: true,
-        showsReasons: false,
-        providerSpaceTrigger: SearchProviderSpaceTrigger.prefixedShortcut
-    )
-
-    var layout: PaletteLayout
-    var sources: [PaletteSourceChoice]
-    var showsTopHit: Bool
-    var prefersOpenTabs: Bool
-    var completesInline: Bool
-    var learnsChoices: Bool
-    var searchesSitesWithTab: Bool
-    var showsReasons: Bool
-    var providerSpaceTrigger: SearchProviderSpaceTrigger
 }
 
 struct PaletteRow: Equatable, Sendable {
@@ -4569,53 +3873,12 @@ struct PaletteRow: Equatable, Sendable {
     let settingsPage: String?
     let scope: PaletteScope?
     let reason: PaletteReason?
-
-    /// The fields of a `PaletteRow` alone, as a platform builds one to send. The
-    /// core resolves the rest when it reads it.
-    struct Seed: Equatable, Sendable {
-        var kind: PaletteRowKind
-        var title: String
-        var subtitle: String
-        var symbol: String
-        var subjectID: UUID?
-        var tabID: UUID?
-        var address: String?
-        var command: ShortcutCommand?
-        var provider: SearchProvider.Seed?
-        var settingsPage: String?
-        var scope: PaletteScope?
-        var reason: PaletteReason?
-    }
-
-    /// The record's fields alone, as a platform sends it back.
-    var seed: Seed {
-        Seed(
-            kind: kind,
-            title: title,
-            subtitle: subtitle,
-            symbol: symbol,
-            subjectID: subjectID,
-            tabID: tabID,
-            address: address,
-            command: command,
-            provider: provider?.seed,
-            settingsPage: settingsPage,
-            scope: scope,
-            reason: reason
-        )
-    }
 }
 
 struct PaletteSettingsPage: Equatable, Sendable {
     var name: String
     var title: String
     var terms: String
-}
-
-struct PaletteSourceChoice: Equatable, Sendable {
-    var source: PaletteSource
-    var isEnabled: Bool
-    var limit: Int?
 }
 
 struct PaletteSuggestions: Query, Equatable, Sendable {
@@ -4626,10 +3889,8 @@ struct PaletteSuggestions: Query, Equatable, Sendable {
     let commands: [PaletteCommand]
     let settingsPages: [PaletteSettingsPage]
     let remote: [String]
-    let provider: SearchProvider.Seed?
     let scope: PaletteScope?
     let allowsCompletion: Bool
-    let pasteboard: String?
 }
 
 struct PasskeyAccess: Query, Equatable, Sendable {
@@ -4644,13 +3905,6 @@ struct PasskeyAccessVerdict: Equatable, Sendable {
     let status: PasskeyAccessStatus
 }
 
-struct PasswordImportPreview: Query, Equatable, Sendable {
-    typealias Answer = CredentialImportPlan
-
-    let credentials: [ImportedCredential]
-    let existing: [ExistingCredential]
-}
-
 struct PauseDownload: Intent, DownloadIntent, Equatable, Sendable {
     let downloadID: UUID
 }
@@ -4658,13 +3912,6 @@ struct PauseDownload: Intent, DownloadIntent, Equatable, Sendable {
 struct PauseEngineDownload: Equatable, Sendable {
     let profileID: UUID
     let downloadID: String
-}
-
-struct PeekRequested: Equatable, Sendable {
-    let pageID: UUID
-    let url: String
-    let decision: LinkNavigationDecision
-    let stagedLinkID: UUID?
 }
 
 struct PendingSave: Query, Equatable, Sendable {
@@ -4755,7 +4002,7 @@ struct PinsOneTabAtATime: Equatable, Sendable {
     }
 }
 
-struct PlaceImportTab: Intent, SetupFlowIntent, Equatable, Sendable {
+struct PlaceImportTab: Intent, BrowserImportIntent, Equatable, Sendable {
     let sourceSpaceID: UUID
     let tabID: UUID
     let placement: TabPlacement
@@ -4850,14 +4097,6 @@ struct ProfileReleased: Equatable, Sendable {
     let profileID: UUID
 }
 
-struct PromoteTransientPage: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let windowID: UUID
-    let pageID: UUID
-    let spaceID: UUID
-    let placement: TabPlacement
-}
-
 struct PromptAnswerMismatch: Equatable, Sendable {
     let promptID: UUID
 }
@@ -4921,11 +4160,6 @@ struct ReadWebsiteData: Intent, Equatable, Sendable {
     let host: String?
 }
 
-struct ReassignShortcut: Intent, ShortcutIntent, Equatable, Sendable {
-    let command: ShortcutCommand
-    let keys: KeyCombination
-}
-
 struct RecentTabItem: Equatable, Sendable {
     let tabIDs: [UUID]
     let focusedTabID: UUID
@@ -4952,12 +4186,6 @@ struct RecordDownloadTransfer: Intent, DownloadIntent, Equatable, Sendable {
     let progress: Double
 }
 
-struct RecordPaletteChoice: Intent, PaletteIntent, Equatable, Sendable {
-    let windowID: UUID
-    let text: String
-    let row: PaletteRow.Seed
-}
-
 struct RecordsToUpload: Query, Equatable, Sendable {
     typealias Answer = UploadBatch
 
@@ -4970,6 +4198,16 @@ struct RecoverPage: Equatable, Sendable {
 
 struct RecoveryCheckpointUnusable: Equatable, Sendable {
     let reason: StorageFailure
+}
+
+struct RefreshLiveFolder: Intent, SessionIntent, Equatable, Sendable {
+    let workspaceID: UUID
+    let spaceID: UUID
+    let profileID: UUID
+    let folderID: UUID
+    let source: LiveFolderSource
+    let tabs: [LiveFolderTab]
+    let expectedOptions: GitHubLiveFolderOptions?
 }
 
 struct RefreshPageIcon: PageRequest, Equatable, Sendable {
@@ -4987,7 +4225,6 @@ struct RefreshStoreListing: PageRequest, Equatable, Sendable {
 struct RehostPage: Intent, PageIntent, Equatable, Sendable {
     let pageID: UUID
     let engine: EngineKind
-    let remembersSite: Bool
 }
 
 struct RejectOfferedPage: Equatable, Sendable {
@@ -5006,18 +4243,8 @@ struct ReloadPage: PageRequest, Equatable, Sendable {
     let bypassesCache: Bool
 }
 
-struct RememberQuickWindowSpace: Intent, LinkIntent, Equatable, Sendable {
-    let url: String
-    let spaceID: UUID
-}
-
 struct RememberWindowsForLaunch: Intent, WindowIntent, Equatable, Sendable {
     let windowIDs: [UUID]
-}
-
-struct RememberedSite: Equatable, Sendable {
-    let site: String
-    let spaceID: UUID
 }
 
 struct RemoveDownload: Intent, DownloadIntent, Equatable, Sendable {
@@ -5035,20 +4262,8 @@ struct RemoveHistoryAddress: Intent, SessionIntent, Equatable, Sendable {
     let address: String
 }
 
-struct RemoveLinkRoute: Intent, LinkIntent, Equatable, Sendable {
-    let routeID: UUID
-}
-
 struct RemoveProfileDownloads: Intent, DownloadIntent, Equatable, Sendable {
     let profileID: UUID
-}
-
-struct RemoveSearchProvider: Intent, SearchCatalogIntent, Equatable, Sendable, Identifiable {
-    let id: UUID
-}
-
-struct RemoveSetupSpace: Intent, SetupDraftIntent, Equatable, Sendable {
-    let spaceID: UUID
 }
 
 struct RenameFolder: Intent, SessionIntent, Equatable, Sendable {
@@ -5081,12 +4296,6 @@ struct ReorderSpaces: Intent, SessionIntent, Equatable, Sendable {
     let spaceIDs: [UUID]
 }
 
-struct ReplaceSavedAddress: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let spaceID: UUID
-    let tabID: UUID
-}
-
 struct ReplaceSeedWithCloudRecords: Intent, CloudSyncIntent, Equatable, Sendable {
     let records: [SyncRecord]
 }
@@ -5112,16 +4321,6 @@ struct ResetCloudTransport: Intent, CloudTransportIntent, Equatable, Sendable {
 struct ResetPrivateBrowsing: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
-}
-
-struct ResetSearchProviders: Intent, SearchCatalogIntent, Equatable, Sendable {
-}
-
-struct ResetShortcut: Intent, ShortcutIntent, Equatable, Sendable {
-    let command: ShortcutCommand
-}
-
-struct ResetShortcuts: Intent, ShortcutIntent, Equatable, Sendable {
 }
 
 struct ResetSitePermission: Intent, SitePermissionIntent, Equatable, Sendable {
@@ -5173,11 +4372,6 @@ struct RestoreInteractionState: PageRequest, Equatable, Sendable {
     let expectedURL: String
 }
 
-struct RestoreSearchCatalog: Intent, SearchCatalogIntent, Equatable, Sendable {
-    let language: String?
-    let region: String?
-}
-
 struct RestoreTabHistory: Intent, PageIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -5203,26 +4397,12 @@ struct ReturnToSavedAddress: Intent, SessionIntent, Equatable, Sendable {
     let tabID: UUID
 }
 
-struct ReviewImport: Intent, SetupFlowIntent, Equatable, Sendable {
+struct ReviewImport: Intent, BrowserImportIntent, Equatable, Sendable {
     let source: ImportSource
     let spaces: [SpaceState.Seed]
-    let passwords: [ImportPasswordSource]
     let extensions: [ImportSpaceExtensions]?
     let leftOut: [ImportLeftOut]?
     let title: String?
-}
-
-struct RouteExternalLink: Query, Equatable, Sendable {
-    typealias Answer = ExternalLinkPlacement
-
-    let windowIDs: [UUID]
-    let url: String
-}
-
-struct RouteLocalDocument: Query, Equatable, Sendable {
-    typealias Answer = LocalDocumentPlacement
-
-    let windowIDs: [UUID]
 }
 
 struct SamePage: Query, Equatable, Sendable {
@@ -5248,10 +4428,6 @@ struct SaveInteractionState: PageRequest, Equatable, Sendable {
     typealias Answer = InteractionState
 
     let pageID: UUID
-}
-
-struct SaveSearchProvider: Intent, SearchCatalogIntent, Equatable, Sendable {
-    let provider: CustomSearchProvider
 }
 
 struct Saved: CoreChange, Equatable, Sendable {
@@ -5304,105 +4480,6 @@ struct ScrollPage: PageRequest, Equatable, Sendable {
     let point: PagePoint
     let deltaX: Double
     let deltaY: Double
-}
-
-struct SearchCatalog: Equatable, Sendable {
-    static let maximumCustomCount: Int = 32
-
-    let builtIns: [SearchProviderSettings]
-    let custom: [CustomSearchProvider]
-    let defaultBuiltIn: BuiltInSearchProvider?
-    let defaultCustomID: UUID?
-    let privateBuiltIn: BuiltInSearchProvider?
-    let privateCustomID: UUID?
-    let suggestionsEnabled: Bool
-    let language: String?
-    let region: String?
-}
-
-struct SearchCatalogChanged: CoreChange, Equatable, Sendable {
-    let catalog: SearchCatalog
-    let providers: [SearchProvider]
-    let `default`: SearchProvider
-    let privateDefault: SearchProvider
-}
-
-struct SearchEngineLimitReached: Equatable, Sendable {
-    let limit: Int
-
-    var message: LocalizedStringResource {
-        LocalizedStringResource("You can add up to \(limit) search providers.")
-    }
-}
-
-struct SearchLocaleCode: Equatable, Sendable {
-    let code: String
-    let locale: String
-    let alsoServes: [String]
-}
-
-struct SearchOffer: Equatable, Sendable {
-    let provider: SearchProvider
-    let beatsCompletion: Bool
-}
-
-struct SearchOptionSetting: Equatable, Sendable {
-    let option: SearchProviderOption
-    let value: String
-}
-
-struct SearchProvider: Equatable, Sendable {
-    static let customPrefix: String = "custom:"
-
-    let name: String
-    let title: String
-    let kind: SearchProviderKind
-    let shortcuts: [String]
-    let searchTemplate: String
-    let suggestionTemplate: String?
-    let color: BrandColor
-    let logo: String?
-    let builtIn: BuiltInSearchProvider?
-    let customID: UUID?
-    let site: String
-
-    /// The fields of a `SearchProvider` alone, as a platform builds one to send. The
-    /// core resolves the rest when it reads it.
-    struct Seed: Equatable, Sendable {
-        var name: String
-        var title: String
-        var kind: SearchProviderKind
-        var shortcuts: [String]
-        var searchTemplate: String
-        var suggestionTemplate: String?
-        var color: BrandColor
-        var logo: String?
-        var builtIn: BuiltInSearchProvider?
-        var customID: UUID?
-    }
-
-    /// The record's fields alone, as a platform sends it back.
-    var seed: Seed {
-        Seed(
-            name: name,
-            title: title,
-            kind: kind,
-            shortcuts: shortcuts,
-            searchTemplate: searchTemplate,
-            suggestionTemplate: suggestionTemplate,
-            color: color,
-            logo: logo,
-            builtIn: builtIn,
-            customID: customID
-        )
-    }
-}
-
-struct SearchProviderSettings: Equatable, Sendable {
-    let provider: BuiltInSearchProvider
-    let isEnabled: Bool
-    let shortcuts: [String]?
-    let options: [SearchOptionSetting]
 }
 
 struct SecureOriginCheck: Query, Equatable, Sendable {
@@ -5507,7 +4584,6 @@ struct SessionOverLimits: Equatable, Sendable {
 
 struct SessionState: Equatable, Sendable {
     let spaces: [SpaceState]
-    let defaultSpaceID: UUID?
     let disposableSeedMarker: UUID?
     let spaceDeletions: [SpaceDeletionState]
     let appPreferences: AppPreferences?
@@ -5516,7 +4592,6 @@ struct SessionState: Equatable, Sendable {
     /// core resolves the rest when it reads it.
     struct Seed: Equatable, Sendable {
         var spaces: [SpaceState.Seed]
-        var defaultSpaceID: UUID?
         var disposableSeedMarker: UUID?
         var spaceDeletions: [SpaceDeletionState]
         var appPreferences: AppPreferences?
@@ -5526,7 +4601,6 @@ struct SessionState: Equatable, Sendable {
     var seed: Seed {
         Seed(
             spaces: spaces.map(\.seed),
-            defaultSpaceID: defaultSpaceID,
             disposableSeedMarker: disposableSeedMarker,
             spaceDeletions: spaceDeletions,
             appPreferences: appPreferences
@@ -5562,28 +4636,12 @@ struct SetAppPreferences: Intent, SessionIntent, Equatable, Sendable {
 struct SetBrowsingPreferences: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
-    let currentTabCleanup: CurrentTabCleanup
     let contentBlocking: ContentBlockingPolicy
     let dataRetention: DataRetentionPreferences
 }
 
 struct SetCloudSyncEnabled: Intent, CloudSyncControlIntent, Equatable, Sendable {
     let isEnabled: Bool
-}
-
-struct SetCredentialPreferences: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let spaceID: UUID
-    let preferences: CredentialPreferences
-}
-
-struct SetDefaultSearch: Intent, SearchCatalogIntent, Equatable, Sendable {
-    let provider: SearchProvider.Seed
-}
-
-struct SetDefaultSpace: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let spaceID: UUID
 }
 
 struct SetDownloadDestination: Intent, DownloadIntent, Equatable, Sendable {
@@ -5599,40 +4657,12 @@ struct SetFolderColor: Intent, SessionIntent, Equatable, Sendable {
     let color: BrandColor
 }
 
-struct SetFolderSymbol: Intent, SessionIntent, Equatable, Sendable {
+struct SetGitHubLiveFolderOptions: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
+    let profileID: UUID
     let folderID: UUID
-    let symbol: String
-}
-
-struct SetLinkBehavior: Intent, LinkIntent, Equatable, Sendable {
-    let behavior: LinkBehavior
-    let isOn: Bool
-}
-
-struct SetPrivateSearch: Intent, SearchCatalogIntent, Equatable, Sendable {
-    let provider: SearchProvider.Seed
-}
-
-struct SetSearchOption: Intent, SearchCatalogIntent, Equatable, Sendable {
-    let provider: BuiltInSearchProvider
-    let option: SearchProviderOption
-    let value: String?
-}
-
-struct SetSearchProviderEnabled: Intent, SearchCatalogIntent, Equatable, Sendable {
-    let provider: BuiltInSearchProvider
-    let isEnabled: Bool
-}
-
-struct SetSearchShortcuts: Intent, SearchCatalogIntent, Equatable, Sendable {
-    let provider: BuiltInSearchProvider
-    let shortcuts: [String]?
-}
-
-struct SetSearchSuggestions: Intent, SearchCatalogIntent, Equatable, Sendable {
-    let enabled: Bool
+    let options: GitHubLiveFolderOptions
 }
 
 struct SetSitePermission: PageRequest, Equatable, Sendable {
@@ -5643,45 +4673,16 @@ struct SetSitePermission: PageRequest, Equatable, Sendable {
     let allowed: Bool?
 }
 
-struct SetSpaceAccess: Intent, SessionIntent, Equatable, Sendable {
+struct SetSpaceColor: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
-    let policy: SpaceAccessPolicy
-}
-
-struct SetSpaceBranding: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let spaceID: UUID
-    let branding: SpaceBranding
+    let color: SpaceColor
 }
 
 struct SetSpaceIdentity: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
     let name: String
-    let symbol: String
-    let accent: SpaceAccent
-}
-
-struct SetSpaceSearch: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let spaceID: UUID
-    let provider: SearchProvider.Seed?
-    let suggestionsEnabled: Bool?
-}
-
-struct SetSplitIcon: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let spaceID: UUID
-    let groupID: UUID
-    let emoji: String?
-}
-
-struct SetTranslationRule: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let sourceLanguage: String
-    let targetLanguage: String
-    let isEnabled: Bool
 }
 
 struct SettleAuthentication: Equatable, Sendable {
@@ -5715,118 +4716,6 @@ struct SettleScriptDialog: Equatable, Sendable {
     let text: String?
 }
 
-struct SetupBusy: Equatable, Sendable {
-    var message: LocalizedStringResource {
-        LocalizedStringResource("Wait for setup to finish reading or importing.")
-    }
-}
-
-struct SetupCompletedChanged: CoreChange, Equatable, Sendable {
-    let completed: Bool
-}
-
-struct SetupDraft: Equatable, Sendable {
-    let workspaceID: UUID
-    let spaces: [SetupDraftSpace]
-    let orderWasEdited: Bool
-}
-
-struct SetupDraftChanged: CoreChange, Equatable, Sendable {
-    let draft: SetupDraft?
-}
-
-struct SetupDraftSpace: Equatable, Sendable {
-    let spaceID: UUID
-    let profileID: UUID
-    let isNew: Bool
-    let customization: SpaceCustomization
-    let shownName: String
-}
-
-struct SetupFailure: Equatable, Sendable {
-    let reason: SetupFailureReason
-    let source: ImportSource?
-    let detail: String?
-}
-
-struct SetupFinished: CoreChange, Equatable, Sendable {
-    let workspaceID: UUID
-    let guideSpaceID: UUID?
-}
-
-struct SetupFlowChanged: CoreChange, Equatable, Sendable {
-    let flow: SetupFlowState?
-}
-
-struct SetupFlowState: Equatable, Sendable {
-    let workspaceID: UUID
-    let entry: SetupEntry
-    let step: SetupStep
-    let backStep: SetupStep?
-    let nextStep: SetupStep?
-    let phase: SetupPhase
-    let offered: [ImportSource]
-    let selected: [ImportSource]
-    let queue: SetupImportQueue?
-    let source: ImportSource?
-    let review: SetupImportReview?
-    let failure: SetupFailure?
-    let summary: SetupSummary?
-    let opensGuide: Bool
-    let opensCrestFromWelcome: Bool
-    let look: SetupLook
-}
-
-struct SetupImportQueue: Equatable, Sendable {
-    let sources: [ImportSource]
-    let index: Int
-    let current: ImportSource?
-    let hasMoreAfterCurrent: Bool
-}
-
-struct SetupImportReview: Equatable, Sendable {
-    let source: ImportSource
-    let spaces: [SetupReviewSpace]
-    let overflowTabIDs: [UUID]
-    let shownSpaceID: UUID?
-    let leftOut: [ImportLeftOut]
-    let spaceRoom: Int
-    let browserTitle: String?
-    let title: String
-    let hasIncludedSpaces: Bool
-    let includedTabCount: Int
-    let nextSpaceID: UUID?
-    let showsLastSpace: Bool
-    let includedPasswordCount: Int
-    let newSpaceCapacity: Int
-    let extensionInstalls: [ImportExtensionInstall]
-}
-
-struct SetupReviewSpace: Equatable, Sendable {
-    let source: SpaceState
-    let included: Bool
-    let destinationID: UUID?
-    let customization: SpaceCustomization
-    let includedTabIDs: [UUID]
-    let duplicateTabIDs: [UUID]
-    let matchedTabIDs: [UUID]
-    let placements: [TabPlacementChoice]
-    let includesPasswords: Bool
-    let passwordCount: Int
-    let extensions: [ImportExtension]
-    let includedExtensionIDs: [String]
-    let shownName: String
-    let bringsPasswords: Bool
-    let broughtExtensions: [ImportExtension]
-}
-
-struct SetupSummary: Equatable, Sendable {
-    let isImport: Bool
-    let tabCount: Int
-    let passwordCount: Int
-    let spaceCount: Int
-}
-
 struct ShareSourcesOffered: Equatable, Sendable {
     let pageID: UUID
     let shareID: UUID
@@ -5850,22 +4739,15 @@ struct ShareableTab: Equatable, Sendable {
 struct ShortcutBinding: Equatable, Sendable {
     let command: ShortcutCommand
     let keys: KeyCombination?
-    let isCustomized: Bool
 }
 
 struct ShortcutDefault: Equatable, Sendable {
     let platform: DevicePlatform
     let keys: KeyCombination
-    let yieldsToOverrides: Bool
-}
-
-struct ShortcutInUse: Equatable, Sendable {
-    let commands: [ShortcutCommand]
 }
 
 struct ShortcutsChanged: CoreChange, Equatable, Sendable {
     let bindings: [ShortcutBinding]
-    let isCustomized: Bool
 }
 
 struct ShowAdjacentSpace: Intent, WindowIntent, Equatable, Sendable {
@@ -5889,8 +4771,12 @@ struct ShowHistoryEntry: Intent, PageIntent, Equatable, Sendable {
     let entryID: UUID
 }
 
-struct ShowImportSpace: Intent, SetupFlowIntent, Equatable, Sendable {
+struct ShowImportSpace: Intent, BrowserImportIntent, Equatable, Sendable {
     let sourceSpaceID: UUID
+}
+
+struct ShowImportStep: Intent, BrowserImportIntent, Equatable, Sendable {
+    let step: ImportStep
 }
 
 struct ShowLeastRecentTab: Intent, WindowIntent, Equatable, Sendable {
@@ -5905,10 +4791,6 @@ struct ShowPage: PageRequest, Equatable, Sendable {
     typealias Answer = Bool
 
     let pageID: UUID
-}
-
-struct ShowSetupStep: Intent, SetupFlowIntent, Equatable, Sendable {
-    let step: SetupStep
 }
 
 struct ShowSpace: Intent, WindowIntent, Equatable, Sendable {
@@ -5961,6 +4843,8 @@ struct SidebarList: Equatable, Sendable {
 }
 
 struct SidebarOutline: Equatable, Sendable {
+    static let minimumSplitMembers: Int = 2
+
     let lists: [SidebarList]
 }
 
@@ -5985,11 +4869,6 @@ struct SiteDecision: Query, Equatable, Sendable {
     let origin: SiteOrigin
     let permission: SitePermission
     let detail: String?
-}
-
-struct SiteEngineRule: Equatable, Sendable {
-    let origin: SiteOrigin
-    let engine: EngineKind
 }
 
 struct SiteOrigin: Hashable, Sendable {
@@ -6060,116 +4939,10 @@ struct SpaceBeingDeleted: Equatable, Sendable {
     }
 }
 
-struct SpaceBranding: Equatable, Sendable {
-    static let baselineRenderingVersion: Int = 2
-    static let legacyReadabilityFade: Double = 0.25
-    static let neutral = SpaceBranding(
-        colors: ColorPalette(colors: [BrandColor(red: 0.24, green: 0.25, blue: 0.27, alpha: 1)]),
-        bannerPattern: SpaceBannerPattern.solid,
-        bannerStrength: 1,
-        readabilityFade: 0.34,
-        keepsControlsReadable: true,
-        themeMode: SpaceThemeMode.banner,
-        gradientAngle: 0,
-        showsTexture: false,
-        iconStyle: SpaceIconStyle.simpleSymbol,
-        symbolColor: nil,
-        crest: SpaceCrest(
-            backplate: CrestBackplate.shield,
-            fieldDivision: CrestFieldDivision.plain,
-            ordinary: CrestOrdinary.none,
-            trim: CrestTrim.none,
-            symbol: CrestSymbol.mountain,
-            chargeLayout: CrestChargeLayout.single,
-            backplateColorIndex: 1,
-            secondaryFieldColorIndex: 1,
-            ordinaryColorIndex: 2,
-            trimColorIndex: 1,
-            symbolColorIndex: 2,
-            startingPresetID: nil,
-            edgeColorIndex: 1,
-            palette: nil,
-            charge: nil,
-            plateScale: 1,
-            edgeWidth: 0,
-            divisionCount: 4,
-            finish: CrestFinish.flat,
-            ordinaryWidth: 1,
-            trimWeight: 1,
-            trimDetail: 12,
-            chargeScale: 1,
-            chargeOffset: 0,
-            chargeWeight: CrestChargeWeight.bold,
-            sheenAngle: 45,
-            sealTeeth: 12,
-            showsOutline: false,
-            depth: CrestDepth.none
-        ),
-        renderingVersion: 2,
-        folderColorIntensity: 0,
-        textColorMode: SpaceTextColorMode.automatic,
-        hasCustomAppearance: nil
-    )
-
-    var colors: ColorPalette
-    var bannerPattern: SpaceBannerPattern
-    var bannerStrength: Double
-    var readabilityFade: Double
-    var keepsControlsReadable: Bool
-    var themeMode: SpaceThemeMode
-    var gradientAngle: Double
-    var showsTexture: Bool
-    var iconStyle: SpaceIconStyle
-    var symbolColor: BrandColor?
-    var crest: SpaceCrest
-    var renderingVersion: Int
-    var folderColorIntensity: Double
-    var textColorMode: SpaceTextColorMode
-    var hasCustomAppearance: Bool?
-}
-
-struct SpaceCrest: Equatable, Sendable {
-    static let defaultDivisionCount: Int = 4
-    static let defaultTrimDetail: Int = 12
-
-    var backplate: CrestBackplate
-    var fieldDivision: CrestFieldDivision
-    var ordinary: CrestOrdinary
-    var trim: CrestTrim
-    var symbol: CrestSymbol
-    var chargeLayout: CrestChargeLayout
-    var backplateColorIndex: Int
-    var secondaryFieldColorIndex: Int
-    var ordinaryColorIndex: Int
-    var trimColorIndex: Int
-    var symbolColorIndex: Int
-    var startingPresetID: String?
-    var edgeColorIndex: Int
-    var palette: ColorPalette?
-    var charge: CrestCharge?
-    var plateScale: Double
-    var edgeWidth: Double
-    var divisionCount: Int
-    var finish: CrestFinish
-    var ordinaryWidth: Double
-    var trimWeight: Double
-    var trimDetail: Int
-    var chargeScale: Double
-    var chargeOffset: Double
-    var chargeWeight: CrestChargeWeight
-    var sheenAngle: Double
-    var sealTeeth: Int
-    var showsOutline: Bool
-    var depth: CrestDepth
-}
-
 struct SpaceCustomization: Equatable, Sendable {
     static let untitledName: String = "Untitled Space"
 
     var name: String
-    var symbol: String
-    var accent: SpaceAccent
-    var branding: SpaceBranding
 }
 
 struct SpaceDataNotErased: Equatable, Sendable {
@@ -6198,21 +4971,6 @@ struct SpaceLimitReached: Equatable, Sendable {
     }
 }
 
-struct SpaceLockChanged: CoreChange, Equatable, Sendable {
-    let spaceID: UUID
-    let profileID: UUID
-    let isUnlocked: Bool
-    let isAuthenticating: Bool
-}
-
-struct SpaceLocked: Equatable, Sendable {
-    let spaceID: UUID
-
-    var message: LocalizedStringResource {
-        LocalizedStringResource("The Space is locked or no longer active. Unlock it and select the tabs again.")
-    }
-}
-
 struct SpaceProfileChanged: Equatable, Sendable {
     let spaceID: UUID
 
@@ -6223,49 +4981,27 @@ struct SpaceProfileChanged: Equatable, Sendable {
 
 struct SpaceSettings: Equatable, Sendable {
     let name: String
-    let symbol: String
-    let accent: SpaceAccent
-    let branding: SpaceBranding?
     let browsingPreferences: BrowsingPreferences
-    let credentialPreferences: CredentialPreferences
-    let accessPolicy: SpaceAccessPolicy
-    let isSavedTabsExpanded: Bool
-    let savedTabsExpansionModifiedAt: Date?
-    let credentialsEnabledModifiedAt: Date?
-    let accessPolicyModifiedAt: Date?
-    let look: SpaceBranding
-    let requiresAuthentication: Bool
+    let isGitHubFolderDismissed: Bool
+    let storedColor: SpaceColor?
+    let color: SpaceColor
 
     /// The fields of a `SpaceSettings` alone, as a platform builds one to send. The
     /// core resolves the rest when it reads it.
     struct Seed: Equatable, Sendable {
         var name: String
-        var symbol: String
-        var accent: SpaceAccent
-        var branding: SpaceBranding?
         var browsingPreferences: BrowsingPreferences
-        var credentialPreferences: CredentialPreferences
-        var accessPolicy: SpaceAccessPolicy
-        var isSavedTabsExpanded: Bool
-        var savedTabsExpansionModifiedAt: Date?
-        var credentialsEnabledModifiedAt: Date?
-        var accessPolicyModifiedAt: Date?
+        var isGitHubFolderDismissed: Bool
+        var storedColor: SpaceColor?
     }
 
     /// The record's fields alone, as a platform sends it back.
     var seed: Seed {
         Seed(
             name: name,
-            symbol: symbol,
-            accent: accent,
-            branding: branding,
             browsingPreferences: browsingPreferences,
-            credentialPreferences: credentialPreferences,
-            accessPolicy: accessPolicy,
-            isSavedTabsExpanded: isSavedTabsExpanded,
-            savedTabsExpansionModifiedAt: savedTabsExpansionModifiedAt,
-            credentialsEnabledModifiedAt: credentialsEnabledModifiedAt,
-            accessPolicyModifiedAt: accessPolicyModifiedAt
+            isGitHubFolderDismissed: isGitHubFolderDismissed,
+            storedColor: storedColor
         )
     }
 }
@@ -6282,7 +5018,6 @@ struct SpaceState: Equatable, Sendable, Identifiable {
     let settings: SpaceSettings
     let folders: [FolderState]
     let tabs: [TabState]
-    let splitGroups: [SplitGroupState]
     let archivedTabs: [ArchivedTabState]
     let history: [HistoryEntryState]
     let sidebar: SidebarOutline
@@ -6295,7 +5030,6 @@ struct SpaceState: Equatable, Sendable, Identifiable {
         var settings: SpaceSettings.Seed
         var folders: [FolderState.Seed]
         var tabs: [TabState.Seed]
-        var splitGroups: [SplitGroupState.Seed]
         var archivedTabs: [ArchivedTabState.Seed]
         var history: [HistoryEntryState]
     }
@@ -6308,7 +5042,6 @@ struct SpaceState: Equatable, Sendable, Identifiable {
             settings: settings.seed,
             folders: folders.map(\.seed),
             tabs: tabs.map(\.seed),
-            splitGroups: splitGroups.map(\.seed),
             archivedTabs: archivedTabs.map(\.seed),
             history: history
         )
@@ -6333,55 +5066,6 @@ struct SplitColumnShares: Equatable, Sendable {
 struct SplitDropTarget: Equatable, Sendable {
     let tabID: UUID
     let refusal: Rejection?
-}
-
-struct SplitGroupState: Equatable, Sendable, Identifiable {
-    static let minimumShownMembers: Int = 2
-
-    let id: UUID
-    let customTitle: String?
-    let titleModifiedAt: Date?
-    let customIconSymbol: String?
-    let iconModifiedAt: Date?
-    let tint: BrandColor?
-    let tintModifiedAt: Date?
-    let displayTitle: String?
-    let displayEmojiIcon: String?
-
-    var defaultTitle: LocalizedStringResource {
-        LocalizedStringResource("Split View", comment: "The title of a split view no one has named.")
-    }
-
-    /// The fields of a `SplitGroupState` alone, as a platform builds one to send. The
-    /// core resolves the rest when it reads it.
-    struct Seed: Equatable, Sendable, Identifiable {
-        var id: UUID
-        var customTitle: String?
-        var titleModifiedAt: Date?
-        var customIconSymbol: String?
-        var iconModifiedAt: Date?
-        var tint: BrandColor?
-        var tintModifiedAt: Date?
-    }
-
-    /// The record's fields alone, as a platform sends it back.
-    var seed: Seed {
-        Seed(
-            id: id,
-            customTitle: customTitle,
-            titleModifiedAt: titleModifiedAt,
-            customIconSymbol: customIconSymbol,
-            iconModifiedAt: iconModifiedAt,
-            tint: tint,
-            tintModifiedAt: tintModifiedAt
-        )
-    }
-}
-
-struct SplitGroupsChanged: CoreChange, Equatable, Sendable {
-    let workspaceID: UUID
-    let spaceID: UUID
-    let groups: [SplitGroupState]
 }
 
 struct SplitJoinCandidate: Query, Equatable, Sendable {
@@ -6441,11 +5125,8 @@ struct StagedLinkUnavailable: EngineEvent, PageEvent, Equatable, Sendable {
     let pageID: UUID
 }
 
-struct StaleCredentialComparison: Equatable, Sendable {
-}
-
-struct StaleUnlockRequest: Equatable, Sendable {
-    let requestID: UUID
+struct StartBrowserImport: Intent, BrowserImportIntent, Equatable, Sendable {
+    let workspaceID: UUID
 }
 
 struct StartCloudSync: Intent, CloudSyncControlIntent, Equatable, Sendable {
@@ -6453,11 +5134,6 @@ struct StartCloudSync: Intent, CloudSyncControlIntent, Equatable, Sendable {
 
 struct StartPageNotCopied: Equatable, Sendable {
     let tabID: UUID
-}
-
-struct StartSetup: Intent, SetupFlowIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let entry: SetupEntry
 }
 
 struct StepHistory: Intent, PageIntent, Equatable, Sendable {
@@ -6530,17 +5206,6 @@ struct StoredSite: Equatable, Sendable {
     var kinds: [WebsiteDataKind]
 }
 
-struct StrongPassword: Query, Equatable, Sendable {
-    typealias Answer = StrongPasswordRecipe
-
-    let length: Int?
-}
-
-struct StrongPasswordRecipe: Equatable, Sendable {
-    let length: Int
-    let groups: [String]
-}
-
 struct SweepExpiredRecords: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
 }
@@ -6594,31 +5259,6 @@ struct SyncStagingRefused: Equatable, Sendable {
 struct SyncVersion: Equatable, Sendable {
     var clock: UInt64
     var deviceID: UUID
-}
-
-struct SystemPasswordOffer: Query, Equatable, Sendable {
-    typealias Answer = SystemPasswordOfferDecision
-
-    let spaceOffersSystemPasswords: Bool
-    let availability: SystemPasswordWriteThroughAvailability
-    let isPrivateBrowsing: Bool
-}
-
-struct SystemPasswordOfferDecision: Equatable, Sendable {
-    let offers: Bool
-}
-
-struct SystemPasswordWriteThrough: Query, Equatable, Sendable {
-    typealias Answer = SystemPasswordWriteThroughSupport
-
-    let isMobilePlatform: Bool
-    let supportsSystemPasswordSaving: Bool
-    let hasManagedBrowserCapability: Bool
-    let isLaunchIsolated: Bool
-}
-
-struct SystemPasswordWriteThroughSupport: Equatable, Sendable {
-    let availability: SystemPasswordWriteThroughAvailability
 }
 
 struct TabAlreadyExists: Equatable, Sendable {
@@ -6706,7 +5346,6 @@ struct TabState: Equatable, Sendable, Identifiable {
     let positionModifiedAt: Date?
     let customTitle: String?
     let titleModifiedAt: Date?
-    let keepsPageLoaded: Bool
     let iconMode: TabIconMode
     let displayTitle: String
     let isAwayFromSavedAddress: Bool
@@ -6733,7 +5372,6 @@ struct TabState: Equatable, Sendable, Identifiable {
         var positionModifiedAt: Date?
         var customTitle: String?
         var titleModifiedAt: Date?
-        var keepsPageLoaded: Bool
     }
 
     /// The record's fields alone, as a platform sends it back.
@@ -6754,8 +5392,7 @@ struct TabState: Equatable, Sendable, Identifiable {
             lastActivatedAt: lastActivatedAt,
             positionModifiedAt: positionModifiedAt,
             customTitle: customTitle,
-            titleModifiedAt: titleModifiedAt,
-            keepsPageLoaded: keepsPageLoaded
+            titleModifiedAt: titleModifiedAt
         )
     }
 }
@@ -6778,14 +5415,7 @@ struct TearOffPermission: Equatable, Sendable {
     let reason: TearOffRefusal?
 }
 
-struct TintSplit: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let spaceID: UUID
-    let groupID: UUID
-    let tint: BrandColor?
-}
-
-struct ToggleImportSource: Intent, SetupFlowIntent, Equatable, Sendable {
+struct ToggleImportSource: Intent, BrowserImportIntent, Equatable, Sendable {
     let source: ImportSource
 }
 
@@ -6795,42 +5425,9 @@ struct TogglePin: Intent, SessionIntent, Equatable, Sendable {
     let tabID: UUID
 }
 
-struct TransientAlreadyCompleted: Equatable, Sendable {
-    let pageID: UUID
-}
-
 struct TransientPageClosed: CoreChange, Equatable, Sendable {
     let pageID: UUID
     let workspaceID: UUID
-}
-
-struct TransientPagePromoted: CoreChange, Equatable, Sendable {
-    let workspaceID: UUID
-    let pageID: UUID
-    let tabID: UUID
-    let adoptsPage: Bool
-}
-
-struct TranslationChoice: Query, Equatable, Sendable {
-    typealias Answer = TranslationDecision
-
-    let rules: [TranslationRule]
-    let sourceLanguage: String
-}
-
-struct TranslationDecision: Equatable, Sendable {
-    let rule: TranslationRule?
-    let target: String?
-}
-
-struct TranslationRule: Equatable, Sendable {
-    var sourceLanguage: String
-    var targetID: String
-    var isEnabled: Bool
-}
-
-struct TranslationRuleLimitReached: Equatable, Sendable {
-    let limit: Int
 }
 
 struct TypeInPage: PageRequest, Equatable, Sendable {
@@ -6839,10 +5436,6 @@ struct TypeInPage: PageRequest, Equatable, Sendable {
     let pageID: UUID
     let inputID: UUID
     let text: String
-}
-
-struct UnassignShortcut: Intent, ShortcutIntent, Equatable, Sendable {
-    let command: ShortcutCommand
 }
 
 struct UnknownAgentSession: Equatable, Sendable {
@@ -6869,24 +5462,12 @@ struct UnknownFolder: Equatable, Sendable {
     let folderID: UUID
 }
 
-struct UnknownLinkRoute: Equatable, Sendable {
-    let routeID: UUID
-}
-
 struct UnknownPage: Equatable, Sendable {
     let pageID: UUID
 }
 
 struct UnknownPrompt: Equatable, Sendable {
     let promptID: UUID
-}
-
-struct UnknownSearchEngine: Equatable, Sendable {
-    let engineID: UUID?
-}
-
-struct UnknownSearchOption: Equatable, Sendable {
-    let option: SearchProviderOption
 }
 
 struct UnknownSpace: Equatable, Sendable {
@@ -6905,6 +5486,12 @@ struct UnknownWorkspace: Equatable, Sendable {
     let workspaceID: UUID
 }
 
+struct UnloadIdlePage: Intent, PageIntent, Equatable, Sendable {
+    let pageID: UUID
+    let documents: Int64
+    let hiddenSince: Date
+}
+
 struct UnregisteredEngine: Equatable, Sendable {
     let kind: EngineKind
 }
@@ -6915,12 +5502,6 @@ struct UnrelatedWorkspaces: Equatable, Sendable {
 
 struct UnsavedWorkspace: Equatable, Sendable {
     let workspaceID: UUID
-}
-
-struct UnsuitableDefaultSearch: Equatable, Sendable {
-    var message: LocalizedStringResource {
-        LocalizedStringResource("Choose a search engine or an AI assistant.")
-    }
 }
 
 struct UnsupportedAddress: Equatable, Sendable {
@@ -7027,7 +5608,6 @@ struct WorkspaceBusy: Equatable, Sendable {
 
 struct WorkspaceChanged: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
-    let defaultSpaceID: UUID?
     let isDisposableSeed: Bool
     let spaceDeletions: [SpaceDeletionState]
 }
@@ -7053,118 +5633,6 @@ struct ZoomPage: PageRequest, Equatable, Sendable {
     let factor: Double
 }
 
-// MARK: - Redaction
-
-/// Holds a password, itself or in its fields, so its text names none: it shows
-/// each list's count and nothing else of its values.
-extension CredentialExport: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-    var description: String {
-        "CredentialExport(credentials: \(credentials.count), spaceName: <redacted>, fallbackName: <redacted>)"
-    }
-
-    var debugDescription: String { description }
-    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
-}
-
-/// Holds a password, itself or in its fields, so its text names none: it shows
-/// each list's count and nothing else of its values.
-extension CredentialExportFile: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-    var description: String {
-        "CredentialExportFile(fileName: <redacted>, contents: <redacted>)"
-    }
-
-    var debugDescription: String { description }
-    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
-}
-
-/// Holds a password, itself or in its fields, so its text names none: it shows
-/// each list's count and nothing else of its values.
-extension CredentialImportCandidate: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-    var description: String {
-        "CredentialImportCandidate(rowNumber: <redacted>, username: <redacted>, displayName: <redacted>, password: <redacted>, effect: <redacted>)"
-    }
-
-    var debugDescription: String { description }
-    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
-}
-
-/// Holds a password, itself or in its fields, so its text names none: it shows
-/// each list's count and nothing else of its values.
-extension CredentialImportGroup: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-    var description: String {
-        "CredentialImportGroup(origin: <redacted>, username: <redacted>, candidates: \(candidates.count), collapsedDuplicateRowCount: <redacted>, existingID: <redacted>, suggestedRow: <redacted>, requiresChoice: <redacted>)"
-    }
-
-    var debugDescription: String { description }
-    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
-}
-
-/// Holds a password, itself or in its fields, so its text names none: it shows
-/// each list's count and nothing else of its values.
-extension CredentialImportPlan: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-    var description: String {
-        "CredentialImportPlan(format: <redacted>, groups: \(groups.count), rejections: \(rejections.count), warnings: \(warnings.count), validRowCount: <redacted>)"
-    }
-
-    var debugDescription: String { description }
-    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
-}
-
-/// Holds a password, itself or in its fields, so its text names none: it shows
-/// each list's count and nothing else of its values.
-extension CredentialImportPreview: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-    var description: String {
-        "CredentialImportPreview(document: <redacted>, existing: \(existing.count))"
-    }
-
-    var debugDescription: String { description }
-    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
-}
-
-/// Holds a password, itself or in its fields, so its text names none: it shows
-/// each list's count and nothing else of its values.
-extension ExistingCredential: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-    var description: String {
-        "ExistingCredential(id: <redacted>, origin: <redacted>, username: <redacted>, isWebForm: <redacted>, updatedAt: <redacted>, lastUsedAt: <redacted>, password: <redacted>)"
-    }
-
-    var debugDescription: String { description }
-    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
-}
-
-/// Holds a password, itself or in its fields, so its text names none: it shows
-/// each list's count and nothing else of its values.
-extension ExportedCredential: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-    var description: String {
-        "ExportedCredential(id: <redacted>, origin: <redacted>, username: <redacted>, displayName: <redacted>, password: <redacted>, note: <redacted>)"
-    }
-
-    var debugDescription: String { description }
-    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
-}
-
-/// Holds a password, itself or in its fields, so its text names none: it shows
-/// each list's count and nothing else of its values.
-extension ImportedCredential: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-    var description: String {
-        "ImportedCredential(rowNumber: <redacted>, displayName: <redacted>, origin: <redacted>, username: <redacted>, password: <redacted>)"
-    }
-
-    var debugDescription: String { description }
-    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
-}
-
-/// Holds a password, itself or in its fields, so its text names none: it shows
-/// each list's count and nothing else of its values.
-extension PasswordImportPreview: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-    var description: String {
-        "PasswordImportPreview(credentials: \(credentials.count), existing: \(existing.count))"
-    }
-
-    var debugDescription: String { description }
-    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
-}
-
 // MARK: - Enums
 
 enum AuthenticationHandling: Int, CaseIterable, Sendable {
@@ -7176,40 +5644,6 @@ enum AuthenticationHandling: Int, CaseIterable, Sendable {
 enum AuthenticationScheme: Int, CaseIterable, Sendable {
     case basic = 0
     case digest = 1
-}
-
-enum CredentialCaptureAction: Int, CaseIterable, Sendable {
-    case ignore = 0
-    case rememberUsername = 1
-    case dismissFill = 2
-    case offerFill = 3
-    case captureCandidate = 4
-    case offerSave = 5
-    case keepPending = 6
-    case discardPending = 7
-}
-
-enum CredentialPasswordKind: Int, CaseIterable, Sendable {
-    case current = 0
-    case new = 1
-}
-
-enum CredentialSavePlanKind: Int, CaseIterable, Sendable {
-    case create = 0
-    case update = 1
-    case alreadyStored = 2
-}
-
-enum CredentialSaveValidity: Int, CaseIterable, Sendable {
-    case accepted = 0
-    case insecureOrigin = 1
-    case stale = 2
-}
-
-enum CredentialUsernameSource: Int, CaseIterable, Sendable {
-    case none = 0
-    case explicit = 1
-    case hint = 2
 }
 
 enum EngineDownloadInterruption: Int, CaseIterable, Sendable {
@@ -7394,25 +5828,12 @@ enum SitePermissionVerdict: Int, CaseIterable, Sendable {
     case deny = 2
 }
 
-enum SpaceAccessPolicy: Int, CaseIterable, Sendable {
-    case open = 0
-    case deviceOwnerAuthentication = 1
-}
-
 enum StorageFailure: Int, CaseIterable, Sendable {
     case diskFull = 0
     case readOnly = 1
     case busy = 2
     case damaged = 3
     case unavailable = 4
-}
-
-enum SystemPasswordWriteThroughAvailability: Int, CaseIterable, Sendable {
-    case available = 0
-    case unsupportedPlatform = 1
-    case isolatedLaunch = 2
-    case systemVersionRequired = 3
-    case managedBrowserCapabilityRequired = 4
 }
 
 enum SystemTint: Int, CaseIterable, Sendable {
@@ -7428,9 +5849,8 @@ enum SystemTint: Int, CaseIterable, Sendable {
 
 enum TearOffRefusal: Int, CaseIterable, Sendable {
     case spaceChanged = 0
-    case spaceLocked = 1
-    case tabGone = 2
-    case severalTabs = 3
+    case tabGone = 1
+    case severalTabs = 2
 }
 
 enum WebNotificationAnswer: Int, CaseIterable, Sendable {
@@ -7590,26 +6010,14 @@ struct ArchiveFilterGroup: Hashable, Sendable {
         title: LocalizedStringResource("Closed"),
         symbol: "xmark.circle.fill"
     )
-    static let automatic = ArchiveFilterGroup(
-        tag: 1,
-        name: "automatic",
-        title: LocalizedStringResource("Automatically Cleaned"),
-        symbol: "archivebox.fill"
-    )
     static let synced = ArchiveFilterGroup(
-        tag: 2,
+        tag: 1,
         name: "synced",
         title: LocalizedStringResource("Synced from Another Device"),
         symbol: "icloud.and.arrow.down.fill"
     )
-    static let quickWindow = ArchiveFilterGroup(
-        tag: 3,
-        name: "quickWindow",
-        title: LocalizedStringResource("Quick Windows"),
-        symbol: "timer"
-    )
 
-    static let all: [ArchiveFilterGroup] = [closed, automatic, synced, quickWindow]
+    static let all: [ArchiveFilterGroup] = [closed, synced]
 
     static func named(_ name: String?) -> ArchiveFilterGroup? {
         all.first { $0.name == name }
@@ -7648,7 +6056,6 @@ struct ArchiveReason: Hashable, Sendable {
     var symbol: String { facts.symbol }
     var tint: SystemTint { facts.tint }
     var isExplicitDeletion: Bool { facts.isExplicitDeletion }
-    var isCleanup: Bool { facts.isCleanup }
     var isReceived: Bool { facts.isReceived }
     private let facts: Facts
 
@@ -7662,7 +6069,6 @@ struct ArchiveReason: Hashable, Sendable {
         symbol: String,
         tint: SystemTint,
         isExplicitDeletion: Bool,
-        isCleanup: Bool,
         isReceived: Bool
     ) {
         self.tag = tag
@@ -7675,26 +6081,12 @@ struct ArchiveReason: Hashable, Sendable {
             symbol: symbol,
             tint: tint,
             isExplicitDeletion: isExplicitDeletion,
-            isCleanup: isCleanup,
             isReceived: isReceived
         )
     }
 
-    static let autoCleanup = ArchiveReason(
-        tag: 0,
-        name: "autoCleanup",
-        storedReason: "autoCleanup",
-        deletionOrigin: nil,
-        filterGroup: ArchiveFilterGroup.automatic,
-        title: LocalizedStringResource("Automatically cleaned"),
-        symbol: "archivebox.fill",
-        tint: .orange,
-        isExplicitDeletion: false,
-        isCleanup: true,
-        isReceived: false
-    )
     static let closed = ArchiveReason(
-        tag: 1,
+        tag: 0,
         name: "closed",
         storedReason: "closed",
         deletionOrigin: nil,
@@ -7703,11 +6095,10 @@ struct ArchiveReason: Hashable, Sendable {
         symbol: "xmark.circle.fill",
         tint: .red,
         isExplicitDeletion: false,
-        isCleanup: false,
         isReceived: false
     )
     static let deleted = ArchiveReason(
-        tag: 2,
+        tag: 1,
         name: "deleted",
         storedReason: "closed",
         deletionOrigin: "local",
@@ -7716,11 +6107,10 @@ struct ArchiveReason: Hashable, Sendable {
         symbol: "trash.fill",
         tint: .red,
         isExplicitDeletion: true,
-        isCleanup: false,
         isReceived: false
     )
     static let deletedOnAnotherDevice = ArchiveReason(
-        tag: 3,
+        tag: 2,
         name: "deletedOnAnotherDevice",
         storedReason: "synced",
         deletionOrigin: "remote",
@@ -7729,24 +6119,10 @@ struct ArchiveReason: Hashable, Sendable {
         symbol: "trash.fill",
         tint: .red,
         isExplicitDeletion: true,
-        isCleanup: false,
         isReceived: true
     )
-    static let quickWindow = ArchiveReason(
-        tag: 4,
-        name: "quickWindow",
-        storedReason: "quickWindow",
-        deletionOrigin: nil,
-        filterGroup: ArchiveFilterGroup.quickWindow,
-        title: LocalizedStringResource("Quick Window"),
-        symbol: "timer",
-        tint: .purple,
-        isExplicitDeletion: false,
-        isCleanup: false,
-        isReceived: false
-    )
     static let synced = ArchiveReason(
-        tag: 5,
+        tag: 3,
         name: "synced",
         storedReason: "synced",
         deletionOrigin: nil,
@@ -7755,11 +6131,10 @@ struct ArchiveReason: Hashable, Sendable {
         symbol: "icloud.and.arrow.down.fill",
         tint: .blue,
         isExplicitDeletion: false,
-        isCleanup: false,
         isReceived: true
     )
 
-    static let all: [ArchiveReason] = [autoCleanup, closed, deleted, deletedOnAnotherDevice, quickWindow, synced]
+    static let all: [ArchiveReason] = [closed, deleted, deletedOnAnotherDevice, synced]
 
     static func named(_ name: String?) -> ArchiveReason? {
         all.first { $0.name == name }
@@ -7782,7 +6157,6 @@ struct ArchiveReason: Hashable, Sendable {
         let symbol: String
         let tint: SystemTint
         let isExplicitDeletion: Bool
-        let isCleanup: Bool
         let isReceived: Bool
 
         init(
@@ -7794,7 +6168,6 @@ struct ArchiveReason: Hashable, Sendable {
             symbol: String,
             tint: SystemTint,
             isExplicitDeletion: Bool,
-            isCleanup: Bool,
             isReceived: Bool
         ) {
             self.name = name
@@ -7805,7 +6178,6 @@ struct ArchiveReason: Hashable, Sendable {
             self.symbol = symbol
             self.tint = tint
             self.isExplicitDeletion = isExplicitDeletion
-            self.isCleanup = isCleanup
             self.isReceived = isReceived
         }
     }
@@ -8226,551 +6598,6 @@ struct BrowsingDataRange: Hashable, Sendable {
         init(name: String, title: LocalizedStringResource) {
             self.name = name
             self.title = title
-        }
-    }
-}
-
-/// The members of the core's `BuiltInSearchProvider`. A member's wire tag is its index in `all`.
-struct BuiltInSearchProvider: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: String { facts.title }
-    var kind: SearchProviderKind { facts.kind }
-    var shortcuts: [String] { facts.shortcuts }
-    var color: BrandColor { facts.color }
-    var logo: String? { facts.logo }
-    var isEnabledByDefault: Bool { facts.isEnabledByDefault }
-    var options: [SearchProviderOption] { facts.options }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        name: String,
-        title: String,
-        kind: SearchProviderKind,
-        shortcuts: [String],
-        color: BrandColor,
-        logo: String?,
-        isEnabledByDefault: Bool,
-        options: [SearchProviderOption]
-    ) {
-        self.tag = tag
-        facts = Facts(
-            name: name,
-            title: title,
-            kind: kind,
-            shortcuts: shortcuts,
-            color: color,
-            logo: logo,
-            isEnabledByDefault: isEnabledByDefault,
-            options: options
-        )
-    }
-
-    static let google = BuiltInSearchProvider(
-        tag: 0,
-        name: "google",
-        title: "Google",
-        kind: SearchProviderKind.engine,
-        shortcuts: ["g", "google"],
-        color: BrandColor(red: 0.25882352941176473, green: 0.5215686274509804, blue: 0.9568627450980393, alpha: 1),
-        logo: "SearchProviderGoogle",
-        isEnabledByDefault: true,
-        options: [
-            SearchProviderOption.googleHidesAIOverviews,
-            SearchProviderOption.googleSafeSearch,
-            SearchProviderOption.googleExactWords
-        ]
-    )
-    static let duckDuckGo = BuiltInSearchProvider(
-        tag: 1,
-        name: "duckDuckGo",
-        title: "DuckDuckGo",
-        kind: SearchProviderKind.engine,
-        shortcuts: ["ddg", "dg", "duck"],
-        color: BrandColor(red: 0.8705882352941177, green: 0.34509803921568627, blue: 0.2, alpha: 1),
-        logo: "SearchProviderDuckDuckGo",
-        isEnabledByDefault: true,
-        options: [
-            SearchProviderOption.duckDuckGoHidesAI,
-            SearchProviderOption.duckDuckGoSafeSearch,
-            SearchProviderOption.duckDuckGoRegion
-        ]
-    )
-    static let bing = BuiltInSearchProvider(
-        tag: 2,
-        name: "bing",
-        title: "Bing",
-        kind: SearchProviderKind.engine,
-        shortcuts: ["b", "bing"],
-        color: BrandColor(red: 0.047058823529411764, green: 0.5176470588235295, blue: 0.5176470588235295, alpha: 1),
-        logo: "SearchProviderBing",
-        isEnabledByDefault: true,
-        options: [SearchProviderOption.bingMarket, SearchProviderOption.bingStrictSafeSearch]
-    )
-    static let ecosia = BuiltInSearchProvider(
-        tag: 3,
-        name: "ecosia",
-        title: "Ecosia",
-        kind: SearchProviderKind.engine,
-        shortcuts: ["ecosia", "eco"],
-        color: BrandColor(red: 0.17254901960784313, green: 0.5490196078431373, blue: 0.2901960784313726, alpha: 1),
-        logo: "SearchProviderEcosia",
-        isEnabledByDefault: true,
-        options: []
-    )
-    static let brave = BuiltInSearchProvider(
-        tag: 4,
-        name: "brave",
-        title: "Brave Search",
-        kind: SearchProviderKind.engine,
-        shortcuts: ["brave"],
-        color: BrandColor(red: 0.984313725490196, green: 0.32941176470588235, blue: 0.16862745098039217, alpha: 1),
-        logo: "SearchProviderBrave",
-        isEnabledByDefault: true,
-        options: [
-            SearchProviderOption.braveHidesAIAnswers,
-            SearchProviderOption.braveSafeSearch,
-            SearchProviderOption.braveCountry
-        ]
-    )
-    static let startpage = BuiltInSearchProvider(
-        tag: 5,
-        name: "startpage",
-        title: "Startpage",
-        kind: SearchProviderKind.engine,
-        shortcuts: ["sp", "startpage"],
-        color: BrandColor(red: 0.396078431372549, green: 0.45098039215686275, blue: 1, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: [SearchProviderOption.startpageSafeSearch]
-    )
-    static let kagi = BuiltInSearchProvider(
-        tag: 6,
-        name: "kagi",
-        title: "Kagi",
-        kind: SearchProviderKind.engine,
-        shortcuts: ["kagi"],
-        color: BrandColor(red: 1, green: 0.7019607843137254, blue: 0.09803921568627451, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: false,
-        options: [SearchProviderOption.kagiExactWords]
-    )
-    static let yahoo = BuiltInSearchProvider(
-        tag: 7,
-        name: "yahoo",
-        title: "Yahoo",
-        kind: SearchProviderKind.engine,
-        shortcuts: ["y", "yahoo"],
-        color: BrandColor(red: 0.3764705882352941, green: 0.00392156862745098, blue: 0.8235294117647058, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: false,
-        options: [SearchProviderOption.yahooStrictSafeSearch]
-    )
-    static let qwant = BuiltInSearchProvider(
-        tag: 8,
-        name: "qwant",
-        title: "Qwant",
-        kind: SearchProviderKind.engine,
-        shortcuts: ["qw", "qwant"],
-        color: BrandColor(red: 0.3607843137254902, green: 0.592156862745098, blue: 1, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: false,
-        options: [SearchProviderOption.qwantRegion]
-    )
-    static let chatGPT = BuiltInSearchProvider(
-        tag: 9,
-        name: "chatGPT",
-        title: "ChatGPT",
-        kind: SearchProviderKind.assistant,
-        shortcuts: ["chatgpt", "gpt"],
-        color: BrandColor(red: 0.06274509803921569, green: 0.6392156862745098, blue: 0.4980392156862745, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: [
-            SearchProviderOption.chatGPTSearchesWeb,
-            SearchProviderOption.chatGPTTemporaryChat,
-            SearchProviderOption.chatGPTModel
-        ]
-    )
-    static let claude = BuiltInSearchProvider(
-        tag: 10,
-        name: "claude",
-        title: "Claude",
-        kind: SearchProviderKind.assistant,
-        shortcuts: ["claude"],
-        color: BrandColor(red: 0.8509803921568627, green: 0.4666666666666667, blue: 0.3411764705882353, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: []
-    )
-    static let perplexity = BuiltInSearchProvider(
-        tag: 11,
-        name: "perplexity",
-        title: "Perplexity",
-        kind: SearchProviderKind.assistant,
-        shortcuts: ["perplexity", "pplx"],
-        color: BrandColor(red: 0.12549019607843137, green: 0.7215686274509804, blue: 0.803921568627451, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: []
-    )
-    static let googleAIMode = BuiltInSearchProvider(
-        tag: 12,
-        name: "googleAIMode",
-        title: "Google AI Mode",
-        kind: SearchProviderKind.assistant,
-        shortcuts: ["aimode", "gai"],
-        color: BrandColor(red: 0.25882352941176473, green: 0.5215686274509804, blue: 0.9568627450980393, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: []
-    )
-    static let grok = BuiltInSearchProvider(
-        tag: 13,
-        name: "grok",
-        title: "Grok",
-        kind: SearchProviderKind.assistant,
-        shortcuts: ["grok"],
-        color: BrandColor(red: 0.44313725490196076, green: 0.4627450980392157, blue: 0.4823529411764706, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: false,
-        options: []
-    )
-    static let leChat = BuiltInSearchProvider(
-        tag: 14,
-        name: "leChat",
-        title: "Le Chat",
-        kind: SearchProviderKind.assistant,
-        shortcuts: ["mistral", "lechat"],
-        color: BrandColor(red: 0.9803921568627451, green: 0.3215686274509804, blue: 0.058823529411764705, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: false,
-        options: []
-    )
-    static let duckAI = BuiltInSearchProvider(
-        tag: 15,
-        name: "duckAI",
-        title: "Duck.ai",
-        kind: SearchProviderKind.assistant,
-        shortcuts: ["duckai", "ai"],
-        color: BrandColor(red: 0.8705882352941177, green: 0.34509803921568627, blue: 0.2, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: false,
-        options: []
-    )
-    static let copilotSearch = BuiltInSearchProvider(
-        tag: 16,
-        name: "copilotSearch",
-        title: "Copilot Search",
-        kind: SearchProviderKind.assistant,
-        shortcuts: ["copilot"],
-        color: BrandColor(red: 0.1568627450980392, green: 0.4392156862745098, blue: 0.9176470588235294, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: false,
-        options: []
-    )
-    static let kagiAssistant = BuiltInSearchProvider(
-        tag: 17,
-        name: "kagiAssistant",
-        title: "Kagi Assistant",
-        kind: SearchProviderKind.assistant,
-        shortcuts: ["kagiai"],
-        color: BrandColor(red: 1, green: 0.7019607843137254, blue: 0.09803921568627451, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: false,
-        options: [SearchProviderOption.kagiAssistantModel, SearchProviderOption.kagiAssistantWebAccess]
-    )
-    static let youTube = BuiltInSearchProvider(
-        tag: 18,
-        name: "youTube",
-        title: "YouTube",
-        kind: SearchProviderKind.website,
-        shortcuts: ["yt", "youtube"],
-        color: BrandColor(red: 1, green: 0, blue: 0, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: [SearchProviderOption.youTubeShows]
-    )
-    static let wikipedia = BuiltInSearchProvider(
-        tag: 19,
-        name: "wikipedia",
-        title: "Wikipedia",
-        kind: SearchProviderKind.website,
-        shortcuts: ["w", "wiki"],
-        color: BrandColor(red: 0.38823529411764707, green: 0.39215686274509803, blue: 0.4, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: [SearchProviderOption.wikipediaLanguage, SearchProviderOption.wikipediaListsResults]
-    )
-    static let gitHub = BuiltInSearchProvider(
-        tag: 20,
-        name: "gitHub",
-        title: "GitHub",
-        kind: SearchProviderKind.website,
-        shortcuts: ["gh", "github"],
-        color: BrandColor(red: 0.5098039215686274, green: 0.3137254901960784, blue: 0.8745098039215686, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: [SearchProviderOption.gitHubSearchesFor, SearchProviderOption.gitHubSort]
-    )
-    static let reddit = BuiltInSearchProvider(
-        tag: 21,
-        name: "reddit",
-        title: "Reddit",
-        kind: SearchProviderKind.website,
-        shortcuts: ["r", "reddit"],
-        color: BrandColor(red: 1, green: 0.27058823529411763, blue: 0, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: []
-    )
-    static let x = BuiltInSearchProvider(
-        tag: 22,
-        name: "x",
-        title: "X",
-        kind: SearchProviderKind.website,
-        shortcuts: ["x", "twitter"],
-        color: BrandColor(red: 0.44313725490196076, green: 0.4627450980392157, blue: 0.4823529411764706, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: [SearchProviderOption.xLatestFirst]
-    )
-    static let stackOverflow = BuiltInSearchProvider(
-        tag: 23,
-        name: "stackOverflow",
-        title: "Stack Overflow",
-        kind: SearchProviderKind.website,
-        shortcuts: ["so", "stackoverflow"],
-        color: BrandColor(red: 0.9568627450980393, green: 0.5019607843137255, blue: 0.1411764705882353, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: [SearchProviderOption.stackOverflowSort]
-    )
-    static let mdn = BuiltInSearchProvider(
-        tag: 24,
-        name: "mdn",
-        title: "MDN",
-        kind: SearchProviderKind.website,
-        shortcuts: ["mdn"],
-        color: BrandColor(red: 0.5137254901960784, green: 0.8156862745098039, blue: 0.9490196078431372, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: [SearchProviderOption.mdnLanguage]
-    )
-    static let amazon = BuiltInSearchProvider(
-        tag: 25,
-        name: "amazon",
-        title: "Amazon",
-        kind: SearchProviderKind.website,
-        shortcuts: ["a", "amazon"],
-        color: BrandColor(red: 1, green: 0.6, blue: 0, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: [SearchProviderOption.amazonStore]
-    )
-    static let imDb = BuiltInSearchProvider(
-        tag: 26,
-        name: "imdb",
-        title: "IMDb",
-        kind: SearchProviderKind.website,
-        shortcuts: ["imdb"],
-        color: BrandColor(red: 0.9607843137254902, green: 0.7725490196078432, blue: 0.09411764705882353, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: [SearchProviderOption.imDbFinds]
-    )
-    static let spotify = BuiltInSearchProvider(
-        tag: 27,
-        name: "spotify",
-        title: "Spotify",
-        kind: SearchProviderKind.website,
-        shortcuts: ["spotify"],
-        color: BrandColor(red: 0.11372549019607843, green: 0.7254901960784313, blue: 0.32941176470588235, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: [SearchProviderOption.spotifyShows]
-    )
-    static let figmaCommunity = BuiltInSearchProvider(
-        tag: 28,
-        name: "figmaCommunity",
-        title: "Figma Community",
-        kind: SearchProviderKind.website,
-        shortcuts: ["figma"],
-        color: BrandColor(red: 0.9490196078431372, green: 0.3058823529411765, blue: 0.11764705882352941, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: []
-    )
-    static let googleMaps = BuiltInSearchProvider(
-        tag: 29,
-        name: "googleMaps",
-        title: "Google Maps",
-        kind: SearchProviderKind.website,
-        shortcuts: ["gm", "maps"],
-        color: BrandColor(red: 0.20392156862745098, green: 0.6588235294117647, blue: 0.3254901960784314, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: []
-    )
-    static let appleMaps = BuiltInSearchProvider(
-        tag: 30,
-        name: "appleMaps",
-        title: "Apple Maps",
-        kind: SearchProviderKind.website,
-        shortcuts: ["amaps"],
-        color: BrandColor(red: 0.34901960784313724, green: 0.7254901960784313, blue: 0.2980392156862745, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: [SearchProviderOption.appleMapsShows]
-    )
-    static let googleImages = BuiltInSearchProvider(
-        tag: 31,
-        name: "googleImages",
-        title: "Google Images",
-        kind: SearchProviderKind.website,
-        shortcuts: ["gi", "images"],
-        color: BrandColor(red: 0.25882352941176473, green: 0.5215686274509804, blue: 0.9568627450980393, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: [SearchProviderOption.googleImagesSafeSearch]
-    )
-    static let googleTranslate = BuiltInSearchProvider(
-        tag: 32,
-        name: "googleTranslate",
-        title: "Google Translate",
-        kind: SearchProviderKind.website,
-        shortcuts: ["gt", "translate"],
-        color: BrandColor(red: 0.25882352941176473, green: 0.5215686274509804, blue: 0.9568627450980393, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: [SearchProviderOption.translateInto]
-    )
-    static let wolframAlpha = BuiltInSearchProvider(
-        tag: 33,
-        name: "wolframAlpha",
-        title: "Wolfram|Alpha",
-        kind: SearchProviderKind.website,
-        shortcuts: ["wa", "wolfram"],
-        color: BrandColor(red: 0.8666666666666667, green: 0.06666666666666667, blue: 0, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: true,
-        options: []
-    )
-    static let hackerNews = BuiltInSearchProvider(
-        tag: 34,
-        name: "hackerNews",
-        title: "Hacker News",
-        kind: SearchProviderKind.website,
-        shortcuts: ["hn"],
-        color: BrandColor(red: 1, green: 0.4, blue: 0, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: false,
-        options: [SearchProviderOption.hackerNewsSort, SearchProviderOption.hackerNewsShows]
-    )
-    static let npm = BuiltInSearchProvider(
-        tag: 35,
-        name: "npm",
-        title: "npm",
-        kind: SearchProviderKind.website,
-        shortcuts: ["npm"],
-        color: BrandColor(red: 0.796078431372549, green: 0.2196078431372549, blue: 0.21568627450980393, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: false,
-        options: []
-    )
-    static let appleDeveloper = BuiltInSearchProvider(
-        tag: 36,
-        name: "appleDeveloper",
-        title: "Apple Developer",
-        kind: SearchProviderKind.website,
-        shortcuts: ["adev"],
-        color: BrandColor(red: 0, green: 0.44313725490196076, blue: 0.8901960784313725, alpha: 1),
-        logo: nil,
-        isEnabledByDefault: false,
-        options: [SearchProviderOption.appleDeveloperSkipsAI]
-    )
-
-    static let all: [BuiltInSearchProvider] = [
-        google,
-        duckDuckGo,
-        bing,
-        ecosia,
-        brave,
-        startpage,
-        kagi,
-        yahoo,
-        qwant,
-        chatGPT,
-        claude,
-        perplexity,
-        googleAIMode,
-        grok,
-        leChat,
-        duckAI,
-        copilotSearch,
-        kagiAssistant,
-        youTube,
-        wikipedia,
-        gitHub,
-        reddit,
-        x,
-        stackOverflow,
-        mdn,
-        amazon,
-        imDb,
-        spotify,
-        figmaCommunity,
-        googleMaps,
-        appleMaps,
-        googleImages,
-        googleTranslate,
-        wolframAlpha,
-        hackerNews,
-        npm,
-        appleDeveloper
-    ]
-
-    static func named(_ name: String?) -> BuiltInSearchProvider? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: BuiltInSearchProvider, rhs: BuiltInSearchProvider) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: String
-        let kind: SearchProviderKind
-        let shortcuts: [String]
-        let color: BrandColor
-        let logo: String?
-        let isEnabledByDefault: Bool
-        let options: [SearchProviderOption]
-
-        init(
-            name: String,
-            title: String,
-            kind: SearchProviderKind,
-            shortcuts: [String],
-            color: BrandColor,
-            logo: String?,
-            isEnabledByDefault: Bool,
-            options: [SearchProviderOption]
-        ) {
-            self.name = name
-            self.title = title
-            self.kind = kind
-            self.shortcuts = shortcuts
-            self.color = color
-            self.logo = logo
-            self.isEnabledByDefault = isEnabledByDefault
-            self.options = options
         }
     }
 }
@@ -9325,7 +7152,6 @@ struct ContentBlockingPolicy: Hashable, Sendable {
     var title: LocalizedStringResource { facts.title }
     var switchTitle: LocalizedStringResource { facts.switchTitle }
     var identifier: String? { facts.identifier }
-    var blockedHostSuffixes: [String] { facts.blockedHostSuffixes }
     var blocksContent: Bool { facts.blocksContent }
     private let facts: Facts
 
@@ -9335,7 +7161,6 @@ struct ContentBlockingPolicy: Hashable, Sendable {
         title: LocalizedStringResource,
         switchTitle: LocalizedStringResource,
         identifier: String?,
-        blockedHostSuffixes: [String],
         blocksContent: Bool
     ) {
         self.tag = tag
@@ -9344,7 +7169,6 @@ struct ContentBlockingPolicy: Hashable, Sendable {
             title: title,
             switchTitle: switchTitle,
             identifier: identifier,
-            blockedHostSuffixes: blockedHostSuffixes,
             blocksContent: blocksContent
         )
     }
@@ -9354,28 +7178,7 @@ struct ContentBlockingPolicy: Hashable, Sendable {
         name: "balanced",
         title: LocalizedStringResource("Balanced"),
         switchTitle: LocalizedStringResource("Turn Off Content Blocking in This Space"),
-        identifier: "com.pauldavis.crest.content-blocking.balanced.v2",
-        blockedHostSuffixes: [
-            "doubleclick.net",
-            "googleadservices.com",
-            "googlesyndication.com",
-            "google-analytics.com",
-            "googletagmanager.com",
-            "ads-twitter.com",
-            "analytics.twitter.com",
-            "scorecardresearch.com",
-            "quantserve.com",
-            "hotjar.com",
-            "segment.io",
-            "segment.com",
-            "mixpanel.com",
-            "amplitude.com",
-            "clarity.ms",
-            "nr-data.net",
-            "taboola.com",
-            "outbrain.com",
-            "snap.licdn.com"
-        ],
+        identifier: "com.pauldavis.crest.content-blocking.balanced.v4.234d194f4eb81ebe716319b28fc7db88fb0946c622a6071592bd016d0c5ddf36",
         blocksContent: true
     )
     static let off = ContentBlockingPolicy(
@@ -9384,7 +7187,6 @@ struct ContentBlockingPolicy: Hashable, Sendable {
         title: LocalizedStringResource("Off"),
         switchTitle: LocalizedStringResource("Turn On Balanced Content Blocking in This Space"),
         identifier: nil,
-        blockedHostSuffixes: [],
         blocksContent: false
     )
 
@@ -9407,7 +7209,6 @@ struct ContentBlockingPolicy: Hashable, Sendable {
         let title: LocalizedStringResource
         let switchTitle: LocalizedStringResource
         let identifier: String?
-        let blockedHostSuffixes: [String]
         let blocksContent: Bool
 
         init(
@@ -9415,2476 +7216,13 @@ struct ContentBlockingPolicy: Hashable, Sendable {
             title: LocalizedStringResource,
             switchTitle: LocalizedStringResource,
             identifier: String?,
-            blockedHostSuffixes: [String],
             blocksContent: Bool
         ) {
             self.name = name
             self.title = title
             self.switchTitle = switchTitle
             self.identifier = identifier
-            self.blockedHostSuffixes = blockedHostSuffixes
             self.blocksContent = blocksContent
-        }
-    }
-}
-
-/// The members of the core's `CredentialCaptureEvent`. A member's wire tag is its index in `all`.
-/// Core-only behavior, not emitted: `decide`.
-struct CredentialCaptureEvent: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    private let facts: Facts
-
-    private init(tag: Int, name: String) {
-        self.tag = tag
-        facts = Facts(name: name)
-    }
-
-    static let username = CredentialCaptureEvent(tag: 0, name: "username")
-    static let focus = CredentialCaptureEvent(tag: 1, name: "focus")
-    static let submit = CredentialCaptureEvent(tag: 2, name: "submit")
-    static let documentState = CredentialCaptureEvent(tag: 3, name: "documentState")
-    static let filled = CredentialCaptureEvent(tag: 4, name: "filled")
-
-    static let all: [CredentialCaptureEvent] = [username, focus, submit, documentState, filled]
-
-    static func named(_ name: String?) -> CredentialCaptureEvent? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CredentialCaptureEvent, rhs: CredentialCaptureEvent) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-
-        init(name: String) {
-            self.name = name
-        }
-    }
-}
-
-/// The members of the core's `CredentialFileFlaw`. A member's wire tag is its index in `all`.
-struct CredentialFileFlaw: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var message: LocalizedStringResource { facts.message }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, message: LocalizedStringResource) {
-        self.tag = tag
-        facts = Facts(name: name, message: message)
-    }
-
-    static let tooLarge = CredentialFileFlaw(
-        tag: 0,
-        name: "tooLarge",
-        message: LocalizedStringResource("This password file is larger than Crest’s 16 MB import limit.")
-    )
-    static let notText = CredentialFileFlaw(
-        tag: 1,
-        name: "notText",
-        message: LocalizedStringResource("This password file is not valid UTF-8 text.")
-    )
-    static let empty = CredentialFileFlaw(
-        tag: 2,
-        name: "empty",
-        message: LocalizedStringResource("This password file is empty.")
-    )
-    static let noRows = CredentialFileFlaw(
-        tag: 3,
-        name: "noRows",
-        message: LocalizedStringResource("This password file contains supported headers but no credential rows.")
-    )
-    static let malformed = CredentialFileFlaw(
-        tag: 4,
-        name: "malformed",
-        message: LocalizedStringResource("This password file contains malformed CSV quoting or columns.")
-    )
-    static let tooManyRows = CredentialFileFlaw(
-        tag: 5,
-        name: "tooManyRows",
-        message: LocalizedStringResource("This password file contains more than 10,000 credential rows.")
-    )
-    static let tooManyColumns = CredentialFileFlaw(
-        tag: 6,
-        name: "tooManyColumns",
-        message: LocalizedStringResource("This password file contains too many columns.")
-    )
-    static let fieldTooLarge = CredentialFileFlaw(
-        tag: 7,
-        name: "fieldTooLarge",
-        message: LocalizedStringResource("A field in this password file is too large to import safely.")
-    )
-    static let noSiteColumn = CredentialFileFlaw(
-        tag: 8,
-        name: "noSiteColumn",
-        message: LocalizedStringResource("This password file has no supported site column.")
-    )
-    static let noUsernameColumn = CredentialFileFlaw(
-        tag: 9,
-        name: "noUsernameColumn",
-        message: LocalizedStringResource("This password file has no supported username column.")
-    )
-    static let noPasswordColumn = CredentialFileFlaw(
-        tag: 10,
-        name: "noPasswordColumn",
-        message: LocalizedStringResource("This password file has no supported password column.")
-    )
-    static let severalSiteColumns = CredentialFileFlaw(
-        tag: 11,
-        name: "severalSiteColumns",
-        message: LocalizedStringResource("This password file has more than one possible site column. Remove the ambiguity and try again.")
-    )
-    static let severalUsernameColumns = CredentialFileFlaw(
-        tag: 12,
-        name: "severalUsernameColumns",
-        message: LocalizedStringResource("This password file has more than one possible username column. Remove the ambiguity and try again.")
-    )
-    static let severalPasswordColumns = CredentialFileFlaw(
-        tag: 13,
-        name: "severalPasswordColumns",
-        message: LocalizedStringResource("This password file has more than one possible password column. Remove the ambiguity and try again.")
-    )
-
-    static let all: [CredentialFileFlaw] = [
-        tooLarge,
-        notText,
-        empty,
-        noRows,
-        malformed,
-        tooManyRows,
-        tooManyColumns,
-        fieldTooLarge,
-        noSiteColumn,
-        noUsernameColumn,
-        noPasswordColumn,
-        severalSiteColumns,
-        severalUsernameColumns,
-        severalPasswordColumns
-    ]
-
-    static func named(_ name: String?) -> CredentialFileFlaw? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CredentialFileFlaw, rhs: CredentialFileFlaw) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let message: LocalizedStringResource
-
-        init(name: String, message: LocalizedStringResource) {
-            self.name = name
-            self.message = message
-        }
-    }
-}
-
-/// The members of the core's `CredentialFileFormat`. A member's wire tag is its index in `all`.
-struct CredentialFileFormat: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, title: LocalizedStringResource) {
-        self.tag = tag
-        facts = Facts(name: name, title: title)
-    }
-
-    static let browser = CredentialFileFormat(tag: 0, name: "browser", title: LocalizedStringResource("Browser CSV"))
-    static let firefox = CredentialFileFormat(tag: 1, name: "firefox", title: LocalizedStringResource("Firefox CSV"))
-    static let safari = CredentialFileFormat(tag: 2, name: "safari", title: LocalizedStringResource("Safari CSV"))
-    static let bitwarden = CredentialFileFormat(
-        tag: 3,
-        name: "bitwarden",
-        title: LocalizedStringResource("Bitwarden CSV")
-    )
-
-    static let all: [CredentialFileFormat] = [browser, firefox, safari, bitwarden]
-
-    static func named(_ name: String?) -> CredentialFileFormat? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CredentialFileFormat, rhs: CredentialFileFormat) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-
-        init(name: String, title: LocalizedStringResource) {
-            self.name = name
-            self.title = title
-        }
-    }
-}
-
-/// The members of the core's `CredentialFillSource`. A member's wire tag is its index in `all`.
-struct CredentialFillSource: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var fills: CredentialPasswordKind { facts.fills }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, fills: CredentialPasswordKind) {
-        self.tag = tag
-        facts = Facts(name: name, fills: fills)
-    }
-
-    static let saved = CredentialFillSource(tag: 0, name: "saved", fills: .current)
-    static let generated = CredentialFillSource(tag: 1, name: "generated", fills: .new)
-
-    static let all: [CredentialFillSource] = [saved, generated]
-
-    static func named(_ name: String?) -> CredentialFillSource? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CredentialFillSource, rhs: CredentialFillSource) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let fills: CredentialPasswordKind
-
-        init(name: String, fills: CredentialPasswordKind) {
-            self.name = name
-            self.fills = fills
-        }
-    }
-}
-
-/// The members of the core's `CredentialImportEffect`. A member's wire tag is its index in `all`.
-struct CredentialImportEffect: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var changesPasswords: Bool { facts.changesPasswords }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, changesPasswords: Bool) {
-        self.tag = tag
-        facts = Facts(name: name, changesPasswords: changesPasswords)
-    }
-
-    static let adds = CredentialImportEffect(tag: 0, name: "adds", changesPasswords: true)
-    static let replaces = CredentialImportEffect(tag: 1, name: "replaces", changesPasswords: true)
-    static let matches = CredentialImportEffect(tag: 2, name: "matches", changesPasswords: false)
-
-    static let all: [CredentialImportEffect] = [adds, replaces, matches]
-
-    static func named(_ name: String?) -> CredentialImportEffect? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CredentialImportEffect, rhs: CredentialImportEffect) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let changesPasswords: Bool
-
-        init(name: String, changesPasswords: Bool) {
-            self.name = name
-            self.changesPasswords = changesPasswords
-        }
-    }
-}
-
-/// The members of the core's `CredentialRowCaution`. A member's wire tag is its index in `all`.
-struct CredentialRowCaution: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var message: LocalizedStringResource { facts.message }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, message: LocalizedStringResource) {
-        self.tag = tag
-        facts = Facts(name: name, message: message)
-    }
-
-    static let insecureOrigin = CredentialRowCaution(
-        tag: 0,
-        name: "insecureOrigin",
-        message: LocalizedStringResource("This HTTP site is not encrypted. Crest will import the password for manual access but will not autofill it on an insecure connection.")
-    )
-
-    static let all: [CredentialRowCaution] = [insecureOrigin]
-
-    static func named(_ name: String?) -> CredentialRowCaution? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CredentialRowCaution, rhs: CredentialRowCaution) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let message: LocalizedStringResource
-
-        init(name: String, message: LocalizedStringResource) {
-            self.name = name
-            self.message = message
-        }
-    }
-}
-
-/// The members of the core's `CredentialRowFlaw`. A member's wire tag is its index in `all`.
-struct CredentialRowFlaw: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var message: LocalizedStringResource { facts.message }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, message: LocalizedStringResource) {
-        self.tag = tag
-        facts = Facts(name: name, message: message)
-    }
-
-    static let invalidOrigin = CredentialRowFlaw(
-        tag: 0,
-        name: "invalidOrigin",
-        message: LocalizedStringResource("The site is not a valid web address.")
-    )
-    static let emptyPassword = CredentialRowFlaw(
-        tag: 1,
-        name: "emptyPassword",
-        message: LocalizedStringResource("The password is empty.")
-    )
-    static let malformedRow = CredentialRowFlaw(
-        tag: 2,
-        name: "malformedRow",
-        message: LocalizedStringResource("The row does not match the detected columns.")
-    )
-
-    static let all: [CredentialRowFlaw] = [invalidOrigin, emptyPassword, malformedRow]
-
-    static func named(_ name: String?) -> CredentialRowFlaw? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CredentialRowFlaw, rhs: CredentialRowFlaw) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let message: LocalizedStringResource
-
-        init(name: String, message: LocalizedStringResource) {
-            self.name = name
-            self.message = message
-        }
-    }
-}
-
-/// The members of the core's `CrestBackplate`. A member's wire tag is its index in `all`.
-struct CrestBackplate: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case none
-        case circle
-        case shield
-        case frenchShield
-        case diamond
-        case seal
-        case hexagon
-        case octagon
-        case roundedSquare
-        case oval
-        case banner
-        case badge
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var drawnSince: CrestVocabulary { facts.drawnSince }
-    var hasTeeth: Bool { facts.hasTeeth }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        kind: Kinds,
-        name: String,
-        title: LocalizedStringResource,
-        drawnSince: CrestVocabulary,
-        hasTeeth: Bool
-    ) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, title: title, drawnSince: drawnSince, hasTeeth: hasTeeth)
-    }
-
-    static let none = CrestBackplate(
-        tag: 0,
-        kind: .none,
-        name: "none",
-        title: LocalizedStringResource("None"),
-        drawnSince: CrestVocabulary.baseline,
-        hasTeeth: false
-    )
-    static let circle = CrestBackplate(
-        tag: 1,
-        kind: .circle,
-        name: "circle",
-        title: LocalizedStringResource("Round"),
-        drawnSince: CrestVocabulary.baseline,
-        hasTeeth: false
-    )
-    static let shield = CrestBackplate(
-        tag: 2,
-        kind: .shield,
-        name: "shield",
-        title: LocalizedStringResource("Shield"),
-        drawnSince: CrestVocabulary.baseline,
-        hasTeeth: false
-    )
-    static let frenchShield = CrestBackplate(
-        tag: 3,
-        kind: .frenchShield,
-        name: "frenchShield",
-        title: LocalizedStringResource("French Shield"),
-        drawnSince: CrestVocabulary.studio,
-        hasTeeth: false
-    )
-    static let diamond = CrestBackplate(
-        tag: 4,
-        kind: .diamond,
-        name: "diamond",
-        title: LocalizedStringResource("Lozenge"),
-        drawnSince: CrestVocabulary.baseline,
-        hasTeeth: false
-    )
-    static let seal = CrestBackplate(
-        tag: 5,
-        kind: .seal,
-        name: "seal",
-        title: LocalizedStringResource("Seal"),
-        drawnSince: CrestVocabulary.baseline,
-        hasTeeth: true
-    )
-    static let hexagon = CrestBackplate(
-        tag: 6,
-        kind: .hexagon,
-        name: "hexagon",
-        title: LocalizedStringResource("Hexagon"),
-        drawnSince: CrestVocabulary.baseline,
-        hasTeeth: false
-    )
-    static let octagon = CrestBackplate(
-        tag: 7,
-        kind: .octagon,
-        name: "octagon",
-        title: LocalizedStringResource("Octagon"),
-        drawnSince: CrestVocabulary.customization,
-        hasTeeth: false
-    )
-    static let roundedSquare = CrestBackplate(
-        tag: 8,
-        kind: .roundedSquare,
-        name: "roundedSquare",
-        title: LocalizedStringResource("Rounded Square"),
-        drawnSince: CrestVocabulary.customization,
-        hasTeeth: false
-    )
-    static let oval = CrestBackplate(
-        tag: 9,
-        kind: .oval,
-        name: "oval",
-        title: LocalizedStringResource("Oval"),
-        drawnSince: CrestVocabulary.studio,
-        hasTeeth: false
-    )
-    static let banner = CrestBackplate(
-        tag: 10,
-        kind: .banner,
-        name: "banner",
-        title: LocalizedStringResource("Banner"),
-        drawnSince: CrestVocabulary.studio,
-        hasTeeth: false
-    )
-    static let badge = CrestBackplate(
-        tag: 11,
-        kind: .badge,
-        name: "badge",
-        title: LocalizedStringResource("Badge"),
-        drawnSince: CrestVocabulary.studio,
-        hasTeeth: false
-    )
-
-    static let all: [CrestBackplate] = [
-        none,
-        circle,
-        shield,
-        frenchShield,
-        diamond,
-        seal,
-        hexagon,
-        octagon,
-        roundedSquare,
-        oval,
-        banner,
-        badge
-    ]
-
-    static func named(_ name: String?) -> CrestBackplate? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CrestBackplate, rhs: CrestBackplate) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let title: LocalizedStringResource
-        let drawnSince: CrestVocabulary
-        let hasTeeth: Bool
-
-        init(kind: Kinds, name: String, title: LocalizedStringResource, drawnSince: CrestVocabulary, hasTeeth: Bool) {
-            self.kind = kind
-            self.name = name
-            self.title = title
-            self.drawnSince = drawnSince
-            self.hasTeeth = hasTeeth
-        }
-    }
-}
-
-/// The members of the core's `CrestChargeKind`. A member's wire tag is its index in `all`.
-/// Core-only behavior, not emitted: `normalize`.
-struct CrestChargeKind: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case heraldic
-        case system
-        case emoji
-        case monogram
-        case none
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var isTinted: Bool { facts.isTinted }
-    var takesWeight: Bool { facts.takesWeight }
-    private let facts: Facts
-
-    private init(tag: Int, kind: Kinds, name: String, title: LocalizedStringResource, isTinted: Bool, takesWeight: Bool) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, title: title, isTinted: isTinted, takesWeight: takesWeight)
-    }
-
-    static let heraldic = CrestChargeKind(
-        tag: 0,
-        kind: .heraldic,
-        name: "heraldic",
-        title: LocalizedStringResource("Heraldry"),
-        isTinted: true,
-        takesWeight: true
-    )
-    static let system = CrestChargeKind(
-        tag: 1,
-        kind: .system,
-        name: "system",
-        title: LocalizedStringResource("SF Symbol"),
-        isTinted: true,
-        takesWeight: true
-    )
-    static let emoji = CrestChargeKind(
-        tag: 2,
-        kind: .emoji,
-        name: "emoji",
-        title: LocalizedStringResource("Emoji"),
-        isTinted: false,
-        takesWeight: false
-    )
-    static let monogram = CrestChargeKind(
-        tag: 3,
-        kind: .monogram,
-        name: "monogram",
-        title: LocalizedStringResource("Monogram"),
-        isTinted: true,
-        takesWeight: true
-    )
-    static let none = CrestChargeKind(
-        tag: 4,
-        kind: .none,
-        name: "none",
-        title: LocalizedStringResource("None"),
-        isTinted: false,
-        takesWeight: false
-    )
-
-    static let all: [CrestChargeKind] = [heraldic, system, emoji, monogram, none]
-
-    static func named(_ name: String?) -> CrestChargeKind? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CrestChargeKind, rhs: CrestChargeKind) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let title: LocalizedStringResource
-        let isTinted: Bool
-        let takesWeight: Bool
-
-        init(kind: Kinds, name: String, title: LocalizedStringResource, isTinted: Bool, takesWeight: Bool) {
-            self.kind = kind
-            self.name = name
-            self.title = title
-            self.isTinted = isTinted
-            self.takesWeight = takesWeight
-        }
-    }
-}
-
-/// The members of the core's `CrestChargeLayout`. A member's wire tag is its index in `all`.
-struct CrestChargeLayout: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case single
-        case paired
-        case trio
-        case quad
-        case ring
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var drawnSince: CrestVocabulary { facts.drawnSince }
-    private let facts: Facts
-
-    private init(tag: Int, kind: Kinds, name: String, title: LocalizedStringResource, drawnSince: CrestVocabulary) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, title: title, drawnSince: drawnSince)
-    }
-
-    static let single = CrestChargeLayout(
-        tag: 0,
-        kind: .single,
-        name: "single",
-        title: LocalizedStringResource("One"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let paired = CrestChargeLayout(
-        tag: 1,
-        kind: .paired,
-        name: "paired",
-        title: LocalizedStringResource("Two"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let trio = CrestChargeLayout(
-        tag: 2,
-        kind: .trio,
-        name: "trio",
-        title: LocalizedStringResource("Three"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let quad = CrestChargeLayout(
-        tag: 3,
-        kind: .quad,
-        name: "quad",
-        title: LocalizedStringResource("Four"),
-        drawnSince: CrestVocabulary.studio
-    )
-    static let ring = CrestChargeLayout(
-        tag: 4,
-        kind: .ring,
-        name: "ring",
-        title: LocalizedStringResource("Ring"),
-        drawnSince: CrestVocabulary.studio
-    )
-
-    static let all: [CrestChargeLayout] = [single, paired, trio, quad, ring]
-
-    static func named(_ name: String?) -> CrestChargeLayout? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CrestChargeLayout, rhs: CrestChargeLayout) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let title: LocalizedStringResource
-        let drawnSince: CrestVocabulary
-
-        init(kind: Kinds, name: String, title: LocalizedStringResource, drawnSince: CrestVocabulary) {
-            self.kind = kind
-            self.name = name
-            self.title = title
-            self.drawnSince = drawnSince
-        }
-    }
-}
-
-/// The members of the core's `CrestChargeWeight`. A member's wire tag is its index in `all`.
-struct CrestChargeWeight: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case light
-        case regular
-        case bold
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var drawnSince: CrestVocabulary { facts.drawnSince }
-    private let facts: Facts
-
-    private init(tag: Int, kind: Kinds, name: String, title: LocalizedStringResource, drawnSince: CrestVocabulary) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, title: title, drawnSince: drawnSince)
-    }
-
-    static let light = CrestChargeWeight(
-        tag: 0,
-        kind: .light,
-        name: "light",
-        title: LocalizedStringResource("Light"),
-        drawnSince: CrestVocabulary.studio
-    )
-    static let regular = CrestChargeWeight(
-        tag: 1,
-        kind: .regular,
-        name: "regular",
-        title: LocalizedStringResource("Regular"),
-        drawnSince: CrestVocabulary.studio
-    )
-    static let bold = CrestChargeWeight(
-        tag: 2,
-        kind: .bold,
-        name: "bold",
-        title: LocalizedStringResource("Bold"),
-        drawnSince: CrestVocabulary.baseline
-    )
-
-    static let all: [CrestChargeWeight] = [light, regular, bold]
-
-    static func named(_ name: String?) -> CrestChargeWeight? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CrestChargeWeight, rhs: CrestChargeWeight) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let title: LocalizedStringResource
-        let drawnSince: CrestVocabulary
-
-        init(kind: Kinds, name: String, title: LocalizedStringResource, drawnSince: CrestVocabulary) {
-            self.kind = kind
-            self.name = name
-            self.title = title
-            self.drawnSince = drawnSince
-        }
-    }
-}
-
-/// The members of the core's `CrestDepth`. A member's wire tag is its index in `all`.
-struct CrestDepth: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case none
-        case soft
-        case lifted
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var drawnSince: CrestVocabulary { facts.drawnSince }
-    private let facts: Facts
-
-    private init(tag: Int, kind: Kinds, name: String, title: LocalizedStringResource, drawnSince: CrestVocabulary) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, title: title, drawnSince: drawnSince)
-    }
-
-    static let none = CrestDepth(
-        tag: 0,
-        kind: .none,
-        name: "none",
-        title: LocalizedStringResource("None"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let soft = CrestDepth(
-        tag: 1,
-        kind: .soft,
-        name: "soft",
-        title: LocalizedStringResource("Soft"),
-        drawnSince: CrestVocabulary.studio
-    )
-    static let lifted = CrestDepth(
-        tag: 2,
-        kind: .lifted,
-        name: "lifted",
-        title: LocalizedStringResource("Lifted"),
-        drawnSince: CrestVocabulary.studio
-    )
-
-    static let all: [CrestDepth] = [none, soft, lifted]
-
-    static func named(_ name: String?) -> CrestDepth? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CrestDepth, rhs: CrestDepth) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let title: LocalizedStringResource
-        let drawnSince: CrestVocabulary
-
-        init(kind: Kinds, name: String, title: LocalizedStringResource, drawnSince: CrestVocabulary) {
-            self.kind = kind
-            self.name = name
-            self.title = title
-            self.drawnSince = drawnSince
-        }
-    }
-}
-
-/// The members of the core's `CrestFieldDivision`. A member's wire tag is its index in `all`.
-struct CrestFieldDivision: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case plain
-        case perPale
-        case perFess
-        case perBend
-        case perChevron
-        case quarterly
-        case perSaltire
-        case gyronny
-        case barry
-        case paly
-        case checky
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var drawnSince: CrestVocabulary { facts.drawnSince }
-    var isCounted: Bool { facts.isCounted }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        kind: Kinds,
-        name: String,
-        title: LocalizedStringResource,
-        drawnSince: CrestVocabulary,
-        isCounted: Bool
-    ) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, title: title, drawnSince: drawnSince, isCounted: isCounted)
-    }
-
-    static let plain = CrestFieldDivision(
-        tag: 0,
-        kind: .plain,
-        name: "plain",
-        title: LocalizedStringResource("Plain"),
-        drawnSince: CrestVocabulary.baseline,
-        isCounted: false
-    )
-    static let perPale = CrestFieldDivision(
-        tag: 1,
-        kind: .perPale,
-        name: "perPale",
-        title: LocalizedStringResource("Vertical"),
-        drawnSince: CrestVocabulary.baseline,
-        isCounted: false
-    )
-    static let perFess = CrestFieldDivision(
-        tag: 2,
-        kind: .perFess,
-        name: "perFess",
-        title: LocalizedStringResource("Horizontal"),
-        drawnSince: CrestVocabulary.baseline,
-        isCounted: false
-    )
-    static let perBend = CrestFieldDivision(
-        tag: 3,
-        kind: .perBend,
-        name: "perBend",
-        title: LocalizedStringResource("Diagonal"),
-        drawnSince: CrestVocabulary.baseline,
-        isCounted: false
-    )
-    static let perChevron = CrestFieldDivision(
-        tag: 4,
-        kind: .perChevron,
-        name: "perChevron",
-        title: LocalizedStringResource("Chevron"),
-        drawnSince: CrestVocabulary.baseline,
-        isCounted: false
-    )
-    static let quarterly = CrestFieldDivision(
-        tag: 5,
-        kind: .quarterly,
-        name: "quarterly",
-        title: LocalizedStringResource("Quartered"),
-        drawnSince: CrestVocabulary.baseline,
-        isCounted: false
-    )
-    static let perSaltire = CrestFieldDivision(
-        tag: 6,
-        kind: .perSaltire,
-        name: "perSaltire",
-        title: LocalizedStringResource("Crossed"),
-        drawnSince: CrestVocabulary.studio,
-        isCounted: false
-    )
-    static let gyronny = CrestFieldDivision(
-        tag: 7,
-        kind: .gyronny,
-        name: "gyronny",
-        title: LocalizedStringResource("Wedges"),
-        drawnSince: CrestVocabulary.studio,
-        isCounted: true
-    )
-    static let barry = CrestFieldDivision(
-        tag: 8,
-        kind: .barry,
-        name: "barry",
-        title: LocalizedStringResource("Bars"),
-        drawnSince: CrestVocabulary.studio,
-        isCounted: true
-    )
-    static let paly = CrestFieldDivision(
-        tag: 9,
-        kind: .paly,
-        name: "paly",
-        title: LocalizedStringResource("Stripes"),
-        drawnSince: CrestVocabulary.studio,
-        isCounted: true
-    )
-    static let checky = CrestFieldDivision(
-        tag: 10,
-        kind: .checky,
-        name: "checky",
-        title: LocalizedStringResource("Checks"),
-        drawnSince: CrestVocabulary.studio,
-        isCounted: true
-    )
-
-    static let all: [CrestFieldDivision] = [
-        plain,
-        perPale,
-        perFess,
-        perBend,
-        perChevron,
-        quarterly,
-        perSaltire,
-        gyronny,
-        barry,
-        paly,
-        checky
-    ]
-
-    static func named(_ name: String?) -> CrestFieldDivision? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CrestFieldDivision, rhs: CrestFieldDivision) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let title: LocalizedStringResource
-        let drawnSince: CrestVocabulary
-        let isCounted: Bool
-
-        init(kind: Kinds, name: String, title: LocalizedStringResource, drawnSince: CrestVocabulary, isCounted: Bool) {
-            self.kind = kind
-            self.name = name
-            self.title = title
-            self.drawnSince = drawnSince
-            self.isCounted = isCounted
-        }
-    }
-}
-
-/// The members of the core's `CrestFinish`. A member's wire tag is its index in `all`.
-struct CrestFinish: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case flat
-        case sheen
-        case embossed
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var drawnSince: CrestVocabulary { facts.drawnSince }
-    var hasAngle: Bool { facts.hasAngle }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        kind: Kinds,
-        name: String,
-        title: LocalizedStringResource,
-        drawnSince: CrestVocabulary,
-        hasAngle: Bool
-    ) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, title: title, drawnSince: drawnSince, hasAngle: hasAngle)
-    }
-
-    static let flat = CrestFinish(
-        tag: 0,
-        kind: .flat,
-        name: "flat",
-        title: LocalizedStringResource("Flat"),
-        drawnSince: CrestVocabulary.baseline,
-        hasAngle: false
-    )
-    static let sheen = CrestFinish(
-        tag: 1,
-        kind: .sheen,
-        name: "sheen",
-        title: LocalizedStringResource("Sheen"),
-        drawnSince: CrestVocabulary.studio,
-        hasAngle: true
-    )
-    static let embossed = CrestFinish(
-        tag: 2,
-        kind: .embossed,
-        name: "embossed",
-        title: LocalizedStringResource("Embossed"),
-        drawnSince: CrestVocabulary.studio,
-        hasAngle: false
-    )
-
-    static let all: [CrestFinish] = [flat, sheen, embossed]
-
-    static func named(_ name: String?) -> CrestFinish? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CrestFinish, rhs: CrestFinish) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let title: LocalizedStringResource
-        let drawnSince: CrestVocabulary
-        let hasAngle: Bool
-
-        init(kind: Kinds, name: String, title: LocalizedStringResource, drawnSince: CrestVocabulary, hasAngle: Bool) {
-            self.kind = kind
-            self.name = name
-            self.title = title
-            self.drawnSince = drawnSince
-            self.hasAngle = hasAngle
-        }
-    }
-}
-
-/// The members of the core's `CrestMeasure`. A member's wire tag is its index in `all`.
-/// Core-only behavior, not emitted: `value`, `shapes`.
-struct CrestMeasure: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var minimum: Double { facts.minimum }
-    var maximum: Double { facts.maximum }
-    var `default`: Double { facts.`default` }
-    var isCount: Bool { facts.isCount }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, minimum: Double, maximum: Double, `default`: Double, isCount: Bool) {
-        self.tag = tag
-        facts = Facts(name: name, minimum: minimum, maximum: maximum, `default`: `default`, isCount: isCount)
-    }
-
-    static let plateScale = CrestMeasure(
-        tag: 0,
-        name: "plateScale",
-        minimum: 0.7,
-        maximum: 1.15,
-        `default`: 1,
-        isCount: false
-    )
-    static let edgeWidth = CrestMeasure(tag: 1, name: "edgeWidth", minimum: 0, maximum: 1, `default`: 0, isCount: false)
-    static let divisionCount = CrestMeasure(
-        tag: 2,
-        name: "divisionCount",
-        minimum: 2,
-        maximum: 8,
-        `default`: 4,
-        isCount: true
-    )
-    static let ordinaryWidth = CrestMeasure(
-        tag: 3,
-        name: "ordinaryWidth",
-        minimum: 0.5,
-        maximum: 1.6,
-        `default`: 1,
-        isCount: false
-    )
-    static let trimWeight = CrestMeasure(
-        tag: 4,
-        name: "trimWeight",
-        minimum: 0.5,
-        maximum: 2,
-        `default`: 1,
-        isCount: false
-    )
-    static let trimDetail = CrestMeasure(
-        tag: 5,
-        name: "trimDetail",
-        minimum: 6,
-        maximum: 24,
-        `default`: 12,
-        isCount: true
-    )
-    static let chargeScale = CrestMeasure(
-        tag: 6,
-        name: "chargeScale",
-        minimum: 0.6,
-        maximum: 1.5,
-        `default`: 1,
-        isCount: false
-    )
-    static let chargeOffset = CrestMeasure(
-        tag: 7,
-        name: "chargeOffset",
-        minimum: -0.2,
-        maximum: 0.2,
-        `default`: 0,
-        isCount: false
-    )
-    static let sheenAngle = CrestMeasure(
-        tag: 8,
-        name: "sheenAngle",
-        minimum: 0,
-        maximum: 360,
-        `default`: 45,
-        isCount: false
-    )
-    static let sealTeeth = CrestMeasure(
-        tag: 9,
-        name: "sealTeeth",
-        minimum: 6,
-        maximum: 24,
-        `default`: 12,
-        isCount: true
-    )
-
-    static let all: [CrestMeasure] = [
-        plateScale,
-        edgeWidth,
-        divisionCount,
-        ordinaryWidth,
-        trimWeight,
-        trimDetail,
-        chargeScale,
-        chargeOffset,
-        sheenAngle,
-        sealTeeth
-    ]
-
-    static func named(_ name: String?) -> CrestMeasure? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CrestMeasure, rhs: CrestMeasure) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let minimum: Double
-        let maximum: Double
-        let `default`: Double
-        let isCount: Bool
-
-        init(name: String, minimum: Double, maximum: Double, `default`: Double, isCount: Bool) {
-            self.name = name
-            self.minimum = minimum
-            self.maximum = maximum
-            self.`default` = `default`
-            self.isCount = isCount
-        }
-    }
-}
-
-/// The members of the core's `CrestMonogramStyle`. A member's wire tag is its index in `all`.
-struct CrestMonogramStyle: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case serif
-        case sans
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var drawnSince: CrestVocabulary { facts.drawnSince }
-    private let facts: Facts
-
-    private init(tag: Int, kind: Kinds, name: String, title: LocalizedStringResource, drawnSince: CrestVocabulary) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, title: title, drawnSince: drawnSince)
-    }
-
-    static let serif = CrestMonogramStyle(
-        tag: 0,
-        kind: .serif,
-        name: "serif",
-        title: LocalizedStringResource("Serif"),
-        drawnSince: CrestVocabulary.studio
-    )
-    static let sans = CrestMonogramStyle(
-        tag: 1,
-        kind: .sans,
-        name: "sans",
-        title: LocalizedStringResource("Sans"),
-        drawnSince: CrestVocabulary.studio
-    )
-
-    static let all: [CrestMonogramStyle] = [serif, sans]
-
-    static func named(_ name: String?) -> CrestMonogramStyle? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CrestMonogramStyle, rhs: CrestMonogramStyle) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let title: LocalizedStringResource
-        let drawnSince: CrestVocabulary
-
-        init(kind: Kinds, name: String, title: LocalizedStringResource, drawnSince: CrestVocabulary) {
-            self.kind = kind
-            self.name = name
-            self.title = title
-            self.drawnSince = drawnSince
-        }
-    }
-}
-
-/// The members of the core's `CrestOrdinary`. A member's wire tag is its index in `all`.
-struct CrestOrdinary: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case none
-        case pale
-        case fess
-        case bend
-        case chevron
-        case cross
-        case saltire
-        case chief
-        case bordure
-        case pall
-        case pile
-        case canton
-        case roundel
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var drawnSince: CrestVocabulary { facts.drawnSince }
-    private let facts: Facts
-
-    private init(tag: Int, kind: Kinds, name: String, title: LocalizedStringResource, drawnSince: CrestVocabulary) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, title: title, drawnSince: drawnSince)
-    }
-
-    static let none = CrestOrdinary(
-        tag: 0,
-        kind: .none,
-        name: "none",
-        title: LocalizedStringResource("None"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let pale = CrestOrdinary(
-        tag: 1,
-        kind: .pale,
-        name: "pale",
-        title: LocalizedStringResource("Pale"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let fess = CrestOrdinary(
-        tag: 2,
-        kind: .fess,
-        name: "fess",
-        title: LocalizedStringResource("Fess"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let bend = CrestOrdinary(
-        tag: 3,
-        kind: .bend,
-        name: "bend",
-        title: LocalizedStringResource("Bend"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let chevron = CrestOrdinary(
-        tag: 4,
-        kind: .chevron,
-        name: "chevron",
-        title: LocalizedStringResource("Chevron"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let cross = CrestOrdinary(
-        tag: 5,
-        kind: .cross,
-        name: "cross",
-        title: LocalizedStringResource("Cross"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let saltire = CrestOrdinary(
-        tag: 6,
-        kind: .saltire,
-        name: "saltire",
-        title: LocalizedStringResource("Saltire"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let chief = CrestOrdinary(
-        tag: 7,
-        kind: .chief,
-        name: "chief",
-        title: LocalizedStringResource("Chief"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let bordure = CrestOrdinary(
-        tag: 8,
-        kind: .bordure,
-        name: "bordure",
-        title: LocalizedStringResource("Bordure"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let pall = CrestOrdinary(
-        tag: 9,
-        kind: .pall,
-        name: "pall",
-        title: LocalizedStringResource("Pall"),
-        drawnSince: CrestVocabulary.studio
-    )
-    static let pile = CrestOrdinary(
-        tag: 10,
-        kind: .pile,
-        name: "pile",
-        title: LocalizedStringResource("Pile"),
-        drawnSince: CrestVocabulary.studio
-    )
-    static let canton = CrestOrdinary(
-        tag: 11,
-        kind: .canton,
-        name: "canton",
-        title: LocalizedStringResource("Canton"),
-        drawnSince: CrestVocabulary.studio
-    )
-    static let roundel = CrestOrdinary(
-        tag: 12,
-        kind: .roundel,
-        name: "roundel",
-        title: LocalizedStringResource("Roundel"),
-        drawnSince: CrestVocabulary.studio
-    )
-
-    static let all: [CrestOrdinary] = [
-        none,
-        pale,
-        fess,
-        bend,
-        chevron,
-        cross,
-        saltire,
-        chief,
-        bordure,
-        pall,
-        pile,
-        canton,
-        roundel
-    ]
-
-    static func named(_ name: String?) -> CrestOrdinary? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CrestOrdinary, rhs: CrestOrdinary) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let title: LocalizedStringResource
-        let drawnSince: CrestVocabulary
-
-        init(kind: Kinds, name: String, title: LocalizedStringResource, drawnSince: CrestVocabulary) {
-            self.kind = kind
-            self.name = name
-            self.title = title
-            self.drawnSince = drawnSince
-        }
-    }
-}
-
-/// The members of the core's `CrestSymbol`. A member's wire tag is its index in `all`.
-struct CrestSymbol: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var drawnSince: CrestVocabulary { facts.drawnSince }
-    var systemImage: String { facts.systemImage }
-    var assetName: String? { facts.assetName }
-    var isOffered: Bool { facts.isOffered }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        name: String,
-        title: LocalizedStringResource,
-        drawnSince: CrestVocabulary,
-        systemImage: String,
-        assetName: String?,
-        isOffered: Bool
-    ) {
-        self.tag = tag
-        facts = Facts(
-            name: name,
-            title: title,
-            drawnSince: drawnSince,
-            systemImage: systemImage,
-            assetName: assetName,
-            isOffered: isOffered
-        )
-    }
-
-    static let dragon = CrestSymbol(
-        tag: 0,
-        name: "dragon",
-        title: LocalizedStringResource("Dragon"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "flame.fill",
-        assetName: "CrestCharge-dragon",
-        isOffered: true
-    )
-    static let direwolf = CrestSymbol(
-        tag: 1,
-        name: "direwolf",
-        title: LocalizedStringResource("Direwolf"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "dog.fill",
-        assetName: "CrestCharge-direwolf",
-        isOffered: true
-    )
-    static let lion = CrestSymbol(
-        tag: 2,
-        name: "lion",
-        title: LocalizedStringResource("Lion"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "pawprint.fill",
-        assetName: "CrestCharge-lion",
-        isOffered: true
-    )
-    static let stag = CrestSymbol(
-        tag: 3,
-        name: "stag",
-        title: LocalizedStringResource("Stag"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "leaf.fill",
-        assetName: "CrestCharge-stag",
-        isOffered: true
-    )
-    static let raven = CrestSymbol(
-        tag: 4,
-        name: "raven",
-        title: LocalizedStringResource("Raven"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "bird.fill",
-        assetName: "CrestCharge-raven",
-        isOffered: true
-    )
-    static let griffin = CrestSymbol(
-        tag: 5,
-        name: "griffin",
-        title: LocalizedStringResource("Griffin"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "bird.fill",
-        assetName: "CrestCharge-griffin",
-        isOffered: true
-    )
-    static let eagle = CrestSymbol(
-        tag: 6,
-        name: "eagle",
-        title: LocalizedStringResource("Eagle"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-eagle",
-        isOffered: true
-    )
-    static let bear = CrestSymbol(
-        tag: 7,
-        name: "bear",
-        title: LocalizedStringResource("Bear"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-bear",
-        isOffered: true
-    )
-    static let boar = CrestSymbol(
-        tag: 8,
-        name: "boar",
-        title: LocalizedStringResource("Boar"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-boar",
-        isOffered: true
-    )
-    static let fox = CrestSymbol(
-        tag: 9,
-        name: "fox",
-        title: LocalizedStringResource("Fox"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-fox",
-        isOffered: true
-    )
-    static let horse = CrestSymbol(
-        tag: 10,
-        name: "horse",
-        title: LocalizedStringResource("Horse"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-horse",
-        isOffered: true
-    )
-    static let unicorn = CrestSymbol(
-        tag: 11,
-        name: "unicorn",
-        title: LocalizedStringResource("Unicorn"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-unicorn",
-        isOffered: true
-    )
-    static let wyvern = CrestSymbol(
-        tag: 12,
-        name: "wyvern",
-        title: LocalizedStringResource("Wyvern"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-wyvern",
-        isOffered: true
-    )
-    static let hydra = CrestSymbol(
-        tag: 13,
-        name: "hydra",
-        title: LocalizedStringResource("Hydra"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-hydra",
-        isOffered: true
-    )
-    static let serpent = CrestSymbol(
-        tag: 14,
-        name: "serpent",
-        title: LocalizedStringResource("Serpent"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-serpent",
-        isOffered: true
-    )
-    static let kraken = CrestSymbol(
-        tag: 15,
-        name: "kraken",
-        title: LocalizedStringResource("Kraken"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-kraken",
-        isOffered: true
-    )
-    static let seahorse = CrestSymbol(
-        tag: 16,
-        name: "seahorse",
-        title: LocalizedStringResource("Seahorse"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-seahorse",
-        isOffered: true
-    )
-    static let scorpion = CrestSymbol(
-        tag: 17,
-        name: "scorpion",
-        title: LocalizedStringResource("Scorpion"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-scorpion",
-        isOffered: true
-    )
-    static let bat = CrestSymbol(
-        tag: 18,
-        name: "bat",
-        title: LocalizedStringResource("Bat"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-bat",
-        isOffered: true
-    )
-    static let falcon = CrestSymbol(
-        tag: 19,
-        name: "falcon",
-        title: LocalizedStringResource("Falcon"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-falcon",
-        isOffered: true
-    )
-    static let rose = CrestSymbol(
-        tag: 20,
-        name: "rose",
-        title: LocalizedStringResource("Rose"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-rose",
-        isOffered: true
-    )
-    static let lily = CrestSymbol(
-        tag: 21,
-        name: "lily",
-        title: LocalizedStringResource("Fleur-de-lis"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-lily",
-        isOffered: true
-    )
-    static let pine = CrestSymbol(
-        tag: 22,
-        name: "pine",
-        title: LocalizedStringResource("Pine"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-pine",
-        isOffered: true
-    )
-    static let willow = CrestSymbol(
-        tag: 23,
-        name: "willow",
-        title: LocalizedStringResource("Willow"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-willow",
-        isOffered: true
-    )
-    static let swords = CrestSymbol(
-        tag: 24,
-        name: "swords",
-        title: LocalizedStringResource("Crossed Swords"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-swords",
-        isOffered: true
-    )
-    static let axes = CrestSymbol(
-        tag: 25,
-        name: "axes",
-        title: LocalizedStringResource("Crossed Axes"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-axes",
-        isOffered: true
-    )
-    static let sword = CrestSymbol(
-        tag: 26,
-        name: "sword",
-        title: LocalizedStringResource("Sword"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-sword",
-        isOffered: true
-    )
-    static let trident = CrestSymbol(
-        tag: 27,
-        name: "trident",
-        title: LocalizedStringResource("Trident"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-trident",
-        isOffered: true
-    )
-    static let anchor = CrestSymbol(
-        tag: 28,
-        name: "anchor",
-        title: LocalizedStringResource("Anchor"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-anchor",
-        isOffered: true
-    )
-    static let castle = CrestSymbol(
-        tag: 29,
-        name: "castle",
-        title: LocalizedStringResource("Castle"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-castle",
-        isOffered: true
-    )
-    static let scales = CrestSymbol(
-        tag: 30,
-        name: "scales",
-        title: LocalizedStringResource("Scales"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-scales",
-        isOffered: true
-    )
-    static let dragonHead = CrestSymbol(
-        tag: 31,
-        name: "dragonHead",
-        title: LocalizedStringResource("Dragon Head"),
-        drawnSince: CrestVocabulary.studio,
-        systemImage: "shield.fill",
-        assetName: "CrestCharge-dragonHead",
-        isOffered: true
-    )
-    static let hound = CrestSymbol(
-        tag: 32,
-        name: "hound",
-        title: LocalizedStringResource("Hound"),
-        drawnSince: CrestVocabulary.expandedCharges,
-        systemImage: "dog.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let paw = CrestSymbol(
-        tag: 33,
-        name: "paw",
-        title: LocalizedStringResource("Paw"),
-        drawnSince: CrestVocabulary.expandedCharges,
-        systemImage: "pawprint.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let hare = CrestSymbol(
-        tag: 34,
-        name: "hare",
-        title: LocalizedStringResource("Hare"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "hare.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let bird = CrestSymbol(
-        tag: 35,
-        name: "bird",
-        title: LocalizedStringResource("Bird"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "bird.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let fish = CrestSymbol(
-        tag: 36,
-        name: "fish",
-        title: LocalizedStringResource("Fish"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "fish.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let bee = CrestSymbol(
-        tag: 37,
-        name: "bee",
-        title: LocalizedStringResource("Beetle"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "ladybug.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let shell = CrestSymbol(
-        tag: 38,
-        name: "shell",
-        title: LocalizedStringResource("Shell"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "fossil.shell.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let sun = CrestSymbol(
-        tag: 39,
-        name: "sun",
-        title: LocalizedStringResource("Sun"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "sun.max.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let risingSun = CrestSymbol(
-        tag: 40,
-        name: "risingSun",
-        title: LocalizedStringResource("Rising Sun"),
-        drawnSince: CrestVocabulary.expandedCharges,
-        systemImage: "sun.horizon.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let crescent = CrestSymbol(
-        tag: 41,
-        name: "crescent",
-        title: LocalizedStringResource("Crescent"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "moon.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let star = CrestSymbol(
-        tag: 42,
-        name: "star",
-        title: LocalizedStringResource("Star"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "star.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let sparkles = CrestSymbol(
-        tag: 43,
-        name: "sparkles",
-        title: LocalizedStringResource("Sparkles"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "sparkles",
-        assetName: nil,
-        isOffered: true
-    )
-    static let lightning = CrestSymbol(
-        tag: 44,
-        name: "lightning",
-        title: LocalizedStringResource("Lightning"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "bolt.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let flame = CrestSymbol(
-        tag: 45,
-        name: "flame",
-        title: LocalizedStringResource("Flame"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "flame.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let snowflake = CrestSymbol(
-        tag: 46,
-        name: "snowflake",
-        title: LocalizedStringResource("Snowflake"),
-        drawnSince: CrestVocabulary.expandedCharges,
-        systemImage: "snowflake",
-        assetName: nil,
-        isOffered: true
-    )
-    static let drop = CrestSymbol(
-        tag: 47,
-        name: "drop",
-        title: LocalizedStringResource("Drop"),
-        drawnSince: CrestVocabulary.expandedCharges,
-        systemImage: "drop.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let mountain = CrestSymbol(
-        tag: 48,
-        name: "mountain",
-        title: LocalizedStringResource("Mountain"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "mountain.2.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let tree = CrestSymbol(
-        tag: 49,
-        name: "tree",
-        title: LocalizedStringResource("Tree"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "tree.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let oak = CrestSymbol(
-        tag: 50,
-        name: "oak",
-        title: LocalizedStringResource("Oak"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "leaf.fill",
-        assetName: nil,
-        isOffered: false
-    )
-    static let leaf = CrestSymbol(
-        tag: 51,
-        name: "leaf",
-        title: LocalizedStringResource("Leaf"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "leaf.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let fern = CrestSymbol(
-        tag: 52,
-        name: "fern",
-        title: LocalizedStringResource("Frond"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "laurel.leading",
-        assetName: nil,
-        isOffered: true
-    )
-    static let flower = CrestSymbol(
-        tag: 53,
-        name: "flower",
-        title: LocalizedStringResource("Flower"),
-        drawnSince: CrestVocabulary.expandedCharges,
-        systemImage: "camera.macro",
-        assetName: nil,
-        isOffered: true
-    )
-    static let waves = CrestSymbol(
-        tag: 54,
-        name: "waves",
-        title: LocalizedStringResource("Waves"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "water.waves",
-        assetName: nil,
-        isOffered: true
-    )
-    static let tower = CrestSymbol(
-        tag: 55,
-        name: "tower",
-        title: LocalizedStringResource("Tower"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "building.columns.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let book = CrestSymbol(
-        tag: 56,
-        name: "book",
-        title: LocalizedStringResource("Book"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "book.closed.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let key = CrestSymbol(
-        tag: 57,
-        name: "key",
-        title: LocalizedStringResource("Key"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "key.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let hammer = CrestSymbol(
-        tag: 58,
-        name: "hammer",
-        title: LocalizedStringResource("Hammer"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "hammer.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let compass = CrestSymbol(
-        tag: 59,
-        name: "compass",
-        title: LocalizedStringResource("Compass"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "location.north.circle.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let sailboat = CrestSymbol(
-        tag: 60,
-        name: "sailboat",
-        title: LocalizedStringResource("Sailboat"),
-        drawnSince: CrestVocabulary.baseline,
-        systemImage: "sailboat.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let crown = CrestSymbol(
-        tag: 61,
-        name: "crown",
-        title: LocalizedStringResource("Crown"),
-        drawnSince: CrestVocabulary.expandedCharges,
-        systemImage: "crown.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let horn = CrestSymbol(
-        tag: 62,
-        name: "horn",
-        title: LocalizedStringResource("Horn"),
-        drawnSince: CrestVocabulary.expandedCharges,
-        systemImage: "horn.fill",
-        assetName: nil,
-        isOffered: true
-    )
-    static let crossedBanners = CrestSymbol(
-        tag: 63,
-        name: "crossedBanners",
-        title: LocalizedStringResource("Banners"),
-        drawnSince: CrestVocabulary.expandedCharges,
-        systemImage: "flag.2.crossed.fill",
-        assetName: nil,
-        isOffered: true
-    )
-
-    static let all: [CrestSymbol] = [
-        dragon,
-        direwolf,
-        lion,
-        stag,
-        raven,
-        griffin,
-        eagle,
-        bear,
-        boar,
-        fox,
-        horse,
-        unicorn,
-        wyvern,
-        hydra,
-        serpent,
-        kraken,
-        seahorse,
-        scorpion,
-        bat,
-        falcon,
-        rose,
-        lily,
-        pine,
-        willow,
-        swords,
-        axes,
-        sword,
-        trident,
-        anchor,
-        castle,
-        scales,
-        dragonHead,
-        hound,
-        paw,
-        hare,
-        bird,
-        fish,
-        bee,
-        shell,
-        sun,
-        risingSun,
-        crescent,
-        star,
-        sparkles,
-        lightning,
-        flame,
-        snowflake,
-        drop,
-        mountain,
-        tree,
-        oak,
-        leaf,
-        fern,
-        flower,
-        waves,
-        tower,
-        book,
-        key,
-        hammer,
-        compass,
-        sailboat,
-        crown,
-        horn,
-        crossedBanners
-    ]
-
-    static func named(_ name: String?) -> CrestSymbol? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CrestSymbol, rhs: CrestSymbol) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-        let drawnSince: CrestVocabulary
-        let systemImage: String
-        let assetName: String?
-        let isOffered: Bool
-
-        init(
-            name: String,
-            title: LocalizedStringResource,
-            drawnSince: CrestVocabulary,
-            systemImage: String,
-            assetName: String?,
-            isOffered: Bool
-        ) {
-            self.name = name
-            self.title = title
-            self.drawnSince = drawnSince
-            self.systemImage = systemImage
-            self.assetName = assetName
-            self.isOffered = isOffered
-        }
-    }
-}
-
-/// The members of the core's `CrestTrim`. A member's wire tag is its index in `all`.
-struct CrestTrim: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case none
-        case shield
-        case line
-        case doubleLine
-        case laurel
-        case sunburst
-        case doubleRing
-        case seal
-        case beaded
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var drawnSince: CrestVocabulary { facts.drawnSince }
-    var isCounted: Bool { facts.isCounted }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        kind: Kinds,
-        name: String,
-        title: LocalizedStringResource,
-        drawnSince: CrestVocabulary,
-        isCounted: Bool
-    ) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, title: title, drawnSince: drawnSince, isCounted: isCounted)
-    }
-
-    static let none = CrestTrim(
-        tag: 0,
-        kind: .none,
-        name: "none",
-        title: LocalizedStringResource("None"),
-        drawnSince: CrestVocabulary.baseline,
-        isCounted: false
-    )
-    static let shield = CrestTrim(
-        tag: 1,
-        kind: .shield,
-        name: "shield",
-        title: LocalizedStringResource("Shield"),
-        drawnSince: CrestVocabulary.baseline,
-        isCounted: false
-    )
-    static let line = CrestTrim(
-        tag: 2,
-        kind: .line,
-        name: "line",
-        title: LocalizedStringResource("Line"),
-        drawnSince: CrestVocabulary.studio,
-        isCounted: false
-    )
-    static let doubleLine = CrestTrim(
-        tag: 3,
-        kind: .doubleLine,
-        name: "doubleLine",
-        title: LocalizedStringResource("Double Line"),
-        drawnSince: CrestVocabulary.studio,
-        isCounted: false
-    )
-    static let laurel = CrestTrim(
-        tag: 4,
-        kind: .laurel,
-        name: "laurel",
-        title: LocalizedStringResource("Laurel"),
-        drawnSince: CrestVocabulary.baseline,
-        isCounted: false
-    )
-    static let sunburst = CrestTrim(
-        tag: 5,
-        kind: .sunburst,
-        name: "sunburst",
-        title: LocalizedStringResource("Sunburst"),
-        drawnSince: CrestVocabulary.baseline,
-        isCounted: true
-    )
-    static let doubleRing = CrestTrim(
-        tag: 6,
-        kind: .doubleRing,
-        name: "doubleRing",
-        title: LocalizedStringResource("Double Ring"),
-        drawnSince: CrestVocabulary.baseline,
-        isCounted: false
-    )
-    static let seal = CrestTrim(
-        tag: 7,
-        kind: .seal,
-        name: "seal",
-        title: LocalizedStringResource("Seal"),
-        drawnSince: CrestVocabulary.baseline,
-        isCounted: false
-    )
-    static let beaded = CrestTrim(
-        tag: 8,
-        kind: .beaded,
-        name: "beaded",
-        title: LocalizedStringResource("Beaded"),
-        drawnSince: CrestVocabulary.studio,
-        isCounted: true
-    )
-
-    static let all: [CrestTrim] = [none, shield, line, doubleLine, laurel, sunburst, doubleRing, seal, beaded]
-
-    static func named(_ name: String?) -> CrestTrim? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CrestTrim, rhs: CrestTrim) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let title: LocalizedStringResource
-        let drawnSince: CrestVocabulary
-        let isCounted: Bool
-
-        init(kind: Kinds, name: String, title: LocalizedStringResource, drawnSince: CrestVocabulary, isCounted: Bool) {
-            self.kind = kind
-            self.name = name
-            self.title = title
-            self.drawnSince = drawnSince
-            self.isCounted = isCounted
-        }
-    }
-}
-
-/// The members of the core's `CrestVocabulary`. A member's wire tag is its index in `all`.
-struct CrestVocabulary: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var version: Int { facts.version }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, version: Int) {
-        self.tag = tag
-        facts = Facts(name: name, version: version)
-    }
-
-    static let baseline = CrestVocabulary(tag: 0, name: "baseline", version: 2)
-    static let expandedCharges = CrestVocabulary(tag: 1, name: "expandedCharges", version: 3)
-    static let customization = CrestVocabulary(tag: 2, name: "customization", version: 4)
-    static let studio = CrestVocabulary(tag: 3, name: "studio", version: 5)
-
-    static let all: [CrestVocabulary] = [baseline, expandedCharges, customization, studio]
-
-    static func named(_ name: String?) -> CrestVocabulary? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CrestVocabulary, rhs: CrestVocabulary) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let version: Int
-
-        init(name: String, version: Int) {
-            self.name = name
-            self.version = version
-        }
-    }
-}
-
-/// The members of the core's `CurrentTabCleanup`. A member's wire tag is its index in `all`.
-struct CurrentTabCleanup: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var lifetime: TimeInterval? { facts.lifetime }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, title: LocalizedStringResource, lifetime: TimeInterval?) {
-        self.tag = tag
-        facts = Facts(name: name, title: title, lifetime: lifetime)
-    }
-
-    static let after12Hours = CurrentTabCleanup(
-        tag: 0,
-        name: "after12Hours",
-        title: LocalizedStringResource("After 12 Hours"),
-        lifetime: 43200
-    )
-    static let after24Hours = CurrentTabCleanup(
-        tag: 1,
-        name: "after24Hours",
-        title: LocalizedStringResource("After 24 Hours"),
-        lifetime: 86400
-    )
-    static let after7Days = CurrentTabCleanup(
-        tag: 2,
-        name: "after7Days",
-        title: LocalizedStringResource("After 7 Days"),
-        lifetime: 604800
-    )
-    static let after30Days = CurrentTabCleanup(
-        tag: 3,
-        name: "after30Days",
-        title: LocalizedStringResource("After 30 Days"),
-        lifetime: 2592000
-    )
-    static let never = CurrentTabCleanup(tag: 4, name: "never", title: LocalizedStringResource("Never"), lifetime: nil)
-
-    static let all: [CurrentTabCleanup] = [after12Hours, after24Hours, after7Days, after30Days, never]
-
-    static func named(_ name: String?) -> CurrentTabCleanup? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: CurrentTabCleanup, rhs: CurrentTabCleanup) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-        let lifetime: TimeInterval?
-
-        init(name: String, title: LocalizedStringResource, lifetime: TimeInterval?) {
-            self.name = name
-            self.title = title
-            self.lifetime = lifetime
         }
     }
 }
@@ -11962,21 +7300,18 @@ struct DataRetention: Hashable, Sendable {
 }
 
 /// The members of the core's `DevicePlatform`. A member's wire tag is its index in `all`.
-/// Core-only behavior, not emitted: `forcesSetup`.
 struct DevicePlatform: Hashable, Sendable {
     let tag: Int
     var name: String { facts.name }
-    var keepsSetupDraft: Bool { facts.keepsSetupDraft }
-    var importsBrowsers: Bool { facts.importsBrowsers }
     private let facts: Facts
 
-    private init(tag: Int, name: String, keepsSetupDraft: Bool, importsBrowsers: Bool) {
+    private init(tag: Int, name: String) {
         self.tag = tag
-        facts = Facts(name: name, keepsSetupDraft: keepsSetupDraft, importsBrowsers: importsBrowsers)
+        facts = Facts(name: name)
     }
 
-    static let desktop = DevicePlatform(tag: 0, name: "desktop", keepsSetupDraft: false, importsBrowsers: true)
-    static let mobile = DevicePlatform(tag: 1, name: "mobile", keepsSetupDraft: true, importsBrowsers: false)
+    static let desktop = DevicePlatform(tag: 0, name: "desktop")
+    static let mobile = DevicePlatform(tag: 1, name: "mobile")
 
     static let all: [DevicePlatform] = [desktop, mobile]
 
@@ -11994,13 +7329,9 @@ struct DevicePlatform: Hashable, Sendable {
 
     private final class Facts: Sendable {
         let name: String
-        let keepsSetupDraft: Bool
-        let importsBrowsers: Bool
 
-        init(name: String, keepsSetupDraft: Bool, importsBrowsers: Bool) {
+        init(name: String) {
             self.name = name
-            self.keepsSetupDraft = keepsSetupDraft
-            self.importsBrowsers = importsBrowsers
         }
     }
 }
@@ -12024,20 +7355,14 @@ struct DockMenuCommand: Hashable, Sendable {
         command: ShortcutCommand.newWindow,
         title: LocalizedStringResource("New Window")
     )
-    static let newQuickWindow = DockMenuCommand(
-        tag: 1,
-        name: "newQuickWindow",
-        command: ShortcutCommand.newQuickWindow,
-        title: LocalizedStringResource("New Quick Window")
-    )
     static let newPrivateWindow = DockMenuCommand(
-        tag: 2,
+        tag: 1,
         name: "newPrivateWindow",
         command: ShortcutCommand.newPrivateWindow,
         title: LocalizedStringResource("New Private Window")
     )
 
-    static let all: [DockMenuCommand] = [newWindow, newQuickWindow, newPrivateWindow]
+    static let all: [DockMenuCommand] = [newWindow, newPrivateWindow]
 
     static func named(_ name: String?) -> DockMenuCommand? {
         all.first { $0.name == name }
@@ -12104,7 +7429,7 @@ struct DownloadFailure: Hashable, Sendable {
     static let folderUnavailable = DownloadFailure(
         tag: 5,
         name: "folderUnavailable",
-        message: LocalizedStringResource("The download folder is unavailable. Choose another folder in Space settings.")
+        message: LocalizedStringResource("The Downloads folder is unavailable.")
     )
     static let blockedUnsafe = DownloadFailure(
         tag: 6,
@@ -13048,72 +8373,6 @@ struct ExportFormat: Hashable, Sendable {
     }
 }
 
-/// The members of the core's `ExternalLinkDestination`. A member's wire tag is its index in `all`.
-/// Core-only behavior, not emitted: `space`.
-struct ExternalLinkDestination: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var opensQuickWindow: Bool { facts.opensQuickWindow }
-    var asksForSpace: Bool { facts.asksForSpace }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, title: LocalizedStringResource, opensQuickWindow: Bool, asksForSpace: Bool) {
-        self.tag = tag
-        facts = Facts(name: name, title: title, opensQuickWindow: opensQuickWindow, asksForSpace: asksForSpace)
-    }
-
-    static let quickWindow = ExternalLinkDestination(
-        tag: 0,
-        name: "quickWindow",
-        title: LocalizedStringResource("Quick Window"),
-        opensQuickWindow: true,
-        asksForSpace: false
-    )
-    static let mostRecentSpace = ExternalLinkDestination(
-        tag: 1,
-        name: "mostRecentSpace",
-        title: LocalizedStringResource("Most Recent Space"),
-        opensQuickWindow: false,
-        asksForSpace: false
-    )
-    static let chosenSpace = ExternalLinkDestination(
-        tag: 2,
-        name: "chosenSpace",
-        title: LocalizedStringResource("Chosen Space"),
-        opensQuickWindow: false,
-        asksForSpace: true
-    )
-
-    static let all: [ExternalLinkDestination] = [quickWindow, mostRecentSpace, chosenSpace]
-
-    static func named(_ name: String?) -> ExternalLinkDestination? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: ExternalLinkDestination, rhs: ExternalLinkDestination) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-        let opensQuickWindow: Bool
-        let asksForSpace: Bool
-
-        init(name: String, title: LocalizedStringResource, opensQuickWindow: Bool, asksForSpace: Bool) {
-            self.name = name
-            self.title = title
-            self.opensQuickWindow = opensQuickWindow
-            self.asksForSpace = asksForSpace
-        }
-    }
-}
-
 /// The members of the core's `ExternalSchemeDisposition`. A member's wire tag is its index in `all`.
 struct ExternalSchemeDisposition: Hashable, Sendable {
     enum Kinds: Sendable {
@@ -13245,6 +8504,90 @@ struct HostedNotificationRequestAction: Hashable, Sendable {
     }
 }
 
+/// The members of the core's `ImportFailureReason`. A member's wire tag is its index in `all`.
+struct ImportFailureReason: Hashable, Sendable {
+    let tag: Int
+    var name: String { facts.name }
+    var returnsToReview: Bool { facts.returnsToReview }
+    private let facts: Facts
+
+    private init(tag: Int, name: String, returnsToReview: Bool) {
+        self.tag = tag
+        facts = Facts(name: name, returnsToReview: returnsToReview)
+    }
+
+    static let sourceUnavailable = ImportFailureReason(tag: 0, name: "sourceUnavailable", returnsToReview: false)
+    static let dataFolder = ImportFailureReason(tag: 1, name: "dataFolder", returnsToReview: false)
+    static let read = ImportFailureReason(tag: 2, name: "read", returnsToReview: false)
+    static let `import` = ImportFailureReason(tag: 3, name: "import", returnsToReview: true)
+
+    static let all: [ImportFailureReason] = [sourceUnavailable, dataFolder, read, `import`]
+
+    static func named(_ name: String?) -> ImportFailureReason? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: ImportFailureReason, rhs: ImportFailureReason) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+
+    private final class Facts: Sendable {
+        let name: String
+        let returnsToReview: Bool
+
+        init(name: String, returnsToReview: Bool) {
+            self.name = name
+            self.returnsToReview = returnsToReview
+        }
+    }
+}
+
+/// The members of the core's `ImportPhase`. A member's wire tag is its index in `all`.
+struct ImportPhase: Hashable, Sendable {
+    let tag: Int
+    var name: String { facts.name }
+    var isBusy: Bool { facts.isBusy }
+    private let facts: Facts
+
+    private init(tag: Int, name: String, isBusy: Bool) {
+        self.tag = tag
+        facts = Facts(name: name, isBusy: isBusy)
+    }
+
+    static let idle = ImportPhase(tag: 0, name: "idle", isBusy: false)
+    static let reading = ImportPhase(tag: 1, name: "reading", isBusy: true)
+    static let reviewing = ImportPhase(tag: 2, name: "reviewing", isBusy: false)
+    static let committing = ImportPhase(tag: 3, name: "committing", isBusy: true)
+
+    static let all: [ImportPhase] = [idle, reading, reviewing, committing]
+
+    static func named(_ name: String?) -> ImportPhase? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: ImportPhase, rhs: ImportPhase) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+
+    private final class Facts: Sendable {
+        let name: String
+        let isBusy: Bool
+
+        init(name: String, isBusy: Bool) {
+            self.name = name
+            self.isBusy = isBusy
+        }
+    }
+}
+
 /// The members of the core's `ImportSource`. A member's wire tag is its index in `all`.
 struct ImportSource: Hashable, Sendable {
     let tag: Int
@@ -13254,9 +8597,6 @@ struct ImportSource: Hashable, Sendable {
     var dataFolder: String { facts.dataFolder }
     var description: LocalizedStringResource { facts.description }
     var symbol: String { facts.symbol }
-    var accent: SpaceAccent { facts.accent }
-    var safeStorageService: String? { facts.safeStorageService }
-    var suppliesPasswords: Bool { facts.suppliesPasswords }
     var spaceHeaderStyle: ImportSpaceHeaderStyle { facts.spaceHeaderStyle }
     var pinnedSectionTitle: LocalizedStringResource { facts.pinnedSectionTitle }
     var savedSectionTitle: LocalizedStringResource { facts.savedSectionTitle }
@@ -13275,9 +8615,6 @@ struct ImportSource: Hashable, Sendable {
         dataFolder: String,
         description: LocalizedStringResource,
         symbol: String,
-        accent: SpaceAccent,
-        safeStorageService: String?,
-        suppliesPasswords: Bool,
         spaceHeaderStyle: ImportSpaceHeaderStyle,
         pinnedSectionTitle: LocalizedStringResource,
         savedSectionTitle: LocalizedStringResource,
@@ -13295,9 +8632,6 @@ struct ImportSource: Hashable, Sendable {
             dataFolder: dataFolder,
             description: description,
             symbol: symbol,
-            accent: accent,
-            safeStorageService: safeStorageService,
-            suppliesPasswords: suppliesPasswords,
             spaceHeaderStyle: spaceHeaderStyle,
             pinnedSectionTitle: pinnedSectionTitle,
             savedSectionTitle: savedSectionTitle,
@@ -13315,11 +8649,8 @@ struct ImportSource: Hashable, Sendable {
         title: "Arc",
         bundleIdentifier: "company.thebrowser.Browser",
         dataFolder: "Library/Application Support/Arc",
-        description: LocalizedStringResource("Spaces, tabs, folders, colors, icons, and passwords", comment: "What importing from another browser brings. Keep product names as they are."),
+        description: LocalizedStringResource("Spaces, tabs, and folders", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "sidebar.left",
-        accent: SpaceAccent.indigo,
-        safeStorageService: "Arc Safe Storage",
-        suppliesPasswords: true,
         spaceHeaderStyle: .sectionLabel,
         pinnedSectionTitle: LocalizedStringResource("FAVORITES", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("SAVED", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13337,9 +8668,6 @@ struct ImportSource: Hashable, Sendable {
         dataFolder: "Library/Application Support/zen/Profiles",
         description: LocalizedStringResource("Spaces, Essentials, pinned tabs, folders, open tabs, and colors", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "circle.hexagongrid.fill",
-        accent: SpaceAccent.indigo,
-        safeStorageService: nil,
-        suppliesPasswords: false,
         spaceHeaderStyle: .identity,
         pinnedSectionTitle: LocalizedStringResource("ESSENTIALS", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("SAVED", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13355,11 +8683,8 @@ struct ImportSource: Hashable, Sendable {
         title: "Chrome",
         bundleIdentifier: "com.google.Chrome",
         dataFolder: "Library/Application Support/Google/Chrome",
-        description: LocalizedStringResource("Profiles, bookmarks, open tabs, and passwords", comment: "What importing from another browser brings. Keep product names as they are."),
+        description: LocalizedStringResource("Profiles, bookmarks, and open tabs", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "globe",
-        accent: SpaceAccent.orange,
-        safeStorageService: "Chrome Safe Storage",
-        suppliesPasswords: true,
         spaceHeaderStyle: .identity,
         pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("BOOKMARKS", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13377,9 +8702,6 @@ struct ImportSource: Hashable, Sendable {
         dataFolder: "Library/Safari",
         description: LocalizedStringResource("Bookmarks, windows, and open tabs", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "safari",
-        accent: SpaceAccent.teal,
-        safeStorageService: nil,
-        suppliesPasswords: false,
         spaceHeaderStyle: .identity,
         pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("BOOKMARKS", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13397,9 +8719,6 @@ struct ImportSource: Hashable, Sendable {
         dataFolder: "Library/Application Support/Firefox/Profiles",
         description: LocalizedStringResource("Windows, open tabs, and pinned tabs", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "flame",
-        accent: SpaceAccent.rose,
-        safeStorageService: nil,
-        suppliesPasswords: false,
         spaceHeaderStyle: .identity,
         pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("SAVED", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13415,11 +8734,8 @@ struct ImportSource: Hashable, Sendable {
         title: "Chrome Beta",
         bundleIdentifier: "com.google.Chrome.beta",
         dataFolder: "Library/Application Support/Google/Chrome Beta",
-        description: LocalizedStringResource("Profiles, bookmarks, open tabs, and passwords", comment: "What importing from another browser brings. Keep product names as they are."),
+        description: LocalizedStringResource("Profiles, bookmarks, and open tabs", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "globe",
-        accent: SpaceAccent.orange,
-        safeStorageService: "Chrome Safe Storage",
-        suppliesPasswords: true,
         spaceHeaderStyle: .identity,
         pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("BOOKMARKS", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13435,11 +8751,8 @@ struct ImportSource: Hashable, Sendable {
         title: "Chrome Dev",
         bundleIdentifier: "com.google.Chrome.dev",
         dataFolder: "Library/Application Support/Google/Chrome Dev",
-        description: LocalizedStringResource("Profiles, bookmarks, open tabs, and passwords", comment: "What importing from another browser brings. Keep product names as they are."),
+        description: LocalizedStringResource("Profiles, bookmarks, and open tabs", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "globe",
-        accent: SpaceAccent.orange,
-        safeStorageService: "Chrome Safe Storage",
-        suppliesPasswords: true,
         spaceHeaderStyle: .identity,
         pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("BOOKMARKS", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13455,11 +8768,8 @@ struct ImportSource: Hashable, Sendable {
         title: "Chrome Canary",
         bundleIdentifier: "com.google.Chrome.canary",
         dataFolder: "Library/Application Support/Google/Chrome Canary",
-        description: LocalizedStringResource("Profiles, bookmarks, open tabs, and passwords", comment: "What importing from another browser brings. Keep product names as they are."),
+        description: LocalizedStringResource("Profiles, bookmarks, and open tabs", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "bird",
-        accent: SpaceAccent.orange,
-        safeStorageService: "Chrome Safe Storage",
-        suppliesPasswords: true,
         spaceHeaderStyle: .identity,
         pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("BOOKMARKS", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13475,11 +8785,8 @@ struct ImportSource: Hashable, Sendable {
         title: "Chromium",
         bundleIdentifier: "org.chromium.Chromium",
         dataFolder: "Library/Application Support/Chromium",
-        description: LocalizedStringResource("Profiles, bookmarks, open tabs, and passwords", comment: "What importing from another browser brings. Keep product names as they are."),
+        description: LocalizedStringResource("Profiles, bookmarks, and open tabs", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "circle.circle",
-        accent: SpaceAccent.teal,
-        safeStorageService: "Chromium Safe Storage",
-        suppliesPasswords: true,
         spaceHeaderStyle: .identity,
         pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("BOOKMARKS", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13495,11 +8802,8 @@ struct ImportSource: Hashable, Sendable {
         title: "Brave",
         bundleIdentifier: "com.brave.Browser",
         dataFolder: "Library/Application Support/BraveSoftware/Brave-Browser",
-        description: LocalizedStringResource("Profiles, bookmarks, open tabs, and passwords", comment: "What importing from another browser brings. Keep product names as they are."),
+        description: LocalizedStringResource("Profiles, bookmarks, and open tabs", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "shield.lefthalf.filled",
-        accent: SpaceAccent.orange,
-        safeStorageService: "Brave Safe Storage",
-        suppliesPasswords: true,
         spaceHeaderStyle: .identity,
         pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("BOOKMARKS", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13515,11 +8819,8 @@ struct ImportSource: Hashable, Sendable {
         title: "Microsoft Edge",
         bundleIdentifier: "com.microsoft.edgemac",
         dataFolder: "Library/Application Support/Microsoft Edge",
-        description: LocalizedStringResource("Profiles, bookmarks, open tabs, and passwords", comment: "What importing from another browser brings. Keep product names as they are."),
+        description: LocalizedStringResource("Profiles, bookmarks, and open tabs", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "water.waves",
-        accent: SpaceAccent.teal,
-        safeStorageService: "Microsoft Edge Safe Storage",
-        suppliesPasswords: true,
         spaceHeaderStyle: .identity,
         pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("BOOKMARKS", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13535,11 +8836,8 @@ struct ImportSource: Hashable, Sendable {
         title: "Vivaldi",
         bundleIdentifier: "com.vivaldi.Vivaldi",
         dataFolder: "Library/Application Support/Vivaldi",
-        description: LocalizedStringResource("Profiles, bookmarks, open tabs, and passwords", comment: "What importing from another browser brings. Keep product names as they are."),
+        description: LocalizedStringResource("Profiles, bookmarks, and open tabs", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "v.circle.fill",
-        accent: SpaceAccent.rose,
-        safeStorageService: "Vivaldi Safe Storage",
-        suppliesPasswords: true,
         spaceHeaderStyle: .identity,
         pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("BOOKMARKS", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13555,11 +8853,8 @@ struct ImportSource: Hashable, Sendable {
         title: "Opera",
         bundleIdentifier: "com.operasoftware.Opera",
         dataFolder: "Library/Application Support/com.operasoftware.Opera",
-        description: LocalizedStringResource("Profiles, bookmarks, open tabs, and passwords", comment: "What importing from another browser brings. Keep product names as they are."),
+        description: LocalizedStringResource("Profiles, bookmarks, and open tabs", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "o.circle",
-        accent: SpaceAccent.rose,
-        safeStorageService: "Opera Safe Storage",
-        suppliesPasswords: true,
         spaceHeaderStyle: .identity,
         pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("BOOKMARKS", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13575,11 +8870,8 @@ struct ImportSource: Hashable, Sendable {
         title: "Dia",
         bundleIdentifier: "company.thebrowser.dia",
         dataFolder: "Library/Application Support/Dia/User Data",
-        description: LocalizedStringResource("Profiles, bookmarks, open tabs, and passwords", comment: "What importing from another browser brings. Keep product names as they are."),
+        description: LocalizedStringResource("Profiles, bookmarks, and open tabs", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "sparkles",
-        accent: SpaceAccent.indigo,
-        safeStorageService: "Dia Safe Storage",
-        suppliesPasswords: true,
         spaceHeaderStyle: .identity,
         pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("BOOKMARKS", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13595,11 +8887,8 @@ struct ImportSource: Hashable, Sendable {
         title: "Comet",
         bundleIdentifier: "ai.perplexity.comet",
         dataFolder: "Library/Application Support/Comet",
-        description: LocalizedStringResource("Profiles, bookmarks, open tabs, and passwords", comment: "What importing from another browser brings. Keep product names as they are."),
+        description: LocalizedStringResource("Profiles, bookmarks, and open tabs", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "sparkle.magnifyingglass",
-        accent: SpaceAccent.teal,
-        safeStorageService: "Comet Safe Storage",
-        suppliesPasswords: true,
         spaceHeaderStyle: .identity,
         pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("BOOKMARKS", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13615,11 +8904,8 @@ struct ImportSource: Hashable, Sendable {
         title: "Aside",
         bundleIdentifier: "at.studio.AsideBrowser",
         dataFolder: "Library/Application Support/Aside",
-        description: LocalizedStringResource("Profiles, bookmarks, open tabs, and passwords", comment: "What importing from another browser brings. Keep product names as they are."),
+        description: LocalizedStringResource("Profiles, bookmarks, and open tabs", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "sidebar.right",
-        accent: SpaceAccent.indigo,
-        safeStorageService: "Aside Safe Storage",
-        suppliesPasswords: true,
         spaceHeaderStyle: .identity,
         pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("BOOKMARKS", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13635,11 +8921,8 @@ struct ImportSource: Hashable, Sendable {
         title: "ego lite",
         bundleIdentifier: "com.citrolabs.ego.lite",
         dataFolder: "Library/Application Support/Citro Labs/ego lite",
-        description: LocalizedStringResource("Profiles, bookmarks, open tabs, and passwords", comment: "What importing from another browser brings. Keep product names as they are."),
+        description: LocalizedStringResource("Profiles, bookmarks, and open tabs", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "e.circle",
-        accent: SpaceAccent.indigo,
-        safeStorageService: "Chromium Safe Storage",
-        suppliesPasswords: true,
         spaceHeaderStyle: .identity,
         pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("BOOKMARKS", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13657,9 +8940,6 @@ struct ImportSource: Hashable, Sendable {
         dataFolder: "Library/Application Support",
         description: LocalizedStringResource("Profiles, bookmarks, and open tabs", comment: "What importing from another browser brings. Keep product names as they are."),
         symbol: "globe",
-        accent: SpaceAccent.teal,
-        safeStorageService: nil,
-        suppliesPasswords: false,
         spaceHeaderStyle: .identity,
         pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
         savedSectionTitle: LocalizedStringResource("BOOKMARKS", comment: "A section heading in a browser import review. Keep it uppercase."),
@@ -13710,9 +8990,6 @@ struct ImportSource: Hashable, Sendable {
         let dataFolder: String
         let description: LocalizedStringResource
         let symbol: String
-        let accent: SpaceAccent
-        let safeStorageService: String?
-        let suppliesPasswords: Bool
         let spaceHeaderStyle: ImportSpaceHeaderStyle
         let pinnedSectionTitle: LocalizedStringResource
         let savedSectionTitle: LocalizedStringResource
@@ -13729,9 +9006,6 @@ struct ImportSource: Hashable, Sendable {
             dataFolder: String,
             description: LocalizedStringResource,
             symbol: String,
-            accent: SpaceAccent,
-            safeStorageService: String?,
-            suppliesPasswords: Bool,
             spaceHeaderStyle: ImportSpaceHeaderStyle,
             pinnedSectionTitle: LocalizedStringResource,
             savedSectionTitle: LocalizedStringResource,
@@ -13747,9 +9021,6 @@ struct ImportSource: Hashable, Sendable {
             self.dataFolder = dataFolder
             self.description = description
             self.symbol = symbol
-            self.accent = accent
-            self.safeStorageService = safeStorageService
-            self.suppliesPasswords = suppliesPasswords
             self.spaceHeaderStyle = spaceHeaderStyle
             self.pinnedSectionTitle = pinnedSectionTitle
             self.savedSectionTitle = savedSectionTitle
@@ -13758,6 +9029,53 @@ struct ImportSource: Hashable, Sendable {
             self.numberedSpaceName = numberedSpaceName
             self.namesItsSpaces = namesItsSpaces
             self.isListed = isListed
+        }
+    }
+}
+
+/// The members of the core's `ImportStep`. A member's wire tag is its index in `all`.
+struct ImportStep: Hashable, Sendable {
+    enum Kinds: Sendable {
+        case importBrowser
+        case review
+        case complete
+    }
+
+    let tag: Int
+    var kind: Kinds { facts.kind }
+    var name: String { facts.name }
+    private let facts: Facts
+
+    private init(tag: Int, kind: Kinds, name: String) {
+        self.tag = tag
+        facts = Facts(kind: kind, name: name)
+    }
+
+    static let importBrowser = ImportStep(tag: 0, kind: .importBrowser, name: "importBrowser")
+    static let review = ImportStep(tag: 1, kind: .review, name: "review")
+    static let complete = ImportStep(tag: 2, kind: .complete, name: "complete")
+
+    static let all: [ImportStep] = [importBrowser, review, complete]
+
+    static func named(_ name: String?) -> ImportStep? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: ImportStep, rhs: ImportStep) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+
+    private final class Facts: Sendable {
+        let kind: Kinds
+        let name: String
+
+        init(kind: Kinds, name: String) {
+            self.kind = kind
+            self.name = name
         }
     }
 }
@@ -13799,131 +9117,24 @@ struct KeySystem: Hashable, Sendable {
     }
 }
 
-/// The members of the core's `LinkBehavior`. A member's wire tag is its index in `all`.
-/// Core-only behavior, not emitted: `isOn`, `setting`.
-struct LinkBehavior: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    private let facts: Facts
-
-    private init(tag: Int, name: String) {
-        self.tag = tag
-        facts = Facts(name: name)
-    }
-
-    static let focusesNewTabs = LinkBehavior(tag: 0, name: "focusesNewTabs")
-    static let followsMovedTabs = LinkBehavior(tag: 1, name: "followsMovedTabs")
-    static let opensPeekAutomatically = LinkBehavior(tag: 2, name: "opensPeekAutomatically")
-    static let dragsLinksToPeek = LinkBehavior(tag: 3, name: "dragsLinksToPeek")
-    static let remembersSpaceBySite = LinkBehavior(tag: 4, name: "remembersSpaceBySite")
-
-    static let all: [LinkBehavior] = [
-        focusesNewTabs,
-        followsMovedTabs,
-        opensPeekAutomatically,
-        dragsLinksToPeek,
-        remembersSpaceBySite
-    ]
-
-    static func named(_ name: String?) -> LinkBehavior? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: LinkBehavior, rhs: LinkBehavior) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-
-        init(name: String) {
-            self.name = name
-        }
-    }
-}
-
 /// The members of the core's `LinkNavigationDecision`. A member's wire tag is its index in `all`.
 struct LinkNavigationDecision: Hashable, Sendable {
     let tag: Int
     var name: String { facts.name }
-    var opensPeek: Bool { facts.opensPeek }
-    var protectsSavedSite: Bool { facts.protectsSavedSite }
     var opensTab: Bool { facts.opensTab }
     var selectsTab: Bool { facts.selectsTab }
-    var stagesLink: Bool { facts.stagesLink }
     private let facts: Facts
 
-    private init(
-        tag: Int,
-        name: String,
-        opensPeek: Bool,
-        protectsSavedSite: Bool,
-        opensTab: Bool,
-        selectsTab: Bool,
-        stagesLink: Bool
-    ) {
+    private init(tag: Int, name: String, opensTab: Bool, selectsTab: Bool) {
         self.tag = tag
-        facts = Facts(
-            name: name,
-            opensPeek: opensPeek,
-            protectsSavedSite: protectsSavedSite,
-            opensTab: opensTab,
-            selectsTab: selectsTab,
-            stagesLink: stagesLink
-        )
+        facts = Facts(name: name, opensTab: opensTab, selectsTab: selectsTab)
     }
 
-    static let navigate = LinkNavigationDecision(
-        tag: 0,
-        name: "navigate",
-        opensPeek: false,
-        protectsSavedSite: false,
-        opensTab: false,
-        selectsTab: false,
-        stagesLink: false
-    )
-    static let peekModifier = LinkNavigationDecision(
-        tag: 1,
-        name: "peekModifier",
-        opensPeek: true,
-        protectsSavedSite: false,
-        opensTab: false,
-        selectsTab: false,
-        stagesLink: true
-    )
-    static let peekSavedSite = LinkNavigationDecision(
-        tag: 2,
-        name: "peekSavedSite",
-        opensPeek: true,
-        protectsSavedSite: true,
-        opensTab: false,
-        selectsTab: false,
-        stagesLink: false
-    )
-    static let backgroundTab = LinkNavigationDecision(
-        tag: 3,
-        name: "backgroundTab",
-        opensPeek: false,
-        protectsSavedSite: false,
-        opensTab: true,
-        selectsTab: false,
-        stagesLink: false
-    )
-    static let foregroundTab = LinkNavigationDecision(
-        tag: 4,
-        name: "foregroundTab",
-        opensPeek: false,
-        protectsSavedSite: false,
-        opensTab: true,
-        selectsTab: true,
-        stagesLink: false
-    )
+    static let navigate = LinkNavigationDecision(tag: 0, name: "navigate", opensTab: false, selectsTab: false)
+    static let backgroundTab = LinkNavigationDecision(tag: 1, name: "backgroundTab", opensTab: true, selectsTab: false)
+    static let foregroundTab = LinkNavigationDecision(tag: 2, name: "foregroundTab", opensTab: true, selectsTab: true)
 
-    static let all: [LinkNavigationDecision] = [navigate, peekModifier, peekSavedSite, backgroundTab, foregroundTab]
+    static let all: [LinkNavigationDecision] = [navigate, backgroundTab, foregroundTab]
 
     static func named(_ name: String?) -> LinkNavigationDecision? {
         all.first { $0.name == name }
@@ -13939,69 +9150,81 @@ struct LinkNavigationDecision: Hashable, Sendable {
 
     private final class Facts: Sendable {
         let name: String
-        let opensPeek: Bool
-        let protectsSavedSite: Bool
         let opensTab: Bool
         let selectsTab: Bool
-        let stagesLink: Bool
 
-        init(name: String, opensPeek: Bool, protectsSavedSite: Bool, opensTab: Bool, selectsTab: Bool, stagesLink: Bool) {
+        init(name: String, opensTab: Bool, selectsTab: Bool) {
             self.name = name
-            self.opensPeek = opensPeek
-            self.protectsSavedSite = protectsSavedSite
             self.opensTab = opensTab
             self.selectsTab = selectsTab
-            self.stagesLink = stagesLink
         }
     }
 }
 
-/// The members of the core's `LinkPeekModifier`. A member's wire tag is its index in `all`.
-struct LinkPeekModifier: Hashable, Sendable {
+/// The members of the core's `LiveFolderRefreshInterval`. A member's wire tag is its index in `all`.
+struct LiveFolderRefreshInterval: Hashable, Sendable {
     let tag: Int
     var name: String { facts.name }
+    var minutes: Int { facts.minutes }
     var title: LocalizedStringResource { facts.title }
-    var clickTitle: LocalizedStringResource { facts.clickTitle }
-    var peekKey: ShortcutModifiers { facts.peekKey }
-    var newTabKey: ShortcutModifiers { facts.newTabKey }
     private let facts: Facts
 
-    private init(
-        tag: Int,
-        name: String,
-        title: LocalizedStringResource,
-        clickTitle: LocalizedStringResource,
-        peekKey: ShortcutModifiers,
-        newTabKey: ShortcutModifiers
-    ) {
+    private init(tag: Int, name: String, minutes: Int, title: LocalizedStringResource) {
         self.tag = tag
-        facts = Facts(name: name, title: title, clickTitle: clickTitle, peekKey: peekKey, newTabKey: newTabKey)
+        facts = Facts(name: name, minutes: minutes, title: title)
     }
 
-    static let option = LinkPeekModifier(
+    static let fifteenMinutes = LiveFolderRefreshInterval(
         tag: 0,
-        name: "option",
-        title: LocalizedStringResource("Option (⌥)"),
-        clickTitle: LocalizedStringResource("Option-click"),
-        peekKey: [.option],
-        newTabKey: [.command]
+        name: "15minutes",
+        minutes: 15,
+        title: LocalizedStringResource("15 minutes")
     )
-    static let command = LinkPeekModifier(
+    static let thirtyMinutes = LiveFolderRefreshInterval(
         tag: 1,
-        name: "command",
-        title: LocalizedStringResource("Command (⌘)"),
-        clickTitle: LocalizedStringResource("Command-click"),
-        peekKey: [.command],
-        newTabKey: [.option]
+        name: "30minutes",
+        minutes: 30,
+        title: LocalizedStringResource("30 minutes")
+    )
+    static let oneHour = LiveFolderRefreshInterval(
+        tag: 2,
+        name: "1hour",
+        minutes: 60,
+        title: LocalizedStringResource("1 hour")
+    )
+    static let twoHours = LiveFolderRefreshInterval(
+        tag: 3,
+        name: "2hours",
+        minutes: 120,
+        title: LocalizedStringResource("2 hours")
+    )
+    static let fourHours = LiveFolderRefreshInterval(
+        tag: 4,
+        name: "4hours",
+        minutes: 240,
+        title: LocalizedStringResource("4 hours")
+    )
+    static let eightHours = LiveFolderRefreshInterval(
+        tag: 5,
+        name: "8hours",
+        minutes: 480,
+        title: LocalizedStringResource("8 hours")
     )
 
-    static let all: [LinkPeekModifier] = [option, command]
+    static let all: [LiveFolderRefreshInterval] = [
+        fifteenMinutes,
+        thirtyMinutes,
+        oneHour,
+        twoHours,
+        fourHours,
+        eightHours
+    ]
 
-    static func named(_ name: String?) -> LinkPeekModifier? {
+    static func named(_ name: String?) -> LiveFolderRefreshInterval? {
         all.first { $0.name == name }
     }
 
-    static func == (lhs: LinkPeekModifier, rhs: LinkPeekModifier) -> Bool {
+    static func == (lhs: LiveFolderRefreshInterval, rhs: LiveFolderRefreshInterval) -> Bool {
         lhs.tag == rhs.tag
     }
 
@@ -14011,30 +9234,19 @@ struct LinkPeekModifier: Hashable, Sendable {
 
     private final class Facts: Sendable {
         let name: String
+        let minutes: Int
         let title: LocalizedStringResource
-        let clickTitle: LocalizedStringResource
-        let peekKey: ShortcutModifiers
-        let newTabKey: ShortcutModifiers
 
-        init(
-            name: String,
-            title: LocalizedStringResource,
-            clickTitle: LocalizedStringResource,
-            peekKey: ShortcutModifiers,
-            newTabKey: ShortcutModifiers
-        ) {
+        init(name: String, minutes: Int, title: LocalizedStringResource) {
             self.name = name
+            self.minutes = minutes
             self.title = title
-            self.clickTitle = clickTitle
-            self.peekKey = peekKey
-            self.newTabKey = newTabKey
         }
     }
 }
 
-/// The members of the core's `LinkRouteMatch`. A member's wire tag is its index in `all`.
-/// Core-only behavior, not emitted: `matches`.
-struct LinkRouteMatch: Hashable, Sendable {
+/// The members of the core's `LiveFolderSource`. A member's wire tag is its index in `all`.
+struct LiveFolderSource: Hashable, Sendable {
     let tag: Int
     var name: String { facts.name }
     var title: LocalizedStringResource { facts.title }
@@ -14045,16 +9257,19 @@ struct LinkRouteMatch: Hashable, Sendable {
         facts = Facts(name: name, title: title)
     }
 
-    static let contains = LinkRouteMatch(tag: 0, name: "contains", title: LocalizedStringResource("Contains"))
-    static let exact = LinkRouteMatch(tag: 1, name: "exact", title: LocalizedStringResource("Is Exactly"))
+    static let gitHubPullRequests = LiveFolderSource(
+        tag: 0,
+        name: "githubPullRequests",
+        title: LocalizedStringResource("GitHub")
+    )
 
-    static let all: [LinkRouteMatch] = [contains, exact]
+    static let all: [LiveFolderSource] = [gitHubPullRequests]
 
-    static func named(_ name: String?) -> LinkRouteMatch? {
+    static func named(_ name: String?) -> LiveFolderSource? {
         all.first { $0.name == name }
     }
 
-    static func == (lhs: LinkRouteMatch, rhs: LinkRouteMatch) -> Bool {
+    static func == (lhs: LiveFolderSource, rhs: LiveFolderSource) -> Bool {
         lhs.tag == rhs.tag
     }
 
@@ -14078,16 +9293,15 @@ struct MemoryPressureLevel: Hashable, Sendable {
     let tag: Int
     var name: String { facts.name }
     var severity: Int { facts.severity }
-    var releasesActiveTransientPages: Bool { facts.releasesActiveTransientPages }
     private let facts: Facts
 
-    private init(tag: Int, name: String, severity: Int, releasesActiveTransientPages: Bool) {
+    private init(tag: Int, name: String, severity: Int) {
         self.tag = tag
-        facts = Facts(name: name, severity: severity, releasesActiveTransientPages: releasesActiveTransientPages)
+        facts = Facts(name: name, severity: severity)
     }
 
-    static let warning = MemoryPressureLevel(tag: 0, name: "warning", severity: 1, releasesActiveTransientPages: false)
-    static let critical = MemoryPressureLevel(tag: 1, name: "critical", severity: 2, releasesActiveTransientPages: true)
+    static let warning = MemoryPressureLevel(tag: 0, name: "warning", severity: 1)
+    static let critical = MemoryPressureLevel(tag: 1, name: "critical", severity: 2)
 
     static let all: [MemoryPressureLevel] = [warning, critical]
 
@@ -14106,12 +9320,10 @@ struct MemoryPressureLevel: Hashable, Sendable {
     private final class Facts: Sendable {
         let name: String
         let severity: Int
-        let releasesActiveTransientPages: Bool
 
-        init(name: String, severity: Int, releasesActiveTransientPages: Bool) {
+        init(name: String, severity: Int) {
             self.name = name
             self.severity = severity
-            self.releasesActiveTransientPages = releasesActiveTransientPages
         }
     }
 }
@@ -14135,14 +9347,8 @@ struct NativeView: Hashable, Sendable {
         title: LocalizedStringResource("Settings"),
         symbol: "gearshape.fill"
     )
-    static let gettingStarted = NativeView(
-        tag: 1,
-        name: "getting-started",
-        title: LocalizedStringResource("Getting Started"),
-        symbol: "book.closed.fill"
-    )
 
-    static let all: [NativeView] = [settings, gettingStarted]
+    static let all: [NativeView] = [settings]
 
     static func named(_ name: String?) -> NativeView? {
         all.first { $0.name == name }
@@ -14778,20 +9984,14 @@ struct PaletteActivation: Hashable, Sendable {
         closesPalette: true,
         opensWhereKeysChoose: false
     )
-    static let reopensArchivedTab = PaletteActivation(
-        tag: 6,
-        name: "reopensArchivedTab",
-        closesPalette: true,
-        opensWhereKeysChoose: false
-    )
     static let copiesAnswer = PaletteActivation(
-        tag: 7,
+        tag: 6,
         name: "copiesAnswer",
         closesPalette: true,
         opensWhereKeysChoose: false
     )
     static let entersScope = PaletteActivation(
-        tag: 8,
+        tag: 7,
         name: "entersScope",
         closesPalette: false,
         opensWhereKeysChoose: false
@@ -14804,7 +10004,6 @@ struct PaletteActivation: Hashable, Sendable {
         runsCommand,
         opensSettingsPage,
         showsSpace,
-        reopensArchivedTab,
         copiesAnswer,
         entersScope
     ]
@@ -14834,59 +10033,6 @@ struct PaletteActivation: Hashable, Sendable {
     }
 }
 
-/// The members of the core's `PaletteLayout`. A member's wire tag is its index in `all`.
-struct PaletteLayout: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var groupsByKind: Bool { facts.groupsByKind }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, title: LocalizedStringResource, groupsByKind: Bool) {
-        self.tag = tag
-        facts = Facts(name: name, title: title, groupsByKind: groupsByKind)
-    }
-
-    static let sections = PaletteLayout(
-        tag: 0,
-        name: "sections",
-        title: LocalizedStringResource("Sections"),
-        groupsByKind: true
-    )
-    static let blended = PaletteLayout(
-        tag: 1,
-        name: "blended",
-        title: LocalizedStringResource("Blended"),
-        groupsByKind: false
-    )
-
-    static let all: [PaletteLayout] = [sections, blended]
-
-    static func named(_ name: String?) -> PaletteLayout? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: PaletteLayout, rhs: PaletteLayout) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-        let groupsByKind: Bool
-
-        init(name: String, title: LocalizedStringResource, groupsByKind: Bool) {
-            self.name = name
-            self.title = title
-            self.groupsByKind = groupsByKind
-        }
-    }
-}
-
 /// The members of the core's `PaletteReason`. A member's wire tag is its index in `all`.
 struct PaletteReason: Hashable, Sendable {
     let tag: Int
@@ -14904,40 +10050,30 @@ struct PaletteReason: Hashable, Sendable {
         name: "completion",
         text: LocalizedStringResource("Completes what you typed")
     )
-    static let learned = PaletteReason(tag: 1, name: "learned", text: LocalizedStringResource("You chose this before"))
     static let oftenVisited = PaletteReason(
-        tag: 2,
+        tag: 1,
         name: "oftenVisited",
         text: LocalizedStringResource("Often visited")
     )
     static let recentlyUsed = PaletteReason(
-        tag: 3,
+        tag: 2,
         name: "recentlyUsed",
         text: LocalizedStringResource("Recently used")
     )
-    static let openTab = PaletteReason(tag: 4, name: "openTab", text: LocalizedStringResource("Already open"))
-    static let kept = PaletteReason(tag: 5, name: "kept", text: LocalizedStringResource("Pinned or saved"))
+    static let openTab = PaletteReason(tag: 3, name: "openTab", text: LocalizedStringResource("Already open"))
+    static let kept = PaletteReason(tag: 4, name: "kept", text: LocalizedStringResource("Pinned or saved"))
     static let titleMatch = PaletteReason(
-        tag: 6,
+        tag: 5,
         name: "titleMatch",
         text: LocalizedStringResource("Matches the title")
     )
     static let addressMatch = PaletteReason(
-        tag: 7,
+        tag: 6,
         name: "addressMatch",
         text: LocalizedStringResource("Matches the address")
     )
 
-    static let all: [PaletteReason] = [
-        completion,
-        learned,
-        oftenVisited,
-        recentlyUsed,
-        openTab,
-        kept,
-        titleMatch,
-        addressMatch
-    ]
+    static let all: [PaletteReason] = [completion, oftenVisited, recentlyUsed, openTab, kept, titleMatch, addressMatch]
 
     static func named(_ name: String?) -> PaletteReason? {
         all.first { $0.name == name }
@@ -14963,13 +10099,11 @@ struct PaletteReason: Hashable, Sendable {
 }
 
 /// The members of the core's `PaletteRowKind`. A member's wire tag is its index in `all`.
-/// Core-only behavior, not emitted: `destination`.
 struct PaletteRowKind: Hashable, Sendable {
     let tag: Int
     var name: String { facts.name }
     var symbol: String { facts.symbol }
     var action: LocalizedStringResource? { facts.action }
-    var label: LocalizedStringResource { facts.label }
     var isPrimary: Bool { facts.isPrimary }
     var activation: PaletteActivation { facts.activation }
     var forgetsFromHistory: Bool { facts.forgetsFromHistory }
@@ -14980,7 +10114,6 @@ struct PaletteRowKind: Hashable, Sendable {
         name: String,
         symbol: String,
         action: LocalizedStringResource?,
-        label: LocalizedStringResource,
         isPrimary: Bool,
         activation: PaletteActivation,
         forgetsFromHistory: Bool
@@ -14990,7 +10123,6 @@ struct PaletteRowKind: Hashable, Sendable {
             name: name,
             symbol: symbol,
             action: action,
-            label: label,
             isPrimary: isPrimary,
             activation: activation,
             forgetsFromHistory: forgetsFromHistory
@@ -15002,7 +10134,6 @@ struct PaletteRowKind: Hashable, Sendable {
         name: "openAddress",
         symbol: "globe",
         action: nil,
-        label: LocalizedStringResource("Website"),
         isPrimary: true,
         activation: PaletteActivation.opensAddress,
         forgetsFromHistory: false
@@ -15012,7 +10143,6 @@ struct PaletteRowKind: Hashable, Sendable {
         name: "search",
         symbol: "magnifyingglass",
         action: nil,
-        label: LocalizedStringResource("Search"),
         isPrimary: true,
         activation: PaletteActivation.searches,
         forgetsFromHistory: false
@@ -15022,7 +10152,6 @@ struct PaletteRowKind: Hashable, Sendable {
         name: "searchSuggestion",
         symbol: "magnifyingglass",
         action: LocalizedStringResource("Search"),
-        label: LocalizedStringResource("Suggestion"),
         isPrimary: false,
         activation: PaletteActivation.searches,
         forgetsFromHistory: false
@@ -15032,7 +10161,6 @@ struct PaletteRowKind: Hashable, Sendable {
         name: "tab",
         symbol: "globe",
         action: LocalizedStringResource("Switch to Tab"),
-        label: LocalizedStringResource("Open Tab"),
         isPrimary: false,
         activation: PaletteActivation.switchesToTab,
         forgetsFromHistory: false
@@ -15042,7 +10170,6 @@ struct PaletteRowKind: Hashable, Sendable {
         name: "pinnedTab",
         symbol: "pin.fill",
         action: LocalizedStringResource("Switch to Tab"),
-        label: LocalizedStringResource("Pinned"),
         isPrimary: false,
         activation: PaletteActivation.switchesToTab,
         forgetsFromHistory: false
@@ -15052,7 +10179,6 @@ struct PaletteRowKind: Hashable, Sendable {
         name: "savedTab",
         symbol: "bookmark",
         action: LocalizedStringResource("Switch to Tab"),
-        label: LocalizedStringResource("Saved"),
         isPrimary: false,
         activation: PaletteActivation.switchesToTab,
         forgetsFromHistory: false
@@ -15062,7 +10188,6 @@ struct PaletteRowKind: Hashable, Sendable {
         name: "folder",
         symbol: "folder",
         action: LocalizedStringResource("Open First Tab"),
-        label: LocalizedStringResource("Folder"),
         isPrimary: false,
         activation: PaletteActivation.switchesToTab,
         forgetsFromHistory: false
@@ -15072,7 +10197,6 @@ struct PaletteRowKind: Hashable, Sendable {
         name: "command",
         symbol: "command",
         action: nil,
-        label: LocalizedStringResource("Action"),
         isPrimary: false,
         activation: PaletteActivation.runsCommand,
         forgetsFromHistory: false
@@ -15082,7 +10206,6 @@ struct PaletteRowKind: Hashable, Sendable {
         name: "history",
         symbol: "clock",
         action: LocalizedStringResource("Open"),
-        label: LocalizedStringResource("History"),
         isPrimary: false,
         activation: PaletteActivation.opensAddress,
         forgetsFromHistory: true
@@ -15092,57 +10215,33 @@ struct PaletteRowKind: Hashable, Sendable {
         name: "space",
         symbol: "square.stack",
         action: LocalizedStringResource("Switch to Space"),
-        label: LocalizedStringResource("Space"),
         isPrimary: false,
         activation: PaletteActivation.showsSpace,
         forgetsFromHistory: false
     )
-    static let archivedTab = PaletteRowKind(
-        tag: 10,
-        name: "archivedTab",
-        symbol: "archivebox",
-        action: LocalizedStringResource("Reopen"),
-        label: LocalizedStringResource("Archived"),
-        isPrimary: false,
-        activation: PaletteActivation.reopensArchivedTab,
-        forgetsFromHistory: false
-    )
     static let settingsPage = PaletteRowKind(
-        tag: 11,
+        tag: 10,
         name: "settingsPage",
         symbol: "gearshape",
         action: LocalizedStringResource("Open Settings"),
-        label: LocalizedStringResource("Settings"),
         isPrimary: false,
         activation: PaletteActivation.opensSettingsPage,
         forgetsFromHistory: false
     )
     static let calculation = PaletteRowKind(
-        tag: 12,
+        tag: 11,
         name: "calculation",
         symbol: "equal",
         action: LocalizedStringResource("Copy"),
-        label: LocalizedStringResource("Calculator"),
         isPrimary: true,
         activation: PaletteActivation.copiesAnswer,
         forgetsFromHistory: false
     )
-    static let pasteAndGo = PaletteRowKind(
-        tag: 13,
-        name: "pasteAndGo",
-        symbol: "doc.on.clipboard",
-        action: nil,
-        label: LocalizedStringResource("Clipboard"),
-        isPrimary: true,
-        activation: PaletteActivation.opensAddress,
-        forgetsFromHistory: false
-    )
     static let scope = PaletteRowKind(
-        tag: 14,
+        tag: 12,
         name: "scope",
         symbol: "line.3.horizontal.decrease",
         action: LocalizedStringResource("Search"),
-        label: LocalizedStringResource("Scope"),
         isPrimary: false,
         activation: PaletteActivation.entersScope,
         forgetsFromHistory: false
@@ -15159,10 +10258,8 @@ struct PaletteRowKind: Hashable, Sendable {
         command,
         history,
         space,
-        archivedTab,
         settingsPage,
         calculation,
-        pasteAndGo,
         scope
     ]
 
@@ -15182,7 +10279,6 @@ struct PaletteRowKind: Hashable, Sendable {
         let name: String
         let symbol: String
         let action: LocalizedStringResource?
-        let label: LocalizedStringResource
         let isPrimary: Bool
         let activation: PaletteActivation
         let forgetsFromHistory: Bool
@@ -15191,7 +10287,6 @@ struct PaletteRowKind: Hashable, Sendable {
             name: String,
             symbol: String,
             action: LocalizedStringResource?,
-            label: LocalizedStringResource,
             isPrimary: Bool,
             activation: PaletteActivation,
             forgetsFromHistory: Bool
@@ -15199,7 +10294,6 @@ struct PaletteRowKind: Hashable, Sendable {
             self.name = name
             self.symbol = symbol
             self.action = action
-            self.label = label
             self.isPrimary = isPrimary
             self.activation = activation
             self.forgetsFromHistory = forgetsFromHistory
@@ -15214,19 +10308,11 @@ struct PaletteScope: Hashable, Sendable {
     var keyword: String { facts.keyword }
     var title: LocalizedStringResource { facts.title }
     var symbol: String { facts.symbol }
-    var source: PaletteSource { facts.source }
     private let facts: Facts
 
-    private init(
-        tag: Int,
-        name: String,
-        keyword: String,
-        title: LocalizedStringResource,
-        symbol: String,
-        source: PaletteSource
-    ) {
+    private init(tag: Int, name: String, keyword: String, title: LocalizedStringResource, symbol: String) {
         self.tag = tag
-        facts = Facts(name: name, keyword: keyword, title: title, symbol: symbol, source: source)
+        facts = Facts(name: name, keyword: keyword, title: title, symbol: symbol)
     }
 
     static let tabs = PaletteScope(
@@ -15234,40 +10320,35 @@ struct PaletteScope: Hashable, Sendable {
         name: "tabs",
         keyword: "@tabs",
         title: LocalizedStringResource("Tabs"),
-        symbol: "square.on.square",
-        source: PaletteSource.openTabs
+        symbol: "square.on.square"
     )
     static let saved = PaletteScope(
         tag: 1,
         name: "saved",
         keyword: "@saved",
         title: LocalizedStringResource("Pinned & Saved"),
-        symbol: "pin",
-        source: PaletteSource.saved
+        symbol: "pin"
     )
     static let history = PaletteScope(
         tag: 2,
         name: "history",
         keyword: "@history",
         title: LocalizedStringResource("History"),
-        symbol: "clock",
-        source: PaletteSource.history
+        symbol: "clock"
     )
     static let actions = PaletteScope(
         tag: 3,
         name: "actions",
         keyword: "@actions",
         title: LocalizedStringResource("Actions"),
-        symbol: "command",
-        source: PaletteSource.actions
+        symbol: "command"
     )
     static let spaces = PaletteScope(
         tag: 4,
         name: "spaces",
         keyword: "@spaces",
         title: LocalizedStringResource("Spaces"),
-        symbol: "square.stack",
-        source: PaletteSource.spaces
+        symbol: "square.stack"
     )
 
     static let all: [PaletteScope] = [tabs, saved, history, actions, spaces]
@@ -15289,14 +10370,12 @@ struct PaletteScope: Hashable, Sendable {
         let keyword: String
         let title: LocalizedStringResource
         let symbol: String
-        let source: PaletteSource
 
-        init(name: String, keyword: String, title: LocalizedStringResource, symbol: String, source: PaletteSource) {
+        init(name: String, keyword: String, title: LocalizedStringResource, symbol: String) {
             self.name = name
             self.keyword = keyword
             self.title = title
             self.symbol = symbol
-            self.source = source
         }
     }
 }
@@ -15381,22 +10460,6 @@ struct PaletteSection: Hashable, Sendable {
         restingLimit: 0,
         scopedLimit: 30
     )
-    static let archived = PaletteSection(
-        tag: 9,
-        name: "archived",
-        title: LocalizedStringResource("Archived Tabs"),
-        limit: 3,
-        restingLimit: 0,
-        scopedLimit: 30
-    )
-    static let results = PaletteSection(
-        tag: 10,
-        name: "results",
-        title: nil,
-        limit: 12,
-        restingLimit: 0,
-        scopedLimit: 0
-    )
 
     static let all: [PaletteSection] = [
         intent,
@@ -15407,9 +10470,7 @@ struct PaletteSection: Hashable, Sendable {
         saved,
         history,
         topHit,
-        spaces,
-        archived,
-        results
+        spaces
     ]
 
     static func named(_ name: String?) -> PaletteSection? {
@@ -15437,235 +10498,6 @@ struct PaletteSection: Hashable, Sendable {
             self.limit = limit
             self.restingLimit = restingLimit
             self.scopedLimit = scopedLimit
-        }
-    }
-}
-
-/// The members of the core's `PaletteSource`. A member's wire tag is its index in `all`.
-struct PaletteSource: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var detail: LocalizedStringResource? { facts.detail }
-    var section: PaletteSection { facts.section }
-    var isSection: Bool { facts.isSection }
-    var isEnabledByDefault: Bool { facts.isEnabledByDefault }
-    var restingSection: PaletteSection? { facts.restingSection }
-    var defaultLimit: Int { facts.defaultLimit }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        name: String,
-        title: LocalizedStringResource,
-        detail: LocalizedStringResource?,
-        section: PaletteSection,
-        isSection: Bool,
-        isEnabledByDefault: Bool,
-        restingSection: PaletteSection?,
-        defaultLimit: Int
-    ) {
-        self.tag = tag
-        facts = Facts(
-            name: name,
-            title: title,
-            detail: detail,
-            section: section,
-            isSection: isSection,
-            isEnabledByDefault: isEnabledByDefault,
-            restingSection: restingSection,
-            defaultLimit: defaultLimit
-        )
-    }
-
-    static let recentTabs = PaletteSource(
-        tag: 0,
-        name: "recentTabs",
-        title: LocalizedStringResource("Recent Tabs"),
-        detail: nil,
-        section: PaletteSection.recentTabs,
-        isSection: true,
-        isEnabledByDefault: true,
-        restingSection: PaletteSection.recentTabs,
-        defaultLimit: 5
-    )
-    static let openTabs = PaletteSource(
-        tag: 1,
-        name: "openTabs",
-        title: LocalizedStringResource("Open Tabs"),
-        detail: nil,
-        section: PaletteSection.tabs,
-        isSection: true,
-        isEnabledByDefault: true,
-        restingSection: nil,
-        defaultLimit: 8
-    )
-    static let saved = PaletteSource(
-        tag: 2,
-        name: "saved",
-        title: LocalizedStringResource("Pinned & Saved"),
-        detail: nil,
-        section: PaletteSection.saved,
-        isSection: true,
-        isEnabledByDefault: true,
-        restingSection: nil,
-        defaultLimit: 5
-    )
-    static let history = PaletteSource(
-        tag: 3,
-        name: "history",
-        title: LocalizedStringResource("History"),
-        detail: nil,
-        section: PaletteSection.history,
-        isSection: true,
-        isEnabledByDefault: true,
-        restingSection: nil,
-        defaultLimit: 6
-    )
-    static let actions = PaletteSource(
-        tag: 4,
-        name: "actions",
-        title: LocalizedStringResource("Actions"),
-        detail: nil,
-        section: PaletteSection.actions,
-        isSection: true,
-        isEnabledByDefault: true,
-        restingSection: PaletteSection.actions,
-        defaultLimit: 3
-    )
-    static let spaces = PaletteSource(
-        tag: 5,
-        name: "spaces",
-        title: LocalizedStringResource("Spaces"),
-        detail: nil,
-        section: PaletteSection.spaces,
-        isSection: true,
-        isEnabledByDefault: true,
-        restingSection: nil,
-        defaultLimit: 2
-    )
-    static let archivedTabs = PaletteSource(
-        tag: 6,
-        name: "archivedTabs",
-        title: LocalizedStringResource("Archived Tabs"),
-        detail: nil,
-        section: PaletteSection.archived,
-        isSection: true,
-        isEnabledByDefault: false,
-        restingSection: nil,
-        defaultLimit: 3
-    )
-    static let suggestions = PaletteSource(
-        tag: 7,
-        name: "suggestions",
-        title: LocalizedStringResource("Search Suggestions"),
-        detail: nil,
-        section: PaletteSection.searchSuggestions,
-        isSection: true,
-        isEnabledByDefault: true,
-        restingSection: nil,
-        defaultLimit: 3
-    )
-    static let settingsPages = PaletteSource(
-        tag: 8,
-        name: "settingsPages",
-        title: LocalizedStringResource("Settings Pages"),
-        detail: LocalizedStringResource("Finds Settings pages by name."),
-        section: PaletteSection.actions,
-        isSection: false,
-        isEnabledByDefault: true,
-        restingSection: nil,
-        defaultLimit: 3
-    )
-    static let scopes = PaletteSource(
-        tag: 9,
-        name: "scopes",
-        title: LocalizedStringResource("@ Filters"),
-        detail: LocalizedStringResource("Type @tabs, @saved, @history, @actions or @spaces, then a space or Tab, to show only that kind."),
-        section: PaletteSection.intent,
-        isSection: false,
-        isEnabledByDefault: true,
-        restingSection: nil,
-        defaultLimit: 2
-    )
-    static let calculator = PaletteSource(
-        tag: 10,
-        name: "calculator",
-        title: LocalizedStringResource("Calculator"),
-        detail: LocalizedStringResource("Answers arithmetic such as 24 * 7. Return copies the answer."),
-        section: PaletteSection.topHit,
-        isSection: false,
-        isEnabledByDefault: true,
-        restingSection: nil,
-        defaultLimit: 1
-    )
-    static let pasteAndGo = PaletteSource(
-        tag: 11,
-        name: "pasteAndGo",
-        title: LocalizedStringResource("Paste and Go"),
-        detail: LocalizedStringResource("Offers the address you copied when the palette opens."),
-        section: PaletteSection.intent,
-        isSection: false,
-        isEnabledByDefault: false,
-        restingSection: nil,
-        defaultLimit: 2
-    )
-
-    static let all: [PaletteSource] = [
-        recentTabs,
-        openTabs,
-        saved,
-        history,
-        actions,
-        spaces,
-        archivedTabs,
-        suggestions,
-        settingsPages,
-        scopes,
-        calculator,
-        pasteAndGo
-    ]
-
-    static func named(_ name: String?) -> PaletteSource? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: PaletteSource, rhs: PaletteSource) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-        let detail: LocalizedStringResource?
-        let section: PaletteSection
-        let isSection: Bool
-        let isEnabledByDefault: Bool
-        let restingSection: PaletteSection?
-        let defaultLimit: Int
-
-        init(
-            name: String,
-            title: LocalizedStringResource,
-            detail: LocalizedStringResource?,
-            section: PaletteSection,
-            isSection: Bool,
-            isEnabledByDefault: Bool,
-            restingSection: PaletteSection?,
-            defaultLimit: Int
-        ) {
-            self.name = name
-            self.title = title
-            self.detail = detail
-            self.section = section
-            self.isSection = isSection
-            self.isEnabledByDefault = isEnabledByDefault
-            self.restingSection = restingSection
-            self.defaultLimit = defaultLimit
         }
     }
 }
@@ -15929,164 +10761,6 @@ struct PasskeyDeviceConfiguration: Hashable, Sendable {
     }
 }
 
-/// The members of the core's `PracticeTab`. A member's wire tag is its index in `all`.
-struct PracticeTab: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: String { facts.title }
-    var url: String { facts.url }
-    var placement: TabPlacement { facts.placement }
-    var artwork: String { facts.artwork }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, title: String, url: String, placement: TabPlacement, artwork: String) {
-        self.tag = tag
-        facts = Facts(name: name, title: title, url: url, placement: placement, artwork: artwork)
-    }
-
-    static let calendar = PracticeTab(
-        tag: 0,
-        name: "calendar",
-        title: "Calendar",
-        url: "https://calendar.google.com",
-        placement: TabPlacement.pinned,
-        artwork: "GuideCalendar"
-    )
-    static let reading = PracticeTab(
-        tag: 1,
-        name: "reading",
-        title: "Wikipedia",
-        url: "https://wikipedia.org",
-        placement: TabPlacement.saved,
-        artwork: "GuideWikipedia"
-    )
-    static let mail = PracticeTab(
-        tag: 2,
-        name: "mail",
-        title: "Gmail",
-        url: "https://mail.google.com",
-        placement: TabPlacement.current,
-        artwork: "GuideGmail"
-    )
-    static let trail = PracticeTab(
-        tag: 3,
-        name: "trail",
-        title: "A weekend away",
-        url: "https://www.alltrails.com",
-        placement: TabPlacement.current,
-        artwork: "GuideAllTrails"
-    )
-    static let packing = PracticeTab(
-        tag: 4,
-        name: "packing",
-        title: "Packing list",
-        url: "https://todoist.com",
-        placement: TabPlacement.current,
-        artwork: "GuideTodoist"
-    )
-
-    static let all: [PracticeTab] = [calendar, reading, mail, trail, packing]
-
-    static func named(_ name: String?) -> PracticeTab? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: PracticeTab, rhs: PracticeTab) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: String
-        let url: String
-        let placement: TabPlacement
-        let artwork: String
-
-        init(name: String, title: String, url: String, placement: TabPlacement, artwork: String) {
-            self.name = name
-            self.title = title
-            self.url = url
-            self.placement = placement
-            self.artwork = artwork
-        }
-    }
-}
-
-/// The members of the core's `QuickWindowArchivePolicy`. A member's wire tag is its index in `all`.
-struct QuickWindowArchivePolicy: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var lifetime: TimeInterval? { facts.lifetime }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, title: LocalizedStringResource, lifetime: TimeInterval?) {
-        self.tag = tag
-        facts = Facts(name: name, title: title, lifetime: lifetime)
-    }
-
-    static let after1Hour = QuickWindowArchivePolicy(
-        tag: 0,
-        name: "after1Hour",
-        title: LocalizedStringResource("After 1 Hour"),
-        lifetime: 3600
-    )
-    static let after6Hours = QuickWindowArchivePolicy(
-        tag: 1,
-        name: "after6Hours",
-        title: LocalizedStringResource("After 6 Hours"),
-        lifetime: 21600
-    )
-    static let after12Hours = QuickWindowArchivePolicy(
-        tag: 2,
-        name: "after12Hours",
-        title: LocalizedStringResource("After 12 Hours"),
-        lifetime: 43200
-    )
-    static let after24Hours = QuickWindowArchivePolicy(
-        tag: 3,
-        name: "after24Hours",
-        title: LocalizedStringResource("After 24 Hours"),
-        lifetime: 86400
-    )
-    static let never = QuickWindowArchivePolicy(
-        tag: 4,
-        name: "never",
-        title: LocalizedStringResource("Never"),
-        lifetime: nil
-    )
-
-    static let all: [QuickWindowArchivePolicy] = [after1Hour, after6Hours, after12Hours, after24Hours, never]
-
-    static func named(_ name: String?) -> QuickWindowArchivePolicy? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: QuickWindowArchivePolicy, rhs: QuickWindowArchivePolicy) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-        let lifetime: TimeInterval?
-
-        init(name: String, title: LocalizedStringResource, lifetime: TimeInterval?) {
-            self.name = name
-            self.title = title
-            self.lifetime = lifetime
-        }
-    }
-}
-
 /// The members of the core's `RehostReason`. A member's wire tag is its index in `all`.
 struct RehostReason: Hashable, Sendable {
     let tag: Int
@@ -16099,10 +10773,9 @@ struct RehostReason: Hashable, Sendable {
     }
 
     static let personAsked = RehostReason(tag: 0, name: "personAsked")
-    static let siteChoice = RehostReason(tag: 1, name: "siteChoice")
-    static let protectedMedia = RehostReason(tag: 2, name: "protectedMedia")
+    static let protectedMedia = RehostReason(tag: 1, name: "protectedMedia")
 
-    static let all: [RehostReason] = [personAsked, siteChoice, protectedMedia]
+    static let all: [RehostReason] = [personAsked, protectedMedia]
 
     static func named(_ name: String?) -> RehostReason? {
         all.first { $0.name == name }
@@ -16125,270 +10798,61 @@ struct RehostReason: Hashable, Sendable {
     }
 }
 
-/// The members of the core's `SavedTabClosePolicy`. A member's wire tag is its index in `all`.
-struct SavedTabClosePolicy: Hashable, Sendable {
+/// The members of the core's `SearchProvider`. A member's wire tag is its index in `all`.
+struct SearchProvider: Hashable, Sendable {
     let tag: Int
     var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
+    var title: String { facts.title }
+    var color: BrandColor { facts.color }
+    var logo: String { facts.logo }
+    var searchTemplate: String { facts.searchTemplate }
     private let facts: Facts
 
-    private init(tag: Int, name: String, title: LocalizedStringResource) {
+    private init(tag: Int, name: String, title: String, color: BrandColor, logo: String, searchTemplate: String) {
         self.tag = tag
-        facts = Facts(name: name, title: title)
+        facts = Facts(name: name, title: title, color: color, logo: logo, searchTemplate: searchTemplate)
     }
 
-    static let resumeLastLocation = SavedTabClosePolicy(
+    static let google = SearchProvider(
         tag: 0,
-        name: "resumeLastLocation",
-        title: LocalizedStringResource("Resume last location")
+        name: "google",
+        title: "Google",
+        color: BrandColor(red: 0.25882352941176473, green: 0.5215686274509804, blue: 0.9568627450980393, alpha: 1),
+        logo: "SearchProviderGoogle",
+        searchTemplate: "https://www.google.com/search?q=%s"
     )
-    static let returnToSavedURL = SavedTabClosePolicy(
+    static let duckDuckGo = SearchProvider(
         tag: 1,
-        name: "returnToSavedURL",
-        title: LocalizedStringResource("Return to saved URL")
+        name: "duckDuckGo",
+        title: "DuckDuckGo",
+        color: BrandColor(red: 0.8705882352941177, green: 0.34509803921568627, blue: 0.2, alpha: 1),
+        logo: "SearchProviderDuckDuckGo",
+        searchTemplate: "https://duckduckgo.com/?q=%s"
     )
-
-    static let all: [SavedTabClosePolicy] = [resumeLastLocation, returnToSavedURL]
-
-    static func named(_ name: String?) -> SavedTabClosePolicy? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: SavedTabClosePolicy, rhs: SavedTabClosePolicy) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-
-        init(name: String, title: LocalizedStringResource) {
-            self.name = name
-            self.title = title
-        }
-    }
-}
-
-/// The members of the core's `SearchChoice`. A member's wire tag is its index in `all`.
-struct SearchChoice: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, title: LocalizedStringResource) {
-        self.tag = tag
-        facts = Facts(name: name, title: title)
-    }
-
-    static let moderate = SearchChoice(tag: 0, name: "moderate", title: LocalizedStringResource("Moderate"))
-    static let strict = SearchChoice(tag: 1, name: "strict", title: LocalizedStringResource("Strict"))
-    static let off = SearchChoice(tag: 2, name: "off", title: LocalizedStringResource("Off"))
-    static let everything = SearchChoice(tag: 3, name: "everything", title: LocalizedStringResource("All"))
-    static let videos = SearchChoice(tag: 4, name: "videos", title: LocalizedStringResource("Videos"))
-    static let shorts = SearchChoice(tag: 5, name: "shorts", title: LocalizedStringResource("Shorts"))
-    static let channels = SearchChoice(tag: 6, name: "channels", title: LocalizedStringResource("Channels"))
-    static let playlists = SearchChoice(tag: 7, name: "playlists", title: LocalizedStringResource("Playlists"))
-    static let repositories = SearchChoice(tag: 8, name: "repositories", title: LocalizedStringResource("Repositories"))
-    static let code = SearchChoice(tag: 9, name: "code", title: LocalizedStringResource("Code"))
-    static let issues = SearchChoice(tag: 10, name: "issues", title: LocalizedStringResource("Issues"))
-    static let pullRequests = SearchChoice(
-        tag: 11,
-        name: "pullRequests",
-        title: LocalizedStringResource("Pull Requests")
-    )
-    static let discussions = SearchChoice(tag: 12, name: "discussions", title: LocalizedStringResource("Discussions"))
-    static let users = SearchChoice(tag: 13, name: "users", title: LocalizedStringResource("Users"))
-    static let bestMatch = SearchChoice(tag: 14, name: "bestMatch", title: LocalizedStringResource("Best Match"))
-    static let mostStars = SearchChoice(tag: 15, name: "mostStars", title: LocalizedStringResource("Most Stars"))
-    static let recentlyUpdated = SearchChoice(
-        tag: 16,
-        name: "recentlyUpdated",
-        title: LocalizedStringResource("Recently Updated")
-    )
-    static let relevance = SearchChoice(tag: 17, name: "relevance", title: LocalizedStringResource("Relevance"))
-    static let newest = SearchChoice(tag: 18, name: "newest", title: LocalizedStringResource("Newest"))
-    static let mostVotes = SearchChoice(tag: 19, name: "mostVotes", title: LocalizedStringResource("Most Votes"))
-    static let titles = SearchChoice(tag: 20, name: "titles", title: LocalizedStringResource("Titles"))
-    static let people = SearchChoice(tag: 21, name: "people", title: LocalizedStringResource("People"))
-    static let companies = SearchChoice(tag: 22, name: "companies", title: LocalizedStringResource("Companies"))
-    static let keywords = SearchChoice(tag: 23, name: "keywords", title: LocalizedStringResource("Keywords"))
-    static let songs = SearchChoice(tag: 24, name: "songs", title: LocalizedStringResource("Songs"))
-    static let artists = SearchChoice(tag: 25, name: "artists", title: LocalizedStringResource("Artists"))
-    static let albums = SearchChoice(tag: 26, name: "albums", title: LocalizedStringResource("Albums"))
-    static let podcasts = SearchChoice(tag: 27, name: "podcasts", title: LocalizedStringResource("Podcasts & Shows"))
-    static let explore = SearchChoice(tag: 28, name: "explore", title: LocalizedStringResource("Explore"))
-    static let satellite = SearchChoice(tag: 29, name: "satellite", title: LocalizedStringResource("Satellite"))
-    static let hybrid = SearchChoice(tag: 30, name: "hybrid", title: LocalizedStringResource("Hybrid"))
-    static let transit = SearchChoice(tag: 31, name: "transit", title: LocalizedStringResource("Transit"))
-    static let popular = SearchChoice(tag: 32, name: "popular", title: LocalizedStringResource("Popular"))
-    static let stories = SearchChoice(tag: 33, name: "stories", title: LocalizedStringResource("Stories"))
-    static let comments = SearchChoice(tag: 34, name: "comments", title: LocalizedStringResource("Comments"))
-
-    static let all: [SearchChoice] = [
-        moderate,
-        strict,
-        off,
-        everything,
-        videos,
-        shorts,
-        channels,
-        playlists,
-        repositories,
-        code,
-        issues,
-        pullRequests,
-        discussions,
-        users,
-        bestMatch,
-        mostStars,
-        recentlyUpdated,
-        relevance,
-        newest,
-        mostVotes,
-        titles,
-        people,
-        companies,
-        keywords,
-        songs,
-        artists,
-        albums,
-        podcasts,
-        explore,
-        satellite,
-        hybrid,
-        transit,
-        popular,
-        stories,
-        comments
-    ]
-
-    static func named(_ name: String?) -> SearchChoice? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: SearchChoice, rhs: SearchChoice) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-
-        init(name: String, title: LocalizedStringResource) {
-            self.name = name
-            self.title = title
-        }
-    }
-}
-
-/// The members of the core's `SearchEngineFlaw`. A member's wire tag is its index in `all`.
-struct SearchEngineFlaw: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var message: LocalizedStringResource { facts.message }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, message: LocalizedStringResource) {
-        self.tag = tag
-        facts = Facts(name: name, message: message)
-    }
-
-    static let invalidIdentity = SearchEngineFlaw(
-        tag: 0,
-        name: "invalidIdentity",
-        message: LocalizedStringResource("Enter a valid URL template.")
-    )
-    static let emptyName = SearchEngineFlaw(
-        tag: 1,
-        name: "emptyName",
-        message: LocalizedStringResource("Enter a name for this search engine.")
-    )
-    static let nameTooLong = SearchEngineFlaw(
+    static let bing = SearchProvider(
         tag: 2,
-        name: "nameTooLong",
-        message: LocalizedStringResource("Search engine names must be 64 characters or fewer.")
+        name: "bing",
+        title: "Bing",
+        color: BrandColor(red: 0.047058823529411764, green: 0.5176470588235295, blue: 0.5176470588235295, alpha: 1),
+        logo: "SearchProviderBing",
+        searchTemplate: "https://www.bing.com/search?q=%s"
     )
-    static let templateTooLong = SearchEngineFlaw(
+    static let brave = SearchProvider(
         tag: 3,
-        name: "templateTooLong",
-        message: LocalizedStringResource("URL templates must be 2,048 characters or fewer.")
-    )
-    static let missingPlaceholder = SearchEngineFlaw(
-        tag: 4,
-        name: "missingPlaceholder",
-        message: LocalizedStringResource("Include exactly one %s or {searchTerms} query placeholder.")
-    )
-    static let ambiguousPlaceholder = SearchEngineFlaw(
-        tag: 5,
-        name: "ambiguousPlaceholder",
-        message: LocalizedStringResource("Use exactly one query placeholder.")
-    )
-    static let invalidTemplate = SearchEngineFlaw(
-        tag: 6,
-        name: "invalidTemplate",
-        message: LocalizedStringResource("Enter a valid URL template.")
-    )
-    static let requiresHttps = SearchEngineFlaw(
-        tag: 7,
-        name: "requiresHttps",
-        message: LocalizedStringResource("Search engine templates must use HTTPS.")
-    )
-    static let unsafeHost = SearchEngineFlaw(
-        tag: 8,
-        name: "unsafeHost",
-        message: LocalizedStringResource("Use a public search engine host, not a local or numeric address.")
-    )
-    static let nonstandardPort = SearchEngineFlaw(
-        tag: 9,
-        name: "nonstandardPort",
-        message: LocalizedStringResource("Search engine templates may only use the standard HTTPS port.")
-    )
-    static let credentialsInTemplate = SearchEngineFlaw(
-        tag: 10,
-        name: "credentialsInTemplate",
-        message: LocalizedStringResource("Usernames and passwords cannot be stored in a search template.")
-    )
-    static let placeholderInFragment = SearchEngineFlaw(
-        tag: 11,
-        name: "placeholderInFragment",
-        message: LocalizedStringResource("Put the query placeholder in the path or query, not the fragment.")
-    )
-    static let secretInTemplate = SearchEngineFlaw(
-        tag: 12,
-        name: "secretInTemplate",
-        message: LocalizedStringResource("Authentication tokens and other secrets cannot be stored in a search template. Sign in on the search engine website instead.")
+        name: "brave",
+        title: "Brave Search",
+        color: BrandColor(red: 0.984313725490196, green: 0.32941176470588235, blue: 0.16862745098039217, alpha: 1),
+        logo: "SearchProviderBrave",
+        searchTemplate: "https://search.brave.com/search?q=%s"
     )
 
-    static let all: [SearchEngineFlaw] = [
-        invalidIdentity,
-        emptyName,
-        nameTooLong,
-        templateTooLong,
-        missingPlaceholder,
-        ambiguousPlaceholder,
-        invalidTemplate,
-        requiresHttps,
-        unsafeHost,
-        nonstandardPort,
-        credentialsInTemplate,
-        placeholderInFragment,
-        secretInTemplate
-    ]
+    static let all: [SearchProvider] = [google, duckDuckGo, bing, brave]
 
-    static func named(_ name: String?) -> SearchEngineFlaw? {
+    static func named(_ name: String?) -> SearchProvider? {
         all.first { $0.name == name }
     }
 
-    static func == (lhs: SearchEngineFlaw, rhs: SearchEngineFlaw) -> Bool {
+    static func == (lhs: SearchProvider, rhs: SearchProvider) -> Bool {
         lhs.tag == rhs.tag
     }
 
@@ -16398,794 +10862,17 @@ struct SearchEngineFlaw: Hashable, Sendable {
 
     private final class Facts: Sendable {
         let name: String
-        let message: LocalizedStringResource
+        let title: String
+        let color: BrandColor
+        let logo: String
+        let searchTemplate: String
 
-        init(name: String, message: LocalizedStringResource) {
-            self.name = name
-            self.message = message
-        }
-    }
-}
-
-/// The members of the core's `SearchProviderKind`. A member's wire tag is its index in `all`.
-struct SearchProviderKind: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var itemTitle: LocalizedStringResource { facts.itemTitle }
-    var symbol: String { facts.symbol }
-    var canBeDefault: Bool { facts.canBeDefault }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        name: String,
-        title: LocalizedStringResource,
-        itemTitle: LocalizedStringResource,
-        symbol: String,
-        canBeDefault: Bool
-    ) {
-        self.tag = tag
-        facts = Facts(name: name, title: title, itemTitle: itemTitle, symbol: symbol, canBeDefault: canBeDefault)
-    }
-
-    static let engine = SearchProviderKind(
-        tag: 0,
-        name: "engine",
-        title: LocalizedStringResource("Search Engines"),
-        itemTitle: LocalizedStringResource("Search Engine"),
-        symbol: "magnifyingglass",
-        canBeDefault: true
-    )
-    static let assistant = SearchProviderKind(
-        tag: 1,
-        name: "assistant",
-        title: LocalizedStringResource("AI Assistants"),
-        itemTitle: LocalizedStringResource("AI Assistant"),
-        symbol: "sparkles",
-        canBeDefault: true
-    )
-    static let website = SearchProviderKind(
-        tag: 2,
-        name: "website",
-        title: LocalizedStringResource("Websites"),
-        itemTitle: LocalizedStringResource("Website"),
-        symbol: "globe",
-        canBeDefault: false
-    )
-
-    static let all: [SearchProviderKind] = [engine, assistant, website]
-
-    static func named(_ name: String?) -> SearchProviderKind? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: SearchProviderKind, rhs: SearchProviderKind) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-        let itemTitle: LocalizedStringResource
-        let symbol: String
-        let canBeDefault: Bool
-
-        init(
-            name: String,
-            title: LocalizedStringResource,
-            itemTitle: LocalizedStringResource,
-            symbol: String,
-            canBeDefault: Bool
-        ) {
+        init(name: String, title: String, color: BrandColor, logo: String, searchTemplate: String) {
             self.name = name
             self.title = title
-            self.itemTitle = itemTitle
-            self.symbol = symbol
-            self.canBeDefault = canBeDefault
-        }
-    }
-}
-
-/// The members of the core's `SearchProviderOption`. A member's wire tag is its index in `all`.
-/// Core-only behavior, not emitted: `edits`.
-struct SearchProviderOption: Hashable, Sendable {
-    static let on = "on"
-    static let maximumTextLength = 128
-
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var isSwitch: Bool { facts.isSwitch }
-    var acceptsText: Bool { facts.acceptsText }
-    var textExample: String? { facts.textExample }
-    var choices: [SearchChoice] { facts.choices }
-    var locales: [SearchLocaleCode] { facts.locales }
-    var namesRegions: Bool { facts.namesRegions }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        name: String,
-        title: LocalizedStringResource,
-        isSwitch: Bool,
-        acceptsText: Bool,
-        textExample: String?,
-        choices: [SearchChoice],
-        locales: [SearchLocaleCode],
-        namesRegions: Bool
-    ) {
-        self.tag = tag
-        facts = Facts(
-            name: name,
-            title: title,
-            isSwitch: isSwitch,
-            acceptsText: acceptsText,
-            textExample: textExample,
-            choices: choices,
-            locales: locales,
-            namesRegions: namesRegions
-        )
-    }
-
-    static let googleHidesAIOverviews = SearchProviderOption(
-        tag: 0,
-        name: "googleHidesAIOverviews",
-        title: LocalizedStringResource("Hide AI Overviews"),
-        isSwitch: true,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [],
-        namesRegions: false
-    )
-    static let googleSafeSearch = SearchProviderOption(
-        tag: 1,
-        name: "googleSafeSearch",
-        title: LocalizedStringResource("SafeSearch"),
-        isSwitch: true,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [],
-        namesRegions: false
-    )
-    static let googleExactWords = SearchProviderOption(
-        tag: 2,
-        name: "googleExactWords",
-        title: LocalizedStringResource("Exact Words"),
-        isSwitch: true,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [],
-        namesRegions: false
-    )
-    static let duckDuckGoHidesAI = SearchProviderOption(
-        tag: 3,
-        name: "duckDuckGoHidesAI",
-        title: LocalizedStringResource("Hide AI Features"),
-        isSwitch: true,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [],
-        namesRegions: false
-    )
-    static let duckDuckGoSafeSearch = SearchProviderOption(
-        tag: 4,
-        name: "duckDuckGoSafeSearch",
-        title: LocalizedStringResource("Safe Search"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [SearchChoice.moderate, SearchChoice.strict, SearchChoice.off],
-        locales: [],
-        namesRegions: false
-    )
-    static let duckDuckGoRegion = SearchProviderOption(
-        tag: 5,
-        name: "duckDuckGoRegion",
-        title: LocalizedStringResource("Region"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [
-            SearchLocaleCode(code: "us-en", locale: "en-US", alsoServes: []),
-            SearchLocaleCode(code: "uk-en", locale: "en-GB", alsoServes: []),
-            SearchLocaleCode(code: "ca-en", locale: "en-CA", alsoServes: []),
-            SearchLocaleCode(code: "au-en", locale: "en-AU", alsoServes: []),
-            SearchLocaleCode(code: "in-en", locale: "en-IN", alsoServes: []),
-            SearchLocaleCode(code: "de-de", locale: "de-DE", alsoServes: []),
-            SearchLocaleCode(code: "at-de", locale: "de-AT", alsoServes: []),
-            SearchLocaleCode(code: "ch-de", locale: "de-CH", alsoServes: []),
-            SearchLocaleCode(code: "fr-fr", locale: "fr-FR", alsoServes: []),
-            SearchLocaleCode(code: "es-es", locale: "es-ES", alsoServes: []),
-            SearchLocaleCode(code: "mx-es", locale: "es-MX", alsoServes: []),
-            SearchLocaleCode(code: "it-it", locale: "it-IT", alsoServes: []),
-            SearchLocaleCode(code: "nl-nl", locale: "nl-NL", alsoServes: []),
-            SearchLocaleCode(code: "se-sv", locale: "sv-SE", alsoServes: []),
-            SearchLocaleCode(code: "br-pt", locale: "pt-BR", alsoServes: []),
-            SearchLocaleCode(code: "jp-jp", locale: "ja-JP", alsoServes: [])
-        ],
-        namesRegions: true
-    )
-    static let bingMarket = SearchProviderOption(
-        tag: 6,
-        name: "bingMarket",
-        title: LocalizedStringResource("Market"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [
-            SearchLocaleCode(code: "en-US", locale: "en-US", alsoServes: []),
-            SearchLocaleCode(code: "en-GB", locale: "en-GB", alsoServes: []),
-            SearchLocaleCode(code: "en-CA", locale: "en-CA", alsoServes: []),
-            SearchLocaleCode(code: "en-AU", locale: "en-AU", alsoServes: []),
-            SearchLocaleCode(code: "en-IN", locale: "en-IN", alsoServes: []),
-            SearchLocaleCode(code: "de-DE", locale: "de-DE", alsoServes: []),
-            SearchLocaleCode(code: "de-AT", locale: "de-AT", alsoServes: []),
-            SearchLocaleCode(code: "de-CH", locale: "de-CH", alsoServes: []),
-            SearchLocaleCode(code: "fr-FR", locale: "fr-FR", alsoServes: []),
-            SearchLocaleCode(code: "es-ES", locale: "es-ES", alsoServes: []),
-            SearchLocaleCode(code: "es-MX", locale: "es-MX", alsoServes: []),
-            SearchLocaleCode(code: "it-IT", locale: "it-IT", alsoServes: []),
-            SearchLocaleCode(code: "nl-NL", locale: "nl-NL", alsoServes: []),
-            SearchLocaleCode(code: "sv-SE", locale: "sv-SE", alsoServes: []),
-            SearchLocaleCode(code: "pt-BR", locale: "pt-BR", alsoServes: []),
-            SearchLocaleCode(code: "ja-JP", locale: "ja-JP", alsoServes: [])
-        ],
-        namesRegions: false
-    )
-    static let bingStrictSafeSearch = SearchProviderOption(
-        tag: 7,
-        name: "bingStrictSafeSearch",
-        title: LocalizedStringResource("Strict SafeSearch"),
-        isSwitch: true,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [],
-        namesRegions: false
-    )
-    static let braveHidesAIAnswers = SearchProviderOption(
-        tag: 8,
-        name: "braveHidesAIAnswers",
-        title: LocalizedStringResource("Hide AI Answers"),
-        isSwitch: true,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [],
-        namesRegions: false
-    )
-    static let braveSafeSearch = SearchProviderOption(
-        tag: 9,
-        name: "braveSafeSearch",
-        title: LocalizedStringResource("Safe Search"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [SearchChoice.moderate, SearchChoice.strict, SearchChoice.off],
-        locales: [],
-        namesRegions: false
-    )
-    static let braveCountry = SearchProviderOption(
-        tag: 10,
-        name: "braveCountry",
-        title: LocalizedStringResource("Country"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [
-            SearchLocaleCode(code: "us", locale: "en-US", alsoServes: []),
-            SearchLocaleCode(code: "gb", locale: "en-GB", alsoServes: []),
-            SearchLocaleCode(code: "ca", locale: "en-CA", alsoServes: []),
-            SearchLocaleCode(code: "au", locale: "en-AU", alsoServes: []),
-            SearchLocaleCode(code: "in", locale: "en-IN", alsoServes: []),
-            SearchLocaleCode(code: "de", locale: "de-DE", alsoServes: []),
-            SearchLocaleCode(code: "at", locale: "de-AT", alsoServes: []),
-            SearchLocaleCode(code: "ch", locale: "de-CH", alsoServes: []),
-            SearchLocaleCode(code: "fr", locale: "fr-FR", alsoServes: []),
-            SearchLocaleCode(code: "es", locale: "es-ES", alsoServes: []),
-            SearchLocaleCode(code: "mx", locale: "es-MX", alsoServes: []),
-            SearchLocaleCode(code: "it", locale: "it-IT", alsoServes: []),
-            SearchLocaleCode(code: "nl", locale: "nl-NL", alsoServes: []),
-            SearchLocaleCode(code: "se", locale: "sv-SE", alsoServes: []),
-            SearchLocaleCode(code: "br", locale: "pt-BR", alsoServes: []),
-            SearchLocaleCode(code: "jp", locale: "ja-JP", alsoServes: [])
-        ],
-        namesRegions: true
-    )
-    static let startpageSafeSearch = SearchProviderOption(
-        tag: 11,
-        name: "startpageSafeSearch",
-        title: LocalizedStringResource("Safe Search"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [SearchChoice.moderate, SearchChoice.strict, SearchChoice.off],
-        locales: [],
-        namesRegions: false
-    )
-    static let kagiExactWords = SearchProviderOption(
-        tag: 12,
-        name: "kagiExactWords",
-        title: LocalizedStringResource("Exact Words"),
-        isSwitch: true,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [],
-        namesRegions: false
-    )
-    static let yahooStrictSafeSearch = SearchProviderOption(
-        tag: 13,
-        name: "yahooStrictSafeSearch",
-        title: LocalizedStringResource("Strict SafeSearch"),
-        isSwitch: true,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [],
-        namesRegions: false
-    )
-    static let qwantRegion = SearchProviderOption(
-        tag: 14,
-        name: "qwantRegion",
-        title: LocalizedStringResource("Region"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [
-            SearchLocaleCode(code: "en_US", locale: "en-US", alsoServes: []),
-            SearchLocaleCode(code: "en_GB", locale: "en-GB", alsoServes: []),
-            SearchLocaleCode(code: "de_DE", locale: "de-DE", alsoServes: []),
-            SearchLocaleCode(code: "de_AT", locale: "de-AT", alsoServes: []),
-            SearchLocaleCode(code: "de_CH", locale: "de-CH", alsoServes: []),
-            SearchLocaleCode(code: "fr_FR", locale: "fr-FR", alsoServes: []),
-            SearchLocaleCode(code: "fr_BE", locale: "fr-BE", alsoServes: []),
-            SearchLocaleCode(code: "fr_CH", locale: "fr-CH", alsoServes: []),
-            SearchLocaleCode(code: "es_ES", locale: "es-ES", alsoServes: []),
-            SearchLocaleCode(code: "it_IT", locale: "it-IT", alsoServes: []),
-            SearchLocaleCode(code: "nl_NL", locale: "nl-NL", alsoServes: []),
-            SearchLocaleCode(code: "pt_PT", locale: "pt-PT", alsoServes: [])
-        ],
-        namesRegions: false
-    )
-    static let chatGPTSearchesWeb = SearchProviderOption(
-        tag: 15,
-        name: "chatGPTSearchesWeb",
-        title: LocalizedStringResource("Search the Web"),
-        isSwitch: true,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [],
-        namesRegions: false
-    )
-    static let chatGPTTemporaryChat = SearchProviderOption(
-        tag: 16,
-        name: "chatGPTTemporaryChat",
-        title: LocalizedStringResource("Temporary Chat"),
-        isSwitch: true,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [],
-        namesRegions: false
-    )
-    static let chatGPTModel = SearchProviderOption(
-        tag: 17,
-        name: "chatGPTModel",
-        title: LocalizedStringResource("Model"),
-        isSwitch: false,
-        acceptsText: true,
-        textExample: "gpt-5",
-        choices: [],
-        locales: [],
-        namesRegions: false
-    )
-    static let kagiAssistantModel = SearchProviderOption(
-        tag: 18,
-        name: "kagiAssistantModel",
-        title: LocalizedStringResource("Model"),
-        isSwitch: false,
-        acceptsText: true,
-        textExample: "claude-4-sonnet",
-        choices: [],
-        locales: [],
-        namesRegions: false
-    )
-    static let kagiAssistantWebAccess = SearchProviderOption(
-        tag: 19,
-        name: "kagiAssistantWebAccess",
-        title: LocalizedStringResource("Web Access"),
-        isSwitch: true,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [],
-        namesRegions: false
-    )
-    static let youTubeShows = SearchProviderOption(
-        tag: 20,
-        name: "youTubeShows",
-        title: LocalizedStringResource("Show"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [
-            SearchChoice.everything,
-            SearchChoice.videos,
-            SearchChoice.shorts,
-            SearchChoice.channels,
-            SearchChoice.playlists
-        ],
-        locales: [],
-        namesRegions: false
-    )
-    static let wikipediaLanguage = SearchProviderOption(
-        tag: 21,
-        name: "wikipediaLanguage",
-        title: LocalizedStringResource("Language"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [
-            SearchLocaleCode(code: "en", locale: "en", alsoServes: []),
-            SearchLocaleCode(code: "de", locale: "de", alsoServes: []),
-            SearchLocaleCode(code: "fr", locale: "fr", alsoServes: []),
-            SearchLocaleCode(code: "es", locale: "es", alsoServes: []),
-            SearchLocaleCode(code: "it", locale: "it", alsoServes: []),
-            SearchLocaleCode(code: "ja", locale: "ja", alsoServes: []),
-            SearchLocaleCode(code: "ru", locale: "ru", alsoServes: []),
-            SearchLocaleCode(code: "pt", locale: "pt", alsoServes: []),
-            SearchLocaleCode(code: "zh", locale: "zh", alsoServes: []),
-            SearchLocaleCode(code: "nl", locale: "nl", alsoServes: []),
-            SearchLocaleCode(code: "pl", locale: "pl", alsoServes: []),
-            SearchLocaleCode(code: "sv", locale: "sv", alsoServes: []),
-            SearchLocaleCode(code: "ar", locale: "ar", alsoServes: []),
-            SearchLocaleCode(code: "uk", locale: "uk", alsoServes: []),
-            SearchLocaleCode(code: "ko", locale: "ko", alsoServes: []),
-            SearchLocaleCode(code: "he", locale: "he", alsoServes: []),
-            SearchLocaleCode(code: "tr", locale: "tr", alsoServes: []),
-            SearchLocaleCode(code: "cs", locale: "cs", alsoServes: []),
-            SearchLocaleCode(code: "fi", locale: "fi", alsoServes: []),
-            SearchLocaleCode(code: "no", locale: "no", alsoServes: []),
-            SearchLocaleCode(code: "da", locale: "da", alsoServes: []),
-            SearchLocaleCode(code: "id", locale: "id", alsoServes: []),
-            SearchLocaleCode(code: "vi", locale: "vi", alsoServes: []),
-            SearchLocaleCode(code: "fa", locale: "fa", alsoServes: []),
-            SearchLocaleCode(code: "hu", locale: "hu", alsoServes: []),
-            SearchLocaleCode(code: "ca", locale: "ca", alsoServes: []),
-            SearchLocaleCode(code: "el", locale: "el", alsoServes: []),
-            SearchLocaleCode(code: "ro", locale: "ro", alsoServes: [])
-        ],
-        namesRegions: false
-    )
-    static let wikipediaListsResults = SearchProviderOption(
-        tag: 22,
-        name: "wikipediaListsResults",
-        title: LocalizedStringResource("Always List Results"),
-        isSwitch: true,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [],
-        namesRegions: false
-    )
-    static let gitHubSearchesFor = SearchProviderOption(
-        tag: 23,
-        name: "gitHubSearchesFor",
-        title: LocalizedStringResource("Search For"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [
-            SearchChoice.repositories,
-            SearchChoice.code,
-            SearchChoice.issues,
-            SearchChoice.pullRequests,
-            SearchChoice.discussions,
-            SearchChoice.users
-        ],
-        locales: [],
-        namesRegions: false
-    )
-    static let gitHubSort = SearchProviderOption(
-        tag: 24,
-        name: "gitHubSort",
-        title: LocalizedStringResource("Sort By"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [SearchChoice.bestMatch, SearchChoice.mostStars, SearchChoice.recentlyUpdated],
-        locales: [],
-        namesRegions: false
-    )
-    static let xLatestFirst = SearchProviderOption(
-        tag: 25,
-        name: "xLatestFirst",
-        title: LocalizedStringResource("Latest First"),
-        isSwitch: true,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [],
-        namesRegions: false
-    )
-    static let stackOverflowSort = SearchProviderOption(
-        tag: 26,
-        name: "stackOverflowSort",
-        title: LocalizedStringResource("Sort By"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [SearchChoice.relevance, SearchChoice.newest, SearchChoice.mostVotes],
-        locales: [],
-        namesRegions: false
-    )
-    static let mdnLanguage = SearchProviderOption(
-        tag: 27,
-        name: "mdnLanguage",
-        title: LocalizedStringResource("Language"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [
-            SearchLocaleCode(code: "en-US", locale: "en-US", alsoServes: []),
-            SearchLocaleCode(code: "de", locale: "de", alsoServes: []),
-            SearchLocaleCode(code: "es", locale: "es", alsoServes: []),
-            SearchLocaleCode(code: "fr", locale: "fr", alsoServes: []),
-            SearchLocaleCode(code: "ja", locale: "ja", alsoServes: []),
-            SearchLocaleCode(code: "ko", locale: "ko", alsoServes: []),
-            SearchLocaleCode(code: "pt-BR", locale: "pt-BR", alsoServes: []),
-            SearchLocaleCode(code: "ru", locale: "ru", alsoServes: []),
-            SearchLocaleCode(code: "zh-CN", locale: "zh-CN", alsoServes: []),
-            SearchLocaleCode(code: "zh-TW", locale: "zh-TW", alsoServes: [])
-        ],
-        namesRegions: false
-    )
-    static let amazonStore = SearchProviderOption(
-        tag: 28,
-        name: "amazonStore",
-        title: LocalizedStringResource("Store"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [
-            SearchLocaleCode(code: "amazon.com", locale: "en-US", alsoServes: []),
-            SearchLocaleCode(code: "amazon.co.uk", locale: "en-GB", alsoServes: ["IE"]),
-            SearchLocaleCode(code: "amazon.de", locale: "de-DE", alsoServes: ["AT", "CH", "LU"]),
-            SearchLocaleCode(code: "amazon.fr", locale: "fr-FR", alsoServes: []),
-            SearchLocaleCode(code: "amazon.com.be", locale: "nl-BE", alsoServes: []),
-            SearchLocaleCode(code: "amazon.it", locale: "it-IT", alsoServes: []),
-            SearchLocaleCode(code: "amazon.es", locale: "es-ES", alsoServes: []),
-            SearchLocaleCode(code: "amazon.nl", locale: "nl-NL", alsoServes: []),
-            SearchLocaleCode(code: "amazon.se", locale: "sv-SE", alsoServes: []),
-            SearchLocaleCode(code: "amazon.pl", locale: "pl-PL", alsoServes: []),
-            SearchLocaleCode(code: "amazon.co.jp", locale: "ja-JP", alsoServes: []),
-            SearchLocaleCode(code: "amazon.ca", locale: "en-CA", alsoServes: []),
-            SearchLocaleCode(code: "amazon.com.au", locale: "en-AU", alsoServes: []),
-            SearchLocaleCode(code: "amazon.in", locale: "en-IN", alsoServes: []),
-            SearchLocaleCode(code: "amazon.com.br", locale: "pt-BR", alsoServes: []),
-            SearchLocaleCode(code: "amazon.com.mx", locale: "es-MX", alsoServes: [])
-        ],
-        namesRegions: true
-    )
-    static let imDbFinds = SearchProviderOption(
-        tag: 29,
-        name: "imdbFinds",
-        title: LocalizedStringResource("Find"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [
-            SearchChoice.everything,
-            SearchChoice.titles,
-            SearchChoice.people,
-            SearchChoice.companies,
-            SearchChoice.keywords
-        ],
-        locales: [],
-        namesRegions: false
-    )
-    static let spotifyShows = SearchProviderOption(
-        tag: 30,
-        name: "spotifyShows",
-        title: LocalizedStringResource("Show"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [
-            SearchChoice.everything,
-            SearchChoice.songs,
-            SearchChoice.artists,
-            SearchChoice.albums,
-            SearchChoice.playlists,
-            SearchChoice.podcasts
-        ],
-        locales: [],
-        namesRegions: false
-    )
-    static let appleMapsShows = SearchProviderOption(
-        tag: 31,
-        name: "appleMapsShows",
-        title: LocalizedStringResource("Map"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [SearchChoice.explore, SearchChoice.satellite, SearchChoice.hybrid, SearchChoice.transit],
-        locales: [],
-        namesRegions: false
-    )
-    static let googleImagesSafeSearch = SearchProviderOption(
-        tag: 32,
-        name: "googleImagesSafeSearch",
-        title: LocalizedStringResource("SafeSearch"),
-        isSwitch: true,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [],
-        namesRegions: false
-    )
-    static let translateInto = SearchProviderOption(
-        tag: 33,
-        name: "translateInto",
-        title: LocalizedStringResource("Translate Into"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [
-            SearchLocaleCode(code: "en", locale: "en", alsoServes: []),
-            SearchLocaleCode(code: "de", locale: "de", alsoServes: []),
-            SearchLocaleCode(code: "fr", locale: "fr", alsoServes: []),
-            SearchLocaleCode(code: "es", locale: "es", alsoServes: []),
-            SearchLocaleCode(code: "it", locale: "it", alsoServes: []),
-            SearchLocaleCode(code: "ja", locale: "ja", alsoServes: []),
-            SearchLocaleCode(code: "ko", locale: "ko", alsoServes: []),
-            SearchLocaleCode(code: "zh-CN", locale: "zh-CN", alsoServes: []),
-            SearchLocaleCode(code: "zh-TW", locale: "zh-TW", alsoServes: []),
-            SearchLocaleCode(code: "pt", locale: "pt", alsoServes: []),
-            SearchLocaleCode(code: "ru", locale: "ru", alsoServes: []),
-            SearchLocaleCode(code: "nl", locale: "nl", alsoServes: []),
-            SearchLocaleCode(code: "pl", locale: "pl", alsoServes: []),
-            SearchLocaleCode(code: "sv", locale: "sv", alsoServes: []),
-            SearchLocaleCode(code: "ar", locale: "ar", alsoServes: []),
-            SearchLocaleCode(code: "hi", locale: "hi", alsoServes: []),
-            SearchLocaleCode(code: "tr", locale: "tr", alsoServes: []),
-            SearchLocaleCode(code: "uk", locale: "uk", alsoServes: [])
-        ],
-        namesRegions: false
-    )
-    static let hackerNewsSort = SearchProviderOption(
-        tag: 34,
-        name: "hackerNewsSort",
-        title: LocalizedStringResource("Sort By"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [SearchChoice.popular, SearchChoice.newest],
-        locales: [],
-        namesRegions: false
-    )
-    static let hackerNewsShows = SearchProviderOption(
-        tag: 35,
-        name: "hackerNewsShows",
-        title: LocalizedStringResource("Show"),
-        isSwitch: false,
-        acceptsText: false,
-        textExample: nil,
-        choices: [SearchChoice.everything, SearchChoice.stories, SearchChoice.comments],
-        locales: [],
-        namesRegions: false
-    )
-    static let appleDeveloperSkipsAI = SearchProviderOption(
-        tag: 36,
-        name: "appleDeveloperSkipsAI",
-        title: LocalizedStringResource("Skip the AI Answer"),
-        isSwitch: true,
-        acceptsText: false,
-        textExample: nil,
-        choices: [],
-        locales: [],
-        namesRegions: false
-    )
-
-    static let all: [SearchProviderOption] = [
-        googleHidesAIOverviews,
-        googleSafeSearch,
-        googleExactWords,
-        duckDuckGoHidesAI,
-        duckDuckGoSafeSearch,
-        duckDuckGoRegion,
-        bingMarket,
-        bingStrictSafeSearch,
-        braveHidesAIAnswers,
-        braveSafeSearch,
-        braveCountry,
-        startpageSafeSearch,
-        kagiExactWords,
-        yahooStrictSafeSearch,
-        qwantRegion,
-        chatGPTSearchesWeb,
-        chatGPTTemporaryChat,
-        chatGPTModel,
-        kagiAssistantModel,
-        kagiAssistantWebAccess,
-        youTubeShows,
-        wikipediaLanguage,
-        wikipediaListsResults,
-        gitHubSearchesFor,
-        gitHubSort,
-        xLatestFirst,
-        stackOverflowSort,
-        mdnLanguage,
-        amazonStore,
-        imDbFinds,
-        spotifyShows,
-        appleMapsShows,
-        googleImagesSafeSearch,
-        translateInto,
-        hackerNewsSort,
-        hackerNewsShows,
-        appleDeveloperSkipsAI
-    ]
-
-    static func named(_ name: String?) -> SearchProviderOption? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: SearchProviderOption, rhs: SearchProviderOption) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-        let isSwitch: Bool
-        let acceptsText: Bool
-        let textExample: String?
-        let choices: [SearchChoice]
-        let locales: [SearchLocaleCode]
-        let namesRegions: Bool
-
-        init(
-            name: String,
-            title: LocalizedStringResource,
-            isSwitch: Bool,
-            acceptsText: Bool,
-            textExample: String?,
-            choices: [SearchChoice],
-            locales: [SearchLocaleCode],
-            namesRegions: Bool
-        ) {
-            self.name = name
-            self.title = title
-            self.isSwitch = isSwitch
-            self.acceptsText = acceptsText
-            self.textExample = textExample
-            self.choices = choices
-            self.locales = locales
-            self.namesRegions = namesRegions
+            self.color = color
+            self.logo = logo
+            self.searchTemplate = searchTemplate
         }
     }
 }
@@ -17274,297 +10961,6 @@ struct SearchProviderSpaceTrigger: Hashable, Sendable {
     }
 }
 
-/// The members of the core's `SetupEntry`. A member's wire tag is its index in `all`.
-/// Core-only behavior, not emitted: `opensGuide`.
-struct SetupEntry: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var firstStep: SetupStep { facts.firstStep }
-    var isGuided: Bool { facts.isGuided }
-    var startsManualSetupOver: Bool { facts.startsManualSetupOver }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, firstStep: SetupStep, isGuided: Bool, startsManualSetupOver: Bool) {
-        self.tag = tag
-        facts = Facts(
-            name: name,
-            firstStep: firstStep,
-            isGuided: isGuided,
-            startsManualSetupOver: startsManualSetupOver
-        )
-    }
-
-    static let firstRun = SetupEntry(
-        tag: 0,
-        name: "firstRun",
-        firstStep: SetupStep.welcome,
-        isGuided: true,
-        startsManualSetupOver: false
-    )
-    static let importBrowser = SetupEntry(
-        tag: 1,
-        name: "importBrowser",
-        firstStep: SetupStep.importBrowser,
-        isGuided: false,
-        startsManualSetupOver: false
-    )
-    static let manualSetup = SetupEntry(
-        tag: 2,
-        name: "manualSetup",
-        firstStep: SetupStep.manualSetup,
-        isGuided: false,
-        startsManualSetupOver: false
-    )
-    static let rerun = SetupEntry(
-        tag: 3,
-        name: "rerun",
-        firstStep: SetupStep.welcome,
-        isGuided: true,
-        startsManualSetupOver: true
-    )
-
-    static let all: [SetupEntry] = [firstRun, importBrowser, manualSetup, rerun]
-
-    static func named(_ name: String?) -> SetupEntry? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: SetupEntry, rhs: SetupEntry) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let firstStep: SetupStep
-        let isGuided: Bool
-        let startsManualSetupOver: Bool
-
-        init(name: String, firstStep: SetupStep, isGuided: Bool, startsManualSetupOver: Bool) {
-            self.name = name
-            self.firstStep = firstStep
-            self.isGuided = isGuided
-            self.startsManualSetupOver = startsManualSetupOver
-        }
-    }
-}
-
-/// The members of the core's `SetupFailureReason`. A member's wire tag is its index in `all`.
-struct SetupFailureReason: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var returnsToReview: Bool { facts.returnsToReview }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, returnsToReview: Bool) {
-        self.tag = tag
-        facts = Facts(name: name, returnsToReview: returnsToReview)
-    }
-
-    static let sourceUnavailable = SetupFailureReason(tag: 0, name: "sourceUnavailable", returnsToReview: false)
-    static let dataFolder = SetupFailureReason(tag: 1, name: "dataFolder", returnsToReview: false)
-    static let read = SetupFailureReason(tag: 2, name: "read", returnsToReview: false)
-    static let `import` = SetupFailureReason(tag: 3, name: "import", returnsToReview: true)
-
-    static let all: [SetupFailureReason] = [sourceUnavailable, dataFolder, read, `import`]
-
-    static func named(_ name: String?) -> SetupFailureReason? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: SetupFailureReason, rhs: SetupFailureReason) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let returnsToReview: Bool
-
-        init(name: String, returnsToReview: Bool) {
-            self.name = name
-            self.returnsToReview = returnsToReview
-        }
-    }
-}
-
-/// The members of the core's `SetupLook`. A member's wire tag is its index in `all`.
-/// Core-only behavior, not emitted: `newSpaceLook`, `applying`.
-struct SetupLook: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case heraldic
-        case modern
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    private let facts: Facts
-
-    private init(tag: Int, kind: Kinds, name: String, title: LocalizedStringResource) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, title: title)
-    }
-
-    static let heraldic = SetupLook(
-        tag: 0,
-        kind: .heraldic,
-        name: "heraldic",
-        title: LocalizedStringResource("Heraldic")
-    )
-    static let modern = SetupLook(tag: 1, kind: .modern, name: "modern", title: LocalizedStringResource("Modern"))
-
-    static let all: [SetupLook] = [heraldic, modern]
-
-    static func named(_ name: String?) -> SetupLook? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: SetupLook, rhs: SetupLook) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let title: LocalizedStringResource
-
-        init(kind: Kinds, name: String, title: LocalizedStringResource) {
-            self.kind = kind
-            self.name = name
-            self.title = title
-        }
-    }
-}
-
-/// The members of the core's `SetupPhase`. A member's wire tag is its index in `all`.
-struct SetupPhase: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var isBusy: Bool { facts.isBusy }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, isBusy: Bool) {
-        self.tag = tag
-        facts = Facts(name: name, isBusy: isBusy)
-    }
-
-    static let idle = SetupPhase(tag: 0, name: "idle", isBusy: false)
-    static let reading = SetupPhase(tag: 1, name: "reading", isBusy: true)
-    static let reviewing = SetupPhase(tag: 2, name: "reviewing", isBusy: false)
-    static let committing = SetupPhase(tag: 3, name: "committing", isBusy: true)
-
-    static let all: [SetupPhase] = [idle, reading, reviewing, committing]
-
-    static func named(_ name: String?) -> SetupPhase? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: SetupPhase, rhs: SetupPhase) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let isBusy: Bool
-
-        init(name: String, isBusy: Bool) {
-            self.name = name
-            self.isBusy = isBusy
-        }
-    }
-}
-
-/// The members of the core's `SetupStep`. A member's wire tag is its index in `all`.
-/// Core-only behavior, not emitted: `next`, `back`.
-struct SetupStep: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case welcome
-        case featureSpaces
-        case featureTabs
-        case featureSync
-        case importBrowser
-        case review
-        case manualSetup
-        case complete
-        case look
-    }
-
-    static let progressCount = 6
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var progressPosition: Int { facts.progressPosition }
-    private let facts: Facts
-
-    private init(tag: Int, kind: Kinds, name: String, progressPosition: Int) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, progressPosition: progressPosition)
-    }
-
-    static let welcome = SetupStep(tag: 0, kind: .welcome, name: "welcome", progressPosition: 0)
-    static let featureSpaces = SetupStep(tag: 1, kind: .featureSpaces, name: "featureSpaces", progressPosition: 0)
-    static let featureTabs = SetupStep(tag: 2, kind: .featureTabs, name: "featureTabs", progressPosition: 0)
-    static let featureSync = SetupStep(tag: 3, kind: .featureSync, name: "featureSync", progressPosition: 0)
-    static let importBrowser = SetupStep(tag: 4, kind: .importBrowser, name: "importBrowser", progressPosition: 2)
-    static let review = SetupStep(tag: 5, kind: .review, name: "review", progressPosition: 3)
-    static let manualSetup = SetupStep(tag: 6, kind: .manualSetup, name: "manualSetup", progressPosition: 4)
-    static let complete = SetupStep(tag: 7, kind: .complete, name: "complete", progressPosition: 5)
-    static let look = SetupStep(tag: 8, kind: .look, name: "look", progressPosition: 1)
-
-    static let all: [SetupStep] = [
-        welcome,
-        featureSpaces,
-        featureTabs,
-        featureSync,
-        importBrowser,
-        review,
-        manualSetup,
-        complete,
-        look
-    ]
-
-    static func named(_ name: String?) -> SetupStep? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: SetupStep, rhs: SetupStep) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let progressPosition: Int
-
-        init(kind: Kinds, name: String, progressPosition: Int) {
-            self.kind = kind
-            self.name = name
-            self.progressPosition = progressPosition
-        }
-    }
-}
-
 /// The members of the core's `ShortcutCommand`. A member's wire tag is its index in `all`.
 /// Core-only behavior, not emitted: `availableWhen`.
 struct ShortcutCommand: Hashable, Sendable {
@@ -17572,7 +10968,6 @@ struct ShortcutCommand: Hashable, Sendable {
         case newWindow
         case newBlankWindow
         case newTab
-        case newQuickWindow
         case newPrivateWindow
         case closeTabOrWindow
         case closeWindow
@@ -17590,6 +10985,7 @@ struct ShortcutCommand: Hashable, Sendable {
         case previousTab
         case nextTab
         case mostRecentTab
+        case mostRecentTabBackward
         case selectNumbered
         case previousSpace
         case nextSpace
@@ -17618,14 +11014,10 @@ struct ShortcutCommand: Hashable, Sendable {
         case moveSplitCardLeft
         case moveSplitCardRight
         case toggleDeveloperToolbar
-        case toggleTranslationToolbar
+        case translatePage
         case openFile
         case findNext
         case findPrevious
-        case capturePage
-        case mostRecentTabBackward
-        case clearSiteCookies
-        case clearSiteCache
     }
 
     let tag: Int
@@ -17696,13 +11088,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "n", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "n", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "n", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "n", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: 1,
@@ -17724,8 +11114,7 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "n", isSpecialKey: false, modifiers: [.command, .option]),
-                yieldsToOverrides: true
+                keys: KeyCombination(key: "n", isSpecialKey: false, modifiers: [.command, .option])
             )
         ],
         paletteRest: nil,
@@ -17747,49 +11136,19 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "t", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "t", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "t", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "t", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
         offersInPalette: false,
         isReservedFromPages: true
     )
-    static let newQuickWindow = ShortcutCommand(
-        tag: 3,
-        kind: .newQuickWindow,
-        name: "newQuickWindow",
-        section: ShortcutSection.everyday,
-        title: LocalizedStringResource("New Quick Window"),
-        searchTerms: LocalizedStringResource("little arc quick lookup"),
-        menuTitle: nil,
-        symbol: "macwindow.badge.plus",
-        requiredCapability: nil,
-        selects: nil,
-        number: nil,
-        defaultShortcuts: [
-            ShortcutDefault(
-                platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "n", isSpecialKey: false, modifiers: [.command, .option, .shift]),
-                yieldsToOverrides: true
-            ),
-            ShortcutDefault(
-                platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "n", isSpecialKey: false, modifiers: [.command, .option]),
-                yieldsToOverrides: false
-            )
-        ],
-        paletteRest: nil,
-        offersInPalette: true,
-        isReservedFromPages: false
-    )
     static let newPrivateWindow = ShortcutCommand(
-        tag: 4,
+        tag: 3,
         kind: .newPrivateWindow,
         name: "newPrivateWindow",
         section: ShortcutSection.everyday,
@@ -17803,13 +11162,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "n", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "n", isSpecialKey: false, modifiers: [.command, .shift])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "n", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "n", isSpecialKey: false, modifiers: [.command, .shift])
             )
         ],
         paletteRest: nil,
@@ -17817,7 +11174,7 @@ struct ShortcutCommand: Hashable, Sendable {
         isReservedFromPages: true
     )
     static let closeTabOrWindow = ShortcutCommand(
-        tag: 5,
+        tag: 4,
         kind: .closeTabOrWindow,
         name: "closeTabOrWindow",
         section: ShortcutSection.everyday,
@@ -17831,13 +11188,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "w", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "w", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "w", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "w", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -17845,7 +11200,7 @@ struct ShortcutCommand: Hashable, Sendable {
         isReservedFromPages: true
     )
     static let closeWindow = ShortcutCommand(
-        tag: 6,
+        tag: 5,
         kind: .closeWindow,
         name: "closeWindow",
         section: ShortcutSection.everyday,
@@ -17859,13 +11214,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "w", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "w", isSpecialKey: false, modifiers: [.command, .shift])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "w", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "w", isSpecialKey: false, modifiers: [.command, .shift])
             )
         ],
         paletteRest: nil,
@@ -17873,7 +11226,7 @@ struct ShortcutCommand: Hashable, Sendable {
         isReservedFromPages: true
     )
     static let openLocation = ShortcutCommand(
-        tag: 7,
+        tag: 6,
         kind: .openLocation,
         name: "openLocation",
         section: ShortcutSection.everyday,
@@ -17887,13 +11240,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "l", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "l", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "l", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "l", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -17901,7 +11252,7 @@ struct ShortcutCommand: Hashable, Sendable {
         isReservedFromPages: false
     )
     static let back = ShortcutCommand(
-        tag: 8,
+        tag: 7,
         kind: .back,
         name: "back",
         section: ShortcutSection.everyday,
@@ -17915,13 +11266,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "[", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "[", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "[", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "[", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -17929,7 +11278,7 @@ struct ShortcutCommand: Hashable, Sendable {
         isReservedFromPages: false
     )
     static let forward = ShortcutCommand(
-        tag: 9,
+        tag: 8,
         kind: .forward,
         name: "forward",
         section: ShortcutSection.everyday,
@@ -17943,13 +11292,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "]", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "]", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "]", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "]", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -17957,7 +11304,7 @@ struct ShortcutCommand: Hashable, Sendable {
         isReservedFromPages: false
     )
     static let reloadPage = ShortcutCommand(
-        tag: 10,
+        tag: 9,
         kind: .reloadPage,
         name: "reloadPage",
         section: ShortcutSection.everyday,
@@ -17971,13 +11318,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "r", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "r", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "r", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "r", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -17985,7 +11330,7 @@ struct ShortcutCommand: Hashable, Sendable {
         isReservedFromPages: false
     )
     static let stopLoading = ShortcutCommand(
-        tag: 11,
+        tag: 10,
         kind: .stopLoading,
         name: "stopLoading",
         section: ShortcutSection.everyday,
@@ -17999,13 +11344,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: ".", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: ".", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: ".", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: ".", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -18013,7 +11356,7 @@ struct ShortcutCommand: Hashable, Sendable {
         isReservedFromPages: false
     )
     static let reloadFromOrigin = ShortcutCommand(
-        tag: 12,
+        tag: 11,
         kind: .reloadFromOrigin,
         name: "reloadFromOrigin",
         section: ShortcutSection.everyday,
@@ -18027,13 +11370,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "r", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "r", isSpecialKey: false, modifiers: [.command, .shift])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "r", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "r", isSpecialKey: false, modifiers: [.command, .shift])
             )
         ],
         paletteRest: nil,
@@ -18041,7 +11382,7 @@ struct ShortcutCommand: Hashable, Sendable {
         isReservedFromPages: false
     )
     static let toggleSelectedTabPinned = ShortcutCommand(
-        tag: 13,
+        tag: 12,
         kind: .toggleSelectedTabPinned,
         name: "toggleSelectedTabPinned",
         section: ShortcutSection.tabs,
@@ -18055,13 +11396,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "d", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "d", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "d", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "d", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -18069,7 +11408,7 @@ struct ShortcutCommand: Hashable, Sendable {
         isReservedFromPages: false
     )
     static let duplicateTab = ShortcutCommand(
-        tag: 14,
+        tag: 13,
         kind: .duplicateTab,
         name: "duplicateTab",
         section: ShortcutSection.tabs,
@@ -18086,7 +11425,7 @@ struct ShortcutCommand: Hashable, Sendable {
         isReservedFromPages: false
     )
     static let reopenClosedTab = ShortcutCommand(
-        tag: 15,
+        tag: 14,
         kind: .reopenClosedTab,
         name: "reopenClosedTab",
         section: ShortcutSection.tabs,
@@ -18100,13 +11439,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "t", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "t", isSpecialKey: false, modifiers: [.command, .shift])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "t", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "t", isSpecialKey: false, modifiers: [.command, .shift])
             )
         ],
         paletteRest: 2,
@@ -18114,11 +11451,11 @@ struct ShortcutCommand: Hashable, Sendable {
         isReservedFromPages: true
     )
     static let clearUnpinnedTabs = ShortcutCommand(
-        tag: 16,
+        tag: 15,
         kind: .clearUnpinnedTabs,
         name: "clearUnpinnedTabs",
         section: ShortcutSection.tabs,
-        title: LocalizedStringResource("Clear Unpinned Tabs"),
+        title: LocalizedStringResource("Clear Current Tabs"),
         searchTerms: LocalizedStringResource("clean tidy archive unpinned tabs"),
         menuTitle: nil,
         symbol: "sparkles",
@@ -18128,13 +11465,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "k", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "k", isSpecialKey: false, modifiers: [.command, .shift])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "k", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "k", isSpecialKey: false, modifiers: [.command, .shift])
             )
         ],
         paletteRest: nil,
@@ -18142,7 +11477,7 @@ struct ShortcutCommand: Hashable, Sendable {
         isReservedFromPages: false
     )
     static let archiveTab = ShortcutCommand(
-        tag: 17,
+        tag: 16,
         kind: .archiveTab,
         name: "archiveTab",
         section: ShortcutSection.tabs,
@@ -18156,13 +11491,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "e", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "e", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "e", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "e", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -18170,7 +11503,7 @@ struct ShortcutCommand: Hashable, Sendable {
         isReservedFromPages: false
     )
     static let previousTab = ShortcutCommand(
-        tag: 18,
+        tag: 17,
         kind: .previousTab,
         name: "previousTab",
         section: ShortcutSection.tabs,
@@ -18184,13 +11517,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "upArrow", isSpecialKey: true, modifiers: [.command, .option]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "upArrow", isSpecialKey: true, modifiers: [.command, .option])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "upArrow", isSpecialKey: true, modifiers: [.command, .option]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "upArrow", isSpecialKey: true, modifiers: [.command, .option])
             )
         ],
         paletteRest: nil,
@@ -18198,7 +11529,7 @@ struct ShortcutCommand: Hashable, Sendable {
         isReservedFromPages: true
     )
     static let nextTab = ShortcutCommand(
-        tag: 19,
+        tag: 18,
         kind: .nextTab,
         name: "nextTab",
         section: ShortcutSection.tabs,
@@ -18212,13 +11543,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "downArrow", isSpecialKey: true, modifiers: [.command, .option]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "downArrow", isSpecialKey: true, modifiers: [.command, .option])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "downArrow", isSpecialKey: true, modifiers: [.command, .option]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "downArrow", isSpecialKey: true, modifiers: [.command, .option])
             )
         ],
         paletteRest: nil,
@@ -18226,7 +11555,7 @@ struct ShortcutCommand: Hashable, Sendable {
         isReservedFromPages: true
     )
     static let mostRecentTab = ShortcutCommand(
-        tag: 20,
+        tag: 19,
         kind: .mostRecentTab,
         name: "mostRecentTab",
         section: ShortcutSection.tabs,
@@ -18240,13 +11569,37 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "tab", isSpecialKey: true, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "tab", isSpecialKey: true, modifiers: [.control])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "tab", isSpecialKey: true, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "tab", isSpecialKey: true, modifiers: [.control])
+            )
+        ],
+        paletteRest: nil,
+        offersInPalette: true,
+        isReservedFromPages: true
+    )
+    static let mostRecentTabBackward = ShortcutCommand(
+        tag: 20,
+        kind: .mostRecentTabBackward,
+        name: "mostRecentTabBackward",
+        section: ShortcutSection.tabs,
+        title: LocalizedStringResource("Most Recent Tab Backward"),
+        searchTerms: LocalizedStringResource("toggle recent switch tabs oldest back"),
+        menuTitle: nil,
+        symbol: "arrow.left.arrow.right",
+        requiredCapability: nil,
+        selects: nil,
+        number: nil,
+        defaultShortcuts: [
+            ShortcutDefault(
+                platform: DevicePlatform.desktop,
+                keys: KeyCombination(key: "tab", isSpecialKey: true, modifiers: [.control, .shift])
+            ),
+            ShortcutDefault(
+                platform: DevicePlatform.mobile,
+                keys: KeyCombination(key: "tab", isSpecialKey: true, modifiers: [.control, .shift])
             )
         ],
         paletteRest: nil,
@@ -18268,13 +11621,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "1", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "1", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "1", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "1", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -18296,13 +11647,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "2", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "2", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "2", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "2", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -18324,13 +11673,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "3", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "3", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "3", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "3", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -18352,13 +11699,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "4", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "4", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "4", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "4", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -18380,13 +11725,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "5", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "5", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "5", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "5", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -18408,13 +11751,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "6", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "6", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "6", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "6", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -18436,13 +11777,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "7", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "7", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "7", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "7", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -18464,13 +11803,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "8", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "8", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "8", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "8", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -18492,13 +11829,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "9", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "9", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "9", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "9", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -18520,13 +11855,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "leftArrow", isSpecialKey: true, modifiers: [.command, .option]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "leftArrow", isSpecialKey: true, modifiers: [.command, .option])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "leftArrow", isSpecialKey: true, modifiers: [.command, .option]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "leftArrow", isSpecialKey: true, modifiers: [.command, .option])
             )
         ],
         paletteRest: nil,
@@ -18548,13 +11881,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "rightArrow", isSpecialKey: true, modifiers: [.command, .option]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "rightArrow", isSpecialKey: true, modifiers: [.command, .option])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "rightArrow", isSpecialKey: true, modifiers: [.command, .option]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "rightArrow", isSpecialKey: true, modifiers: [.command, .option])
             )
         ],
         paletteRest: nil,
@@ -18576,13 +11907,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "1", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "1", isSpecialKey: false, modifiers: [.control])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "1", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "1", isSpecialKey: false, modifiers: [.control])
             )
         ],
         paletteRest: nil,
@@ -18604,13 +11933,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "2", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "2", isSpecialKey: false, modifiers: [.control])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "2", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "2", isSpecialKey: false, modifiers: [.control])
             )
         ],
         paletteRest: nil,
@@ -18632,13 +11959,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "3", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "3", isSpecialKey: false, modifiers: [.control])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "3", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "3", isSpecialKey: false, modifiers: [.control])
             )
         ],
         paletteRest: nil,
@@ -18660,13 +11985,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "4", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "4", isSpecialKey: false, modifiers: [.control])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "4", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "4", isSpecialKey: false, modifiers: [.control])
             )
         ],
         paletteRest: nil,
@@ -18688,13 +12011,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "5", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "5", isSpecialKey: false, modifiers: [.control])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "5", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "5", isSpecialKey: false, modifiers: [.control])
             )
         ],
         paletteRest: nil,
@@ -18716,13 +12037,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "6", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "6", isSpecialKey: false, modifiers: [.control])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "6", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "6", isSpecialKey: false, modifiers: [.control])
             )
         ],
         paletteRest: nil,
@@ -18744,13 +12063,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "7", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "7", isSpecialKey: false, modifiers: [.control])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "7", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "7", isSpecialKey: false, modifiers: [.control])
             )
         ],
         paletteRest: nil,
@@ -18772,13 +12089,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "8", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "8", isSpecialKey: false, modifiers: [.control])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "8", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "8", isSpecialKey: false, modifiers: [.control])
             )
         ],
         paletteRest: nil,
@@ -18800,13 +12115,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "9", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "9", isSpecialKey: false, modifiers: [.control])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "9", isSpecialKey: false, modifiers: [.control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "9", isSpecialKey: false, modifiers: [.control])
             )
         ],
         paletteRest: nil,
@@ -18862,13 +12175,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "f", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "f", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "f", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "f", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -18890,13 +12201,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "+", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "+", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "+", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "+", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -18918,13 +12227,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "-", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "-", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "-", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "-", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -18946,13 +12253,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "0", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "0", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "0", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "0", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -18974,13 +12279,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "c", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "c", isSpecialKey: false, modifiers: [.command, .shift])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "c", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "c", isSpecialKey: false, modifiers: [.command, .shift])
             )
         ],
         paletteRest: nil,
@@ -19002,13 +12305,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "c", isSpecialKey: false, modifiers: [.command, .option, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "c", isSpecialKey: false, modifiers: [.command, .option, .shift])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "c", isSpecialKey: false, modifiers: [.command, .option, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "c", isSpecialKey: false, modifiers: [.command, .option, .shift])
             )
         ],
         paletteRest: nil,
@@ -19081,13 +12382,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "p", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "p", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "p", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "p", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -19108,17 +12407,11 @@ struct ShortcutCommand: Hashable, Sendable {
         number: nil,
         defaultShortcuts: [
             ShortcutDefault(
-                platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "s", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
-            ),
-            ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "s", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "b", isSpecialKey: false, modifiers: [.command])
             )
         ],
-        paletteRest: 5,
+        paletteRest: nil,
         offersInPalette: true,
         isReservedFromPages: false
     )
@@ -19137,13 +12430,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "y", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "y", isSpecialKey: false, modifiers: [.command])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "y", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "y", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: 3,
@@ -19182,13 +12473,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "j", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "j", isSpecialKey: false, modifiers: [.command, .shift])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "j", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "j", isSpecialKey: false, modifiers: [.command, .shift])
             )
         ],
         paletteRest: 4,
@@ -19210,13 +12499,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "i", isSpecialKey: false, modifiers: [.command, .option]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "i", isSpecialKey: false, modifiers: [.command, .option])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "i", isSpecialKey: false, modifiers: [.command, .option]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "i", isSpecialKey: false, modifiers: [.command, .option])
             )
         ],
         paletteRest: nil,
@@ -19255,13 +12542,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "rightArrow", isSpecialKey: true, modifiers: [.command, .control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "rightArrow", isSpecialKey: true, modifiers: [.command, .control])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "rightArrow", isSpecialKey: true, modifiers: [.command, .control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "rightArrow", isSpecialKey: true, modifiers: [.command, .control])
             )
         ],
         paletteRest: nil,
@@ -19283,13 +12568,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "leftArrow", isSpecialKey: true, modifiers: [.command, .control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "leftArrow", isSpecialKey: true, modifiers: [.command, .control])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "leftArrow", isSpecialKey: true, modifiers: [.command, .control]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "leftArrow", isSpecialKey: true, modifiers: [.command, .control])
             )
         ],
         paletteRest: nil,
@@ -19328,13 +12611,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "u", isSpecialKey: false, modifiers: [.command, .option]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "u", isSpecialKey: false, modifiers: [.command, .option])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "u", isSpecialKey: false, modifiers: [.command, .option]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "u", isSpecialKey: false, modifiers: [.command, .option])
             )
         ],
         paletteRest: nil,
@@ -19356,13 +12637,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "leftArrow", isSpecialKey: true, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "leftArrow", isSpecialKey: true, modifiers: [.command, .shift])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "leftArrow", isSpecialKey: true, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "leftArrow", isSpecialKey: true, modifiers: [.command, .shift])
             )
         ],
         paletteRest: nil,
@@ -19384,13 +12663,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "rightArrow", isSpecialKey: true, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "rightArrow", isSpecialKey: true, modifiers: [.command, .shift])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "rightArrow", isSpecialKey: true, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "rightArrow", isSpecialKey: true, modifiers: [.command, .shift])
             )
         ],
         paletteRest: nil,
@@ -19412,27 +12689,25 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "i", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "i", isSpecialKey: false, modifiers: [.command, .shift])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "i", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "i", isSpecialKey: false, modifiers: [.command, .shift])
             )
         ],
         paletteRest: nil,
         offersInPalette: true,
         isReservedFromPages: false
     )
-    static let toggleTranslationToolbar = ShortcutCommand(
+    static let translatePage = ShortcutCommand(
         tag: 66,
-        kind: .toggleTranslationToolbar,
-        name: "toggleTranslationToolbar",
+        kind: .translatePage,
+        name: "translatePage",
         section: ShortcutSection.view,
-        title: LocalizedStringResource("Show or Hide Translation Toolbar"),
-        searchTerms: LocalizedStringResource("translate translation language toolbar show hide"),
-        menuTitle: LocalizedStringResource("Show Translation Toolbar"),
+        title: LocalizedStringResource("Translate Page"),
+        searchTerms: LocalizedStringResource("translate translation language"),
+        menuTitle: LocalizedStringResource("Translate Page"),
         symbol: "translate",
         requiredCapability: EngineCapability.translation,
         selects: nil,
@@ -19440,13 +12715,11 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "l", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "l", isSpecialKey: false, modifiers: [.command, .shift])
             ),
             ShortcutDefault(
                 platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "l", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                keys: KeyCombination(key: "l", isSpecialKey: false, modifiers: [.command, .shift])
             )
         ],
         paletteRest: nil,
@@ -19485,8 +12758,7 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "g", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: true
+                keys: KeyCombination(key: "g", isSpecialKey: false, modifiers: [.command])
             )
         ],
         paletteRest: nil,
@@ -19508,95 +12780,9 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "g", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: true
+                keys: KeyCombination(key: "g", isSpecialKey: false, modifiers: [.command, .shift])
             )
         ],
-        paletteRest: nil,
-        offersInPalette: true,
-        isReservedFromPages: false
-    )
-    static let capturePage = ShortcutCommand(
-        tag: 70,
-        kind: .capturePage,
-        name: "capturePage",
-        section: ShortcutSection.page,
-        title: LocalizedStringResource("Capture Page"),
-        searchTerms: LocalizedStringResource("screenshot snapshot region selection image clipboard"),
-        menuTitle: nil,
-        symbol: "camera",
-        requiredCapability: EngineCapability.viewportCapture,
-        selects: nil,
-        number: nil,
-        defaultShortcuts: [
-            ShortcutDefault(
-                platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "2", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: true
-            )
-        ],
-        paletteRest: nil,
-        offersInPalette: true,
-        isReservedFromPages: false
-    )
-    static let mostRecentTabBackward = ShortcutCommand(
-        tag: 71,
-        kind: .mostRecentTabBackward,
-        name: "mostRecentTabBackward",
-        section: ShortcutSection.tabs,
-        title: LocalizedStringResource("Most Recent Tab Backward"),
-        searchTerms: LocalizedStringResource("toggle recent switch tabs oldest back"),
-        menuTitle: nil,
-        symbol: "arrow.left.arrow.right",
-        requiredCapability: nil,
-        selects: nil,
-        number: nil,
-        defaultShortcuts: [
-            ShortcutDefault(
-                platform: DevicePlatform.desktop,
-                keys: KeyCombination(key: "tab", isSpecialKey: true, modifiers: [.control, .shift]),
-                yieldsToOverrides: true
-            ),
-            ShortcutDefault(
-                platform: DevicePlatform.mobile,
-                keys: KeyCombination(key: "tab", isSpecialKey: true, modifiers: [.control, .shift]),
-                yieldsToOverrides: true
-            )
-        ],
-        paletteRest: nil,
-        offersInPalette: true,
-        isReservedFromPages: true
-    )
-    static let clearSiteCookies = ShortcutCommand(
-        tag: 72,
-        kind: .clearSiteCookies,
-        name: "clearSiteCookies",
-        section: ShortcutSection.page,
-        title: LocalizedStringResource("Clear Cookies for This Site"),
-        searchTerms: LocalizedStringResource("site data storage local session indexeddb service workers sign out delete remove"),
-        menuTitle: nil,
-        symbol: "person.crop.circle.badge.xmark",
-        requiredCapability: nil,
-        selects: nil,
-        number: nil,
-        defaultShortcuts: [],
-        paletteRest: nil,
-        offersInPalette: true,
-        isReservedFromPages: false
-    )
-    static let clearSiteCache = ShortcutCommand(
-        tag: 73,
-        kind: .clearSiteCache,
-        name: "clearSiteCache",
-        section: ShortcutSection.page,
-        title: LocalizedStringResource("Clear Cache for This Site"),
-        searchTerms: LocalizedStringResource("cached images files empty delete remove"),
-        menuTitle: nil,
-        symbol: "trash",
-        requiredCapability: nil,
-        selects: nil,
-        number: nil,
-        defaultShortcuts: [],
         paletteRest: nil,
         offersInPalette: true,
         isReservedFromPages: false
@@ -19606,7 +12792,6 @@ struct ShortcutCommand: Hashable, Sendable {
         newWindow,
         newBlankWindow,
         newTab,
-        newQuickWindow,
         newPrivateWindow,
         closeTabOrWindow,
         closeWindow,
@@ -19624,6 +12809,7 @@ struct ShortcutCommand: Hashable, Sendable {
         previousTab,
         nextTab,
         mostRecentTab,
+        mostRecentTabBackward,
         selectTab1,
         selectTab2,
         selectTab3,
@@ -19669,14 +12855,10 @@ struct ShortcutCommand: Hashable, Sendable {
         moveSplitCardLeft,
         moveSplitCardRight,
         toggleDeveloperToolbar,
-        toggleTranslationToolbar,
+        translatePage,
         openFile,
         findNext,
-        findPrevious,
-        capturePage,
-        mostRecentTabBackward,
-        clearSiteCookies,
-        clearSiteCache
+        findPrevious
     ]
 
     static func named(_ name: String?) -> ShortcutCommand? {
@@ -19763,7 +12945,6 @@ struct ShortcutMenu: Hashable, Sendable {
                 ShortcutCommand.newWindow,
                 ShortcutCommand.newBlankWindow,
                 ShortcutCommand.newTab,
-                ShortcutCommand.newQuickWindow,
                 ShortcutCommand.newPrivateWindow
             ],
             [ShortcutCommand.openFile],
@@ -19776,7 +12957,7 @@ struct ShortcutMenu: Hashable, Sendable {
         name: "view",
         title: LocalizedStringResource("View"),
         groups: [
-            [ShortcutCommand.toggleSidebar, ShortcutCommand.toggleTranslationToolbar],
+            [ShortcutCommand.toggleSidebar, ShortcutCommand.translatePage],
             [ShortcutCommand.showHistory, ShortcutCommand.showArchive, ShortcutCommand.showDownloads]
         ]
     )
@@ -19867,10 +13048,8 @@ struct ShortcutMenu: Hashable, Sendable {
                 ShortcutCommand.copyPageLinkAsMarkdown,
                 ShortcutCommand.sharePage,
                 ShortcutCommand.exportPDF,
-                ShortcutCommand.saveWebArchive,
-                ShortcutCommand.capturePage
-            ],
-            [ShortcutCommand.clearSiteCookies, ShortcutCommand.clearSiteCache]
+                ShortcutCommand.saveWebArchive
+            ]
         ]
     )
     static let develop = ShortcutMenu(
@@ -20736,328 +13915,63 @@ struct SitePermissionDecision: Hashable, Sendable {
     }
 }
 
-/// The members of the core's `SpaceAccent`. A member's wire tag is its index in `all`.
-struct SpaceAccent: Hashable, Sendable {
+/// The members of the core's `SpaceColor`. A member's wire tag is its index in `all`.
+struct SpaceColor: Hashable, Sendable {
     let tag: Int
     var name: String { facts.name }
-    var tint: SystemTint { facts.tint }
-    var legacyColors: [BrandColor] { facts.legacyColors }
-    var house: SpaceBranding { facts.house }
-    var swatch: BrandColor { facts.swatch }
+    var title: LocalizedStringResource { facts.title }
+    var tint: BrandColor { facts.tint }
     private let facts: Facts
 
-    private init(
-        tag: Int,
-        name: String,
-        tint: SystemTint,
-        legacyColors: [BrandColor],
-        house: SpaceBranding,
-        swatch: BrandColor
-    ) {
+    private init(tag: Int, name: String, title: LocalizedStringResource, tint: BrandColor) {
         self.tag = tag
-        facts = Facts(name: name, tint: tint, legacyColors: legacyColors, house: house, swatch: swatch)
+        facts = Facts(name: name, title: title, tint: tint)
     }
 
-    static let indigo = SpaceAccent(
+    static let blue = SpaceColor(
         tag: 0,
-        name: "indigo",
-        tint: .indigo,
-        legacyColors: [
-            BrandColor(red: 0.08, green: 0.15, blue: 0.23, alpha: 1),
-            BrandColor(red: 0.22, green: 0.42, blue: 0.64, alpha: 1),
-            BrandColor(red: 0.88, green: 0.67, blue: 0.25, alpha: 1)
-        ],
-        house: SpaceBranding(
-            colors: ColorPalette(
-                colors: [
-                    BrandColor(red: 0.118, green: 0.157, blue: 0.2, alpha: 1),
-                    BrandColor(red: 0.243, green: 0.306, blue: 0.369, alpha: 1),
-                    BrandColor(red: 0.525, green: 0.678, blue: 0.769, alpha: 1)
-                ]
-            ),
-            bannerPattern: SpaceBannerPattern.diagonal,
-            bannerStrength: 1,
-            readabilityFade: 0.45,
-            keepsControlsReadable: true,
-            themeMode: SpaceThemeMode.banner,
-            gradientAngle: 0,
-            showsTexture: false,
-            iconStyle: SpaceIconStyle.layeredCrest,
-            symbolColor: nil,
-            crest: SpaceCrest(
-                backplate: CrestBackplate.frenchShield,
-                fieldDivision: CrestFieldDivision.plain,
-                ordinary: CrestOrdinary.none,
-                trim: CrestTrim.line,
-                symbol: CrestSymbol.direwolf,
-                chargeLayout: CrestChargeLayout.single,
-                backplateColorIndex: 0,
-                secondaryFieldColorIndex: 1,
-                ordinaryColorIndex: 2,
-                trimColorIndex: 4,
-                symbolColorIndex: 3,
-                startingPresetID: nil,
-                edgeColorIndex: 5,
-                palette: ColorPalette(
-                    colors: [
-                        BrandColor(red: 0.871, green: 0.894, blue: 0.91, alpha: 1),
-                        BrandColor(red: 0.525, green: 0.678, blue: 0.769, alpha: 1),
-                        BrandColor(red: 0.243, green: 0.306, blue: 0.369, alpha: 1),
-                        BrandColor(red: 0.341, green: 0.384, blue: 0.427, alpha: 1),
-                        BrandColor(red: 0.243, green: 0.306, blue: 0.369, alpha: 1),
-                        BrandColor(red: 0.118, green: 0.157, blue: 0.2, alpha: 1)
-                    ]
-                ),
-                charge: nil,
-                plateScale: 1,
-                edgeWidth: 0.35,
-                divisionCount: 4,
-                finish: CrestFinish.flat,
-                ordinaryWidth: 1,
-                trimWeight: 0.75,
-                trimDetail: 12,
-                chargeScale: 1.2,
-                chargeOffset: 0,
-                chargeWeight: CrestChargeWeight.bold,
-                sheenAngle: 45,
-                sealTeeth: 12,
-                showsOutline: false,
-                depth: CrestDepth.soft
-            ),
-            renderingVersion: 5,
-            folderColorIntensity: 0,
-            textColorMode: SpaceTextColorMode.automatic,
-            hasCustomAppearance: false
-        ),
-        swatch: BrandColor(red: 0.29, green: 0.25, blue: 0.58, alpha: 1)
+        name: "blue",
+        title: LocalizedStringResource("Blue"),
+        tint: BrandColor(red: 0.23, green: 0.53, blue: 0.96, alpha: 1)
     )
-    static let orange = SpaceAccent(
+    static let teal = SpaceColor(
         tag: 1,
-        name: "orange",
-        tint: .orange,
-        legacyColors: [
-            BrandColor(red: 0.85, green: 0.27, blue: 0.2, alpha: 1),
-            BrandColor(red: 0.88, green: 0.67, blue: 0.25, alpha: 1),
-            BrandColor(red: 0.22, green: 0.42, blue: 0.64, alpha: 1)
-        ],
-        house: SpaceBranding(
-            colors: ColorPalette(
-                colors: [
-                    BrandColor(red: 0.208, green: 0.086, blue: 0.043, alpha: 1),
-                    BrandColor(red: 0.545, green: 0.239, blue: 0.106, alpha: 1),
-                    BrandColor(red: 0.816, green: 0.62, blue: 0.396, alpha: 1)
-                ]
-            ),
-            bannerPattern: SpaceBannerPattern.diagonal,
-            bannerStrength: 1,
-            readabilityFade: 0.45,
-            keepsControlsReadable: true,
-            themeMode: SpaceThemeMode.gradient,
-            gradientAngle: 160,
-            showsTexture: false,
-            iconStyle: SpaceIconStyle.layeredCrest,
-            symbolColor: nil,
-            crest: SpaceCrest(
-                backplate: CrestBackplate.circle,
-                fieldDivision: CrestFieldDivision.plain,
-                ordinary: CrestOrdinary.none,
-                trim: CrestTrim.sunburst,
-                symbol: CrestSymbol.sun,
-                chargeLayout: CrestChargeLayout.single,
-                backplateColorIndex: 0,
-                secondaryFieldColorIndex: 1,
-                ordinaryColorIndex: 2,
-                trimColorIndex: 4,
-                symbolColorIndex: 3,
-                startingPresetID: nil,
-                edgeColorIndex: 5,
-                palette: ColorPalette(
-                    colors: [
-                        BrandColor(red: 0.851, green: 0.467, blue: 0.176, alpha: 1),
-                        BrandColor(red: 0.545, green: 0.239, blue: 0.106, alpha: 1),
-                        BrandColor(red: 0.894, green: 0.718, blue: 0.333, alpha: 1),
-                        BrandColor(red: 0.722, green: 0.165, blue: 0.118, alpha: 1),
-                        BrandColor(red: 0.894, green: 0.718, blue: 0.333, alpha: 1),
-                        BrandColor(red: 0.208, green: 0.086, blue: 0.043, alpha: 1)
-                    ]
-                ),
-                charge: nil,
-                plateScale: 1,
-                edgeWidth: 0.25,
-                divisionCount: 4,
-                finish: CrestFinish.flat,
-                ordinaryWidth: 1,
-                trimWeight: 0.75,
-                trimDetail: 12,
-                chargeScale: 1.2,
-                chargeOffset: 0,
-                chargeWeight: CrestChargeWeight.bold,
-                sheenAngle: 45,
-                sealTeeth: 12,
-                showsOutline: false,
-                depth: CrestDepth.soft
-            ),
-            renderingVersion: 5,
-            folderColorIntensity: 0,
-            textColorMode: SpaceTextColorMode.automatic,
-            hasCustomAppearance: false
-        ),
-        swatch: BrandColor(red: 0.85, green: 0.27, blue: 0.2, alpha: 1)
-    )
-    static let teal = SpaceAccent(
-        tag: 2,
         name: "teal",
-        tint: .teal,
-        legacyColors: [
-            BrandColor(red: 0.12, green: 0.49, blue: 0.52, alpha: 1),
-            BrandColor(red: 0.22, green: 0.42, blue: 0.64, alpha: 1),
-            BrandColor(red: 0.82, green: 0.72, blue: 0.56, alpha: 1)
-        ],
-        house: SpaceBranding(
-            colors: ColorPalette(
-                colors: [
-                    BrandColor(red: 0.082, green: 0.137, blue: 0.094, alpha: 1),
-                    BrandColor(red: 0.204, green: 0.341, blue: 0.22, alpha: 1),
-                    BrandColor(red: 0.737, green: 0.655, blue: 0.4, alpha: 1)
-                ]
-            ),
-            bannerPattern: SpaceBannerPattern.lozenges,
-            bannerStrength: 1,
-            readabilityFade: 0.45,
-            keepsControlsReadable: true,
-            themeMode: SpaceThemeMode.banner,
-            gradientAngle: 0,
-            showsTexture: false,
-            iconStyle: SpaceIconStyle.layeredCrest,
-            symbolColor: nil,
-            crest: SpaceCrest(
-                backplate: CrestBackplate.circle,
-                fieldDivision: CrestFieldDivision.plain,
-                ordinary: CrestOrdinary.none,
-                trim: CrestTrim.laurel,
-                symbol: CrestSymbol.rose,
-                chargeLayout: CrestChargeLayout.single,
-                backplateColorIndex: 0,
-                secondaryFieldColorIndex: 1,
-                ordinaryColorIndex: 2,
-                trimColorIndex: 4,
-                symbolColorIndex: 3,
-                startingPresetID: nil,
-                edgeColorIndex: 5,
-                palette: ColorPalette(
-                    colors: [
-                        BrandColor(red: 0.188, green: 0.42, blue: 0.231, alpha: 1),
-                        BrandColor(red: 0.204, green: 0.341, blue: 0.22, alpha: 1),
-                        BrandColor(red: 0.871, green: 0.729, blue: 0.318, alpha: 1),
-                        BrandColor(red: 0.871, green: 0.729, blue: 0.318, alpha: 1),
-                        BrandColor(red: 0.737, green: 0.655, blue: 0.4, alpha: 1),
-                        BrandColor(red: 0.082, green: 0.137, blue: 0.094, alpha: 1)
-                    ]
-                ),
-                charge: nil,
-                plateScale: 1,
-                edgeWidth: 0.25,
-                divisionCount: 4,
-                finish: CrestFinish.flat,
-                ordinaryWidth: 1,
-                trimWeight: 0.75,
-                trimDetail: 12,
-                chargeScale: 1.2,
-                chargeOffset: 0,
-                chargeWeight: CrestChargeWeight.bold,
-                sheenAngle: 45,
-                sealTeeth: 12,
-                showsOutline: false,
-                depth: CrestDepth.soft
-            ),
-            renderingVersion: 5,
-            folderColorIntensity: 0,
-            textColorMode: SpaceTextColorMode.automatic,
-            hasCustomAppearance: false
-        ),
-        swatch: BrandColor(red: 0.12, green: 0.49, blue: 0.52, alpha: 1)
+        title: LocalizedStringResource("Teal"),
+        tint: BrandColor(red: 0.06, green: 0.69, blue: 0.65, alpha: 1)
     )
-    static let rose = SpaceAccent(
+    static let green = SpaceColor(
+        tag: 2,
+        name: "green",
+        title: LocalizedStringResource("Green"),
+        tint: BrandColor(red: 0.2, green: 0.73, blue: 0.37, alpha: 1)
+    )
+    static let amber = SpaceColor(
         tag: 3,
-        name: "rose",
-        tint: .pink,
-        legacyColors: [
-            BrandColor(red: 0.72, green: 0.25, blue: 0.42, alpha: 1),
-            BrandColor(red: 0.29, green: 0.25, blue: 0.58, alpha: 1),
-            BrandColor(red: 0.82, green: 0.72, blue: 0.56, alpha: 1)
-        ],
-        house: SpaceBranding(
-            colors: ColorPalette(
-                colors: [
-                    BrandColor(red: 0.235, green: 0.055, blue: 0.102, alpha: 1),
-                    BrandColor(red: 0.447, green: 0.125, blue: 0.188, alpha: 1),
-                    BrandColor(red: 0.788, green: 0.635, blue: 0.329, alpha: 1)
-                ]
-            ),
-            bannerPattern: SpaceBannerPattern.chevron,
-            bannerStrength: 1,
-            readabilityFade: 0.45,
-            keepsControlsReadable: true,
-            themeMode: SpaceThemeMode.banner,
-            gradientAngle: 0,
-            showsTexture: false,
-            iconStyle: SpaceIconStyle.layeredCrest,
-            symbolColor: nil,
-            crest: SpaceCrest(
-                backplate: CrestBackplate.shield,
-                fieldDivision: CrestFieldDivision.plain,
-                ordinary: CrestOrdinary.none,
-                trim: CrestTrim.doubleLine,
-                symbol: CrestSymbol.lion,
-                chargeLayout: CrestChargeLayout.single,
-                backplateColorIndex: 0,
-                secondaryFieldColorIndex: 1,
-                ordinaryColorIndex: 2,
-                trimColorIndex: 4,
-                symbolColorIndex: 3,
-                startingPresetID: nil,
-                edgeColorIndex: 5,
-                palette: ColorPalette(
-                    colors: [
-                        BrandColor(red: 0.596, green: 0.114, blue: 0.157, alpha: 1),
-                        BrandColor(red: 0.447, green: 0.125, blue: 0.188, alpha: 1),
-                        BrandColor(red: 0.851, green: 0.682, blue: 0.318, alpha: 1),
-                        BrandColor(red: 0.851, green: 0.682, blue: 0.318, alpha: 1),
-                        BrandColor(red: 0.851, green: 0.682, blue: 0.318, alpha: 1),
-                        BrandColor(red: 0.235, green: 0.055, blue: 0.102, alpha: 1)
-                    ]
-                ),
-                charge: nil,
-                plateScale: 1,
-                edgeWidth: 0.25,
-                divisionCount: 4,
-                finish: CrestFinish.sheen,
-                ordinaryWidth: 1,
-                trimWeight: 0.85,
-                trimDetail: 12,
-                chargeScale: 1.25,
-                chargeOffset: 0,
-                chargeWeight: CrestChargeWeight.bold,
-                sheenAngle: 45,
-                sealTeeth: 12,
-                showsOutline: false,
-                depth: CrestDepth.lifted
-            ),
-            renderingVersion: 5,
-            folderColorIntensity: 0,
-            textColorMode: SpaceTextColorMode.automatic,
-            hasCustomAppearance: false
-        ),
-        swatch: BrandColor(red: 0.72, green: 0.25, blue: 0.42, alpha: 1)
+        name: "amber",
+        title: LocalizedStringResource("Amber"),
+        tint: BrandColor(red: 0.96, green: 0.66, blue: 0.16, alpha: 1)
+    )
+    static let coral = SpaceColor(
+        tag: 4,
+        name: "coral",
+        title: LocalizedStringResource("Coral"),
+        tint: BrandColor(red: 0.96, green: 0.4, blue: 0.36, alpha: 1)
+    )
+    static let purple = SpaceColor(
+        tag: 5,
+        name: "purple",
+        title: LocalizedStringResource("Purple"),
+        tint: BrandColor(red: 0.65, green: 0.39, blue: 0.92, alpha: 1)
     )
 
-    static let all: [SpaceAccent] = [indigo, orange, teal, rose]
+    static let all: [SpaceColor] = [blue, teal, green, amber, coral, purple]
 
-    static func named(_ name: String?) -> SpaceAccent? {
+    static func named(_ name: String?) -> SpaceColor? {
         all.first { $0.name == name }
     }
 
-    static func == (lhs: SpaceAccent, rhs: SpaceAccent) -> Bool {
+    static func == (lhs: SpaceColor, rhs: SpaceColor) -> Bool {
         lhs.tag == rhs.tag
     }
 
@@ -21067,1133 +13981,13 @@ struct SpaceAccent: Hashable, Sendable {
 
     private final class Facts: Sendable {
         let name: String
-        let tint: SystemTint
-        let legacyColors: [BrandColor]
-        let house: SpaceBranding
-        let swatch: BrandColor
+        let title: LocalizedStringResource
+        let tint: BrandColor
 
-        init(name: String, tint: SystemTint, legacyColors: [BrandColor], house: SpaceBranding, swatch: BrandColor) {
+        init(name: String, title: LocalizedStringResource, tint: BrandColor) {
             self.name = name
+            self.title = title
             self.tint = tint
-            self.legacyColors = legacyColors
-            self.house = house
-            self.swatch = swatch
-        }
-    }
-}
-
-/// The members of the core's `SpaceBannerPattern`. A member's wire tag is its index in `all`.
-struct SpaceBannerPattern: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case solid
-        case split
-        case bands
-        case diagonal
-        case chevron
-        case quartered
-        case stripes
-        case checkered
-        case lozenges
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var drawnSince: CrestVocabulary { facts.drawnSince }
-    private let facts: Facts
-
-    private init(tag: Int, kind: Kinds, name: String, title: LocalizedStringResource, drawnSince: CrestVocabulary) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, title: title, drawnSince: drawnSince)
-    }
-
-    static let solid = SpaceBannerPattern(
-        tag: 0,
-        kind: .solid,
-        name: "solid",
-        title: LocalizedStringResource("Solid"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let split = SpaceBannerPattern(
-        tag: 1,
-        kind: .split,
-        name: "split",
-        title: LocalizedStringResource("Split"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let bands = SpaceBannerPattern(
-        tag: 2,
-        kind: .bands,
-        name: "bands",
-        title: LocalizedStringResource("Bands"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let diagonal = SpaceBannerPattern(
-        tag: 3,
-        kind: .diagonal,
-        name: "diagonal",
-        title: LocalizedStringResource("Diagonal"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let chevron = SpaceBannerPattern(
-        tag: 4,
-        kind: .chevron,
-        name: "chevron",
-        title: LocalizedStringResource("Chevron"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let quartered = SpaceBannerPattern(
-        tag: 5,
-        kind: .quartered,
-        name: "quartered",
-        title: LocalizedStringResource("Quartered"),
-        drawnSince: CrestVocabulary.baseline
-    )
-    static let stripes = SpaceBannerPattern(
-        tag: 6,
-        kind: .stripes,
-        name: "stripes",
-        title: LocalizedStringResource("Stripes"),
-        drawnSince: CrestVocabulary.customization
-    )
-    static let checkered = SpaceBannerPattern(
-        tag: 7,
-        kind: .checkered,
-        name: "checkered",
-        title: LocalizedStringResource("Checkered"),
-        drawnSince: CrestVocabulary.customization
-    )
-    static let lozenges = SpaceBannerPattern(
-        tag: 8,
-        kind: .lozenges,
-        name: "lozenges",
-        title: LocalizedStringResource("Lozenges"),
-        drawnSince: CrestVocabulary.customization
-    )
-
-    static let all: [SpaceBannerPattern] = [
-        solid,
-        split,
-        bands,
-        diagonal,
-        chevron,
-        quartered,
-        stripes,
-        checkered,
-        lozenges
-    ]
-
-    static func named(_ name: String?) -> SpaceBannerPattern? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: SpaceBannerPattern, rhs: SpaceBannerPattern) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let title: LocalizedStringResource
-        let drawnSince: CrestVocabulary
-
-        init(kind: Kinds, name: String, title: LocalizedStringResource, drawnSince: CrestVocabulary) {
-            self.kind = kind
-            self.name = name
-            self.title = title
-            self.drawnSince = drawnSince
-        }
-    }
-}
-
-/// The members of the core's `SpaceHouse`. A member's wire tag is its index in `all`.
-struct SpaceHouse: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var look: SpaceBranding { facts.look }
-    var appIconName: String { facts.appIconName }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, title: LocalizedStringResource, look: SpaceBranding, appIconName: String) {
-        self.tag = tag
-        facts = Facts(name: name, title: title, look: look, appIconName: appIconName)
-    }
-
-    static let winter = SpaceHouse(
-        tag: 0,
-        name: "winter",
-        title: LocalizedStringResource("Winter"),
-        look: SpaceBranding(
-            colors: ColorPalette(
-                colors: [
-                    BrandColor(red: 0.118, green: 0.157, blue: 0.2, alpha: 1),
-                    BrandColor(red: 0.243, green: 0.306, blue: 0.369, alpha: 1),
-                    BrandColor(red: 0.525, green: 0.678, blue: 0.769, alpha: 1)
-                ]
-            ),
-            bannerPattern: SpaceBannerPattern.diagonal,
-            bannerStrength: 1,
-            readabilityFade: 0.45,
-            keepsControlsReadable: true,
-            themeMode: SpaceThemeMode.banner,
-            gradientAngle: 0,
-            showsTexture: false,
-            iconStyle: SpaceIconStyle.layeredCrest,
-            symbolColor: nil,
-            crest: SpaceCrest(
-                backplate: CrestBackplate.frenchShield,
-                fieldDivision: CrestFieldDivision.plain,
-                ordinary: CrestOrdinary.none,
-                trim: CrestTrim.line,
-                symbol: CrestSymbol.direwolf,
-                chargeLayout: CrestChargeLayout.single,
-                backplateColorIndex: 0,
-                secondaryFieldColorIndex: 1,
-                ordinaryColorIndex: 2,
-                trimColorIndex: 4,
-                symbolColorIndex: 3,
-                startingPresetID: nil,
-                edgeColorIndex: 5,
-                palette: ColorPalette(
-                    colors: [
-                        BrandColor(red: 0.871, green: 0.894, blue: 0.91, alpha: 1),
-                        BrandColor(red: 0.525, green: 0.678, blue: 0.769, alpha: 1),
-                        BrandColor(red: 0.243, green: 0.306, blue: 0.369, alpha: 1),
-                        BrandColor(red: 0.341, green: 0.384, blue: 0.427, alpha: 1),
-                        BrandColor(red: 0.243, green: 0.306, blue: 0.369, alpha: 1),
-                        BrandColor(red: 0.118, green: 0.157, blue: 0.2, alpha: 1)
-                    ]
-                ),
-                charge: nil,
-                plateScale: 1,
-                edgeWidth: 0.35,
-                divisionCount: 4,
-                finish: CrestFinish.flat,
-                ordinaryWidth: 1,
-                trimWeight: 0.75,
-                trimDetail: 12,
-                chargeScale: 1.2,
-                chargeOffset: 0,
-                chargeWeight: CrestChargeWeight.bold,
-                sheenAngle: 45,
-                sealTeeth: 12,
-                showsOutline: false,
-                depth: CrestDepth.soft
-            ),
-            renderingVersion: 5,
-            folderColorIntensity: 0,
-            textColorMode: SpaceTextColorMode.automatic,
-            hasCustomAppearance: false
-        ),
-        appIconName: "CrestWinter"
-    )
-    static let lion = SpaceHouse(
-        tag: 1,
-        name: "lion",
-        title: LocalizedStringResource("Lion"),
-        look: SpaceBranding(
-            colors: ColorPalette(
-                colors: [
-                    BrandColor(red: 0.235, green: 0.055, blue: 0.102, alpha: 1),
-                    BrandColor(red: 0.447, green: 0.125, blue: 0.188, alpha: 1),
-                    BrandColor(red: 0.788, green: 0.635, blue: 0.329, alpha: 1)
-                ]
-            ),
-            bannerPattern: SpaceBannerPattern.chevron,
-            bannerStrength: 1,
-            readabilityFade: 0.45,
-            keepsControlsReadable: true,
-            themeMode: SpaceThemeMode.banner,
-            gradientAngle: 0,
-            showsTexture: false,
-            iconStyle: SpaceIconStyle.layeredCrest,
-            symbolColor: nil,
-            crest: SpaceCrest(
-                backplate: CrestBackplate.shield,
-                fieldDivision: CrestFieldDivision.plain,
-                ordinary: CrestOrdinary.none,
-                trim: CrestTrim.doubleLine,
-                symbol: CrestSymbol.lion,
-                chargeLayout: CrestChargeLayout.single,
-                backplateColorIndex: 0,
-                secondaryFieldColorIndex: 1,
-                ordinaryColorIndex: 2,
-                trimColorIndex: 4,
-                symbolColorIndex: 3,
-                startingPresetID: nil,
-                edgeColorIndex: 5,
-                palette: ColorPalette(
-                    colors: [
-                        BrandColor(red: 0.596, green: 0.114, blue: 0.157, alpha: 1),
-                        BrandColor(red: 0.447, green: 0.125, blue: 0.188, alpha: 1),
-                        BrandColor(red: 0.851, green: 0.682, blue: 0.318, alpha: 1),
-                        BrandColor(red: 0.851, green: 0.682, blue: 0.318, alpha: 1),
-                        BrandColor(red: 0.851, green: 0.682, blue: 0.318, alpha: 1),
-                        BrandColor(red: 0.235, green: 0.055, blue: 0.102, alpha: 1)
-                    ]
-                ),
-                charge: nil,
-                plateScale: 1,
-                edgeWidth: 0.25,
-                divisionCount: 4,
-                finish: CrestFinish.sheen,
-                ordinaryWidth: 1,
-                trimWeight: 0.85,
-                trimDetail: 12,
-                chargeScale: 1.25,
-                chargeOffset: 0,
-                chargeWeight: CrestChargeWeight.bold,
-                sheenAngle: 45,
-                sealTeeth: 12,
-                showsOutline: false,
-                depth: CrestDepth.lifted
-            ),
-            renderingVersion: 5,
-            folderColorIntensity: 0,
-            textColorMode: SpaceTextColorMode.automatic,
-            hasCustomAppearance: false
-        ),
-        appIconName: "CrestLion"
-    )
-    static let storm = SpaceHouse(
-        tag: 2,
-        name: "storm",
-        title: LocalizedStringResource("Storm"),
-        look: SpaceBranding(
-            colors: ColorPalette(
-                colors: [
-                    BrandColor(red: 0.082, green: 0.094, blue: 0.141, alpha: 1),
-                    BrandColor(red: 0.192, green: 0.22, blue: 0.282, alpha: 1),
-                    BrandColor(red: 0.69, green: 0.561, blue: 0.29, alpha: 1)
-                ]
-            ),
-            bannerPattern: SpaceBannerPattern.quartered,
-            bannerStrength: 1,
-            readabilityFade: 0.45,
-            keepsControlsReadable: true,
-            themeMode: SpaceThemeMode.banner,
-            gradientAngle: 0,
-            showsTexture: false,
-            iconStyle: SpaceIconStyle.layeredCrest,
-            symbolColor: nil,
-            crest: SpaceCrest(
-                backplate: CrestBackplate.hexagon,
-                fieldDivision: CrestFieldDivision.plain,
-                ordinary: CrestOrdinary.none,
-                trim: CrestTrim.doubleLine,
-                symbol: CrestSymbol.stag,
-                chargeLayout: CrestChargeLayout.single,
-                backplateColorIndex: 0,
-                secondaryFieldColorIndex: 1,
-                ordinaryColorIndex: 2,
-                trimColorIndex: 4,
-                symbolColorIndex: 3,
-                startingPresetID: nil,
-                edgeColorIndex: 5,
-                palette: ColorPalette(
-                    colors: [
-                        BrandColor(red: 0.835, green: 0.655, blue: 0.231, alpha: 1),
-                        BrandColor(red: 0.69, green: 0.561, blue: 0.29, alpha: 1),
-                        BrandColor(red: 0.09, green: 0.094, blue: 0.106, alpha: 1),
-                        BrandColor(red: 0.09, green: 0.094, blue: 0.106, alpha: 1),
-                        BrandColor(red: 0.09, green: 0.094, blue: 0.106, alpha: 1),
-                        BrandColor(red: 0.09, green: 0.094, blue: 0.106, alpha: 1)
-                    ]
-                ),
-                charge: nil,
-                plateScale: 1,
-                edgeWidth: 0.3,
-                divisionCount: 4,
-                finish: CrestFinish.flat,
-                ordinaryWidth: 1,
-                trimWeight: 0.75,
-                trimDetail: 12,
-                chargeScale: 1.2,
-                chargeOffset: 0,
-                chargeWeight: CrestChargeWeight.bold,
-                sheenAngle: 45,
-                sealTeeth: 12,
-                showsOutline: false,
-                depth: CrestDepth.soft
-            ),
-            renderingVersion: 5,
-            folderColorIntensity: 0,
-            textColorMode: SpaceTextColorMode.automatic,
-            hasCustomAppearance: false
-        ),
-        appIconName: "CrestStorm"
-    )
-    static let dragon = SpaceHouse(
-        tag: 3,
-        name: "dragon",
-        title: LocalizedStringResource("Dragon"),
-        look: SpaceBranding(
-            colors: ColorPalette(
-                colors: [
-                    BrandColor(red: 0.102, green: 0.063, blue: 0.051, alpha: 1),
-                    BrandColor(red: 0.478, green: 0.118, blue: 0.071, alpha: 1),
-                    BrandColor(red: 0.745, green: 0.267, blue: 0.22, alpha: 1)
-                ]
-            ),
-            bannerPattern: SpaceBannerPattern.bands,
-            bannerStrength: 1,
-            readabilityFade: 0.45,
-            keepsControlsReadable: true,
-            themeMode: SpaceThemeMode.banner,
-            gradientAngle: 0,
-            showsTexture: false,
-            iconStyle: SpaceIconStyle.layeredCrest,
-            symbolColor: nil,
-            crest: SpaceCrest(
-                backplate: CrestBackplate.shield,
-                fieldDivision: CrestFieldDivision.plain,
-                ordinary: CrestOrdinary.none,
-                trim: CrestTrim.line,
-                symbol: CrestSymbol.dragon,
-                chargeLayout: CrestChargeLayout.single,
-                backplateColorIndex: 0,
-                secondaryFieldColorIndex: 1,
-                ordinaryColorIndex: 2,
-                trimColorIndex: 4,
-                symbolColorIndex: 3,
-                startingPresetID: nil,
-                edgeColorIndex: 5,
-                palette: ColorPalette(
-                    colors: [
-                        BrandColor(red: 0.071, green: 0.059, blue: 0.063, alpha: 1),
-                        BrandColor(red: 0.102, green: 0.063, blue: 0.051, alpha: 1),
-                        BrandColor(red: 0.749, green: 0.18, blue: 0.137, alpha: 1),
-                        BrandColor(red: 0.749, green: 0.18, blue: 0.137, alpha: 1),
-                        BrandColor(red: 0.749, green: 0.18, blue: 0.137, alpha: 1),
-                        BrandColor(red: 0.478, green: 0.118, blue: 0.071, alpha: 1)
-                    ]
-                ),
-                charge: nil,
-                plateScale: 1,
-                edgeWidth: 0.25,
-                divisionCount: 4,
-                finish: CrestFinish.flat,
-                ordinaryWidth: 1,
-                trimWeight: 0.75,
-                trimDetail: 12,
-                chargeScale: 1.25,
-                chargeOffset: 0,
-                chargeWeight: CrestChargeWeight.bold,
-                sheenAngle: 45,
-                sealTeeth: 12,
-                showsOutline: false,
-                depth: CrestDepth.lifted
-            ),
-            renderingVersion: 5,
-            folderColorIntensity: 0,
-            textColorMode: SpaceTextColorMode.automatic,
-            hasCustomAppearance: false
-        ),
-        appIconName: "CrestDragon"
-    )
-    static let meadow = SpaceHouse(
-        tag: 4,
-        name: "meadow",
-        title: LocalizedStringResource("Meadow"),
-        look: SpaceBranding(
-            colors: ColorPalette(
-                colors: [
-                    BrandColor(red: 0.082, green: 0.137, blue: 0.094, alpha: 1),
-                    BrandColor(red: 0.204, green: 0.341, blue: 0.22, alpha: 1),
-                    BrandColor(red: 0.737, green: 0.655, blue: 0.4, alpha: 1)
-                ]
-            ),
-            bannerPattern: SpaceBannerPattern.lozenges,
-            bannerStrength: 1,
-            readabilityFade: 0.45,
-            keepsControlsReadable: true,
-            themeMode: SpaceThemeMode.banner,
-            gradientAngle: 0,
-            showsTexture: false,
-            iconStyle: SpaceIconStyle.layeredCrest,
-            symbolColor: nil,
-            crest: SpaceCrest(
-                backplate: CrestBackplate.circle,
-                fieldDivision: CrestFieldDivision.plain,
-                ordinary: CrestOrdinary.none,
-                trim: CrestTrim.laurel,
-                symbol: CrestSymbol.rose,
-                chargeLayout: CrestChargeLayout.single,
-                backplateColorIndex: 0,
-                secondaryFieldColorIndex: 1,
-                ordinaryColorIndex: 2,
-                trimColorIndex: 4,
-                symbolColorIndex: 3,
-                startingPresetID: nil,
-                edgeColorIndex: 5,
-                palette: ColorPalette(
-                    colors: [
-                        BrandColor(red: 0.188, green: 0.42, blue: 0.231, alpha: 1),
-                        BrandColor(red: 0.204, green: 0.341, blue: 0.22, alpha: 1),
-                        BrandColor(red: 0.871, green: 0.729, blue: 0.318, alpha: 1),
-                        BrandColor(red: 0.871, green: 0.729, blue: 0.318, alpha: 1),
-                        BrandColor(red: 0.737, green: 0.655, blue: 0.4, alpha: 1),
-                        BrandColor(red: 0.082, green: 0.137, blue: 0.094, alpha: 1)
-                    ]
-                ),
-                charge: nil,
-                plateScale: 1,
-                edgeWidth: 0.25,
-                divisionCount: 4,
-                finish: CrestFinish.flat,
-                ordinaryWidth: 1,
-                trimWeight: 0.75,
-                trimDetail: 12,
-                chargeScale: 1.2,
-                chargeOffset: 0,
-                chargeWeight: CrestChargeWeight.bold,
-                sheenAngle: 45,
-                sealTeeth: 12,
-                showsOutline: false,
-                depth: CrestDepth.soft
-            ),
-            renderingVersion: 5,
-            folderColorIntensity: 0,
-            textColorMode: SpaceTextColorMode.automatic,
-            hasCustomAppearance: false
-        ),
-        appIconName: "CrestMeadow"
-    )
-    static let iron = SpaceHouse(
-        tag: 5,
-        name: "iron",
-        title: LocalizedStringResource("Iron"),
-        look: SpaceBranding(
-            colors: ColorPalette(
-                colors: [
-                    BrandColor(red: 0.055, green: 0.102, blue: 0.11, alpha: 1),
-                    BrandColor(red: 0.173, green: 0.227, blue: 0.235, alpha: 1),
-                    BrandColor(red: 0.612, green: 0.592, blue: 0.506, alpha: 1)
-                ]
-            ),
-            bannerPattern: SpaceBannerPattern.stripes,
-            bannerStrength: 1,
-            readabilityFade: 0.45,
-            keepsControlsReadable: true,
-            themeMode: SpaceThemeMode.banner,
-            gradientAngle: 0,
-            showsTexture: false,
-            iconStyle: SpaceIconStyle.layeredCrest,
-            symbolColor: nil,
-            crest: SpaceCrest(
-                backplate: CrestBackplate.octagon,
-                fieldDivision: CrestFieldDivision.plain,
-                ordinary: CrestOrdinary.none,
-                trim: CrestTrim.beaded,
-                symbol: CrestSymbol.kraken,
-                chargeLayout: CrestChargeLayout.single,
-                backplateColorIndex: 0,
-                secondaryFieldColorIndex: 1,
-                ordinaryColorIndex: 2,
-                trimColorIndex: 4,
-                symbolColorIndex: 3,
-                startingPresetID: nil,
-                edgeColorIndex: 5,
-                palette: ColorPalette(
-                    colors: [
-                        BrandColor(red: 0.055, green: 0.102, blue: 0.11, alpha: 1),
-                        BrandColor(red: 0.173, green: 0.227, blue: 0.235, alpha: 1),
-                        BrandColor(red: 0.796, green: 0.651, blue: 0.302, alpha: 1),
-                        BrandColor(red: 0.796, green: 0.651, blue: 0.302, alpha: 1),
-                        BrandColor(red: 0.796, green: 0.651, blue: 0.302, alpha: 1),
-                        BrandColor(red: 0.612, green: 0.592, blue: 0.506, alpha: 1)
-                    ]
-                ),
-                charge: nil,
-                plateScale: 1,
-                edgeWidth: 0.5,
-                divisionCount: 4,
-                finish: CrestFinish.embossed,
-                ordinaryWidth: 1,
-                trimWeight: 0.75,
-                trimDetail: 12,
-                chargeScale: 1.2,
-                chargeOffset: 0,
-                chargeWeight: CrestChargeWeight.bold,
-                sheenAngle: 45,
-                sealTeeth: 12,
-                showsOutline: false,
-                depth: CrestDepth.soft
-            ),
-            renderingVersion: 5,
-            folderColorIntensity: 0,
-            textColorMode: SpaceTextColorMode.automatic,
-            hasCustomAppearance: false
-        ),
-        appIconName: "CrestIron"
-    )
-    static let river = SpaceHouse(
-        tag: 6,
-        name: "river",
-        title: LocalizedStringResource("River"),
-        look: SpaceBranding(
-            colors: ColorPalette(
-                colors: [
-                    BrandColor(red: 0.059, green: 0.118, blue: 0.18, alpha: 1),
-                    BrandColor(red: 0.133, green: 0.282, blue: 0.424, alpha: 1),
-                    BrandColor(red: 0.659, green: 0.361, blue: 0.255, alpha: 1)
-                ]
-            ),
-            bannerPattern: SpaceBannerPattern.split,
-            bannerStrength: 1,
-            readabilityFade: 0.45,
-            keepsControlsReadable: true,
-            themeMode: SpaceThemeMode.banner,
-            gradientAngle: 0,
-            showsTexture: false,
-            iconStyle: SpaceIconStyle.layeredCrest,
-            symbolColor: nil,
-            crest: SpaceCrest(
-                backplate: CrestBackplate.banner,
-                fieldDivision: CrestFieldDivision.barry,
-                ordinary: CrestOrdinary.none,
-                trim: CrestTrim.line,
-                symbol: CrestSymbol.fish,
-                chargeLayout: CrestChargeLayout.single,
-                backplateColorIndex: 0,
-                secondaryFieldColorIndex: 1,
-                ordinaryColorIndex: 2,
-                trimColorIndex: 4,
-                symbolColorIndex: 3,
-                startingPresetID: nil,
-                edgeColorIndex: 5,
-                palette: ColorPalette(
-                    colors: [
-                        BrandColor(red: 0.176, green: 0.369, blue: 0.616, alpha: 1),
-                        BrandColor(red: 0.643, green: 0.157, blue: 0.188, alpha: 1),
-                        BrandColor(red: 0.851, green: 0.871, blue: 0.894, alpha: 1),
-                        BrandColor(red: 0.851, green: 0.871, blue: 0.894, alpha: 1),
-                        BrandColor(red: 0.851, green: 0.871, blue: 0.894, alpha: 1),
-                        BrandColor(red: 0.059, green: 0.118, blue: 0.18, alpha: 1)
-                    ]
-                ),
-                charge: nil,
-                plateScale: 1,
-                edgeWidth: 0.2,
-                divisionCount: 6,
-                finish: CrestFinish.flat,
-                ordinaryWidth: 1,
-                trimWeight: 0.75,
-                trimDetail: 12,
-                chargeScale: 1.2,
-                chargeOffset: 0,
-                chargeWeight: CrestChargeWeight.bold,
-                sheenAngle: 45,
-                sealTeeth: 12,
-                showsOutline: false,
-                depth: CrestDepth.soft
-            ),
-            renderingVersion: 5,
-            folderColorIntensity: 0,
-            textColorMode: SpaceTextColorMode.automatic,
-            hasCustomAppearance: false
-        ),
-        appIconName: "CrestRiver"
-    )
-    static let sun = SpaceHouse(
-        tag: 7,
-        name: "sun",
-        title: LocalizedStringResource("Sun"),
-        look: SpaceBranding(
-            colors: ColorPalette(
-                colors: [
-                    BrandColor(red: 0.208, green: 0.086, blue: 0.043, alpha: 1),
-                    BrandColor(red: 0.545, green: 0.239, blue: 0.106, alpha: 1),
-                    BrandColor(red: 0.816, green: 0.62, blue: 0.396, alpha: 1)
-                ]
-            ),
-            bannerPattern: SpaceBannerPattern.diagonal,
-            bannerStrength: 1,
-            readabilityFade: 0.45,
-            keepsControlsReadable: true,
-            themeMode: SpaceThemeMode.gradient,
-            gradientAngle: 160,
-            showsTexture: false,
-            iconStyle: SpaceIconStyle.layeredCrest,
-            symbolColor: nil,
-            crest: SpaceCrest(
-                backplate: CrestBackplate.circle,
-                fieldDivision: CrestFieldDivision.plain,
-                ordinary: CrestOrdinary.none,
-                trim: CrestTrim.sunburst,
-                symbol: CrestSymbol.sun,
-                chargeLayout: CrestChargeLayout.single,
-                backplateColorIndex: 0,
-                secondaryFieldColorIndex: 1,
-                ordinaryColorIndex: 2,
-                trimColorIndex: 4,
-                symbolColorIndex: 3,
-                startingPresetID: nil,
-                edgeColorIndex: 5,
-                palette: ColorPalette(
-                    colors: [
-                        BrandColor(red: 0.851, green: 0.467, blue: 0.176, alpha: 1),
-                        BrandColor(red: 0.545, green: 0.239, blue: 0.106, alpha: 1),
-                        BrandColor(red: 0.894, green: 0.718, blue: 0.333, alpha: 1),
-                        BrandColor(red: 0.722, green: 0.165, blue: 0.118, alpha: 1),
-                        BrandColor(red: 0.894, green: 0.718, blue: 0.333, alpha: 1),
-                        BrandColor(red: 0.208, green: 0.086, blue: 0.043, alpha: 1)
-                    ]
-                ),
-                charge: nil,
-                plateScale: 1,
-                edgeWidth: 0.25,
-                divisionCount: 4,
-                finish: CrestFinish.flat,
-                ordinaryWidth: 1,
-                trimWeight: 0.75,
-                trimDetail: 12,
-                chargeScale: 1.2,
-                chargeOffset: 0,
-                chargeWeight: CrestChargeWeight.bold,
-                sheenAngle: 45,
-                sealTeeth: 12,
-                showsOutline: false,
-                depth: CrestDepth.soft
-            ),
-            renderingVersion: 5,
-            folderColorIntensity: 0,
-            textColorMode: SpaceTextColorMode.automatic,
-            hasCustomAppearance: false
-        ),
-        appIconName: "CrestSun"
-    )
-    static let vigil = SpaceHouse(
-        tag: 8,
-        name: "vigil",
-        title: LocalizedStringResource("Vigil"),
-        look: SpaceBranding(
-            colors: ColorPalette(
-                colors: [
-                    BrandColor(red: 0.063, green: 0.067, blue: 0.071, alpha: 1),
-                    BrandColor(red: 0.153, green: 0.165, blue: 0.18, alpha: 1),
-                    BrandColor(red: 0.482, green: 0.514, blue: 0.549, alpha: 1)
-                ]
-            ),
-            bannerPattern: SpaceBannerPattern.checkered,
-            bannerStrength: 1,
-            readabilityFade: 0.45,
-            keepsControlsReadable: true,
-            themeMode: SpaceThemeMode.banner,
-            gradientAngle: 0,
-            showsTexture: false,
-            iconStyle: SpaceIconStyle.layeredCrest,
-            symbolColor: nil,
-            crest: SpaceCrest(
-                backplate: CrestBackplate.seal,
-                fieldDivision: CrestFieldDivision.plain,
-                ordinary: CrestOrdinary.none,
-                trim: CrestTrim.doubleRing,
-                symbol: CrestSymbol.raven,
-                chargeLayout: CrestChargeLayout.single,
-                backplateColorIndex: 0,
-                secondaryFieldColorIndex: 1,
-                ordinaryColorIndex: 2,
-                trimColorIndex: 4,
-                symbolColorIndex: 3,
-                startingPresetID: nil,
-                edgeColorIndex: 5,
-                palette: ColorPalette(
-                    colors: [
-                        BrandColor(red: 0.063, green: 0.067, blue: 0.071, alpha: 1),
-                        BrandColor(red: 0.153, green: 0.165, blue: 0.18, alpha: 1),
-                        BrandColor(red: 0.482, green: 0.514, blue: 0.549, alpha: 1),
-                        BrandColor(red: 0.812, green: 0.82, blue: 0.831, alpha: 1),
-                        BrandColor(red: 0.482, green: 0.514, blue: 0.549, alpha: 1),
-                        BrandColor(red: 0.482, green: 0.514, blue: 0.549, alpha: 1)
-                    ]
-                ),
-                charge: nil,
-                plateScale: 1,
-                edgeWidth: 0.45,
-                divisionCount: 4,
-                finish: CrestFinish.flat,
-                ordinaryWidth: 1,
-                trimWeight: 0.9,
-                trimDetail: 12,
-                chargeScale: 1.2,
-                chargeOffset: 0,
-                chargeWeight: CrestChargeWeight.bold,
-                sheenAngle: 45,
-                sealTeeth: 12,
-                showsOutline: false,
-                depth: CrestDepth.none
-            ),
-            renderingVersion: 5,
-            folderColorIntensity: 0,
-            textColorMode: SpaceTextColorMode.automatic,
-            hasCustomAppearance: false
-        ),
-        appIconName: "CrestVigil"
-    )
-
-    static let all: [SpaceHouse] = [winter, lion, storm, dragon, meadow, iron, river, sun, vigil]
-
-    static func named(_ name: String?) -> SpaceHouse? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: SpaceHouse, rhs: SpaceHouse) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-        let look: SpaceBranding
-        let appIconName: String
-
-        init(name: String, title: LocalizedStringResource, look: SpaceBranding, appIconName: String) {
-            self.name = name
-            self.title = title
-            self.look = look
-            self.appIconName = appIconName
-        }
-    }
-}
-
-/// The members of the core's `SpaceIconStyle`. A member's wire tag is its index in `all`.
-struct SpaceIconStyle: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case simpleSymbol
-        case layeredCrest
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    private let facts: Facts
-
-    private init(tag: Int, kind: Kinds, name: String, title: LocalizedStringResource) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, title: title)
-    }
-
-    static let simpleSymbol = SpaceIconStyle(
-        tag: 0,
-        kind: .simpleSymbol,
-        name: "simpleSymbol",
-        title: LocalizedStringResource("Icon")
-    )
-    static let layeredCrest = SpaceIconStyle(
-        tag: 1,
-        kind: .layeredCrest,
-        name: "layeredCrest",
-        title: LocalizedStringResource("Crest")
-    )
-
-    static let all: [SpaceIconStyle] = [simpleSymbol, layeredCrest]
-
-    static func named(_ name: String?) -> SpaceIconStyle? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: SpaceIconStyle, rhs: SpaceIconStyle) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let title: LocalizedStringResource
-
-        init(kind: Kinds, name: String, title: LocalizedStringResource) {
-            self.kind = kind
-            self.name = name
-            self.title = title
-        }
-    }
-}
-
-/// The members of the core's `SpaceScheme`. A member's wire tag is its index in `all`.
-struct SpaceScheme: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var look: SpaceBranding { facts.look }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, title: LocalizedStringResource, look: SpaceBranding) {
-        self.tag = tag
-        facts = Facts(name: name, title: title, look: look)
-    }
-
-    static let neutral = SpaceScheme(
-        tag: 0,
-        name: "neutral",
-        title: LocalizedStringResource("Neutral"),
-        look: SpaceBranding(
-            colors: ColorPalette(colors: [BrandColor(red: 0.337, green: 0.337, blue: 0.337, alpha: 1)]),
-            bannerPattern: SpaceBannerPattern.diagonal,
-            bannerStrength: 0.15,
-            readabilityFade: 0,
-            keepsControlsReadable: false,
-            themeMode: SpaceThemeMode.gradient,
-            gradientAngle: 0,
-            showsTexture: true,
-            iconStyle: SpaceIconStyle.simpleSymbol,
-            symbolColor: BrandColor(red: 0.588, green: 0.588, blue: 0.588, alpha: 1),
-            crest: SpaceCrest(
-                backplate: CrestBackplate.shield,
-                fieldDivision: CrestFieldDivision.plain,
-                ordinary: CrestOrdinary.none,
-                trim: CrestTrim.none,
-                symbol: CrestSymbol.mountain,
-                chargeLayout: CrestChargeLayout.single,
-                backplateColorIndex: 1,
-                secondaryFieldColorIndex: 1,
-                ordinaryColorIndex: 2,
-                trimColorIndex: 1,
-                symbolColorIndex: 2,
-                startingPresetID: nil,
-                edgeColorIndex: 1,
-                palette: nil,
-                charge: nil,
-                plateScale: 1,
-                edgeWidth: 0,
-                divisionCount: 4,
-                finish: CrestFinish.flat,
-                ordinaryWidth: 1,
-                trimWeight: 1,
-                trimDetail: 12,
-                chargeScale: 1,
-                chargeOffset: 0,
-                chargeWeight: CrestChargeWeight.bold,
-                sheenAngle: 45,
-                sealTeeth: 12,
-                showsOutline: false,
-                depth: CrestDepth.none
-            ),
-            renderingVersion: 2,
-            folderColorIntensity: 0,
-            textColorMode: SpaceTextColorMode.system,
-            hasCustomAppearance: false
-        )
-    )
-
-    static let all: [SpaceScheme] = [neutral]
-
-    static func named(_ name: String?) -> SpaceScheme? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: SpaceScheme, rhs: SpaceScheme) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-        let look: SpaceBranding
-
-        init(name: String, title: LocalizedStringResource, look: SpaceBranding) {
-            self.name = name
-            self.title = title
-            self.look = look
-        }
-    }
-}
-
-/// The members of the core's `SpaceTextColorMode`. A member's wire tag is its index in `all`.
-struct SpaceTextColorMode: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case automatic
-        case light
-        case dark
-        case system
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    private let facts: Facts
-
-    private init(tag: Int, kind: Kinds, name: String, title: LocalizedStringResource) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, title: title)
-    }
-
-    static let automatic = SpaceTextColorMode(
-        tag: 0,
-        kind: .automatic,
-        name: "automatic",
-        title: LocalizedStringResource("Automatic")
-    )
-    static let light = SpaceTextColorMode(tag: 1, kind: .light, name: "light", title: LocalizedStringResource("Light"))
-    static let dark = SpaceTextColorMode(tag: 2, kind: .dark, name: "dark", title: LocalizedStringResource("Dark"))
-    static let system = SpaceTextColorMode(
-        tag: 3,
-        kind: .system,
-        name: "system",
-        title: LocalizedStringResource("System")
-    )
-
-    static let all: [SpaceTextColorMode] = [automatic, light, dark, system]
-
-    static func named(_ name: String?) -> SpaceTextColorMode? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: SpaceTextColorMode, rhs: SpaceTextColorMode) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let title: LocalizedStringResource
-
-        init(kind: Kinds, name: String, title: LocalizedStringResource) {
-            self.kind = kind
-            self.name = name
-            self.title = title
-        }
-    }
-}
-
-/// The members of the core's `SpaceThemeMode`. A member's wire tag is its index in `all`.
-struct SpaceThemeMode: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case banner
-        case gradient
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    private let facts: Facts
-
-    private init(tag: Int, kind: Kinds, name: String, title: LocalizedStringResource) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, title: title)
-    }
-
-    static let banner = SpaceThemeMode(tag: 0, kind: .banner, name: "banner", title: LocalizedStringResource("Banner"))
-    static let gradient = SpaceThemeMode(
-        tag: 1,
-        kind: .gradient,
-        name: "gradient",
-        title: LocalizedStringResource("Gradient")
-    )
-
-    static let all: [SpaceThemeMode] = [banner, gradient]
-
-    static func named(_ name: String?) -> SpaceThemeMode? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: SpaceThemeMode, rhs: SpaceThemeMode) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let title: LocalizedStringResource
-
-        init(kind: Kinds, name: String, title: LocalizedStringResource) {
-            self.kind = kind
-            self.name = name
-            self.title = title
-        }
-    }
-}
-
-/// The members of the core's `StartupBehavior`. A member's wire tag is its index in `all`.
-struct StartupBehavior: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var activatesRestoredTab: Bool { facts.activatesRestoredTab }
-    var opensNewTab: Bool { facts.opensNewTab }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, title: LocalizedStringResource, activatesRestoredTab: Bool, opensNewTab: Bool) {
-        self.tag = tag
-        facts = Facts(name: name, title: title, activatesRestoredTab: activatesRestoredTab, opensNewTab: opensNewTab)
-    }
-
-    static let showStartPage = StartupBehavior(
-        tag: 0,
-        name: "showStartPage",
-        title: LocalizedStringResource("Show Start Page"),
-        activatesRestoredTab: false,
-        opensNewTab: false
-    )
-    static let lastActiveTab = StartupBehavior(
-        tag: 1,
-        name: "lastActiveTab",
-        title: LocalizedStringResource("Open Last Active Tab"),
-        activatesRestoredTab: true,
-        opensNewTab: false
-    )
-    static let newTab = StartupBehavior(
-        tag: 2,
-        name: "newTab",
-        title: LocalizedStringResource("Open a New Tab"),
-        activatesRestoredTab: false,
-        opensNewTab: true
-    )
-
-    static let all: [StartupBehavior] = [showStartPage, lastActiveTab, newTab]
-
-    static func named(_ name: String?) -> StartupBehavior? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: StartupBehavior, rhs: StartupBehavior) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-        let activatesRestoredTab: Bool
-        let opensNewTab: Bool
-
-        init(name: String, title: LocalizedStringResource, activatesRestoredTab: Bool, opensNewTab: Bool) {
-            self.name = name
-            self.title = title
-            self.activatesRestoredTab = activatesRestoredTab
-            self.opensNewTab = opensNewTab
         }
     }
 }
@@ -22560,7 +14354,6 @@ struct TabGroupColor: Hashable, Sendable {
 }
 
 /// The members of the core's `TabIconMode`. A member's wire tag is its index in `all`.
-/// Core-only behavior, not emitted: `symbol`.
 struct TabIconMode: Hashable, Sendable {
     static let emojiPrefix = "crest.emoji:"
     static let webSymbol = "globe"
@@ -22569,24 +14362,15 @@ struct TabIconMode: Hashable, Sendable {
     var name: String { facts.name }
     var inferencePrefix: String? { facts.inferencePrefix }
     var followsPage: Bool { facts.followsPage }
-    var requiresFavicon: Bool { facts.requiresFavicon }
     var showsFavicon: Bool { facts.showsFavicon }
     private let facts: Facts
 
-    private init(
-        tag: Int,
-        name: String,
-        inferencePrefix: String?,
-        followsPage: Bool,
-        requiresFavicon: Bool,
-        showsFavicon: Bool
-    ) {
+    private init(tag: Int, name: String, inferencePrefix: String?, followsPage: Bool, showsFavicon: Bool) {
         self.tag = tag
         facts = Facts(
             name: name,
             inferencePrefix: inferencePrefix,
             followsPage: followsPage,
-            requiresFavicon: requiresFavicon,
             showsFavicon: showsFavicon
         )
     }
@@ -22596,7 +14380,6 @@ struct TabIconMode: Hashable, Sendable {
         name: "automatic",
         inferencePrefix: "",
         followsPage: true,
-        requiresFavicon: false,
         showsFavicon: true
     )
     static let pulled = TabIconMode(
@@ -22604,7 +14387,6 @@ struct TabIconMode: Hashable, Sendable {
         name: "pulled",
         inferencePrefix: nil,
         followsPage: false,
-        requiresFavicon: true,
         showsFavicon: true
     )
     static let emoji = TabIconMode(
@@ -22612,7 +14394,6 @@ struct TabIconMode: Hashable, Sendable {
         name: "emoji",
         inferencePrefix: "crest.emoji:",
         followsPage: false,
-        requiresFavicon: false,
         showsFavicon: false
     )
 
@@ -22634,14 +14415,12 @@ struct TabIconMode: Hashable, Sendable {
         let name: String
         let inferencePrefix: String?
         let followsPage: Bool
-        let requiresFavicon: Bool
         let showsFavicon: Bool
 
-        init(name: String, inferencePrefix: String?, followsPage: Bool, requiresFavicon: Bool, showsFavicon: Bool) {
+        init(name: String, inferencePrefix: String?, followsPage: Bool, showsFavicon: Bool) {
             self.name = name
             self.inferencePrefix = inferencePrefix
             self.followsPage = followsPage
-            self.requiresFavicon = requiresFavicon
             self.showsFavicon = showsFavicon
         }
     }
@@ -22660,7 +14439,6 @@ struct TabPlacement: Hashable, Sendable {
     var isDurable: Bool { facts.isDurable }
     var holdsFolders: Bool { facts.holdsFolders }
     var holdsSplits: Bool { facts.holdsSplits }
-    var isCollapsible: Bool { facts.isCollapsible }
     var capacity: Int? { facts.capacity }
     var importedSymbol: String? { facts.importedSymbol }
     var isGrid: Bool { facts.isGrid }
@@ -22677,7 +14455,6 @@ struct TabPlacement: Hashable, Sendable {
         isDurable: Bool,
         holdsFolders: Bool,
         holdsSplits: Bool,
-        isCollapsible: Bool,
         capacity: Int?,
         importedSymbol: String?,
         isGrid: Bool,
@@ -22693,7 +14470,6 @@ struct TabPlacement: Hashable, Sendable {
             isDurable: isDurable,
             holdsFolders: holdsFolders,
             holdsSplits: holdsSplits,
-            isCollapsible: isCollapsible,
             capacity: capacity,
             importedSymbol: importedSymbol,
             isGrid: isGrid,
@@ -22711,7 +14487,6 @@ struct TabPlacement: Hashable, Sendable {
         isDurable: true,
         holdsFolders: false,
         holdsSplits: false,
-        isCollapsible: false,
         capacity: 12,
         importedSymbol: "pin.fill",
         isGrid: true,
@@ -22727,7 +14502,6 @@ struct TabPlacement: Hashable, Sendable {
         isDurable: true,
         holdsFolders: true,
         holdsSplits: true,
-        isCollapsible: true,
         capacity: nil,
         importedSymbol: nil,
         isGrid: false,
@@ -22743,7 +14517,6 @@ struct TabPlacement: Hashable, Sendable {
         isDurable: false,
         holdsFolders: true,
         holdsSplits: true,
-        isCollapsible: false,
         capacity: nil,
         importedSymbol: nil,
         isGrid: false,
@@ -22773,7 +14546,6 @@ struct TabPlacement: Hashable, Sendable {
         let isDurable: Bool
         let holdsFolders: Bool
         let holdsSplits: Bool
-        let isCollapsible: Bool
         let capacity: Int?
         let importedSymbol: String?
         let isGrid: Bool
@@ -22788,7 +14560,6 @@ struct TabPlacement: Hashable, Sendable {
             isDurable: Bool,
             holdsFolders: Bool,
             holdsSplits: Bool,
-            isCollapsible: Bool,
             capacity: Int?,
             importedSymbol: String?,
             isGrid: Bool,
@@ -22802,7 +14573,6 @@ struct TabPlacement: Hashable, Sendable {
             self.isDurable = isDurable
             self.holdsFolders = holdsFolders
             self.holdsSplits = holdsSplits
-            self.isCollapsible = isCollapsible
             self.capacity = capacity
             self.importedSymbol = importedSymbol
             self.isGrid = isGrid
@@ -22852,464 +14622,21 @@ struct TabSurface: Hashable, Sendable {
     }
 }
 
-/// The members of the core's `Tincture`. A member's wire tag is its index in `all`.
-struct Tincture: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var color: BrandColor { facts.color }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, title: LocalizedStringResource, color: BrandColor) {
-        self.tag = tag
-        facts = Facts(name: name, title: title, color: color)
-    }
-
-    static let ink = Tincture(
-        tag: 0,
-        name: "ink",
-        title: LocalizedStringResource("Ink"),
-        color: BrandColor(red: 0.08, green: 0.15, blue: 0.23, alpha: 1)
-    )
-    static let indigo = Tincture(
-        tag: 1,
-        name: "indigo",
-        title: LocalizedStringResource("Indigo"),
-        color: BrandColor(red: 0.29, green: 0.25, blue: 0.58, alpha: 1)
-    )
-    static let ocean = Tincture(
-        tag: 2,
-        name: "ocean",
-        title: LocalizedStringResource("Ocean"),
-        color: BrandColor(red: 0.22, green: 0.42, blue: 0.64, alpha: 1)
-    )
-    static let sky = Tincture(
-        tag: 3,
-        name: "sky",
-        title: LocalizedStringResource("Sky"),
-        color: BrandColor(red: 0.35, green: 0.66, blue: 0.84, alpha: 1)
-    )
-    static let teal = Tincture(
-        tag: 4,
-        name: "teal",
-        title: LocalizedStringResource("Teal"),
-        color: BrandColor(red: 0.12, green: 0.49, blue: 0.52, alpha: 1)
-    )
-    static let sage = Tincture(
-        tag: 5,
-        name: "sage",
-        title: LocalizedStringResource("Sage"),
-        color: BrandColor(red: 0.39, green: 0.56, blue: 0.42, alpha: 1)
-    )
-    static let gold = Tincture(
-        tag: 6,
-        name: "gold",
-        title: LocalizedStringResource("Gold"),
-        color: BrandColor(red: 0.88, green: 0.67, blue: 0.25, alpha: 1)
-    )
-    static let ember = Tincture(
-        tag: 7,
-        name: "ember",
-        title: LocalizedStringResource("Ember"),
-        color: BrandColor(red: 0.85, green: 0.27, blue: 0.2, alpha: 1)
-    )
-    static let rose = Tincture(
-        tag: 8,
-        name: "rose",
-        title: LocalizedStringResource("Rose"),
-        color: BrandColor(red: 0.72, green: 0.25, blue: 0.42, alpha: 1)
-    )
-    static let sand = Tincture(
-        tag: 9,
-        name: "sand",
-        title: LocalizedStringResource("Sand"),
-        color: BrandColor(red: 0.82, green: 0.72, blue: 0.56, alpha: 1)
-    )
-    static let winterSlate = Tincture(
-        tag: 10,
-        name: "winterSlate",
-        title: LocalizedStringResource("Slate"),
-        color: BrandColor(red: 0.118, green: 0.157, blue: 0.2, alpha: 1)
-    )
-    static let winterSteel = Tincture(
-        tag: 11,
-        name: "winterSteel",
-        title: LocalizedStringResource("Steel"),
-        color: BrandColor(red: 0.243, green: 0.306, blue: 0.369, alpha: 1)
-    )
-    static let winterIce = Tincture(
-        tag: 12,
-        name: "winterIce",
-        title: LocalizedStringResource("Ice"),
-        color: BrandColor(red: 0.525, green: 0.678, blue: 0.769, alpha: 1)
-    )
-    static let lionOxblood = Tincture(
-        tag: 13,
-        name: "lionOxblood",
-        title: LocalizedStringResource("Oxblood"),
-        color: BrandColor(red: 0.235, green: 0.055, blue: 0.102, alpha: 1)
-    )
-    static let lionCrimson = Tincture(
-        tag: 14,
-        name: "lionCrimson",
-        title: LocalizedStringResource("Crimson"),
-        color: BrandColor(red: 0.447, green: 0.125, blue: 0.188, alpha: 1)
-    )
-    static let lionGold = Tincture(
-        tag: 15,
-        name: "lionGold",
-        title: LocalizedStringResource("Antique Gold"),
-        color: BrandColor(red: 0.788, green: 0.635, blue: 0.329, alpha: 1)
-    )
-    static let stormMidnight = Tincture(
-        tag: 16,
-        name: "stormMidnight",
-        title: LocalizedStringResource("Midnight"),
-        color: BrandColor(red: 0.082, green: 0.094, blue: 0.141, alpha: 1)
-    )
-    static let stormGunmetal = Tincture(
-        tag: 17,
-        name: "stormGunmetal",
-        title: LocalizedStringResource("Gunmetal"),
-        color: BrandColor(red: 0.192, green: 0.22, blue: 0.282, alpha: 1)
-    )
-    static let stormBrass = Tincture(
-        tag: 18,
-        name: "stormBrass",
-        title: LocalizedStringResource("Brass"),
-        color: BrandColor(red: 0.69, green: 0.561, blue: 0.29, alpha: 1)
-    )
-    static let dragonChar = Tincture(
-        tag: 19,
-        name: "dragonChar",
-        title: LocalizedStringResource("Char"),
-        color: BrandColor(red: 0.102, green: 0.063, blue: 0.051, alpha: 1)
-    )
-    static let dragonBlood = Tincture(
-        tag: 20,
-        name: "dragonBlood",
-        title: LocalizedStringResource("Blood"),
-        color: BrandColor(red: 0.478, green: 0.118, blue: 0.071, alpha: 1)
-    )
-    static let dragonScarlet = Tincture(
-        tag: 21,
-        name: "dragonScarlet",
-        title: LocalizedStringResource("Scarlet"),
-        color: BrandColor(red: 0.745, green: 0.267, blue: 0.22, alpha: 1)
-    )
-    static let meadowForest = Tincture(
-        tag: 22,
-        name: "meadowForest",
-        title: LocalizedStringResource("Forest"),
-        color: BrandColor(red: 0.082, green: 0.137, blue: 0.094, alpha: 1)
-    )
-    static let meadowMoss = Tincture(
-        tag: 23,
-        name: "meadowMoss",
-        title: LocalizedStringResource("Moss"),
-        color: BrandColor(red: 0.204, green: 0.341, blue: 0.22, alpha: 1)
-    )
-    static let meadowWheat = Tincture(
-        tag: 24,
-        name: "meadowWheat",
-        title: LocalizedStringResource("Wheat"),
-        color: BrandColor(red: 0.737, green: 0.655, blue: 0.4, alpha: 1)
-    )
-    static let ironBlack = Tincture(
-        tag: 25,
-        name: "ironBlack",
-        title: LocalizedStringResource("Iron"),
-        color: BrandColor(red: 0.055, green: 0.102, blue: 0.11, alpha: 1)
-    )
-    static let ironPewter = Tincture(
-        tag: 26,
-        name: "ironPewter",
-        title: LocalizedStringResource("Pewter"),
-        color: BrandColor(red: 0.173, green: 0.227, blue: 0.235, alpha: 1)
-    )
-    static let ironPatina = Tincture(
-        tag: 27,
-        name: "ironPatina",
-        title: LocalizedStringResource("Patina"),
-        color: BrandColor(red: 0.612, green: 0.592, blue: 0.506, alpha: 1)
-    )
-    static let riverNavy = Tincture(
-        tag: 28,
-        name: "riverNavy",
-        title: LocalizedStringResource("Navy"),
-        color: BrandColor(red: 0.059, green: 0.118, blue: 0.18, alpha: 1)
-    )
-    static let riverLapis = Tincture(
-        tag: 29,
-        name: "riverLapis",
-        title: LocalizedStringResource("Lapis"),
-        color: BrandColor(red: 0.133, green: 0.282, blue: 0.424, alpha: 1)
-    )
-    static let riverRust = Tincture(
-        tag: 30,
-        name: "riverRust",
-        title: LocalizedStringResource("Rust"),
-        color: BrandColor(red: 0.659, green: 0.361, blue: 0.255, alpha: 1)
-    )
-    static let sunUmber = Tincture(
-        tag: 31,
-        name: "sunUmber",
-        title: LocalizedStringResource("Umber"),
-        color: BrandColor(red: 0.208, green: 0.086, blue: 0.043, alpha: 1)
-    )
-    static let sunTerracotta = Tincture(
-        tag: 32,
-        name: "sunTerracotta",
-        title: LocalizedStringResource("Terracotta"),
-        color: BrandColor(red: 0.545, green: 0.239, blue: 0.106, alpha: 1)
-    )
-    static let sunDune = Tincture(
-        tag: 33,
-        name: "sunDune",
-        title: LocalizedStringResource("Dune"),
-        color: BrandColor(red: 0.816, green: 0.62, blue: 0.396, alpha: 1)
-    )
-    static let vigilOnyx = Tincture(
-        tag: 34,
-        name: "vigilOnyx",
-        title: LocalizedStringResource("Onyx"),
-        color: BrandColor(red: 0.063, green: 0.067, blue: 0.071, alpha: 1)
-    )
-    static let vigilCharcoal = Tincture(
-        tag: 35,
-        name: "vigilCharcoal",
-        title: LocalizedStringResource("Charcoal"),
-        color: BrandColor(red: 0.153, green: 0.165, blue: 0.18, alpha: 1)
-    )
-    static let vigilAsh = Tincture(
-        tag: 36,
-        name: "vigilAsh",
-        title: LocalizedStringResource("Ash"),
-        color: BrandColor(red: 0.482, green: 0.514, blue: 0.549, alpha: 1)
-    )
-    static let winterArgent = Tincture(
-        tag: 37,
-        name: "winterArgent",
-        title: LocalizedStringResource("Argent"),
-        color: BrandColor(red: 0.871, green: 0.894, blue: 0.91, alpha: 1)
-    )
-    static let winterWolf = Tincture(
-        tag: 38,
-        name: "winterWolf",
-        title: LocalizedStringResource("Wolf Grey"),
-        color: BrandColor(red: 0.341, green: 0.384, blue: 0.427, alpha: 1)
-    )
-    static let lionGules = Tincture(
-        tag: 39,
-        name: "lionGules",
-        title: LocalizedStringResource("Gules"),
-        color: BrandColor(red: 0.596, green: 0.114, blue: 0.157, alpha: 1)
-    )
-    static let lionOr = Tincture(
-        tag: 40,
-        name: "lionOr",
-        title: LocalizedStringResource("Or"),
-        color: BrandColor(red: 0.851, green: 0.682, blue: 0.318, alpha: 1)
-    )
-    static let stormOr = Tincture(
-        tag: 41,
-        name: "stormOr",
-        title: LocalizedStringResource("Storm Gold"),
-        color: BrandColor(red: 0.835, green: 0.655, blue: 0.231, alpha: 1)
-    )
-    static let stormSable = Tincture(
-        tag: 42,
-        name: "stormSable",
-        title: LocalizedStringResource("Sable"),
-        color: BrandColor(red: 0.09, green: 0.094, blue: 0.106, alpha: 1)
-    )
-    static let dragonSable = Tincture(
-        tag: 43,
-        name: "dragonSable",
-        title: LocalizedStringResource("Night"),
-        color: BrandColor(red: 0.071, green: 0.059, blue: 0.063, alpha: 1)
-    )
-    static let dragonFire = Tincture(
-        tag: 44,
-        name: "dragonFire",
-        title: LocalizedStringResource("Fire"),
-        color: BrandColor(red: 0.749, green: 0.18, blue: 0.137, alpha: 1)
-    )
-    static let meadowVert = Tincture(
-        tag: 45,
-        name: "meadowVert",
-        title: LocalizedStringResource("Vert"),
-        color: BrandColor(red: 0.188, green: 0.42, blue: 0.231, alpha: 1)
-    )
-    static let meadowRose = Tincture(
-        tag: 46,
-        name: "meadowRose",
-        title: LocalizedStringResource("Rose Gold"),
-        color: BrandColor(red: 0.871, green: 0.729, blue: 0.318, alpha: 1)
-    )
-    static let ironOr = Tincture(
-        tag: 47,
-        name: "ironOr",
-        title: LocalizedStringResource("Kraken Gold"),
-        color: BrandColor(red: 0.796, green: 0.651, blue: 0.302, alpha: 1)
-    )
-    static let riverAzure = Tincture(
-        tag: 48,
-        name: "riverAzure",
-        title: LocalizedStringResource("Azure"),
-        color: BrandColor(red: 0.176, green: 0.369, blue: 0.616, alpha: 1)
-    )
-    static let riverGules = Tincture(
-        tag: 49,
-        name: "riverGules",
-        title: LocalizedStringResource("River Red"),
-        color: BrandColor(red: 0.643, green: 0.157, blue: 0.188, alpha: 1)
-    )
-    static let riverArgent = Tincture(
-        tag: 50,
-        name: "riverArgent",
-        title: LocalizedStringResource("Silver"),
-        color: BrandColor(red: 0.851, green: 0.871, blue: 0.894, alpha: 1)
-    )
-    static let sunTenne = Tincture(
-        tag: 51,
-        name: "sunTenne",
-        title: LocalizedStringResource("Tenné"),
-        color: BrandColor(red: 0.851, green: 0.467, blue: 0.176, alpha: 1)
-    )
-    static let sunGules = Tincture(
-        tag: 52,
-        name: "sunGules",
-        title: LocalizedStringResource("Sunset Red"),
-        color: BrandColor(red: 0.722, green: 0.165, blue: 0.118, alpha: 1)
-    )
-    static let sunOr = Tincture(
-        tag: 53,
-        name: "sunOr",
-        title: LocalizedStringResource("Saffron"),
-        color: BrandColor(red: 0.894, green: 0.718, blue: 0.333, alpha: 1)
-    )
-    static let vigilBone = Tincture(
-        tag: 54,
-        name: "vigilBone",
-        title: LocalizedStringResource("Bone"),
-        color: BrandColor(red: 0.812, green: 0.82, blue: 0.831, alpha: 1)
-    )
-    static let neutralSmoke = Tincture(
-        tag: 55,
-        name: "neutralSmoke",
-        title: LocalizedStringResource("Smoke"),
-        color: BrandColor(red: 0.337, green: 0.337, blue: 0.337, alpha: 1)
-    )
-    static let neutralGray = Tincture(
-        tag: 56,
-        name: "neutralGray",
-        title: LocalizedStringResource("Gray"),
-        color: BrandColor(red: 0.588, green: 0.588, blue: 0.588, alpha: 1)
-    )
-
-    static let all: [Tincture] = [
-        ink,
-        indigo,
-        ocean,
-        sky,
-        teal,
-        sage,
-        gold,
-        ember,
-        rose,
-        sand,
-        winterSlate,
-        winterSteel,
-        winterIce,
-        lionOxblood,
-        lionCrimson,
-        lionGold,
-        stormMidnight,
-        stormGunmetal,
-        stormBrass,
-        dragonChar,
-        dragonBlood,
-        dragonScarlet,
-        meadowForest,
-        meadowMoss,
-        meadowWheat,
-        ironBlack,
-        ironPewter,
-        ironPatina,
-        riverNavy,
-        riverLapis,
-        riverRust,
-        sunUmber,
-        sunTerracotta,
-        sunDune,
-        vigilOnyx,
-        vigilCharcoal,
-        vigilAsh,
-        winterArgent,
-        winterWolf,
-        lionGules,
-        lionOr,
-        stormOr,
-        stormSable,
-        dragonSable,
-        dragonFire,
-        meadowVert,
-        meadowRose,
-        ironOr,
-        riverAzure,
-        riverGules,
-        riverArgent,
-        sunTenne,
-        sunGules,
-        sunOr,
-        vigilBone,
-        neutralSmoke,
-        neutralGray
-    ]
-
-    static func named(_ name: String?) -> Tincture? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: Tincture, rhs: Tincture) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-        let color: BrandColor
-
-        init(name: String, title: LocalizedStringResource, color: BrandColor) {
-            self.name = name
-            self.title = title
-            self.color = color
-        }
-    }
-}
-
 /// The members of the core's `TransientPresentation`. A member's wire tag is its index in `all`.
 struct TransientPresentation: Hashable, Sendable {
     let tag: Int
     var name: String { facts.name }
-    var opensNewTabsInFront: Bool { facts.opensNewTabsInFront }
     private let facts: Facts
 
-    private init(tag: Int, name: String, opensNewTabsInFront: Bool) {
+    private init(tag: Int, name: String) {
         self.tag = tag
-        facts = Facts(name: name, opensNewTabsInFront: opensNewTabsInFront)
+        facts = Facts(name: name)
     }
 
-    static let peek = TransientPresentation(tag: 0, name: "peek", opensNewTabsInFront: true)
-    static let quickWindow = TransientPresentation(tag: 1, name: "quickWindow", opensNewTabsInFront: false)
-    static let settings = TransientPresentation(tag: 2, name: "settings", opensNewTabsInFront: false)
+    static let settings = TransientPresentation(tag: 0, name: "settings")
+    static let authentication = TransientPresentation(tag: 1, name: "authentication")
 
-    static let all: [TransientPresentation] = [peek, quickWindow, settings]
+    static let all: [TransientPresentation] = [settings, authentication]
 
     static func named(_ name: String?) -> TransientPresentation? {
         all.first { $0.name == name }
@@ -23325,11 +14652,9 @@ struct TransientPresentation: Hashable, Sendable {
 
     private final class Facts: Sendable {
         let name: String
-        let opensNewTabsInFront: Bool
 
-        init(name: String, opensNewTabsInFront: Bool) {
+        init(name: String) {
             self.name = name
-            self.opensNewTabsInFront = opensNewTabsInFront
         }
     }
 }
@@ -23427,7 +14752,6 @@ struct WorkspaceKind: Hashable, Sendable {
     var isPrivate: Bool { facts.isPrivate }
     var ownsSpaces: Bool { facts.ownsSpaces }
     var keepsAppPreferences: Bool { facts.keepsAppPreferences }
-    var isPractice: Bool { facts.isPractice }
     private let facts: Facts
 
     private init(
@@ -23437,8 +14761,7 @@ struct WorkspaceKind: Hashable, Sendable {
         keepsFile: Bool,
         isPrivate: Bool,
         ownsSpaces: Bool,
-        keepsAppPreferences: Bool,
-        isPractice: Bool
+        keepsAppPreferences: Bool
     ) {
         self.tag = tag
         facts = Facts(
@@ -23447,8 +14770,7 @@ struct WorkspaceKind: Hashable, Sendable {
             keepsFile: keepsFile,
             isPrivate: isPrivate,
             ownsSpaces: ownsSpaces,
-            keepsAppPreferences: keepsAppPreferences,
-            isPractice: isPractice
+            keepsAppPreferences: keepsAppPreferences
         )
     }
 
@@ -23459,8 +14781,7 @@ struct WorkspaceKind: Hashable, Sendable {
         keepsFile: true,
         isPrivate: false,
         ownsSpaces: true,
-        keepsAppPreferences: true,
-        isPractice: false
+        keepsAppPreferences: true
     )
     static let `private` = WorkspaceKind(
         tag: 1,
@@ -23469,8 +14790,7 @@ struct WorkspaceKind: Hashable, Sendable {
         keepsFile: false,
         isPrivate: true,
         ownsSpaces: true,
-        keepsAppPreferences: false,
-        isPractice: false
+        keepsAppPreferences: false
     )
     static let borrowed = WorkspaceKind(
         tag: 2,
@@ -23479,21 +14799,10 @@ struct WorkspaceKind: Hashable, Sendable {
         keepsFile: false,
         isPrivate: false,
         ownsSpaces: false,
-        keepsAppPreferences: false,
-        isPractice: false
-    )
-    static let practice = WorkspaceKind(
-        tag: 3,
-        name: "practice",
-        opensDirectly: true,
-        keepsFile: false,
-        isPrivate: false,
-        ownsSpaces: true,
-        keepsAppPreferences: false,
-        isPractice: true
+        keepsAppPreferences: false
     )
 
-    static let all: [WorkspaceKind] = [persistent, `private`, borrowed, practice]
+    static let all: [WorkspaceKind] = [persistent, `private`, borrowed]
 
     static func named(_ name: String?) -> WorkspaceKind? {
         all.first { $0.name == name }
@@ -23514,7 +14823,6 @@ struct WorkspaceKind: Hashable, Sendable {
         let isPrivate: Bool
         let ownsSpaces: Bool
         let keepsAppPreferences: Bool
-        let isPractice: Bool
 
         init(
             name: String,
@@ -23522,8 +14830,7 @@ struct WorkspaceKind: Hashable, Sendable {
             keepsFile: Bool,
             isPrivate: Bool,
             ownsSpaces: Bool,
-            keepsAppPreferences: Bool,
-            isPractice: Bool
+            keepsAppPreferences: Bool
         ) {
             self.name = name
             self.opensDirectly = opensDirectly
@@ -23531,7 +14838,6 @@ struct WorkspaceKind: Hashable, Sendable {
             self.isPrivate = isPrivate
             self.ownsSpaces = ownsSpaces
             self.keepsAppPreferences = keepsAppPreferences
-            self.isPractice = isPractice
         }
     }
 }
@@ -23553,10 +14859,6 @@ final class FolderStateModel: ObservedModel, Identifiable {
         access(keyPath: \.title)
         return titleStorage
     }
-    var symbol: String? {
-        access(keyPath: \.symbol)
-        return symbolStorage
-    }
     var color: BrandColor? {
         access(keyPath: \.color)
         return colorStorage
@@ -23577,9 +14879,17 @@ final class FolderStateModel: ObservedModel, Identifiable {
         access(keyPath: \.orderAnchorTabID)
         return orderAnchorTabIDStorage
     }
-    var displaySymbol: String {
-        access(keyPath: \.displaySymbol)
-        return displaySymbolStorage
+    var source: LiveFolderSource? {
+        access(keyPath: \.source)
+        return sourceStorage
+    }
+    var liveOptions: GitHubLiveFolderOptions? {
+        access(keyPath: \.liveOptions)
+        return liveOptionsStorage
+    }
+    var gitHubOptions: GitHubLiveFolderOptions {
+        access(keyPath: \.gitHubOptions)
+        return gitHubOptionsStorage
     }
     var displayColor: BrandColor {
         access(keyPath: \.displayColor)
@@ -23588,13 +14898,14 @@ final class FolderStateModel: ObservedModel, Identifiable {
 
     @ObservationIgnored private var locationStorage: TabPlacement
     @ObservationIgnored private var titleStorage: String
-    @ObservationIgnored private var symbolStorage: String?
     @ObservationIgnored private var colorStorage: BrandColor?
     @ObservationIgnored private var parentIDStorage: UUID?
     @ObservationIgnored private var isCollapsedStorage: Bool
     @ObservationIgnored private var collapseModifiedAtStorage: Date?
     @ObservationIgnored private var orderAnchorTabIDStorage: UUID?
-    @ObservationIgnored private var displaySymbolStorage: String
+    @ObservationIgnored private var sourceStorage: LiveFolderSource?
+    @ObservationIgnored private var liveOptionsStorage: GitHubLiveFolderOptions?
+    @ObservationIgnored private var gitHubOptionsStorage: GitHubLiveFolderOptions
     @ObservationIgnored private var displayColorStorage: BrandColor
 
     var value: FolderState {
@@ -23602,13 +14913,14 @@ final class FolderStateModel: ObservedModel, Identifiable {
             id: id,
             location: location,
             title: title,
-            symbol: symbol,
             color: color,
             parentID: parentID,
             isCollapsed: isCollapsed,
             collapseModifiedAt: collapseModifiedAt,
             orderAnchorTabID: orderAnchorTabID,
-            displaySymbol: displaySymbol,
+            source: source,
+            liveOptions: liveOptions,
+            gitHubOptions: gitHubOptions,
             displayColor: displayColor
         )
     }
@@ -23617,13 +14929,14 @@ final class FolderStateModel: ObservedModel, Identifiable {
         id = value.id
         locationStorage = value.location
         titleStorage = value.title
-        symbolStorage = value.symbol
         colorStorage = value.color
         parentIDStorage = value.parentID
         isCollapsedStorage = value.isCollapsed
         collapseModifiedAtStorage = value.collapseModifiedAt
         orderAnchorTabIDStorage = value.orderAnchorTabID
-        displaySymbolStorage = value.displaySymbol
+        sourceStorage = value.source
+        liveOptionsStorage = value.liveOptions
+        gitHubOptionsStorage = value.gitHubOptions
         displayColorStorage = value.displayColor
     }
 
@@ -23636,10 +14949,6 @@ final class FolderStateModel: ObservedModel, Identifiable {
         if titleStorage != value.title {
             titleStorage = value.title
             withMutation(keyPath: \.title) {}
-        }
-        if symbolStorage != value.symbol {
-            symbolStorage = value.symbol
-            withMutation(keyPath: \.symbol) {}
         }
         if colorStorage != value.color {
             colorStorage = value.color
@@ -23661,9 +14970,17 @@ final class FolderStateModel: ObservedModel, Identifiable {
             orderAnchorTabIDStorage = value.orderAnchorTabID
             withMutation(keyPath: \.orderAnchorTabID) {}
         }
-        if displaySymbolStorage != value.displaySymbol {
-            displaySymbolStorage = value.displaySymbol
-            withMutation(keyPath: \.displaySymbol) {}
+        if sourceStorage != value.source {
+            sourceStorage = value.source
+            withMutation(keyPath: \.source) {}
+        }
+        if liveOptionsStorage != value.liveOptions {
+            liveOptionsStorage = value.liveOptions
+            withMutation(keyPath: \.liveOptions) {}
+        }
+        if gitHubOptionsStorage != value.gitHubOptions {
+            gitHubOptionsStorage = value.gitHubOptions
+            withMutation(keyPath: \.gitHubOptions) {}
         }
         if displayColorStorage != value.displayColor {
             displayColorStorage = value.displayColor
@@ -23772,101 +15089,45 @@ final class SpaceSettingsModel: ObservedModel {
         access(keyPath: \.name)
         return nameStorage
     }
-    var symbol: String {
-        access(keyPath: \.symbol)
-        return symbolStorage
-    }
-    var accent: SpaceAccent {
-        access(keyPath: \.accent)
-        return accentStorage
-    }
-    var branding: SpaceBranding? {
-        access(keyPath: \.branding)
-        return brandingStorage
-    }
     var browsingPreferences: BrowsingPreferences {
         access(keyPath: \.browsingPreferences)
         return browsingPreferencesStorage
     }
-    var credentialPreferences: CredentialPreferences {
-        access(keyPath: \.credentialPreferences)
-        return credentialPreferencesStorage
+    var isGitHubFolderDismissed: Bool {
+        access(keyPath: \.isGitHubFolderDismissed)
+        return isGitHubFolderDismissedStorage
     }
-    var accessPolicy: SpaceAccessPolicy {
-        access(keyPath: \.accessPolicy)
-        return accessPolicyStorage
+    var storedColor: SpaceColor? {
+        access(keyPath: \.storedColor)
+        return storedColorStorage
     }
-    var isSavedTabsExpanded: Bool {
-        access(keyPath: \.isSavedTabsExpanded)
-        return isSavedTabsExpandedStorage
-    }
-    var savedTabsExpansionModifiedAt: Date? {
-        access(keyPath: \.savedTabsExpansionModifiedAt)
-        return savedTabsExpansionModifiedAtStorage
-    }
-    var credentialsEnabledModifiedAt: Date? {
-        access(keyPath: \.credentialsEnabledModifiedAt)
-        return credentialsEnabledModifiedAtStorage
-    }
-    var accessPolicyModifiedAt: Date? {
-        access(keyPath: \.accessPolicyModifiedAt)
-        return accessPolicyModifiedAtStorage
-    }
-    var look: SpaceBranding {
-        access(keyPath: \.look)
-        return lookStorage
-    }
-    var requiresAuthentication: Bool {
-        access(keyPath: \.requiresAuthentication)
-        return requiresAuthenticationStorage
+    var color: SpaceColor {
+        access(keyPath: \.color)
+        return colorStorage
     }
 
     @ObservationIgnored private var nameStorage: String
-    @ObservationIgnored private var symbolStorage: String
-    @ObservationIgnored private var accentStorage: SpaceAccent
-    @ObservationIgnored private var brandingStorage: SpaceBranding?
     @ObservationIgnored private var browsingPreferencesStorage: BrowsingPreferences
-    @ObservationIgnored private var credentialPreferencesStorage: CredentialPreferences
-    @ObservationIgnored private var accessPolicyStorage: SpaceAccessPolicy
-    @ObservationIgnored private var isSavedTabsExpandedStorage: Bool
-    @ObservationIgnored private var savedTabsExpansionModifiedAtStorage: Date?
-    @ObservationIgnored private var credentialsEnabledModifiedAtStorage: Date?
-    @ObservationIgnored private var accessPolicyModifiedAtStorage: Date?
-    @ObservationIgnored private var lookStorage: SpaceBranding
-    @ObservationIgnored private var requiresAuthenticationStorage: Bool
+    @ObservationIgnored private var isGitHubFolderDismissedStorage: Bool
+    @ObservationIgnored private var storedColorStorage: SpaceColor?
+    @ObservationIgnored private var colorStorage: SpaceColor
 
     var value: SpaceSettings {
         SpaceSettings(
             name: name,
-            symbol: symbol,
-            accent: accent,
-            branding: branding,
             browsingPreferences: browsingPreferences,
-            credentialPreferences: credentialPreferences,
-            accessPolicy: accessPolicy,
-            isSavedTabsExpanded: isSavedTabsExpanded,
-            savedTabsExpansionModifiedAt: savedTabsExpansionModifiedAt,
-            credentialsEnabledModifiedAt: credentialsEnabledModifiedAt,
-            accessPolicyModifiedAt: accessPolicyModifiedAt,
-            look: look,
-            requiresAuthentication: requiresAuthentication
+            isGitHubFolderDismissed: isGitHubFolderDismissed,
+            storedColor: storedColor,
+            color: color
         )
     }
 
     init(_ value: SpaceSettings) {
         nameStorage = value.name
-        symbolStorage = value.symbol
-        accentStorage = value.accent
-        brandingStorage = value.branding
         browsingPreferencesStorage = value.browsingPreferences
-        credentialPreferencesStorage = value.credentialPreferences
-        accessPolicyStorage = value.accessPolicy
-        isSavedTabsExpandedStorage = value.isSavedTabsExpanded
-        savedTabsExpansionModifiedAtStorage = value.savedTabsExpansionModifiedAt
-        credentialsEnabledModifiedAtStorage = value.credentialsEnabledModifiedAt
-        accessPolicyModifiedAtStorage = value.accessPolicyModifiedAt
-        lookStorage = value.look
-        requiresAuthenticationStorage = value.requiresAuthentication
+        isGitHubFolderDismissedStorage = value.isGitHubFolderDismissed
+        storedColorStorage = value.storedColor
+        colorStorage = value.color
     }
 
     func update(_ value: SpaceSettings) {
@@ -23874,53 +15135,21 @@ final class SpaceSettingsModel: ObservedModel {
             nameStorage = value.name
             withMutation(keyPath: \.name) {}
         }
-        if symbolStorage != value.symbol {
-            symbolStorage = value.symbol
-            withMutation(keyPath: \.symbol) {}
-        }
-        if accentStorage != value.accent {
-            accentStorage = value.accent
-            withMutation(keyPath: \.accent) {}
-        }
-        if brandingStorage != value.branding {
-            brandingStorage = value.branding
-            withMutation(keyPath: \.branding) {}
-        }
         if browsingPreferencesStorage != value.browsingPreferences {
             browsingPreferencesStorage = value.browsingPreferences
             withMutation(keyPath: \.browsingPreferences) {}
         }
-        if credentialPreferencesStorage != value.credentialPreferences {
-            credentialPreferencesStorage = value.credentialPreferences
-            withMutation(keyPath: \.credentialPreferences) {}
+        if isGitHubFolderDismissedStorage != value.isGitHubFolderDismissed {
+            isGitHubFolderDismissedStorage = value.isGitHubFolderDismissed
+            withMutation(keyPath: \.isGitHubFolderDismissed) {}
         }
-        if accessPolicyStorage != value.accessPolicy {
-            accessPolicyStorage = value.accessPolicy
-            withMutation(keyPath: \.accessPolicy) {}
+        if storedColorStorage != value.storedColor {
+            storedColorStorage = value.storedColor
+            withMutation(keyPath: \.storedColor) {}
         }
-        if isSavedTabsExpandedStorage != value.isSavedTabsExpanded {
-            isSavedTabsExpandedStorage = value.isSavedTabsExpanded
-            withMutation(keyPath: \.isSavedTabsExpanded) {}
-        }
-        if savedTabsExpansionModifiedAtStorage != value.savedTabsExpansionModifiedAt {
-            savedTabsExpansionModifiedAtStorage = value.savedTabsExpansionModifiedAt
-            withMutation(keyPath: \.savedTabsExpansionModifiedAt) {}
-        }
-        if credentialsEnabledModifiedAtStorage != value.credentialsEnabledModifiedAt {
-            credentialsEnabledModifiedAtStorage = value.credentialsEnabledModifiedAt
-            withMutation(keyPath: \.credentialsEnabledModifiedAt) {}
-        }
-        if accessPolicyModifiedAtStorage != value.accessPolicyModifiedAt {
-            accessPolicyModifiedAtStorage = value.accessPolicyModifiedAt
-            withMutation(keyPath: \.accessPolicyModifiedAt) {}
-        }
-        if lookStorage != value.look {
-            lookStorage = value.look
-            withMutation(keyPath: \.look) {}
-        }
-        if requiresAuthenticationStorage != value.requiresAuthentication {
-            requiresAuthenticationStorage = value.requiresAuthentication
-            withMutation(keyPath: \.requiresAuthentication) {}
+        if colorStorage != value.color {
+            colorStorage = value.color
+            withMutation(keyPath: \.color) {}
         }
     }
 }
@@ -23992,10 +15221,6 @@ final class TabStateModel: ObservedModel, Identifiable {
         access(keyPath: \.titleModifiedAt)
         return titleModifiedAtStorage
     }
-    var keepsPageLoaded: Bool {
-        access(keyPath: \.keepsPageLoaded)
-        return keepsPageLoadedStorage
-    }
     var iconMode: TabIconMode {
         access(keyPath: \.iconMode)
         return iconModeStorage
@@ -24036,7 +15261,6 @@ final class TabStateModel: ObservedModel, Identifiable {
     @ObservationIgnored private var positionModifiedAtStorage: Date?
     @ObservationIgnored private var customTitleStorage: String?
     @ObservationIgnored private var titleModifiedAtStorage: Date?
-    @ObservationIgnored private var keepsPageLoadedStorage: Bool
     @ObservationIgnored private var iconModeStorage: TabIconMode
     @ObservationIgnored private var displayTitleStorage: String
     @ObservationIgnored private var isAwayFromSavedAddressStorage: Bool
@@ -24062,7 +15286,6 @@ final class TabStateModel: ObservedModel, Identifiable {
             positionModifiedAt: positionModifiedAt,
             customTitle: customTitle,
             titleModifiedAt: titleModifiedAt,
-            keepsPageLoaded: keepsPageLoaded,
             iconMode: iconMode,
             displayTitle: displayTitle,
             isAwayFromSavedAddress: isAwayFromSavedAddress,
@@ -24089,7 +15312,6 @@ final class TabStateModel: ObservedModel, Identifiable {
         positionModifiedAtStorage = value.positionModifiedAt
         customTitleStorage = value.customTitle
         titleModifiedAtStorage = value.titleModifiedAt
-        keepsPageLoadedStorage = value.keepsPageLoaded
         iconModeStorage = value.iconMode
         displayTitleStorage = value.displayTitle
         isAwayFromSavedAddressStorage = value.isAwayFromSavedAddress
@@ -24159,10 +15381,6 @@ final class TabStateModel: ObservedModel, Identifiable {
         if titleModifiedAtStorage != value.titleModifiedAt {
             titleModifiedAtStorage = value.titleModifiedAt
             withMutation(keyPath: \.titleModifiedAt) {}
-        }
-        if keepsPageLoadedStorage != value.keepsPageLoaded {
-            keepsPageLoadedStorage = value.keepsPageLoaded
-            withMutation(keyPath: \.keepsPageLoaded) {}
         }
         if iconModeStorage != value.iconMode {
             iconModeStorage = value.iconMode

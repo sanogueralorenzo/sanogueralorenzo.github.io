@@ -35,10 +35,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     private readonly ClosePreparations closePreparations;
     /// Erasing what every engine keeps for a profile.
     private readonly DataDeletions dataDeletions;
-    /// Listing the sites that keep data in a profile's engines.
     private readonly SiteDataReads siteDataReads;
-    /// Which Spaces this process may show.
-    private readonly SpaceAccess access;
     /// The cloud transport's state on this device.
     private readonly CloudTransportStore cloudTransport;
     /// What iCloud sync does next on this device.
@@ -60,7 +57,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     internal ClosePreparations ClosePreparations => closePreparations;
     internal DataDeletions DataDeletions => dataDeletions;
     internal SiteDataReads SiteDataReads => siteDataReads;
-    internal SpaceAccess Access => access;
     internal CloudTransportStore CloudTransport => cloudTransport;
     internal CloudSyncControl CloudSync => cloudSync;
     internal IClock Clock => clock;
@@ -89,29 +85,24 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         portability = new(configuration.ImportNames, clock, ids);
         dataDeletions = new(engines, ids, clock);
         siteDataReads = new(engines, ids);
-        // One grant authority for the process: every session the device shows
-        // consults it, so a borrowed workspace unlocks with its source.
-        var grants = new SpaceAccessAuthority();
         if (configuration.StorageDirectory is not { } directory) {
-            device = new(configuration.Platform, storage: null, DeviceRecords.Empty, grants, Announce, RequestTurn, CloseBorrower, clock);
+            device = new(configuration.Platform, storage: null, DeviceRecords.Empty, Announce, RequestTurn, CloseBorrower, clock);
             engines.Prefer(device.DefaultEngine);
             pages = new(device, engines, clock, ids);
             prompts = new(device, pages);
             engineDownloads = new(downloads, device, pages, ids);
             closePreparations = new(device, pages, downloads, dataDeletions, ids);
-            access = new(device, grants);
             cloudTransport = new(storage: null, device);
             cloudSync = new(cloudTransport, clock, StoredSessionIsDisposableSeed, StoredJournalPendingUploads);
             return;
         }
         storage = SessionStorage.Open(directory, Announce, out var loaded);
-        device = new(configuration.Platform, storage, storage.Device, grants, Announce, RequestTurn, CloseBorrower, clock);
+        device = new(configuration.Platform, storage, storage.Device, Announce, RequestTurn, CloseBorrower, clock);
         engines.Prefer(device.DefaultEngine);
         pages = new(device, engines, clock, ids);
         prompts = new(device, pages);
         engineDownloads = new(downloads, device, pages, ids);
         closePreparations = new(device, pages, downloads, dataDeletions, ids);
-        access = new(device, grants);
         cloudTransport = new(storage, device);
         cloudSync = new(cloudTransport, clock, StoredSessionIsDisposableSeed, StoredJournalPendingUploads);
         try {
@@ -154,9 +145,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
             apply(changes);
             // What the folders that show the engines' tab groups hold now.
             pages.ReconcileGroups(Issue);
-            // Which pages windows show now, ending the Picture in Picture of
-            // one shown again or of a locked Space, and what closed tabs no
-            // longer keep.
             pages.Stamp(clock.Now, Issue);
             pages.PruneRestoreStates();
             // What a page that went had asked no longer waits.

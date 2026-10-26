@@ -33,12 +33,6 @@ final class WorkspaceModel: Identifiable {
         set { publish(newValue, into: \.appPreferencesStorage, as: \.appPreferences) }
     }
     @ObservationIgnored private var appPreferencesStorage: AppPreferences?
-    /// The Space a launch opens.
-    private(set) var defaultSpaceID: UUID? {
-        get { observed(\.defaultSpaceIDStorage, as: \.defaultSpaceID) }
-        set { publish(newValue, into: \.defaultSpaceIDStorage, as: \.defaultSpaceID) }
-    }
-    @ObservationIgnored private var defaultSpaceIDStorage: UUID?
     /// The session is still the disposable first-install seed.
     private(set) var isDisposableSeed: Bool {
         get { observed(\.isDisposableSeedStorage, as: \.isDisposableSeed) }
@@ -68,7 +62,6 @@ final class WorkspaceModel: Identifiable {
         spaces = ObservedList(change.session.spaces)
         spaceDeletionsStorage = change.session.spaceDeletions
         appPreferencesStorage = change.session.appPreferences
-        defaultSpaceIDStorage = change.session.defaultSpaceID
         isDisposableSeedStorage = change.session.disposableSeedMarker != nil
     }
 
@@ -110,14 +103,13 @@ final class WorkspaceModel: Identifiable {
         spaces.replace(with: change.session.spaces)
         apply(
             WorkspaceChanged(
-                workspaceID: id, defaultSpaceID: change.session.defaultSpaceID,
+                workspaceID: id,
                 isDisposableSeed: change.session.disposableSeedMarker != nil,
                 spaceDeletions: change.session.spaceDeletions))
         apply(AppPreferencesChanged(workspaceID: id, preferences: change.session.appPreferences))
     }
 
     func apply(_ change: WorkspaceChanged) {
-        defaultSpaceID = change.defaultSpaceID
         isDisposableSeed = change.isDisposableSeed
         spaceDeletions = change.spaceDeletions
     }

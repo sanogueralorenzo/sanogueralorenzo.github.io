@@ -20,10 +20,6 @@ public sealed record FolderLimitReached(int Limit) : Rejection;
 /// folder or tab named to go before is elsewhere or moves with them.
 public sealed record InvalidFolderPlacement : Rejection;
 
-/// A folder's symbol is an SF Symbol name or an emoji, never empty and never
-/// longer than `MaximumBytes` in UTF-8.
-public sealed record InvalidFolderSymbol(int MaximumBytes) : Rejection;
-
 /// The Space holds no folder with this identity.
 public sealed record UnknownFolder(Guid FolderId) : Rejection;
 
@@ -33,10 +29,6 @@ public sealed record UnknownFolder(Guid FolderId) : Rejection;
 
 /// The tab is already a member of that split.
 public sealed record AlreadyInSplit(Guid TabId) : Rejection;
-
-/// The icon given for the split is no emoji: its first character does not
-/// present as one.
-public sealed record InvalidSplitIcon(Guid GroupId) : Rejection;
 
 /// Stepping the tab `Offset` members along its split would move nothing.
 public sealed record NoSplitStep(Guid TabId, int Offset) : Rejection;
@@ -58,7 +50,7 @@ public sealed record SplitLimitReached(int Limit) : Rejection {
 /// No split in the Space has this identity, or it has fewer than two tabs.
 public sealed record UnknownSplitGroup(Guid GroupId) : Rejection;
 
-/// Only a page can join a split or keep its page loaded, and a Start Page or
+/// Only a page can join a split, and a Start Page or
 /// a native view is not one.
 public sealed record WebPagesOnly(Guid TabId) : Rejection {
     #region Variables

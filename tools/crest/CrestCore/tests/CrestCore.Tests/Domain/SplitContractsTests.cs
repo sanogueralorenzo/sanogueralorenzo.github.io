@@ -10,10 +10,10 @@ public sealed class SplitContractsTests {
     private static TabState Tab(string title, TabPlacement? placement = null, Guid? split = null) =>
         new(Guid.NewGuid(), title, "https://example.com/" + title, null,
             placement?.IsDurable == true ? "https://saved.example/" : null, "globe", null, null, null, placement ?? TabPlacement.Current,
-            null, split, Now, null, "Custom " + title, null, true);
-    private static BrowserTabCollection Space(params TabState[] tabs) => BrowserTabCollection.Restore(tabs, [], []);
+            null, split, Now, null, "Custom " + title, null);
+    private static BrowserTabCollection Space(params TabState[] tabs) => BrowserTabCollection.Restore(tabs, []);
     private static BrowserTabCollection Restored(BrowserTabCollection space) =>
-        BrowserTabCollection.Restore(space.TabStates, space.Folders, space.SplitGroups);
+        BrowserTabCollection.Restore(space.TabStates, space.Folders);
 
     [Fact]
     public void JoiningDurableTabsCopiesTheDestinationRunAndKeepsOriginalsUntouched() {
@@ -28,7 +28,6 @@ public sealed class SplitContractsTests {
         Assert.Equal(new[] { "first", "source", "second" }, members.Select(t => t.Title));
         Assert.All(members, t => {
             Assert.Equal(TabPlacement.Current, t.Placement); Assert.Null(t.SavedUrl); Assert.Null(t.FolderId);
-            Assert.False(t.KeepsPageLoaded);
             Assert.Equal("Custom " + t.Title, t.CustomTitle); Assert.NotEqual(group, t.SplitGroupId);
         });
         Assert.Single(members.Select(t => t.SplitGroupId).Distinct());

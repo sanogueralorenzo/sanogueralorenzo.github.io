@@ -89,18 +89,12 @@ public sealed partial class NativeSessionAuthority {
         target?.SessionPublished(workspace, previous, next, followUp, events);
     }
 
-    /// Records that a window showed `tabId`, which current-tab cleanup reads,
-    /// as a new state saved behind and staged once uses pause, and answers the
-    /// state it replaced and the new one. Answers null, and changes nothing,
-    /// when the Space or tab is gone, the Space is being deleted, or this
-    /// session takes no edits. Throws `Rejected` for a locked Space.
     internal (SessionState Previous, SessionState Next)? Touch(Guid spaceId, Guid tabId, DateTimeOffset now) {
         SessionState previous, next;
         lock (Gate) {
             if (!TakesEdits() || session.PendingDeletion(spaceId) is not null
                 || session.Space(spaceId) is not { } space
                 || space.Tabs.All(tab => tab.Id != tabId)) return null;
-            if (IsLockedUnderGate(space)) throw new Rejected(new SpaceLocked(spaceId));
             // The stored spelling of the time, so the next load reads the same value.
             var at = StoredSessionCodec.Date(StoredSessionCodec.Seconds(now));
             next = session.Replacing(space with {
@@ -110,16 +104,6 @@ public sealed partial class NativeSessionAuthority {
         }
         QueueStage(previous, next, SyncStaging.TabUse);
         return (previous, next);
-    }
-
-    /// Whether this process holds no grant to show `space`.
-    internal bool IsLocked(SpaceState space) {
-        lock (Gate) return IsLockedUnderGate(space);
-    }
-
-    private bool IsLockedUnderGate(SpaceState space) {
-        if (access is null) return false;
-        lock (access) return access.IsLocked(new SpaceAccessAssignment(space.Id, space.ProfileId), space.Settings.RequiresAuthentication);
     }
 
     #endregion

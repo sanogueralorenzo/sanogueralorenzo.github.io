@@ -9,10 +9,10 @@ public sealed class OrganizationContractsTests {
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-09-19T12:00:00Z");
     private static Guid NewFolderId() => Guid.NewGuid();
     private static TabState Tab(string name, Guid? split = null) => new(Guid.NewGuid(), name, $"https://example.com/{name}", null,
-        null, "globe", null, null, null, TabPlacement.Current, null, split, Now, null, null, null, false);
-    private static BrowserTabCollection Space(params TabState[] tabs) => BrowserTabCollection.Restore(tabs, [], []);
+        null, "globe", null, null, null, TabPlacement.Current, null, split, Now, null, null, null);
+    private static BrowserTabCollection Space(params TabState[] tabs) => BrowserTabCollection.Restore(tabs, []);
     private static BrowserTabCollection Restored(BrowserTabCollection space) =>
-        BrowserTabCollection.Restore(space.TabStates, space.Folders, space.SplitGroups);
+        BrowserTabCollection.Restore(space.TabStates, space.Folders);
 
     [Fact]
     public void FilingMovesWholeSplitsAndFolderSubtreesKeepTheirIdentities() {
@@ -31,17 +31,35 @@ public sealed class OrganizationContractsTests {
         Assert.Equal(new[] { first.Id, second.Id }, space.Tabs.Select(t => t.Id));
     }
 
-    [Fact]
-    public void RemovingFolderPromotesContentsAndPreservesCollapseClock() {
-        var tab = Tab("page"); var space = Space(tab); var root = NewFolderId(); var folder = NewFolderId(); var child = NewFolderId();
-        space.AddFolder(root, "Root"); space.AddFolder(folder, "Folder", parent: root); space.AddFolder(child, "Child", parent: folder);
-        space.FileTabs([tab.Id], TabPlacement.Saved, folder, Now); space.CollapseFolder(child, true, Now);
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DeletingFolderRemovesTheWholeSubtreeAndArchivesItsTabs(bool saved) {
+        var placement = saved ? TabPlacement.Saved : TabPlacement.Current;
+        var split = Guid.NewGuid();
+        var direct = Tab("direct"); var nested = Tab("nested", split); var peer = Tab("peer", split); var outside = Tab("outside");
+        var space = Space(direct, nested, peer, outside);
+        var root = NewFolderId(); var folder = NewFolderId(); var child = NewFolderId(); var grandchild = NewFolderId();
+        space.AddFolder(root, "Root", placement);
+        space.AddFolder(folder, "Folder", parent: root);
+        space.AddFolder(child, "Child", parent: folder);
+        space.AddFolder(grandchild, "Grandchild", parent: child);
+        space.FileTabs([direct.Id], placement, folder, Now);
+        space.FileTabs([nested.Id], placement, grandchild, Now);
         space.DeleteFolder(folder, Now.AddMinutes(1));
-        Assert.Equal(root, space.Tab(tab.Id).FolderId); Assert.Equal(root, space.Folders.Single(f => f.Id == child).ParentId);
-        var saved = Restored(space);
-        Assert.Equal(Now, saved.Folders.Single(f => f.Id == child).CollapseModifiedAt);
-        Assert.Equal(tab.Id, Assert.Single(saved.Tabs).Id); Assert.Equal(tab.Url, saved.Tabs[0].SavedUrl);
-        Assert.Empty(space.Archive);
+        Assert.Equal(root, Assert.Single(space.Folders).Id);
+        Assert.Equal(outside.Id, Assert.Single(space.Tabs).Id);
+        Assert.Equal(new[] { direct.Id, nested.Id, peer.Id }, space.Archive.Select(item => item.Tab.Id));
+        Assert.All(space.Archive, item => {
+            Assert.Equal(ArchiveReason.Deleted, item.Reason);
+            Assert.Equal(TabPlacement.Current, item.Tab.Placement);
+            Assert.Null(item.Tab.FolderId);
+            Assert.Null(item.Tab.SplitGroupId);
+            Assert.Equal(Now.AddMinutes(1), item.ArchivedAt);
+        });
+        var restored = Restored(space);
+        Assert.Equal(outside, Assert.Single(restored.TabStates));
+        Assert.Equal(root, Assert.Single(restored.Folders).Id);
     }
 
     [Fact]

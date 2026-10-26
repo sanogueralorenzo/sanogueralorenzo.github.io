@@ -15,6 +15,21 @@ namespace CrestCore.Tests;
 public sealed partial class BrowserContractsTests {
     #region Actions - Tests
 
+    [Fact]
+    public void AnArchivedBlankPageDoesNotBlockChangesToItsSpace() {
+        var local = OneSpaceSession();
+        FirstSpace(local)["archivedTabs"] = new JsonArray(ArchivedOf(TabOf(Fixed(1_300), "Blank", "about:blank"), 100));
+        using var device = new SyncingDevice(local, Fixed(1_310));
+        var remote = SpaceValue(FirstSpace(local));
+        remote["name"] = "Renamed";
+
+        var merged = FirstSpace(device.Merge(SavedRecord(SyncRecordKind.Space, remote, 10_000, Fixed(1_301))));
+
+        Assert.Equal("Renamed", StoredSessionCodec.DecodeSpace(merged).Settings.Name);
+        Assert.Equal([Fixed(102)], Ids(merged["tabs"]));
+        Assert.Equal("about:blank", merged["archivedTabs"]![0]!["tab"]!["url"]!.GetValue<string>());
+    }
+
     /// Only web pages enter sync. Native views, extension pages, files, data and
     /// script addresses and blank pages stay on this device, and a merge leaves
     /// them where they were.
@@ -89,7 +104,6 @@ public sealed partial class BrowserContractsTests {
         var lonely = SpaceIn(device.Merge(cloud.Records.Where(record => !later.Contains(RecordName(record["id"]!)))), Fixed(1_161))!;
 
         Assert.Equal([group], lonely["tabs"]!.AsArray().Select(tab => SplitOf(tab!)));
-        Assert.Equal(StoredSessionCodec.DecodeSplitGroup(metadata), StoredSessionCodec.DecodeSplitGroup(Assert.Single(lonely["splitGroups"]!.AsArray())));
         var staged = device.Journal.Value(SyncRecordKind.Tab, members[0])!;
         Assert.Equal(group, SplitOf(staged));
         Assert.Equal(cloud.Value(SyncRecordKind.Tab, members[0])!["orderToken"]!.GetValue<string>(), staged["orderToken"]!.GetValue<string>());
@@ -98,7 +112,6 @@ public sealed partial class BrowserContractsTests {
 
         Assert.Equal(members, Ids(whole["tabs"]));
         Assert.Equal([group, group, group], whole["tabs"]!.AsArray().Select(tab => SplitOf(tab!)));
-        Assert.Equal(StoredSessionCodec.DecodeSplitGroup(metadata), StoredSessionCodec.DecodeSplitGroup(Assert.Single(whole["splitGroups"]!.AsArray())));
     }
 
     /// A tab deleted on purpose on another device leaves this one into the

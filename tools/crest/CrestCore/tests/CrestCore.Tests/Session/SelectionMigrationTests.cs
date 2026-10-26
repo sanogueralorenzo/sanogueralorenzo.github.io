@@ -30,4 +30,34 @@ public sealed partial class BrowserContractsTests {
         Assert.Null(touched["selectedTabID"]);
     }
 
+    [Fact]
+    public void ClosingTheShownTabReturnsToTheWindowsPreviousTabWhileOtherWindowsKeepTheirOwn() {
+        var fixture = SavedSession(); var session = fixture.Document["session"]!;
+        var space = session["spaces"]![0]!;
+        JsonNode Current(Guid id) {
+            var tab = space["tabs"]![0]!.DeepClone();
+            tab["id"] = SwiftId(id); tab["placement"] = "current"; tab["folderID"] = null;
+            tab["savedURL"] = null; tab["splitGroupID"] = null;
+            return tab;
+        }
+        Guid earlier = Guid.NewGuid(), closing = Guid.NewGuid();
+        space["tabs"]!.AsArray().Add(Current(earlier));
+        space["tabs"]!.AsArray().Add(Current(closing));
+        using var device = new TestDevice(session);
+        var authority = device.Authority;
+        var closer = device.Open(fixture.Space);
+        foreach (var tab in new[] { fixture.Tab, earlier, closing }) device.Send(new ShowTab(closer, fixture.Space, tab));
+        var other = device.Open(fixture.Space);
+        device.Send(new ShowTab(other, fixture.Space, fixture.Tab));
+        device.Send(new CloseTab(device.Workspace, closer, fixture.Space, closing));
+        Assert.Equal(earlier, device.Tab(closer, fixture.Space));
+        Assert.Equal(fixture.Space, device.Space(closer));
+        // A window showing another tab changes nothing.
+        Assert.Equal(fixture.Tab, device.Tab(other, fixture.Space));
+
+        // A tab another window closes leaves this one showing nothing there.
+        device.Send(new CloseTab(device.Workspace, other, fixture.Space, earlier));
+        Assert.Null(device.Tab(closer, fixture.Space));
+    }
+
 }

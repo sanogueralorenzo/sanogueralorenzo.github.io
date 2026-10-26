@@ -9,25 +9,18 @@ public sealed record NumberedSelectionList(IReadOnlyList<NumberedSelection> Sele
 
 #region Changes
 
-/// The chord each offered command answers to changed. `Bindings` covers every
-/// offered command in catalog order; `IsCustomized` says whether the person
-/// changed any shortcut, including one this device does not offer.
-public sealed record ShortcutsChanged(IReadOnlyList<ShortcutBinding> Bindings, bool IsCustomized) : Change;
+/// The fixed keys each offered command answers to, in catalog order.
+public sealed record ShortcutsChanged(IReadOnlyList<ShortcutBinding> Bindings) : Change;
 
-/// The keys one command answers to now, or null when it has none, and whether
-/// they are the person's choice rather than the default.
-public sealed record ShortcutBinding(ShortcutCommand Command, KeyCombination? Keys, bool IsCustomized);
+/// The keys one command answers to, or null when it has none.
+public sealed record ShortcutBinding(ShortcutCommand Command, KeyCombination? Keys);
 
 #endregion
 
 #region Rejections
 
-/// The keys can never be a shortcut: they hold no supported modifier, so a
-/// plain key would never reach the focused text field, or they name no key.
+/// Native keys that cannot form a supported shortcut chord.
 public sealed record InvalidShortcut(KeyCombination Keys) : Rejection;
-
-/// Other offered commands answer to the keys already.
-public sealed record ShortcutInUse(IReadOnlyList<ShortcutCommand> Commands) : Rejection;
 
 #endregion
 
@@ -47,11 +40,8 @@ public sealed record NumberedChoices(Guid ShownSpaceId, IReadOnlyList<Guid> Tabs
 /// `SpaceId`, and for a tab the tab `TabId` the window shows there.
 public sealed record NumberedSelection(ShortcutCommand Command, NumberedSelectionTarget Target, Guid SpaceId, Guid? TabId);
 
-/// A command's default key combination on one platform. A default that
-/// `YieldsToOverrides` stays unbound while the person has given its keys to
-/// another command, so a default added after people could customize never
-/// takes keys they already chose; resetting that command restores it.
-public sealed record ShortcutDefault(DevicePlatform Platform, KeyCombination Keys, bool YieldsToOverrides);
+/// A command's fixed key combination on one platform.
+public sealed record ShortcutDefault(DevicePlatform Platform, KeyCombination Keys);
 
 /// The modifier keys held with a shortcut's key. The values are the bits of
 /// the native modifier mask that persisted shortcuts store.

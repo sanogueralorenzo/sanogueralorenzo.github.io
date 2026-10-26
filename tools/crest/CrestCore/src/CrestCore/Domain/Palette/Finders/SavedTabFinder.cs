@@ -9,7 +9,7 @@ internal sealed class SavedTabFinder : PaletteFinder {
     #region Variables
 
     protected override IReadOnlyList<PaletteSignal> Signals =>
-        [PaletteSignal.Learned, PaletteSignal.Recency, PaletteSignal.Usage, PaletteSignal.Kept, PaletteSignal.Match];
+        [PaletteSignal.Recency, PaletteSignal.Usage, PaletteSignal.Kept, PaletteSignal.Match];
 
     protected override bool MayLead => true;
 
@@ -25,7 +25,7 @@ internal sealed class SavedTabFinder : PaletteFinder {
             string? address = tab.SavedAddress ?? tab.Url;
             var row = PaletteRow.Of(tab.Placement.PaletteRow, tab.DisplayTitle, Subtitle(tab, tree), tab: tab.Id);
             if (context.Evidence(query, row, tab.DisplayTitle, address, tab.LastActivatedAt, isKept: true) is not { } evidence) continue;
-            yield return Scored(context, source, row, evidence, address is null ? null : PaletteMemory.Place(address), Matching(evidence));
+            yield return Scored(context, source, row, evidence, address is null ? null : new WebAddress(address).Place, Matching(evidence));
         }
     }
 

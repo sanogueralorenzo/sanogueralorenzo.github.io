@@ -130,23 +130,6 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
-    public void ALockedSpaceShowsAgentsItsNameAndNoTabs() {
-        using var app = new CrestApp();
-        var session = GuardedSession();
-        var workspace = TestWorkspaces.Open(app, session);
-        var space = Identity(session).Space;
-        var agent = ConnectClaude(app, space);
-        var reached = Assert.Single(app.Query(new AgentReach(agent)).Spaces);
-        Assert.True(reached.IsLocked);
-        Assert.Empty(reached.Tabs);
-        var tab = app.Workspace(workspace).Current.Spaces.Single(candidate => candidate.Id == space).Tabs[0].Id;
-        Assert.Equal(new AgentTabUnavailable(tab), Assert.Throws<Rejected>(() => app.Send(new ClaimAgentTab(agent, tab))).Rejection);
-
-        Unlock(app.Send, workspace, space);
-        Assert.Contains(Assert.Single(app.Query(new AgentReach(agent)).Spaces).Tabs, candidate => candidate.TabId == tab);
-    }
-
-    [Fact]
     public void AnAgentLetsGoOfEveryTabItMayNoLongerUseAndAStoppedTabStaysOutOfReach() {
         using var app = new CrestApp();
         var session = TwoSpaceSession();

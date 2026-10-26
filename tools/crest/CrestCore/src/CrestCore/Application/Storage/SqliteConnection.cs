@@ -137,25 +137,19 @@ internal sealed class SqliteConnection : IDisposable {
         Execute("CREATE TABLE IF NOT EXISTS device_site_permission (id TEXT PRIMARY KEY, space TEXT NOT NULL, scheme TEXT NOT NULL, "
             + "host TEXT NOT NULL, port INTEGER NOT NULL, permission TEXT NOT NULL, detail TEXT, decision TEXT NOT NULL, "
             + "modified_at REAL NOT NULL, position INTEGER NOT NULL)");
-        Execute("CREATE TABLE IF NOT EXISTS device_site_engine (scheme TEXT NOT NULL, host TEXT NOT NULL, port INTEGER NOT NULL, "
-            + "engine TEXT NOT NULL, position INTEGER NOT NULL, PRIMARY KEY (scheme, host, port))");
+        Execute("DROP TABLE IF EXISTS device_site_engine");
         Execute("CREATE TABLE IF NOT EXISTS device_engine (id INTEGER PRIMARY KEY CHECK (id = 0), engine TEXT NOT NULL)");
-        Execute("CREATE TABLE IF NOT EXISTS device_shortcut (command TEXT PRIMARY KEY, key TEXT, special INTEGER NOT NULL, "
-            + "modifiers INTEGER NOT NULL)");
-        Execute("CREATE TABLE IF NOT EXISTS device_link (id INTEGER PRIMARY KEY CHECK (id = 0), destination TEXT NOT NULL, "
-            + "destination_space TEXT, peek_modifier TEXT NOT NULL, archive_policy TEXT NOT NULL)");
-        Execute("CREATE TABLE IF NOT EXISTS device_link_behavior (name TEXT PRIMARY KEY, is_on INTEGER NOT NULL)");
-        Execute("CREATE TABLE IF NOT EXISTS device_link_route (id TEXT PRIMARY KEY, enabled INTEGER NOT NULL, match TEXT NOT NULL, "
-            + "pattern TEXT NOT NULL, space TEXT NOT NULL, position INTEGER NOT NULL)");
-        Execute("CREATE TABLE IF NOT EXISTS device_link_site (site TEXT PRIMARY KEY, space TEXT NOT NULL, position INTEGER NOT NULL)");
+        Execute("DROP TABLE IF EXISTS device_shortcut");
+        Execute("DROP TABLE IF EXISTS device_link");
+        Execute("DROP TABLE IF EXISTS device_link_route");
+        Execute("DROP TABLE IF EXISTS device_link_site");
+        Execute("DROP TABLE IF EXISTS device_link_behavior");
         Execute("CREATE TABLE IF NOT EXISTS device_cloud_transport (id INTEGER PRIMARY KEY CHECK (id = 0), "
             + "record_schema INTEGER NOT NULL, requires_full_pull INTEGER NOT NULL, awaits_account_decision INTEGER NOT NULL, "
             + "overwrites_cloud INTEGER NOT NULL, engine_state BLOB)");
         Execute("CREATE TABLE IF NOT EXISTS device_cloud_record (name TEXT PRIMARY KEY, fields BLOB NOT NULL, schema_version INTEGER)");
-        Execute("CREATE TABLE IF NOT EXISTS device_setup_draft (id INTEGER PRIMARY KEY CHECK (id = 0), document TEXT NOT NULL)");
-        Execute("CREATE TABLE IF NOT EXISTS device_palette (space TEXT PRIMARY KEY, document TEXT NOT NULL)");
-        Execute("CREATE TABLE IF NOT EXISTS device_search_catalog (id INTEGER PRIMARY KEY CHECK (id = 0), document TEXT NOT NULL)");
-        Execute("CREATE TABLE IF NOT EXISTS device_setup (id INTEGER PRIMARY KEY CHECK (id = 0), completed INTEGER NOT NULL)");
+        Execute("DROP TABLE IF EXISTS device_palette");
+        Execute("DROP TABLE IF EXISTS device_search_catalog");
         Execute("CREATE TABLE IF NOT EXISTS device_tab_group (id TEXT PRIMARY KEY, space TEXT NOT NULL, engine TEXT NOT NULL, "
             + "title TEXT NOT NULL, color TEXT NOT NULL, position INTEGER NOT NULL)");
         Execute("CREATE TABLE IF NOT EXISTS device_agents (id INTEGER PRIMARY KEY CHECK (id = 0), is_on INTEGER NOT NULL, "
@@ -167,29 +161,10 @@ internal sealed class SqliteConnection : IDisposable {
 
     /// Everything the device store holds. A row whose identities or names do
     /// not read is left out.
-    public DeviceRecords ReadDevice() => new(ReadWindows(), ReadReopening(), ReadSitePermissions(), ReadSiteEngines(), ReadShortcuts(),
-        ReadLinks(), ReadSetupDraft(), ReadSetupCompleted(), ReadAdoptions(), ReadTabGroups(), ReadDefaultEngine()) {
-        PaletteMemories = ReadPaletteMemories(),
-        SearchCatalog = ReadSearchCatalog(),
+    public DeviceRecords ReadDevice() => new(ReadWindows(), ReadReopening(), ReadSitePermissions(),
+        ReadAdoptions(), ReadTabGroups(), ReadDefaultEngine()) {
         Agents = ReadAgents()
     };
-
-    /// The search catalog the store keeps, or null when it keeps none or it does not read.
-    private SearchCatalog? ReadSearchCatalog() {
-        string? document = null;
-        Rows("SELECT document FROM device_search_catalog", statement => document = Sqlite.ColumnText(statement, 0));
-        return SearchCatalogDocument.Read(document);
-    }
-
-    /// Each persistent Space's palette memory that reads, by Space.
-    private Dictionary<Guid, PaletteMemory> ReadPaletteMemories() {
-        var memories = new Dictionary<Guid, PaletteMemory>();
-        Rows("SELECT space, document FROM device_palette", statement => {
-            if (Identity(statement, 0) is { } space && PaletteMemoryDocument.Read(Sqlite.ColumnText(statement, 1)) is { } memory)
-                memories[space] = memory;
-        });
-        return memories;
-    }
 
     /// The person's preference remains available even in a single-engine product.
     private EngineKind? ReadDefaultEngine() {
@@ -259,64 +234,6 @@ internal sealed class SqliteConnection : IDisposable {
         return groups;
     }
 
-    /// The site engine choices, least recent first. A row naming an engine
-    /// this build does not know is left out.
-    private List<SiteEngineChoice> ReadSiteEngines() {
-        var choices = new List<SiteEngineChoice>();
-        Rows("SELECT scheme, host, port, engine FROM device_site_engine ORDER BY position", statement => {
-            if (EngineKind.Named(Sqlite.ColumnText(statement, 3)) is not { } engine) return;
-            var origin = new SiteOrigin(Sqlite.ColumnText(statement, 0), Sqlite.ColumnText(statement, 1),
-                Sqlite.sqlite3_column_int(statement, 2));
-            if (origin.IsValid) choices.Add(new(null, origin, engine));
-        });
-        return choices;
-    }
-
-    /// Each command's choice: no key is a command left without one.
-    private ShortcutOverrides ReadShortcuts() {
-        var choices = new List<KeyValuePair<string, ShortcutChord?>>();
-        Rows("SELECT command, key, special, modifiers FROM device_shortcut ORDER BY command", statement => {
-            string command = Sqlite.ColumnText(statement, 0);
-            if (Sqlite.ColumnIsNull(statement, 1)) {
-                choices.Add(new(command, null));
-                return;
-            }
-            string key = Sqlite.ColumnText(statement, 1);
-            int modifiers = Sqlite.sqlite3_column_int(statement, 3);
-            bool special = Sqlite.sqlite3_column_int(statement, 2) != 0;
-            if (special ? ShortcutSpecialKey.Named(key) is null : key.Length is 0 or > ShortcutChord.MaximumCharacterLength) return;
-            choices.Add(new(command, special ? ShortcutChord.Special(key, modifiers) : ShortcutChord.Character(key, modifiers)));
-        });
-        return ShortcutOverrides.Restore(choices);
-    }
-
-    /// The link preferences, each value that does not read keeping its
-    /// default: a device that never chose any holds no rows.
-    private LinkPreferences ReadLinks() {
-        var links = LinkPreferences.Default;
-        Rows("SELECT destination, destination_space, peek_modifier, archive_policy FROM device_link", statement => links = links with {
-            Destination = ExternalLinkDestination.Named(Sqlite.ColumnText(statement, 0)) ?? links.Destination,
-            DestinationSpaceId = Identity(statement, 1),
-            PeekModifier = LinkPeekModifier.Named(Sqlite.ColumnText(statement, 2)) ?? links.PeekModifier,
-            ArchivePolicy = QuickWindowArchivePolicy.Named(Sqlite.ColumnText(statement, 3)) ?? links.ArchivePolicy
-        });
-        Rows("SELECT name, is_on FROM device_link_behavior", statement => {
-            if (LinkBehavior.Named(Sqlite.ColumnText(statement, 0)) is { } behavior)
-                links = behavior.Setting(links, Sqlite.sqlite3_column_int(statement, 1) != 0);
-        });
-        var routes = new List<LinkRoute>();
-        Rows("SELECT id, enabled, match, pattern, space FROM device_link_route ORDER BY position", statement => {
-            if (Identity(statement, 0) is { } id && LinkRouteMatch.Named(Sqlite.ColumnText(statement, 2)) is { } match
-                && Identity(statement, 4) is { } space)
-                routes.Add(new(id, Sqlite.sqlite3_column_int(statement, 1) != 0, match, Sqlite.ColumnText(statement, 3), space));
-        });
-        var sites = new List<RememberedSite>();
-        Rows("SELECT site, space FROM device_link_site ORDER BY position", statement => {
-            if (Identity(statement, 1) is { } space) sites.Add(new(Sqlite.ColumnText(statement, 0), space));
-        });
-        return links with { Routes = routes, RememberedSites = sites };
-    }
-
     /// The agent preferences: off, reaching nothing and trusting no agent for a
     /// device that never chose any. A Space or agent that does not read is
     /// left out.
@@ -343,21 +260,6 @@ internal sealed class SqliteConnection : IDisposable {
         return new(isOn, runsScripts, spaces, approved);
     }
 
-    /// The unfinished manual setup, or null when the store keeps none or it
-    /// does not read.
-    private KeptSetupDraft? ReadSetupDraft() {
-        string? document = null;
-        Rows("SELECT document FROM device_setup_draft", statement => document = Sqlite.ColumnText(statement, 0));
-        return KeptSetupDraft.Read(document);
-    }
-
-    /// Whether this device has completed setup: never, until the store says so.
-    private bool ReadSetupCompleted() {
-        bool completed = false;
-        Rows("SELECT completed FROM device_setup", statement => completed = Sqlite.sqlite3_column_int(statement, 0) != 0);
-        return completed;
-    }
-
     private HashSet<DeviceAdoption> ReadAdoptions() {
         var adoptions = new HashSet<DeviceAdoption>();
         foreach (var table in new[] { "device_marker", "device_adoption" })
@@ -374,40 +276,10 @@ internal sealed class SqliteConnection : IDisposable {
         if (written is null || !records.Windows.SequenceEqual(written.Windows)) WriteWindows(records.Windows);
         if (written is null || !records.Reopening.SequenceEqual(written.Reopening)) WriteReopening(records.Reopening);
         if (written is null || !records.SitePermissions.SequenceEqual(written.SitePermissions)) WriteSitePermissions(records.SitePermissions);
-        if (written is null || !records.SiteEngines.SequenceEqual(written.SiteEngines)) WriteSiteEngines(records.SiteEngines);
         if (written is null || records.DefaultEngine != written.DefaultEngine) WriteDefaultEngine(records.DefaultEngine);
-        if (written is null || !records.Shortcuts.SameAs(written.Shortcuts)) WriteShortcuts(records.Shortcuts);
-        if (written is null || !records.Links.Equals(written.Links)) WriteLinks(records.Links);
-        if (written is null || !KeptSetupDraft.Same(records.SetupDraft, written.SetupDraft)) WriteSetupDraft(records.SetupDraft);
-        if (written is null || records.SetupCompleted != written.SetupCompleted) WriteSetupCompleted(records.SetupCompleted);
         if (written is null || !records.Adopted.SetEquals(written.Adopted)) WriteAdoptions(records.Adopted);
         if (written is null || !records.TabGroups.SequenceEqual(written.TabGroups)) WriteTabGroups(records.TabGroups);
-        WritePaletteMemories(records.PaletteMemories, written?.PaletteMemories);
-        if (written is null || !ReferenceEquals(records.SearchCatalog, written.SearchCatalog)) WriteSearchCatalog(records.SearchCatalog);
         if (written is null || !records.Agents.Equals(written.Agents)) WriteAgents(records.Agents);
-    }
-
-    /// The search catalog as its one document, or no row before it was first restored.
-    private void WriteSearchCatalog(SearchCatalog? catalog) {
-        Execute("DELETE FROM device_search_catalog");
-        if (catalog is null) return;
-        Insert("INSERT INTO device_search_catalog(id, document) VALUES(0,?)",
-            statement => Bind(statement, 1, SearchCatalogDocument.Write(catalog)));
-    }
-
-    /// Each Space's palette memory that differs from what was written, and no
-    /// row for a Space whose memory went.
-    private void WritePaletteMemories(IReadOnlyDictionary<Guid, PaletteMemory> memories, IReadOnlyDictionary<Guid, PaletteMemory>? written) {
-        if (written is null) Execute("DELETE FROM device_palette");
-        foreach (var gone in written?.Keys.Where(space => !memories.ContainsKey(space)) ?? [])
-            Insert("DELETE FROM device_palette WHERE space = ?", statement => Bind(statement, 1, Spelling(gone)));
-        foreach (var (space, memory) in memories) {
-            if (written is not null && written.TryGetValue(space, out var kept) && ReferenceEquals(kept, memory)) continue;
-            Insert("INSERT OR REPLACE INTO device_palette(space, document) VALUES(?,?)", statement => {
-                Bind(statement, 1, Spelling(space));
-                Bind(statement, 2, PaletteMemoryDocument.Write(memory));
-            });
-        }
     }
 
     /// The agent preferences: whether they are on and run scripts in pages,
@@ -510,78 +382,6 @@ internal sealed class SqliteConnection : IDisposable {
         Execute("DELETE FROM device_engine");
         if (engine is not null)
             Insert("INSERT INTO device_engine(id, engine) VALUES(0,?)", statement => Bind(statement, 1, engine.Name));
-    }
-
-    /// The site engine choices, least recent first, each engine by `Name`.
-    private void WriteSiteEngines(IReadOnlyList<SiteEngineChoice> choices) {
-        Execute("DELETE FROM device_site_engine");
-        InsertInOrder("INSERT INTO device_site_engine(scheme, host, port, engine, position) VALUES(?,?,?,?,?)",
-            choices, (statement, choice, index) => {
-                Bind(statement, 1, choice.Origin.Scheme);
-                Bind(statement, 2, choice.Origin.Host);
-                Checked(Sqlite.sqlite3_bind_int64(statement, 3, choice.Origin.Port));
-                Bind(statement, 4, choice.Engine.Name);
-                Checked(Sqlite.sqlite3_bind_int64(statement, 5, index));
-            });
-    }
-
-    /// Each command's choice, with the modifier mask's every bit; a command
-    /// left without a chord has no key.
-    private void WriteShortcuts(ShortcutOverrides shortcuts) {
-        Execute("DELETE FROM device_shortcut");
-        foreach (var (command, chord) in shortcuts.Chords)
-            Insert("INSERT INTO device_shortcut(command, key, special, modifiers) VALUES(?,?,?,?)", statement => {
-                Bind(statement, 1, command);
-                Bind(statement, 2, chord?.Key);
-                Checked(Sqlite.sqlite3_bind_int64(statement, 3, chord?.IsSpecial == true ? 1 : 0));
-                Checked(Sqlite.sqlite3_bind_int64(statement, 4, chord?.Modifiers ?? 0));
-            });
-    }
-
-    /// The link preferences: the fixed sets by `Name`, each on-or-off
-    /// preference under its behavior's `Name`, and the routes and remembered
-    /// sites in order.
-    private void WriteLinks(LinkPreferences links) {
-        foreach (var table in new[] { "device_link", "device_link_behavior", "device_link_route", "device_link_site" })
-            Execute($"DELETE FROM {table}");
-        Insert("INSERT INTO device_link(id, destination, destination_space, peek_modifier, archive_policy) VALUES(0,?,?,?,?)", statement => {
-            Bind(statement, 1, links.Destination.Name);
-            Bind(statement, 2, links.DestinationSpaceId is { } space ? Spelling(space) : null);
-            Bind(statement, 3, links.PeekModifier.Name);
-            Bind(statement, 4, links.ArchivePolicy.Name);
-        });
-        foreach (var behavior in LinkBehavior.All)
-            Insert("INSERT INTO device_link_behavior(name, is_on) VALUES(?,?)", statement => {
-                Bind(statement, 1, behavior.Name);
-                Checked(Sqlite.sqlite3_bind_int64(statement, 2, behavior.IsOn(links) ? 1 : 0));
-            });
-        InsertInOrder("INSERT INTO device_link_route(id, enabled, match, pattern, space, position) VALUES(?,?,?,?,?,?)",
-            links.Routes, (statement, route, index) => {
-                Bind(statement, 1, Spelling(route.Id));
-                Checked(Sqlite.sqlite3_bind_int64(statement, 2, route.IsEnabled ? 1 : 0));
-                Bind(statement, 3, route.Match.Name);
-                Bind(statement, 4, route.Pattern);
-                Bind(statement, 5, Spelling(route.DestinationSpaceId));
-                Checked(Sqlite.sqlite3_bind_int64(statement, 6, index));
-            });
-        InsertInOrder("INSERT INTO device_link_site(site, space, position) VALUES(?,?,?)",
-            links.RememberedSites, (statement, remembered, index) => {
-                Bind(statement, 1, remembered.Site);
-                Bind(statement, 2, Spelling(remembered.SpaceId));
-                Checked(Sqlite.sqlite3_bind_int64(statement, 3, index));
-            });
-    }
-
-    /// The unfinished manual setup as its one document, or no row for none.
-    private void WriteSetupDraft(KeptSetupDraft? draft) {
-        Execute("DELETE FROM device_setup_draft");
-        if (draft is null) return;
-        Insert("INSERT INTO device_setup_draft(id, document) VALUES(0,?)", statement => Bind(statement, 1, draft.Document));
-    }
-
-    private void WriteSetupCompleted(bool completed) {
-        Execute("DELETE FROM device_setup");
-        Insert("INSERT INTO device_setup(id, completed) VALUES(0,?)", statement => Checked(Sqlite.sqlite3_bind_int64(statement, 1, completed ? 1 : 0)));
     }
 
     /// Every adoption goes into `device_adoption`; the ones an older build

@@ -10,8 +10,7 @@ internal sealed class ScopeFinder : PaletteFinder {
 
     internal override IEnumerable<PaletteRow> Offers(PaletteContext context, PaletteQuery query, PaletteSuggestions question) {
         if (!query.Text.StartsWith('@')) return [];
-        return PaletteScope.All.Where(scope => context.Preferences.Offers(scope.Source)
-                && scope.Keyword.StartsWith(query.Text, StringComparison.OrdinalIgnoreCase))
+        return PaletteScope.All.Where(scope => scope.Keyword.StartsWith(query.Text, StringComparison.OrdinalIgnoreCase))
             .Select(scope => PaletteRow.Of(PaletteRowKind.Scope, $"Search {scope.Title}", scope.Keyword, scope.Symbol, scope: scope));
     }
 

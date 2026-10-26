@@ -7,16 +7,13 @@ using Xunit;
 namespace CrestCore.Tests;
 
 /// Memory pressure unloads the pages off screen longest, never one a window
-/// shows, one running media, one showing no document yet or one whose tab
-/// keeps its page loaded, cleanup never archives a tab whose page runs media,
-/// and a tab whose page was unloaded restores it only while the tab is still
-/// open.
+/// shows, one running media, or one showing no document yet. An unloaded tab restores its page
+/// only while the tab is still open.
 public sealed partial class BrowserContractsTests {
     /// A desktop host whose clock the test moves, on an engine that can bring
-    /// pages back, with one window open over a saved session whose one tab
-    /// keeps its page loaded.
+    /// pages back, with one window open over a saved session with one saved tab.
     private static (CrestApp App, Engine Engine, RecordingEngine Binding, TestClock Clock, Guid Workspace, Guid Window, Guid Space,
-        Guid KeptLoaded) ResidentHost() {
+        Guid SavedTab) ResidentHost() {
         var clock = new TestClock(new DateTimeOffset(2026, 9, 26, 12, 0, 0, TimeSpan.Zero));
         var app = new CrestApp(new AppConfiguration(null, DevicePlatform.Desktop), clock, new TestIds());
         var binding = new RecordingEngine();
@@ -47,7 +44,7 @@ public sealed partial class BrowserContractsTests {
     private static IEnumerable<Guid> Unloaded(IReadOnlyList<Change> changes) => changes.OfType<PageUnloaded>().Select(unloaded => unloaded.PageId);
 
     [Fact]
-    public void PressureUnloadsThePagesOffScreenLongestAndNeverOneShownPlayingOrKeptLoaded() {
+    public void PressureUnloadsThePagesOffScreenLongestAndNeverOneShownPlayingOrBlank() {
         var (app, engine, binding, clock, workspace, window, space, keptTab) = ResidentHost();
         using var disposal = app;
         var kept = Guid.NewGuid();
@@ -71,7 +68,7 @@ public sealed partial class BrowserContractsTests {
         app.Drain();
 
         // A warning takes back one page on the desktop: the one off screen
-        // longest that shows a document and whose tab does not keep it loaded.
+        // longest that shows a document.
         Assert.Equal([first], Unloaded(app.Send(new ReportMemoryPressure(MemoryPressureLevel.Warning))));
         Assert.Equal(new ClosePage(first, KeepsState: true), binding.Commands[^1]);
 
@@ -83,6 +80,66 @@ public sealed partial class BrowserContractsTests {
         Assert.DoesNotContain(binding.Commands, command => command is ClosePage closing
             && (closing.PageId == kept || closing.PageId == blank || closing.PageId == playing || closing.PageId == floating
                 || closing.PageId == sharing || closing.PageId == leftPage || closing.PageId == rightPage));
+    }
+
+    [Fact]
+    public void IdlePagesUnloadAfterFiveBackgroundMinutesWithoutRemovingTheirTabs() {
+        var (app, engine, binding, clock, workspace, window, space, _) = ResidentHost();
+        using var disposal = app;
+        var (tab, page) = ShowNewTab(app, engine, clock, workspace, window, space, "https://idle.example/");
+        ShowNewTab(app, engine, clock, workspace, window, space, "https://visible.example/");
+        clock.Now += TimeSpan.FromMinutes(5) - TimeSpan.FromMilliseconds(1);
+        Assert.Empty(app.Query(new IdlePages()).Pages);
+        clock.Now += TimeSpan.FromMilliseconds(1);
+        var candidate = Assert.Single(app.Query(new IdlePages()).Pages);
+        Assert.Equal(page, candidate.PageId);
+        var before = app.Workspace(workspace).Current;
+        Assert.Equal([page], Unloaded(app.Send(new UnloadIdlePage(page, candidate.Documents, candidate.HiddenSince))));
+        Assert.Equal(new ClosePage(page, KeepsState: true), binding.Commands[^1]);
+        Assert.Same(before, app.Workspace(workspace).Current);
+        Assert.Contains(before.Spaces.Single(item => item.Id == space).Tabs, item => item.Id == tab);
+        Assert.Empty(app.Query(new IdlePages()).Pages);
+    }
+
+    [Fact]
+    public void IdleUnloadRechecksVisibilityMediaDocumentAndTheBackgroundTimestamp() {
+        var (app, engine, _, clock, workspace, window, space, _) = ResidentHost();
+        using var disposal = app;
+        var (tab, page) = ShowNewTab(app, engine, clock, workspace, window, space, "https://idle.example/");
+        var (visible, _) = ShowNewTab(app, engine, clock, workspace, window, space, "https://visible.example/");
+        clock.Now += TimeSpan.FromMinutes(5);
+        var candidate = Assert.Single(app.Query(new IdlePages()).Pages);
+        var unload = new UnloadIdlePage(page, candidate.Documents, candidate.HiddenSince);
+        app.Send(new ShowTab(window, space, tab));
+        Assert.Empty(Unloaded(app.Send(unload)));
+        app.Send(new ShowTab(window, space, visible));
+        Assert.Empty(app.Query(new IdlePages()).Pages);
+        clock.Now += TimeSpan.FromMinutes(5);
+        Assert.Empty(Unloaded(app.Send(unload)));
+        candidate = Assert.Single(app.Query(new IdlePages()).Pages);
+        unload = new(page, candidate.Documents, candidate.HiddenSince);
+        app.Report(engine, new PageStateChanged(page, Showing("https://idle.example/") with { Media = PageMediaActivity.Capturing }));
+        Assert.Empty(app.Query(new IdlePages()).Pages);
+        Assert.Empty(Unloaded(app.Send(unload)));
+        app.Report(engine, new PageStateChanged(page, Showing("https://idle.example/")));
+        app.Report(engine, new NavigationCommitted(page, "https://idle.example/new", SameDocument: false));
+        Assert.Empty(Unloaded(app.Send(unload)));
+    }
+
+    [Fact]
+    public void PressureKeepsAPageAnotherWindowShows() {
+        var (app, engine, _, clock, workspace, window, space, _) = ResidentHost();
+        using var disposal = app;
+        var (shared, _) = ShowNewTab(app, engine, clock, workspace, window, space, "https://shared.example/");
+        var (_, hidden) = ShowNewTab(app, engine, clock, workspace, window, space, "https://hidden.example/");
+        ShowNewTab(app, engine, clock, workspace, window, space, "https://shown.example/");
+        var second = Guid.NewGuid();
+        app.Send(new OpenWindow(second, workspace, Saved: false, null, null, [], RestoresTabs: true));
+        app.Send(new ShowTab(second, space, shared));
+
+        // The page off its own window's screen longest stays, because another
+        // window shows its tab; the next one goes.
+        Assert.Equal([hidden], Unloaded(app.Send(new ReportMemoryPressure(MemoryPressureLevel.Warning))));
     }
 
     [Fact]

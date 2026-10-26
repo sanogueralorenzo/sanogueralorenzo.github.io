@@ -29,24 +29,10 @@ public sealed partial class BrowserContractsTests {
             records => Assert.Equal(new string('n', 128), Value(records, "space")["name"]!.GetValue<string>())),
         ["an unnamed Space"] = ((_, space) => space["name"] = "",
             records => Assert.Equal("Your Space", Value(records, "space")["name"]!.GetValue<string>())),
-        ["a Space without a symbol"] = ((_, space) => space["symbol"] = "",
-            records => Assert.Equal(SpaceTemplate.Ordinary.Symbol, Value(records, "space")["symbol"]!.GetValue<string>())),
-        ["a long split name"] = ((tab, space) => space["splitGroups"] = new JsonArray(Split(tab, title: Wide(1_000))),
-            records => Assert.Equal(Wide(682), Group(records)["customTitle"]!.GetValue<string>())),
-        ["a blank split name"] = ((tab, space) => space["splitGroups"] = new JsonArray(Split(tab, title: "")),
-            records => Assert.Null(Group(records)["customTitle"])),
-        ["a split icon that is no emoji"] = ((tab, space) => space["splitGroups"] = new JsonArray(Split(tab, icon: "star.fill")),
-            records => Assert.Null(Group(records)["customIconSymbol"])),
-        ["a split icon that is an emoji"] = ((tab, space) => space["splitGroups"] = new JsonArray(Split(tab, icon: "crest.emoji:🌙")),
-            records => Assert.Equal("crest.emoji:🌙", Group(records)["customIconSymbol"]!.GetValue<string>())),
-        ["one split recorded twice"] = ((tab, space) => space["splitGroups"] = new JsonArray(Split(tab, title: "First"), Split(tab, title: "Second")),
-            records => Assert.Equal("First", Assert.Single(Value(records, "space")["splitGroups"]!.AsArray())!["customTitle"]!.GetValue<string>())),
         ["a long folder title"] = ((_, space) => space["folders"]![0]!["title"] = Wide(200),
             records => Assert.Equal(Wide(170), Value(records, "folder")["title"]!.GetValue<string>())),
         ["an untitled folder"] = ((_, space) => space["folders"]![0]!["title"] = "",
             records => Assert.Equal("Folder", Value(records, "folder")["title"]!.GetValue<string>())),
-        ["a folder without a symbol"] = ((_, space) => space["folders"]![0]!["symbol"] = "",
-            records => Assert.Null(Value(records, "folder")["symbol"])),
         ["a long page title cut inside a character"] = ((tab, _) => tab["title"] = string.Concat(Enumerable.Repeat(Family, 100)),
             records => Assert.Equal(string.Concat(Enumerable.Repeat(Family, 81)), Value(records, "tab")["title"]!.GetValue<string>())),
         ["an untitled page"] = ((tab, _) => tab["title"] = "",
@@ -112,16 +98,6 @@ public sealed partial class BrowserContractsTests {
     private static JsonObject Value(JsonArray records, string kind) =>
         Assert.Single(records, record => Kind(record!) == kind)!["payload"]!["value"]!.AsObject();
 
-    private static JsonObject Group(JsonArray records) =>
-        Assert.Single(Value(records, "space")["splitGroups"]!.AsArray())!.AsObject();
-
-    private static JsonObject Split(JsonObject tab, string? title = null, string? icon = null) {
-        var group = new JsonObject { ["id"] = tab["splitGroupID"]!.DeepClone() };
-        if (title is not null) group["customTitle"] = title;
-        if (icon is not null) group["customIconSymbol"] = icon;
-        return group;
-    }
-
     private static JsonObject Archived(JsonObject tab, string title) {
         var archived = tab.DeepClone().AsObject();
         archived["id"] = SwiftId(Guid.NewGuid());
@@ -155,20 +131,10 @@ public sealed partial class BrowserContractsTests {
         switch (payload["type"]!.GetValue<string>()) {
             case "space":
                 Text(value["name"], 128, "space.name");
-                Text(value["symbol"], 128, "space.symbol");
-                var groups = value["splitGroups"]?.AsArray() ?? [];
-                if (groups.Select(group => SyncJson.Identity(group!["id"])).Distinct().Count() != groups.Count) refusals.Add("space.splitGroups");
-                foreach (var group in groups) {
-                    if (group!["customTitle"] is { } title) Text(title, 2_048, "splitGroup.customTitle");
-                    if (group["customIconSymbol"] is { } icon) {
-                        Text(icon, 128, "splitGroup.customIconSymbol");
-                        if (EmojiIcon.Parse(icon.GetValue<string>()) is null) refusals.Add("splitGroup.customIconSymbol");
-                    }
-                }
+
                 break;
             case "folder":
                 Text(value["title"], 512, "folder.title");
-                if (value["symbol"] is { } symbol) Text(symbol, 128, "folder.symbol");
                 break;
             case "tab":
                 Tab(value, "tab");

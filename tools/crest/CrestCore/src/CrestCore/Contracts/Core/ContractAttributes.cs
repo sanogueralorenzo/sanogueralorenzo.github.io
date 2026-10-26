@@ -58,8 +58,7 @@ public sealed class NormalizedOnConstructionAttribute : Attribute;
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 public sealed class ObservedAttribute : Attribute;
 
-/// Marks a fixed set that also has members made at runtime, such as a
-/// Space's custom search engines beside the built-in ones. Its static
+/// Marks a fixed set that also has members made at runtime. Its static
 /// instances are still the members `All` lists and `Named` finds; a runtime
 /// member is made by the set's own factory and is told apart by its `Name`.
 ///

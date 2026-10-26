@@ -23,7 +23,7 @@ internal sealed class FolderFinder : PaletteFinder {
             int? matched = query.IsEmpty ? 0 : query.Score(folder.Title, path);
             if (matched is not { } score || byFolder[folder.Id].FirstOrDefault() is not { } first) continue;
             int count = byFolder[folder.Id].Count();
-            var row = PaletteRow.Of(PaletteRowKind.Folder, folder.Title, Subtitle(count, path), folder.DisplaySymbol, subject: folder.Id,
+            var row = PaletteRow.Of(PaletteRowKind.Folder, folder.Title, Subtitle(count, path), FolderState.DefaultSymbol, subject: folder.Id,
                 tab: first.Id);
             yield return Scored(context, source, row, context.Matched(query, row, score), place: null, PaletteReason.TitleMatch);
         }

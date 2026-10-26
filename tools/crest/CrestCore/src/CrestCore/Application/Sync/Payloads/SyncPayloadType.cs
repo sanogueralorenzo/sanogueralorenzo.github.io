@@ -121,22 +121,6 @@ internal abstract class SyncPayloadType {
         Copy(result, source, timestamp);
     }
 
-    private static JsonNode? MergeGroups(JsonArray? first, JsonArray? second, int winner) {
-        if (first is null || second is null) return (first ?? second)?.DeepClone();
-        var preferred = winner == 0 ? first : second;
-        var fallback = (winner == 0 ? second : first)
-            .ToDictionary(n => SyncJson.Identity(n![StoredSessionCodec.Key.Id]), n => n!.AsObject());
-        return new JsonArray(preferred.Select(n => {
-            var group = n!.DeepClone().AsObject();
-            if (fallback.TryGetValue(SyncJson.Identity(group[StoredSessionCodec.Key.Id]), out var older)) {
-                LatestFields(group, n.AsObject(), older, StoredSessionCodec.Key.TitleModifiedAt, StoredSessionCodec.Key.CustomTitle);
-                LatestFields(group, n.AsObject(), older, StoredSessionCodec.Key.IconModifiedAt, StoredSessionCodec.Key.CustomIconSymbol);
-                LatestFields(group, n.AsObject(), older, StoredSessionCodec.Key.TintModifiedAt, StoredSessionCodec.Key.Tint);
-            }
-            return (JsonNode)group;
-        }).ToArray());
-    }
-
     /// Whether every device can take a tab that `tab`, a tab's value, holds.
     private static bool PortableTab(JsonNode tab) => SyncedAddress.IncludesTab(tab[StoredSessionCodec.Key.Url]?.GetValue<string>(),
         tab[StoredSessionCodec.Key.NativeContent] is not null, tab[StoredSessionCodec.Key.SavedUrl]?.GetValue<string>());
@@ -157,11 +141,6 @@ internal abstract class SyncPayloadType {
         /// A Space merges each choice someone made with a clock to its later
         /// side, and its splits' metadata field by field.
         public override void MergeFields(JsonObject result, JsonObject first, JsonObject second, int winner) {
-            LatestFields(result, first, second, StoredSessionCodec.Key.SavedTabsExpansionModifiedAt, StoredSessionCodec.Key.IsSavedTabsExpanded);
-            LatestFields(result, first, second, StoredSessionCodec.Key.CredentialsEnabledModifiedAt, SyncPayload.Key.CredentialsEnabled);
-            LatestFields(result, first, second, StoredSessionCodec.Key.AccessPolicyModifiedAt, StoredSessionCodec.Key.AccessPolicy);
-            const string groups = StoredSessionCodec.Key.SplitGroups;
-            result[groups] = MergeGroups(first[groups] as JsonArray, second[groups] as JsonArray, winner);
         }
 
         public override SyncDeletionReason? DeletionReason(JsonObject value, ArchiveReason? archiveReason, bool owningSpaceRemains,

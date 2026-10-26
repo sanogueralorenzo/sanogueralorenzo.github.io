@@ -81,30 +81,21 @@ internal sealed partial class Device {
         }
     }
 
-    /// The agent connected as `sessionId` uses `tabId` from now on. Refused
-    /// with `AgentTabUnavailable` for a tab no Space it reaches holds, one in
-    /// a locked Space, or one showing one of Crest's own views.
     internal void ClaimAgentTab(ChangeFeed changes, Guid sessionId, Guid tabId) {
         // The session's own locks are taken before the device's.
         if (ReachedSpaces() is not { } reached) throw new Rejected(new AgentsOff());
-        var holding = reached.FirstOrDefault(entry => entry.Space.Tabs.Any(tab => tab.Id == tabId));
-        if (holding.Space is null || holding.IsLocked || !OffersToAgents(holding.Space.Tabs.First(tab => tab.Id == tabId)))
+        var holding = reached.FirstOrDefault(entry => entry.Tabs.Any(tab => tab.Id == tabId));
+        if (holding is null || !OffersToAgents(holding.Tabs.First(tab => tab.Id == tabId)))
             throw new Rejected(new AgentTabUnavailable(tabId));
         ReviseAgentSessions(changes, sessions => sessions.Claim(sessionId, tabId));
     }
 
-    /// Lets each agent go of the tabs it may no longer use: tabs that closed,
-    /// moved out of the Spaces it reaches, sit in a Space that locked or left
-    /// the web for a browser or extension page, and every tab once agents are
-    /// off. Runs after every turn, and costs nothing
-    /// while no agent is connected.
     internal void PruneAgents(ChangeFeed changes) {
         lock (gate) {
             if (agentSessions.All.Count == 0) return;
         }
         var usable = (ReachedSpaces() ?? [])
-            .Where(entry => !entry.IsLocked)
-            .SelectMany(entry => entry.Space.Tabs.Where(OffersToAgents).Select(tab => tab.Id))
+            .SelectMany(entry => entry.Tabs.Where(OffersToAgents).Select(tab => tab.Id))
             .ToHashSet();
         ReviseAgentSessions(changes, sessions => sessions.Prune(usable.Contains));
     }
@@ -137,8 +128,7 @@ internal sealed partial class Device {
             stopped = session is null ? new HashSet<Guid>() : agentSessions.Stopped(session.Identity);
         }
         if (session is null || ReachedSpaces() is not { } reached || Persistent() is not (var workspaceId, _)) return new(null, []);
-        var spaces = reached.Select(entry => new AgentSpace(entry.Space.Id, entry.Space.Settings.Name, entry.IsLocked,
-            entry.IsLocked ? [] : [.. entry.Space.Tabs
+        var spaces = reached.Select(entry => new AgentSpace(entry.Id, entry.Settings.Name, [.. entry.Tabs
                 .Where(tab => OffersToAgents(tab) && !stopped.Contains(tab.Id))
                 .Select(tab => new AgentTab(tab.Id, tab.DisplayTitle, tab.Url, tab.Placement, session.TabIds.Contains(tab.Id)))]));
         return new(workspaceId, [.. spaces]);
@@ -152,12 +142,12 @@ internal sealed partial class Device {
     /// The Spaces agents reach now, each with whether this process may show
     /// it, or null while agents are off or the person's own session is not
     /// open. Called without the device lock.
-    private IReadOnlyList<(SpaceState Space, bool IsLocked)>? ReachedSpaces() {
+    private IReadOnlyList<SpaceState>? ReachedSpaces() {
         var preferences = Agents;
         if (!preferences.IsOn || Persistent() is not (_, var authority)) return null;
         return [.. authority.Current.Spaces
             .Where(space => preferences.SpaceIds.Contains(space.Id) && !authority.IsDeleting(space.Id))
-            .Select(space => (space, authority.IsLocked(space)))];
+];
     }
 
     #endregion

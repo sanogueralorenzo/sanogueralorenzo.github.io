@@ -90,9 +90,6 @@ final class CrestCore {
     /// Who hears each window the core brings to the front, once its batch is
     /// applied.
     @ObservationIgnored private var broughtForwardFollowers: [Follower<WindowBroughtForward>] = []
-    @ObservationIgnored private var windowAdoptionFollowers: [Follower<OfferedWindowAdopted>] = []
-    /// Who hears each Quick Window or Peek page the core closed, once its
-    /// batch is applied.
     @ObservationIgnored private var transientCloseFollowers: [Follower<TransientPageClosed>] = []
     /// Who waits for each close preparation to end, by its request.
     @ObservationIgnored private var closeWaiters: [UUID: @MainActor (Bool) -> Void] = [:]
@@ -148,6 +145,7 @@ final class CrestCore {
         state.favicons.takePageImage = { [weak self] in self?.engines.takeIcon(of: $0) }
         let installed = crest_app_set_wake(handle, relayCoreWake, Unmanaged.passUnretained(wake).toOpaque())
         guard installed == CREST_OK else { Self.buildBug(installed, "set its wake callback") }
+        try query(GetShortcuts()).apply(to: state)
         state.enginePreferences = try query(GetEnginePreferences())
         state.agentPreferences = try query(GetAgentPreferences())
     }
@@ -376,7 +374,6 @@ final class CrestCore {
         if !batch.rehostedPages.isEmpty { pagesRehosted(batch.rehostedPages) }
         if !batch.adoptedPages.isEmpty { pagesAdopted(batch.adoptedPages) }
         if !batch.broughtForward.isEmpty { windowsBroughtForward(batch.broughtForward) }
-        if !batch.adoptedWindows.isEmpty { windowsAdopted(batch.adoptedWindows) }
         if !batch.closedTransientPages.isEmpty { transientPagesClosed(batch.closedTransientPages) }
         #if DEBUG
             batchApplied?(changes)
@@ -479,26 +476,6 @@ final class CrestCore {
         adoptionFollowers.append(Follower(owner: owner, handler: handler))
     }
 
-    /// Calls `handler` with each window a page asked for that the core adopted
-    /// as a Quick Window page, once its batch is applied, so the window that
-    /// hosts the page shows it. The registration lasts as long as `owner`.
-    func followAdoptedWindows(_ owner: AnyObject, _ handler: @escaping @MainActor (OfferedWindowAdopted) -> Void) {
-        windowAdoptionFollowers.removeAll { $0.owner == nil }
-        windowAdoptionFollowers.append(Follower(owner: owner, handler: handler))
-    }
-
-    private func windowsAdopted(_ windows: [OfferedWindowAdopted]) {
-        windowAdoptionFollowers.removeAll { $0.owner == nil }
-        let followers = windowAdoptionFollowers
-        for window in windows {
-            for follower in followers { follower.handler(window) }
-        }
-    }
-
-    /// Calls `handler` with each Quick Window or Peek page the core closed,
-    /// because it closed itself or its engine closed it, once its batch is
-    /// applied, so whatever shows the page closes. The registration lasts as
-    /// long as `owner`.
     func followClosedTransientPages(
         _ owner: AnyObject, _ handler: @escaping @MainActor (TransientPageClosed) -> Void
     ) {

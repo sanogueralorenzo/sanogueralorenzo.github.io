@@ -19,7 +19,6 @@ public sealed record DeleteTab(Guid WorkspaceId, Guid WindowId, Guid SpaceId, Gu
         var fallback = followUp.FallbackAfterDismissing(space.Id, TabId, space.Tabs.Select(tab => tab.Id).ToHashSet());
         var selected = edited.DismissTabs([TabId], followUp.Window?.Tab(space.Id), fallback, turn.Now, deleting: true,
             ensureSelection: true, resetArchivePlacement: true);
-        edited.PruneSplitMetadata();
         followUp.ShowTab(space.Id, selected);
         return new(turn.Basis.Replacing(edited.Capture(space)), SyncStaging.Deletion, followUp);
     }

@@ -50,14 +50,13 @@ internal sealed record BrowserDataTab(Guid Id, string Title, NativeTabContent? N
             NativeContent is null && Placement.IsDurable ? saved?.Spelling ?? address : null,
             isStartPage ? StartPageSymbol : Symbol, FaviconUrl: null, IconAccent: null, StoredIconMode: null, Placement, folder,
             SplitGroupId is { } split && splits.TryGetValue(split, out var group) ? group : null, LastActivatedAt,
-            PositionModifiedAt: null, CustomTitle: null, TitleModifiedAt: null, KeepsPageLoaded: false);
+            PositionModifiedAt: null, CustomTitle: null, TitleModifiedAt: null);
     }
 
     /// A Start Page, which a Space that brings no tab shows.
     public static TabState StartPage(Guid id, DateTimeOffset now) => new(id, StartPageTitle, Url: null, NativeContent: null,
         SavedUrl: null, StartPageSymbol, FaviconUrl: null, IconAccent: null, StoredIconMode: null, TabPlacement.Current,
-        FolderId: null, SplitGroupId: null, now, PositionModifiedAt: null, CustomTitle: null, TitleModifiedAt: null,
-        KeepsPageLoaded: false);
+        FolderId: null, SplitGroupId: null, now, PositionModifiedAt: null, CustomTitle: null, TitleModifiedAt: null);
 
     private static void Require(bool condition) {
         if (!condition) throw BrowserDataValue.Invalid();

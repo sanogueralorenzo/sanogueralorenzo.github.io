@@ -267,6 +267,39 @@ public sealed partial class BrowserContractsTests {
         Assert.Contains(RecordName(local["id"]!), journal.Pending);
     }
 
+    /// An archive the cloud brought is marked as synced here, and staging it
+    /// again sends back the reason it arrived with, never the local mark.
+    [Fact]
+    public void AReceivedArchiveIsMarkedSyncedHereWithoutEchoingTheMark() {
+        var remote = OneSpaceSession();
+        var tab = FirstSpace(remote)["tabs"]![0]!.AsObject();
+        FirstSpace(remote)["tabs"] = new JsonArray();
+        FirstSpace(remote)["archivedTabs"] = new JsonArray(ArchivedOf(tab, 500));
+        var journal = new JournalUnderTest(Fixed(1_180));
+        journal.Stage(remote, at: 600);
+        journal.MarkUploaded();
+
+        var materialized = journal.Materialize(OneSpaceSession());
+
+        Assert.Equal("synced", FirstSpace(materialized)["archivedTabs"]![0]!["reason"]!.GetValue<string>());
+        journal.Stage(materialized, at: 700);
+        Assert.All(journal.Values(SyncRecordKind.Archive), archive => Assert.NotEqual("synced", archive["reason"]!.GetValue<string>()));
+    }
+
+    [Fact]
+    public void MaterializingKeepsAnArchiveCauseThisDeviceAlreadyHolds() {
+        var local = OneSpaceSession();
+        var tab = FirstSpace(local)["tabs"]![0]!.AsObject();
+        FirstSpace(local)["tabs"] = new JsonArray();
+        FirstSpace(local)["archivedTabs"] = new JsonArray(ArchivedOf(tab, 500, "closed"));
+        var journal = new JournalUnderTest(Fixed(1_181));
+        journal.Stage(local, at: 600);
+
+        var materialized = journal.Materialize(local);
+
+        Assert.Equal("closed", FirstSpace(materialized)["archivedTabs"]![0]!["reason"]!.GetValue<string>());
+    }
+
     #endregion
 
     #region Actions - Fixtures

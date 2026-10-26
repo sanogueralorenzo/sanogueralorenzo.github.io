@@ -10,8 +10,8 @@ namespace CrestCore.Application;
 /// identities the file spells. The Space's identity, profile, credential
 /// preferences and lock never leave the device, and an import gives every
 /// record a new identity.
-internal sealed record BrowserDataSpace(string Name, string Symbol, SpaceAccent Accent, SpaceBranding? Branding,
-    IReadOnlyList<BrowserDataFolder> Folders, IReadOnlyList<BrowserDataTab> Tabs, IReadOnlyList<BrowserDataSplit>? Splits,
+internal sealed record BrowserDataSpace(string Name,
+    IReadOnlyList<BrowserDataFolder> Folders, IReadOnlyList<BrowserDataTab> Tabs,
     IReadOnlyList<BrowserDataArchivedTab> ArchivedTabs, IReadOnlyList<BrowserDataHistoryEntry> History,
     BrowsingPreferences BrowsingPreferences, Guid? SelectedTabId) {
     #region Static Variables
@@ -24,12 +24,9 @@ internal sealed record BrowserDataSpace(string Name, string Symbol, SpaceAccent 
     #region Actions - Reading
 
     public static BrowserDataSpace Read(BrowserDataValue value) {
-        var accent = SpaceAccent.Named(value.Text("accent")) ?? throw BrowserDataValue.Invalid();
-        var branding = value.OptionalNested("branding") is { } look ? StoredSessionCodec.DecodeBranding(look.Object) : null;
         var browsing = StoredSessionCodec.DecodeBrowsingPreferences(value.Nested("browsingPreferences").Object);
-        return new(value.Text("name"), value.Text("symbol"), accent, branding,
+        return new(value.Text("name"),
             [.. value.Items("folders").Select(BrowserDataFolder.Read)], [.. value.Items("tabs").Select(BrowserDataTab.Read)],
-            value.OptionalItems("splitGroups")?.Select(BrowserDataSplit.Read).ToArray(),
             [.. value.Items("archivedTabs").Select(BrowserDataArchivedTab.Read)],
             [.. value.Items("history").Select(BrowserDataHistoryEntry.Read)], browsing, value.OptionalIdentity("selectedTabID"));
     }
@@ -40,7 +37,7 @@ internal sealed record BrowserDataSpace(string Name, string Symbol, SpaceAccent 
     /// `ArchiveInvalid` for anything a Space would not keep.
     public SpaceState Materialize(IIdSource ids, DateTimeOffset now) {
         ArgumentNullException.ThrowIfNull(ids);
-        Require(ImportText.IsKept(Name, ImportText.MaximumSpaceName) && ImportText.IsKept(Symbol, ImportText.MaximumSymbol));
+        Require(ImportText.IsKept(Name, ImportText.MaximumSpaceName));
         Require(Folders.Count <= FolderTree.MaximumCount && Tabs.Count <= MaximumTabs && ArchivedTabs.Count <= MaximumTabs
             && History.Count <= HistoryEntryState.MaximumEntries);
 
@@ -71,11 +68,6 @@ internal sealed record BrowserDataSpace(string Name, string Symbol, SpaceAccent 
         }
         if (tabs.Count == 0) tabs.Add(BrowserDataTab.StartPage(ids.Next(), now));
 
-        HashSet<Guid> seenSplits = [];
-        var splits = (Splits ?? []).Select(split => {
-            Require(seenSplits.Add(split.Id) && splitIds.ContainsKey(split.Id));
-            return split.Materialize(splitIds[split.Id]);
-        }).ToArray();
         HashSet<Guid> seenArchived = [];
         var archived = ArchivedTabs.Select(entry => {
             Require(seenArchived.Add(entry.Tab.Id) && !tabIds.ContainsKey(entry.Tab.Id));
@@ -84,14 +76,12 @@ internal sealed record BrowserDataSpace(string Name, string Symbol, SpaceAccent 
         var history = BrowserDataHistoryEntry.Materialize(History, HistoryEntryState.MaximumEntries, ids.Next);
         if (SelectedTabId is { } selected) Require(tabIds.ContainsKey(selected));
 
-        var settings = new SpaceSettings(Name, Symbol, Accent, SpaceBranding.Kept(Branding, Accent, Symbol), BrowsingPreferences,
-            StoredSessionCodec.DefaultCredentialPreferences, SpaceAccessPolicy.Open, IsSavedTabsExpanded: true,
-            SavedTabsExpansionModifiedAt: null);
+        var settings = new SpaceSettings(Name, BrowsingPreferences);
         return new(ids.Next(), ids.Next(), settings,
             [.. ordered.Select(folder => folder with {
                 OrderAnchorTabId = folder.OrderAnchorTabId is { } anchor && tabIds.TryGetValue(anchor, out var tab) ? tab : null
             })],
-            tabs, splits, archived, history);
+            tabs, archived, history);
     }
 
     private static void Require(bool condition) {
@@ -107,22 +97,18 @@ internal sealed record BrowserDataSpace(string Name, string Symbol, SpaceAccent 
     public static BrowserDataSpace From(SpaceState space) {
         ArgumentNullException.ThrowIfNull(space);
         var settings = space.Settings;
-        return new(settings.Name, settings.Symbol, settings.Accent, SpaceBranding.Announced(settings.Look),
+        return new(settings.Name,
             [.. space.Folders.Select(BrowserDataFolder.From)], [.. space.Tabs.Select(BrowserDataTab.From)],
-            [.. space.SplitGroups.Select(BrowserDataSplit.From)], [.. space.ArchivedTabs.Select(BrowserDataArchivedTab.From)],
+            [.. space.ArchivedTabs.Select(BrowserDataArchivedTab.From)],
             [.. space.History.Select(BrowserDataHistoryEntry.From)], settings.BrowsingPreferences, SelectedTabId: null);
     }
 
     public JsonObject Write() {
         var value = new JsonObject {
-            ["name"] = Name,
-            ["symbol"] = Symbol,
-            ["accent"] = Accent.Name
+            ["name"] = Name
         };
-        if (Branding is { } branding) value["branding"] = StoredSessionCodec.Encode(branding);
         value["folders"] = new JsonArray([.. Folders.Select(folder => (JsonNode)folder.Write())]);
         value["tabs"] = new JsonArray([.. Tabs.Select(tab => (JsonNode)tab.Write())]);
-        if (Splits is not null) value["splitGroups"] = new JsonArray([.. Splits.Select(split => (JsonNode)split.Write())]);
         value["archivedTabs"] = new JsonArray([.. ArchivedTabs.Select(archived => (JsonNode)archived.Write())]);
         value["history"] = new JsonArray([.. History.Select(entry => (JsonNode)entry.Write())]);
         value["browsingPreferences"] = StoredSessionCodec.Encode(BrowsingPreferences);

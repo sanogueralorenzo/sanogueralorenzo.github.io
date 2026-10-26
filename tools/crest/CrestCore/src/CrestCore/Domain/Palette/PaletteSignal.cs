@@ -14,10 +14,6 @@ internal sealed class PaletteSignal {
     private static readonly TimeSpan FreshUse = TimeSpan.FromHours(1);
     private static readonly TimeSpan FadedUse = TimeSpan.FromDays(1);
 
-    /// What the person picked before for the same text.
-    public static readonly PaletteSignal Learned = new(PaletteReason.Learned, namesAt: 200, leadsAt: null,
-        (evidence, _) => (int)evidence.Learned);
-
     /// How recently the row's tab was used: two hundred within the hour,
     /// none after a day.
     public static readonly PaletteSignal Recency = new(PaletteReason.RecentlyUsed, namesAt: 100, leadsAt: 100,
@@ -28,9 +24,9 @@ internal sealed class PaletteSignal {
     public static readonly PaletteSignal Usage = new(PaletteReason.OftenVisited, namesAt: 120, leadsAt: 120,
         (evidence, _) => (int)Math.Min(300, 60 * Math.Log2(1 + evidence.Frecency)));
 
-    /// The row's tab is open, which counts when the person prefers open tabs.
+    /// Open tabs outrank history for the same place.
     public static readonly PaletteSignal OpenTab = new(PaletteReason.OpenTab, namesAt: 1, leadsAt: 1,
-        (evidence, context) => evidence.IsOpen && context.Preferences.PrefersOpenTabs ? 150 : 0);
+        (evidence, context) => evidence.IsOpen ? 150 : 0);
 
     /// The row's tab is pinned or saved.
     public static readonly PaletteSignal Kept = new(PaletteReason.Kept, namesAt: 1, leadsAt: 1, (evidence, _) => evidence.IsKept ? 100 : 0);

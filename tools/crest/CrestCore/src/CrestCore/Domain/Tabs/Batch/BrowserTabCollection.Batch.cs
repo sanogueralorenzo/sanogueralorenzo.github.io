@@ -37,7 +37,7 @@ public sealed partial class BrowserTabCollection {
 
     /// Copies the selected tabs to the end of the open tabs, in order, and
     /// answers each source with its copy. The copies of a split's members form
-    /// a split of their own that keeps the source split's name, icon and tint.
+    /// a split of their own.
     public IReadOnlyList<(Guid Source, Guid Copy)> DuplicateSelected(ResolvedSelection selection, IIdSource ids, DateTimeOffset now) {
         RequireSelectedTabs(selection);
         List<(Guid Source, Guid Copy)> copies = [];
@@ -49,7 +49,6 @@ public sealed partial class BrowserTabCollection {
             if (copied.Length < 2) continue;
             var copiedGroup = ids.Next();
             foreach (var tab in copied.Skip(1)) JoinSplitInPlace(tab, copied[0], null, copiedGroup, now);
-            CopySplitMetadata(group, copiedGroup, now);
         }
         return copies;
     }
@@ -61,7 +60,7 @@ public sealed partial class BrowserTabCollection {
     /// Joins the selected tabs to the split of `target`, or of the first
     /// selected tab, at member `index` and on, and answers the last tab that
     /// joined, or `shown` when none had to, with the copies made for saved or
-    /// pinned tabs. A split copied into new tabs keeps its name, icon and tint.
+    /// pinned tabs.
     /// Refused with `WebPagesOnly` for a Start Page target, and
     /// `SplitNeedsTwoTabs` or `SplitLimitReached` for a split that would be
     /// too small or too large.
@@ -75,21 +74,17 @@ public sealed partial class BrowserTabCollection {
         if (size < 2) throw new Rejected(new SplitNeedsTwoTabs(MaximumSplitMembers));
         if (size > MaximumSplitMembers) throw new Rejected(new SplitLimitReached(MaximumSplitMembers));
         List<(Guid Source, Guid Copy)> copies = [];
-        List<(Guid Source, Guid Copy)> groupCopies = [];
         var insertion = index;
         foreach (var id in selection.MemberIds.Where(id => !existing.Contains(id))) {
-            var group = Tab(targetId).SplitGroupId;
             var joined = JoinSplit(id, targetId, insertion, ids, now);
             copies.AddRange(joined.Copies);
             shown = joined.SelectedTab;
             var targetCopy = joined.Copies.FirstOrDefault(pair => pair.Source == targetId);
             if (targetCopy != default) {
                 targetId = targetCopy.Copy;
-                if (group is { } copiedFrom) groupCopies.Add((copiedFrom, Tab(targetId).SplitGroupId!.Value));
             }
             if (insertion is { } slot) insertion = checked(slot + 1);
         }
-        foreach (var (source, copy) in groupCopies) CopySplitMetadata(source, copy, now);
         return (shown, copies);
     }
 
@@ -97,19 +92,6 @@ public sealed partial class BrowserTabCollection {
     public void SeparateSelected(ResolvedSelection selection, DateTimeOffset now) {
         RequireSelectedTabs(selection);
         foreach (var group in SelectedGroups(selection)) DissolveSplit(group, now);
-    }
-
-    #endregion
-
-    #region Actions - Residency
-
-    /// Keeps the selected tabs' pages loaded while they are not shown, or lets
-    /// them unload. A selected folder's tabs are included. Refused with
-    /// `WebPagesOnly` for a tab that shows no web page.
-    public void KeepSelectedLoaded(ResolvedSelection selection, bool keeps) {
-        RequireWholeSplits(selection);
-        if (selection.Members.FirstOrDefault(tab => !tab.Content.IsWebPage) is { } other) throw new Rejected(new WebPagesOnly(other.Id));
-        foreach (var tab in selection.Members) tab.SetResidency(keeps);
     }
 
     #endregion

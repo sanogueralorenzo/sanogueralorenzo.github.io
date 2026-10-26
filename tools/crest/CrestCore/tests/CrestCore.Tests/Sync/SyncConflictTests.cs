@@ -60,4 +60,31 @@ public sealed partial class BrowserContractsTests {
         Assert.Throws<BrowserRuleException>(() => NativeSyncEvaluator.Resolve(first, second));
     }
 
+    [Fact]
+    public void ExplicitDeletionWinsButNewActivationCanSurviveRetention() {
+        var live = SyncTabRecord(Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid());
+        var deleted = live.DeepClone().AsObject();
+        deleted.Remove("payload"); deleted["version"]!["logicalClock"] = 2UL;
+        deleted["tombstone"] = new JsonObject { ["reason"] = "explicitDelete", ["deletedAt"] = 10.0 };
+        Assert.True(JsonNode.DeepEquals(deleted, NativeSyncEvaluator.Resolve(live, deleted)));
+        deleted["tombstone"]!["reason"] = "retention";
+        Assert.True(JsonNode.DeepEquals(live, NativeSyncEvaluator.Resolve(live, deleted)));
+        // A tab keeps its identity when it moves to another Space, and the
+        // same rules decide between its copies; a history entry never moves.
+        deleted["spaceID"] = SwiftId(Guid.NewGuid());
+        Assert.True(JsonNode.DeepEquals(live, NativeSyncEvaluator.Resolve(live, deleted)));
+        var history = deleted.DeepClone().AsObject();
+        history["id"]!["kind"] = "history";
+        var elsewhere = history.DeepClone().AsObject();
+        elsewhere["spaceID"] = SwiftId(Guid.NewGuid());
+        Assert.Throws<BrowserRuleException>(() => NativeSyncEvaluator.Resolve(history, elsewhere));
+    }
+
+    [Fact]
+    public void ArchiveArrivalCannotRemoveProtectedOrExplicitlyDeletedTabsBeforeTheirTombstone() {
+        var device = Guid.NewGuid(); var older = new SyncVersion(1, device); var newer = new SyncVersion(2, device);
+        Assert.True(TabPlacement.Saved.KeepsTabOverArchive(older, ArchiveReason.Closed, newer));
+        Assert.True(TabPlacement.Current.KeepsTabOverArchive(older, ArchiveReason.DeletedOnAnotherDevice, newer));
+        Assert.False(TabPlacement.Current.KeepsTabOverArchive(older, ArchiveReason.Closed, newer));
+    }
 }

@@ -13,8 +13,8 @@ public sealed record DecideSitePermission(Guid SpaceId, SiteOrigin Origin, SiteP
     #region Actions - Device
 
     internal override void Apply(Device device, DeviceTurn turn) {
-        var (keeps, locked) = device.ChoiceScope(SpaceId);
-        if (locked) throw new Rejected(new SpaceLocked(SpaceId));
+        var keeps = device.ChoiceScope(SpaceId);
+
         lock (device.Gate) {
             var outcome = (keeps ? device.KeptPermissions : device.PassingPermissions).Set(SpaceId, Origin, Permission, Detail,
                 Decision, turn.Ids.Next(), StoredSessionCodec.Seconds(turn.Now));

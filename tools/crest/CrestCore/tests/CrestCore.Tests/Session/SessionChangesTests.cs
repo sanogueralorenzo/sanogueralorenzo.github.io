@@ -64,9 +64,6 @@ public sealed partial class BrowserContractsTests {
                         Folders = Rows(space.Folders, folders.Updated, folders.Removed, folders.Order, folder => folder.Id, recordedFirst: false)
                     });
                     break;
-                case SplitGroupsChanged groups when groups.WorkspaceId == workspace:
-                    Edit(groups.SpaceId, space => space with { SplitGroups = groups.Groups });
-                    break;
                 case ArchiveChanged archive when archive.WorkspaceId == workspace:
                     Edit(archive.SpaceId, space => space with {
                         ArchivedTabs = Rows(space.ArchivedTabs, archive.Archived, archive.Removed, archive.Order, archived => archived.Tab.Id,
@@ -80,7 +77,6 @@ public sealed partial class BrowserContractsTests {
                     break;
                 case WorkspaceChanged changed when changed.WorkspaceId == workspace:
                     State = State with {
-                        DefaultSpaceId = changed.DefaultSpaceId,
                         DisposableSeedMarker = changed.IsDisposableSeed ? State.DisposableSeedMarker ?? Guid.NewGuid() : null,
                         SpaceDeletions = changed.SpaceDeletions
                     };
@@ -138,6 +134,8 @@ public sealed partial class BrowserContractsTests {
         }
     }
 
+    private static NativeSessionAuthority MaximalSession() => TestWorkspaces.Session(MaximalDocument());
+
     /// The maximal stored-session fixture.
     private static JsonNode MaximalDocument() => JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Session",
         "Fixtures", "maximal-session.json")))!;
@@ -156,9 +154,17 @@ public sealed partial class BrowserContractsTests {
         var workspace = TestWorkspaces.Opened(opening);
         var authority = app.Workspace(workspace);
         var reader = SessionReader.Opening(opening);
-        TestGrants.UnlockGuarded(app.Send, workspace, authority.Current);
         Assert.Equal(authority.Current, reader.State);
         var published = new HashSet<Type>();
+        void Check(IReadOnlyList<Change> changes) {
+            published.UnionWith(changes.Select(change => change.GetType()));
+            reader.Apply(changes);
+            Assert.Equal(authority.Current, reader.State);
+            reader.AssertSidebars(authority.Current);
+            reader.Apply(changes);
+            Assert.Equal(authority.Current, reader.State);
+            reader.AssertSidebars(authority.Current);
+        }
         foreach (var step in JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Session", "Fixtures",
             "session-commands.json")))!["commands"]!.AsArray()) {
             var request = step!["request"]!.DeepClone().AsObject();
@@ -173,16 +179,14 @@ public sealed partial class BrowserContractsTests {
                 request["windowId"] = window.ToString();
             }
             IReadOnlyList<Change> changes;
-            if (RecordedIntents.LaunchPlan(request, workspace) is { } plan) {
-                app.Query(plan);
+            if (RecordedIntents.LaunchIsolation(request) is { } plan) {
+                new StandaloneAnswers().Query(plan);
                 changes = app.Drain();
             } else if (RecordedIntents.Typed(request, workspace, window, authority.Current) is { } intents) {
                 clock.Now = RecordedIntents.Time(request);
                 ids.Supply(RecordedIntents.Identities(request));
                 changes = RecordedIntents.Send(app, engine, request, intents, window);
                 var granted = new List<Change>();
-                TestGrants.UnlockGuarded(intent => { var sent = app.Send(intent); granted.AddRange(sent); return sent; }, workspace,
-                    authority.Current);
                 changes = [.. changes, .. granted];
             } else if (RecordedIntents.Navigation(request) is { } navigation) {
                 clock.Now = navigation.At;
@@ -190,20 +194,107 @@ public sealed partial class BrowserContractsTests {
             } else {
                 throw new InvalidOperationException($"{request["operation"]}: every recorded command is an intent or an engine report now.");
             }
-            published.UnionWith(changes.Select(change => change.GetType()));
-            reader.Apply(changes);
-            Assert.Equal(authority.Current, reader.State);
-            reader.AssertSidebars(authority.Current);
-            reader.Apply(changes);
-            Assert.Equal(authority.Current, reader.State);
-            reader.AssertSidebars(authority.Current);
+            Check(changes);
             if (window is { } opened) app.Send(new CloseWindow(opened));
         }
+        var preferences = authority.Current.AppPreferences ?? AppPreferences.Default;
+        Check(app.Send(new SetAppPreferences(workspace, preferences with {
+            TranslationLanguage = preferences.TranslationLanguage == "fr" ? "en" : "fr"
+        })));
         Assert.Superset(new HashSet<Type> {
             typeof(SpacesChanged), typeof(SpaceSettingsChanged), typeof(TabsChanged), typeof(FoldersChanged),
-            typeof(SplitGroupsChanged), typeof(HistoryChanged), typeof(ArchiveChanged), typeof(WorkspaceChanged),
+            typeof(HistoryChanged), typeof(ArchiveChanged), typeof(WorkspaceChanged),
             typeof(AppPreferencesChanged), typeof(TabCopied), typeof(SidebarChanged)
         }, published);
+    }
+
+    [Fact]
+    public void AStateThatDidNotChangeAndSpacesAnEditKeptPublishNothing() {
+        var authority = MaximalSession();
+        var session = authority.Current;
+        var workspace = Guid.NewGuid();
+        Assert.Empty(SessionChanges.Publish(workspace, session, session));
+        // Equal states that are other objects publish nothing either.
+        Assert.Empty(SessionChanges.Publish(workspace, session, MaximalSession().Current));
+        Assert.Empty(SessionChanges.Publish(workspace, session, session with { Spaces = [.. session.Spaces] }));
+
+        var first = session.Spaces[0];
+        var renamed = first with { Tabs = [first.Tabs[0] with { CustomTitle = "Renamed" }, .. first.Tabs.Skip(1)] };
+        var tabs = Assert.IsType<TabsChanged>(Assert.Single(SessionChanges.Publish(workspace, session,
+            session with { Spaces = [renamed, .. session.Spaces.Skip(1)] })));
+        Assert.Equal((workspace, first.Id), (tabs.WorkspaceId, tabs.SpaceId));
+        Assert.Equal([renamed.Tabs[0]], tabs.Updated);
+        Assert.Empty(tabs.Removed);
+        Assert.Null(tabs.Order);
+    }
+
+    [Fact]
+    public void RecordsArriveByIdentityWithAnOrderOnlyWhenTheirPlacementDoesNotGiveIt() {
+        var session = MaximalSession().Current;
+        var workspace = Guid.NewGuid();
+        var space = session.Spaces.First(space => space.History.Count > 1 && space.ArchivedTabs.Count > 1);
+        IReadOnlyList<Change> Edited(SpaceState edited) =>
+            SessionChanges.Publish(workspace, session, session with { Spaces = [.. session.Spaces.Select(item => item.Id == edited.Id ? edited : item)] });
+
+        // A visit to an address the history holds moves its entry to the front.
+        var visited = space.History[^1] with { Title = "Visited again", VisitCount = space.History[^1].VisitCount + 1 };
+        var history = Assert.IsType<HistoryChanged>(Assert.Single(Edited(space with { History = [visited, .. space.History.SkipLast(1)] })));
+        Assert.Equal([visited], history.Recorded);
+        Assert.Empty(history.Removed);
+        Assert.Null(history.Order);
+
+        // An archived tab leaves by its identity, and a newly archived one goes last.
+        var restored = space.ArchivedTabs[0];
+        var archivedNow = space.ArchivedTabs[1] with { Tab = space.Tabs[0] with { Id = Guid.NewGuid() } };
+        var archive = Assert.IsType<ArchiveChanged>(Assert.Single(Edited(space with {
+            ArchivedTabs = [.. space.ArchivedTabs.Skip(1), archivedNow]
+        })));
+        Assert.Equal([restored.Tab.Id], archive.Removed);
+        Assert.Equal([archivedNow], archive.Archived);
+        Assert.Null(archive.Order);
+
+        // Moving a tab changes no tab, so only the order arrives.
+        var moved = Assert.IsType<TabsChanged>(Assert.Single(Edited(space with { Tabs = [.. space.Tabs.Skip(1), space.Tabs[0]] })));
+        Assert.Empty(moved.Updated);
+        Assert.Equal([.. space.Tabs.Skip(1).Select(tab => tab.Id), space.Tabs[0].Id], moved.Order);
+    }
+
+    /// An edit publishes only the sidebar lists it changes: a move publishes the list
+    /// it moves within, a collapse and a new title or address publish none, a Start
+    /// Page that becomes a web page publishes its section, and a deleted folder takes
+    /// its list with it.
+    [Fact]
+    public void AnEditPublishesOnlyTheSidebarListsItChanges() {
+        var session = MaximalSession().Current;
+        var workspace = Guid.NewGuid();
+        var folder = new FolderState(Guid.NewGuid(), TabPlacement.Current, "Folder");
+        TabState Tab(string title, Guid? folderId = null, bool startPage = false) => new(Guid.NewGuid(), title,
+            startPage ? null : $"https://example.com/{title}", null, null, "globe", null, null, null, TabPlacement.Current, folderId, null,
+            DateTimeOffset.UnixEpoch, null, null, null);
+        TabState[] loose = [Tab("first"), Tab("second"), Tab("third")];
+        TabState[] filed = [Tab("inside", folder.Id), Tab("also inside", folder.Id)];
+        var draft = Tab("draft", startPage: true);
+        var start = session.Spaces[0] with { Tabs = [.. loose, .. filed, draft], Folders = [folder] };
+        IReadOnlyList<Change> Published(SpaceState edited) =>
+            SessionChanges.Publish(workspace, session with { Spaces = [start] }, session with { Spaces = [edited] });
+        IEnumerable<(TabPlacement, Guid?)> Lists(SpaceState edited) =>
+            Assert.Single(Published(edited).OfType<SidebarChanged>()).Lists.Select(list => (list.Section, list.FolderId));
+
+        Assert.Equal([(TabPlacement.Current, null)], Lists(start with { Tabs = [loose[2], loose[0], loose[1], .. filed, draft] }));
+        Assert.Equal([(TabPlacement.Current, folder.Id)], Lists(start with { Tabs = [.. loose, filed[1], filed[0], draft] }));
+        Assert.Equal([(TabPlacement.Current, null)],
+            Lists(start with { Tabs = [.. loose, .. filed, draft with { Url = "https://example.com/started" }] }));
+        Assert.Equal([typeof(FoldersChanged)],
+            Published(start with { Folders = [folder with { IsCollapsed = true }] }).Select(change => change.GetType()));
+        Assert.Equal([typeof(TabsChanged)], Published(start with {
+            Tabs = [loose[0] with { Title = "Retitled", Url = "https://example.com/moved-on" }, .. loose[1..], .. filed, draft]
+        }).Select(change => change.GetType()));
+        var deleted = Assert.Single(Published(start with {
+            Tabs = [.. loose, .. filed.Select(tab => tab with { FolderId = null }), draft],
+            Folders = []
+        }).OfType<SidebarChanged>());
+        Assert.Equal([(TabPlacement.Current, (Guid?)null)], deleted.Lists.Select(list => (list.Section, list.FolderId)));
+        Assert.Equal([folder.Id], deleted.RemovedFolderIds);
     }
 
     /// A tab a window opens outside an intent the app runs, as a session's own
@@ -217,7 +308,6 @@ public sealed partial class BrowserContractsTests {
         var workspace = TestWorkspaces.Opened(opening);
         var authority = app.Workspace(workspace);
         var reader = SessionReader.Opening(opening);
-        TestGrants.UnlockGuarded(app.Send, workspace, authority.Current);
         var space = authority.Current.Spaces[0];
         var window = Guid.NewGuid();
         app.Send(new OpenWindow(window, workspace, Saved: false, CopyingWindowId: null, space.Id, [new(space.Id, space.Tabs[0].Id)],

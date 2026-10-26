@@ -17,10 +17,6 @@ internal sealed partial class Device {
 
     #region Actions - Queries
 
-    /// The palette of a window at `now`: over the Space it shows, unless that
-    /// Space is locked or being deleted, leaving out the tab it shows there,
-    /// under the device's app-wide preferences and with what the Space's
-    /// palette remembers, offering the workspace's other Spaces to switch to.
     public Palette Palette(Guid windowId, bool allowsInternalPages, DateTimeOffset now) {
         var window = Opened(windowId);
         var authority = Workspace(window.WorkspaceId);
@@ -32,10 +28,8 @@ internal sealed partial class Device {
         }
         var session = authority.Current;
         var space = Available(session, spaceId);
-        if (space is not null && authority.IsLocked(space)) space = null;
         var others = session.Spaces.Where(other => other.Id != spaceId && Available(session, other.Id) is not null).ToList();
-        var preferences = PersistentPreferences() ?? session.AppPreferences ?? AppPreferences.Default;
-        return new(space, shown, authority.Kind.IsPrivate, allowsInternalPages, preferences, SearchCatalog, MemoryOf(spaceId), others, now);
+        return new(space, shown, authority.Kind.IsPrivate, allowsInternalPages, others, now, SearchProvider);
     }
 
     /// The rule that would refuse `intent` in `authority` now, or null when it
@@ -64,7 +58,6 @@ internal sealed partial class Device {
     /// unless another open window shows it. A locked Space lists nothing, as
     /// its palette offers none of its tabs.
     internal IReadOnlyList<RecentTabItem> RecentItems(Window window, SpaceState space) {
-        if (Workspace(window.WorkspaceId).IsLocked(space)) return [];
         lock (gate) {
             var items = window.RecentItems(space);
             if (items.Count != 1) return items;
@@ -128,15 +121,8 @@ internal sealed partial class Device {
         }
     }
 
-    /// The one Space of `profileId` the person may see: held by an attached
-    /// workspace, not locked and not being deleted. Null when no Space or more
-    /// than one holds the profile.
     internal Guid? OnlySpaceOf(Guid profileId) => OnlyShowableSpaceOf(profileId)?.SpaceId;
 
-    /// The one Space of `profileId` the person may see, with the workspace
-    /// that owns it rather than one that borrows it: held by an attached
-    /// workspace, not locked and not being deleted. Null when no Space or more
-    /// than one holds the profile.
     internal (Guid WorkspaceId, Guid SpaceId)? OnlyShowableSpaceOf(Guid profileId) {
         KeyValuePair<Guid, NativeSessionAuthority>[] attached;
         lock (gate) attached = [.. workspaces];
@@ -145,26 +131,7 @@ internal sealed partial class Device {
                 .Select(space => (Workspace: workspace, Space: space))).DistinctBy(owner => owner.Space.Id).ToList();
         if (owners.Count != 1) return null;
         var (owner, only) = owners[0];
-        return owner.Value.IsDeleting(only.Id) || owner.Value.IsLocked(only) ? null : (owner.Key, only.Id);
-    }
-
-    /// Refused with `SpaceLocked` when a locked Space holds profile
-    /// `profileId`: what the profile's engines keep is the grant's to reveal
-    /// or erase, as the Space's own records are.
-    internal void RefuseLockedProfile(Guid profileId) {
-        if (LockedSpace(profileId) is { } spaceId) throw new Rejected(new SpaceLocked(spaceId));
-    }
-
-    /// The locked Space that holds profile `profileId`, or nil when none does.
-    internal Guid? LockedSpace(Guid profileId) {
-        KeyValuePair<Guid, NativeSessionAuthority>[] attached;
-        lock (gate) attached = [.. workspaces];
-        foreach (var (_, workspace) in attached) {
-            foreach (var space in workspace.Current.Spaces.Where(space => space.ProfileId == profileId)) {
-                if (workspace.IsLocked(space)) return space.Id;
-            }
-        }
-        return null;
+        return owner.Value.IsDeleting(only.Id) ? null : (owner.Key, only.Id);
     }
 
     /// The workspaces closing the windows `windowIds` leaves without an open

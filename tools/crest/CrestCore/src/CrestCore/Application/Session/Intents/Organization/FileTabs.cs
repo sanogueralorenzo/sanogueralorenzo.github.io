@@ -17,7 +17,6 @@ public sealed record FileTabs(Guid WorkspaceId, Guid WindowId, Guid SpaceId, Tab
 
     /// Files the selection, saved with its journal before the intent returns
     /// as every action on a selection is. Tabs taken out of their splits
-    /// leave split metadata no tab uses, which goes with them.
     internal override SessionEdit? Edit(NativeSessionAuthority workspace, SessionTurn turn) {
         var batch = workspace.Selecting(turn.Basis, WindowId, SpaceId, Selection);
         batch.Edited.FileSelected(batch.Selected, Placement, FolderId, BeforeTabId, BeforeFolderId,

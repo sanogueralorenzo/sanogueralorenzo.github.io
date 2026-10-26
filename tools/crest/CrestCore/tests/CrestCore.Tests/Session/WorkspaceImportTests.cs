@@ -49,23 +49,83 @@ public sealed partial class BrowserContractsTests {
         return tab;
     }
 
-    private static SpaceCustomization Customization(string name, string symbol = "star") =>
-        new(name, symbol, SpaceAccent.Teal, SpaceBranding.Normalized(StoredSessionCodec.DecodeBranding(new JsonObject())));
+    private static SpaceCustomization Customization(string name) =>
+        new(name);
 
     private static Guid TabId(JsonNode tab) => Guid.Parse(tab["id"]!["rawValue"]!.GetValue<string>());
 
-    /// The flow the last `SetupFlowChanged` among `changes` published.
-    private static SetupFlowState Flowing(IReadOnlyList<Change> changes) =>
-        Assert.IsType<SetupFlowChanged>(changes.Last(change => change is SetupFlowChanged)).Flow!;
+    /// The flow the last `ImportFlowChanged` among `changes` published.
+    private static ImportFlowState Flowing(IReadOnlyList<Change> changes) =>
+        Assert.IsType<ImportFlowChanged>(changes.Last(change => change is ImportFlowChanged)).Flow!;
 
     /// Opens setup over `device`'s workspace and reviews `spaces`, as Arc
     /// brought them.
-    private static SetupImportReview Reviewing(TestDevice device, params JsonNode[] spaces) {
-        device.Send(new StartSetup(device.Workspace, SetupEntry.ImportBrowser));
+    private static ImportReview Reviewing(TestDevice device, params JsonNode[] spaces) {
+        device.Send(new StartBrowserImport(device.Workspace));
         device.Send(new OfferImportSources([ImportSource.Arc]));
         device.Send(new ToggleImportSource(ImportSource.Arc));
         device.Send(new ContinueImport());
         return Flowing(device.Send(new ReviewImport(ImportSource.Arc, ReadSpaces(spaces), []))).Review!;
+    }
+
+    [Fact]
+    public void AReviewedImportKeepsItsTabGroupsAndTheSplitsThatStillHoldTogether() {
+        var session = SavedSession().Document["session"]!;
+        using var device = new TestDevice(session);
+        var window = device.Showing(session);
+        Guid group = Guid.NewGuid(), kept = Guid.NewGuid(), broken = Guid.NewGuid();
+        JsonObject InSplit(JsonObject tab, Guid split) {
+            tab["splitGroupID"] = SwiftId(split);
+            return tab;
+        }
+        var moved = InSplit(ImportedTab("https://broken-two.example/"), broken);
+        var space = ImportedSpace("Grouped", ImportedTab("https://group-one.example/", folder: group),
+            ImportedTab("https://group-two.example/", folder: group), InSplit(ImportedTab("https://left.example/"), kept),
+            InSplit(ImportedTab("https://right.example/"), kept), InSplit(ImportedTab("https://broken-one.example/"), broken), moved);
+        space["folders"] = new JsonArray(new JsonObject { ["id"] = SwiftId(group), ["title"] = "Research", ["location"] = "current" });
+        space["splitGroups"] = new JsonArray(new JsonObject { ["id"] = SwiftId(kept) }, new JsonObject { ["id"] = SwiftId(broken) });
+        Reviewing(device, space);
+        // Saving one tab of a split leaves its other tab on its own.
+        device.Send(new PlaceImportTab(SpaceId(space), TabId(moved), TabPlacement.Saved));
+        device.Send(new BeginImportCommit());
+
+        device.Send(new ImportReviewedSpaces(device.Workspace, window));
+
+        var grouped = device.Authority.Current.Spaces.Single(candidate => candidate.Settings.Name == "Grouped");
+        var research = Assert.Single(grouped.Folders, folder => folder.Title == "Research");
+        Assert.Equal(TabPlacement.Current, research.Location);
+        Assert.Equal(["https://group-one.example/", "https://group-two.example/"],
+            grouped.Tabs.Where(tab => tab.FolderId == research.Id).Select(tab => tab.Url));
+        var split = Assert.Single(grouped.Tabs.Select(tab => tab.SplitGroupId).OfType<Guid>().Distinct());
+        Assert.Equal(["https://left.example/", "https://right.example/"], grouped.Tabs.Where(tab => tab.SplitGroupId == split).Select(tab => tab.Url));
+        Assert.All(grouped.Tabs.Where(tab => tab.Url!.Contains("broken", StringComparison.Ordinal)), tab => Assert.Null(tab.SplitGroupId));
+        // The import counts as using the open tabs it brings, however long ago
+        // the other browser last showed them, so cleanup leaves them open.
+        Assert.All(grouped.Tabs.Where(tab => tab.Placement == TabPlacement.Current),
+            tab => Assert.InRange(tab.LastActivatedAt, device.Clock.Now.AddMilliseconds(-1), device.Clock.Now.AddMilliseconds(1)));
+    }
+
+    [Fact]
+    public void AReviewedSpaceJoiningAnotherBringsOnlyTheTabsItHasRoomFor() {
+        var fixture = SavedSession();
+        var session = fixture.Document["session"]!.AsObject();
+        session.Remove("disposableSeedMarker");
+        using var device = new TestDevice(session);
+        var window = device.Showing(session);
+        int held = device.Authority.Current.Spaces.Single(space => space.Id == fixture.Space).Tabs.Count;
+        int room = BrowserTabCollection.MaximumTabs - held;
+        // A saved tab is the first to stay behind; an open one comes along.
+        var joining = ImportedSpace("reading", [.. Enumerable.Range(0, room).Select(index => ImportedTab($"https://saved.example/{index}", "saved")),
+            ImportedTab("https://open.example/")]);
+        Reviewing(device, joining);
+        device.Send(new BeginImportCommit());
+
+        device.Send(new ImportReviewedSpaces(device.Workspace, window));
+
+        var reading = device.Authority.Current.Spaces.Single(space => space.Id == fixture.Space);
+        Assert.Equal(BrowserTabCollection.MaximumTabs, reading.Tabs.Count);
+        Assert.Contains(reading.Tabs, tab => tab.Url == "https://open.example/");
+        Assert.DoesNotContain(reading.Tabs, tab => tab.SavedUrl == $"https://saved.example/{room - 1}");
     }
 
     [Fact]
@@ -130,7 +190,7 @@ public sealed partial class BrowserContractsTests {
         var review = Reviewing(device, joining, fresh, dropped);
         Assert.Equal(fixture.Space, review.Spaces[0].DestinationId);
         Assert.Equal(joining["tabs"]!.AsArray().Skip(1).Select(tab => TabId(tab!)), review.Spaces[0].IncludedTabIds);
-        device.Send(new CustomizeImportSpace(SpaceId(fresh), Customization("Trips", "airplane")));
+        device.Send(new CustomizeImportSpace(SpaceId(fresh), Customization("Trips")));
         device.Send(new IncludeImportTabs(SpaceId(fresh), [TabId(fresh["tabs"]![1]!)], Included: false));
         device.Send(new PlaceImportTab(SpaceId(fresh), TabId(moved), TabPlacement.Pinned));
         device.Send(new IncludeImportSpace(SpaceId(dropped), Included: false));
@@ -149,7 +209,7 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal(TabPlacement.PinnedCapacity, reading.Tabs.Count(tab => tab.Placement == TabPlacement.Pinned));
         Assert.Equal(overflow.Id, reading.Tabs.Single(tab => tab.Url == $"https://pin.example/{TabPlacement.PinnedCapacity}").FolderId);
         var trips = current.Spaces[1];
-        Assert.Equal(("Trips", "airplane"), (trips.Settings.Name, trips.Settings.Symbol));
+        Assert.Equal("Trips", trips.Settings.Name);
         var pinnedTrip = Assert.Single(trips.Tabs);
         Assert.Equal((TabId(moved), TabPlacement.Pinned, TabPlacement.Pinned.ImportedSymbol, "https://moved.example/"),
             (pinnedTrip.Id, pinnedTrip.Placement, pinnedTrip.Symbol, pinnedTrip.SavedUrl));
@@ -157,9 +217,38 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal(reading.Id, device.Space(window));
         Assert.Equal(TabId(moved), device.Tab(window, trips.Id));
         // An import asked for from the app ends on what it did.
-        var finished = Flowing(device.Send(new FinishImportCommit(PasswordCount: 2)));
-        Assert.Equal((SetupStep.Complete, new SetupSummary(IsImport: true, TabCount: 15, PasswordCount: 2, SpaceCount: 2)),
+        var finished = Flowing(device.Send(new FinishImportCommit()));
+        Assert.Equal((ImportStep.Complete, new ImportSummary(TabCount: 15, SpaceCount: 2)),
             (finished.Step, finished.Summary));
+    }
+
+    [Fact]
+    public void AnImportIsOnDiskWithItsJournalBeforeItReturnsOrNothingChanges() {
+        using var directory = new StorageDirectory();
+        var document = SavedSession().Document["session"]!.AsObject();
+        document.Remove("disposableSeedMarker");
+        using var app = new CrestApp(new AppConfiguration(directory.Path, DevicePlatform.Desktop));
+        var answered = app.Send(Adoption(document));
+        var (workspace, opened) = TestWorkspaces.OpenStored(app);
+        var session = app.Workspace(workspace);
+        var sync = app.StoredSync!;
+        sync.Flush();
+        _ = DrainLaunch(app, [.. answered, .. opened]);
+        var import = new ImportSpaces(workspace, Guid.NewGuid(), ReadSpaces(ImportedSpace("Imported", ImportedTab("https://imported.example/"))));
+        var (stored, staged, kept) = (StoredParts(directory.File), sync.Snapshot, session.Current);
+
+        RefuseWrites(directory.File, "journal");
+        Assert.IsType<SaveFailed>(Assert.Throws<Rejected>(() => app.Send(import)).Rejection);
+        Assert.Same(kept, session.Current);
+        Assert.Same(staged, sync.Snapshot);
+        AssertSameParts(stored, StoredParts(directory.File));
+
+        AcceptWrites(directory.File);
+        app.Send(import);
+        Assert.Equal(2, session.Current.Spaces.Count);
+        var parts = StoredParts(directory.File);
+        Assert.True(parts["core"].AsSpan().SequenceEqual(session.Checkpoint().Read("core")));
+        Assert.True(parts["journal"].AsSpan().SequenceEqual(sync.Snapshot.Read()));
     }
 
 }

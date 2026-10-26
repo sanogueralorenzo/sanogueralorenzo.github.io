@@ -29,8 +29,8 @@ public sealed record DockMenu(IReadOnlyList<Guid> WindowIds) : Query<DockMenuCon
         }
         // The session's own locks are taken only once the device's is released.
         var spaces = authority.Current.Spaces.Where(space => !authority.IsDeleting(space.Id))
-            .Select(space => new DockMenuSpace(space.Id, space.ProfileId, space.Settings.Name, space.Settings.Symbol,
-                space.Settings.Accent, space.Settings.Look, IsShown: space.Id == shown, IsLocked: authority.IsLocked(space)));
+            .Select(space => new DockMenuSpace(space.Id, space.ProfileId, space.Settings.Name,
+                IsShown: space.Id == shown, space.Settings.Color));
         return new(DockMenuCommand.All, [.. spaces], target);
     }
 

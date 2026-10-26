@@ -17,17 +17,9 @@ internal sealed class SyncedText {
     #region Static Variables
 
     /// A Space's name. A Space the session holds unnamed is shown as this.
-    public static readonly SyncedText SpaceName = new(field: StoredSessionCodec.Key.Name, limit: 128, standIn: _ => "Your Space");
-    public static readonly SyncedText SpaceSymbol = new(field: StoredSessionCodec.Key.Symbol, limit: 128, standIn: _ => SpaceTemplate.Ordinary.Symbol);
-    /// A split's name; a split without one shows its default name.
-    public static readonly SyncedText SplitTitle = new(field: StoredSessionCodec.Key.CustomTitle, limit: 2_048, standIn: _ => null);
-    /// A split's icon, which is an emoji or none.
-    public static readonly SyncedText SplitIcon = new(field: StoredSessionCodec.Key.CustomIconSymbol, limit: 128, standIn: _ => null,
-        reads: symbol => EmojiIcon.Parse(symbol) is not null);
+    public static readonly SyncedText SpaceName = new(field: "name", limit: 128, standIn: _ => "Your Space");
     /// A folder's title. A folder the session holds untitled is shown as this.
-    public static readonly SyncedText FolderTitle = new(field: StoredSessionCodec.Key.Title, limit: 512, standIn: _ => StoredSessionCodec.UntitledFolder);
-    /// A folder's symbol; a folder without one wears the folder symbol.
-    public static readonly SyncedText FolderSymbol = new(field: StoredSessionCodec.Key.Symbol, limit: 128, standIn: _ => null);
+    public static readonly SyncedText FolderTitle = new(field: "title", limit: 512, standIn: _ => StoredSessionCodec.UntitledFolder);
     /// A tab's page title. A page that named itself nothing is shown by its host.
     public static readonly SyncedText TabTitle = new(field: StoredSessionCodec.Key.Title, limit: 2_048, standIn: Host);
     /// A tab's rename; a blank one is none, and the tab shows its page title.
@@ -37,7 +29,7 @@ internal sealed class SyncedText {
     public static readonly SyncedText HistoryTitle = new(field: StoredSessionCodec.Key.Title, limit: 2_048, standIn: Host);
 
     public static IReadOnlyList<SyncedText> All { get; } = [
-        SpaceName, SpaceSymbol, SplitTitle, SplitIcon, FolderTitle, FolderSymbol, TabTitle, TabCustomTitle, TabSymbol, HistoryTitle
+        SpaceName, FolderTitle, TabTitle, TabCustomTitle, TabSymbol, HistoryTitle
     ];
 
     #endregion
@@ -54,18 +46,14 @@ internal sealed class SyncedText {
     /// read from the record's other members; null leaves the field out.
     private readonly Func<JsonObject, string?> standIn;
 
-    /// Whether a client reads the text in the field, beyond its length.
-    private readonly Func<string, bool> reads;
-
     #endregion
 
     #region Constructors
 
-    private SyncedText(string field, int limit, Func<JsonObject, string?> standIn, Func<string, bool>? reads = null) {
+    private SyncedText(string field, int limit, Func<JsonObject, string?> standIn) {
         Field = field;
         Limit = limit;
         this.standIn = standIn;
-        this.reads = reads ?? (_ => true);
     }
 
     #endregion
@@ -84,7 +72,7 @@ internal sealed class SyncedText {
     }
 
     /// `text`, when a client reads it in this field.
-    private string? Readable(string text) => text.Length > 0 && reads(text) ? text : null;
+    private static string? Readable(string text) => text.Length > 0 ? text : null;
 
     /// `text` cut after the last whole character that keeps it within the limit.
     private string Truncated(string text) {

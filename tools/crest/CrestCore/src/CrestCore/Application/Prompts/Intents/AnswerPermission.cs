@@ -8,10 +8,6 @@ namespace CrestCore.Contracts;
 public sealed record AnswerPermission(Guid PromptId, bool Grants, bool Remembers) : PromptIntent(PromptId) {
     #region Actions - Prompts
 
-    /// A permission the person answers to remember becomes the Space's choice
-    /// in the same step, unless the Space locked while the prompt waited. A
-    /// block the Space took while the prompt waited outranks the answer, which
-    /// then records nothing.
     internal override void Apply(CrestApp app, ChangeFeed changes) {
         var prompts = app.Prompts;
         var prompt = prompts.Prompt(PromptId);
@@ -27,7 +23,6 @@ public sealed record AnswerPermission(Guid PromptId, bool Grants, bool Remembers
                 app.Device.Handle(new DecideSitePermission(page.SpaceId, permission.Origin, permission.Permission, Detail: null, decision),
                     app.DeviceTurn(changes));
             } catch (Rejected) {
-                // A Space that locked keeps nothing; the request is still answered.
             }
         }
         prompts.Settle(PromptId, changes);

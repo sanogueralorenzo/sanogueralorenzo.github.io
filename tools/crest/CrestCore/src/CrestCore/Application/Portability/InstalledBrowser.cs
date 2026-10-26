@@ -6,22 +6,17 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-/// How Crest reads each browser it imports from: where in its data folder it
-/// keeps each profile's bookmarks, latest session and saved passwords, and
-/// the readers for those files. A browser's `Source` is what the platform and
-/// the person see of it.
 internal sealed partial class InstalledBrowser {
     #region Static Variables
 
-    public static readonly InstalledBrowser Arc = new(ImportSource.Arc, ArcProfiles, folder => ChromiumPasswordStores(folder.Child("User Data")),
-        ArcSidebar.Read, bookmarks: null, extensions: true);
-    public static readonly InstalledBrowser Zen = new(ImportSource.Zen, ZenProfiles, _ => [], ZenSessions.Read, bookmarks: null);
-    public static readonly InstalledBrowser Chrome = new(ImportSource.Chrome, ChromiumProfiles, ChromiumPasswordStores,
+    public static readonly InstalledBrowser Arc = new(ImportSource.Arc, ArcProfiles, ArcSidebar.Read, bookmarks: null, extensions: true);
+    public static readonly InstalledBrowser Zen = new(ImportSource.Zen, ZenProfiles, ZenSessions.Read, bookmarks: null);
+    public static readonly InstalledBrowser Chrome = new(ImportSource.Chrome, ChromiumProfiles,
         (contents, importedAt) => ChromiumSession.Read(contents, importedAt), ChromeBookmarks.Read, extensions: true,
         sessionFiles: ChromiumSessionFiles, bookmarkFiles: ChromiumBookmarkFiles);
-    public static readonly InstalledBrowser Safari = new(ImportSource.Safari, SafariProfiles, _ => [], SafariSession.Read,
+    public static readonly InstalledBrowser Safari = new(ImportSource.Safari, SafariProfiles, SafariSession.Read,
         SafariBookmarks.Read);
-    public static readonly InstalledBrowser Firefox = new(ImportSource.Firefox, FirefoxProfiles, _ => [], FirefoxSession.Read,
+    public static readonly InstalledBrowser Firefox = new(ImportSource.Firefox, FirefoxProfiles, FirefoxSession.Read,
         bookmarks: null);
     public static readonly InstalledBrowser ChromeBeta = ChromiumFamily(ImportSource.ChromeBeta);
     public static readonly InstalledBrowser ChromeDev = ChromiumFamily(ImportSource.ChromeDev);
@@ -35,8 +30,7 @@ internal sealed partial class InstalledBrowser {
     public static readonly InstalledBrowser Comet = ChromiumFamily(ImportSource.Comet);
     public static readonly InstalledBrowser Aside = ChromiumFamily(ImportSource.Aside);
     public static readonly InstalledBrowser EgoLite = ChromiumFamily(ImportSource.EgoLite);
-    /// A browser Crest does not list, whose passwords it cannot open.
-    public static readonly InstalledBrowser OtherChromium = new(ImportSource.OtherChromium, ChromiumProfiles, _ => [],
+    public static readonly InstalledBrowser OtherChromium = new(ImportSource.OtherChromium, ChromiumProfiles,
         (contents, importedAt) => ChromiumSession.Read(contents, importedAt), ChromeBookmarks.Read, extensions: true,
         sessionFiles: ChromiumSessionFiles, bookmarkFiles: ChromiumBookmarkFiles);
 
@@ -65,11 +59,7 @@ internal sealed partial class InstalledBrowser {
     private const string ZenSessionName = "zen-sessions.jsonlz4";
     private const string MozillaProfileList = "profiles.ini";
 
-    /// A Chromium profile's bookmarks, and those of the account a signed-in
-    /// profile syncs, which it keeps apart; and its saved passwords, kept the
-    /// same two ways.
     private static readonly string[] ChromiumBookmarkNames = ["Bookmarks", "AccountBookmarks"];
-    private static readonly string[] ChromiumPasswordStoreNames = ["Login Data", "Login Data For Account"];
     private static readonly string[] FirefoxSessionNames = ["recovery.jsonlz4", "sessionstore.jsonlz4"];
 
     #endregion
@@ -87,7 +77,6 @@ internal sealed partial class InstalledBrowser {
     public ImportSource Source { get; }
 
     private readonly Func<ImportFolder, IReadOnlyList<ImportProfile>> profiles;
-    private readonly Func<ImportFolder, IReadOnlyList<ImportPasswordStore>> passwordStores;
     private readonly SessionReader sessions;
     private readonly BookmarkReader? bookmarks;
     /// The session files a read tries for a profile's session, that one first,
@@ -101,13 +90,12 @@ internal sealed partial class InstalledBrowser {
     #region Constructors
 
     private InstalledBrowser(ImportSource source, Func<ImportFolder, IReadOnlyList<ImportProfile>> profiles,
-        Func<ImportFolder, IReadOnlyList<ImportPasswordStore>> passwordStores, SessionReader sessions, BookmarkReader? bookmarks,
+        SessionReader sessions, BookmarkReader? bookmarks,
         bool extensions = false, Func<string, IReadOnlyList<string>>? sessionFiles = null,
         Func<string, IReadOnlyList<string>>? bookmarkFiles = null) {
         Source = source;
         offersExtensions = extensions;
         this.profiles = profiles;
-        this.passwordStores = passwordStores;
         this.sessions = sessions;
         this.bookmarks = bookmarks;
         this.sessionFiles = sessionFiles ?? (path => [path]);
@@ -123,7 +111,7 @@ internal sealed partial class InstalledBrowser {
     /// A browser built on Chromium that keeps Chrome's layout, read as Chrome
     /// is, its session numbered as `dialect` numbers it.
     private static InstalledBrowser ChromiumFamily(ImportSource source, ChromiumSessionDialect? dialect = null) =>
-        new(source, ChromiumProfiles, ChromiumPasswordStores, (contents, importedAt) => ChromiumSession.Read(contents, importedAt, dialect),
+        new(source, ChromiumProfiles, (contents, importedAt) => ChromiumSession.Read(contents, importedAt, dialect),
             ChromeBookmarks.Read, extensions: true, sessionFiles: ChromiumSessionFiles, bookmarkFiles: ChromiumBookmarkFiles);
 
     #endregion
@@ -133,7 +121,7 @@ internal sealed partial class InstalledBrowser {
     /// What the browser keeps in `folder`.
     public ImportData Find(string folder) {
         var data = new ImportFolder(folder);
-        return new(profiles(data), passwordStores(data));
+        return new(profiles(data));
     }
 
     private static IReadOnlyList<ImportProfile> ArcProfiles(ImportFolder folder) =>
@@ -178,13 +166,7 @@ internal sealed partial class InstalledBrowser {
         }).OfType<ImportProfile>()];
     }
 
-    /// The saved-password stores of the Chromium profiles below `root`: each
-    /// profile's own, then its account's.
-    private static IReadOnlyList<ImportPasswordStore> ChromiumPasswordStores(ImportFolder root) {
-        var names = ChromiumProfileNames(root);
-        return [.. ChromiumProfileFolders(root, names).SelectMany(found => ChromiumPasswordStoreNames.Select(found.Profile.File)
-            .OfType<string>().Select(store => new ImportPasswordStore(found.Id, found.Name, store)))];
-    }
+
 
     /// The profile folders of the Chromium data in `root`, each with the name
     /// the person gave it: the profile at the root itself, where Opera keeps
@@ -360,7 +342,7 @@ internal sealed partial class InstalledBrowser {
             return null;
         }
         leftOut.AddRange(problems.Select(problem => new ImportLeftOut(profile.Name, problem)));
-        return combined with { Settings = combined.Settings with { Name = profile.Name, Symbol = Source.Symbol, Accent = Source.Accent } };
+        return combined with { Settings = combined.Settings with { Name = profile.Name } };
     }
 
     /// Offers each of `spaces` the Web Store extensions its profile has

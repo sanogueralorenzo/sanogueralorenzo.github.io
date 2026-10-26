@@ -8,8 +8,8 @@ public sealed record SplitJoin(Guid SelectedTab, IReadOnlyList<(Guid Source, Gui
 
 #endregion
 
-/// A Space's organization while one edit applies to it: its tabs, folders, split
-/// metadata and the tabs the edit archives. It is restored from the Space's stored
+/// A Space's organization while one edit applies to it: its tabs, folders and
+/// the tabs the edit archives. It is restored from the Space's stored
 /// records and captured back into them, independent of profiles, authorization and
 /// live pages. The archive holds only what this edit adds; existing archive records
 /// stay with the Space.
@@ -21,11 +21,9 @@ public sealed partial class BrowserTabCollection {
     public const int MaximumNameLength = 200;
     private readonly List<BrowserTab> tabs = [];
     private readonly List<FolderState> folders = [];
-    private readonly List<SplitGroupState> splitGroups = [];
     private readonly List<ArchivedTabState> archive = [];
     public IReadOnlyList<BrowserTab> Tabs => tabs.AsReadOnly();
     public IReadOnlyList<FolderState> Folders => folders.AsReadOnly();
-    public IReadOnlyList<SplitGroupState> SplitGroups => splitGroups.AsReadOnly();
     public IReadOnlyList<ArchivedTabState> Archive => archive.AsReadOnly();
     public IReadOnlyList<TabState> TabStates => [.. tabs.Select(tab => tab.State)];
 
@@ -36,7 +34,7 @@ public sealed partial class BrowserTabCollection {
     /// The Space's organization for one edit.
     public static BrowserTabCollection Restore(SpaceState space) {
         ArgumentNullException.ThrowIfNull(space);
-        return Restore(space.Tabs, space.Folders, space.SplitGroups);
+        return Restore(space.Tabs, space.Folders);
     }
 
     /// The Space after the edit: its organization replaced and the tabs the
@@ -46,17 +44,14 @@ public sealed partial class BrowserTabCollection {
         return space with {
             Tabs = TabStates,
             Folders = [.. folders],
-            SplitGroups = [.. splitGroups],
             ArchivedTabs = [.. space.ArchivedTabs, .. archive]
         };
     }
 
-    public static BrowserTabCollection Restore(IEnumerable<TabState> tabs, IEnumerable<FolderState> folders,
-        IEnumerable<SplitGroupState> splitGroups) {
+    public static BrowserTabCollection Restore(IEnumerable<TabState> tabs, IEnumerable<FolderState> folders) {
         var collection = new BrowserTabCollection();
         collection.tabs.AddRange(tabs.Select(BrowserTab.Restore));
         collection.folders.AddRange(folders);
-        collection.splitGroups.AddRange(splitGroups);
         new FolderTree(collection.folders).Validate();
         collection.RepairSplitMembership();
         return collection;

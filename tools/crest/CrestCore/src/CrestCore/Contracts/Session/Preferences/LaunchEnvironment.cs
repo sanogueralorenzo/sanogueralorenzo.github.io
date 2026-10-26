@@ -14,16 +14,12 @@ public sealed record LaunchEnvironment(
     bool RequestsIsolatedCloudSync,
     bool ResetsSession,
     bool PresentsShowcase,
-    bool UsesInMemoryCredentials,
-    bool ForcesOnboardingWelcome,
-    bool ForcesDesktopSetup,
-    bool ForcesMobileSetup,
+    bool RunsPerformanceHarness,
     bool UsesUpdateTestFeed) {
     #region Static Variables
 
     /// An installed launch that asks for nothing special.
-    public static LaunchEnvironment Installed { get; } = new(false, false, false, false, false, false, false, false, false, false,
-        false, false);
+    public static LaunchEnvironment Installed { get; } = new(false, false, false, false, false, false, false, false, false);
 
     #endregion
 
@@ -32,31 +28,14 @@ public sealed record LaunchEnvironment(
     /// Every test, preview, fixture and review launch is isolated.
     internal bool RequiresIsolation => IsTestRuntime || IsPreviewRuntime || RequestsIsolatedSession
         || RequestsIsolatedCloudSync || ResetsSession || PresentsShowcase
-        || UsesInMemoryCredentials || ForcesOnboardingWelcome || ForcesDesktopSetup
-        || ForcesMobileSetup || UsesUpdateTestFeed;
+        || RunsPerformanceHarness || UsesUpdateTestFeed;
 
     #endregion
 
     #region Actions - Launch
 
-    /// The launch on `platform`. `storedStartup` is the saved preference, null
-    /// when absent or unreadable. `hasActiveLaunchGate` is true while
-    /// first-run setup owns the initial destination.
-    internal LaunchDecision Plan(DevicePlatform platform, StartupBehavior? storedStartup, bool hasActiveLaunchGate) {
-        bool isolated = RequiresIsolation;
-        return new(isolated, isolated && !HasNamedProfile, !IsTestRuntime,
-            Startup(platform, isolated, storedStartup, hasActiveLaunchGate));
-    }
-
-    /// The mobile showcase always opens on the Start Page. Setup and isolated
-    /// launches restore the last active tab so a fixture opens where it was
-    /// staged; everyone else gets their saved choice, or the documented
-    /// default for a person who never chose.
-    private StartupBehavior Startup(DevicePlatform platform, bool isolated, StartupBehavior? stored, bool hasActiveLaunchGate) {
-        if (platform.ShowcaseOpensStartPage && PresentsShowcase) return StartupBehavior.ShowStartPage;
-        if (hasActiveLaunchGate || isolated) return StartupBehavior.LastActiveTab;
-        return stored ?? AppPreferences.Default.Startup;
-    }
+    /// Isolation and presentation for this launch, before any session is opened.
+    internal LaunchDecision Plan() => new(RequiresIsolation, RequiresIsolation && !HasNamedProfile, !IsTestRuntime);
 
     #endregion
 }

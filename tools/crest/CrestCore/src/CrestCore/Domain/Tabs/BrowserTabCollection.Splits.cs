@@ -19,8 +19,7 @@ public sealed partial class BrowserTabCollection {
         SavedUrl = null,
         LastActivatedAt = now,
         PositionModifiedAt = BrowserEditTimestamp.Normalize(now),
-        TitleModifiedAt = source.CustomTitle is null ? null : BrowserEditTimestamp.Normalize(now),
-        KeepsPageLoaded = false
+        TitleModifiedAt = source.CustomTitle is null ? null : BrowserEditTimestamp.Normalize(now)
     });
 
     public BrowserTab DuplicateTab(Guid sourceId, IIdSource ids, DateTimeOffset now,

@@ -8,7 +8,6 @@ public sealed class PaletteReason {
     #region Static Variables
 
     public static readonly PaletteReason Completion = new(name: "completion", text: "Completes what you typed");
-    public static readonly PaletteReason Learned = new(name: "learned", text: "You chose this before");
     public static readonly PaletteReason OftenVisited = new(name: "oftenVisited", text: "Often visited");
     public static readonly PaletteReason RecentlyUsed = new(name: "recentlyUsed", text: "Recently used");
     public static readonly PaletteReason OpenTab = new(name: "openTab", text: "Already open");
@@ -17,7 +16,7 @@ public sealed class PaletteReason {
     public static readonly PaletteReason AddressMatch = new(name: "addressMatch", text: "Matches the address");
 
     public static IReadOnlyList<PaletteReason> All { get; } =
-        [Completion, Learned, OftenVisited, RecentlyUsed, OpenTab, Kept, TitleMatch, AddressMatch];
+        [Completion, OftenVisited, RecentlyUsed, OpenTab, Kept, TitleMatch, AddressMatch];
 
     #endregion
 

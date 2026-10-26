@@ -2,8 +2,7 @@ namespace CrestCore.Contracts;
 
 /// What a workspace's session is: the persistent session this device keeps, a
 /// private one that keeps nothing, a borrowed one that shows a Space of
-/// another workspace with its own tabs and keeps nothing, or the Getting
-/// Started practice, which keeps nothing either. Each kind carries the
+/// another workspace with its own tabs and keeps nothing. Each kind carries the
 /// rules that differ by kind, so a handler reads them instead of naming a kind.
 ///
 /// A kind travels as its index in `All`, so `All` is append-only.
@@ -11,15 +10,13 @@ public sealed class WorkspaceKind {
     #region Static Variables
 
     public static readonly WorkspaceKind Persistent = new(name: "persistent", opensDirectly: true, keepsFile: true,
-        isPrivate: false, ownsSpaces: true, keepsAppPreferences: true, isPractice: false, sharesPagesAcrossWindows: true);
+        isPrivate: false, ownsSpaces: true, keepsAppPreferences: true, sharesPagesAcrossWindows: true);
     public static readonly WorkspaceKind Private = new(name: "private", opensDirectly: true, keepsFile: false,
-        isPrivate: true, ownsSpaces: true, keepsAppPreferences: false, isPractice: false, sharesPagesAcrossWindows: false);
+        isPrivate: true, ownsSpaces: true, keepsAppPreferences: false, sharesPagesAcrossWindows: false);
     public static readonly WorkspaceKind Borrowed = new(name: "borrowed", opensDirectly: false, keepsFile: false,
-        isPrivate: false, ownsSpaces: false, keepsAppPreferences: false, isPractice: false, sharesPagesAcrossWindows: false);
-    public static readonly WorkspaceKind Practice = new(name: "practice", opensDirectly: true, keepsFile: false,
-        isPrivate: false, ownsSpaces: true, keepsAppPreferences: false, isPractice: true, sharesPagesAcrossWindows: false);
+        isPrivate: false, ownsSpaces: false, keepsAppPreferences: false, sharesPagesAcrossWindows: false);
 
-    public static IReadOnlyList<WorkspaceKind> All { get; } = [Persistent, Private, Borrowed, Practice];
+    public static IReadOnlyList<WorkspaceKind> All { get; } = [Persistent, Private, Borrowed];
 
     #endregion
 
@@ -51,11 +48,6 @@ public sealed class WorkspaceKind {
     /// The workspace keeps the app-wide preferences and takes imported Spaces.
     public bool KeepsAppPreferences { get; }
 
-    /// The workspace is the Getting Started practice: opened without a seed,
-    /// it starts from the practice Space and its tabs, not its kind's Space
-    /// template.
-    public bool IsPractice { get; }
-
     /// The workspace's windows share its pages where the device lets them, so
     /// a page outlives the window that hosts it: the workspace's other windows
     /// show it, or its next window does. A page of a kind that does not, such
@@ -68,14 +60,13 @@ public sealed class WorkspaceKind {
     #region Constructors
 
     private WorkspaceKind(string name, bool opensDirectly, bool keepsFile, bool isPrivate, bool ownsSpaces,
-        bool keepsAppPreferences, bool isPractice, bool sharesPagesAcrossWindows) {
+        bool keepsAppPreferences, bool sharesPagesAcrossWindows) {
         Name = name;
         OpensDirectly = opensDirectly;
         KeepsFile = keepsFile;
         IsPrivate = isPrivate;
         OwnsSpaces = ownsSpaces;
         KeepsAppPreferences = keepsAppPreferences;
-        IsPractice = isPractice;
         SharesPagesAcrossWindows = sharesPagesAcrossWindows;
     }
 

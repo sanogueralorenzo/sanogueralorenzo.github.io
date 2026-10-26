@@ -69,7 +69,7 @@ public sealed record SelectionChanged : Rejection {
     #endregion
 }
 
-/// The selection holds folders, which only filing and keeping pages loaded act on.
+/// The selection holds folders, which only filing acts on.
 public sealed record SelectionHoldsFolders : Rejection {
     #region Variables
 

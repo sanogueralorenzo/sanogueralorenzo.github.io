@@ -20,10 +20,6 @@ public sealed record PageHistoryArchive(byte[]? Archive);
 
 #region Changes
 
-/// The core recorded a page's finished navigation to `Url` in a Space: the
-/// tab that owns the page, when it has one, shows the address and the page's
-/// title, and the Space's history holds a visit when the address is one
-/// history keeps. A Quick Window or Peek page has no tab.
 public sealed record NavigationRecorded(Guid PageId, Guid WorkspaceId, Guid SpaceId, Guid? TabId, string Url) : Change;
 
 /// The core adopted a page its engine opened by itself as the page `PageId`
@@ -33,21 +29,10 @@ public sealed record NavigationRecorded(Guid PageId, Guid WorkspaceId, Guid Spac
 public sealed record OfferedPageAdopted(Guid PageId, Guid WorkspaceId, Guid WindowId, Guid SpaceId, Guid TabId, bool Shows)
     : Change;
 
-/// The core adopted a window the page `SourcePageId` names asked for, which
-/// its engine opened by itself, as the Quick Window page `PageId` names, in
-/// `SpaceId` of the workspace `WorkspaceId`, heading to `Url`, hosted by the
-/// window `WindowId` names, its opener's. The window that shows the opener
-/// now shows the page in a Quick Window of its own.
-public sealed record OfferedWindowAdopted(Guid PageId, Guid SourcePageId, Guid WorkspaceId, Guid WindowId, Guid SpaceId,
-    string Url) : Change;
 
 /// A page moved to another owner, or its engine created, failed or closed it.
 public sealed record PageChanged(PageState Page) : Change;
 
-/// One page this device hosts: the workspace and Space it belongs to, the tab
-/// that owns it, the engine that hosts it, where it stands there and its live
-/// state. A page without a tab belongs to a transient request: a Quick Window,
-/// a Peek, or one of its engine's own pages that Settings shows.
 [Observed]
 public sealed record PageState(Guid Id, Guid WorkspaceId, Guid SpaceId, Guid? TabId, EngineKind Engine, PagePhase Phase,
     PageLiveState Live);
@@ -70,10 +55,6 @@ public sealed record PageRemoved(Guid PageId) : Change;
 /// `PageRemoved` also says.
 public sealed record PageUnloaded(Guid PageId, Guid WorkspaceId, Guid TabId) : Change;
 
-/// The Quick Window's or Peek's page `PageId` names, in the workspace
-/// `WorkspaceId`, closed itself as a page another page opened may, or its
-/// engine closed it on its own authority. Whatever shows it closes, keeping
-/// nothing of it, and lets the page go.
 public sealed record TransientPageClosed(Guid PageId, Guid WorkspaceId) : Change;
 
 #endregion

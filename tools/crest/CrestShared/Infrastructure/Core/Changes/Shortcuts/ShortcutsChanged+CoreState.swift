@@ -5,6 +5,5 @@ extension ShortcutsChanged {
     @MainActor func apply(to state: CoreState) {
         state.shortcutBindings = bindings
         state.shortcuts = Dictionary(bindings.map { ($0.command, $0) }, uniquingKeysWith: { first, _ in first })
-        state.shortcutsAreCustomized = isCustomized
     }
 }

@@ -32,18 +32,17 @@ internal sealed partial class Device {
 
     public SitePermissionAnswer Answer(SiteDecision question) {
         ArgumentNullException.ThrowIfNull(question);
-        var (keeps, locked) = ChoiceScope(question.SpaceId);
+        var keeps = ChoiceScope(question.SpaceId);
         lock (gate)
             return new((keeps ? keptPermissions : passingPermissions).Decision(question.SpaceId, question.Origin, question.Permission,
-                question.Detail, locked));
+                question.Detail));
     }
 
     public SitePermissionAnswer Answer(CaptureDecision question) {
         ArgumentNullException.ThrowIfNull(question);
-        var (keeps, locked) = ChoiceScope(question.SpaceId);
+        var keeps = ChoiceScope(question.SpaceId);
         lock (gate)
-            return new((keeps ? keptPermissions : passingPermissions).MediaDecision(question.SpaceId, question.Origin, question.Media,
-                locked));
+            return new((keeps ? keptPermissions : passingPermissions).MediaDecision(question.SpaceId, question.Origin, question.Media));
     }
 
     #endregion
@@ -51,10 +50,10 @@ internal sealed partial class Device {
     #region Actions - Choice scope
 
     /// Whether the device store keeps `spaceId`'s site permission and engine
-    /// choices, and whether this process holds no grant to show the Space. The persistent session is
+    /// choices. The persistent session is
     /// asked first, since a borrowed workspace holds its Space too. Called
     /// without the device lock, since it reads the sessions.
-    internal (bool Keeps, bool Locked) ChoiceScope(Guid spaceId) {
+    internal bool ChoiceScope(Guid spaceId) {
         Guid? persistent;
         KeyValuePair<Guid, NativeSessionAuthority>[] attached;
         lock (gate) {
@@ -62,10 +61,10 @@ internal sealed partial class Device {
             attached = [.. workspaces.OrderByDescending(entry => entry.Key == persistent)];
         }
         foreach (var (workspaceId, authority) in attached) {
-            if (authority.Current.Space(spaceId) is not { } space) continue;
-            return (storage is not null && workspaceId == persistent, authority.IsLocked(space));
+            if (authority.Current.Spaces.FirstOrDefault(space => space.Id == spaceId) is not { } space) continue;
+            return storage is not null && workspaceId == persistent;
         }
-        return (false, false);
+        return false;
     }
 
     /// Whether `spaceId` is a private window's Space. Called without the

@@ -15,7 +15,7 @@ internal sealed class HistoryFinder : PaletteFinder {
 
     #region Variables
 
-    protected override IReadOnlyList<PaletteSignal> Signals => [PaletteSignal.Learned, PaletteSignal.Usage, PaletteSignal.Match];
+    protected override IReadOnlyList<PaletteSignal> Signals => [PaletteSignal.Usage, PaletteSignal.Match];
 
     protected override bool MayLead => true;
 
@@ -30,7 +30,7 @@ internal sealed class HistoryFinder : PaletteFinder {
             string title = entry.Title.Length > 0 ? entry.Title : PaletteContext.Host(entry.Url) ?? entry.Url;
             var row = PaletteRow.Of(PaletteRowKind.History, title, entry.Url, subject: entry.Id, address: entry.Url);
             if (context.Evidence(query, row, title, entry.Url, entry: entry) is not { } evidence) continue;
-            yield return Scored(context, source, row, evidence, PaletteMemory.Place(entry.Url), Matching(evidence));
+            yield return Scored(context, source, row, evidence, new WebAddress(entry.Url).Place, Matching(evidence));
         }
     }
 

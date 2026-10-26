@@ -4,77 +4,11 @@
   "schemaVersion" : 5,
   "spaces" : [
     {
-      "accent" : "indigo",
-      "archivedTabs" : [
-
-      ],
-      "branding" : {
-        "bannerPattern" : "diagonal",
-        "bannerStrength" : 1,
-        "colors" : [
-          {
-            "alpha" : 1,
-            "blue" : 0.23,
-            "green" : 0.15,
-            "red" : 0.08
-          },
-          {
-            "alpha" : 1,
-            "blue" : 0.64,
-            "green" : 0.42,
-            "red" : 0.22
-          },
-          {
-            "alpha" : 1,
-            "blue" : 0.25,
-            "green" : 0.67,
-            "red" : 0.88
-          }
-        ],
-        "crest" : {
-          "backplate" : "shield",
-          "backplateColorIndex" : 1,
-          "chargeLayout" : "single",
-          "chargeOffset" : 0,
-          "chargeScale" : 1,
-          "chargeWeight" : "bold",
-          "depth" : "none",
-          "divisionCount" : 4,
-          "edgeColorIndex" : 1,
-          "edgeWidth" : 0,
-          "fieldDivision" : "plain",
-          "finish" : "flat",
-          "ordinary" : "none",
-          "ordinaryColorIndex" : 2,
-          "ordinaryWidth" : 1,
-          "plateScale" : 1,
-          "sealTeeth" : 12,
-          "secondaryFieldColorIndex" : 1,
-          "sheenAngle" : 45,
-          "showsOutline" : false,
-          "symbol" : "mountain",
-          "symbolColorIndex" : 2,
-          "trim" : "none",
-          "trimColorIndex" : 1,
-          "trimDetail" : 12,
-          "trimWeight" : 1
-        },
-        "folderColorIntensity" : 0,
-        "gradientAngle" : 0,
-        "iconStyle" : "simpleSymbol",
-        "keepsControlsReadable" : true,
-        "readabilityFade" : 0.25,
-        "renderingVersion" : 2,
-        "showsTexture" : false,
-        "textColorMode" : "automatic",
-        "themeMode" : "banner"
-      },
+      "archivedTabs" : [],
       "browsingPreferences" : {
         "contentBlockingPolicy" : "balanced",
         "currentTabCleanupPolicy" : "after12Hours",
-        "customSearchProviders" : [
-
-        ],
+        "customSearchProviders" : [],
         "dataRetention" : {
           "archive" : "forever",
           "downloads" : "forever",
@@ -84,12 +18,8 @@
         "searchSuggestionsEnabled" : false,
         "selectedSearchProviderID" : "google"
       },
-      "folders" : [
-
-      ],
-      "history" : [
-
-      ],
+      "folders" : [],
+      "history" : [],
       "name" : "Split",
       "splitGroups" : [
         {

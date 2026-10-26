@@ -2,10 +2,10 @@ namespace CrestCore.Contracts;
 
 #region Workspaces
 
-/// <summary>A workspace's own members now read as these: the Space a launch opens,
-/// whether the session is still the disposable first-install seed, and the Space
+/// <summary>A workspace's own members now read as these: whether the session
+/// is still the disposable first-install seed, and the Space
 /// deletions under way on this device.</summary>
-public sealed record WorkspaceChanged(Guid WorkspaceId, Guid? DefaultSpaceId, bool IsDisposableSeed,
+public sealed record WorkspaceChanged(Guid WorkspaceId, bool IsDisposableSeed,
     IReadOnlyList<SpaceDeletionState> SpaceDeletions) : Change;
 
 /// <summary>A workspace left this device, and its windows with it.</summary>
@@ -18,12 +18,6 @@ public sealed record WorkspaceOpened(Guid WorkspaceId, WorkspaceKind Kind, Sessi
 #endregion
 
 #region Spaces
-
-/// This process's access to one Space's profile: whether it holds the grant
-/// that unlocking gives, and whether a request to unlock it is waiting on the
-/// device owner. A Space that asks for authentication shows only while its
-/// profile is unlocked; one that opens freely always shows.
-public sealed record SpaceLockChanged(Guid SpaceId, Guid ProfileId, bool IsUnlocked, bool IsAuthenticating) : Change;
 
 /// <summary>A Space's settings now read as <see cref="Settings"/>.</summary>
 public sealed record SpaceSettingsChanged(Guid WorkspaceId, Guid SpaceId, SpaceSettings Settings) : Change;
@@ -53,11 +47,6 @@ public sealed record TabPagePutAway(Guid WorkspaceId, Guid WindowId, Guid SpaceI
 /// from.
 public sealed record TabsImported(Guid WorkspaceId, IReadOnlyList<ImportedTab> Tabs) : Change;
 
-/// A Quick Window's or Peek's page, `PageId`, became the tab `TabId`. When
-/// `AdoptsPage`, the tab takes the live page, which the platform moves to the
-/// tab's window; otherwise the page goes and the tab opens its own.
-public sealed record TransientPagePromoted(Guid WorkspaceId, Guid PageId, Guid TabId, bool AdoptsPage) : Change;
-
 #endregion
 
 #region Organization
@@ -70,9 +59,6 @@ public sealed record TransientPagePromoted(Guid WorkspaceId, Guid PageId, Guid T
 /// </summary>
 public sealed record SidebarChanged(Guid WorkspaceId, Guid SpaceId, IReadOnlyList<SidebarList> Lists,
     IReadOnlyList<Guid> RemovedFolderIds) : Change;
-
-/// <summary>A Space's split metadata now reads as <see cref="Groups"/>.</summary>
-public sealed record SplitGroupsChanged(Guid WorkspaceId, Guid SpaceId, IReadOnlyList<SplitGroupState> Groups) : Change;
 
 #endregion
 

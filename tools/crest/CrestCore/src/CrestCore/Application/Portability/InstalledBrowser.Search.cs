@@ -42,7 +42,7 @@ internal sealed partial class InstalledBrowser {
         HashSet<string> paired = new(StringComparer.Ordinal);
         foreach (var pair in pairs) {
             if (found.Any(browser => browser.BundleIdentifier == pair.App.BundleIdentifier) || !paired.Add(pair.Folder.Path)) continue;
-            found.Add(new ImportFoundBrowser(pair.App.BundleIdentifier, pair.App.Name, pair.Folder.Path, new ImportData(pair.Profiles, [])));
+            found.Add(new ImportFoundBrowser(pair.App.BundleIdentifier, pair.App.Name, pair.Folder.Path, new ImportData(pair.Profiles)));
         }
         return [.. found.OrderBy(browser => browser.Name, StringComparer.CurrentCultureIgnoreCase)];
     }

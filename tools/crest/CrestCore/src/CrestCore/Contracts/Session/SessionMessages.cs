@@ -35,7 +35,6 @@ public sealed record WorkspaceBusy(Guid WorkspaceId) : Rejection;
 #region Models - Spaces
 
 /// <summary>Whether a Space opens freely or asks the device owner to authenticate first.</summary>
-public enum SpaceAccessPolicy { Open, DeviceOwnerAuthentication }
 
 /// <summary>A Space deletion under way on this device, identified by its operation.
 /// The Space and its profile stay untouched until the device has erased the profile's
@@ -61,14 +60,9 @@ public sealed record TabIconAccent(double Red, double Green, double Blue);
 
 #region Models - Preferences
 
-/// <summary>Whether a Space offers to save and fill passwords, and where it keeps them.</summary>
-public sealed record CredentialPreferences(bool IsEnabled, bool SyncsCrestPasswordsWithICloud, bool AlsoOffersSaveToSystemPasswords);
 
 /// <summary>How long a Space keeps its history, archived tabs and downloads.</summary>
 public sealed record DataRetentionPreferences(DataRetention History, DataRetention Archive, DataRetention Downloads);
-
-/// <summary>A source language's chosen destination. Disabling keeps the destination.</summary>
-public sealed record TranslationRule(string SourceLanguage, string TargetId, bool IsEnabled);
 
 #endregion
 

@@ -5,14 +5,13 @@ using Xunit;
 
 namespace CrestCore.Tests;
 
-/// The shortcut catalog and the rules for the person's choices: stored
-/// names, defaults, conflicts, yielding defaults and which keys make a chord.
+/// The shortcut catalog, platform defaults and which keys make a chord.
 public sealed class ShortcutCatalogTests {
     /// Every command name persisted overrides are keyed by, in display order.
     private static readonly string[] Commands = [
-        "newWindow", "newBlankWindow", "newTab", "newQuickWindow", "newPrivateWindow", "closeTabOrWindow", "closeWindow",
+        "newWindow", "newBlankWindow", "newTab", "newPrivateWindow", "closeTabOrWindow", "closeWindow",
         "openLocation", "back", "forward", "reloadPage", "stopLoading", "reloadFromOrigin", "toggleSelectedTabPinned",
-        "duplicateTab", "reopenClosedTab", "clearUnpinnedTabs", "archiveTab", "previousTab", "nextTab", "mostRecentTab",
+        "duplicateTab", "reopenClosedTab", "clearUnpinnedTabs", "archiveTab", "previousTab", "nextTab", "mostRecentTab", "mostRecentTabBackward",
         "selectTab1", "selectTab2", "selectTab3", "selectTab4", "selectTab5", "selectTab6", "selectTab7", "selectTab8",
         "selectTab9", "previousSpace", "nextSpace", "selectSpace1", "selectSpace2", "selectSpace3", "selectSpace4",
         "selectSpace5", "selectSpace6", "selectSpace7", "selectSpace8", "selectSpace9", "toggleReaderMode",
@@ -20,27 +19,24 @@ public sealed class ShortcutCatalogTests {
         "sharePage", "exportPDF", "saveWebArchive", "printPage", "toggleSidebar", "showHistory", "showArchive",
         "showDownloads", "webInspectorInstructions", "splitWithNextTab", "focusNextSplitCard", "focusPreviousSplitCard",
         "removeTabFromSplit", "separateSplitTabs", "moveSplitCardLeft", "moveSplitCardRight", "toggleDeveloperToolbar",
-        "toggleTranslationToolbar", "openFile", "findNext", "findPrevious", "capturePage",
-        "mostRecentTabBackward", "clearSiteCookies", "clearSiteCache"
+        "translatePage", "openFile", "findNext", "findPrevious"
     ];
-
-    private static readonly IReadOnlyList<ShortcutCommand> Offered = ShortcutCommand.All;
 
     private static ShortcutChord Key(string character, int modifiers) => ShortcutChord.Character(character, modifiers);
 
     private static ShortcutChord? Default(string command, DevicePlatform platform) =>
         ShortcutCommand.Named(command)?.DefaultShortcut(platform) is { } fallback ? ShortcutChord.Of(fallback.Keys) : null;
 
-    /// Persisted overrides name a special key by its name.
+    /// Native input names a special key by its name.
     [Fact]
-    public void EverySpecialKeyKeepsTheNameOverridesArePersistedUnder() => Assert.Equal([
+    public void EverySpecialKeyKeepsItsNativeName() => Assert.Equal([
         "tab", "leftArrow", "rightArrow", "upArrow", "downArrow", "escape", "returnKey", "delete", "forwardDelete", "home", "end",
         "pageUp", "pageDown", "space", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12", "f13", "f14",
         "f15", "f16", "f17", "f18", "f19", "f20"
     ], ShortcutSpecialKey.All.Select(key => key.Name));
 
     [Fact]
-    public void EveryCommandKeepsTheNameItsOverridesArePersistedUnder() {
+    public void EveryCommandKeepsItsPublishedName() {
         Assert.Equal(Commands, ShortcutCommand.All.Select(command => command.Name));
         Assert.Same(ShortcutCommand.ShowWebInspector, ShortcutCommand.Named("webInspectorInstructions"));
     }
@@ -63,32 +59,28 @@ public sealed class ShortcutCatalogTests {
         Assert.All(defaults, chord => Assert.True(chord.IsValid));
     }
 
-    [Theory]
-    [InlineData("newQuickWindow", "newBlankWindow", "n", ShortcutChord.Command | ShortcutChord.Option)]
-    [InlineData("newTab", "newQuickWindow", "n", ShortcutChord.Command | ShortcutChord.Option | ShortcutChord.Shift)]
-    [InlineData("newTab", "findNext", "g", ShortcutChord.Command)]
-    [InlineData("newTab", "findPrevious", "g", ShortcutChord.Command | ShortcutChord.Shift)]
-    [InlineData("newTab", "capturePage", "2", ShortcutChord.Command | ShortcutChord.Shift)]
-    public void MacDefaultsAddedLaterYieldToAPersistedCustomChord(string owner, string displaced, string key, int modifiers) {
-        var overrides = ShortcutOverrides.Restore([new(owner, Key(key, modifiers)), new("showHistory", null)]);
-        var bindings = overrides.Bindings(Offered, DevicePlatform.Desktop).ToDictionary(binding => binding.Command.Name);
-        Assert.Equal(Key(key, modifiers).Keys, bindings[owner].Keys);
-        Assert.Null(bindings[displaced].Keys);
-        Assert.False(bindings[displaced].IsCustomized);
-        Assert.Null(bindings["showHistory"].Keys);
-        Assert.True(bindings["showHistory"].IsCustomized);
-        Assert.Equal(Key(key, modifiers), overrides.Resetting(ShortcutCommand.Named(owner)!)
-            .Effective(ShortcutCommand.Named(displaced)!, Offered, DevicePlatform.Desktop));
+    [Fact]
+    public void NumberedCommandsDefaultToCommandAndControlDigitsAndTheMacAddsABlankWindow() {
+        Assert.Equal(Key("3", ShortcutChord.Command), Default("selectTab3", DevicePlatform.Mobile));
+        Assert.Equal(Key("9", ShortcutChord.Control), Default("selectSpace9", DevicePlatform.Desktop));
+        Assert.Null(Default("selectTab10", DevicePlatform.Desktop));
+        Assert.Equal(Key("n", ShortcutChord.Command | ShortcutChord.Option), Default("newBlankWindow", DevicePlatform.Desktop));
+        Assert.Null(Default("newBlankWindow", DevicePlatform.Mobile));
+        Assert.Null(Default("duplicateTab", DevicePlatform.Desktop));
+        Assert.Null(Default("toggleSidebar", DevicePlatform.Desktop));
+        Assert.Equal(Key("b", ShortcutChord.Command), Default("toggleSidebar", DevicePlatform.Mobile));
     }
 
-    /// Control-Shift-Tab arrives after people could have customised shortcuts,
-    /// so it stays unbound while a person holds its keys.
     [Fact]
-    public void TheBackwardMostRecentTabDefaultYieldsToAPersistedCustomChord() {
-        var keys = ShortcutCommand.MostRecentTabBackward.DefaultShortcut(DevicePlatform.Desktop)!.Keys;
-        var overrides = ShortcutOverrides.Restore([new("newTab", ShortcutChord.Of(keys))]);
-        var bindings = overrides.Bindings(Offered, DevicePlatform.Desktop).ToDictionary(binding => binding.Command.Name);
-        Assert.Null(bindings["mostRecentTabBackward"].Keys);
-        Assert.NotNull(ShortcutCommand.MostRecentTabBackward.DefaultShortcut(DevicePlatform.Mobile));
+    public void OnlyKeysWithASupportedModifierAndANameMakeAChord() {
+        Assert.Null(ShortcutChord.Usable(new("t", false, ShortcutModifiers.None)));
+        Assert.Null(ShortcutChord.Usable(new("t", false, (ShortcutModifiers)(1 << 5))));
+        Assert.Null(ShortcutChord.Usable(new("hyper", true, ShortcutModifiers.Command)));
+        Assert.Null(ShortcutChord.Usable(new("", false, ShortcutModifiers.Command)));
+        Assert.Equal(Key("t", ShortcutChord.Command), ShortcutChord.Usable(new("t", false, ShortcutModifiers.Command)));
+        // The decomposed and composed spellings of a key are one chord.
+        Assert.Equal(ShortcutChord.Usable(new("e\u0301", false, ShortcutModifiers.Command)),
+            ShortcutChord.Usable(new("\u00e9", false, ShortcutModifiers.Command)));
     }
+
 }

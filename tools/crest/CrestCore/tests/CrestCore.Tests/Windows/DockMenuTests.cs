@@ -11,11 +11,51 @@ namespace CrestCore.Tests;
 /// way.
 public sealed partial class BrowserContractsTests {
     [Fact]
-    public void AnEngineWindowJoinsTheFrontWindowOfItsProfilesOnlyShowableSpace() {
-        var session = GuardedSession(withOpenSecondSpace: true);
+    public void TheDockMenuListsThePersistentSpacesAndAPrivateWindowNeverTakesOne() {
+        var session = SessionWithSpaces(withSecondSpace: true);
         var (app, _, _, workspace, front) = PageHost(session);
         using var disposal = app;
-        var lockedProfile = Identity(session).Profile;
+        var (locked, open) = (FirstSpaceProfile(session).Space, SpaceId(session["spaces"]![1]!));
+        var behind = Guid.NewGuid();
+        app.Send(new OpenWindow(behind, workspace, Saved: false, null, null, [], RestoresTabs: true));
+        app.Send(new ShowSpace(front, open));
+        app.Send(new ShowSpace(behind, locked));
+        var privateWorkspace = TestWorkspaces.Opened(app.Send(new OpenWorkspace(WorkspaceKind.Private, Seed: null)));
+        var privateWindow = Guid.NewGuid();
+        app.Send(new OpenWindow(privateWindow, privateWorkspace, Saved: false, null, null, [], RestoresTabs: true));
+        DockMenuContent Menu(params Guid[] stacked) => app.Query(new DockMenu(stacked));
+        Guid? Checked(DockMenuContent menu) => menu.Spaces.SingleOrDefault(space => space.IsShown)?.SpaceId;
+
+        // The commands, then the Spaces in the session's order, the frontmost
+        // window's checked, and a chosen Space shows in that window.
+        var menu = Menu(front, behind, privateWindow);
+        Assert.Equal(DockMenuCommand.All, menu.Commands);
+        Assert.Equal([locked, open], menu.Spaces.Select(space => space.SpaceId));
+        Assert.Equal(open, Checked(menu));
+        Assert.Equal(front, menu.WindowId);
+        // A window the device does not have open is passed over.
+        var passedOver = Menu(Guid.NewGuid(), behind);
+        Assert.Equal(locked, Checked(passedOver));
+        Assert.Equal(behind, passedOver.WindowId);
+
+        // A private window in front checks nothing and lists none of its own
+        // Spaces; a chosen Space goes to the window behind it, and with no
+        // window over the persistent session, to a window of its own.
+        var privately = Menu(privateWindow, behind, front);
+        Assert.Null(Checked(privately));
+        Assert.Equal([locked, open], privately.Spaces.Select(space => space.SpaceId));
+        Assert.Equal(behind, privately.WindowId);
+        var alone = Menu(privateWindow);
+        Assert.Null(Checked(alone));
+        Assert.Null(alone.WindowId);
+    }
+
+    [Fact]
+    public void AnEngineWindowJoinsTheFrontWindowOfItsProfilesOnlyShowableSpace() {
+        var session = SessionWithSpaces(withSecondSpace: true);
+        var (app, _, _, workspace, front) = PageHost(session);
+        using var disposal = app;
+        var lockedProfile = FirstSpaceProfile(session).Profile;
         var (open, profile) = (SpaceId(session["spaces"]![1]!), ProfileId(session["spaces"]![1]!));
         var privateWorkspace = TestWorkspaces.Opened(app.Send(new OpenWorkspace(WorkspaceKind.Private, Seed: null)));
         var privateWindow = Guid.NewGuid();
@@ -33,7 +73,7 @@ public sealed partial class BrowserContractsTests {
         Assert.NotEqual(front, own.WindowId);
         Assert.True(Place(profile, false, privateWindow).OpensWindow);
         // A locked Space, or a profile no Space holds, is declined.
-        Assert.Equal(declined, Place(lockedProfile, false, front));
+        Assert.Equal(new EngineWindowPlace(front, FirstSpaceProfile(session).Space, OpensWindow: false), Place(lockedProfile, false, front));
         Assert.Equal(declined, Place(Guid.NewGuid(), false, front));
         // A private Space's tabs join the private window while it is stacked.
         Assert.Equal(new EngineWindowPlace(privateWindow, privateSpace.Id, OpensWindow: false),

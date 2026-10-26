@@ -38,17 +38,17 @@ public sealed record NativeSyncSessionTransition {
     #region Actions - Sync
 
     internal static NativeSyncSessionTransition Prepare(NativeSyncJournal journal, JsonObject local, JsonArray incoming,
-        bool replacing, double now, JsonObject? emptySpace, SpaceAccessAuthority? access, IIdSource? ids,
+        bool replacing, double now, JsonObject? emptySpace, IIdSource? ids,
         IReadOnlyDictionary<string, SyncDeletionReason>? removals = null) {
         var prepared = Prepare(journal, StoredSessionCodec.DecodeSession(local), incoming, replacing, StoredSessionCodec.Date(now),
-            emptySpace is null ? null : StoredSessionCodec.DecodeSpace(emptySpace), access, ids ?? new SystemIdSource(), removals);
+            emptySpace is null ? null : StoredSessionCodec.DecodeSpace(emptySpace), ids ?? new SystemIdSource(), removals);
         return new(prepared.Journal, prepared.Session, prepared.Origins, local.DeepClone().AsObject());
     }
 
     /// Stage local edits, accept incoming records, materialize and repair a typed
     /// session, retaining local deletion work and device preferences throughout.
     internal static NativeSyncSessionTransition Prepare(NativeSyncJournal journal, SessionState local, JsonArray incoming,
-        bool replacing, DateTimeOffset now, SpaceState? emptySpace, SpaceAccessAuthority? access, IIdSource ids,
+        bool replacing, DateTimeOffset now, SpaceState? emptySpace, IIdSource ids,
         IReadOnlyDictionary<string, SyncDeletionReason>? removals = null) {
         var seconds = StoredSessionCodec.Seconds(now);
         var next = journal;
@@ -66,7 +66,7 @@ public sealed record NativeSyncSessionTransition {
         }
         local = local with { SpaceDeletions = pending };
         var raw = replacing && incoming.Count == 0 ? local with { Spaces = [], DisposableSeedMarker = null }
-            : NativeSyncMaterializer.Materialize(local, NativeSyncProjection.Preferences(journal.Preferences), records, now, access);
+            : NativeSyncMaterializer.Materialize(local, NativeSyncProjection.Preferences(journal.Preferences), records, now);
         var repaired = NativeSessionMaintenance.Repair(raw, now, emptySpace, ids, out var origins);
         repaired = NativeSessionMaintenance.Retain(repaired, now, out var removed);
         if (pending.Count > 0) {

@@ -43,7 +43,6 @@ public sealed partial class NativeSessionAuthority {
                 value.SyncTransaction?.Commit();
                 previous = session;
                 session = value.Session; Revision = value.Revision;
-                if (value.TransientCompletion is { } completed) completedTransients.Add(completed);
                 storage?.Enqueue(session, Revision);
             }
             replacement = null;
@@ -111,10 +110,10 @@ public sealed partial class NativeSessionAuthority {
     /// are refused until it commits or is disposed. What it completes, what
     /// the window that issued it shows next and what it did that the states
     /// cannot tell are published with it. The caller holds the gate.
-    private NativeSessionReplacement Reserve(SessionState next, Guid? completes, WindowFollowUp? followUp, SessionTabEvents? events) {
+    private NativeSessionReplacement Reserve(SessionState next, WindowFollowUp? followUp, SessionTabEvents? events) {
         var checkpoint = new NativeSessionCheckpoint(next);
         _ = checkpoint.Read(NativeSessionCheckpoint.CorePart);
-        var reserved = new NativeSessionReplacement(this, next, checked(Revision + 1), checkpoint, completes, followUp, events);
+        var reserved = new NativeSessionReplacement(this, next, checked(Revision + 1), checkpoint, followUp, events);
         replacement = reserved;
         return reserved;
     }

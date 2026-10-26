@@ -69,13 +69,9 @@ extension BlockedPopupStatus: CoreNamedValue {}
 
 extension ContentBlockingPolicy: CoreNamedValue {}
 
-extension CurrentTabCleanup: CoreNamedValue {}
-
 extension DataRetention: CoreNamedValue {}
 
 extension DevicePlatform: CoreNamedValue {}
-
-extension ExternalLinkDestination: CoreNamedValue {}
 
 extension ExternalSchemeDisposition: CoreNamedValue {}
 
@@ -83,17 +79,9 @@ extension HostedNotificationRequestAction: CoreNamedValue {}
 
 extension LinkNavigationDecision: CoreNamedValue {}
 
-extension LinkPeekModifier: CoreNamedValue {}
-
-extension LinkRouteMatch: CoreNamedValue {}
-
 extension MemoryPressureLevel: CoreNamedValue {}
 
 extension NumberedSelectionTarget: CoreNamedValue {}
-
-extension QuickWindowArchivePolicy: CoreNamedValue {}
-
-extension SetupEntry: CoreNamedValue {}
 
 extension ShortcutCommand: CoreNamedValue {}
 
@@ -102,8 +90,6 @@ extension ShortcutSpecialKey: CoreNamedValue {}
 extension SitePermission: CoreNamedValue {}
 
 extension SitePermissionDecision: CoreNamedValue {}
-
-extension SpaceAccent: CoreNamedValue {}
 
 extension SyncDeletionReason: CoreNamedValue {}
 

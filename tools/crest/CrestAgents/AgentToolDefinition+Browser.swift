@@ -70,13 +70,4 @@ extension AgentToolDefinition {
                 "space", "The Space's id; defaults to the active allowed Space or first unlocked one.", required: false)
         ],
         readOnly: false, destructive: false, idempotent: false, openWorld: true)
-    static let openQuickWindow = Self(
-        name: "open_quick_window", title: "Open a Quick Window",
-        description:
-            "At the person's request, opens an http or https address in Crest's native Quick Window using an allowed, unlocked Space.",
-        arguments: [
-            .string("url", "The http or https address to open."),
-            .string(
-                "space", "The Space's id; defaults to the active allowed Space or first unlocked one.", required: false),
-        ], readOnly: false, destructive: false, idempotent: false, openWorld: true)
 }

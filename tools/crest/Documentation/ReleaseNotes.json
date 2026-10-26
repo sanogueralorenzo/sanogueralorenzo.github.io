@@ -4593,6 +4593,10 @@
     "hide-sidebar-container-focus-effect": {
       "category": "fixed",
       "message": "New Mac windows no longer show a blue focus outline around the sidebar."
+    },
+    "fork-streamlined-core": {
+      "category": "improved",
+      "message": "Browsing uses consistent session, tab, search, download and shortcut defaults, with optional modes removed."
     }
   }
 }

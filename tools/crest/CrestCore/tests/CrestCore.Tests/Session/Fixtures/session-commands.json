@@ -16,8 +16,7 @@
             "url": "https://opened.example/",
             "symbol": "globe",
             "placement": "current",
-            "lastActivatedAt": 800000000.5,
-            "keepsPageLoaded": false
+            "lastActivatedAt": 800000000.5
           },
           "index": null,
           "select": true,
@@ -94,7 +93,6 @@
             "blue": 0.54,
             "alpha": 1
           },
-          "symbol": "folder",
           "tabIds": [
             "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
           ],
@@ -367,37 +365,6 @@
       }
     },
     {
-      "name": "space.saved_expansion",
-      "request": {
-        "version": 1,
-        "operation": "space.saved_expansion",
-        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-        "profileId": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2",
-        "arguments": {
-          "value": true
-        },
-        "now": 800000009
-      },
-      "commit": true,
-      "window": {
-        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-        "tabs": [
-          {
-            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
-          },
-          {
-            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
-            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
-          },
-          {
-            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
-            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
-          }
-        ]
-      }
-    },
-    {
       "name": "space.browsing_preferences",
       "request": {
         "version": 1,
@@ -420,187 +387,6 @@
           }
         },
         "now": 800000010
-      },
-      "commit": true,
-      "window": {
-        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-        "tabs": [
-          {
-            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
-          },
-          {
-            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
-            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
-          },
-          {
-            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
-            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
-          }
-        ]
-      }
-    },
-    {
-      "name": "space.branding",
-      "request": {
-        "version": 1,
-        "operation": "space.branding",
-        "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
-        "profileId": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB",
-        "arguments": {
-          "value": {
-            "colors": [
-              {
-                "red": 1.2,
-                "green": 0.5,
-                "blue": -0.1,
-                "alpha": 1
-              },
-              {
-                "red": 0.2,
-                "green": 0.3,
-                "blue": 0.4,
-                "alpha": 0.5
-              }
-            ],
-            "bannerPattern": "stripes",
-            "bannerStrength": 1.5,
-            "readabilityFade": 0.3,
-            "keepsControlsReadable": true,
-            "themeMode": "banner",
-            "gradientAngle": -45,
-            "showsTexture": false,
-            "iconStyle": "simpleSymbol",
-            "crest": {
-              "backplate": "shield",
-              "fieldDivision": "plain",
-              "ordinary": "none",
-              "trim": "none",
-              "symbol": "mountain",
-              "chargeLayout": "single",
-              "backplateColorIndex": 1,
-              "secondaryFieldColorIndex": 1,
-              "ordinaryColorIndex": 7,
-              "trimColorIndex": 1,
-              "symbolColorIndex": 0,
-              "edgeColorIndex": 1,
-              "plateScale": 1,
-              "edgeWidth": 0,
-              "divisionCount": 4,
-              "finish": "flat",
-              "ordinaryWidth": 1,
-              "trimWeight": 1,
-              "trimDetail": 12,
-              "chargeScale": 1,
-              "chargeOffset": 0,
-              "chargeWeight": "bold",
-              "sheenAngle": 45,
-              "sealTeeth": 12,
-              "showsOutline": false,
-              "depth": "none"
-            },
-            "renderingVersion": 4,
-            "folderColorIntensity": 0.25,
-            "textColorMode": "dark",
-            "hasCustomAppearance": true
-          }
-        },
-        "now": 800000011
-      },
-      "commit": true,
-      "window": {
-        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-        "tabs": [
-          {
-            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
-          },
-          {
-            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
-            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
-          },
-          {
-            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
-            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
-          }
-        ]
-      }
-    },
-    {
-      "name": "space.credential_preferences",
-      "request": {
-        "version": 1,
-        "operation": "space.credential_preferences",
-        "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
-        "profileId": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB",
-        "arguments": {
-          "value": {
-            "isEnabled": true,
-            "syncsCrestPasswordsWithICloud": false,
-            "alsoOffersSaveToSystemPasswords": true
-          }
-        },
-        "now": 800000012
-      },
-      "commit": true,
-      "window": {
-        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-        "tabs": [
-          {
-            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
-          },
-          {
-            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
-            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
-          },
-          {
-            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
-            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
-          }
-        ]
-      }
-    },
-    {
-      "name": "space.access",
-      "request": {
-        "version": 1,
-        "operation": "space.access",
-        "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
-        "profileId": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB",
-        "arguments": {
-          "value": "deviceOwnerAuthentication"
-        },
-        "now": 800000013
-      },
-      "commit": true,
-      "window": {
-        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-        "tabs": [
-          {
-            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
-          },
-          {
-            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
-            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
-          },
-          {
-            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
-            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
-          }
-        ]
-      }
-    },
-    {
-      "name": "space.default",
-      "request": {
-        "version": 1,
-        "operation": "space.default",
-        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-        "profileId": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2",
-        "arguments": {},
-        "now": 800000014
       },
       "commit": true,
       "window": {
@@ -788,103 +574,6 @@
       }
     },
     {
-      "name": "preferences.translation_rule",
-      "request": {
-        "version": 1,
-        "operation": "preferences.translation_rule",
-        "spaceId": null,
-        "profileId": null,
-        "arguments": {
-          "sourceID": "it",
-          "targetID": "en",
-          "isEnabled": true
-        },
-        "now": 800000105
-      },
-      "commit": true,
-      "window": {
-        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-        "tabs": [
-          {
-            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
-          },
-          {
-            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
-            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
-          },
-          {
-            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
-            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
-          }
-        ]
-      }
-    },
-    {
-      "name": "preferences.set.startup",
-      "request": {
-        "version": 1,
-        "operation": "preferences.set",
-        "spaceId": null,
-        "profileId": null,
-        "arguments": {
-          "preference": "startupBehavior",
-          "value": "showStartPage"
-        },
-        "now": 800000106
-      },
-      "commit": true,
-      "window": {
-        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-        "tabs": [
-          {
-            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
-          },
-          {
-            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
-            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
-          },
-          {
-            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
-            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
-          }
-        ]
-      }
-    },
-    {
-      "name": "preferences.set.saved_tab_close",
-      "request": {
-        "version": 1,
-        "operation": "preferences.set",
-        "spaceId": null,
-        "profileId": null,
-        "arguments": {
-          "preference": "savedTabClosePolicy",
-          "value": "resumeLastLocation"
-        },
-        "now": 800000107
-      },
-      "commit": true,
-      "window": {
-        "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-        "tabs": [
-          {
-            "spaceId": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848",
-            "tabId": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
-          },
-          {
-            "spaceId": "A5EB05E2-BE9A-420C-AD16-B1F728C63844",
-            "tabId": "6DF2F570-7E1A-4426-B422-23609823B142"
-          },
-          {
-            "spaceId": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035",
-            "tabId": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
-          }
-        ]
-      }
-    },
-    {
       "name": "preferences.import",
       "request": {
         "version": 1,
@@ -894,7 +583,6 @@
         "arguments": {
           "legacy": {
             "startupBehavior": "lastActiveTab",
-            "translationRules": "{\"sources\":{}}",
             "checksSpelling": false
           }
         },
@@ -935,7 +623,6 @@
           "isolatedCloudSync": false,
           "resetSession": false,
           "showcase": false,
-          "inMemoryCredentials": false,
           "onboardingWelcome": false,
           "desktopSetup": false,
           "mobileSetup": false,
@@ -1001,63 +688,7 @@
               },
               "currentTabCleanupPolicy": "never"
             },
-            "isSavedTabsExpanded": true,
-            "symbol": "square.grid.2x2.fill",
             "name": "Plain",
-            "accessPolicy": "open",
-            "branding": {
-              "renderingVersion": 5,
-              "bannerPattern": "diagonal",
-              "colors": [
-                {
-                  "green": 0.49,
-                  "red": 0.12,
-                  "blue": 0.52,
-                  "alpha": 1
-                }
-              ],
-              "gradientAngle": 0,
-              "themeMode": "banner",
-              "bannerStrength": 1,
-              "iconStyle": "simpleSymbol",
-              "readabilityFade": 0.25,
-              "textColorMode": "automatic",
-              "crest": {
-                "ordinaryColorIndex": 0,
-                "divisionCount": 4,
-                "symbolColorIndex": 0,
-                "chargeWeight": "bold",
-                "depth": "none",
-                "edgeWidth": 0,
-                "showsOutline": false,
-                "plateScale": 1,
-                "sealTeeth": 12,
-                "sheenAngle": 45,
-                "symbol": "dragon",
-                "backplateColorIndex": 0,
-                "trimColorIndex": 0,
-                "edgeColorIndex": 0,
-                "trimWeight": 1,
-                "ordinaryWidth": 1,
-                "fieldDivision": "plain",
-                "secondaryFieldColorIndex": 0,
-                "chargeScale": 1,
-                "charge": {
-                  "kind": "emoji",
-                  "value": "🦊"
-                },
-                "finish": "flat",
-                "ordinary": "none",
-                "backplate": "shield",
-                "trim": "none",
-                "chargeLayout": "single",
-                "chargeOffset": 0,
-                "trimDetail": 12
-              },
-              "folderColorIntensity": 0,
-              "keepsControlsReadable": true,
-              "showsTexture": false
-            },
             "folders": [],
             "tabs": [
               {
@@ -1067,8 +698,7 @@
                 "title": "Start Page",
                 "symbol": "house",
                 "placement": "current",
-                "lastActivatedAt": 800000110,
-                "keepsPageLoaded": false
+                "lastActivatedAt": 800000110
               }
             ],
             "id": {
@@ -1078,13 +708,7 @@
               "id": "67676767-6767-4767-8767-676767676767"
             },
             "archivedTabs": [],
-            "accent": "teal",
-            "splitGroups": [],
-            "credentialPreferences": {
-              "syncsCrestPasswordsWithICloud": true,
-              "alsoOffersSaveToSystemPasswords": false,
-              "isEnabled": true
-            }
+            "splitGroups": []
           }
         },
         "now": 800000110
@@ -1203,63 +827,7 @@
                 },
                 "currentTabCleanupPolicy": "never"
               },
-              "isSavedTabsExpanded": true,
-              "symbol": "square.grid.2x2.fill",
               "name": "Imported",
-              "accessPolicy": "open",
-              "branding": {
-                "renderingVersion": 5,
-                "bannerPattern": "diagonal",
-                "colors": [
-                  {
-                    "green": 0.49,
-                    "red": 0.12,
-                    "blue": 0.52,
-                    "alpha": 1
-                  }
-                ],
-                "gradientAngle": 0,
-                "themeMode": "banner",
-                "bannerStrength": 1,
-                "iconStyle": "simpleSymbol",
-                "readabilityFade": 0.25,
-                "textColorMode": "automatic",
-                "crest": {
-                  "ordinaryColorIndex": 0,
-                  "divisionCount": 4,
-                  "symbolColorIndex": 0,
-                  "chargeWeight": "bold",
-                  "depth": "none",
-                  "edgeWidth": 0,
-                  "showsOutline": false,
-                  "plateScale": 1,
-                  "sealTeeth": 12,
-                  "sheenAngle": 45,
-                  "symbol": "dragon",
-                  "backplateColorIndex": 0,
-                  "trimColorIndex": 0,
-                  "edgeColorIndex": 0,
-                  "trimWeight": 1,
-                  "ordinaryWidth": 1,
-                  "fieldDivision": "plain",
-                  "secondaryFieldColorIndex": 0,
-                  "chargeScale": 1,
-                  "charge": {
-                    "kind": "emoji",
-                    "value": "🦊"
-                  },
-                  "finish": "flat",
-                  "ordinary": "none",
-                  "backplate": "shield",
-                  "trim": "none",
-                  "chargeLayout": "single",
-                  "chargeOffset": 0,
-                  "trimDetail": 12
-                },
-                "folderColorIntensity": 0,
-                "keepsControlsReadable": true,
-                "showsTexture": false
-              },
               "folders": [],
               "tabs": [
                 {
@@ -1270,8 +838,7 @@
                   "title": "Plain",
                   "placement": "current",
                   "lastActivatedAt": 780123556.7891234,
-                  "url": "https://plain.example/",
-                  "keepsPageLoaded": false
+                  "url": "https://plain.example/"
                 }
               ],
               "id": {
@@ -1281,13 +848,7 @@
                 "id": "88888888-8888-4888-8888-888888888888"
               },
               "archivedTabs": [],
-              "accent": "teal",
-              "splitGroups": [],
-              "credentialPreferences": {
-                "syncsCrestPasswordsWithICloud": true,
-                "alsoOffersSaveToSystemPasswords": false,
-                "isEnabled": true
-              }
+              "splitGroups": []
             }
           ]
         },

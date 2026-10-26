@@ -13,7 +13,7 @@ public sealed partial class BrowserContractsTests {
     /// form, into `session`, or replacing it with them, make at `now`.
     private static NativeSyncSessionTransition Transition(NativeSyncJournal journal, JsonNode session, JsonNode records, bool replacing,
         double now) => NativeSyncSessionTransition.Prepare(journal, session.AsObject(), records.AsArray(), replacing, now, emptySpace: null,
-        access: null, ids: null);
+        ids: null);
 
     [Fact]
     public void SessionRepairIsAtomicAndReidentifiesRuntimeCollisions() {

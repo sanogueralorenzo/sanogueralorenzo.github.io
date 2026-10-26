@@ -64,10 +64,9 @@ internal static class SessionChanges {
         if (added.Count > 0 || removed.Count > 0 || !placed.SequenceEqual(order))
             changes.Add(new SpacesChanged(workspaceId, added, removed, placed.SequenceEqual(order) ? null : order));
         changes.AddRange(spaceChanges);
-        if (previous.DefaultSpaceId != next.DefaultSpaceId
-            || previous.DisposableSeedMarker is null != next.DisposableSeedMarker is null
+        if (previous.DisposableSeedMarker is null != next.DisposableSeedMarker is null
             || !previous.SpaceDeletions.SequenceEqual(next.SpaceDeletions))
-            changes.Add(new WorkspaceChanged(workspaceId, next.DefaultSpaceId, next.DisposableSeedMarker is not null, next.SpaceDeletions));
+            changes.Add(new WorkspaceChanged(workspaceId, next.DisposableSeedMarker is not null, next.SpaceDeletions));
         if (!ReferenceEquals(previous.AppPreferences, next.AppPreferences) && previous.AppPreferences != next.AppPreferences)
             changes.Add(new AppPreferencesChanged(workspaceId, next.AppPreferences));
         return changes;
@@ -85,8 +84,6 @@ internal static class SessionChanges {
         if (folders is not null) changes.Add(new FoldersChanged(workspaceId, space.Id, folders.Updated, folders.Removed, folders.Order));
         if (!TryChange(old.Tabs, space.Tabs, tab => tab.Id, recordedFirst: false, out var tabs)) return null;
         if (tabs is not null) changes.Add(new TabsChanged(workspaceId, space.Id, tabs.Updated, tabs.Removed, tabs.Order));
-        if (!ReferenceEquals(old.SplitGroups, space.SplitGroups) && !old.SplitGroups.SequenceEqual(space.SplitGroups))
-            changes.Add(new SplitGroupsChanged(workspaceId, space.Id, space.SplitGroups));
         if (ChangedSidebar(workspaceId, old, space) is { } sidebar) changes.Add(sidebar);
         if (!TryChange(old.ArchivedTabs, space.ArchivedTabs, archived => archived.Tab.Id, recordedFirst: false, out var archive))
             return null;

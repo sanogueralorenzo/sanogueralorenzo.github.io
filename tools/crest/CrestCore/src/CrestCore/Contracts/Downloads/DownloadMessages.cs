@@ -29,8 +29,8 @@ public sealed record DownloadApprovalAsked(Guid PromptId, Guid DownloadId, Guid?
     IReadOnlyList<DownloadRiskReason> Reasons, DownloadWarning? Warning, string? SourceHost) : Change;
 
 /// Where the file of the download `DownloadId` goes waits on the platform: the
-/// download folder of the Space `SpaceId`, or the person's choice when
-/// `ForcesPrompt` asks for one or that Space asks every time.
+/// Downloads folder, or the person's choice when
+/// `ForcesPrompt` asks for one.
 public sealed record DownloadDestinationAsked(Guid PromptId, Guid DownloadId, Guid SpaceId, string SuggestedFilename,
     bool ForcesPrompt) : Change;
 

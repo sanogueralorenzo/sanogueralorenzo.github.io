@@ -15,7 +15,6 @@ internal sealed class SessionRepair(IIdSource ids, DateTimeOffset now) {
     /// What the Space made for an empty session is called and wears when the
     /// native caller supplies none.
     private const string BlankSpaceName = "Space 1";
-    private const string BlankSpaceSymbol = "square.grid.2x2.fill";
 
     #endregion
 
@@ -41,7 +40,6 @@ internal sealed class SessionRepair(IIdSource ids, DateTimeOffset now) {
             ProfileId = ids.Next(),
             Folders = [],
             Tabs = [TabState.NewStartPage(ids.Next(), now)],
-            SplitGroups = [],
             ArchivedTabs = [],
             History = []
         };
@@ -60,8 +58,7 @@ internal sealed class SessionRepair(IIdSource ids, DateTimeOffset now) {
     }
 
     /// `space`, at `spaceIndex`, with identities of its own and every repair
-    /// made: its folder tree, its tabs, its split runs, its archive, its
-    /// history and its split metadata.
+    /// made: its folder tree, its tabs, its split runs, its archive and history.
     internal SpaceState Repaired(SpaceState space, int spaceIndex) {
         var identified = space with { Id = spaceIds.Claim(space.Id), ProfileId = profiles.Claim(space.ProfileId) };
         var folders = Folders(space);
@@ -71,8 +68,7 @@ internal sealed class SessionRepair(IIdSource ids, DateTimeOffset now) {
             Folders = folders,
             Tabs = [.. tabs.Select((tab, index) => tab with { SplitGroupId = groups[index] })],
             ArchivedTabs = Archive(space),
-            History = [.. space.History.Take(HistoryEntryState.MaximumEntries)],
-            SplitGroups = SplitGroupState.Merged(space.SplitGroups)
+            History = [.. space.History.Take(HistoryEntryState.MaximumEntries)]
         };
     }
 
@@ -130,8 +126,7 @@ internal sealed class SessionRepair(IIdSource ids, DateTimeOffset now) {
 
     /// The Space an empty session starts with when the native caller supplies none.
     private static SpaceState BlankSpace() => new(Guid.Empty, Guid.Empty,
-        new(BlankSpaceName, BlankSpaceSymbol, SpaceAccent.Indigo, null, StoredSessionCodec.DefaultBrowsingPreferences,
-            StoredSessionCodec.DefaultCredentialPreferences, SpaceAccessPolicy.Open, true, null), [], [], [], [], []);
+        new(BlankSpaceName, StoredSessionCodec.DefaultBrowsingPreferences), [], [], [], []);
 
     #endregion
 }

@@ -11,9 +11,9 @@ enum SessionPreviewSeed {
     }
 
     private static func makeWorkSpace() -> SpaceState.Seed {
-        let folder = FolderState.Seed(title: "Build the Browser", symbol: "folder.fill")
+        let folder = FolderState.Seed(title: "Build the Browser")
         return SpaceState.Seed(
-            name: "Work", symbol: "briefcase.fill", accent: .indigo, branding: SpaceAccent.rose.house,
+            name: "Work",
             folders: [folder],
             tabs: workTabs(folderID: folder.id))
     }
@@ -39,9 +39,9 @@ enum SessionPreviewSeed {
     }
 
     private static func makePersonalSpace() -> SpaceState.Seed {
-        let folder = FolderState.Seed(title: "Reading", symbol: "folder.fill")
+        let folder = FolderState.Seed(title: "Reading")
         return SpaceState.Seed(
-            name: "Personal", symbol: "house.fill", accent: .orange, branding: SpaceAccent.indigo.house,
+            name: "Personal",
             folders: [folder],
             tabs: [
                 tab("Apple", "https://apple.com", "apple.logo", .pinned),

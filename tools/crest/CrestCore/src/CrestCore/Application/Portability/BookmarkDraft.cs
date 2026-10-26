@@ -97,7 +97,7 @@ internal sealed class BookmarkDraft {
     public SpaceState? Space(ImportSource source, IIdSource ids, DateTimeOffset now, int tabRoom, int folderRoom, out bool cut) {
         ArgumentNullException.ThrowIfNull(source);
         var keptFolders = folders.Take(Math.Max(0, folderRoom)).Select(folder => new BrowserDataFolder(folder.Id, TabPlacement.Saved,
-            folder.Title, FolderState.DefaultSymbol, FolderState.DefaultColor, folder.Parent, IsCollapsed: false, OrderAnchorTabId: null)).ToArray();
+            folder.Title, FolderState.DefaultColor, folder.Parent, IsCollapsed: false, OrderAnchorTabId: null)).ToArray();
         var byId = keptFolders.ToDictionary(folder => folder.Id);
         var keptBookmarks = bookmarks.Where(bookmark => bookmark.Folder is not { } folder || byId.ContainsKey(folder))
             .Take(Math.Max(0, tabRoom)).ToArray();
@@ -112,8 +112,8 @@ internal sealed class BookmarkDraft {
         var tabs = keptBookmarks.Select(bookmark => new BrowserDataTab(Guid.NewGuid(), bookmark.Title, NativeContent: null,
             bookmark.Address.Spelling, bookmark.Address.Spelling, BookmarkSymbol, TabPlacement.Saved, bookmark.Folder, SplitGroupId: null,
             bookmark.AddedAt)).ToArray();
-        var space = new BrowserDataSpace(source.Title, source.Symbol,
-            source.Accent, Branding: null, [.. ordered.Select(folder => byId[folder.Id])], tabs, Splits: [], ArchivedTabs: [], History: [],
+        var space = new BrowserDataSpace(source.Title,
+            [.. ordered.Select(folder => byId[folder.Id])], tabs, ArchivedTabs: [], History: [],
             StoredSessionCodec.DefaultBrowsingPreferences, SelectedTabId: null);
         try {
             return space.Materialize(ids, now);

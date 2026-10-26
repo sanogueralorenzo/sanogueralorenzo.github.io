@@ -52,22 +52,14 @@ static void app_boundary(void) {
     crest_buffer_free(&buffer);
     assert(buffer.bytes == NULL && buffer.length == 0);
     crest_buffer_free(&buffer);
-    /* CredentialSave: the match, then the platform's comparison with it. No
-     * password crosses; an unchanged one is already stored. */
-    uint8_t save[36] = { CREST_QUERY_CREDENTIAL_SAVE, 1 };
-    memset(save + 2, 0x55, 16);
-    save[18] = 1;
-    memset(save + 19, 0x55, 16);
-    save[35] = 1;
-    assert(crest_app_query(app, save, sizeof(save), &buffer) == CREST_OK);
-    assert(buffer.length == 18 && buffer.bytes[0] == 2 && buffer.bytes[1] == 1 && buffer.bytes[17] == 0x55);
+    /* System passkeys require the managed capability before device authorization applies. */
+    uint8_t passkeys[] = { CREST_QUERY_PASSKEY_ACCESS, 0, 0, 0 };
+    assert(crest_app_query(app, passkeys, sizeof(passkeys), &buffer) == CREST_OK);
+    assert(buffer.length == 1 && buffer.bytes[0] == 0);
     crest_buffer_free(&buffer);
-    /* A comparison with another record is stale: one rejection, no fields. */
-    memset(save + 19, 0x66, 16);
-    assert(crest_app_query(app, save, sizeof(save), &buffer) == CREST_REJECTED);
-    size_t used = 0;
-    assert(read_tag(buffer.bytes, buffer.length, &used) == CREST_REJECTION_STALE_CREDENTIAL_COMPARISON
-        && used == buffer.length);
+    passkeys[1] = 1;
+    assert(crest_app_query(app, passkeys, sizeof(passkeys), &buffer) == CREST_OK);
+    assert(buffer.length == 1 && buffer.bytes[0] == 3);
     crest_buffer_free(&buffer);
     assert(crest_app_destroy(app) == CREST_OK);
     assert(crest_app_dispatch(app, acknowledge, sizeof(acknowledge), &buffer) == CREST_INVALID_HANDLE);
@@ -113,20 +105,15 @@ static size_t open_workspace(uint8_t* output, size_t capacity, uint8_t kind, con
     return at + length;
 }
 /* A SessionState seed of one Space named Reading, the Space all 0x44 with the
- * profile all 0x55, with no tabs and its accent's legacy look. Unless
+ * profile all 0x55, with no tabs. Unless
  * `deleted` is 0, it also records the deletion of the Space all `deleted`. */
 static size_t session_seed(uint8_t* output, size_t capacity, uint8_t deleted) {
     static const uint8_t settings[] = {
-        7, 'R', 'e', 'a', 'd', 'i', 'n', 'g', 4, 'b', 'o', 'o', 'k',
-        0,             /* the first accent */
-        0,             /* no branding, so the accent's legacy look */
+        7, 'R', 'e', 'a', 'd', 'i', 'n', 'g',
         0, 0, 0, 0,    /* no engine chosen, no custom engine, no custom providers, no suggestions */
         0, 0,          /* its own search and suggestions, not the device's defaults */
         0, 0, 0, 0, 0, /* the first tab cleanup, content blocking, and history, archive and download retention */
-        1, 1, 0,       /* offers to save passwords and sync them, not to the system's */
-        0, 1, 0,       /* open, saved tabs expanded, never collapsed */
-        0,             /* nobody chose whether it uses Crest Passwords */
-        0              /* nobody chose its lock */
+        1, 0, 0        /* saved tabs expanded, never collapsed, GitHub not dismissed */
     };
     size_t at = 0;
     assert(capacity >= 1 + 37 + sizeof(settings) + 4 + 48);

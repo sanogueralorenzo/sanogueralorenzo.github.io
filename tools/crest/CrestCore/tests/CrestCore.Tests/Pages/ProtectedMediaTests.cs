@@ -7,8 +7,7 @@ namespace CrestCore.Tests;
 
 /// The protected media fallback: a page whose engine cannot play the key
 /// system it asked for moves, once, to an engine that plays protected media
-/// through the platform, and its site opens there from then on, unless the
-/// person chose an engine for it.
+/// through the platform, without storing a rule for future pages.
 public sealed partial class BrowserContractsTests {
     /// A live page of the fixture tab on a default Chromium binding, with a
     /// WebKit binding beside it that plays protected media when `webKitPlays`.
@@ -37,7 +36,7 @@ public sealed partial class BrowserContractsTests {
         app.Workspace(workspace).Current.Spaces.Single(held => held.Id == space).Tabs.Single(held => held.Id == tab).Url!;
 
     [Fact]
-    public void APageMovesOnceToAnEngineThatPlaysProtectedMediaAndItsSiteOpensThere() {
+    public void APageMovesOnceForProtectedMediaWithoutChangingTheEngineForFuturePages() {
         var (app, chromium, chromiumBinding, webKit, webKitBinding, page, workspace, window, space, tab) = ChromiumPage();
         using var disposal = app;
         var url = TabUrl(app, workspace, space, tab);
@@ -55,13 +54,90 @@ public sealed partial class BrowserContractsTests {
         app.Report(webKit, new PageCreated(page));
         Assert.Equal(new LoadPage(page, url), webKitBinding.Commands[^1]);
 
-        // A repeat from the engine it left changes nothing, and the site's next page opens on WebKit directly.
+        // A repeat from the old engine changes nothing; the next page uses the global default.
         app.Report(chromium, new ProtectedMediaUnavailable(page, KeySystem.Widevine));
         Assert.Empty(app.Drain().OfType<PageRehosted>());
         app.Send(new ReleasePage(page, KeepsState: false));
         var next = Guid.NewGuid();
         app.Send(new OpenPage(next, workspace, space, tab, window));
-        Assert.Equal(next, Assert.IsType<CreatePage>(webKitBinding.Commands[^1]).PageId);
+        Assert.Equal(next, Assert.IsType<CreatePage>(chromiumBinding.Commands[^1]).PageId);
     }
 
+    [Fact]
+    public void AMovedBackPageNeverBounces() {
+        var (app, chromium, chromiumBinding, webKit, _, page, workspace, window, space, tab) = ChromiumPage();
+        using var disposal = app;
+        app.Report(chromium, new ProtectedMediaUnavailable(page, KeySystem.PlayReady));
+        app.Report(chromium, new BeforeUnloadAnswered(page, Proceeds: true));
+        app.Report(webKit, new PageCreated(page));
+
+        // Moving back affects this page only.
+        app.Drain();
+        app.Send(new RehostPage(page, EngineKind.Chromium));
+        app.Report(webKit, new BeforeUnloadAnswered(page, Proceeds: true));
+        var back = app.Drain();
+        Assert.Equal(RehostReason.PersonAsked, Assert.Single(back.OfType<PageRehosted>()).Reason);
+        app.Report(chromium, new PageCreated(page));
+        app.Drain();
+
+        // The page asks again on Chromium, and stays.
+        int commands = chromiumBinding.Commands.Count;
+        app.Report(chromium, new ProtectedMediaUnavailable(page, KeySystem.PlayReady));
+        Assert.Empty(app.Drain().OfType<PageRehosted>());
+        Assert.Equal(commands, chromiumBinding.Commands.Count);
+
+    }
+
+    [Fact]
+    public void ACanceledAutomaticMovePreservesThePageWithoutRepeatedPrompts() {
+        var (app, chromium, binding, _, fallback, page, workspace, window, space, tab) = ChromiumPage();
+        using var disposal = app;
+        int commands = binding.Commands.Count;
+        app.Report(chromium, new ProtectedMediaUnavailable(page, KeySystem.Widevine));
+        Assert.Empty(app.Drain());
+        Assert.Equal(new CheckBeforeUnload(page), binding.Commands[^1]);
+        app.Report(chromium, new BeforeUnloadAnswered(page, Proceeds: false));
+        Assert.Empty(app.Drain());
+        app.Report(chromium, new ProtectedMediaUnavailable(page, KeySystem.PlayReady));
+        Assert.Empty(app.Drain());
+        Assert.Equal(commands + 1, binding.Commands.Count);
+        Assert.Empty(fallback.Commands);
+        Assert.Equal(new CheckBeforeUnload(page), binding.Commands[^1]);
+
+        // A canceled move leaves future tabs on the global default.
+        var next = Guid.NewGuid();
+        app.Send(new OpenPage(next, workspace, space, null, window));
+        Assert.Equal(next, Assert.IsType<CreatePage>(binding.Commands[^1]).PageId);
+        app.Send(new Navigate(next, TabUrl(app, workspace, space, tab)));
+        Assert.Empty(fallback.Commands);
+    }
+
+    [Fact]
+    public void AnAutomaticMoveCannotReplaceADocumentThatChangedDuringBeforeUnload() {
+        var (app, chromium, binding, _, fallback, page, _, _, _, _) = ChromiumPage();
+        using var disposal = app;
+        app.Report(chromium, new ProtectedMediaUnavailable(page, KeySystem.Widevine));
+        Assert.Empty(app.Drain());
+        app.Report(chromium, new NavigationCommitted(page, "https://example.org/another", SameDocument: false));
+        app.Drain();
+        int commands = binding.Commands.Count;
+
+        app.Report(chromium, new BeforeUnloadAnswered(page, Proceeds: true));
+        Assert.Empty(app.Drain());
+        Assert.Equal(commands, binding.Commands.Count);
+        Assert.Empty(fallback.Commands);
+    }
+
+    [Fact]
+    public void NothingMovesWithoutAnEngineThatPlaysProtectedMedia() {
+        var (app, chromium, chromiumBinding, _, webKitBinding, page, _, _, _, _) = ChromiumPage(webKitPlays: false);
+        using var disposal = app;
+        int commands = chromiumBinding.Commands.Count;
+
+        app.Report(chromium, new ProtectedMediaUnavailable(page, KeySystem.Widevine));
+
+        Assert.Empty(app.Drain());
+        Assert.Equal(commands, chromiumBinding.Commands.Count);
+        Assert.Empty(webKitBinding.Commands);
+    }
 }

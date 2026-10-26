@@ -198,8 +198,8 @@ public sealed partial class BrowserContractsTests {
             Send(browser, new ShowHistoryEntry(browser.Page, history.Back.Concat(history.Forward).First(entry => Name(entry.Url) == name).Id));
         }
 
-        private static void Move(Browser browser, EngineKind engine, bool remembersSite = false) =>
-            Send(browser, new RehostPage(browser.Page, engine, remembersSite));
+        private static void Move(Browser browser, EngineKind engine) =>
+            Send(browser, new RehostPage(browser.Page, engine));
 
         /// The tab's page unloads, keeping its state, and the tab opens its
         /// next page, which loads the tab's address when nothing restored it.
@@ -274,15 +274,15 @@ public sealed partial class BrowserContractsTests {
         }
 
         [Fact]
-        public void APageMovedWithItsSiteGoesBackAndForwardOnTheEngineThatHeldEachEntry() {
+        public void AMovedPageGoesBackAndForwardOnTheEngineThatHeldEachEntry() {
             using var browser = Open();
             Follow(browser, "site-a");
             Follow(browser, "site-b");
             Follow(browser, "site-c");
-            Move(browser, EngineKind.WebKit, remembersSite: true);
+            Move(browser, EngineKind.WebKit);
             Expect(browser, EngineKind.WebKit, "site-c", ["site-b", "site-a", "start"], []);
 
-            // Going back replays history on Chromium, though the site now opens on WebKit.
+            // Going back replays history on Chromium.
             Send(browser, new StepHistory(browser.Page, -1));
             Expect(browser, EngineKind.Chromium, "site-b", ["site-a", "start"], ["site-c"]);
             Send(browser, new StepHistory(browser.Page, -1));
@@ -290,11 +290,70 @@ public sealed partial class BrowserContractsTests {
             Send(browser, new StepHistory(browser.Page, 1));
             Expect(browser, EngineKind.WebKit, "site-c", ["site-b", "site-a", "start"], []);
 
-            // A new navigation follows the site's engine and leaves nothing ahead.
+            // A new navigation stays on the current engine and discards forward history.
             Jump(browser, "site-a");
             Expect(browser, EngineKind.Chromium, "site-a", ["start"], ["site-b", "site-c"]);
             Follow(browser, "site-d");
-            Expect(browser, EngineKind.WebKit, "site-d", ["site-a", "start"], []);
+            Expect(browser, EngineKind.Chromium, "site-d", ["site-a", "start"], []);
+        }
+
+        [Fact]
+        public void MovingThePageItWentBackToKeepsWhatLayAheadOnTheEngineThatHeldIt() {
+            using var browser = Open();
+            Follow(browser, "a");
+            Follow(browser, "b");
+            Follow(browser, "c");
+            Send(browser, new StepHistory(browser.Page, -1));
+            Move(browser, EngineKind.WebKit);
+            Expect(browser, EngineKind.WebKit, "b", ["a", "start"], ["c"]);
+            Send(browser, new StepHistory(browser.Page, 1));
+            Expect(browser, EngineKind.Chromium, "c", ["b", "a", "start"], []);
+            Send(browser, new StepHistory(browser.Page, -1));
+            Expect(browser, EngineKind.WebKit, "b", ["a", "start"], ["c"]);
+
+            // A link stays on the current engine and starts new history.
+            Send(browser, new StepHistory(browser.Page, -1));
+            Follow(browser, "w");
+            Expect(browser, EngineKind.Chromium, "w", ["a", "start"], []);
+        }
+
+        [Fact]
+        public void TheHistoryMenusReachEveryEntryOnEveryEngine() {
+            using var browser = Open();
+            Follow(browser, "a");
+            Move(browser, EngineKind.WebKit);
+            Follow(browser, "b");
+            Move(browser, EngineKind.Chromium);
+            Follow(browser, "c");
+            Jump(browser, "start");
+            Expect(browser, EngineKind.Chromium, "start", [], ["a", "b", "c"]);
+            Jump(browser, "b");
+            Expect(browser, EngineKind.Chromium, "b", ["a", "start"], ["c"]);
+            Jump(browser, "a");
+            Expect(browser, EngineKind.WebKit, "a", ["start"], ["b", "c"]);
+            Jump(browser, "c");
+            Expect(browser, EngineKind.Chromium, "c", ["b", "a", "start"], []);
+        }
+
+        [Fact]
+        public void AnUnloadedTabReopensOnTheEngineItShowedWithItsHistory() {
+            using var browser = Open();
+            Follow(browser, "a");
+            Follow(browser, "b");
+            Move(browser, EngineKind.WebKit);
+            Follow(browser, "c");
+            Unload(browser);
+            Expect(browser, EngineKind.WebKit, "c", ["b", "a", "start"], []);
+            Send(browser, new StepHistory(browser.Page, -1));
+            Send(browser, new StepHistory(browser.Page, -1));
+            Expect(browser, EngineKind.Chromium, "a", ["start"], ["b", "c"]);
+
+            // An engine that kept nothing loads the entry afresh, keeping the rest.
+            browser.Chromium.KeepsNothing = true;
+            Unload(browser);
+            Expect(browser, EngineKind.Chromium, "a", ["start"], ["b", "c"]);
+            Send(browser, new StepHistory(browser.Page, 1));
+            Expect(browser, EngineKind.WebKit, "b", ["a", "start"], ["c"]);
         }
 
         [Fact]
@@ -383,8 +442,7 @@ public sealed partial class BrowserContractsTests {
                         var reachable = history.Back.Concat(history.Forward).ToList();
                         if (reachable.Count > 0) Send(browser, new ShowHistoryEntry(browser.Page, reachable[random.Next(reachable.Count)].Id));
                     } else if (roll < 84) {
-                        Move(browser, page.Engine.Kind == EngineKind.Chromium ? EngineKind.WebKit : EngineKind.Chromium,
-                            remembersSite: random.Next(2) == 0);
+                        Move(browser, page.Engine.Kind == EngineKind.Chromium ? EngineKind.WebKit : EngineKind.Chromium);
                     } else if (roll < 88) {
                         browser.Chromium.KeepsNothing = random.Next(4) == 0;
                         browser.WebKit.KeepsNothing = random.Next(4) == 0;

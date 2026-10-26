@@ -25,7 +25,6 @@ public sealed class ShortcutCommand {
         NewWindow,
         NewBlankWindow,
         NewTab,
-        NewQuickWindow,
         NewPrivateWindow,
         CloseTabOrWindow,
         CloseWindow,
@@ -43,6 +42,7 @@ public sealed class ShortcutCommand {
         PreviousTab,
         NextTab,
         MostRecentTab,
+        MostRecentTabBackward,
         SelectNumbered,
         PreviousSpace,
         NextSpace,
@@ -71,14 +71,10 @@ public sealed class ShortcutCommand {
         MoveSplitCardLeft,
         MoveSplitCardRight,
         ToggleDeveloperToolbar,
-        ToggleTranslationToolbar,
+        TranslatePage,
         OpenFile,
         FindNext,
-        FindPrevious,
-        CapturePage,
-        MostRecentTabBackward,
-        ClearSiteCookies,
-        ClearSiteCache
+        FindPrevious
     }
 
     #endregion
@@ -90,19 +86,11 @@ public sealed class ShortcutCommand {
         reservedFromPages: true);
     public static readonly ShortcutCommand NewBlankWindow = new(Kinds.NewBlankWindow, name: "newBlankWindow",
         ShortcutSection.Everyday, title: "New Blank Window", symbol: "macwindow.badge.plus",
-        shortcuts: [new(DevicePlatform.Desktop, Character("n", Command | Option), YieldsToOverrides: true)],
+        shortcuts: [new(DevicePlatform.Desktop, Character("n", Command | Option))],
         searchTerms: "temporary disposable unsynced window", availableWhen: facts => facts.ShowsSpace && !facts.IsPrivate);
     public static readonly ShortcutCommand NewTab = new(Kinds.NewTab, name: "newTab", ShortcutSection.Everyday,
         title: "New Tab", symbol: "plus.square", shortcuts: Everywhere(Character("t", Command)), offersInPalette: false,
         reservedFromPages: true);
-    // The Mac moves the Quick Window one modifier up to make room for the blank window.
-    public static readonly ShortcutCommand NewQuickWindow = new(Kinds.NewQuickWindow, name: "newQuickWindow",
-        ShortcutSection.Everyday, title: "New Quick Window", symbol: "macwindow.badge.plus",
-        shortcuts: [
-            new(DevicePlatform.Desktop, Character("n", Command | Option | Shift), YieldsToOverrides: true),
-            new(DevicePlatform.Mobile, Character("n", Command | Option), YieldsToOverrides: false)
-        ],
-        searchTerms: "little arc quick lookup", availableWhen: ShowingSpace);
     public static readonly ShortcutCommand NewPrivateWindow = new(Kinds.NewPrivateWindow, name: "newPrivateWindow",
         ShortcutSection.Everyday, title: "New Private Window", symbol: "eyeglasses",
         shortcuts: Everywhere(Character("n", Command | Shift)), searchTerms: "incognito private browsing", reservedFromPages: true);
@@ -137,7 +125,7 @@ public sealed class ShortcutCommand {
         shortcuts: Everywhere(Character("t", Command | Shift)), menuTitle: "Reopen Closed Tab", paletteRest: 2,
         availableWhen: facts => facts.HasArchivedTabs, reservedFromPages: true);
     public static readonly ShortcutCommand ClearUnpinnedTabs = new(Kinds.ClearUnpinnedTabs, name: "clearUnpinnedTabs",
-        ShortcutSection.Tabs, title: "Clear Unpinned Tabs", symbol: "sparkles",
+        ShortcutSection.Tabs, title: "Clear Current Tabs", symbol: "sparkles",
         shortcuts: Everywhere(Character("k", Command | Shift)), searchTerms: "clean tidy archive unpinned tabs");
     public static readonly ShortcutCommand ArchiveTab = new(Kinds.ArchiveTab, name: "archiveTab", ShortcutSection.Tabs,
         title: "Archive Tab", symbol: "archivebox", shortcuts: Everywhere(Character("e", Command)),
@@ -156,7 +144,7 @@ public sealed class ShortcutCommand {
         name: "mostRecentTabBackward", ShortcutSection.Tabs, title: "Most Recent Tab Backward",
         symbol: "arrow.left.arrow.right",
         shortcuts: [.. DevicePlatform.All.Select(platform =>
-            new ShortcutDefault(platform, Special(ShortcutSpecialKey.Tab, Control | Shift), YieldsToOverrides: true))],
+            new ShortcutDefault(platform, Special(ShortcutSpecialKey.Tab, Control | Shift)))],
         searchTerms: "toggle recent switch tabs oldest back", reservedFromPages: true);
     public static readonly ShortcutCommand SelectTab1 = SelectingTab(name: "selectTab1", number: 1);
     public static readonly ShortcutCommand SelectTab2 = SelectingTab(name: "selectTab2", number: 2);
@@ -214,7 +202,7 @@ public sealed class ShortcutCommand {
         title: "Print Page", symbol: "printer", shortcuts: Everywhere(Character("p", Command)), menuTitle: "Print…");
     public static readonly ShortcutCommand ToggleSidebar = new(Kinds.ToggleSidebar, name: "toggleSidebar",
         ShortcutSection.View, title: "Show or Hide Sidebar", symbol: "sidebar.leading",
-        shortcuts: Everywhere(Character("s", Command)), menuTitle: "Toggle Sidebar", paletteRest: 5);
+        shortcuts: [new(DevicePlatform.Mobile, Character("b", Command))], menuTitle: "Toggle Sidebar");
     public static readonly ShortcutCommand ShowHistory = new(Kinds.ShowHistory, name: "showHistory", ShortcutSection.View,
         title: "Show History", symbol: "clock", shortcuts: Everywhere(Character("y", Command)),
         searchTerms: "visited pages history", paletteRest: 3);
@@ -266,10 +254,10 @@ public sealed class ShortcutCommand {
         name: "toggleDeveloperToolbar", ShortcutSection.View, title: "Show or Hide Developer Toolbar",
         symbol: "macbook.and.iphone", shortcuts: Everywhere(Character("i", Command | Shift)),
         searchTerms: "developer toolbar viewport preview responsive custom size", menuTitle: "Show Developer Toolbar");
-    public static readonly ShortcutCommand ToggleTranslationToolbar = new(Kinds.ToggleTranslationToolbar,
-        name: "toggleTranslationToolbar", ShortcutSection.View, title: "Show or Hide Translation Toolbar", symbol: "translate",
-        shortcuts: Everywhere(Character("l", Command | Shift)), searchTerms: "translate translation language toolbar show hide",
-        menuTitle: "Show Translation Toolbar", requiredCapability: EngineCapability.Translation);
+    public static readonly ShortcutCommand TranslatePage = new(Kinds.TranslatePage,
+        name: "translatePage", ShortcutSection.View, title: "Translate Page", symbol: "translate",
+        shortcuts: Everywhere(Character("l", Command | Shift)), searchTerms: "translate translation language",
+        menuTitle: "Translate Page", requiredCapability: EngineCapability.Translation);
     public static readonly ShortcutCommand OpenFile = new(Kinds.OpenFile, name: "openFile", ShortcutSection.Everyday,
         title: "Open File", symbol: "folder", searchTerms: "open local file document html pdf archive webarchive mhtml",
         menuTitle: "Open File…", availableWhen: ShowingSpace);
@@ -277,35 +265,23 @@ public sealed class ShortcutCommand {
     // people could customize, so they yield to keys someone already chose.
     public static readonly ShortcutCommand FindNext = new(Kinds.FindNext, name: "findNext", ShortcutSection.Page,
         title: "Find Next", symbol: "chevron.down", searchTerms: "next match search again",
-        shortcuts: [new(DevicePlatform.Desktop, Character("g", Command), YieldsToOverrides: true)],
+        shortcuts: [new(DevicePlatform.Desktop, Character("g", Command))],
         availableWhen: ShowingWebPage);
     public static readonly ShortcutCommand FindPrevious = new(Kinds.FindPrevious, name: "findPrevious", ShortcutSection.Page,
         title: "Find Previous", symbol: "chevron.up", searchTerms: "previous match search again back",
-        shortcuts: [new(DevicePlatform.Desktop, Character("g", Command | Shift), YieldsToOverrides: true)],
+        shortcuts: [new(DevicePlatform.Desktop, Character("g", Command | Shift))],
         availableWhen: ShowingWebPage);
-    public static readonly ShortcutCommand CapturePage = new(Kinds.CapturePage, name: "capturePage", ShortcutSection.Page,
-        title: "Capture Page", symbol: "camera", searchTerms: "screenshot snapshot region selection image clipboard",
-        shortcuts: [new(DevicePlatform.Desktop, Character("2", Command | Shift), YieldsToOverrides: true)],
-        requiredCapability: EngineCapability.ViewportCapture, availableWhen: ShowingWebPage);
-    public static readonly ShortcutCommand ClearSiteCookies = new(Kinds.ClearSiteCookies, name: "clearSiteCookies",
-        ShortcutSection.Page, title: "Clear Cookies for This Site", symbol: "person.crop.circle.badge.xmark",
-        searchTerms: "site data storage local session indexeddb service workers sign out delete remove",
-        availableWhen: ShowingWebPage);
-    public static readonly ShortcutCommand ClearSiteCache = new(Kinds.ClearSiteCache, name: "clearSiteCache",
-        ShortcutSection.Page, title: "Clear Cache for This Site", symbol: "trash",
-        searchTerms: "cached images files empty delete remove", availableWhen: ShowingWebPage);
-
     public static IReadOnlyList<ShortcutCommand> All { get; } = [
-        NewWindow, NewBlankWindow, NewTab, NewQuickWindow, NewPrivateWindow, CloseTabOrWindow, CloseWindow, OpenLocation, Back,
+        NewWindow, NewBlankWindow, NewTab, NewPrivateWindow, CloseTabOrWindow, CloseWindow, OpenLocation, Back,
         Forward, ReloadPage, StopLoading, ReloadFromOrigin, ToggleSelectedTabPinned, DuplicateTab, ReopenClosedTab,
-        ClearUnpinnedTabs, ArchiveTab, PreviousTab, NextTab, MostRecentTab, SelectTab1, SelectTab2, SelectTab3, SelectTab4,
+        ClearUnpinnedTabs, ArchiveTab, PreviousTab, NextTab, MostRecentTab, MostRecentTabBackward, SelectTab1, SelectTab2, SelectTab3, SelectTab4,
         SelectTab5, SelectTab6, SelectTab7, SelectTab8, SelectTab9, PreviousSpace, NextSpace, SelectSpace1, SelectSpace2,
         SelectSpace3, SelectSpace4, SelectSpace5, SelectSpace6, SelectSpace7, SelectSpace8, SelectSpace9, ToggleReaderMode,
         ToggleContentBlocking, FindInPage, ZoomIn, ZoomOut, ActualSize, CopyPageLink, CopyPageLinkAsMarkdown, SharePage,
         ExportPDF, SaveWebArchive, PrintPage, ToggleSidebar, ShowHistory, ShowArchive, ShowDownloads, ShowWebInspector,
         SplitWithNextTab, FocusNextSplitCard, FocusPreviousSplitCard, RemoveTabFromSplit, SeparateSplitTabs,
-        MoveSplitCardLeft, MoveSplitCardRight, ToggleDeveloperToolbar, ToggleTranslationToolbar, OpenFile, FindNext,
-        FindPrevious, CapturePage, MostRecentTabBackward, ClearSiteCookies, ClearSiteCache
+        MoveSplitCardLeft, MoveSplitCardRight, ToggleDeveloperToolbar, TranslatePage, OpenFile, FindNext,
+        FindPrevious
     ];
 
     public Kinds Kind { get; }
@@ -447,7 +423,7 @@ public sealed class ShortcutCommand {
     #region Actions - Catalog
 
     private static IReadOnlyList<ShortcutDefault> Everywhere(KeyCombination keys) =>
-        [.. DevicePlatform.All.Select(platform => new ShortcutDefault(platform, keys, YieldsToOverrides: false))];
+        [.. DevicePlatform.All.Select(platform => new ShortcutDefault(platform, keys))];
 
     private static KeyCombination Character(string character, ShortcutModifiers modifiers) => new(character, false, modifiers);
 

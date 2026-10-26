@@ -3,13 +3,12 @@ import Foundation
 extension SessionState.Seed {
     // MARK: - Initializers
 
-    /// A session to seed a workspace with: `spaces` in order, opening on
-    /// `defaultSpaceID`, with no Space deletion under way and no app
+    /// A session to seed a workspace with: `spaces` in order, with no Space deletion under way and no app
     /// preferences of its own. `disposableSeedMarker` marks the disposable
     /// first-install seed.
-    init(spaces: [SpaceState.Seed], defaultSpaceID: UUID? = nil, disposableSeedMarker: UUID? = nil) {
+    init(spaces: [SpaceState.Seed], disposableSeedMarker: UUID? = nil) {
         self.init(
-            spaces: spaces, defaultSpaceID: defaultSpaceID, disposableSeedMarker: disposableSeedMarker,
+            spaces: spaces, disposableSeedMarker: disposableSeedMarker,
             spaceDeletions: [], appPreferences: nil)
     }
 

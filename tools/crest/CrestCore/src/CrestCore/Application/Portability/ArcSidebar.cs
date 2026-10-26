@@ -8,21 +8,12 @@ namespace CrestCore.Application;
 /// Arc's sidebar, `StorableSidebar.json`: containers of items, and Spaces
 /// whose sections list the items they hold. Each Space brings its favorites
 /// as pinned tabs, its pinned section as saved tabs in their folders, and its
-/// unpinned section as open tabs, with its name, icon and colors, and each
+/// unpinned section as open tabs, with its name, and each
 /// split view as a split of its tabs. A Chromium session file Arc wrote is
 /// read as one.
 internal static class ArcSidebar {
     #region Static Variables
 
-    /// The SF Symbol each of Arc's built-in Space icons stands for.
-    private static readonly IReadOnlyDictionary<string, string> IconSymbols = new Dictionary<string, string>(StringComparer.Ordinal) {
-        ["planet"] = "globe.americas.fill",
-        ["briefcase"] = "briefcase.fill",
-        ["book"] = "book.fill",
-        ["code"] = "chevron.left.forwardslash.chevron.right"
-    };
-
-    private const string DefaultSymbol = "sidebar.left";
     private const string UntitledFolder = "Untitled Folder";
     private const string UnpinnedSection = "unpinned";
     private const string PinnedSection = "pinned";
@@ -37,8 +28,7 @@ internal static class ArcSidebar {
 
     private sealed record ArcTab(string Title, string? Url, JsonElement? LastActive);
 
-    private sealed record Space(string? Title, IReadOnlyList<string> Sections, string ProfileKey, string? ProfileFolder,
-        JsonElement? CustomInfo);
+    private sealed record Space(string? Title, IReadOnlyList<string> Sections, string ProfileKey, string? ProfileFolder);
 
     private sealed class Draft {
         public List<SessionFolder> Folders { get; } = [];
@@ -86,10 +76,8 @@ internal static class ArcSidebar {
                     else if (section == PinnedSection) placement = TabPlacement.Saved;
                     else Append(section, placement, parent: null, depth: 0, items, draft, importedAt);
                 }
-                string symbol = Symbol(space.CustomInfo);
-                var colors = Colors(space.CustomInfo);
                 drafts.Add(new SessionDraft(drafts.Count + 1, name, draft.Folders, draft.Tabs,
-                    symbol, colors.Count == 0 ? null : SpaceAccent.Nearest(colors[0]), Look(colors), space.ProfileFolder));
+                    space.ProfileFolder));
             }
         }
         return drafts;
@@ -135,8 +123,7 @@ internal static class ArcSidebar {
         var sections = Strings(ImportJson.Member(value, "containerIDs"));
         return new(ImportJson.Text(ImportJson.Member(value, "title")),
             sections.Count == 0 ? Strings(ImportJson.Member(value, "newContainerIDs")) : sections,
-            ProfileKey(ImportJson.Member(value, "profile")), ProfileFolder(ImportJson.Member(value, "profile")),
-            ImportJson.Object(ImportJson.Member(value, "customInfo")));
+            ProfileKey(ImportJson.Member(value, "profile")), ProfileFolder(ImportJson.Member(value, "profile")));
     }
 
     /// The favorites root of each profile, from pairs of a profile and its
@@ -203,49 +190,4 @@ internal static class ArcSidebar {
 
     #endregion
 
-    #region Actions - Looks
-
-    private static string Symbol(JsonElement? customInfo) {
-        var icon = ImportJson.Member(customInfo, "iconType");
-        if (ImportJson.Text(ImportJson.Member(icon, "emoji_v2")) is { Length: > 0 } emoji) return EmojiIcon.Chosen(emoji)?.Symbol ?? emoji;
-        return ImportJson.Text(ImportJson.Member(icon, "icon")) is { } name && IconSymbols.TryGetValue(name, out var symbol)
-            ? symbol : DefaultSymbol;
-    }
-
-    /// The Space's colors: its gradient's base colors, else its single color,
-    /// else its palette's mid tone, at most as many as a look keeps.
-    private static List<BrandColor> Colors(JsonElement? customInfo) {
-        var theme = ImportJson.Member(customInfo, "windowTheme");
-        var color = Path(theme, "background", "single", "_0", "style", "color", "_0");
-        List<BrandColor> colors = [];
-        if (ImportJson.Array(Path(color, "blendedGradient", "_0", "baseColors")) is { } gradient) {
-            colors.AddRange(gradient.Select(item => Color(item)).OfType<BrandColor>());
-        } else if (ImportJson.Object(ImportJson.Member(color, "blendedSingleColor")) is not null
-            && ImportJson.Member(ImportJson.Member(ImportJson.Member(color, "blendedSingleColor"), "_0"), "color") is { } single) {
-            if (Color(single) is { } parsed) colors.Add(parsed);
-        }
-        if (colors.Count == 0 && Color(ImportJson.Member(ImportJson.Member(theme, "primaryColorPalette"), "midTone")) is { } midTone)
-            colors.Add(midTone);
-        return [.. colors.Take(SpaceBranding.MaximumColorCount)];
-    }
-
-    private static JsonElement? Path(JsonElement? value, params string[] keys) {
-        foreach (string key in keys) value = ImportJson.Member(value, key);
-        return value;
-    }
-
-    private static BrandColor? Color(JsonElement? value) =>
-        ImportJson.Object(value) is not null && ImportJson.Number(ImportJson.Member(value, "red")) is { } red
-            && ImportJson.Number(ImportJson.Member(value, "green")) is { } green
-            && ImportJson.Number(ImportJson.Member(value, "blue")) is { } blue
-            ? new(Unit(red), Unit(green), Unit(blue), Unit(ImportJson.Number(ImportJson.Member(value, "alpha")) ?? 1)) : null;
-
-    private static double Unit(double value) => Math.Clamp(value, 0, 1);
-
-    /// A diagonal gradient banner of several colors, or a solid banner of one.
-    private static SpaceBranding? Look(IReadOnlyList<BrandColor> colors) => colors.Count == 0 ? null : SpaceBranding.Painted(colors,
-        colors.Count > 1 ? SpaceBannerPattern.Diagonal : SpaceBannerPattern.Solid, strength: 1, SpaceBranding.LegacyReadabilityFade,
-        colors.Count > 1 ? SpaceThemeMode.Gradient : SpaceThemeMode.Banner, gradientAngle: 45, showsTexture: false);
-
-    #endregion
 }

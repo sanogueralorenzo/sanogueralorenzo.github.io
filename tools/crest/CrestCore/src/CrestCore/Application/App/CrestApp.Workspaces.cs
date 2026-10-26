@@ -52,9 +52,9 @@ public sealed partial class CrestApp {
     /// for the practice, stamped as the session stores the time.
     internal SessionState Template(WorkspaceKind kind) {
         var now = StoredSessionCodec.Date(StoredSessionCodec.Seconds(clock.Now));
-        var template = kind.IsPractice ? SpaceTemplate.Practice : SpaceTemplate.For(kind.IsPrivate);
+        var template = SpaceTemplate.For(kind.IsPrivate);
         var space = template.Make(ids.Next(), ids.Next(), ids.Next, number: 1, now);
-        return new([space], DefaultSpaceId: null, DisposableSeedMarker: null, SpaceDeletions: [], AppPreferences: null);
+        return new([space], DisposableSeedMarker: null, SpaceDeletions: [], AppPreferences: null);
     }
 
     /// Closes a workspace and, first, every workspace that borrows from it:

@@ -17,8 +17,8 @@ public sealed record DropAroundTab(
     internal override SessionIntent Committed(NativeSessionAuthority.Lift lift, IIdSource ids) {
         if (lift.Alone is not { } tab) return new FolderTabsAround(WorkspaceId, WindowId, SpaceId, Selection, TabId, Title);
         return FoldsAround(lift.Work.Edited, tab.Id)
-            ? new CreateFolder(WorkspaceId, SpaceId, ids.Next(), TabPlacement.Current, ParentId: null, Title,
-                FolderState.DefaultColor, FolderState.DefaultSymbol, [TabId, tab.Id], LeavesSplits: true)
+            ? new CreateFolder(WorkspaceId, SpaceId, ids.Next(), TabPlacement.Current, ParentId: null, Title: null,
+                FolderState.DefaultColor, [TabId, tab.Id], LeavesSplits: true)
             : throw new Rejected(new InvalidFolderPlacement());
     }
 

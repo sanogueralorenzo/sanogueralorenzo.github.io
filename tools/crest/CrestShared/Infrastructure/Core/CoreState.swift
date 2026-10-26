@@ -45,12 +45,12 @@ final class CoreState {
         set { publish(newValue, into: \.enginesStorage, as: \.engines) }
     }
     @ObservationIgnored private var enginesStorage: EngineRoster?
-    /// Ordinary engine choices on this device. Private site choices are absent.
+    /// The global engine preference on this device.
     var enginePreferences: EnginePreferences {
         get { observed(\.enginePreferencesStorage, as: \.enginePreferences) }
         set { publish(newValue, into: \.enginePreferencesStorage, as: \.enginePreferences) }
     }
-    @ObservationIgnored private var enginePreferencesStorage = EnginePreferences(defaultEngine: nil, rules: [])
+    @ObservationIgnored private var enginePreferencesStorage = EnginePreferences(defaultEngine: nil)
     /// Whether agents may use Crest on this device, whether they may run
     /// scripts in pages, the Spaces they may reach and the agents the person
     /// allowed.
@@ -111,7 +111,7 @@ final class CoreState {
     }
     @ObservationIgnored private var sitePermissionRevisionStorage: UInt64 = 0
     /// The keys each command this device offers answers to, in the order the
-    /// settings list them, as the core last published them.
+    /// catalog lists them, as the core last published them.
     var shortcutBindings: [ShortcutBinding] {
         get { observed(\.shortcutBindingsStorage, as: \.shortcutBindings) }
         set { publish(newValue, into: \.shortcutBindingsStorage, as: \.shortcutBindings) }
@@ -123,56 +123,13 @@ final class CoreState {
         set { publish(newValue, into: \.shortcutsStorage, as: \.shortcuts) }
     }
     @ObservationIgnored private var shortcutsStorage: [ShortcutCommand: ShortcutBinding] = [:]
-    /// Whether the person changed any shortcut, including one this device
-    /// does not offer.
-    var shortcutsAreCustomized: Bool {
-        get { observed(\.shortcutsAreCustomizedStorage, as: \.shortcutsAreCustomized) }
-        set { publish(newValue, into: \.shortcutsAreCustomizedStorage, as: \.shortcutsAreCustomized) }
-    }
-    @ObservationIgnored private var shortcutsAreCustomizedStorage = false
-    /// This device's link preferences, as the core last published them. Nil
-    /// only until the link preference store adopts them, at launch.
-    var linkPreferences: LinkPreferences? {
-        get { observed(\.linkPreferencesStorage, as: \.linkPreferences) }
-        set { publish(newValue, into: \.linkPreferencesStorage, as: \.linkPreferences) }
-    }
-    @ObservationIgnored private var linkPreferencesStorage: LinkPreferences?
-    /// This device's search catalog, its providers as the device searches with
-    /// them and its default search, as the core last published them. Nil only
-    /// until the launch restores the catalog.
-    var searchCatalog: SearchCatalogChanged? {
-        get { observed(\.searchCatalogStorage, as: \.searchCatalog) }
-        set { publish(newValue, into: \.searchCatalogStorage, as: \.searchCatalog) }
-    }
-    @ObservationIgnored private var searchCatalogStorage: SearchCatalogChanged?
-    /// The manual setup this device holds, as the core last published it, or
-    /// nil while none is in progress.
-    var setupDraft: SetupDraft? {
-        get { observed(\.setupDraftStorage, as: \.setupDraft) }
-        set { publish(newValue, into: \.setupDraftStorage, as: \.setupDraft) }
-    }
-    @ObservationIgnored private var setupDraftStorage: SetupDraft?
-    /// Setup on this device, as the core last published it, or nil while it
+    /// Import on this device, as the core last published it, or nil while it
     /// is not open.
-    var setupFlow: SetupFlowState? {
-        get { observed(\.setupFlowStorage, as: \.setupFlow) }
-        set { publish(newValue, into: \.setupFlowStorage, as: \.setupFlow) }
+    var importFlow: ImportFlowState? {
+        get { observed(\.importFlowStorage, as: \.importFlow) }
+        set { publish(newValue, into: \.importFlowStorage, as: \.importFlow) }
     }
-    @ObservationIgnored private var setupFlowStorage: SetupFlowState?
-    /// Whether this device has completed setup, as the core last published
-    /// it. Nil until the launch adopts it.
-    var setupCompleted: Bool? {
-        get { observed(\.setupCompletedStorage, as: \.setupCompleted) }
-        set { publish(newValue, into: \.setupCompletedStorage, as: \.setupCompleted) }
-    }
-    @ObservationIgnored private var setupCompletedStorage: Bool?
-    /// This process's access to each Space profile that holds a grant or is
-    /// waiting on the device owner, as the core last published it. A profile
-    /// missing here holds no grant.
-    var spaceAccess: [BrowserSpaceRuntimeAssignment: SpaceLockChanged] {
-        observed(\.spaceAccessStorage, as: \.spaceAccess)
-    }
-    @ObservationIgnored var spaceAccessStorage: [BrowserSpaceRuntimeAssignment: SpaceLockChanged] = [:]
+    @ObservationIgnored private var importFlowStorage: ImportFlowState?
 }
 
 extension CoreState: BrowserStoreFirstObservable {}

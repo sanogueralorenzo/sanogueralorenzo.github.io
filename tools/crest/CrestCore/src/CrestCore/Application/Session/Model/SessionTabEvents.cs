@@ -20,16 +20,6 @@ internal sealed record SessionFaviconUpdate(Guid TabId, bool Adopts, Guid? PageI
     #endregion
 }
 
-/// A Quick Window's or Peek's page became a tab, which takes the live page
-/// when `AdoptsPage`.
-internal sealed record SessionTransientPromotion(Guid PageId, Guid TabId, bool AdoptsPage) {
-    #region Actions - Publishing
-
-    public TransientPagePromoted Promoted(Guid workspaceId) => new(workspaceId, PageId, TabId, AdoptsPage);
-
-    #endregion
-}
-
 /// A saved or pinned tab put its page away as window `WindowId` asked,
 /// keeping what brings it back unless it returned to its saved address.
 internal sealed record SessionPagePutAway(Guid WindowId, Guid SpaceId, Guid TabId, bool KeepsState) {
@@ -45,7 +35,7 @@ internal sealed record SessionPagePutAway(Guid WindowId, Guid SpaceId, Guid TabI
 /// saved or pinned tab put away, which comparing the sessions before and
 /// after it cannot tell.
 internal sealed record SessionTabEvents(IReadOnlyList<SessionTabCopy> Copies, SessionFaviconUpdate? Favicon,
-    SessionTransientPromotion? Promotion = null, IReadOnlyList<ImportedTab>? Imported = null,
+    IReadOnlyList<ImportedTab>? Imported = null,
     SessionPagePutAway? PutAway = null) {
     #region Static Variables
 
@@ -59,7 +49,6 @@ internal sealed record SessionTabEvents(IReadOnlyList<SessionTabCopy> Copies, Se
     public IEnumerable<Change> Changes(Guid workspaceId) =>
         Copies.Select(copy => (Change)copy.Copied(workspaceId))
             .Concat(Favicon is { } favicon ? [favicon.Assigned(workspaceId)] : [])
-            .Concat(Promotion is { } promotion ? [promotion.Promoted(workspaceId)] : [])
             .Concat(Imported is { Count: > 0 } imported ? [new TabsImported(workspaceId, imported)] : [])
             .Concat(PutAway is { } putAway ? [putAway.PutAway(workspaceId)] : []);
 

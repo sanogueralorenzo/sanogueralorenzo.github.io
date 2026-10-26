@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.Text.Json.Nodes;
 
 using CrestCore.Contracts;
@@ -15,20 +14,6 @@ internal sealed record DeviceTurn(ChangeFeed Changes, DateTimeOffset Now, IIdSou
 
 #endregion
 
-/// This device's windows and what each shows. It is saved in the device store
-/// beside the session and never synced.
-///
-/// Every workspace a window may show is attached here: the persistent session
-/// the core keeps, and each memory-only session (private browsing, a borrowed
-/// workspace, a Quick Window). Only windows over the persistent session are
-/// saved; the rest live as long as the process. After any session commit, the
-/// device publishes what the session changed, then repairs the windows of the
-/// workspace that changed; after every window intent it publishes each window
-/// whose state changed. Attaching a session publishes it whole, and detaching
-/// it publishes that it is gone.
-///
-/// The device lock is taken last: nothing is called on a session or on the
-/// host while it is held.
 internal sealed partial class Device {
     #region Variables
 
@@ -49,8 +34,6 @@ internal sealed partial class Device {
     internal Dictionary<Guid, SavedWindow> SavedWindows => saved;
     private readonly SessionStorage? storage;
     internal SessionStorage? Storage => storage;
-    /// The grants every session this device shows consults.
-    private readonly SpaceAccessAuthority access;
     private readonly Action<Change> announce;
     /// Asks the host for a drain on its next turn.
     private readonly Action requestTurn;
@@ -74,6 +57,7 @@ internal sealed partial class Device {
     private readonly List<TabGroupRecord> keptTabGroups = [];
     private Guid? persistentWorkspace;
     internal Guid? PersistentWorkspace => persistentWorkspace;
+    internal SearchProvider SearchProvider => Persistent()?.Authority.Current.AppPreferences?.SearchProvider ?? AppPreferences.Default.SearchProvider;
     private long lastUse;
     internal long LastUse { get => lastUse; set => lastUse = value; }
 
@@ -86,18 +70,16 @@ internal sealed partial class Device {
     /// Each session it shows consults `access`. `requestTurn` asks the host
     /// for a drain on its next turn, and `closeBorrower` closes a borrowed
     /// workspace whose owner no longer lends its Space.
-    public Device(DevicePlatform platform, SessionStorage? storage, DeviceRecords records, SpaceAccessAuthority access,
+    public Device(DevicePlatform platform, SessionStorage? storage, DeviceRecords records,
         Action<Change> announce, Action requestTurn, Action<Guid> closeBorrower, IClock clock) {
         ArgumentNullException.ThrowIfNull(platform);
         ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(records);
-        ArgumentNullException.ThrowIfNull(access);
         ArgumentNullException.ThrowIfNull(announce);
         ArgumentNullException.ThrowIfNull(requestTurn);
         ArgumentNullException.ThrowIfNull(closeBorrower);
         this.platform = platform;
         this.storage = storage;
-        this.access = access;
         this.announce = announce;
         this.requestTurn = requestTurn;
         this.closeBorrower = closeBorrower;
@@ -106,17 +88,10 @@ internal sealed partial class Device {
         reopening.AddRange(records.Reopening.Distinct());
         lastUse = records.Windows.Count == 0 ? 0 : records.Windows.Max(record => record.Used);
         keptPermissions.Restore(records.SitePermissions);
-        keptEngines.Restore(records.SiteEngines);
         defaultEngine = records.DefaultEngine;
-        shortcuts = records.Shortcuts;
-        links = records.Links;
         agents = records.Agents;
-        keptSetupDraft = platform.KeepsSetupDraft ? records.SetupDraft : null;
-        setupCompleted = records.SetupCompleted;
         adopted.UnionWith(records.Adopted);
         keptTabGroups.AddRange(records.TabGroups);
-        paletteMemories = records.PaletteMemories.ToImmutableDictionary();
-        searchCatalog = records.SearchCatalog;
     }
 
     #endregion
@@ -124,15 +99,13 @@ internal sealed partial class Device {
     #region Actions - Workspaces
 
     /// Attaches a session a window may show as the workspace `workspaceId`,
-    /// which the core drew for it, and publishes it whole. The session's
-    /// Spaces answer to the device's grants from then on.
+    /// which the core drew for it, and publishes it whole.
     public void Attach(NativeSessionAuthority authority, Guid workspaceId) {
         ArgumentNullException.ThrowIfNull(authority);
         lock (gate) {
             if (workspaces.Values.Any(attached => ReferenceEquals(attached, authority)) || !workspaces.TryAdd(workspaceId, authority))
                 throw new InvalidOperationException("A session joins the device once, as a workspace of its own.");
         }
-        authority.AttachAccess(access);
         authority.AttachDevice(this, workspaceId);
         announce(new WorkspaceOpened(workspaceId, authority.Kind, authority.Current));
     }
@@ -240,11 +213,9 @@ internal sealed partial class Device {
                     foreach (var (_, spaceId, tabId) in followUp.Departed.Where(gone => gone.WindowId == window.Id))
                         window.Depart(spaceId, tabId);
             }, next));
-            if (FollowingSpaces(workspaceId, next) is { } setup) changes.Add(setup);
             owner = workspaces.GetValueOrDefault(workspaceId);
         }
         foreach (var change in changes) announce(change);
-        RememberPublished(workspaceId, previous, next);
         if (owner is not null) FollowOwner(owner);
     }
 
@@ -339,10 +310,8 @@ internal sealed partial class Device {
 
     /// Everything the device store keeps, as it stands. The caller holds the device lock.
     internal DeviceRecords Records() => new([.. saved.Values.OrderBy(record => record.Used)], [.. reopening],
-        [.. keptPermissions.PersistentRecords], [.. keptEngines.Choices], shortcuts, links, keptSetupDraft, setupCompleted,
+        [.. keptPermissions.PersistentRecords],
         new HashSet<DeviceAdoption>(adopted), [.. keptTabGroups], defaultEngine) {
-        PaletteMemories = paletteMemories,
-        SearchCatalog = searchCatalog,
         Agents = agents
     };
 

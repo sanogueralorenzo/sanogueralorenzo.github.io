@@ -21,35 +21,28 @@ internal sealed class SyncWireField {
 
     #region Static Variables
 
-    public static readonly SyncWireField Id = new(StoredSessionCodec.Key.Id, Kinds.Identity);
-    public static readonly SyncWireField RawValue = new(StoredSessionCodec.Key.RawValue, Kinds.Identity);
-    public static readonly SyncWireField ProfileId = new(StoredSessionCodec.Key.ProfileId, Kinds.Identity);
-    public static readonly SyncWireField SpaceId = new(StoredSessionCodec.Key.SpaceId, Kinds.Identity);
-    /// The device a record's version names and when a tombstone deleted it,
-    /// which no stored record carries.
-    public static readonly SyncWireField DeviceId = new(SyncJournalRecord.Key.DeviceId, Kinds.Identity);
-    public static readonly SyncWireField DeletedAt = new(SyncJournalRecord.Key.DeletedAt, Kinds.Timestamp);
-    public static readonly SyncWireField FolderId = new(StoredSessionCodec.Key.FolderId, Kinds.Identity);
-    public static readonly SyncWireField ParentId = new(StoredSessionCodec.Key.ParentId, Kinds.Identity);
-    public static readonly SyncWireField OrderAnchorTabId = new(StoredSessionCodec.Key.OrderAnchorTabId, Kinds.Identity);
-    public static readonly SyncWireField SplitGroupId = new(StoredSessionCodec.Key.SplitGroupId, Kinds.Identity);
-    public static readonly SyncWireField LastActivatedAt = new(StoredSessionCodec.Key.LastActivatedAt, Kinds.Timestamp);
-    public static readonly SyncWireField PositionModifiedAt = new(StoredSessionCodec.Key.PositionModifiedAt, Kinds.Timestamp);
-    public static readonly SyncWireField TitleModifiedAt = new(StoredSessionCodec.Key.TitleModifiedAt, Kinds.Timestamp);
-    public static readonly SyncWireField SavedTabsExpansionModifiedAt = new(StoredSessionCodec.Key.SavedTabsExpansionModifiedAt, Kinds.Timestamp);
-    public static readonly SyncWireField CollapseModifiedAt = new(StoredSessionCodec.Key.CollapseModifiedAt, Kinds.Timestamp);
-    public static readonly SyncWireField IconModifiedAt = new(StoredSessionCodec.Key.IconModifiedAt, Kinds.Timestamp);
-    public static readonly SyncWireField TintModifiedAt = new(StoredSessionCodec.Key.TintModifiedAt, Kinds.Timestamp);
-    public static readonly SyncWireField ArchivedAt = new(StoredSessionCodec.Key.ArchivedAt, Kinds.Timestamp);
-    public static readonly SyncWireField FirstVisitedAt = new(StoredSessionCodec.Key.FirstVisitedAt, Kinds.Timestamp);
-    public static readonly SyncWireField LastVisitedAt = new(StoredSessionCodec.Key.LastVisitedAt, Kinds.Timestamp);
-    public static readonly SyncWireField CredentialsEnabledModifiedAt = new(StoredSessionCodec.Key.CredentialsEnabledModifiedAt, Kinds.Timestamp);
-    public static readonly SyncWireField AccessPolicyModifiedAt = new(StoredSessionCodec.Key.AccessPolicyModifiedAt, Kinds.Timestamp);
+    public static readonly SyncWireField Id = new("id", Kinds.Identity);
+    public static readonly SyncWireField RawValue = new("rawValue", Kinds.Identity);
+    public static readonly SyncWireField ProfileId = new("profileID", Kinds.Identity);
+    public static readonly SyncWireField SpaceId = new("spaceID", Kinds.Identity);
+    public static readonly SyncWireField DeviceId = new("deviceID", Kinds.Identity);
+    public static readonly SyncWireField FolderId = new("folderID", Kinds.Identity);
+    public static readonly SyncWireField ParentId = new("parentID", Kinds.Identity);
+    public static readonly SyncWireField OrderAnchorTabId = new("orderAnchorTabID", Kinds.Identity);
+    public static readonly SyncWireField SplitGroupId = new("splitGroupID", Kinds.Identity);
+    public static readonly SyncWireField LastActivatedAt = new("lastActivatedAt", Kinds.Timestamp);
+    public static readonly SyncWireField PositionModifiedAt = new("positionModifiedAt", Kinds.Timestamp);
+    public static readonly SyncWireField TitleModifiedAt = new("titleModifiedAt", Kinds.Timestamp);
+    public static readonly SyncWireField CollapseModifiedAt = new("collapseModifiedAt", Kinds.Timestamp);
+    public static readonly SyncWireField ArchivedAt = new("archivedAt", Kinds.Timestamp);
+    public static readonly SyncWireField DeletedAt = new("deletedAt", Kinds.Timestamp);
+    public static readonly SyncWireField FirstVisitedAt = new("firstVisitedAt", Kinds.Timestamp);
+    public static readonly SyncWireField LastVisitedAt = new("lastVisitedAt", Kinds.Timestamp);
 
     public static IReadOnlyList<SyncWireField> All { get; } = [
         Id, RawValue, ProfileId, SpaceId, DeviceId, FolderId, ParentId, OrderAnchorTabId, SplitGroupId, LastActivatedAt,
-        PositionModifiedAt, TitleModifiedAt, SavedTabsExpansionModifiedAt, CollapseModifiedAt, IconModifiedAt, TintModifiedAt,
-        ArchivedAt, DeletedAt, FirstVisitedAt, LastVisitedAt, CredentialsEnabledModifiedAt, AccessPolicyModifiedAt
+        PositionModifiedAt, TitleModifiedAt, CollapseModifiedAt,
+        ArchivedAt, DeletedAt, FirstVisitedAt, LastVisitedAt
     ];
 
     /// Every member by its key, since every field of every compared record

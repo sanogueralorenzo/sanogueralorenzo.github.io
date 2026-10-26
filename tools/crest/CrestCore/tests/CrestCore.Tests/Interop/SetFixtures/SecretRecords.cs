@@ -15,7 +15,7 @@ public sealed record Unlock(string Owner, string Password) : Intent {
 }
 
 /// Saved passwords in a list, beside a count of its own.
-public sealed record Remember(IReadOnlyList<ExistingCredential> Credentials, int Hooks) : Intent {
+public sealed record Remember(IReadOnlyList<SecretValue> Credentials, int Hooks) : Intent {
     #region Actions - Routing
 
     /// A schema fixture is never sent.
@@ -25,7 +25,7 @@ public sealed record Remember(IReadOnlyList<ExistingCredential> Credentials, int
 }
 
 /// A saved password, maybe.
-public sealed record Recall(ExistingCredential? Credential) : Intent {
+public sealed record Recall(SecretValue? Credential) : Intent {
     #region Actions - Routing
 
     /// A schema fixture is never sent.

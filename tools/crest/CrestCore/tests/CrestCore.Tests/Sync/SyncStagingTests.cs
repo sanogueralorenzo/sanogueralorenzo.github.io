@@ -35,7 +35,7 @@ public sealed partial class BrowserContractsTests {
         var (owner, sync) = (device.Authority, Syncing(device.Authority));
         var folder = Guid.NewGuid();
         device.Send(new CreateFolder(device.Workspace, fixture.Space, folder, TabPlacement.Saved, null, "Doomed",
-            FolderState.DefaultColor, "folder", [], LeavesSplits: false));
+            FolderState.DefaultColor, [], LeavesSplits: false));
         sync.Flush();
         JsonNode FolderRecord() => JsonNode.Parse(sync.Snapshot.Read())!["records"]!.AsArray().Single(record =>
             record!["id"]!["kind"]!.GetValue<string>() == "folder" && Guid.Parse(record["id"]!["value"]!.GetValue<string>()) == folder)!;

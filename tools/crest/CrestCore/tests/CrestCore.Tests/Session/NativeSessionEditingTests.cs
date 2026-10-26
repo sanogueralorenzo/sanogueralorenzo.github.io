@@ -22,7 +22,7 @@ public sealed partial class BrowserContractsTests {
         saved["nativeContent"] = new JsonObject { ["kind"] = kind, ["resourceID"] = Guid.NewGuid().ToString().ToUpperInvariant() };
 
         var tab = BrowserTab.Restore(new TabState(fixture.Tab, "Stored native title", null, new NativeTabContent(kind), null, "square",
-            null, null, null, TabPlacement.Saved, null, null, DateTimeOffset.UnixEpoch, null, null, null, false));
+            null, null, null, TabPlacement.Saved, null, null, DateTimeOffset.UnixEpoch, null, null, null));
         Assert.Equal(TabRenderType.UiNative, tab.Content.RenderType);
         Assert.Equal(kind, tab.Content.NativeKind);
         Assert.Equal("Stored native title", tab.Title);

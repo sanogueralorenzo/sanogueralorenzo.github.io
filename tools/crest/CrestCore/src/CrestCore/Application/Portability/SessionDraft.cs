@@ -5,12 +5,12 @@ namespace CrestCore.Application;
 
 /// One window or Space another browser's session holds, as its reader found
 /// it: the folders and tabs, with the folder identities the browser spells,
-/// and the name, symbol, accent and look it gave the Space, where it gave
+/// and the name it gave the Space, where it gave
 /// any. `Ordinal` counts the browser's windows or Spaces from one. A browser
 /// that keeps a profile for each Space, as Arc does, names the folder of the
 /// Space's own profile, `Profile`, when it is not the browser's first.
 internal sealed record SessionDraft(int Ordinal, string? Name, IReadOnlyList<SessionFolder> Folders, IReadOnlyList<SessionTab> Tabs,
-    string? Symbol = null, SpaceAccent? Accent = null, SpaceBranding? Branding = null, string? Profile = null) {
+    string? Profile = null) {
     #region Static Variables
 
     /// The most tabs one window or Space brings.
@@ -121,7 +121,7 @@ internal sealed record SessionDraft(int Ordinal, string? Name, IReadOnlyList<Ses
                     : throw new Rejected(new SessionUnrecognized());
             string title = ImportText.Bounded(folder.Title, UntitledFolder, ImportText.MaximumFolderTitle)
                 ?? throw new Rejected(new SessionOverLimits());
-            return Folder(folderIds[folder.SourceId], title, FolderState.DefaultSymbol, parent, folder.Placement, folder.Color?.Color);
+            return Folder(folderIds[folder.SourceId], title, parent, folder.Placement, folder.Color?.Color);
         })];
         var folderPlaces = folders.ToDictionary(folder => folder.Id, folder => folder.Location);
         if (!IsForest(folders)) throw new Rejected(new SessionOverLimits());
@@ -140,7 +140,7 @@ internal sealed record SessionDraft(int Ordinal, string? Name, IReadOnlyList<Ses
                 placement = spill;
                 if (overflow is null && folders.Count < FolderTree.MaximumCount) {
                     overflow = ids.Next();
-                    folders.Add(Folder(overflow.Value, NativeWorkspaceImport.OverflowFolderTitle, NativeWorkspaceImport.OverflowFolderSymbol,
+                    folders.Add(Folder(overflow.Value, NativeWorkspaceImport.OverflowFolderTitle,
                         parent: null, spill));
                     folderPlaces[overflow.Value] = spill;
                 }
@@ -154,35 +154,30 @@ internal sealed record SessionDraft(int Ordinal, string? Name, IReadOnlyList<Ses
                 placement.ImportedSymbol ?? TabIconMode.WebSymbol, placement,
                 fits ? folder : null, SplitGroupId: null, tab.LastActivatedAt ?? importedAt));
         }
-        var splits = Split(ordered, tabs, ids);
+        Split(ordered, tabs, ids);
 
         string name = ImportText.Bounded(Name, Fallback(names, numbered), ImportText.MaximumSpaceName)
             ?? throw new Rejected(new SessionOverLimits());
-        string symbol = Symbol ?? source.Symbol;
-        return new(name, symbol, Accent ?? source.Accent, Branding ?? SpaceBranding.NeutralImport(symbol), Ordered(folders), tabs,
-            splits, ArchivedTabs: [], History: [], StoredSessionCodec.DefaultBrowsingPreferences, SelectedTabId: null);
+        return new(name, Ordered(folders), tabs,
+            ArchivedTabs: [], History: [], StoredSessionCodec.DefaultBrowsingPreferences, SelectedTabId: null);
     }
 
     /// The split views of the browser's tabs that Crest keeps, joining their
     /// tabs in `tabs`: each whose tabs sit side by side, in one place and
     /// folder, at least two and no more than a split holds. The tabs of any
     /// other show on their own.
-    private static List<BrowserDataSplit> Split(IReadOnlyList<SessionTab> sources, List<BrowserDataTab> tabs, IIdSource ids) {
+    private static void Split(IReadOnlyList<SessionTab> sources, List<BrowserDataTab> tabs, IIdSource ids) {
         Dictionary<string, Guid> splitIds = new(StringComparer.Ordinal);
         Guid? Group(SessionTab tab) => tab.SplitSourceId is not { } source ? null
             : splitIds.TryGetValue(source, out var id) ? id : splitIds[source] = ids.Next();
         var asked = sources.Select(Group).ToArray();
         var kept = SplitMember.Repair([.. tabs.Select((tab, index) => new SplitMember(asked[index], tab.Placement, tab.FolderId))]);
         var counts = kept.OfType<Guid>().GroupBy(group => group).ToDictionary(group => group.Key, group => group.Count());
-        List<BrowserDataSplit> splits = [];
         for (int index = 0; index < tabs.Count; index++) {
             Guid? group = kept[index] is { } joined && joined == asked[index] && counts[joined] >= MinimumSplitMembers ? joined : null;
             tabs[index] = tabs[index] with { SplitGroupId = group };
-            if (group is { } made && splits.All(split => split.Id != made))
-                splits.Add(new BrowserDataSplit(made, CustomTitle: null, TitleModifiedAt: null, CustomIconSymbol: null, IconModifiedAt: null,
-                    Tint: null, TintModifiedAt: null));
+
         }
-        return splits;
     }
 
     /// `tabs` in order, each split's tabs gathered beside its first, where the
@@ -201,9 +196,9 @@ internal sealed record SessionDraft(int Ordinal, string? Name, IReadOnlyList<Ses
     }
 
     /// A folder in the default color, among the saved tabs unless `placement` says otherwise.
-    private static BrowserDataFolder Folder(Guid id, string title, string symbol, Guid? parent, TabPlacement? placement = null,
+    private static BrowserDataFolder Folder(Guid id, string title, Guid? parent, TabPlacement? placement = null,
         BrandColor? color = null) =>
-        new(id, placement ?? TabPlacement.Saved, title, symbol, color ?? FolderState.DefaultColor, parent, IsCollapsed: false,
+        new(id, placement ?? TabPlacement.Saved, title, color ?? FolderState.DefaultColor, parent, IsCollapsed: false,
             OrderAnchorTabId: null);
 
     private static bool IsForest(IReadOnlyList<BrowserDataFolder> folders) {

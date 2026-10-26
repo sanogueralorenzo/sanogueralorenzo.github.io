@@ -5,8 +5,8 @@ namespace CrestCore.Contracts;
 public sealed class MemoryPressureLevel {
     #region Variables
 
-    public static readonly MemoryPressureLevel Warning = new(name: "warning", severity: 1, releasesActiveTransientPages: false);
-    public static readonly MemoryPressureLevel Critical = new(name: "critical", severity: 2, releasesActiveTransientPages: true);
+    public static readonly MemoryPressureLevel Warning = new(name: "warning", severity: 1);
+    public static readonly MemoryPressureLevel Critical = new(name: "critical", severity: 2);
 
     public static IReadOnlyList<MemoryPressureLevel> All { get; } = [Warning, Critical];
 
@@ -16,18 +16,14 @@ public sealed class MemoryPressureLevel {
     /// store already answered.
     public int Severity { get; }
 
-    /// A Quick Window or Peek the person is using gives its page back too; a
-    /// milder squeeze keeps it.
-    public bool ReleasesActiveTransientPages { get; }
 
     #endregion
 
     #region Constructors
 
-    private MemoryPressureLevel(string name, int severity, bool releasesActiveTransientPages) {
+    private MemoryPressureLevel(string name, int severity) {
         Name = name;
         Severity = severity;
-        ReleasesActiveTransientPages = releasesActiveTransientPages;
     }
 
     #endregion

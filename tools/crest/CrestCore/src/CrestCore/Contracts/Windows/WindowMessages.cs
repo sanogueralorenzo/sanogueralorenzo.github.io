@@ -10,9 +10,6 @@ public enum TearOffRefusal {
     /// The window no longer shows the Space the drag started in, with the
     /// profile it had, or the Space is being deleted.
     SpaceChanged,
-    /// The Space is locked.
-    SpaceLocked,
-    /// The Space no longer holds the tab.
     TabGone,
     /// The drag carries more than the one tab.
     SeveralTabs
@@ -46,10 +43,8 @@ public sealed record SwipeNeighborTabs(Guid? PreviousTabId, Guid? NextTabId);
 public sealed record DockMenuContent(IReadOnlyList<DockMenuCommand> Commands, IReadOnlyList<DockMenuSpace> Spaces, Guid? WindowId);
 
 /// The windows a launch opens, back to front, each a saved window's identity:
-/// the frontmost, `StartupWindowId`, takes the startup choice. `Setup` is the
-/// setup that opens in front of them, and holds them back until it finishes,
-/// or null when none does.
-public sealed record LaunchWindowPlan(IReadOnlyList<Guid> WindowIds, Guid StartupWindowId, SetupEntry? Setup);
+/// the frontmost, `StartupWindowId`, takes the startup choice.
+public sealed record LaunchWindowPlan(IReadOnlyList<Guid> WindowIds, Guid StartupWindowId);
 
 /// The window that comes to the person: an open one, or with `OpensWindow`, a
 /// saved window's identity to open.
@@ -60,13 +55,7 @@ public sealed record ReopenedWindow(Guid WindowId, bool OpensWindow);
 /// are null when the tabs are declined.
 public sealed record EngineWindowPlace(Guid? WindowId, Guid? SpaceId, bool OpensWindow);
 
-/// One Space in the Dock icon's menu, drawn as the Space switcher draws it:
-/// its name, symbol, accent and the look it wears, which says whether its
-/// icon is its crest or its symbol. `IsShown` checks the Space the frontmost
-/// window shows. `IsLocked` says this process holds no grant for it now, so
-/// choosing it shows it locked until the person unlocks it there.
-public sealed record DockMenuSpace(Guid SpaceId, Guid ProfileId, string Name, string Symbol, SpaceAccent Accent,
-    SpaceBranding Look, bool IsShown, bool IsLocked);
+public sealed record DockMenuSpace(Guid SpaceId, Guid ProfileId, string Name, bool IsShown, SpaceColor Color);
 
 #endregion
 
@@ -101,16 +90,7 @@ public sealed record WindowLayout(Guid WindowId, double? SidebarWidth, bool? Sid
 /// whole width.
 public sealed record InvalidSplitColumnShares : Rejection;
 
-/// The Space is locked, and this process holds no grant to read or change it.
-public sealed record SpaceLocked(Guid SpaceId) : Rejection {
-    #region Variables
 
-    /// What the person is told.
-    [Localized]
-    public string Message => "The Space is locked or no longer active. Unlock it and select the tabs again.";
-
-    #endregion
-}
 
 /// The intent names a workspace that is not attached to this device.
 public sealed record UnknownWorkspace(Guid WorkspaceId) : Rejection;

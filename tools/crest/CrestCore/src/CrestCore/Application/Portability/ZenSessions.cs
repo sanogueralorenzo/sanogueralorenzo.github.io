@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 
 using CrestCore.Contracts;
@@ -8,112 +7,15 @@ namespace CrestCore.Application;
 
 /// Zen's `zen-sessions.jsonlz4`: its Spaces, folders and tabs. Each Space
 /// brings the Essentials as pinned tabs, its pinned tabs as saved tabs in
-/// their folders, and its other tabs as open tabs, with its name and theme.
+/// their folders, and its other tabs as open tabs, with its name.
 /// Zen keeps a split view as a group of its own, which is no folder: a pinned
 /// tab in one is saved in the folder holding the split, or outside any folder
 /// for a split among the Space's pinned tabs, and the split comes along as a
-/// split of its tabs. A Space's icon is one of Zen's own, read as the SF
-/// Symbol that draws the same thing, or an emoji.
+/// split of its tabs.
 internal static class ZenSessions {
     #region Static Variables
 
-    private const string Symbol = "circle.hexagongrid.fill";
-    /// Where Zen keeps the icons a Space may wear, each named as its file.
-    private const string IconFolder = "zen-icons/selectable/";
-    private const double ComponentScale = 255;
-
-    /// The SF Symbol that draws each of Zen's Space icons.
-    private static readonly IReadOnlyDictionary<string, string> IconSymbols = new Dictionary<string, string>(StringComparer.Ordinal) {
-        ["airplane"] = "airplane",
-        ["american-football"] = "football.fill",
-        ["baseball"] = "baseball.fill",
-        ["basket"] = "basket.fill",
-        ["bed"] = "bed.double.fill",
-        ["bell"] = "bell.fill",
-        ["book"] = "book.fill",
-        ["bookmark"] = "bookmark.fill",
-        ["briefcase"] = "briefcase.fill",
-        ["brush"] = "paintbrush.fill",
-        ["bug"] = "ladybug.fill",
-        ["build"] = "hammer.fill",
-        ["cafe"] = "cup.and.saucer.fill",
-        ["call"] = "phone.fill",
-        ["card"] = "creditcard.fill",
-        ["chat"] = "bubble.left.fill",
-        ["checkbox"] = "checkmark.square.fill",
-        ["circle"] = "circle.fill",
-        ["cloud"] = "cloud.fill",
-        ["code"] = "chevron.left.forwardslash.chevron.right",
-        ["coins"] = "dollarsign.circle.fill",
-        ["construct"] = "wrench.and.screwdriver.fill",
-        ["cutlery"] = "fork.knife",
-        ["egg"] = "frying.pan.fill",
-        ["extension-puzzle"] = "puzzlepiece.extension.fill",
-        ["eye"] = "eye.fill",
-        ["fast-food"] = "takeoutbag.and.cup.and.straw.fill",
-        ["fish"] = "fish.fill",
-        ["flag"] = "flag.fill",
-        ["flame"] = "flame.fill",
-        ["flask"] = "flask.fill",
-        ["folder"] = "folder.fill",
-        ["game-controller"] = "gamecontroller.fill",
-        ["globe"] = "globe",
-        ["globe-1"] = "globe.americas.fill",
-        ["grid-2x2"] = "square.grid.2x2.fill",
-        ["grid-3x3"] = "square.grid.3x3.fill",
-        ["heart"] = "heart.fill",
-        ["ice-cream"] = "birthday.cake.fill",
-        ["image"] = "photo.fill",
-        ["inbox"] = "tray.fill",
-        ["key"] = "key.fill",
-        ["layers"] = "square.stack.3d.up.fill",
-        ["leaf"] = "leaf.fill",
-        ["lightning"] = "bolt.fill",
-        ["location"] = "location.fill",
-        ["lock-closed"] = "lock.fill",
-        ["logo-github"] = "chevron.left.forwardslash.chevron.right",
-        ["logo-rss"] = "dot.radiowaves.up.forward",
-        ["logo-usd"] = "dollarsign",
-        ["mail"] = "envelope.fill",
-        ["map"] = "map.fill",
-        ["megaphone"] = "megaphone.fill",
-        ["moon"] = "moon.fill",
-        ["music"] = "music.note",
-        ["navigate"] = "location.north.fill",
-        ["nuclear"] = "atom",
-        ["page"] = "doc.fill",
-        ["palette"] = "paintpalette.fill",
-        ["paw"] = "pawprint.fill",
-        ["people"] = "person.2.fill",
-        ["pizza"] = "fork.knife.circle.fill",
-        ["planet"] = "globe.americas.fill",
-        ["present"] = "gift.fill",
-        ["rocket"] = "paperplane.fill",
-        ["school"] = "graduationcap.fill",
-        ["shapes"] = "square.on.circle.fill",
-        ["shirt"] = "tshirt.fill",
-        ["skull"] = "exclamationmark.octagon.fill",
-        ["square"] = "square.fill",
-        ["squares"] = "square.on.square.fill",
-        ["star"] = "star.fill",
-        ["star-1"] = "star.circle.fill",
-        ["stats-chart"] = "chart.bar.fill",
-        ["sun"] = "sun.max.fill",
-        ["tada"] = "party.popper.fill",
-        ["terminal"] = "terminal.fill",
-        ["ticket"] = "ticket.fill",
-        ["time"] = "clock.fill",
-        ["trash"] = "trash.fill",
-        ["triangle"] = "triangle.fill",
-        ["video"] = "video.fill",
-        ["volume-high"] = "speaker.wave.3.fill",
-        ["wallet"] = "wallet.pass.fill",
-        ["warning"] = "exclamationmark.triangle.fill",
-        ["water"] = "drop.fill",
-        ["weight"] = "dumbbell.fill"
-    };
     private const string UntitledFolder = "Untitled Folder";
-    private const double DefaultOpacity = 0.65;
 
     #endregion
 
@@ -165,10 +67,7 @@ internal static class ZenSessions {
                 if ((owner == workspace || (owner is null && essential))
                     && Tab(tab, Holder(ImportJson.Text(ImportJson.Member(tab, "groupId")), groups, kept), splits, importedAt) is { } decoded)
                     spaceTabs.Add(decoded);
-            var theme = ImportJson.Member(space, "theme");
-            var colors = Colors(theme);
-            drafts.Add(new SessionDraft(index + 1, name, spaceFolders, spaceTabs, Icon(ImportJson.Text(ImportJson.Member(space, "icon"))),
-                colors.Count == 0 ? SpaceAccent.Indigo : SpaceAccent.Nearest(colors[0]), Look(colors, theme)));
+            drafts.Add(new SessionDraft(index + 1, name, spaceFolders, spaceTabs));
         }
         return drafts;
     }
@@ -227,46 +126,6 @@ internal static class ZenSessions {
     #endregion
 
     #region Actions - Looks
-
-    /// The SF Symbol for Zen's icon at `path`, the emoji the person chose, or
-    /// Zen's own symbol for any other.
-    private static string Icon(string? path) {
-        if (path is null || path.Length == 0) return Symbol;
-        int start = path.IndexOf(IconFolder, StringComparison.Ordinal);
-        if (start < 0) return EmojiIcon.Chosen(path)?.Symbol ?? Symbol;
-        string name = Path.GetFileNameWithoutExtension(path[(start + IconFolder.Length)..]);
-        return IconSymbols.TryGetValue(name, out var symbol) ? symbol : Symbol;
-    }
-
-    /// The theme's gradient colors, spelled as hex, as components, or as Zen
-    /// writes them, `c` holding red, green and blue from 0 to 255, at most as
-    /// many as a look keeps.
-    private static List<BrandColor> Colors(JsonElement? theme) {
-        var values = ImportJson.Object(theme) is null ? null : ImportJson.Array(ImportJson.Member(theme, "gradientColors"));
-        return [.. (values ?? []).Select(Color).OfType<BrandColor>().Take(SpaceBranding.MaximumColorCount)];
-    }
-
-    private static BrandColor? Color(JsonElement value) {
-        if (ImportJson.Text(value) is { } hex) {
-            string digits = hex.Trim('#');
-            return digits.Length == 6 && int.TryParse(digits, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out int raw)
-                ? new(((raw >> 16) & 0xFF) / 255.0, ((raw >> 8) & 0xFF) / 255.0, (raw & 0xFF) / 255.0) : null;
-        }
-        if (ImportJson.Array(ImportJson.Member(value, "c")) is { Count: 3 } components
-            && components.Select(component => ImportJson.Number(component)).ToArray() is [{ } r, { } g, { } b])
-            return new(Math.Clamp(r / ComponentScale, 0, 1), Math.Clamp(g / ComponentScale, 0, 1), Math.Clamp(b / ComponentScale, 0, 1));
-        return ImportJson.Object(value) is not null && ImportJson.Number(ImportJson.Member(value, "red")) is { } red
-            && ImportJson.Number(ImportJson.Member(value, "green")) is { } green
-            && ImportJson.Number(ImportJson.Member(value, "blue")) is { } blue
-            ? new(Math.Clamp(red, 0, 1), Math.Clamp(green, 0, 1), Math.Clamp(blue, 0, 1)) : null;
-    }
-
-    /// A gradient banner in bands of several colors, or a solid banner of
-    /// one, as strong as the theme's opacity and textured as it is.
-    private static SpaceBranding? Look(IReadOnlyList<BrandColor> colors, JsonElement? theme) => colors.Count == 0 ? null
-        : SpaceBranding.Painted(colors, colors.Count > 1 ? SpaceBannerPattern.Bands : SpaceBannerPattern.Solid,
-            Math.Clamp(ImportJson.Number(ImportJson.Member(theme, "opacity")) ?? DefaultOpacity, 0, 1), SpaceBranding.LegacyReadabilityFade,
-            SpaceThemeMode.Gradient, gradientAngle: 45, showsTexture: (ImportJson.Integer(ImportJson.Member(theme, "texture")) ?? 0) != 0);
 
     #endregion
 }

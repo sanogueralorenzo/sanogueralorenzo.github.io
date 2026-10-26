@@ -11,14 +11,14 @@ public sealed class ShortcutMenu {
     #region Static Variables
 
     public static readonly ShortcutMenu File = new(name: "file", title: "File", groups: [
-        [ShortcutCommand.NewWindow, ShortcutCommand.NewBlankWindow, ShortcutCommand.NewTab, ShortcutCommand.NewQuickWindow,
+        [ShortcutCommand.NewWindow, ShortcutCommand.NewBlankWindow, ShortcutCommand.NewTab,
             ShortcutCommand.NewPrivateWindow],
         [ShortcutCommand.OpenFile],
         [ShortcutCommand.CloseTabOrWindow, ShortcutCommand.CloseWindow],
         [ShortcutCommand.PrintPage]
     ]);
     public static readonly ShortcutMenu View = new(name: "view", title: "View", groups: [
-        [ShortcutCommand.ToggleSidebar, ShortcutCommand.ToggleTranslationToolbar],
+        [ShortcutCommand.ToggleSidebar, ShortcutCommand.TranslatePage],
         [ShortcutCommand.ShowHistory, ShortcutCommand.ShowArchive, ShortcutCommand.ShowDownloads]
     ]);
     public static readonly ShortcutMenu Navigate = new(name: "navigate", title: "Navigate", groups: [
@@ -45,8 +45,7 @@ public sealed class ShortcutMenu {
         [ShortcutCommand.FindInPage, ShortcutCommand.FindNext, ShortcutCommand.FindPrevious],
         [ShortcutCommand.ZoomIn, ShortcutCommand.ZoomOut, ShortcutCommand.ActualSize],
         [ShortcutCommand.CopyPageLink, ShortcutCommand.CopyPageLinkAsMarkdown, ShortcutCommand.SharePage, ShortcutCommand.ExportPDF,
-            ShortcutCommand.SaveWebArchive, ShortcutCommand.CapturePage],
-        [ShortcutCommand.ClearSiteCookies, ShortcutCommand.ClearSiteCache]
+            ShortcutCommand.SaveWebArchive]
     ]);
     public static readonly ShortcutMenu Develop = new(name: "develop", title: "Develop", groups: [
         [ShortcutCommand.ToggleDeveloperToolbar],

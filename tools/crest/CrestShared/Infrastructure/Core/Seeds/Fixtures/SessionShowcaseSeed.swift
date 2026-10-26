@@ -11,7 +11,7 @@ enum SessionShowcaseSeed {
     }
 
     private static func makeWorkSpace() -> SpaceState.Seed {
-        let folder = FolderState.Seed(title: "Launch Atlas", symbol: "folder.fill")
+        let folder = FolderState.Seed(title: "Launch Atlas")
         let splitGroupID = UUID()
         let secondSplitGroupID = UUID()
         let tabs = [
@@ -44,15 +44,15 @@ enum SessionShowcaseSeed {
                 reason: .closed, secondsAgo: 240),
             archivedTab(
                 "Idle research notes", page(.work, title: "Idle research notes", activeCard: 1), "📦",
-                reason: .autoCleanup, secondsAgo: 540),
+                reason: .closed, secondsAgo: 540),
         ]
         return SpaceState.Seed(
-            name: "Work", symbol: "hammer.fill", accent: .indigo, branding: SpaceAccent.rose.house, folders: [folder],
+            name: "Work", folders: [folder],
             tabs: tabs, archivedTabs: archivedTabs)
     }
 
     private static func makePersonalSpace() -> SpaceState.Seed {
-        let folder = FolderState.Seed(title: "Weekend Plans", symbol: "folder.fill")
+        let folder = FolderState.Seed(title: "Weekend Plans")
         let tabs = [
             tab("Home", page(.personal, title: "Home", activeCard: 0), "🏡", .pinned),
             tab("Trips", page(.personal, title: "Trips", activeCard: 1), "🗺️", .pinned),
@@ -64,7 +64,7 @@ enum SessionShowcaseSeed {
             tab("A slower Saturday", page(.personal, title: "A slower Saturday", activeCard: 0), "☀️", .current),
         ]
         return SpaceState.Seed(
-            name: "Personal", symbol: "leaf.fill", accent: .teal, branding: SpaceAccent.indigo.house, folders: [folder],
+            name: "Personal", folders: [folder],
             tabs: tabs)
     }
 

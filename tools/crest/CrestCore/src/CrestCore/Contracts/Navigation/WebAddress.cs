@@ -22,6 +22,17 @@ public readonly record struct WebAddress(string Spelling) {
     public string? Location => Uri.TryCreate(Spelling, UriKind.Absolute, out var value) && WebScheme.Named(value.Scheme) is not null
         ? value.GetComponents(UriComponents.Host | UriComponents.Port | UriComponents.PathAndQuery, UriFormat.UriEscaped) : null;
 
+    /// The palette's place key, ignoring scheme, fragment, www and a root slash.
+    public string? Place {
+        get {
+            if (!Uri.TryCreate(Spelling, UriKind.Absolute, out var uri) || WebScheme.Named(uri.Scheme) is null || uri.Host.Length == 0) return null;
+            string host = WithoutWww(uri.Host.ToLowerInvariant());
+            string port = uri.IsDefaultPort ? "" : $":{uri.Port}";
+            string path = uri.AbsolutePath == "/" ? "" : uri.AbsolutePath;
+            return host + port + path + uri.Query;
+        }
+    }
+
     /// Whether the address shows a web page, or a blank one, rather than one
     /// of the browser's own, an extension's or a file.
     public bool IsWebPage => Normalized is not null || Spelling == "about:blank";
@@ -29,6 +40,9 @@ public readonly record struct WebAddress(string Spelling) {
     #endregion
 
     #region Actions - Comparison
+
+    /// The host without its conventional www prefix.
+    public static string WithoutWww(string host) => host.StartsWith("www.", StringComparison.Ordinal) ? host[4..] : host;
 
     /// Whether both addresses name one page. Everything that asks "is this
     /// still the page I captured?", such as a favicon or a saved address,

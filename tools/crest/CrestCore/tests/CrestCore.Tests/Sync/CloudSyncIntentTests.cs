@@ -257,25 +257,16 @@ public sealed partial class BrowserContractsTests {
     /// it was made, in the Space's record; where the Space keeps its passwords
     /// stays out of it.
     [Fact]
-    public void TurningCrestPasswordsOnOrOffReachesTheSpacesRecordButWhereItKeepsThemDoesNot() {
+    public void AMergeThatDeletesABorrowedSpaceClosesItsBorrower() {
         using var directory = new StorageDirectory();
         var fixture = SavedSession();
         using var stored = StoredSyncing(directory, fixture.Document);
-        var kept = stored.Session.Current.Spaces.Single(space => space.Id == fixture.Space).Settings.CredentialPreferences;
+        var borrower = TestWorkspaces.Borrow(stored.App, stored.Workspace, fixture.Document["session"]!["spaces"]![0]!);
 
-        stored.App.Send(new SetCredentialPreferences(stored.Workspace, fixture.Space,
-            kept with { SyncsCrestPasswordsWithICloud = !kept.SyncsCrestPasswordsWithICloud }));
-        stored.Sync.Flush();
-        Assert.Null(SpaceRecordValue(stored.Sync, fixture.Space)["credentialsEnabled"]);
+        stored.App.Send(new MergeSyncRecords([Tombstone(SyncRecordKind.Space, fixture.Space, fixture.Space, ulong.MaxValue / 2)]));
 
-        stored.App.Send(new SetCredentialPreferences(stored.Workspace, fixture.Space, kept with { IsEnabled = !kept.IsEnabled }));
-        stored.Sync.Flush();
-        var value = SpaceRecordValue(stored.Sync, fixture.Space);
-
-        Assert.Equal(!kept.IsEnabled, value["credentialsEnabled"]!.GetValue<bool>());
-        Assert.NotNull(value["credentialsEnabledModifiedAt"]);
-        Assert.DoesNotContain("syncsCrestPasswordsWithICloud", value.ToJsonString(), StringComparison.Ordinal);
-        Assert.DoesNotContain("alsoOffersSaveToSystemPasswords", value.ToJsonString(), StringComparison.Ordinal);
+        Assert.Contains(stored.App.Drain(), change => change is WorkspaceClosed closed && closed.WorkspaceId == borrower);
+        Assert.Contains(stored.Session.Current.SpaceDeletions, deletion => deletion.SpaceId == fixture.Space);
     }
 
     /// A merge that lands before the stage of a folder's deletion runs still
@@ -446,6 +437,8 @@ public sealed partial class BrowserContractsTests {
         return new(SyncRecordKind.Space, id, id, new SyncVersion(clock, CloudDevice), Schema: 1,
             Bytes(new JsonObject { ["type"] = "space", ["value"] = value }), IsTombstone: false);
     }
+
+
 
     private static SyncRecord CloudFolder(Guid id, Guid space, Guid? parent, ulong clock) {
         var value = new JsonObject {

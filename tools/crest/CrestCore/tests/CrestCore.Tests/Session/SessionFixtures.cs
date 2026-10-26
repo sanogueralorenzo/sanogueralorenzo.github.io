@@ -12,6 +12,32 @@ namespace CrestCore.Tests;
 /// maintenance suites, in the shape the Swift encoder writes. It still carries
 /// the selection fields older documents stored.
 public sealed partial class BrowserContractsTests {
+    private static IReadOnlyList<JsonObject> SpaceRecords(JsonNode session) {
+        var space = Guid.Parse(session["spaces"]![0]!["id"]!["rawValue"]!.GetValue<string>());
+        return NativeSyncProjection.Project(session.DeepClone().AsObject(), SyncProjectionPreferences(), [])
+            .Select(payload => new JsonObject {
+                ["id"] = new JsonObject {
+                    ["kind"] = payload!["type"]!.DeepClone(),
+                    ["value"] = (payload["type"]!.GetValue<string>() == "archive"
+                        ? payload["value"]!["tab"]!["id"] : payload["value"]!["id"])!.DeepClone()
+                },
+                ["spaceID"] = SwiftId(space),
+                ["version"] = new JsonObject { ["logicalClock"] = 1, ["deviceID"] = Guid.NewGuid().ToString() },
+                ["payload"] = payload.DeepClone()
+            }).ToArray();
+    }
+
+
+    private static JsonNode SessionWithSpaces(bool withSecondSpace = false) {
+        var session = SavedSession().Document["session"]!;
+        if (withSecondSpace)
+            session["spaces"]!.AsArray().Add(SavedSession().Document["session"]!["spaces"]![0]!.DeepClone());
+        return session;
+    }
+    private static (Guid Space, Guid Profile) FirstSpaceProfile(JsonNode session) => (
+        Guid.Parse(session["spaces"]![0]!["id"]!["rawValue"]!.GetValue<string>()),
+        Guid.Parse(session["spaces"]![0]!["profile"]!["id"]!.GetValue<string>()));
+
     private static JsonObject SwiftId(Guid value) => new() { ["rawValue"] = value.ToString().ToUpperInvariant() };
 
     /// A device showing a session under test in its windows. Commands name the
@@ -133,16 +159,6 @@ public sealed partial class BrowserContractsTests {
     private static IReadOnlyList<Change> Own(IReadOnlyList<Change> changes) => [.. changes.Where(change => change is not Saved)];
 
     /// A Space's branding and browsing preferences as the Swift encoder wrote them.
-    private const string SavedBranding = """
-        {"renderingVersion":5,"bannerPattern":"diagonal","colors":[{"green":0.055,"red":0.235,"blue":0.102,"alpha":1},
-        {"green":0.125,"red":0.447,"blue":0.188,"alpha":1}],"gradientAngle":0,"themeMode":"banner","bannerStrength":1,
-        "iconStyle":"layeredCrest","readabilityFade":0.45,"textColorMode":"automatic","hasCustomAppearance":false,
-        "crest":{"ordinaryColorIndex":1,"divisionCount":4,"symbolColorIndex":1,"chargeWeight":"bold","depth":"none","edgeWidth":0,
-        "showsOutline":false,"plateScale":1,"sealTeeth":12,"sheenAngle":45,"symbol":"lion","backplateColorIndex":0,"trimColorIndex":1,
-        "edgeColorIndex":1,"trimWeight":0.75,"ordinaryWidth":1,"fieldDivision":"plain","secondaryFieldColorIndex":1,"chargeScale":1.2,
-        "trim":"line","finish":"flat","ordinary":"none","backplate":"shield","chargeLayout":"single","chargeOffset":0,"trimDetail":12},
-        "folderColorIntensity":0,"keepsControlsReadable":true,"showsTexture":false}
-        """;
     private const string SavedBrowsingPreferences = """
         {"contentBlockingPolicy":"balanced","searchSuggestionsEnabled":false,"searchProvider":"duckDuckGo","customSearchProviders":[],
         "selectedSearchProviderID":"duckDuckGo","dataRetention":{"archive":"forever","history":"forever","downloads":"forever"},
@@ -164,7 +180,6 @@ public sealed partial class BrowserContractsTests {
             ["positionModifiedAt"] = 799999999.125,
             ["titleModifiedAt"] = 799999998.75,
             ["splitGroupID"] = SwiftId(Guid.NewGuid()),
-            ["keepsPageLoaded"] = true,
             ["faviconURL"] = "https://example.com/favicon.ico",
             ["iconAccent"] = new JsonObject { ["red"] = 0.25, ["green"] = 0.5, ["blue"] = 0.75 }
         };
@@ -175,14 +190,12 @@ public sealed partial class BrowserContractsTests {
             ["symbol"] = "book",
             ["accent"] = "teal",
             ["accessPolicy"] = "open",
-            ["branding"] = JsonNode.Parse(SavedBranding),
             ["browsingPreferences"] = JsonNode.Parse(SavedBrowsingPreferences),
             ["credentialPreferences"] = new JsonObject {
                 ["isEnabled"] = false,
                 ["syncsCrestPasswordsWithICloud"] = true,
                 ["alsoOffersSaveToSystemPasswords"] = false
             },
-            ["isSavedTabsExpanded"] = true,
             ["splitGroups"] = new JsonArray(),
             ["tabs"] = new JsonArray(savedTab),
             ["selectedTabID"] = SwiftId(tab),

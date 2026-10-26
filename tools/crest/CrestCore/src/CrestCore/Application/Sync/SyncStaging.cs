@@ -42,10 +42,6 @@ internal sealed record SyncStaging(SyncDeletionReason Reason, SyncUrgency Urgenc
     /// An organizing edit, staged once edits pause: a rename, a move or a split.
     public static SyncStaging Edit { get; } = new(SyncDeletionReason.Superseded, SyncUrgency.Coalesced);
 
-    /// Who may open a Space, or whether it uses Crest Passwords, changed:
-    /// another device should see it soon.
-    public static SyncStaging Protection { get; } = new(SyncDeletionReason.Superseded, SyncUrgency.Immediate);
-
     /// A Space's deletion began. It is saved with its journal before the
     /// platform erases the profile's data.
     public static SyncStaging Withdrawal { get; } = new(SyncDeletionReason.Superseded, SyncUrgency.WithSave);

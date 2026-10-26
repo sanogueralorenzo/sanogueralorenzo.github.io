@@ -6,12 +6,10 @@ public sealed class ArchiveFilterGroup {
     #region Variables
 
     public static readonly ArchiveFilterGroup Closed = new(name: "closed", title: "Closed", symbol: "xmark.circle.fill");
-    public static readonly ArchiveFilterGroup Automatic = new(name: "automatic", title: "Automatically Cleaned", symbol: "archivebox.fill");
     public static readonly ArchiveFilterGroup Synced = new(name: "synced", title: "Synced from Another Device",
         symbol: "icloud.and.arrow.down.fill");
-    public static readonly ArchiveFilterGroup QuickWindow = new(name: "quickWindow", title: "Quick Windows", symbol: "timer");
 
-    public static IReadOnlyList<ArchiveFilterGroup> All { get; } = [Closed, Automatic, Synced, QuickWindow];
+    public static IReadOnlyList<ArchiveFilterGroup> All { get; } = [Closed, Synced];
 
     public string Name { get; }
 

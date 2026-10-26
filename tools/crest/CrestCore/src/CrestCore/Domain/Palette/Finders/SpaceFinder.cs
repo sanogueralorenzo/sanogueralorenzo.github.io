@@ -13,7 +13,7 @@ internal sealed class SpaceFinder : PaletteFinder {
             string name = other.Settings.Name;
             int? score = query.IsEmpty ? 0 : query.Score(name) ?? query.Abbreviates(name);
             if (score is not { } matched) continue;
-            var row = PaletteRow.Of(PaletteRowKind.Space, name, "Space", other.Settings.Symbol, subject: other.Id);
+            var row = PaletteRow.Of(PaletteRowKind.Space, name, "Space", "", subject: other.Id);
             yield return Scored(context, source, row, context.Matched(query, row, matched), place: null, fallback: null);
         }
     }

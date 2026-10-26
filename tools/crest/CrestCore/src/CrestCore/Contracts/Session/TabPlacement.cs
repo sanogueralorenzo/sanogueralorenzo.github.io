@@ -14,12 +14,12 @@ public sealed class TabPlacement {
 
     // Saved is made before Pinned, which overflows to it; `All` keeps the sections' order.
     public static readonly TabPlacement Saved = new(name: "saved", title: "Saved", symbol: "bookmark.fill", rank: 1, fallbackRank: 2,
-        isDurable: true, holdsFolders: true, holdsSplits: true, isCollapsible: true, capacity: null, paletteRow: PaletteRowKind.SavedTab);
+        isDurable: true, holdsFolders: true, holdsSplits: true, capacity: null, paletteRow: PaletteRowKind.SavedTab);
     public static readonly TabPlacement Pinned = new(name: "pinned", title: "Pinned", symbol: "pin.fill", rank: 0, fallbackRank: 1,
-        isDurable: true, holdsFolders: false, holdsSplits: false, isCollapsible: false, capacity: PinnedCapacity,
+        isDurable: true, holdsFolders: false, holdsSplits: false, capacity: PinnedCapacity,
         paletteRow: PaletteRowKind.PinnedTab, overflowsTo: Saved, importedSymbol: "pin.fill", isGrid: true);
     public static readonly TabPlacement Current = new(name: "current", title: "Open", symbol: "rectangle.stack.fill", rank: 2,
-        fallbackRank: 0, isDurable: false, holdsFolders: true, holdsSplits: true, isCollapsible: false, capacity: null,
+        fallbackRank: 0, isDurable: false, holdsFolders: true, holdsSplits: true, capacity: null,
         paletteRow: PaletteRowKind.Tab);
 
     public static IReadOnlyList<TabPlacement> All { get; } = [Pinned, Saved, Current];
@@ -51,10 +51,6 @@ public sealed class TabPlacement {
     /// A tab in the section may join a split.
     public bool HoldsSplits { get; }
 
-    /// A person may collapse the section in the sidebar, which a Space's
-    /// settings remember as whether its saved tabs are expanded.
-    public bool IsCollapsible { get; }
-
     /// The most tabs the section holds in one Space, or null for no limit
     /// beyond the Space's own.
     public int? Capacity { get; }
@@ -81,7 +77,7 @@ public sealed class TabPlacement {
     #region Constructors
 
     private TabPlacement(string name, string title, string symbol, int rank, int fallbackRank, bool isDurable, bool holdsFolders,
-        bool holdsSplits, bool isCollapsible, int? capacity, PaletteRowKind paletteRow, TabPlacement? overflowsTo = null,
+        bool holdsSplits, int? capacity, PaletteRowKind paletteRow, TabPlacement? overflowsTo = null,
         string? importedSymbol = null, bool isGrid = false) {
         Name = name;
         Title = title;
@@ -91,7 +87,6 @@ public sealed class TabPlacement {
         IsDurable = isDurable;
         HoldsFolders = holdsFolders;
         HoldsSplits = holdsSplits;
-        IsCollapsible = isCollapsible;
         Capacity = capacity;
         PaletteRow = paletteRow;
         OverflowsTo = overflowsTo;
@@ -135,13 +130,11 @@ public sealed class TabPlacement {
 
     #region Actions - Sync
 
-    /// Whether an open tab in this section, shown at `activated` and edited at
-    /// `tabVersion`, wins over its archived copy, archived for
-    /// `archiveReason` at `archived` and edited at `archiveVersion`.
-    internal bool KeepsTabOverArchive(double activated, SyncVersion tabVersion, ArchiveReason archiveReason, double archived,
-        SyncVersion archiveVersion)
+    /// Whether an open tab edited at `tabVersion` wins over its archived copy,
+    /// archived for `archiveReason` and edited at `archiveVersion`.
+    internal bool KeepsTabOverArchive(SyncVersion tabVersion, ArchiveReason archiveReason, SyncVersion archiveVersion)
         => IsDurable || archiveReason.IsExplicitDeletion
-            || (archiveReason.IsCleanup ? activated > archived : tabVersion.CompareTo(archiveVersion) > 0);
+            || tabVersion.CompareTo(archiveVersion) > 0;
 
     #endregion
 }

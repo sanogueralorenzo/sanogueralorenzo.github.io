@@ -61,90 +61,20 @@ public sealed partial class BrowserContractsTests {
 
     [Fact]
     public void RecordsOlderClientsWroteTakeTheDefaultsTheyRead() {
-        var space = Legacy("space", "branding", "browsingPreferences", "accessPolicy", "credentialsEnabled", "credentialsEnabledModifiedAt",
-            "isSavedTabsExpanded", "savedTabsExpansionModifiedAt");
-        Assert.Equal(3, space["branding"]!["colors"]!.AsArray().Count);
-        Assert.Equal(0.12, space["branding"]!["colors"]![0]!["red"]!.GetValue<double>());
-        Assert.Equal("book", space["branding"]!["crest"]!["symbol"]!.GetValue<string>());
-        Assert.Equal("diagonal", space["branding"]!["bannerPattern"]!.GetValue<string>());
-        Assert.Equal(2, space["branding"]!["renderingVersion"]!.GetValue<int>());
-        Assert.Equal("google", space["browsingPreferences"]!["selectedSearchProviderID"]!.GetValue<string>());
-        Assert.Equal("after12Hours", space["browsingPreferences"]!["currentTabCleanupPolicy"]!.GetValue<string>());
-        Assert.Equal("open", space["accessPolicy"]!.GetValue<string>());
+        var space = Legacy("space", "browsingPreferences", "accessPolicy", "credentialsEnabled", "credentialsEnabledModifiedAt");
+        Assert.Equal("balanced", space["browsingPreferences"]!["contentBlockingPolicy"]!.GetValue<string>());
         // A Space whose record never said whether it uses Crest Passwords
         // leaves each device's own choice alone.
         Assert.Null(space["credentialsEnabled"]);
-        Assert.True(space["isSavedTabsExpanded"]!.GetValue<bool>());
-        Assert.Null(space["savedTabsExpansionModifiedAt"]);
 
-        var folder = Legacy("folder", "location", "symbol", "color", "isCollapsed", "collapseModifiedAt");
+        var folder = Legacy("folder", "location", "color", "isCollapsed", "collapseModifiedAt");
         Assert.Equal("saved", folder["location"]!.GetValue<string>());
-        // A folder without a symbol keeps none of its own: it is drawn with the
-        // folder symbol, and a device that receives it does not store one.
-        Assert.Null(folder["symbol"]);
         Assert.Equal(0.43, folder["color"]!["red"]!.GetValue<double>());
         Assert.False(folder["isCollapsed"]!.GetValue<bool>());
 
-        var tab = Legacy("tab", "positionModifiedAt", "customTitle", "titleModifiedAt", "keepsPageLoaded");
+        var tab = Legacy("tab", "positionModifiedAt", "customTitle", "titleModifiedAt");
         Assert.Null(tab["positionModifiedAt"]);
         Assert.Null(tab["customTitle"]);
-        Assert.False(tab["keepsPageLoaded"]!.GetValue<bool>());
-    }
-
-    /// A Space from a newer build can wear crest vocabulary this build has
-    /// never seen: the readable rest of the Space arrives, and the unknown
-    /// terms take the ones this build draws.
-    [Fact]
-    public void ASpaceWithBrandingVocabularyFromANewerBuildStaysReadable() {
-        var (id, space, value) = CodecValue("space");
-        value["branding"]!["crest"]!["symbol"] = "__unknown_future_symbol__";
-        value["branding"]!["crest"]!["trim"] = "__unknown_future_trim__";
-        value["branding"]!["renderingVersion"] = 6;
-
-        var read = SyncRecordBody.Read(CodecBody("space", value), isTombstone: false, SyncPayloadForm.Cloud);
-        read.RequireRecord(SyncRecordKind.Space, id, space);
-        var branding = read.Write(SyncPayloadForm.Journal)["value"]!["branding"]!;
-
-        Assert.Equal("mountain", branding["crest"]!["symbol"]!.GetValue<string>());
-        Assert.Equal("none", branding["crest"]!["trim"]!.GetValue<string>());
-        Assert.Equal("diagonal", branding["bannerPattern"]!.GetValue<string>());
-        Assert.Equal(2, branding["colors"]!.AsArray().Count);
-    }
-
-    /// A crest that gives each of its six layers a color of its own keeps all
-    /// six, and every layer keeps pointing at its own, through normalization,
-    /// both sync forms and the stored session.
-    [Fact]
-    public void ACrestWithAColorForEachLayerKeepsAllSixWhereverItTravels() {
-        var (_, _, value) = CodecValue("space");
-        var house = SpaceAccent.Indigo.House;
-        var colors = Enumerable.Range(0, 6).Select(index => new BrandColor(index / 10.0, 0.5, 1 - index / 10.0)).ToArray();
-        var look = house with {
-            Crest = house.Crest with {
-                Palette = new ColorPalette(colors),
-                BackplateColorIndex = 0,
-                SecondaryFieldColorIndex = 1,
-                OrdinaryColorIndex = 2,
-                SymbolColorIndex = 3,
-                TrimColorIndex = 4,
-                EdgeColorIndex = 5
-            }
-        };
-
-        var kept = SpaceBranding.Normalized(look);
-        value["branding"] = StoredSessionCodec.Encode(kept);
-        var cloud = SyncRecordBody.Read(CodecBody("space", value), isTombstone: false, SyncPayloadForm.Journal)
-            .Write(SyncPayloadForm.Cloud);
-        var synced = Assert.IsType<SpacePayload>(
-            SyncRecordBody.Read(Bytes(cloud), isTombstone: false, SyncPayloadForm.Cloud).Payload).Branding;
-
-        Assert.Equal(colors, kept.Crest.Palette!.Colors);
-        Assert.Equal([0, 1, 2, 3, 4, 5], new[] {
-            kept.Crest.BackplateColorIndex, kept.Crest.SecondaryFieldColorIndex, kept.Crest.OrdinaryColorIndex,
-            kept.Crest.SymbolColorIndex, kept.Crest.TrimColorIndex, kept.Crest.EdgeColorIndex
-        });
-        Assert.Equal(kept, synced);
-        Assert.Equal(kept, StoredSessionCodec.DecodeBranding(StoredSessionCodec.Encode(kept)).InTodaysUnits());
     }
 
     /// Members a newer build writes that this one does not know survive both
@@ -154,8 +84,8 @@ public sealed partial class BrowserContractsTests {
     public void MembersANewerBuildWroteSurviveBothForms() {
         var (id, space, value) = CodecValue("space");
         value["futureSpace"] = ulong.MaxValue;
-        value["branding"]!["crest"]!["futureCrest"] = 4;
-        value["splitGroups"]![0]!["futureGroup"] = "kept";
+        value["futureItems"] = new JsonArray("kept");
+        value["browsingPreferences"]!["dataRetention"]!["futureRetention"] = 4;
         var body = CodecBody("space", value);
         body["futureEnvelope"] = new JsonArray(true, "opaque", null);
 
@@ -164,8 +94,8 @@ public sealed partial class BrowserContractsTests {
 
         Assert.True(JsonNode.DeepEquals(body["futureEnvelope"], back["futureEnvelope"]));
         Assert.Equal(ulong.MaxValue, back["value"]!["futureSpace"]!.GetValue<ulong>());
-        Assert.Equal(4, back["value"]!["branding"]!["crest"]!["futureCrest"]!.GetValue<int>());
-        Assert.Equal("kept", back["value"]!["splitGroups"]![0]!["futureGroup"]!.GetValue<string>());
+        Assert.Equal(4, back["value"]!["browsingPreferences"]!["dataRetention"]!["futureRetention"]!.GetValue<int>());
+        Assert.True(JsonNode.DeepEquals(value["futureItems"], back["value"]!["futureItems"]));
         Assert.Equal(id, SpaceId(back["value"]!));
         Assert.Equal(space, SpaceId(back["value"]!));
     }
@@ -192,9 +122,6 @@ public sealed partial class BrowserContractsTests {
     [InlineData("tab", "placement", "\"sideways\"")]
     [InlineData("tab", "lastActivatedAt", "\"soon\"")]
     [InlineData("tab", "title", "\"\"")]
-    [InlineData("space", "accent", "\"purple\"")]
-    [InlineData("space", "accessPolicy", "\"future\"")]
-    [InlineData("space", "isSavedTabsExpanded", "1")]
     [InlineData("folder", "location", "\"pinned\"")]
     [InlineData("history", "visitCount", "0")]
     [InlineData("history", "visitCount", "2.5")]
@@ -281,8 +208,7 @@ public sealed partial class BrowserContractsTests {
             ["lastActivatedAt"] = 811615335.98,
             ["positionModifiedAt"] = 811615336.123456,
             ["customTitle"] = "Mine",
-            ["titleModifiedAt"] = 811615337.5,
-            ["keepsPageLoaded"] = true
+            ["titleModifiedAt"] = 811615337.5
         };
         return kind switch {
             "space" => (CodecSpace, CodecSpace, new JsonObject {
@@ -291,13 +217,10 @@ public sealed partial class BrowserContractsTests {
                 ["name"] = "Reading",
                 ["symbol"] = "book",
                 ["accent"] = "teal",
-                ["branding"] = JsonNode.Parse(SavedBranding),
                 ["browsingPreferences"] = JsonNode.Parse(SavedBrowsingPreferences),
                 ["accessPolicy"] = "open",
                 ["credentialsEnabled"] = false,
                 ["credentialsEnabledModifiedAt"] = 800_000_020.0,
-                ["isSavedTabsExpanded"] = true,
-                ["savedTabsExpansionModifiedAt"] = 800000000.125,
                 ["splitGroups"] = new JsonArray(new JsonObject {
                     ["id"] = SwiftId(Guid.NewGuid()),
                     ["customTitle"] = "Research",

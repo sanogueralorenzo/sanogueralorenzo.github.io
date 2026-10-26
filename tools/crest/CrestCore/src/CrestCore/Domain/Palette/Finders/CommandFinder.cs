@@ -23,7 +23,7 @@ internal sealed class CommandFinder : PaletteFinder {
     internal override IReadOnlyList<PaletteRow> Resting(PaletteContext context, PaletteSuggestions question) =>
         [.. question.Commands.Where(command => command.Command.OffersInPalette && command.Command.PaletteRest is not null)
             .OrderBy(command => command.Command.PaletteRest)
-            .Take(Math.Min(context.Preferences.Limit(PaletteSource.Actions), PaletteSection.Actions.RestingLimit))
+            .Take(PaletteSection.Actions.RestingLimit)
             .Select(Row)];
 
     private static PaletteRow Row(PaletteCommand command) =>

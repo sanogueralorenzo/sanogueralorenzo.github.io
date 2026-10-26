@@ -2,19 +2,6 @@ using CrestCore.Contracts;
 
 namespace CrestCore.Application;
 
-/// One engine tab group an extension made, and the folder of the same identity
-/// that shows it in its Space's open tabs. The tabs of the group's pages that
-/// are open tabs of the Space file into the folder, and the folder's own
-/// title, color, collapsed state and tabs are what the group holds: an edit
-/// either side makes reaches the other. A grouped page whose tab the folder
-/// cannot hold, a pinned or saved tab or a Quick Window's page, stays where it
-/// is and stays in the group, since an extension may rely on a group it made.
-///
-/// A group of the persistent session outlives the engine's: the device store
-/// keeps it, and once the folder's tabs have pages again after a launch the
-/// engine makes the group again under the same identity, as Chrome restores a
-/// group with its tabs. Any other group is memory only. Neither is synced, and
-/// membership in either grants an extension nothing.
 internal sealed class PageGroup {
     #region Variables
 
@@ -140,7 +127,6 @@ internal sealed class PageGroup {
         }
         if (workspace.Current.Space(SpaceId) is not { } space || workspace.IsDeleting(SpaceId))
             return false;
-        if (workspace.IsLocked(space)) return true;
         var live = Live(pages);
         var kept = outside.Where(live.Contains).ToList();
         var folder = space.Folders.FirstOrDefault(candidate => candidate.Id == Id);
@@ -154,7 +140,6 @@ internal sealed class PageGroup {
             try {
                 workspace.Handle(new DeleteFolder(workspaceId, SpaceId, Id), pages.Clock.Now, pages.Ids, pages);
             } catch (Rejected) {
-                // The Space was locked or is being deleted meanwhile.
                 return true;
             }
             showsFolder = false;
@@ -213,8 +198,7 @@ internal sealed class PageGroup {
 
     /// The Space the group's folder lives in, while this process may edit it.
     private SpaceState? Editable(NativeSessionAuthority workspace) =>
-        workspace.Current.Space(SpaceId) is { } space && !workspace.IsDeleting(SpaceId)
-            && !workspace.IsLocked(space)
+        workspace.Current.Spaces.FirstOrDefault(space => space.Id == SpaceId) is { } space && !workspace.IsDeleting(SpaceId)
             ? space : null;
 
     /// The tabs the group's folder holds now.

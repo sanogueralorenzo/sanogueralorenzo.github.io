@@ -116,15 +116,15 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
-    public void OnlyThePersistentSessionsChoicesAreKeptAndALockedSpaceNeverAnswers() {
+    public void OnlyThePersistentSessionsChoicesAreKept() {
         using var directory = new StorageDirectory();
         Guid open, guarded, privateSpace, stranger = Guid.NewGuid();
         {
             var (app, workspace, spaces) = DeviceApp(directory);
             using var disposal = app;
             var session = app.Workspace(workspace).Current;
-            guarded = session.Spaces.First(space => space.Settings.AccessPolicy != SpaceAccessPolicy.Open).Id;
-            open = session.Spaces.First(space => space.Settings.AccessPolicy == SpaceAccessPolicy.Open).Id;
+            guarded = session.Spaces.First().Id;
+            open = session.Spaces.Last().Id;
             var privateWorkspace = TestWorkspaces.Opened(app.Send(new OpenWorkspace(WorkspaceKind.Private, Seed: null)));
             privateSpace = app.Workspace(privateWorkspace).Current.Spaces.Single().Id;
             // A borrowed workspace shows its owner's Space, whose choices the store keeps.
@@ -143,11 +143,6 @@ public sealed partial class BrowserContractsTests {
             Assert.Equal(SitePermissionDecision.GrantPersistently, Decided(app, privateSpace, SitePermission.Camera));
             Assert.Equal(SitePermissionDecision.GrantPersistently, Decided(app, stranger, SitePermission.Camera));
 
-            // A locked Space answers Ask and refuses a choice, while a reset still applies.
-            app.Send(new LockSpace(guarded));
-            Assert.Equal(SitePermissionDecision.Ask, Decided(app, guarded, SitePermission.Popups));
-            Assert.Equal(new SpaceLocked(guarded), Assert.Throws<Rejected>(() =>
-                Decide(guarded, SitePermission.Camera, SitePermissionDecision.GrantPersistently)).Rejection);
             var reset = Assert.Single(app.Send(new ResetSpacePermissions(guarded)).OfType<SitePermissionsChanged>());
             Assert.Equal(guarded, reset.SpaceId);
             Assert.Empty(reset.Records);
@@ -179,7 +174,7 @@ public sealed partial class BrowserContractsTests {
         using var directory = new StorageDirectory();
         var (app, workspace, _) = DeviceApp(directory);
         using var disposal = app;
-        var space = app.Workspace(workspace).Current.Spaces.First(space => space.Settings.AccessPolicy == SpaceAccessPolicy.Open).Id;
+        var space = app.Workspace(workspace).Current.Spaces.Last().Id;
         var privateSpace = app.Workspace(TestWorkspaces.Opened(app.Send(new OpenWorkspace(WorkspaceKind.Private, Seed: null))))
             .Current.Spaces.Single().Id;
         var insecure = new SiteOrigin("http", "meet.example", 80);
@@ -207,7 +202,7 @@ public sealed partial class BrowserContractsTests {
         using var directory = new StorageDirectory();
         var (app, workspace, _) = DeviceApp(directory);
         using var disposal = app;
-        var space = app.Workspace(workspace).Current.Spaces.First(space => space.Settings.AccessPolicy == SpaceAccessPolicy.Open);
+        var space = app.Workspace(workspace).Current.Spaces.Last();
         var privateWorkspace = TestWorkspaces.Opened(app.Send(new OpenWorkspace(WorkspaceKind.Private, Seed: null)));
         var privateSpace = app.Workspace(privateWorkspace).Current.Spaces.Single();
         var extension = new SiteOrigin("chrome-extension", "abcdefghijklmnopabcdefghijklmnop", 0);
@@ -227,9 +222,6 @@ public sealed partial class BrowserContractsTests {
             SitePermissionDecision.GrantForSession));
         Assert.False(Shows(privateSpace.ProfileId, Conference, ProfileNotificationSource.ServiceWorker));
 
-        app.Send(new SetSpaceAccess(workspace, space.Id, SpaceAccessPolicy.DeviceOwnerAuthentication));
-        app.Send(new LockSpace(space.Id));
-        Assert.False(Shows(space.ProfileId, Conference, ProfileNotificationSource.ServiceWorker));
-        Assert.False(Shows(space.ProfileId, extension, ProfileNotificationSource.Extension));
+
     }
 }

@@ -14,7 +14,7 @@ public sealed record ImportSpaces(Guid WorkspaceId, Guid WindowId, IReadOnlyList
     #region Actions - Session
 
     internal override SessionEdit? Edit(NativeSessionAuthority workspace, SessionTurn turn) =>
-        workspace.Importing(turn.Basis, this, Spaces, turn.Previewed, turn.Now, turn.Ids, import => import.AddSpaces());
+        workspace.Importing(turn.Basis, this, Spaces, turn.Now, turn.Ids, import => import.AddSpaces());
 
     #endregion
 }

@@ -75,8 +75,7 @@ internal sealed class SiteDataReads(Engines engines, IIdSource ids) {
     /// its profile while the engines answered, as the lock refuses a new
     /// reading.
     internal static void Finish(Reading reading, Device device, ChangeFeed changes) {
-        var locked = device.LockedSpace(reading.ProfileId) is not null;
-        changes.Publish(new WebsiteDataRead(reading.RequestId, locked ? [] : [.. reading.Sites.Values], reading.Complete && !locked));
+        changes.Publish(new WebsiteDataRead(reading.RequestId, [.. reading.Sites.Values], reading.Complete));
     }
 
     #endregion

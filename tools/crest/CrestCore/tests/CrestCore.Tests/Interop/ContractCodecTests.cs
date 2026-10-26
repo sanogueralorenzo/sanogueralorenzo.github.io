@@ -209,9 +209,9 @@ public sealed unsafe class ContractCodecTests {
     [Fact]
     public void ARecordThatHoldsAPasswordNamesNoneInItsSwiftText() {
         string swift = SwiftEmitter.EmitContracts(ContractSchema.Load([typeof(Secret.Unlock), typeof(Secret.Remember),
-            typeof(Secret.Recall), typeof(Secret.Note)]));
+            typeof(Secret.Recall), typeof(Secret.Note), typeof(SecretValue)]));
 
-        foreach (string holder in new[] { "Unlock", "Remember", "Recall", "ExistingCredential" })
+        foreach (string holder in new[] { "Unlock", "Remember", "Recall", "SecretValue" })
             Assert.Contains($"extension {holder}: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {{", swift,
                 StringComparison.Ordinal);
         Assert.DoesNotContain("extension Note:", swift, StringComparison.Ordinal);

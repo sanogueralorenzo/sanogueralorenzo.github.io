@@ -17,15 +17,13 @@ public sealed record AgentReachList(Guid? WorkspaceId, IReadOnlyList<AgentSpace>
     #endregion
 }
 
-/// A Space an agent may reach: its name, whether this process may show it,
-/// and the tabs an agent may use in it, none while it is locked.
-public sealed record AgentSpace(Guid SpaceId, string Name, bool IsLocked, IReadOnlyList<AgentTab> Tabs) {
+public sealed record AgentSpace(Guid SpaceId, string Name, IReadOnlyList<AgentTab> Tabs) {
     #region Actions - Equality
 
     public bool Equals(AgentSpace? other) => other is not null && SpaceId == other.SpaceId && Name == other.Name
-        && IsLocked == other.IsLocked && Tabs.SequenceEqual(other.Tabs);
+        && Tabs.SequenceEqual(other.Tabs);
 
-    public override int GetHashCode() => HashCode.Combine(SpaceId, Name, IsLocked, Tabs.Count);
+    public override int GetHashCode() => HashCode.Combine(SpaceId, Name, Tabs.Count);
 
     #endregion
 }
@@ -139,8 +137,6 @@ public sealed record AgentSpaceUnavailable(Guid SpaceId) : Rejection {
     #endregion
 }
 
-/// The tab is not one an agent may use: it is in no Space the agent reaches,
-/// shows one of Crest's own views, or sits in a locked Space.
 public sealed record AgentTabUnavailable(Guid TabId) : Rejection {
     #region Variables
 

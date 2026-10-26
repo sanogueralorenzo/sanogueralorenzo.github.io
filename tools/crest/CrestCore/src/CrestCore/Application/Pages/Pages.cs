@@ -12,32 +12,6 @@ internal sealed record PageTurn(ChangeFeed Changes, Action<Engine, EngineCommand
 
 #endregion
 
-/// The pages this device hosts: which tab or transient request owns each, the
-/// window that hosts it, the engine that hosts it and the live state its
-/// engine reports. Never saved or synced. The platform decides when a page
-/// opens or goes; the core decides whether it may, and on which engine, and
-/// asks the engine to create, load and close it. A page that asks to close
-/// itself, and one its engine closes on its own authority, close what owns
-/// them as the core decides (see `CloseOwner`). A page another page opened
-/// runs on its opener's engine, whatever the site's choice: every window,
-/// popup, new tab, Peek or split a page opens stays in the engine that page
-/// runs in. Any other page opens on the engine chosen for the site its tab
-/// shows, when that engine is registered, and on the default engine
-/// otherwise. A page moves to another engine when the person asks, when the
-/// person asks for an address of a site chosen for another engine, when a
-/// page no other page opened heads to such a site, or when the person accepts
-/// an offer to try protected media on another engine. A requested move first
-/// lets the current document refuse leaving through beforeunload.
-///
-/// A window hosts one page for a tab. The Mac's windows over one workspace
-/// share one runtime store, so a second window shows the page the first opened
-/// and never opens its own; each iPad scene keeps pages of its own, so two
-/// scenes showing one tab each host a page for it.
-///
-/// Each page intent and engine report carries its own logic, which reads and
-/// changes the pages through the state and rules kept here. A page's report
-/// is stamped with the core's `clock`, and a visit it records takes its
-/// identity from `ids`.
 internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSource ids) {
     #region Static Variables
 
@@ -50,12 +24,6 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
 
     private readonly Dictionary<Guid, Page> open = [];
 
-    /// What each Quick Window or Peek page its owner unloaded showed last, by
-    /// page, so its window can still keep or archive it. A page is remembered
-    /// until the session keeps or archives it, its owner releases it for good
-    /// or its workspace closes, so the list holds no more than the transient
-    /// windows still open.
-    private readonly Dictionary<Guid, TransientPage> unloaded = [];
     /// What each tab's last page kept when it closed keeping its state, which
     /// the tab's next page restores. Memory only, never saved or synced; a tab
     /// that closes, is archived or loses its Space loses it.
@@ -77,8 +45,7 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     private readonly Dictionary<Guid, PageGroup> groups =
         device.KeptTabGroups().ToDictionary(record => record.Id, record => new PageGroup(record));
 
-    /// The device whose workspaces and windows the pages belong to, and whose
-    /// site choices pick their engines.
+    /// The device whose workspaces and windows the pages belong to.
     internal Device Device => device;
 
     /// The engines pages open on.
@@ -182,38 +149,23 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
 
     /// The engine a new page in `space` opens on: its opener's, when another
     /// page opened it, so a page never leaves the engine of the page that
-    /// opened it; otherwise the registered engine chosen for the site `tab`
-    /// shows, or the default engine. Null when no engine is the default.
-    internal Engine? Opening(SpaceState space, TabState? tab, Page? opener) =>
-        opener?.Engine ?? Chosen(space, tab) ?? engines.Default;
+    /// opened it; otherwise the default engine. Null when no engine is the default.
+    internal Engine? Opening(Page? opener) =>
+        opener?.Engine ?? engines.Default;
 
     /// The page `pageId` names as the opener of a new page in `space` of
     /// `workspaceId`: one the core hosts in that workspace and the Space's
     /// profile. Null for none, or for one the core no longer hosts, which
-    /// leaves the new page to the site's choice.
+    /// leaves the new page to the default engine.
     internal Page? Opener(Guid? pageId, Guid workspaceId, SpaceState space) =>
         pageId is { } id && Hosted(id) is { } opener && opener.WorkspaceId == workspaceId && opener.ProfileId == space.ProfileId
             ? opener
             : null;
 
-    /// The registered engine chosen for the site `tab` shows, or null when
-    /// none is, or for a page without a tab, which opens before it has an
-    /// address.
-    internal Engine? Chosen(SpaceState space, TabState? tab) => tab?.Url is { } url ? Chosen(space, url) : null;
-
-    /// The registered engine chosen in `space` for the site `url` belongs to,
-    /// or null when none is.
-    internal Engine? Chosen(SpaceState space, string url) =>
-        new WebAddress(url).Origin is { } origin && device.ChosenEngine(space.Id, origin) is { } kind ? engines.Registered(kind) : null;
-
     #endregion
 
     #region Actions - Workspaces
 
-    /// A workspace closed: each of its pages is gone at once, and its engine
-    /// closes what it still holds afterwards, keeping nothing. What its Quick
-    /// Window or Peek pages showed when their owners unloaded them is
-    /// forgotten too.
     public void Drop(Guid workspaceId, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
         ArgumentNullException.ThrowIfNull(changes);
         ArgumentNullException.ThrowIfNull(issue);
@@ -222,8 +174,6 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
             changes.Publish(new PageRemoved(page.Id));
             if (page.Phase.HoldsEnginePage) issue(page.Engine, new ClosePage(page.Id, KeepsState: false));
         }
-        foreach (var remembered in unloaded.Values.Where(remembered => remembered.WorkspaceId == workspaceId).ToArray())
-            unloaded.Remove(remembered.Id);
         foreach (var key in restoreStates.Keys.Where(key => key.WorkspaceId == workspaceId).ToArray()) Forget(key);
         foreach (var key in histories.Keys.Where(key => key.WorkspaceId == workspaceId).ToArray()) ForgetHistory(key);
         foreach (var group in groups.Values.Where(group => group.WorkspaceId == workspaceId).ToArray()) {
@@ -236,13 +186,6 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
 
     #region Actions - Owners
 
-    /// Closes what owns `page`, as the person closing it would. Its tab closes
-    /// the way its section closes one (see `CloseTab`), and the window that
-    /// hosts the page returns to the tab it showed before; whatever shows a
-    /// Quick Window's or Peek's page closes, keeping nothing of it. A tab its
-    /// Space no longer holds and a Space being deleted have nothing to close,
-    /// and a locked Space, or the Start Page as its Space's only tab, keeps
-    /// its tab.
     internal void CloseOwner(Page page, PageTurn turn) {
         if (device.Attached(page.WorkspaceId) is not { } workspace) return;
         if (page.TabId is null) {
@@ -254,7 +197,6 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         try {
             workspace.Handle(new CloseTab(page.WorkspaceId, page.WindowId, page.SpaceId, tab.Id), clock.Now, ids, this);
         } catch (Rejected) {
-            // The Space is locked, or its only tab is the Start Page.
         }
     }
 
@@ -292,9 +234,6 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         }
     }
 
-    /// Whether a window shows the page: a Quick Window's or Peek's page always,
-    /// a tab's page when a window over its workspace shows the tab or a split
-    /// it belongs to.
     internal bool IsShown(Page page) => page.TabId is not { } tabId || device.Shows(page.WorkspaceId, page.SpaceId, tabId);
 
     /// Applies `update` to the page, and publishes the page when that changed
@@ -320,6 +259,13 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
 
     #region Actions - Residency
 
+    internal bool CanAutomaticallyUnload(Page page, DateTimeOffset now) =>
+        page.TabId is { } tabId && page.Phase == PagePhase.Live
+        && page.HiddenSince is { } hidden && now - hidden >= TimeSpan.FromMinutes(5)
+        && page.Live.Url is not null && !page.Live.IsLoading && !page.RunsMedia
+        && page.Engine.Supports(EngineCapability.PageResidency) && Tab(page) is not null
+        && !device.HoldsForAgent(tabId) && Shown(page) is not null && !IsShown(page);
+
     /// Stamps each tab's page with whether a window shows it now, and ends the
     /// Picture in Picture of every page that may not keep one, which `issue`
     /// asks its engine for; see `EndPictureInPicture`.
@@ -336,14 +282,6 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         }
     }
 
-    /// Asks the page's engine to end the page's Picture in Picture, returning
-    /// its video to its place in the page, when a window shows the page again
-    /// (`shownAgain`), however the person came back to it and whether the
-    /// video left automatically or at their request. It asks whenever this
-    /// process may not show the page's Space too: a locked Space, one being
-    /// deleted or one that is gone keeps no video on screen, whether a tab, a
-    /// Quick Window or a Peek owns the page, so one that floats while its
-    /// Space is locked is asked to end each time the core looks.
     internal void EndPictureInPicture(Page page, bool shownAgain, Action<Engine, EngineCommand> issue) {
         if (page.ShowsPictureInPicture && (shownAgain || Shown(page) is null)) issue(page.Engine, new ExitPictureInPicture(page.Id));
     }
@@ -469,7 +407,7 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     /// is not being deleted and this process may show it; null otherwise.
     internal SpaceState? Shown(Page page) =>
         device.Attached(page.WorkspaceId) is { } workspace && !workspace.IsDeleting(page.SpaceId)
-            && workspace.Current.Space(page.SpaceId) is { } space && !workspace.IsLocked(space)
+            && workspace.Current.Spaces.FirstOrDefault(space => space.Id == page.SpaceId) is { } space
             ? space : null;
 
     /// A tab its Space still holds, in a Space that is not being deleted.
@@ -527,38 +465,12 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     /// not host it.
     internal Page Known(Guid pageId) => open.TryGetValue(pageId, out var page) ? page : throw new Rejected(new UnknownPage(pageId));
 
-    /// The Quick Window or Peek page `pageId` names, as it is or as it was
-    /// when its owner unloaded it, or null when this device hosts no such page
-    /// and remembers none. An unloaded page cannot move to a tab's window, and
-    /// one of a workspace that closed is not remembered.
-    public TransientPage? Transient(Guid pageId) => open.TryGetValue(pageId, out var page)
-        ? page.TabId is null ? Transient(page) : null
-        : unloaded.GetValueOrDefault(pageId);
-
-    /// Whether the core remembers what the Quick Window or Peek page `pageId`
-    /// names showed when its owner unloaded it.
-    internal bool RemembersUnloaded(Guid pageId) => unloaded.ContainsKey(pageId);
-
-    /// Remembers what a Quick Window or Peek page showed when its owner
-    /// unloaded it.
-    internal void RememberUnloaded(TransientPage page) => unloaded[page.Id] = page;
-
-    /// Forgets an unloaded Quick Window or Peek page the session kept or
-    /// archived, or its owner released for good.
-    public void ForgetUnloaded(Guid pageId) => unloaded.Remove(pageId);
-
-    /// What a Quick Window's or Peek's page shows, as its window keeps or
-    /// archives it.
-    internal TransientPage Transient(Page page) => new(page.Id, page.WorkspaceId, page.SpaceId, page.ProfileId,
-        page.Engine.Supports(EngineCapability.WorkspaceTransfer), page.Live.Address, page.Live.Title);
-
     /// The Space a page may live in: one the workspace holds, that is not
     /// being deleted, here or in the workspace a borrowed one borrows from, and
     /// that this process may show.
     internal SpaceState Hosting(NativeSessionAuthority workspace, Guid spaceId) {
         var space = workspace.Current.KnownSpace(spaceId);
         if (workspace.IsDeleting(spaceId)) throw new Rejected(new SpaceBeingDeleted(spaceId));
-        if (workspace.IsLocked(space)) throw new Rejected(new SpaceLocked(spaceId));
         return space;
     }
 

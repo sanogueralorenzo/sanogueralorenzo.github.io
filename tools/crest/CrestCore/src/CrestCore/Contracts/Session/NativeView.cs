@@ -11,10 +11,7 @@ public sealed class NativeView {
 
     public static readonly NativeView Settings = new(name: "settings", title: "Settings", symbol: "gearshape.fill");
 
-    public static readonly NativeView GettingStarted = new(name: "getting-started", title: "Getting Started",
-        symbol: "book.closed.fill");
-
-    public static IReadOnlyList<NativeView> All { get; } = [Settings, GettingStarted];
+    public static IReadOnlyList<NativeView> All { get; } = [Settings];
 
     /// The kind a tab's native content keeps in the stored session and in
     /// sync, so a name never changes.

@@ -10,7 +10,6 @@ internal static partial class StoredSessionCodec {
 
     private const string LegacyTabGroups = "currentTabFolders";
     private const string FaviconData = "faviconData";
-    private const string LegacyFolderSymbol = "folder";
 
     #endregion
 
@@ -34,7 +33,7 @@ internal static partial class StoredSessionCodec {
             bool Joins(TabState tab) => members.Contains(tab.Id) && !tab.Placement.IsDurable && tab.FolderId is null;
             if (!space.Tabs.Any(Joins)) continue;
             var folder = new FolderState(folderId, TabPlacement.Current, Text(group[Key.Title]) ?? UntitledFolder,
-                LegacyFolderSymbol, (TabGroupColor.Named(TolerantText(group[Key.Color])) ?? TabGroupColor.Grey).Color,
+                (TabGroupColor.Named(TolerantText(group[Key.Color])) ?? TabGroupColor.Grey).Color,
                 IsCollapsed: TolerantFlag(group[Key.IsCollapsed]) ?? false);
             spaces[index] = space with {
                 Folders = [.. space.Folders, folder],

@@ -2,8 +2,7 @@ using CrestCore.Application;
 
 namespace CrestCore.Contracts;
 
-/// Persistent engine preferences, including a choice unavailable in this
-/// composition. Private engine choices never enter this answer.
+/// The global engine preference, including a choice unavailable in this composition.
 public sealed record GetEnginePreferences : Query<EnginePreferences> {
     #region Actions - Answering
 

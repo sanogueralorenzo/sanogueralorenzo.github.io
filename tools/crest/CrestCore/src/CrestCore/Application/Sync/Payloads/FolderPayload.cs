@@ -11,22 +11,15 @@ internal sealed record FolderPayload(
     Guid SpaceId,
     TabPlacement Location,
     string Title,
-    string? Symbol,
     BrandColor Color,
     Guid? ParentId,
     bool IsCollapsed,
     SyncTime? CollapseModifiedAt,
     Guid? OrderAnchorTabId,
-    string OrderToken) : SyncPayload {
+    string OrderToken, LiveFolderSource? Source = null, GitHubLiveFolderOptions? LiveOptions = null) : SyncPayload {
     #region Static Variables
 
-    /// The members a folder's value carries; a record keeps what a newer build
-    /// writes beside them.
-    public static IReadOnlyList<string> Members { get; } = [
-        StoredSessionCodec.Key.Id, StoredSessionCodec.Key.SpaceId, StoredSessionCodec.Key.Title, StoredSessionCodec.Key.Location,
-        StoredSessionCodec.Key.Symbol, StoredSessionCodec.Key.Color, StoredSessionCodec.Key.ParentId, StoredSessionCodec.Key.IsCollapsed,
-        StoredSessionCodec.Key.CollapseModifiedAt, StoredSessionCodec.Key.OrderAnchorTabId, SyncPayload.Key.OrderToken
-    ];
+    private const int MaximumTitleBytes = 512;
 
     #endregion
 
@@ -45,18 +38,16 @@ internal sealed record FolderPayload(
 
     #region Actions - Coding
 
-    /// The folder `value` holds. One without a location is saved, without a
-    /// symbol keeps none of its own and is drawn with the folder symbol,
+    /// The folder `value` holds. One without a location is saved,
     /// without a color takes the folder color, and without a disclosure is
     /// expanded.
-    public static FolderPayload Read(SyncPayloadReader value) => new(value.WrappedIdentity(StoredSessionCodec.Key.Id),
-        value.WrappedIdentity(StoredSessionCodec.Key.SpaceId),
-        value.OptionalText(StoredSessionCodec.Key.Location) is { } location ? Placement(location) : TabPlacement.Saved,
-        value.Text(StoredSessionCodec.Key.Title), value.OptionalText(StoredSessionCodec.Key.Symbol),
-        value.Value[StoredSessionCodec.Key.Color] is { } color ? SpacePayload.Color(color) : FolderState.DefaultColor,
-        value.OptionalWrappedIdentity(StoredSessionCodec.Key.ParentId), value.OptionalFlag(StoredSessionCodec.Key.IsCollapsed) ?? false,
-        value.OptionalTime(StoredSessionCodec.Key.CollapseModifiedAt), value.OptionalWrappedIdentity(StoredSessionCodec.Key.OrderAnchorTabId),
-        value.Text(Key.OrderToken));
+    public static FolderPayload Read(SyncPayloadReader value) => new(value.WrappedIdentity("id"), value.WrappedIdentity("spaceID"),
+        value.OptionalText("location") is { } location ? Placement(location) : TabPlacement.Saved,
+        value.Text("title"),
+        value.Value["color"] is { } color ? SpacePayload.Color(color) : FolderState.DefaultColor,
+        value.OptionalWrappedIdentity("parentID"), value.OptionalFlag("isCollapsed") ?? false, value.OptionalTime("collapseModifiedAt"),
+        value.OptionalWrappedIdentity("orderAnchorTabID"), value.Text("orderToken"),
+        LiveFolderSource.Named(value.OptionalText("liveFolderSource")), StoredSessionCodec.DecodeGitHubOptions(value.Value["githubOptions"])?.Normalized());
 
     public override JsonObject EncodeValue(SyncPayloadForm form) {
         var value = new JsonObject {
@@ -66,12 +57,13 @@ internal sealed record FolderPayload(
             [StoredSessionCodec.Key.Title] = Title,
             [StoredSessionCodec.Key.Color] = StoredSessionCodec.Encode(Color)
         };
-        Put(value, StoredSessionCodec.Key.Symbol, Symbol);
-        PutWrapped(value, StoredSessionCodec.Key.ParentId, ParentId);
-        value[StoredSessionCodec.Key.IsCollapsed] = IsCollapsed;
-        Put(value, StoredSessionCodec.Key.CollapseModifiedAt, CollapseModifiedAt, form);
-        PutWrapped(value, StoredSessionCodec.Key.OrderAnchorTabId, OrderAnchorTabId);
-        value[Key.OrderToken] = OrderToken;
+        PutWrapped(value, "parentID", ParentId);
+        value["isCollapsed"] = IsCollapsed;
+        Put(value, "collapseModifiedAt", CollapseModifiedAt, form);
+        PutWrapped(value, "orderAnchorTabID", OrderAnchorTabId);
+        value["orderToken"] = OrderToken;
+        if (Source is { } source) value["liveFolderSource"] = source.Name;
+        if (LiveOptions is { } options) value["githubOptions"] = StoredSessionCodec.Encode(options);
         return value;
     }
 
@@ -84,9 +76,10 @@ internal sealed record FolderPayload(
     #region Actions - Validation
 
     public override void Validate() {
-        RequireText(Title, SyncedText.FolderTitle.Limit);
-        if (Symbol is { } symbol) RequireText(symbol, SyncedText.FolderSymbol.Limit);
+        RequireText(Title, MaximumTitleBytes);
         RequireOrderToken(OrderToken);
+        if (LiveOptions is { } options && (!options.IsValid || Source != LiveFolderSource.GitHubPullRequests))
+            throw new UnreadableSyncPayloadException();
         if (ParentId == Id) throw new UnreadableSyncPayloadException();
     }
 

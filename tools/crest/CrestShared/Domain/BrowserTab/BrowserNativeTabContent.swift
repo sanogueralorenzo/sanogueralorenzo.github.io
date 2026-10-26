@@ -9,5 +9,4 @@ struct BrowserNativeTabContent: Codable, Equatable, Hashable, Sendable {
     var resourceID: UUID? = nil
 
     static let settings = Self(kind: NativeView.settings.name)
-    static let gettingStarted = Self(kind: NativeView.gettingStarted.name)
 }

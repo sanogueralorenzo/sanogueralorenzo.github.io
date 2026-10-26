@@ -30,8 +30,6 @@ internal sealed class Page {
     public Guid WorkspaceId { get; private set; }
     public Guid SpaceId { get; private set; }
 
-    /// The tab that owns the page, or null for a transient request's page: a
-    /// Quick Window's, a Peek's, or one of its engine's own pages in Settings.
     public Guid? TabId { get; private set; }
 
     /// The window that hosts the page. A window that shares its pages with
@@ -41,12 +39,6 @@ internal sealed class Page {
     /// How the page presents while it has no tab, as it opened.
     public TransientPresentation? Transient { get; }
 
-    /// Whether another page opened this one: a script's window, a link to a
-    /// new tab or window, a link the person followed into a new tab, Peek or
-    /// split, or an extension's tab or window, whose opener is the extension.
-    /// Such a page runs on its opener's engine, the site's engine choice moves
-    /// it only when the person asks for an address in it, and it may close
-    /// itself.
     public bool OpenedByPage { get; }
 
     public PagePhase Phase { get; private set; } = PagePhase.Opening;

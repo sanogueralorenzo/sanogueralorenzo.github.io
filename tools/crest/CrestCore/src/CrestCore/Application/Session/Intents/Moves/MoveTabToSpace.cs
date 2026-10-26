@@ -38,8 +38,6 @@ public sealed record MoveTabToSpace(Guid WorkspaceId, Guid WindowId, Guid SpaceI
             receiving.Tab(TabId).Activate(turn.Now);
             shownThere = TabId;
         }
-        edited.PruneSplitMetadata();
-        receiving.PruneSplitMetadata();
         followUp.ShowTab(space.Id, shown).ShowTab(destination.Id, shownThere);
         if (Follows) followUp.ShowSpace(destination.Id);
         return new(turn.Basis.Replacing(edited.Capture(space), receiving.Capture(destination)),

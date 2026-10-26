@@ -6,12 +6,6 @@ namespace CrestCore.Application;
 public sealed partial class NativeSessionAuthority {
     #region Actions - Page edits
 
-    /// Applies what a page's engine reported to the Space the page lives in,
-    /// as one revision saved behind and staged once page reports pause, and
-    /// answers the changes the caller publishes. Reports and intents take the
-    /// app's lock, so no intent holds the session while a report applies. One
-    /// that no longer applies changes nothing: its Space is gone, locked or
-    /// being deleted, its tab is gone, or the session takes no edits.
     internal IReadOnlyList<Change> Apply(PageEdit edit) {
         ArgumentNullException.ThrowIfNull(edit);
         (SessionState Previous, SessionState Next, SessionTabEvents Events)? applied;
@@ -42,8 +36,7 @@ public sealed partial class NativeSessionAuthority {
     /// taken: the state stays as it was. The caller holds the gate.
     private (SessionState Previous, SessionState Next, SessionTabEvents Events)? ApplyUnderGate(PageEdit edit) {
         if (!TakesEdits() || session.PendingDeletion(edit.SpaceId) is not null
-            || session.Space(edit.SpaceId) is not { } original
-            || IsLockedUnderGate(original)) return null;
+            || session.Spaces.FirstOrDefault(space => space.Id == edit.SpaceId) is not { } original) return null;
         SessionState next;
         SessionTabEvents events;
         try {

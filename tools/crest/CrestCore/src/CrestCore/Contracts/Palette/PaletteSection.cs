@@ -2,8 +2,7 @@ namespace CrestCore.Contracts;
 
 /// A group of the palette's rows. The best match and the address or search to
 /// run have no header; each kind of thing the palette ranks shows under its
-/// title, in the order the person's palette preferences set, and the blended
-/// layout puts every ranked row in one headerless list. `Limit` caps the rows
+/// title, in a fixed order. `Limit` caps the rows
 /// the section shows; `RestingLimit` caps them before anything is typed;
 /// `ScopedLimit` caps them when the person narrowed the palette to the kind.
 /// A section travels as its index in `All`, so `All` is append-only.
@@ -21,13 +20,10 @@ public sealed class PaletteSection {
     public static readonly PaletteSection History = new(name: "history", title: "History", limit: 6, restingLimit: 0, scopedLimit: 30);
     public static readonly PaletteSection TopHit = new(name: "topHit", title: null, limit: 1, restingLimit: 0, scopedLimit: 0);
     public static readonly PaletteSection Spaces = new(name: "spaces", title: "Spaces", limit: 2, restingLimit: 0, scopedLimit: 30);
-    public static readonly PaletteSection Archived = new(name: "archived", title: "Archived Tabs", limit: 3, restingLimit: 0,
-        scopedLimit: 30);
-    public static readonly PaletteSection Results = new(name: "results", title: null, limit: 12, restingLimit: 0, scopedLimit: 0);
 
     /// Every section, in the order sections were added.
     public static IReadOnlyList<PaletteSection> All { get; } =
-        [Intent, SearchSuggestions, RecentTabs, Tabs, Actions, Saved, History, TopHit, Spaces, Archived, Results];
+        [Intent, SearchSuggestions, RecentTabs, Tabs, Actions, Saved, History, TopHit, Spaces];
 
     #endregion
 

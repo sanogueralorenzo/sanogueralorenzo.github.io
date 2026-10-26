@@ -29,7 +29,6 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal(original, before.Read("core"));
         var after = JsonNode.Parse(authority.Checkpoint().Read("core"))!;
         Assert.Equal("Updated native title", after["spaces"]![0]!["tabs"]![0]!["customTitle"]!.GetValue<string>());
-        Assert.True(JsonNode.DeepEquals(session["spaces"]![0]!["branding"], after["spaces"]![0]!["branding"]));
         Assert.Empty(after["spaces"]![0]!["history"]!.AsArray());
     }
 }

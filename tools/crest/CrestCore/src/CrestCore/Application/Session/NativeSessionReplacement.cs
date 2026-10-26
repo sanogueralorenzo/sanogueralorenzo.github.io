@@ -13,7 +13,6 @@ internal sealed class NativeSessionReplacement : IDisposable {
     internal SessionState Session { get; }
     /// The revision storage saves the state as.
     internal ulong Revision { get; }
-    internal Guid? TransientCompletion { get; }
     /// What the command chose for the window that issued it to show next.
     internal WindowFollowUp? FollowUp { get; }
     /// What the command did that the states cannot tell.
@@ -26,10 +25,9 @@ internal sealed class NativeSessionReplacement : IDisposable {
     #region Constructors
 
     internal NativeSessionReplacement(NativeSessionAuthority owner, SessionState session,
-        ulong revision, NativeSessionCheckpoint checkpoint, Guid? transientCompletion = null,
+        ulong revision, NativeSessionCheckpoint checkpoint,
         WindowFollowUp? followUp = null, SessionTabEvents? events = null) {
         this.owner = owner; Session = session; Revision = revision; Checkpoint = checkpoint;
-        TransientCompletion = transientCompletion;
         FollowUp = followUp;
         Events = events ?? SessionTabEvents.None;
     }

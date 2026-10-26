@@ -13,15 +13,30 @@ public sealed class SitePermissionLedgerTests {
         ledger.Set(space, origin ?? Meet, permission, detail, decision, Guid.NewGuid(), 10);
 
     [Fact]
+    public void OriginsNormalizeCaseAndDefaultWebPorts() {
+        Assert.Equal(new SiteOrigin("http", "news.example", 80), new SiteOrigin("HTTP", "News.Example", 0));
+        Assert.Equal(new SiteOrigin("https", "news.example", 443), new SiteOrigin("HTTPS", "News.Example", -1));
+        Assert.Equal(0, new SiteOrigin("custom", "Handler.Example", 0).Port);
+        Assert.Equal("https://meet.example", Meet.DisplayName);
+        Assert.Equal("https://meet.example:8443", new SiteOrigin("https", "meet.example", 8443).DisplayName);
+        Assert.False(new SiteOrigin("https", "", 443).IsValid);
+        Assert.Equal(SitePermissionDecision.Ask,
+            new SitePermissionLedger().Decision(Guid.NewGuid(), new SiteOrigin("https", "", 443), SitePermission.Camera, null));
+        Assert.Equal(new InvalidSiteOrigin(new SiteOrigin("https", "", 443)), Assert.Throws<Rejected>(() => new SitePermissionLedger()
+            .Set(Guid.NewGuid(), new SiteOrigin("https", "", 443), SitePermission.Camera, null, SitePermissionDecision.GrantPersistently,
+                Guid.NewGuid(), 1)).Rejection);
+    }
+
+    [Fact]
     public void DecisionsAreScopedToSpaceOriginAndCapability() {
         var ledger = new SitePermissionLedger();
         Guid work = Guid.NewGuid(), personal = Guid.NewGuid();
         Set(ledger, work, SitePermission.Camera, SitePermissionDecision.GrantForSession);
 
-        Assert.Equal(SitePermissionDecision.GrantForSession, ledger.Decision(work, Meet, SitePermission.Camera, null, false));
-        Assert.Equal(SitePermissionDecision.Ask, ledger.Decision(work, Meet, SitePermission.Microphone, null, false));
-        Assert.Equal(SitePermissionDecision.Ask, ledger.Decision(work, new("https", "meet.example", 8443), SitePermission.Camera, null, false));
-        Assert.Equal(SitePermissionDecision.Ask, ledger.Decision(personal, Meet, SitePermission.Camera, null, false));
+        Assert.Equal(SitePermissionDecision.GrantForSession, ledger.Decision(work, Meet, SitePermission.Camera, null));
+        Assert.Equal(SitePermissionDecision.Ask, ledger.Decision(work, Meet, SitePermission.Microphone, null));
+        Assert.Equal(SitePermissionDecision.Ask, ledger.Decision(work, new("https", "meet.example", 8443), SitePermission.Camera, null));
+        Assert.Equal(SitePermissionDecision.Ask, ledger.Decision(personal, Meet, SitePermission.Camera, null));
     }
 
     [Fact]
@@ -33,16 +48,16 @@ public sealed class SitePermissionLedgerTests {
 
         Assert.False(outcome.PersistenceChanged);
         Assert.True(Assert.Single(outcome.Changes).Scope.RevokesAuthorization);
-        Assert.Equal(SitePermissionDecision.DenyForSession, ledger.Decision(space, Meet, SitePermission.Camera, null, false));
+        Assert.Equal(SitePermissionDecision.DenyForSession, ledger.Decision(space, Meet, SitePermission.Camera, null));
         Assert.Equal(SitePermissionDecision.GrantPersistently, Assert.Single(ledger.PersistentRecords).Decision);
 
         var restarted = new SitePermissionLedger();
         restarted.Restore(ledger.PersistentRecords);
-        Assert.Equal(SitePermissionDecision.GrantPersistently, restarted.Decision(space, Meet, SitePermission.Camera, null, false));
+        Assert.Equal(SitePermissionDecision.GrantPersistently, restarted.Decision(space, Meet, SitePermission.Camera, null));
 
         // Restoring the kept records leaves the session's own choices in place.
         ledger.Restore(ledger.PersistentRecords.ToArray());
-        Assert.Equal(SitePermissionDecision.DenyForSession, ledger.Decision(space, Meet, SitePermission.Camera, null, false));
+        Assert.Equal(SitePermissionDecision.DenyForSession, ledger.Decision(space, Meet, SitePermission.Camera, null));
     }
 
     [Fact]
@@ -53,13 +68,13 @@ public sealed class SitePermissionLedgerTests {
         Set(ledger, space, SitePermission.ExternalApplications, SitePermissionDecision.GrantPersistently, "mailto");
         Set(ledger, space, SitePermission.ExternalApplications, SitePermissionDecision.GrantPersistently, "tel");
 
-        Assert.Equal(SitePermissionDecision.GrantPersistently, ledger.Decision(space, Meet, SitePermission.ExternalApplications, "mailto", false));
-        Assert.Equal(SitePermissionDecision.DenyPersistently, ledger.Decision(space, Meet, SitePermission.ExternalApplications, "zoommtg", false));
+        Assert.Equal(SitePermissionDecision.GrantPersistently, ledger.Decision(space, Meet, SitePermission.ExternalApplications, "mailto"));
+        Assert.Equal(SitePermissionDecision.DenyPersistently, ledger.Decision(space, Meet, SitePermission.ExternalApplications, "zoommtg"));
 
         Set(ledger, space, SitePermission.ExternalApplications, SitePermissionDecision.Ask, "mailto");
-        Assert.Equal(SitePermissionDecision.DenyPersistently, ledger.Decision(space, Meet, SitePermission.ExternalApplications, "mailto", false));
-        Assert.Equal(SitePermissionDecision.GrantPersistently, ledger.Decision(space, Meet, SitePermission.ExternalApplications, "tel", false));
-        Assert.Equal(SitePermissionDecision.Ask, ledger.Decision(space, Meet, SitePermission.ExternalApplications, "", false));
+        Assert.Equal(SitePermissionDecision.DenyPersistently, ledger.Decision(space, Meet, SitePermission.ExternalApplications, "mailto"));
+        Assert.Equal(SitePermissionDecision.GrantPersistently, ledger.Decision(space, Meet, SitePermission.ExternalApplications, "tel"));
+        Assert.Equal(SitePermissionDecision.Ask, ledger.Decision(space, Meet, SitePermission.ExternalApplications, ""));
         Assert.Equal(new InvalidSitePermissionDetail(SitePermissionLedger.MaximumDetailLength), Assert.Throws<Rejected>(() =>
             Set(ledger, space, SitePermission.ExternalApplications, SitePermissionDecision.GrantPersistently, new string('x', 257))).Rejection);
     }
@@ -71,15 +86,15 @@ public sealed class SitePermissionLedgerTests {
         Set(ledger, space, SitePermission.CameraAndMicrophone, SitePermissionDecision.GrantPersistently);
         Set(ledger, space, SitePermission.Camera, SitePermissionDecision.DenyPersistently);
 
-        Assert.Equal(SitePermissionDecision.DenyPersistently, ledger.MediaDecision(space, Meet, SitePermission.CameraAndMicrophone, false));
-        Assert.Equal(SitePermissionDecision.DenyPersistently, ledger.MediaDecision(space, Meet, SitePermission.Camera, false));
-        Assert.Equal(SitePermissionDecision.GrantPersistently, ledger.MediaDecision(space, Meet, SitePermission.Microphone, false));
+        Assert.Equal(SitePermissionDecision.DenyPersistently, ledger.MediaDecision(space, Meet, SitePermission.CameraAndMicrophone));
+        Assert.Equal(SitePermissionDecision.DenyPersistently, ledger.MediaDecision(space, Meet, SitePermission.Camera));
+        Assert.Equal(SitePermissionDecision.GrantPersistently, ledger.MediaDecision(space, Meet, SitePermission.Microphone));
 
         Set(ledger, space, SitePermission.CameraAndMicrophone, SitePermissionDecision.Ask);
         Set(ledger, space, SitePermission.Camera, SitePermissionDecision.GrantPersistently);
-        Assert.Equal(SitePermissionDecision.Ask, ledger.MediaDecision(space, Meet, SitePermission.CameraAndMicrophone, false));
+        Assert.Equal(SitePermissionDecision.Ask, ledger.MediaDecision(space, Meet, SitePermission.CameraAndMicrophone));
         Set(ledger, space, SitePermission.Microphone, SitePermissionDecision.GrantForSession);
-        Assert.Equal(SitePermissionDecision.GrantForSession, ledger.MediaDecision(space, Meet, SitePermission.CameraAndMicrophone, false));
+        Assert.Equal(SitePermissionDecision.GrantForSession, ledger.MediaDecision(space, Meet, SitePermission.CameraAndMicrophone));
     }
 
     [Fact]
@@ -93,7 +108,7 @@ public sealed class SitePermissionLedgerTests {
         var change = Assert.Single(ledger.ResetSpace(work).Changes);
         Assert.Equal(work, change.Space);
         Assert.Null(change.Scope.Origin);
-        Assert.Equal(SitePermissionDecision.Ask, ledger.Decision(work, Meet, SitePermission.Microphone, null, false));
+        Assert.Equal(SitePermissionDecision.Ask, ledger.Decision(work, Meet, SitePermission.Microphone, null));
         Assert.Equal(personal, Assert.Single(ledger.PersistentRecords).Space);
 
         var record = ledger.PersistentRecords[0];
@@ -101,4 +116,38 @@ public sealed class SitePermissionLedgerTests {
         Assert.Same(SitePermissionOutcome.Unchanged, ledger.ResetRecord(record.Id));
     }
 
+    [Fact]
+    public void RecordsListByOriginNaturallyThenCapabilityThenDetail() {
+        var ledger = new SitePermissionLedger();
+        var space = Guid.NewGuid();
+        Set(ledger, space, SitePermission.Popups, SitePermissionDecision.GrantPersistently, origin: new("https", "b.example", 443));
+        Set(ledger, space, SitePermission.Camera, SitePermissionDecision.GrantPersistently, origin: new("https", "host10.example", 443));
+        Set(ledger, space, SitePermission.Camera, SitePermissionDecision.GrantPersistently, origin: new("https", "host9.example", 443));
+        Set(ledger, space, SitePermission.ExternalApplications, SitePermissionDecision.GrantPersistently, "tel", new("https", "b.example", 443));
+        Set(ledger, space, SitePermission.ExternalApplications, SitePermissionDecision.GrantPersistently, "mailto", new("https", "b.example", 443));
+        Set(ledger, space, SitePermission.AutomaticDownloads, SitePermissionDecision.DenyPersistently, origin: new("https", "b.example", 443));
+
+        var listed = ledger.Records(space).Select(record => $"{record.Origin.Host}/{record.Permission.Name}/{record.Detail}");
+        Assert.Equal([
+            "b.example/automaticDownloads/", "b.example/externalApplications/mailto", "b.example/externalApplications/tel",
+            "b.example/popups/", "host9.example/camera/", "host10.example/camera/"
+        ], listed);
+    }
+
+    [Fact]
+    public void RestoreKeepsOnlyTheFirstPersistentRecordForEachChoice() {
+        var space = Guid.NewGuid();
+        var first = new SitePermissionRecord(Guid.NewGuid(), space, Meet, SitePermission.Camera, null, SitePermissionDecision.GrantPersistently, 1);
+        var ledger = new SitePermissionLedger();
+        int kept = ledger.Restore([
+            first,
+            first with { Id = Guid.NewGuid(), Decision = SitePermissionDecision.DenyPersistently },
+            first with { Id = Guid.NewGuid(), Permission = SitePermission.Microphone, Decision = SitePermissionDecision.GrantForSession },
+            first with { Id = Guid.NewGuid(), Permission = SitePermission.Location, Detail = "" },
+        ]);
+
+        Assert.Equal(1, kept);
+        Assert.Equal(SitePermissionDecision.GrantPersistently, ledger.Decision(space, Meet, SitePermission.Camera, null));
+        Assert.Equal(SitePermissionDecision.Ask, ledger.Decision(space, Meet, SitePermission.Microphone, null));
+    }
 }

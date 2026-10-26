@@ -4,7 +4,6 @@
   "schemaVersion" : 5,
   "spaces" : [
     {
-      "accent" : "teal",
       "archivedTabs" : [
         {
           "archivedAt" : 1699000100000,
@@ -19,67 +18,6 @@
           }
         }
       ],
-      "branding" : {
-        "bannerPattern" : "diagonal",
-        "bannerStrength" : 1,
-        "colors" : [
-          {
-            "alpha" : 1,
-            "blue" : 0.52,
-            "green" : 0.49,
-            "red" : 0.12
-          },
-          {
-            "alpha" : 1,
-            "blue" : 0.64,
-            "green" : 0.42,
-            "red" : 0.22
-          },
-          {
-            "alpha" : 1,
-            "blue" : 0.56,
-            "green" : 0.72,
-            "red" : 0.82
-          }
-        ],
-        "crest" : {
-          "backplate" : "shield",
-          "backplateColorIndex" : 1,
-          "chargeLayout" : "single",
-          "chargeOffset" : 0,
-          "chargeScale" : 1,
-          "chargeWeight" : "bold",
-          "depth" : "none",
-          "divisionCount" : 4,
-          "edgeColorIndex" : 1,
-          "edgeWidth" : 0,
-          "fieldDivision" : "plain",
-          "finish" : "flat",
-          "ordinary" : "none",
-          "ordinaryColorIndex" : 2,
-          "ordinaryWidth" : 1,
-          "plateScale" : 1,
-          "sealTeeth" : 12,
-          "secondaryFieldColorIndex" : 1,
-          "sheenAngle" : 45,
-          "showsOutline" : false,
-          "symbol" : "mountain",
-          "symbolColorIndex" : 2,
-          "trim" : "none",
-          "trimColorIndex" : 1,
-          "trimDetail" : 12,
-          "trimWeight" : 1
-        },
-        "folderColorIntensity" : 0,
-        "gradientAngle" : 0,
-        "iconStyle" : "simpleSymbol",
-        "keepsControlsReadable" : true,
-        "readabilityFade" : 0.25,
-        "renderingVersion" : 2,
-        "showsTexture" : false,
-        "textColorMode" : "automatic",
-        "themeMode" : "banner"
-      },
       "browsingPreferences" : {
         "contentBlockingPolicy" : "balanced",
         "currentTabCleanupPolicy" : "after30Days",
@@ -139,9 +77,7 @@
         }
       ],
       "name" : "Portable Work",
-      "splitGroups" : [
-
-      ],
+      "splitGroups" : [],
       "symbol" : "briefcase.fill",
       "tabs" : [
         {

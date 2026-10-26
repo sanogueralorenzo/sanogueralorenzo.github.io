@@ -1,3 +1,5 @@
+using CrestCore.Domain;
+
 namespace CrestCore.Contracts;
 
 /// A narrowing of the palette to one kind of result, entered by typing its
@@ -37,7 +39,7 @@ public sealed class PaletteScope {
     public string Symbol { get; }
 
     /// The only kind of result the scope offers.
-    public PaletteSource Source { get; }
+    internal PaletteSource Source { get; }
 
     #endregion
 

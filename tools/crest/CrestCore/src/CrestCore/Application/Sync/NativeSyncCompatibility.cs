@@ -28,46 +28,20 @@ internal static class NativeSyncCompatibility {
 
     private static readonly Shape Identity = new("rawValue");
     private static readonly Shape Color = new("red green blue alpha");
-    private static readonly Shape Charge = new("kind value style");
-
-    private static readonly Shape Crest = new(
-        "backplate fieldDivision ordinary trim symbol chargeLayout backplateColorIndex secondaryFieldColorIndex ordinaryColorIndex trimColorIndex symbolColorIndex edgeColorIndex palette charge plateScale edgeWidth divisionCount finish ordinaryWidth trimWeight trimDetail chargeScale chargeOffset chargeWeight startingPresetID sheenAngle sealTeeth showsOutline depth",
-        new() { ["palette"] = List(Color), ["charge"] = Charge });
-
-    private static readonly Shape Branding = new(
-        "colors bannerPattern bannerStrength readabilityFade keepsControlsReadable themeMode gradientAngle showsTexture iconStyle symbolColor crest renderingVersion folderColorIntensity textColorMode hasCustomAppearance",
-        new() { ["colors"] = List(Color), ["symbolColor"] = Color, ["crest"] = Crest });
-
-    private static readonly Shape SearchProvider = new("id name searchURLTemplate suggestionURLTemplate");
 
     private static readonly Shape Browsing = new(
         "searchProvider selectedSearchProviderID customSearchProviders searchSuggestionsEnabled searchFollowsDefault suggestionsFollowDefault currentTabCleanupPolicy contentBlockingPolicy dataRetention",
-        new() { ["customSearchProviders"] = List(SearchProvider, true), ["dataRetention"] = new("history archive downloads") });
+        new() { ["dataRetention"] = new("history archive downloads") });
 
-    private static readonly Shape Group = new(SplitGroupPayload.Members,
-        new() { [StoredSessionCodec.Key.Id] = Identity, [StoredSessionCodec.Key.Tint] = Color });
-
-    private static readonly Shape Tab = new(TabPayload.Members, new() {
-        [StoredSessionCodec.Key.Id] = Identity,
-        [StoredSessionCodec.Key.SpaceId] = Identity,
-        [StoredSessionCodec.Key.FolderId] = Identity,
-        [StoredSessionCodec.Key.SplitGroupId] = Identity
-    });
+    private static readonly Shape Tab = new(
+        "id spaceID title nativeContent url savedURL symbol placement folderID splitGroupID orderToken lastActivatedAt positionModifiedAt customTitle titleModifiedAt",
+        new() { ["id"] = Identity, ["spaceID"] = Identity, ["folderID"] = Identity, ["splitGroupID"] = Identity });
 
     private static readonly Dictionary<string, Shape> Values = new() {
-        [SyncRecordKind.Space.Name] = new(SpacePayload.Members, new() {
-            [StoredSessionCodec.Key.Id] = Identity,
-            [StoredSessionCodec.Key.Branding] = Branding,
-            [StoredSessionCodec.Key.BrowsingPreferences] = Browsing,
-            [StoredSessionCodec.Key.SplitGroups] = List(Group, true)
-        }),
-        [SyncRecordKind.Folder.Name] = new(FolderPayload.Members, new() {
-            [StoredSessionCodec.Key.Id] = Identity,
-            [StoredSessionCodec.Key.SpaceId] = Identity,
-            [StoredSessionCodec.Key.ParentId] = Identity,
-            [StoredSessionCodec.Key.OrderAnchorTabId] = Identity,
-            [StoredSessionCodec.Key.Color] = Color
-        }),
+        [SyncRecordKind.Space.Name] = new("id profileID name accent branding browsingPreferences credentialsEnabled credentialsEnabledModifiedAt splitGroups orderToken",
+            new() { ["id"] = Identity, ["browsingPreferences"] = Browsing }),
+        [SyncRecordKind.Folder.Name] = new("id spaceID title location symbol color parentID isCollapsed collapseModifiedAt orderAnchorTabID orderToken",
+            new() { ["id"] = Identity, ["spaceID"] = Identity, ["parentID"] = Identity, ["orderAnchorTabID"] = Identity, ["color"] = Color }),
         [SyncRecordKind.Tab.Name] = Tab,
         [SyncRecordKind.History.Name] = new(HistoryPayload.Members, new() { [StoredSessionCodec.Key.SpaceId] = Identity }),
         [SyncRecordKind.Archive.Name] = new(ArchivePayload.Members, new() { [StoredSessionCodec.Key.Tab] = Tab })

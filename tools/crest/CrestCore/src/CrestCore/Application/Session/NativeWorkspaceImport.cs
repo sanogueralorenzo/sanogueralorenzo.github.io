@@ -20,7 +20,6 @@ internal sealed class NativeWorkspaceImport {
 
     /// The saved folder that receives imported pinned tabs past the limit.
     internal const string OverflowFolderTitle = "Imported Pinned Tabs";
-    internal const string OverflowFolderSymbol = "pin.slash";
 
     /// The fewest tabs a split brings.
     private const int MinimumSplitMembers = 2;
@@ -66,7 +65,7 @@ internal sealed class NativeWorkspaceImport {
     private readonly SessionState session;
     /// The session's Spaces, then those the import adds, in the order the
     /// session will hold them.
-    private List<Draft> spaces;
+    private readonly List<Draft> spaces;
     /// The import's Spaces, in the order it brings them.
     private readonly IReadOnlyList<Draft> inputs;
     private readonly Dictionary<Draft, HashSet<Guid>> originalFolderIds;
@@ -77,16 +76,10 @@ internal sealed class NativeWorkspaceImport {
     /// The tabs a reviewed import of another browser brings, by where they
     /// came from, which the import counts as used.
     private readonly HashSet<Origin> reviewed = [];
-    private Guid? defaultSpace;
     private Guid? seedMarker;
     /// The first Space the import brought or changed, which the window shows.
     private Draft? affected;
 
-    /// The session's own Spaces the import changes, as the session holds them:
-    /// each it gives tabs or folders, or another name or look. Moving a Space in
-    /// the order changes no Space, as `ReorderSpaces` moves a locked one too,
-    /// and neither does replacing a first launch's disposable Spaces, which
-    /// removes them as a deletion removes a locked Space.
     internal IReadOnlyList<SpaceState> Changed => [.. spaces.Where(space => space.IsChanged).Select(space => space.Original!)];
 
     #endregion
@@ -98,7 +91,6 @@ internal sealed class NativeWorkspaceImport {
     /// would rewrite.
     internal NativeWorkspaceImport(SessionState session, IReadOnlyList<SpaceState> spaces) {
         this.session = session;
-        defaultSpace = session.DefaultSpaceId;
         seedMarker = session.DisposableSeedMarker;
         this.spaces = [.. session.Spaces.Select(space => new Draft(space, isOriginal: true))];
         foreach (var space in this.spaces) Track(space.State, source: null);
@@ -184,48 +176,9 @@ internal sealed class NativeWorkspaceImport {
         affected = inputs.FirstOrDefault();
     }
 
-    /// The Space a manual setup's `space` brings into the import: the new
-    /// Space it makes, holding nothing yet, or the identity and profile of the
-    /// existing Space it names. `ApplySetup` gives it its name and look.
-    internal static SpaceState SetupSpace(SetupDraftSpace space) {
-        ArgumentNullException.ThrowIfNull(space);
-        var customization = space.Customization;
-        var settings = new SpaceSettings(customization.Name, customization.Symbol, customization.Accent, customization.Branding,
-            StoredSessionCodec.DefaultBrowsingPreferences, StoredSessionCodec.DefaultCredentialPreferences, SpaceAccessPolicy.Open,
-            IsSavedTabsExpanded: true, SavedTabsExpansionModifiedAt: null);
-        return new(space.SpaceId, space.ProfileId, settings, Folders: [], Tabs: [], SplitGroups: [], ArchivedTabs: [], History: []);
-    }
-
-    /// Applies a manual setup's Spaces in their order; see `ApplyManualSetup`.
-    internal void ApplySetup(SetupDraft setup) {
-        var paired = Pair(setup.Spaces, draft => draft.SpaceId);
-        SessionState.RequireSpaceCapacity(spaces.Count, setup.Spaces.Count(draft => draft.IsNew));
-        foreach (var (input, draft) in paired) {
-            var id = input.Id;
-            bool created = draft.IsNew;
-            var destination = created ? input : spaces.FirstOrDefault(s => s.Id == id);
-            if (destination is null) continue; // A setup cannot recreate an existing Space deleted elsewhere.
-            Available(id);
-            if (!created && destination.State.ProfileId != input.State.ProfileId) throw new Rejected(new SpaceProfileChanged(id));
-            if (created && spaces.Any(s => s.Id == id)) throw new Rejected(new SpaceAlreadyExists(id));
-            if (created && spaces.Any(s => s.State.ProfileId == input.State.ProfileId))
-                throw new Rejected(new ProfileInUse(input.State.ProfileId));
-            Customize(destination, draft.Customization);
-            if (!created) continue;
-            spaces.Add(destination);
-            affected ??= destination;
-        }
-        if (setup.OrderWasEdited) {
-            var order = paired.Select(pair => pair.Input.Id).ToArray();
-            spaces = [.. order.Select(id => spaces.FirstOrDefault(s => s.Id == id)).OfType<Draft>()
-                .Concat(spaces.Where(s => !order.Contains(s.Id)))];
-        }
-        seedMarker = null;
-    }
-
     /// Imports the reviewed Spaces the review includes, in their order; see
     /// `ImportReviewedSpaces`. New identities come from `ids`.
-    internal void ImportReviewed(IReadOnlyList<SetupReviewSpace> reviews, IIdSource ids) {
+    internal void ImportReviewed(IReadOnlyList<ImportReviewSpace> reviews, IIdSource ids) {
         var included = Pair(reviews, review => review.Source.Id).Where(pair => pair.Choice.Included).ToArray();
         if (included.Length == 0) throw new Rejected(new NoIncludedSpaces());
         bool replaceSeed = seedMarker is not null;
@@ -250,7 +203,6 @@ internal sealed class NativeWorkspaceImport {
     private void ReplaceSeed() {
         if (session.SpaceDeletions.Count > 0) throw new Rejected(new SpaceBeingDeleted(session.SpaceDeletions[0].SpaceId));
         spaces.Clear();
-        defaultSpace = null;
     }
 
     #endregion
@@ -262,7 +214,7 @@ internal sealed class NativeWorkspaceImport {
     /// a tab group's open tabs, and the splits whose tabs still come together.
     /// Pinned tabs past the limit become saved tabs in the overflow folder. New
     /// identities come from `ids`.
-    private void Import(SetupReviewSpace review, Draft input, Draft destination, bool isNew, IIdSource ids) {
+    private void Import(ImportReviewSpace review, Draft input, Draft destination, bool isNew, IIdSource ids) {
         var included = review.IncludedTabIds.ToHashSet();
         var overrides = review.Placements.GroupBy(choice => choice.TabId).ToDictionary(group => group.Key, group => group.Last().Placement);
         TabPlacement PlacementFor(TabState tab) => overrides.GetValueOrDefault(tab.Id, tab.Placement);
@@ -307,8 +259,7 @@ internal sealed class NativeWorkspaceImport {
             if (placement.Fitting(counts[placement]) is var spill && spill != placement) {
                 placement = spill;
                 if (overflowFolder is null && folders.Count < MaximumFolders) {
-                    overflowFolder = new FolderState(ids.Next(), spill, OverflowFolderTitle,
-                        OverflowFolderSymbol);
+                    overflowFolder = new FolderState(ids.Next(), spill, OverflowFolderTitle);
                     folders.Add(overflowFolder);
                 }
                 folder = overflowFolder?.Id;
@@ -324,8 +275,8 @@ internal sealed class NativeWorkspaceImport {
         var existing = isNew ? [] : destination.State.Tabs;
         foreach (var tab in edited)
             if (origins.TryGetValue(tab, out var origin)) reviewed.Add(origin);
-        var (split, splits) = Split(input, destination, isNew, existing, edited, ids);
-        destination.State = destination.State with { Folders = [.. folders], Tabs = [.. existing, .. split], SplitGroups = splits };
+        var split = Split(existing, edited, ids);
+        destination.State = destination.State with { Folders = [.. folders], Tabs = [.. existing, .. split] };
         // A new Space shows its first imported tab.
         if (isNew && edited.FirstOrDefault() is { } first) destination.ShownTab = first.Id;
     }
@@ -342,19 +293,17 @@ internal sealed class NativeWorkspaceImport {
 
     /// `edited`, the tabs a reviewed Space brings after `existing`, each in the
     /// split it came in where that split still holds together beside the
-    /// destination's tabs, and the destination's splits with those it brings.
+    /// destination's tabs.
     /// A split that no longer holds, because the review left out or moved one
     /// of its tabs, leaves its tabs on their own.
-    private (TabState[] Tabs, IReadOnlyList<SplitGroupState> Splits) Split(Draft input, Draft destination, bool isNew,
-        IReadOnlyList<TabState> existing, TabState[] edited, IIdSource ids) {
-        var held = isNew ? [] : destination.State.SplitGroups.ToList();
-        var sources = input.State.SplitGroups.GroupBy(split => split.Id).ToDictionary(group => group.Key, group => group.First());
+    private TabState[] Split(IReadOnlyList<TabState> existing, TabState[] edited, IIdSource ids) {
+        var held = existing.Select(tab => tab.SplitGroupId).OfType<Guid>().ToHashSet();
         Dictionary<Guid, Guid> identities = [];
         Guid? Mapped(Guid? id) {
-            if (id is not { } source || !sources.ContainsKey(source)) return null;
+            if (id is not { } source) return null;
             if (identities.TryGetValue(source, out var mapped)) return mapped;
             var identity = source;
-            while (held.Any(split => split.Id == identity) || identities.ContainsValue(identity)) identity = ids.Next();
+            while (held.Contains(identity) || identities.ContainsValue(identity)) identity = ids.Next();
             return identities[source] = identity;
         }
         var asked = edited.Select(tab => Mapped(tab.SplitGroupId)).ToArray();
@@ -366,9 +315,7 @@ internal sealed class NativeWorkspaceImport {
             Guid? kept = repaired[index] is { } joined && joined == asked[index] && counts[joined] >= MinimumSplitMembers ? joined : null;
             return tab.SplitGroupId == kept ? tab : Copied(tab, tab with { SplitGroupId = kept });
         }).ToArray();
-        foreach (var (source, identity) in identities)
-            if (tabs.Any(tab => tab.SplitGroupId == identity)) held.Add(sources[source] with { Id = identity });
-        return (tabs, held);
+        return tabs;
     }
 
     #endregion
@@ -404,7 +351,6 @@ internal sealed class NativeWorkspaceImport {
         var before = spaces.Select(space => space.State).ToArray();
         var imported = session with {
             Spaces = before,
-            DefaultSpaceId = defaultSpace,
             DisposableSeedMarker = seedMarker
         };
         var repaired = NativeSessionMaintenance.Repair(imported, now, null, ids, out _);
@@ -478,18 +424,14 @@ internal sealed class NativeWorkspaceImport {
     private static void Customize(Draft space, SpaceCustomization customization) {
         var settings = space.State.Settings;
         var chosen = Customized(settings, customization);
-        if (space.IsOriginal && settings.Branding is { } branding
-            && chosen == Customized(settings, new(settings.Name, settings.Symbol, settings.Accent, branding))) return;
+        if (space.IsOriginal && chosen == settings) return;
         space.State = space.State with { Settings = chosen };
     }
 
     /// `settings` with the name and look `customization` chooses, as the core
     /// keeps them.
     private static SpaceSettings Customized(SpaceSettings settings, SpaceCustomization customization) => settings with {
-        Name = SpaceCustomization.Resolved(customization.Name),
-        Symbol = SpaceCustomization.ResolvedSymbol(customization.Symbol),
-        Accent = customization.Accent,
-        Branding = SpaceBranding.Normalized(customization.Branding)
+        Name = SpaceCustomization.Resolved(customization.Name)
     };
 
     /// Throws `Rejected` with `SpaceBeingDeleted` when `id` is going away.

@@ -8,18 +8,14 @@ internal sealed class DeviceAdoption {
 
     public static readonly DeviceAdoption WindowRecords = new(marker: "window-records", olderBuildsRead: true);
     public static readonly DeviceAdoption SitePermissions = new(marker: "site-permissions", olderBuildsRead: false);
-    public static readonly DeviceAdoption Shortcuts = new(marker: "shortcuts", olderBuildsRead: false);
-    public static readonly DeviceAdoption LinkPreferences = new(marker: "link-preferences", olderBuildsRead: false);
     /// The cloud transport's state, which the transport kept in a file of its own.
     public static readonly DeviceAdoption CloudTransport = new(marker: "cloud-transport", olderBuildsRead: false);
-    public static readonly DeviceAdoption SetupDraft = new(marker: "setup-draft", olderBuildsRead: false);
-    public static readonly DeviceAdoption SetupCompletion = new(marker: "setup-completion", olderBuildsRead: false);
     /// The windows the Chromium composition kept open for its next launch,
     /// which it listed in its defaults.
     public static readonly DeviceAdoption OpenWindows = new(marker: "open-windows", olderBuildsRead: false);
 
     public static IReadOnlyList<DeviceAdoption> All { get; } =
-        [WindowRecords, SitePermissions, Shortcuts, LinkPreferences, CloudTransport, SetupDraft, SetupCompletion, OpenWindows];
+        [WindowRecords, SitePermissions, CloudTransport, OpenWindows];
 
     #endregion
 

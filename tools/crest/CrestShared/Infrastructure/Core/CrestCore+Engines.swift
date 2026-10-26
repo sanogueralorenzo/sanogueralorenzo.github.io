@@ -1,33 +1,7 @@
 import CrestCoreABI
 import Foundation
-import OSLog
 
 extension CrestCore {
-    // MARK: - Static Variables
-
-    private static let pagesLogger = Logger(subsystem: "com.pauldavis.crest", category: "Pages")
-
-    // MARK: - Actions - Site engines
-
-    /// Opens `origin`'s pages on `engine` from now on, as a choice made in
-    /// `spaceID`, and moves page `pageID` there, which loads what it showed.
-    /// False when a rule refuses either, such as a locked Space or a page
-    /// that is gone.
-    @discardableResult
-    func open(_ origin: SiteOrigin, in spaceID: UUID, on engine: EngineKind, moving pageID: UUID) -> Bool {
-        do {
-            guard let page = state.pages[pageID], page.spaceID == spaceID,
-                page.live.address.flatMap({ URL(string: $0) }).flatMap({ SiteOrigin(url: $0) }) == origin
-            else { return false }
-            try send(RehostPage(pageID: pageID, engine: engine, remembersSite: true))
-            return true
-        } catch {
-            Self.pagesLogger.debug(
-                "The core kept page \(pageID, privacy: .public) on its engine: \(String(describing: error))")
-            return false
-        }
-    }
-
     // MARK: - Actions - Engines
 
     /// Registers an engine with the core and answers the core's handle for it.

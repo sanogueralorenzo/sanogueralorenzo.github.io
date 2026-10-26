@@ -25,7 +25,6 @@ public sealed class BrowserTab {
     public DateTimeOffset LastActivatedAt => State.LastActivatedAt;
 
     public TabIconMode IconMode => State.IconMode;
-    public bool KeepsPageLoaded => State.KeepsPageLoaded;
 
     #endregion
 
@@ -66,22 +65,9 @@ public sealed class BrowserTab {
         if (!string.IsNullOrEmpty(title)) State = State with { Title = title };
     }
 
-    /// A closed saved tab reopens at the address it was saved with.
-    public void ReturnToSavedUrl() {
-        if (SavedUrl is { } saved) State = State with { Url = saved };
-    }
-
     #endregion
 
     #region Actions - Saved address
-
-    /// Adopts the page the tab shows as the one it belongs to. A tab at its
-    /// saved address keeps it. Refused with `NoSavedAddress` for a tab that
-    /// belongs nowhere.
-    public void ReplaceSavedAddress() {
-        _ = RequiredSavedAddress();
-        if (State.IsAwayFromSavedAddress) State = State with { SavedUrl = Url };
-    }
 
     /// Returns the tab to the address it belongs to, which its page then
     /// loads. Refused with `NoSavedAddress` for a tab that belongs nowhere.
@@ -98,18 +84,6 @@ public sealed class BrowserTab {
     public void SetIcon(string symbol) => State = State with { Symbol = symbol };
 
     public void SetFavicon(string? url, TabIconAccent? accent) => State = State with { FaviconUrl = url, IconAccent = accent };
-
-    /// The person chose how the icon is filled: a pulled favicon keeps the
-    /// page's address and `accent` behind it, and any other choice keeps none.
-    /// Answers whether the tab wears the image its chooser holds. Refused with
-    /// `InvalidTabIcon` when the mode can make no icon from `emoji`.
-    public bool ChooseIcon(TabIconMode mode, string? emoji, TabIconAccent? accent) {
-        ArgumentNullException.ThrowIfNull(mode);
-        SetIcon(mode.Symbol(emoji) ?? throw new Rejected(new InvalidTabIcon(mode)));
-        SetFavicon(mode.RequiresFavicon ? Url : null, mode.RequiresFavicon ? accent : null);
-        State = State with { StoredIconMode = mode };
-        return mode.RequiresFavicon;
-    }
 
     /// The page reported an icon for the document at `url`, which the tab
     /// shows. An icon that follows its page wears it, with the color the
@@ -135,8 +109,6 @@ public sealed class BrowserTab {
         if (custom?.Length > MaximumTitleLength) throw new Rejected(new InvalidName(MaximumTitleLength));
         State = State with { CustomTitle = custom, TitleModifiedAt = BrowserEditTimestamp.Normalize(now) };
     }
-
-    public void SetResidency(bool keepLoaded) => State = State with { KeepsPageLoaded = keepLoaded };
 
     internal void SetSplit(Guid? id) => State = State with { SplitGroupId = id };
 

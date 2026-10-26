@@ -100,9 +100,8 @@ public static class NativeSyncEvaluator {
             string archiveName = tabs.Counterpart!.Kind.RecordName(tab.Id);
             if (!byId.TryGetValue(archiveName, out var archiveRecord) || PayloadValue(archiveRecord) is not { } archive) continue;
             var payload = PayloadValue(tab)!;
-            bool active = Placement(payload).KeepsTabOverArchive(Date(payload, StoredSessionCodec.Key.LastActivatedAt)!.Value,
-                tab.Version, ArchiveReason.Named(Text(archive, StoredSessionCodec.Key.Reason)) ?? ArchiveReason.Closed,
-                Date(archive, StoredSessionCodec.Key.ArchivedAt)!.Value, archiveRecord.Version);
+            bool active = Placement(payload).KeepsTabOverArchive(tab.Version,
+                ArchiveReason.Named(Text(archive, StoredSessionCodec.Key.Reason)) ?? ArchiveReason.Closed, archiveRecord.Version);
             byId.Remove(active ? archiveName : tab.Name);
         }
         return new JsonArray(byId.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => p.Value.Json.DeepClone()).ToArray());

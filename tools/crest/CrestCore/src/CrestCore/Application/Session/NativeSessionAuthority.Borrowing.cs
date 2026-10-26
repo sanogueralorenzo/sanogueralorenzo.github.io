@@ -23,7 +23,7 @@ public sealed partial class NativeSessionAuthority {
 
     private NativeSessionAuthority(SessionState initial, NativeSessionAuthority source, Guid space, Guid profile) {
         session = initial; workspaceKind = WorkspaceKind.Borrowed;
-        privateBrowsing = source.privateBrowsing; access = source.access;
+        privateBrowsing = source.privateBrowsing;
         borrowedSource = source; borrowedSpace = space; borrowedProfile = profile;
         Index(session);
     }
@@ -33,8 +33,7 @@ public sealed partial class NativeSessionAuthority {
     #region Actions - Borrowing
 
     /// A memory-only session that shows the Space `spaceId` names, with its
-    /// settings and profile and none of its records, and consults this
-    /// session's grants. Throws `Rejected` naming the rule that refuses it; see
+    /// settings and profile and none of its records. Throws `Rejected` naming the rule that refuses it; see
     /// `BorrowSpace`.
     internal NativeSessionAuthority Borrow(Guid spaceId, Guid profileId) {
         lock (Gate) {
@@ -43,9 +42,8 @@ public sealed partial class NativeSessionAuthority {
             var original = session.KnownSpace(spaceId);
             if (session.PendingDeletion(spaceId) is not null) throw new Rejected(new SpaceBeingDeleted(spaceId));
             if (original.ProfileId != profileId) throw new Rejected(new SpaceProfileChanged(spaceId));
-            if (IsLockedUnderGate(original)) throw new Rejected(new SpaceLocked(spaceId));
-            var borrowed = original with { Folders = [], Tabs = [], SplitGroups = [], ArchivedTabs = [], History = [] };
-            return new(new([borrowed], original.Id, null, [], null), this, spaceId, profileId);
+            var borrowed = original with { Folders = [], Tabs = [], ArchivedTabs = [], History = [] };
+            return new(new([borrowed], null, [], null), this, spaceId, profileId);
         }
     }
 
@@ -60,7 +58,7 @@ public sealed partial class NativeSessionAuthority {
     }
 
     /// Brings the borrowed Space's settings up to date with its owner, keeping
-    /// its own records and saved-tabs expansion, and answers the state it
+    /// its own records, and answers the state it
     /// replaced and the new one; null when they already match, the source no
     /// longer lends the Space, or a reservation holds the session. The new
     /// state is never saved or staged, since a borrowed session keeps nothing.
@@ -85,21 +83,15 @@ public sealed partial class NativeSessionAuthority {
             || source.session.PendingDeletion(borrowedSpace) is not null ? null : original;
     }
 
-
     /// The borrowed Space with its owner's current settings and its own
     /// organization. Organization belongs to the temporary workspace: its
-    /// records, its split metadata and whether its saved tabs are expanded.
+    /// records.
     /// Every other setting follows its owner.
     private static SpaceState BorrowedSpace(SpaceState original, SpaceState local) => original with {
         Folders = local.Folders,
         Tabs = local.Tabs,
-        SplitGroups = local.SplitGroups,
         ArchivedTabs = local.ArchivedTabs,
-        History = local.History,
-        Settings = original.Settings with {
-            IsSavedTabsExpanded = local.Settings.IsSavedTabsExpanded,
-            SavedTabsExpansionModifiedAt = local.Settings.SavedTabsExpansionModifiedAt
-        }
+        History = local.History
     };
 
     /// Refuses `value`, a state of a borrowed session, unless it shows only

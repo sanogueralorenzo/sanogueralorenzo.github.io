@@ -14,19 +14,10 @@ public abstract record DataDeletionIntent(Guid RequestId) : Intent {
 
     #endregion
 
-    #region Actions - Access
-
-    /// Refuses the deletion before any engine is asked, as one that would
-    /// erase a locked Space's data. A deletion no lock guards refuses nothing.
-    internal virtual void Guard(Device device) { }
-
-    #endregion
-
     #region Actions - Routing
 
     internal sealed override IReadOnlyList<Change> Route(CrestApp app) =>
         app.Turn(changes => {
-            Guard(app.Device);
             app.DataDeletions.Handle(this, changes, app.Issue);
         });
 

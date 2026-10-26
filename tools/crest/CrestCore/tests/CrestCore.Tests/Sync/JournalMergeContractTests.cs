@@ -44,6 +44,69 @@ public sealed partial class BrowserContractsTests {
         Assert.Contains(Name(SyncRecordKind.Tab, Fixed(102)), journal.Pending);
     }
 
+
+    [Fact]
+    public void TheLaterFolderDisclosureWinsOverAHigherStaleClock() {
+        var stale = SavedRecord(SyncRecordKind.Folder, new JsonObject {
+            ["id"] = SwiftId(Fixed(944)),
+            ["spaceID"] = SwiftId(Fixed(100)),
+            ["title"] = "Projects",
+            ["symbol"] = "folder",
+            ["location"] = "saved",
+            ["isCollapsed"] = false,
+            ["collapseModifiedAt"] = At(200),
+            ["orderToken"] = "a"
+        }, 100, Fixed(945));
+        var latest = Edited(stale, 10, Fixed(946), value => {
+            value["isCollapsed"] = true;
+            value["collapseModifiedAt"] = At(300);
+        });
+
+        var resolved = ConvergedValue(SyncRecordKind.Folder, Fixed(944), stale, latest);
+
+        Assert.True(resolved["isCollapsed"]!.GetValue<bool>());
+        Assert.Equal(300, Unix(resolved["collapseModifiedAt"]), precision: 6);
+    }
+
+    [Fact]
+    public void TheLaterMoveWinsOverAHigherStaleClock() {
+        var tab = FirstSpace(OneSpaceSession())["tabs"]![0]!.AsObject();
+        var stale = Edited(SavedRecord(SyncRecordKind.Tab, TabValue(tab, Fixed(100)), 0, Fixed(93)), 100, Fixed(93), value => {
+            value["placement"] = "pinned";
+            value["orderToken"] = "b";
+            value["positionModifiedAt"] = At(200);
+        });
+        var latest = Edited(stale, 10, Fixed(94), value => {
+            value["placement"] = "current";
+            value["orderToken"] = "a";
+            value["positionModifiedAt"] = At(300);
+        });
+
+        var resolved = ConvergedValue(SyncRecordKind.Tab, Fixed(102), stale, latest);
+
+        Assert.Equal("current", resolved["placement"]!.GetValue<string>());
+        Assert.Equal("a", resolved["orderToken"]!.GetValue<string>());
+        Assert.Equal(300, Unix(resolved["positionModifiedAt"]), precision: 6);
+    }
+
+    [Fact]
+    public void TheLaterRenameWinsOverAHigherStaleClock() {
+        var tab = FirstSpace(OneSpaceSession())["tabs"]![0]!.AsObject();
+        var stale = Edited(SavedRecord(SyncRecordKind.Tab, TabValue(tab, Fixed(100)), 0, Fixed(97)), 100, Fixed(97), value => {
+            value["customTitle"] = "Stale Name";
+            value["titleModifiedAt"] = At(200);
+        });
+        var latest = Edited(stale, 10, Fixed(98), value => {
+            value["customTitle"] = "Latest Name";
+            value["titleModifiedAt"] = At(300);
+        });
+
+        var resolved = ConvergedValue(SyncRecordKind.Tab, Fixed(102), stale, latest);
+
+        Assert.Equal("Latest Name", resolved["customTitle"]!.GetValue<string>());
+        Assert.Equal(300, Unix(resolved["titleModifiedAt"]), precision: 6);
+    }
+
     [Fact]
     public void ALaterClearedRenameBeatsAnEarlierRenameOnAnotherDevice() {
         var tab = FirstSpace(OneSpaceSession())["tabs"]![0]!.AsObject();
@@ -65,25 +128,9 @@ public sealed partial class BrowserContractsTests {
     /// A Space record from a build before split metadata carries none, which is
     /// no opinion: the metadata the other copy holds survives however the
     /// records are ordered.
-    [Fact]
-    public void AnOlderClientsSpaceRecordCannotStripSplitMetadata() {
-        var group = Fixed(1_192);
-        var session = SplitSession([group, group]);
-        FirstSpace(session)["splitGroups"] = new JsonArray(new JsonObject {
-            ["id"] = SwiftId(group),
-            ["customTitle"] = "Preserved",
-            ["titleModifiedAt"] = At(300)
-        });
-        var journal = new JournalUnderTest(Fixed(1_193));
-        journal.Stage(session, at: 400);
-        var aware = Edited(journal.Record(SyncRecordKind.Space, Fixed(1_100))!, 10, Fixed(1_194), _ => { });
-        var legacy = Edited(aware, 100, Fixed(1_195), value => value.Remove("splitGroups"));
 
-        var resolved = ConvergedValue(SyncRecordKind.Space, Fixed(1_100), aware, legacy);
-
-        var kept = Assert.Single(resolved["splitGroups"]!.AsArray())!;
-        Assert.Equal("Preserved", kept["customTitle"]!.GetValue<string>());
-    }
+    /// Two devices renaming and tinting one split merge per field, each by its
+    /// own clock.
 
     /// A build before split view re-saves a tab it only activated: a higher
     /// clock and a later activation, but no split membership and no move.
@@ -147,7 +194,7 @@ public sealed partial class BrowserContractsTests {
     /// One device restyles a Space's crest while another adds a tab to it: the
     /// two edits touch different records and both survive.
     [Fact]
-    public void ACrestEditAndATabAddedElsewhereBothSurvive() {
+    public void ASpaceRenameAndATabAddedElsewhereBothSurvive() {
         var baseline = OneSpaceSession();
         var mac = new JournalUnderTest(Fixed(212));
         var phone = new JournalUnderTest(Fixed(213));
@@ -155,8 +202,7 @@ public sealed partial class BrowserContractsTests {
         phone.Merge(mac.Records);
         mac.MarkUploaded();
         var macEdit = baseline.DeepClone().AsObject();
-        FirstSpace(macEdit)["branding"] = JsonNode.Parse(SavedBranding);
-        FirstSpace(macEdit)["branding"]!["crest"]!["symbol"] = "hammer";
+        FirstSpace(macEdit)["name"] = "Renamed";
         mac.Stage(macEdit, at: 200);
         var phoneEdit = baseline.DeepClone().AsObject();
         var added = Fixed(214);
@@ -169,7 +215,7 @@ public sealed partial class BrowserContractsTests {
 
         AssertSameRecords(mac, phone);
         var reconciled = FirstSpace(mac.Materialize(baseline));
-        Assert.Equal("hammer", reconciled["branding"]!["crest"]!["symbol"]!.GetValue<string>());
+        Assert.Equal("Renamed", reconciled["name"]!.GetValue<string>());
         Assert.Contains(added, Ids(reconciled["tabs"]));
     }
 

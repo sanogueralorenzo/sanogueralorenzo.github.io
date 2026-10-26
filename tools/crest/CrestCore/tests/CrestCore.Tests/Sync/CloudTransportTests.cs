@@ -65,7 +65,6 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal("{\"data\":\"AAEC\"}", Encoding.UTF8.GetString(kept.EngineState!));
         Assert.Equal(2, KeptFields(relaunched, "space:A", "tab:B").Length);
         // A device write after the adoption keeps its marker.
-        relaunched.Send(new ChoosePeekModifier(LinkPeekModifier.Command));
         relaunched.Send(new OpenCloudTransport(TransportSchema, LegacyTransportFile(reason: null)));
         Assert.True(relaunched.Query(new CloudTransport()).AwaitsAccountDecision);
     }

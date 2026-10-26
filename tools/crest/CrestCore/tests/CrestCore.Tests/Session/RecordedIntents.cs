@@ -35,28 +35,6 @@ internal sealed class TestIds : IIdSource {
     #endregion
 }
 
-/// Grants a test gives as the device owner authenticating would.
-internal static class TestGrants {
-    #region Actions - Unlocking
-
-    /// Unlocks `space` of `workspace` through `send`, when it is locked.
-    public static void Unlock(Func<Intent, IReadOnlyList<Change>> send, Guid workspace, Guid space) {
-        var request = Guid.NewGuid();
-        if (send(new BeginUnlockingSpace(workspace, space, request)).OfType<SpaceLockChanged>().Any(change => change.IsAuthenticating))
-            send(new FinishUnlockingSpace(space, request, Authenticated: true));
-    }
-
-    /// Unlocks every Space of `session` that asks for authentication, as a
-    /// person does before editing it.
-    public static void UnlockGuarded(Func<Intent, IReadOnlyList<Change>> send, Guid workspace, SessionState session) {
-        foreach (var space in session.Spaces.Where(space => space.Settings.AccessPolicy != SpaceAccessPolicy.Open
-            && session.SpaceDeletions.All(deletion => deletion.SpaceId != space.Id)))
-            Unlock(send, workspace, space.Id);
-    }
-
-    #endregion
-}
-
 /// A recorded `history.visit`, which a page's engine reports now: a document
 /// in the Space `SpaceId` finished at `Url`, titled `Title`, at `At`.
 internal sealed record RecordedNavigation(Guid SpaceId, string Url, string Title, DateTimeOffset At);
@@ -90,34 +68,24 @@ internal static class RecordedIntents {
             "records.sweep" => [new SweepExpiredRecords(workspace)],
             "folder.create" => [new CreateFolder(workspace, Id("spaceId"), Argument("folderId"),
                 TabPlacement.Named(Text("placement"))!, Optional("parentId"), arguments["title"]?.GetValue<string>(),
-                Color(arguments["color"]), arguments["symbol"]?.GetValue<string>(),
+                Color(arguments["color"]),
                 [.. (arguments["tabIds"] as JsonArray ?? []).Select(id => Guid.Parse(id!.GetValue<string>()))],
                 arguments["detach"]?.GetValue<bool>() == true)],
             "split.join" => [new JoinSplit(workspace, window ?? Guid.Empty, Id("spaceId"), Argument("tabId"), Argument("targetId"),
                 arguments["index"]?.GetValue<int>())],
-            "split.title" => [new NameSplit(workspace, Id("spaceId"), Argument("groupId"), arguments["value"]?.GetValue<string>())],
-            "split.tint" => [new TintSplit(workspace, Id("spaceId"), Argument("groupId"), Color(arguments["value"]))],
-            "space.identity" => [new SetSpaceIdentity(workspace, Id("spaceId"), Text("name"), Text("symbol"),
-                SpaceAccent.Named(Text("accent"))!)],
-            "space.saved_expansion" => [new ExpandSavedTabs(workspace, Id("spaceId"), arguments["value"]!.GetValue<bool>())],
-            "space.branding" => [new SetSpaceBranding(workspace, Id("spaceId"), StoredSessionCodec.DecodeBranding(arguments["value"]))],
-            "space.credential_preferences" => [new SetCredentialPreferences(workspace, Id("spaceId"),
-                StoredSessionCodec.DecodeCredentialPreferences(arguments["value"]))],
-            "space.access" => [new SetSpaceAccess(workspace, Id("spaceId"), StoredSessionCodec.ParseAccessPolicy(Text("value"))!.Value)],
-            "space.default" => [new SetDefaultSpace(workspace, Id("spaceId"))],
+            "split.title" => [],
+            "split.tint" => [],
+            "space.identity" => [new SetSpaceIdentity(workspace, Id("spaceId"), Text("name"))],
             "space.reorder" => [new ReorderSpaces(workspace, Moved([.. current.Spaces.Select(space => space.Id)],
                 [.. arguments["offsets"]!.AsArray().Select(offset => offset!.GetValue<int>())], arguments["destination"]!.GetValue<int>()))],
             "space.create" => Created(workspace, window ?? Guid.Empty, StoredSessionCodec.DecodeSpace(arguments["template"]), current),
             "space.deletion.begin" => [new BeginDeletingSpace(workspace, window ?? Guid.Empty, Id("spaceId"), Argument("operationID"))],
             "space.remove" => [new FinishDeletingSpace(workspace, window ?? Guid.Empty, Id("spaceId"), Argument("operationID"))],
-            "preferences.set" => [new SetAppPreferences(workspace, Preferred(current.AppPreferences ?? AppPreferences.Default,
-                Text("preference"), arguments["value"]!))],
-            "preferences.translation_rule" => [new SetTranslationRule(workspace, Text("sourceID"), Text("targetID"),
-                arguments["isEnabled"]!.GetValue<bool>())],
-            "preferences.import" => [new ImportAppPreferences(workspace, Legacy(arguments["legacy"]!.AsObject()))],
+            // These historical commands only changed preferences Crest no longer offers.
+            "preferences.set" or "preferences.import" => [],
             "space.browsing_preferences" => Browsing(workspace, Id("spaceId"), StoredSessionCodec.DecodeBrowsingPreferences(arguments["value"])),
-            "space.search_provider.upsert" => Upserted(workspace, Id("spaceId"), arguments),
-            "space.search_provider.remove" => [new RemoveSearchProvider(Argument("id"))],
+            "space.search_provider.upsert" => [],
+            "space.search_provider.remove" => [],
             // A recorded import brought a file's Spaces.
             "workspace.import" => [new ImportSpaces(workspace, window ?? Guid.Empty,
                 NativeWorkspaceImport.Decoded(Encoding.UTF8.GetBytes(arguments["sources"]!.ToJsonString())))],
@@ -197,32 +165,27 @@ internal static class RecordedIntents {
 
     /// The query a recorded `launch.plan` read became, or null for any other
     /// request. Whether setup held the launch back is the device's to say now,
-    /// from whether it completed setup.
-    public static LaunchPlan? LaunchPlan(JsonObject request, Guid workspace) {
+    /// from whether it completed setup, which `SetupCompleted` answers.
+    public static LaunchIsolation? LaunchIsolation(JsonObject request) {
         if (request["operation"]!.GetValue<string>() != "launch.plan") return null;
         var environment = request["environment"]!.AsObject();
         bool Flag(string key) => environment[key]!.GetValue<bool>();
-        return new(workspace, DevicePlatform.Named(request["platform"]!.GetValue<string>())!, new(Flag("testRuntime"),
+        return new(new(Flag("testRuntime"),
             Flag("previewRuntime"), Flag("isolatedSession"), Flag("namedProfile"), Flag("isolatedCloudSync"), Flag("resetSession"),
-            Flag("showcase"), Flag("inMemoryCredentials"), Flag("onboardingWelcome"), Flag("desktopSetup"), Flag("mobileSetup"),
-            Flag("updateTestFeed")));
+            Flag("showcase"),
+            Flag("performanceHarness"), Flag("updateTestFeed")));
     }
 
-    /// `current` with the one preference a recorded `preferences.set` named
-    /// set to the value it recorded, in its stored spelling.
-    private static AppPreferences Preferred(AppPreferences current, string preference, JsonNode value) => preference switch {
-        "checksSpelling" => current with { ChecksSpelling = value.GetValue<bool>() },
-        "startupBehavior" => current with { Startup = StoredSessionCodec.ParseStartupBehavior(value)! },
-        "savedTabClosePolicy" => current with { SavedTabClose = StoredSessionCodec.ParseSavedTabClosePolicy(value)! },
-        _ => throw new ArgumentOutOfRangeException(nameof(preference), preference, "The recording sets no other preference.")
-    };
+    /// Whether the device a recorded `launch.plan` read asked about had
+    /// completed setup: it had unless setup held that launch back.
+    public static bool SetupCompleted(JsonObject request) => !request["hasActiveLaunchGate"]!.GetValue<bool>();
 
-    /// The legacy preferences a recorded import carried.
-    private static LegacyAppPreferences Legacy(JsonObject legacy) => new(legacy["startupBehavior"]?.GetValue<string>(),
-        legacy["offersTranslation"]?.GetValue<bool>(), legacy["automaticallyTranslates"]?.GetValue<bool>(),
-        legacy["translationRules"]?.GetValue<string>(), legacy["checksSpelling"]?.GetValue<bool>(),
-        legacy["automaticallyEntersPictureInPicture"]?.GetValue<bool>(), legacy["savedTabClosePolicy"]?.GetValue<string>(),
-        legacy["savedTabFaviconReturnsToSavedURL"]?.GetValue<bool>(), legacy["splitFocusFollowsMouse"]?.GetValue<bool>());
+    /// A launch plan in the spelling the recorded answers compare against.
+    public static JsonObject Encode(LaunchDecision plan) => new() {
+        ["requiresIsolation"] = plan.RequiresIsolation,
+        ["usesEphemeralProfileStorage"] = plan.UsesEphemeralProfileStorage,
+        ["presentsInstalledApplicationUI"] = plan.PresentsInstalledApplicationUI
+    };
 
     /// The Spaces a recorded reorder left, which moved the ones at `offsets`
     /// to before the one at `destination`, as a list's move does.
@@ -238,37 +201,14 @@ internal static class RecordedIntents {
     /// itself, as it did then.
     private static IReadOnlyList<SessionIntent> Created(Guid workspace, Guid window, SpaceState template, SessionState current) => [
         new CreateSpace(workspace, window, template.Id),
-        new SetSpaceIdentity(workspace, template.Id, $"Space {current.Spaces.Count + 1}", template.Settings.Symbol, template.Settings.Accent),
-        new SetSpaceBranding(workspace, template.Id, template.Settings.Branding!),
-        new SetCredentialPreferences(workspace, template.Id, template.Settings.CredentialPreferences),
+        new SetSpaceIdentity(workspace, template.Id, $"Space {current.Spaces.Count + 1}"),
         .. Browsing(workspace, template.Id, template.Settings.BrowsingPreferences)
     ];
 
-    /// Recorded browsing preferences, which carried the search choice beside
-    /// the rest: the preferences, then what the Space searches with and
-    /// whether it suggests.
+    /// The retained fields of recorded browsing preferences.
     private static IReadOnlyList<SessionIntent> Browsing(Guid workspace, Guid space, BrowsingPreferences preferences) => [
-        new SetBrowsingPreferences(workspace, space, preferences.CurrentTabCleanup, preferences.ContentBlocking, preferences.DataRetention),
-        new SetSpaceSearch(workspace, space, preferences.FollowsDefaultSearch ? null
-                : preferences.SelectedCustomEngineId is { } custom ? Named(SearchProvider.CustomName(custom))
-                : SearchCatalog.Starting(language: null, region: null).Resolving(preferences.SelectedBuiltInEngine ?? BuiltInSearchProvider.Google),
-            preferences.FollowsDefaultSuggestions ? null : preferences.SearchSuggestionsEnabled)
+        new SetBrowsingPreferences(workspace, space, preferences.ContentBlocking, preferences.DataRetention)
     ];
-
-    /// A recorded upsert of a Space's engine, which the device's catalog now
-    /// keeps, and which the Space then searched with when it asked to.
-    private static IReadOnlyList<Intent> Upserted(Guid workspace, Guid space, JsonObject arguments) {
-        var provider = arguments["provider"]!;
-        var engine = CustomSearchProvider.Carried(Guid.Parse(provider["id"]!.GetValue<string>()), provider["name"]!.GetValue<string>(),
-            provider["searchURLTemplate"]!.GetValue<string>(), provider["suggestionURLTemplate"]?.GetValue<string>());
-        return arguments["selects"]?.GetValue<bool>() == true
-            ? [new SaveSearchProvider(engine), new SetSpaceSearch(workspace, space, Named(SearchProvider.CustomName(engine.Id)), null)]
-            : [new SaveSearchProvider(engine)];
-    }
-
-    /// A provider by the name the device's catalog looks it up by.
-    private static SearchProvider Named(string name) =>
-        new(name, name, SearchProviderKind.Engine, [], "https://example.com/?q=%s", null, new BrandColor(0, 0, 0), null, null, null);
 
     /// The identities a recorded request gave the records it made, which the
     /// core now gives them itself: a copy's, or a new Space's profile and tab.

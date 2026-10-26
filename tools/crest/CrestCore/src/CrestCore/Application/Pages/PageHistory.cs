@@ -433,15 +433,6 @@ internal sealed partial class PageHistory {
     /// which it holds.
     public void Go(Guid entryId) => going = entryId;
 
-    /// Whether a navigation to `url` that the page's engine starts replays
-    /// the page's history: a restored engine bringing its history back, or
-    /// the engine going to the entry the core asked for. Such a navigation
-    /// stays on the engine that holds the entry, whatever engine its site is
-    /// chosen for.
-    public bool Replays(string url) =>
-        arriving is not null
-        || going is { } asked && Entry(asked) is { } entry && new WebAddress(entry.Url).IsSamePage(new WebAddress(url));
-
     /// The entry `offset` steps from the current one, back when negative, or
     /// null when the history has none there.
     public PageHistoryEntry? Step(int offset) {

@@ -18,12 +18,12 @@ public sealed partial class BrowserContractsTests {
         var projected = JsonNode.Parse(child.Checkpoint().Read("core"))!;
         var source = session["spaces"]![0]!; var space = projected["spaces"]![0]!;
         Assert.True(JsonNode.DeepEquals(source["profile"], space["profile"]));
-        foreach (var section in new[] { "tabs", "folders", "history", "archivedTabs", "splitGroups" })
+        foreach (var section in new[] { "tabs", "folders", "history", "archivedTabs" })
             Assert.Empty(space[section]!.AsArray());
         Assert.Null(space["selectedTabID"]);
         var spaceId = SpaceId(source);
         Assert.Equal(new BorrowedProfileRequiresOwner(borrowed), Assert.Throws<Rejected>(() =>
-            device.Send(new SetSpaceIdentity(borrowed, spaceId, "Not the owner", "globe", SpaceAccent.Teal))).Rejection);
+            device.Send(new SetSpaceIdentity(borrowed, spaceId, "Not the owner"))).Rejection);
         Assert.Equal(1UL, child.Revision);
         // A borrowed workspace opens only by borrowing, and only the Space's own profile.
         Assert.Equal(new BorrowedWorkspaceRequiresSpace(WorkspaceKind.Borrowed), Assert.Throws<Rejected>(() =>
@@ -53,7 +53,7 @@ public sealed partial class BrowserContractsTests {
 
         // The owner's edit reaches the borrowed Space in the same answer, as
         // the borrower's own change, and leaves its tabs alone.
-        var changes = device.Send(new SetSpaceIdentity(device.Workspace, space, "New canonical name", "book", SpaceAccent.Teal));
+        var changes = device.Send(new SetSpaceIdentity(device.Workspace, space, "New canonical name"));
         var followed = Assert.Single(changes.OfType<SpaceSettingsChanged>(), change => change.WorkspaceId == borrowed);
         Assert.Equal("New canonical name", followed.Settings.Name);
         Assert.Equal("New canonical name", child.Current.Spaces[0].Settings.Name);
@@ -82,7 +82,7 @@ public sealed partial class BrowserContractsTests {
             changes.Where(change => change is WindowClosed or WorkspaceClosed));
         Assert.Equal(kept, child.Checkpoint().Read("core"));
         Assert.Equal(new UnknownWorkspace(borrowed), Assert.Throws<Rejected>(() =>
-            device.Send(new SetSpaceIdentity(borrowed, SpaceId(session["spaces"]![0]!), "Gone", "book", SpaceAccent.Teal))).Rejection);
+            device.Send(new SetSpaceIdentity(borrowed, SpaceId(session["spaces"]![0]!), "Gone"))).Rejection);
 
         // Closing the owner closes its borrowers first.
         var another = device.Borrow(extra);

@@ -10,10 +10,6 @@ namespace CrestCore.Contracts;
 public sealed class ArchiveReason {
     #region Variables
 
-    /// Current-tab cleanup archived a tab nobody had used for its lifetime.
-    public static readonly ArchiveReason AutoCleanup = new(name: "autoCleanup", storedReason: "autoCleanup",
-        filterGroup: ArchiveFilterGroup.Automatic, title: "Automatically cleaned", symbol: "archivebox.fill", tint: SystemTint.Orange,
-        isCleanup: true);
     public static readonly ArchiveReason Closed = new(name: "closed", storedReason: "closed", filterGroup: ArchiveFilterGroup.Closed,
         title: "Closed", symbol: "xmark.circle.fill", tint: SystemTint.Red);
     /// A saved or pinned tab the person deleted. Unlike a close, this is the
@@ -25,8 +21,6 @@ public sealed class ArchiveReason {
     public static readonly ArchiveReason DeletedOnAnotherDevice = new(name: "deletedOnAnotherDevice", storedReason: "synced",
         deletionOrigin: "remote", filterGroup: ArchiveFilterGroup.Synced, title: "Deleted on another device", symbol: "trash.fill",
         tint: SystemTint.Red, isExplicitDeletion: true, isReceived: true, syncProjection: (_, _) => Deleted.Name);
-    public static readonly ArchiveReason QuickWindow = new(name: "quickWindow", storedReason: "quickWindow",
-        filterGroup: ArchiveFilterGroup.QuickWindow, title: "Quick Window", symbol: "timer", tint: SystemTint.Purple);
     /// An archive record first observed from another device. This is how the
     /// record looks here, so a synced record keeps the cause the shared record
     /// carried, or says closed when it carried none.
@@ -36,7 +30,7 @@ public sealed class ArchiveReason {
             ? cause == self ? Closed.Name : cause.SyncProjection(null)
             : shared ?? Closed.Name);
 
-    public static IReadOnlyList<ArchiveReason> All { get; } = [AutoCleanup, Closed, Deleted, DeletedOnAnotherDevice, QuickWindow, Synced];
+    public static IReadOnlyList<ArchiveReason> All { get; } = [Closed, Deleted, DeletedOnAnotherDevice, Synced];
 
     private readonly Func<ArchiveReason, string?, string> syncProjection;
 
@@ -66,10 +60,6 @@ public sealed class ArchiveReason {
     /// The person deleted the tab, which authorizes deleting its synced record.
     public bool IsExplicitDeletion { get; }
 
-    /// Cleanup archived the tab for going unused, so using it again on another
-    /// device keeps it.
-    public bool IsCleanup { get; }
-
     /// How a record another device archived reads here.
     public bool IsReceived { get; }
 
@@ -78,7 +68,7 @@ public sealed class ArchiveReason {
     #region Constructors
 
     private ArchiveReason(string name, string storedReason, ArchiveFilterGroup filterGroup, string title, string symbol, SystemTint tint,
-        string? deletionOrigin = null, bool isExplicitDeletion = false, bool isCleanup = false, bool isReceived = false,
+        string? deletionOrigin = null, bool isExplicitDeletion = false, bool isReceived = false,
         Func<ArchiveReason, string?, string>? syncProjection = null) {
         Name = name;
         StoredReason = storedReason;
@@ -88,7 +78,6 @@ public sealed class ArchiveReason {
         Symbol = symbol;
         Tint = tint;
         IsExplicitDeletion = isExplicitDeletion;
-        IsCleanup = isCleanup;
         IsReceived = isReceived;
         this.syncProjection = syncProjection ?? ((self, _) => self.Name);
     }

@@ -6,8 +6,7 @@ using CrestCore.Domain;
 namespace CrestCore.Application;
 
 /// A tab's synced value: its page or native view, title and symbol, where it
-/// sits, its split and folder, the clocks of its last move and rename, and
-/// whether its page stays loaded.
+/// sits, its split and folder, and the clocks of its last move and rename.
 internal sealed record TabPayload(
     Guid Id,
     Guid SpaceId,
@@ -23,8 +22,7 @@ internal sealed record TabPayload(
     SyncTime LastActivatedAt,
     SyncTime? PositionModifiedAt,
     string? CustomTitle,
-    SyncTime? TitleModifiedAt,
-    bool KeepsPageLoaded) : SyncPayload {
+    SyncTime? TitleModifiedAt) : SyncPayload {
     #region Static Variables
 
     /// The members a tab's value carries; a record keeps what a newer build
@@ -33,8 +31,7 @@ internal sealed record TabPayload(
         StoredSessionCodec.Key.Id, StoredSessionCodec.Key.SpaceId, StoredSessionCodec.Key.Title, StoredSessionCodec.Key.NativeContent,
         StoredSessionCodec.Key.Url, StoredSessionCodec.Key.SavedUrl, StoredSessionCodec.Key.Symbol, StoredSessionCodec.Key.Placement,
         StoredSessionCodec.Key.FolderId, StoredSessionCodec.Key.SplitGroupId, SyncPayload.Key.OrderToken, StoredSessionCodec.Key.LastActivatedAt,
-        StoredSessionCodec.Key.PositionModifiedAt, StoredSessionCodec.Key.CustomTitle, StoredSessionCodec.Key.TitleModifiedAt,
-        StoredSessionCodec.Key.KeepsPageLoaded
+        StoredSessionCodec.Key.PositionModifiedAt, StoredSessionCodec.Key.CustomTitle, StoredSessionCodec.Key.TitleModifiedAt
     ];
 
     private const int MaximumNativeKindBytes = 128;
@@ -61,19 +58,16 @@ internal sealed record TabPayload(
 
     #region Actions - Coding
 
-    /// The tab `value` holds. One that does not say keeps its page loaded
-    /// only while the app decides to.
-    public static TabPayload Read(SyncPayloadReader value) => new(value.WrappedIdentity(StoredSessionCodec.Key.Id),
-        value.WrappedIdentity(StoredSessionCodec.Key.SpaceId), value.Text(StoredSessionCodec.Key.Title),
-        value.OptionalNested(StoredSessionCodec.Key.NativeContent) is { } native
-            ? new(native.Text(StoredSessionCodec.Key.Kind), native.OptionalIdentity(StoredSessionCodec.Key.ResourceId)) : null,
-        value.OptionalText(StoredSessionCodec.Key.Url) is { } url ? new SyncedAddress(url) : null,
-        value.OptionalText(StoredSessionCodec.Key.SavedUrl) is { } saved ? new SyncedAddress(saved) : null,
-        value.Text(StoredSessionCodec.Key.Symbol), value.Named(StoredSessionCodec.Key.Placement, TabPlacement.Named),
-        value.OptionalWrappedIdentity(StoredSessionCodec.Key.FolderId), value.OptionalWrappedIdentity(StoredSessionCodec.Key.SplitGroupId),
-        value.Text(Key.OrderToken), value.Time(StoredSessionCodec.Key.LastActivatedAt),
-        value.OptionalTime(StoredSessionCodec.Key.PositionModifiedAt), value.OptionalText(StoredSessionCodec.Key.CustomTitle),
-        value.OptionalTime(StoredSessionCodec.Key.TitleModifiedAt), value.OptionalFlag(StoredSessionCodec.Key.KeepsPageLoaded) ?? false);
+    /// The tab `value` holds.
+    public static TabPayload Read(SyncPayloadReader value) => new(value.WrappedIdentity("id"), value.WrappedIdentity("spaceID"),
+        value.Text("title"),
+        value.OptionalNested("nativeContent") is { } native ? new(native.Text("kind"), native.OptionalIdentity("resourceID")) : null,
+        value.OptionalText("url") is { } url ? new SyncedAddress(url) : null,
+        value.OptionalText("savedURL") is { } saved ? new SyncedAddress(saved) : null,
+        value.Text("symbol"), value.Named("placement", TabPlacement.Named),
+        value.OptionalWrappedIdentity("folderID"), value.OptionalWrappedIdentity("splitGroupID"), value.Text("orderToken"),
+        value.Time("lastActivatedAt"), value.OptionalTime("positionModifiedAt"), value.OptionalText("customTitle"),
+        value.OptionalTime("titleModifiedAt"));
 
     public override JsonObject EncodeValue(SyncPayloadForm form) {
         var value = new JsonObject {
@@ -87,17 +81,16 @@ internal sealed record TabPayload(
             if (native.ResourceId is { } resource) content[StoredSessionCodec.Key.ResourceId] = StoredSessionCodec.BareIdentity(resource);
             value[StoredSessionCodec.Key.NativeContent] = content;
         }
-        Put(value, StoredSessionCodec.Key.SavedUrl, SavedUrl is { } saved ? saved.Spelled ?? saved.Text : null);
-        value[StoredSessionCodec.Key.Symbol] = Symbol;
-        value[StoredSessionCodec.Key.Placement] = Placement.Name;
-        PutWrapped(value, StoredSessionCodec.Key.FolderId, FolderId);
-        PutWrapped(value, StoredSessionCodec.Key.SplitGroupId, SplitGroupId);
-        value[Key.OrderToken] = OrderToken;
-        value[StoredSessionCodec.Key.LastActivatedAt] = form.Seconds(LastActivatedAt);
-        Put(value, StoredSessionCodec.Key.PositionModifiedAt, PositionModifiedAt, form);
-        Put(value, StoredSessionCodec.Key.CustomTitle, CustomTitle);
-        Put(value, StoredSessionCodec.Key.TitleModifiedAt, TitleModifiedAt, form);
-        value[StoredSessionCodec.Key.KeepsPageLoaded] = KeepsPageLoaded;
+        Put(value, "savedURL", SavedUrl is { } saved ? saved.Spelled ?? saved.Text : null);
+        value["symbol"] = Symbol;
+        value["placement"] = Placement.Name;
+        PutWrapped(value, "folderID", FolderId);
+        PutWrapped(value, "splitGroupID", SplitGroupId);
+        value["orderToken"] = OrderToken;
+        value["lastActivatedAt"] = form.Seconds(LastActivatedAt);
+        Put(value, "positionModifiedAt", PositionModifiedAt, form);
+        Put(value, "customTitle", CustomTitle);
+        Put(value, "titleModifiedAt", TitleModifiedAt, form);
         return value;
     }
 

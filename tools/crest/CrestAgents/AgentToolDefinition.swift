@@ -189,7 +189,7 @@ struct AgentToolDefinition: Sendable {
         identify, listSpaces, listTabs, openTab, navigate, showTab, closeTab, takeSnapshot, screenshot, click, hover,
         fill, typeText, pressKey, scroll, waitFor, listConsoleMessages, listNetworkRequests, getNetworkRequest,
         evaluateScript, readPageText, handleDialog, openPrivateWindow, searchHistory, deleteHistory,
-        listSearchProviders, openWindow, openBlankWindow, openQuickWindow,
+        listSearchProviders, openWindow, openBlankWindow,
     ]
 
     /// What every tool is, as the protocol lists it.

@@ -21,7 +21,6 @@ public sealed partial class NativeSessionAuthority {
 
     #region Actions - Space deletion
 
-    /// The Space a deletion names, locked or not, and its deletion under way.
     internal (SpaceState Space, SpaceDeletionState? Pending) Deleting(SessionState basis, Guid spaceId) =>
         (basis.KnownSpace(spaceId), basis.PendingDeletion(spaceId));
 

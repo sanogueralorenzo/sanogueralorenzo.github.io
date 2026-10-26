@@ -18,7 +18,7 @@ public sealed partial class NativeSessionAuthority {
         var native = content.View is { } shown ? new NativeTabContent(shown.Name) : null;
         return new TabState(id, title, address?.OriginalString, native, placement.IsDurable ? address?.OriginalString : null,
             kind.Symbol, FaviconUrl: null, IconAccent: null, StoredIconMode: null, placement, FolderId: null, SplitGroupId: null, now,
-            PositionModifiedAt: null, CustomTitle: null, TitleModifiedAt: null, KeepsPageLoaded: false);
+            PositionModifiedAt: null, CustomTitle: null, TitleModifiedAt: null);
     }
 
     /// `address` as a page loads it. Refused with `UnsupportedAddress` for one
@@ -30,16 +30,6 @@ public sealed partial class NativeSessionAuthority {
     /// host, or its whole address when it has no host.
     private static string PageTitle(Uri address, string? title) =>
         !string.IsNullOrEmpty(title) ? title : address.Host.Length > 0 ? address.Host : address.OriginalString;
-
-    #endregion
-
-    #region Actions - Closing
-
-    /// Where a saved or pinned tab's page returns when it is put away. The
-    /// app's preferences live in the persistent session, which every other
-    /// workspace follows.
-    internal SavedTabClosePolicy ClosePolicy(SessionState basis) =>
-        (basis.AppPreferences ?? device?.PersistentPreferences() ?? AppPreferences.Default).SavedTabClose;
 
     #endregion
 }

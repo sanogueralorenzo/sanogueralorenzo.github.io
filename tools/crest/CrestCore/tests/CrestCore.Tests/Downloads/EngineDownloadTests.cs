@@ -29,24 +29,81 @@ public sealed partial class BrowserContractsTests {
     private static Guid ProfileOf(CrestApp app, Guid workspace, Guid space) =>
         app.Workspace(workspace).Current.Spaces.First(candidate => candidate.Id == space).ProfileId;
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void RecoveryCannotBypassWarningsOrSpaceAccess(bool locksSpace) {
+    [Fact]
+    public void PauseAndResumeFollowTheEnginesConfirmedState() {
+        var (app, engine, binding, page, workspace, _, space, _) = LivePage();
+        using var disposal = app;
+        var profile = ProfileOf(app, workspace, space);
+        var transfer = Transfer(profile, page, EngineDownloadState.Downloading, received: 50) with {
+            Path = "/Downloads/report.pdf",
+            CanPause = true
+        };
+        app.Report(engine, new EngineDownloadChanged(transfer));
+        var record = app.Drain().OfType<DownloadUpdated>().Last().Download;
+        Assert.True(record.CanPause);
+        Assert.Empty(app.Send(new PauseDownload(record.Id)));
+        Assert.Equal(new PauseEngineDownload(profile, "7"), binding.Commands[^1]);
+
+        app.Report(engine, new EngineDownloadChanged(transfer with { Paused = true, CanPause = false, CanResume = true }));
+        var paused = app.Drain().OfType<DownloadUpdated>().Last().Download;
+        Assert.True(paused.Telemetry.IsPaused);
+        Assert.True(paused.CanResume);
+        Assert.False(paused.CanPause);
+        Assert.Empty(app.Send(new ResumeDownload(record.Id)));
+        Assert.Equal(new ResumeEngineDownload(profile, "7"), binding.Commands[^1]);
+
+        app.Report(engine, new EngineDownloadChanged(transfer with { Received = 70 }));
+        var resumed = app.Drain().OfType<DownloadUpdated>().Last().Download;
+        Assert.False(resumed.Telemetry.IsPaused);
+        Assert.False(resumed.CanResume);
+        Assert.Equal(0.7, resumed.Progress);
+    }
+
+    [Fact]
+    public void OnlyRequestedRecoveryCanReviveAnInterruptedDownloadAndClearingCancelsTheRequest() {
+        var (app, engine, binding, page, workspace, _, space, _) = LivePage();
+        using var disposal = app;
+        var profile = ProfileOf(app, workspace, space);
+        var interrupted = Transfer(profile, page, EngineDownloadState.Failed, received: 50,
+            interruption: EngineDownloadInterruption.Network) with { Path = "/Downloads/report.pdf", CanResume = true };
+        app.Report(engine, new EngineDownloadChanged(interrupted));
+        var record = app.Drain().OfType<DownloadUpdated>().Last().Download;
+        Assert.True(record.CanResume);
+        var active = interrupted with { State = EngineDownloadState.Downloading, Received = 10, CanResume = false, CanPause = true };
+        app.Report(engine, new EngineDownloadChanged(active));
+        Assert.Empty(app.Drain());
+
+        app.Send(new ResumeDownload(record.Id));
+        Assert.Equal(new ResumeEngineDownload(profile, "7"), binding.Commands[^1]);
+        app.Report(engine, new EngineDownloadChanged(active));
+        var restarted = app.Drain().OfType<DownloadUpdated>().Last().Download;
+        Assert.Equal(DownloadPhase.Downloading, restarted.Phase);
+        Assert.Equal(0.1, restarted.Progress);
+        Assert.Null(restarted.Failure);
+        Assert.Equal(record.Destination, restarted.Destination);
+
+        app.Report(engine, new EngineDownloadChanged(interrupted));
+        app.Drain();
+        app.Send(new ResumeDownload(record.Id));
+        app.Send(new RemoveDownload(record.Id));
+        app.Report(engine, new EngineDownloadChanged(active));
+        Assert.Empty(app.Drain());
+        var commands = binding.Commands.Count;
+        app.Send(new ResumeDownload(record.Id));
+        Assert.Equal(commands, binding.Commands.Count);
+    }
+
+    [Fact]
+    public void RecoveryCannotBypassWarnings() {
         var (app, engine, binding, page, workspace, _, space, _) = LivePage();
         using var disposal = app;
         var profile = ProfileOf(app, workspace, space);
         var transfer = Transfer(profile, page, EngineDownloadState.Failed,
-            warning: locksSpace ? null : EngineDownloadWarning.PolicyBlocked,
+            warning: EngineDownloadWarning.PolicyBlocked,
             interruption: EngineDownloadInterruption.Network) with { CanResume = true };
         app.Report(engine, new EngineDownloadChanged(transfer));
         var record = app.Drain().OfType<DownloadUpdated>().Last().Download;
-        if (locksSpace) {
-            app.Send(new SetSpaceAccess(workspace, space, SpaceAccessPolicy.DeviceOwnerAuthentication));
-            app.Send(new LockSpace(space));
-        } else {
-            Assert.False(record.CanResume);
-        }
+        Assert.False(record.CanResume);
         var commands = binding.Commands.Count;
         app.Send(new ResumeDownload(record.Id));
         Assert.Equal(commands, binding.Commands.Count);

@@ -56,24 +56,6 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal(f.C5, device.Tab(window, f.Space));
     }
 
-    /// A locked Space lists none of its tabs to switch between, so neither
-    /// the panel nor a quick jump reveals or shows them until it unlocks.
-    [Fact]
-    public void ALockedSpaceListsNoRecentTabsUntilItUnlocks() {
-        var session = GuardedSession();
-        var identity = Identity(session);
-        using var device = new TestDevice(session);
-        var window = device.Open(identity.Space);
-        var shown = device.Tab(window, identity.Space);
-
-        Assert.Empty(RecentFocus(device, window));
-        Assert.Empty(Own(device.Send(new ShowMostRecentTab(window))));
-        Assert.Equal(shown, device.Tab(window, identity.Space));
-
-        Unlock(device.Send, device.Workspace, identity.Space);
-        Assert.NotEmpty(RecentFocus(device, window));
-    }
-
     /// Each window keeps its own list, whatever the other showed more recently.
     [Fact]
     public void EachWindowKeepsItsOwnRecentTabs() {

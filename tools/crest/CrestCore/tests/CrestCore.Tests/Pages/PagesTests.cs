@@ -106,16 +106,14 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
-    public void NoPageOpensInALockedSpaceOrOneBeingDeleted() {
-        var session = GuardedSession(withOpenSecondSpace: true);
+    public void NoPageOpensInASpaceBeingDeleted() {
+        var session = SessionWithSpaces(withSecondSpace: true);
         var (app, _, binding, workspace, window) = PageHost(session);
         using var disposal = app;
-        var locked = Identity(session);
+        var locked = FirstSpaceProfile(session);
         var open = SpaceId(session["spaces"]![1]!);
         var borrowed = TestWorkspaces.Borrow(app, workspace, session["spaces"]![1]!);
 
-        Assert.Equal(new SpaceLocked(locked.Space), Refusal(app, new OpenPage(Guid.NewGuid(), workspace, locked.Space, null, window)));
-        Unlock(app.Send, workspace, locked.Space);
         app.Send(new OpenPage(Guid.NewGuid(), workspace, locked.Space, null, window));
 
         // A Space being deleted opens no page, and a workspace that borrows it
@@ -339,7 +337,7 @@ public sealed partial class BrowserContractsTests {
         using var disposal = app;
         var (sourceTab, source) = LiveTab(app, engine, workspace, window, space);
         var quick = Guid.NewGuid();
-        app.Send(new OpenPage(quick, workspace, space, null, window, TransientPresentation.QuickWindow));
+        app.Send(new OpenPage(quick, workspace, space, null, window, TransientPresentation.Authentication));
         app.Report(engine, new PageCreated(quick));
         app.Drain();
         int tabs = CurrentTabs(app, workspace, space).Count;
@@ -375,12 +373,14 @@ public sealed partial class BrowserContractsTests {
         // Whatever shows a window a page asked for closes it, and the engine
         // keeps the page until its owner lets it go.
         app.Report(engine, new PageOffered(Guid.NewGuid(), profile, source, WindowId: null, space, "https://accounts.example/", Foreground: true));
-        var popup = Assert.Single(app.Drain().OfType<OfferedWindowAdopted>()).PageId;
+        var popupAdoption = Assert.Single(app.Drain().OfType<OfferedPageAdopted>());
+        var popup = popupAdoption.PageId;
         app.Report(engine, new PageCreated(popup));
         app.Drain();
         int delivered = binding.Commands.Count;
         app.Report(engine, new PageCloseRequested(popup));
-        Assert.Equal([new TransientPageClosed(popup, workspace)], app.Drain());
+        app.Drain();
+        Assert.DoesNotContain(CurrentTabs(app, workspace, space), tab => tab.Id == popupAdoption.TabId);
         Assert.Equal(delivered, binding.Commands.Count);
     }
 }

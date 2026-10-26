@@ -174,7 +174,7 @@ public sealed partial class NativeSessionAuthority {
         if (!replacing) records.RequireSameSpaces(journal);
         var emptySpace = SpaceTemplate.Ordinary.Make(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid, number: 1, now);
         var removals = (superseded?.Removals ?? SyncRemovals.None).Reasons(SyncDeletionReason.Superseded);
-        var result = NativeSyncSessionTransition.Prepare(journal, basis, records.Batch(), replacing, now, emptySpace, Access, ids, removals);
+        var result = NativeSyncSessionTransition.Prepare(journal, basis, records.Batch(), replacing, now, emptySpace, ids, removals);
         _ = result.Journal.Read();
         return new(result.Journal, result.Session, new(Copies(basis, result.Session, result.Origins), Favicon: null));
     }
@@ -200,7 +200,7 @@ public sealed partial class NativeSessionAuthority {
         ValidateBorrowedSession(computed.Session);
         transaction.Adopt(computed.Journal);
         _ = transaction.Seal();
-        return Reserve(computed.Session, completes: null, followUp: null, computed.Events);
+        return Reserve(computed.Session, followUp: null, computed.Events);
     }
 
     /// Rebases the journal above `records`, the cloud's, from the session as
@@ -219,7 +219,7 @@ public sealed partial class NativeSessionAuthority {
                 Supersede(sync, transaction);
                 basis = IntentBasis();
             }
-            var removals = (transaction.Superseded?.Removals ?? SyncRemovals.None).Reasons(SyncDeletionReason.Superseded);
+            var removals = (superseded?.Removals ?? SyncRemovals.None).Reasons(SyncDeletionReason.Superseded);
             transaction.Adopt(transaction.Journal.Overwrite(StoredSessionCodec.Encode(basis), records.Batch(),
                 StoredSessionCodec.Seconds(now), removals));
             _ = transaction.Seal();

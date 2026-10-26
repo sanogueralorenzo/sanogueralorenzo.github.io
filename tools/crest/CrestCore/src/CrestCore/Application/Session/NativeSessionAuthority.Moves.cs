@@ -38,10 +38,10 @@ public sealed partial class NativeSessionAuthority {
         lock (Gate) {
             var (left, arrived) = Across(receiving, intent, now);
             if (!commits) return;
-            leaving = new(this, session, Reserve(left.Next, completes: null, left.FollowUp, events: null));
+            leaving = new(this, session, Reserve(left.Next, left.FollowUp, events: null));
             try {
                 arriving = new(receiving, receiving.session,
-                    receiving.Reserve(arrived.Next, completes: null, arrived.FollowUp, events: null));
+                    receiving.Reserve(arrived.Next, arrived.FollowUp, events: null));
             } catch {
                 leaving.Reserved.Dispose();
                 throw;
@@ -78,8 +78,6 @@ public sealed partial class NativeSessionAuthority {
         var shown = edited.TransferTo(receivingTabs, intent.TabId, leaving.Window?.Tab(space.Id), fallback, TabPlacement.Current,
             requestedFolder: null, before: null, afterSelection: true, arriving.Window?.Tab(there.Id), now);
         receivingTabs.Tab(intent.TabId).Activate(now);
-        edited.PruneSplitMetadata();
-        receivingTabs.PruneSplitMetadata();
         leaving.ShowTab(space.Id, shown);
         arriving.ShowTab(there.Id, intent.TabId).ShowSpace(there.Id);
         var next = basis.Replacing(edited.Capture(space));

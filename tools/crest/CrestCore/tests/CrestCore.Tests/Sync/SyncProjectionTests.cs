@@ -15,6 +15,7 @@ public sealed partial class BrowserContractsTests {
     [Fact]
     public void ProjectionPreservesWireMetadataButExcludesLocalAssetsAndDisabledCategories() {
         var session = SavedSession().Document["session"]!.AsObject(); var space = session["spaces"]![0]!;
+        space["spaceColor"] = SpaceColor.Purple.Name;
         var original = space["tabs"]![0]!;
         original["faviconData"] = "local-image";
         var local = original.DeepClone(); local["id"] = SwiftId(Guid.NewGuid()); local["url"] = "crest://extensions/";
@@ -25,25 +26,26 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal("https://example.com/", tab["savedURL"]!.GetValue<string>());
         Assert.Null(tab["faviconData"]); Assert.Null(tab["faviconURL"]); Assert.Null(tab["iconAccent"]);
         var projectedSpace = result[0]!["value"]!;
+        Assert.Equal(SpaceColor.Purple.Name, projectedSpace["spaceColor"]!.GetValue<string>());
         Assert.Null(projectedSpace["credentialPreferences"]);
-        Assert.True(JsonNode.DeepEquals(space["branding"], projectedSpace["branding"]));
         Assert.True(JsonNode.DeepEquals(space["browsingPreferences"], projectedSpace["browsingPreferences"]));
-        Assert.Single(projectedSpace["splitGroups"]!.AsArray());
+        Assert.Null(projectedSpace["splitGroups"]);
         var disabled = NativeSyncProjection.Project(session, SyncProjectionPreferences(false, false, false), []);
         Assert.Single(disabled);
-        // Group intent survives turning off tab categories on this device.
-        Assert.Single(disabled[0]!["value"]!["splitGroups"]!.AsArray());
+        // Disabled tab categories leave no split metadata in the Space record.
+        Assert.Null(disabled[0]!["value"]!["splitGroups"]);
         Assert.Equal("local-image", original["faviconData"]!.GetValue<string>());
     }
 
     [Fact]
     public void ReceivingArchivesDoesNotRewriteTheirCauseOrPositionsWhenRestaged() {
-        var fixture = SavedSession(); var source = fixture.Document["session"]!.AsObject();
+        var fixture = SavedSession(); var source = StoredJson.CurrentSessionFields(fixture.Document["session"]!.AsObject());
         var space = source["spaces"]![0]!; var template = space["tabs"]![0]!.DeepClone();
         source.Remove("disposableSeedMarker");
+        space["browsingPreferences"]!.AsObject().Remove("currentTabCleanupPolicy");
         space["tabs"] = new JsonArray(); space["folders"] = new JsonArray();
         space["history"] = new JsonArray(); space["selectedTabID"] = null;
-        foreach (var (reason, index) in new[] { "autoCleanup", "quickWindow", "closed", "deleted" }.Select((r, i) => (r, i))) {
+        foreach (var (reason, index) in new[] { "closed", "deleted" }.Select((r, i) => (r, i))) {
             var tab = template.DeepClone().AsObject(); tab["id"] = SwiftId(Guid.NewGuid());
             tab["placement"] = "current"; tab.Remove("savedURL"); tab.Remove("folderID"); tab.Remove("splitGroupID");
             space["archivedTabs"]!.AsArray().Add(new JsonObject {

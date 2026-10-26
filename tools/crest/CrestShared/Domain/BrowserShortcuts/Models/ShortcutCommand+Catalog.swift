@@ -11,6 +11,14 @@ extension ShortcutCommand {
         defaultShortcuts.first { $0.platform == .current }.map { BrowserShortcut($0.keys) }
     }
 
+    // MARK: - Actions - Bindings
+
+    /// The current binding, with catalog defaults for previews that supply no bindings.
+    func shortcut(in bindings: [ShortcutCommand: ShortcutBinding]?) -> BrowserShortcut? {
+        guard let bindings else { return defaultShortcut }
+        return bindings[self]?.keys.flatMap(BrowserShortcut.init(boundKeys:))
+    }
+
     // MARK: - Actions - Offering
 
     /// Whether the device offers the command anywhere a person can find one,

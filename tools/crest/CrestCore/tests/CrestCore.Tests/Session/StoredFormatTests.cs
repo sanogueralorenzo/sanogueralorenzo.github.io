@@ -40,24 +40,15 @@ public sealed class StoredFormatTests {
     [Fact]
     public void StoredSpellingsNeverChange() {
         Assert.Equal(["pinned", "saved", "current"], TabPlacement.All.Select(placement => placement.Name));
-        Assert.Equal(["autoCleanup", "closed", "deleted", "deletedOnAnotherDevice", "quickWindow", "synced"],
+        Assert.Equal(["closed", "deleted", "deletedOnAnotherDevice", "synced"],
             ArchiveReason.All.Select(reason => reason.Name));
-        Assert.Equal(["autoCleanup", "closed", "closed", "synced", "quickWindow", "synced"],
+        Assert.Equal(["closed", "closed", "synced", "synced"],
             ArchiveReason.All.Select(reason => reason.StoredReason));
-        Assert.Equal([null, null, "local", "remote", null, null], ArchiveReason.All.Select(reason => reason.DeletionOrigin));
+        Assert.Equal([null, "local", "remote", null], ArchiveReason.All.Select(reason => reason.DeletionOrigin));
         Assert.Equal(["automatic", "pulled", "emoji"], TabIconMode.All.Select(mode => mode.Name));
         Assert.Equal("crest.emoji:", TabIconMode.EmojiPrefix);
-        Assert.Equal(["after12Hours", "after24Hours", "after7Days", "after30Days", "never"],
-            CurrentTabCleanup.All.Select(cleanup => cleanup.Name));
         Assert.Equal(["oneDay", "oneWeek", "thirtyDays", "ninetyDays", "oneYear", "forever"], DataRetention.All.Select(retention => retention.Name));
-        Assert.Equal(["after1Hour", "after6Hours", "after12Hours", "after24Hours", "never"],
-            QuickWindowArchivePolicy.All.Select(policy => policy.Name));
         Assert.Equal(["balanced", "off"], ContentBlockingPolicy.All.Select(policy => policy.Name));
-        Assert.Equal(["google", "duckDuckGo", "bing", "ecosia", "brave", "startpage", "kagi", "yahoo", "qwant", "chatGPT", "claude",
-            "perplexity", "googleAIMode", "grok", "leChat", "duckAI", "copilotSearch", "kagiAssistant", "youTube", "wikipedia", "gitHub",
-            "reddit", "x", "stackOverflow", "mdn", "amazon", "imdb", "spotify", "figmaCommunity", "googleMaps", "appleMaps", "googleImages",
-            "googleTranslate", "wolframAlpha", "hackerNews", "npm", "appleDeveloper"], BuiltInSearchProvider.All.Select(provider => provider.Name));
-        Assert.Equal("custom:", SearchProvider.CustomPrefix);
     }
 
     [Theory]
@@ -66,7 +57,56 @@ public sealed class StoredFormatTests {
     public void ASessionSwiftWroteIsWrittenBackUnchanged(string fixture) {
         var session = Fixture(fixture);
         var written = Written(Load(session));
-        var differences = StoredJson.Differences(session, written, StoredJson.Comparison.Exact);
+        var differences = StoredJson.Differences(StoredJson.CurrentSessionFields(session), written, StoredJson.Comparison.Exact);
+        Assert.True(differences.Count == 0, string.Join(Environment.NewLine, differences));
+    }
+
+    [Fact]
+    public void CommandAnswersMatchWhatThePreviousCoreAnswered() {
+        var session = Fixture("maximal-session.json");
+        var expected = StoredJson.CurrentFields(Fixture("session-answers.json"));
+        var clock = new TestClock(DateTimeOffset.UnixEpoch);
+        var ids = new TestIds();
+        using var app = new CrestApp(new AppConfiguration(null, DevicePlatform.Desktop), clock, ids);
+        var engine = RecordedIntents.PageEngine(app);
+        var workspace = TestWorkspaces.Open(app, session);
+        var authority = app.Workspace(workspace);
+        var differences = new List<string>();
+        void Compare(string name, JsonNode? actual) =>
+            differences.AddRange(StoredJson.Differences(expected[name], actual, StoredJson.Comparison.AsSwiftReads, name));
+        foreach (var step in Fixture("session-commands.json")["commands"]!.AsArray()) {
+            var name = step!["name"]!.GetValue<string>();
+            var request = step["request"]!.DeepClone().AsObject();
+            Guid? window = null;
+            if (step["window"] is { } shown) {
+                var issuer = Guid.NewGuid();
+                window = issuer;
+                app.Send(new OpenWindow(issuer, workspace, Saved: false, CopyingWindowId: null, Id(shown["spaceId"]),
+                    [.. shown["tabs"]!.AsArray().Select(tab => new ShownTab(Id(tab!["spaceId"])!.Value, Id(tab["tabId"])))],
+                    RestoresTabs: true));
+                request["windowId"] = issuer.ToString();
+            }
+            if (RecordedIntents.LaunchIsolation(request) is { } plan) {
+                Compare(name, RecordedIntents.Encode(new StandaloneAnswers().Query(plan)));
+            } else if (RecordedIntents.Typed(request, workspace, window, authority.Current) is { } intents) {
+                clock.Now = RecordedIntents.Time(request);
+                ids.Supply(RecordedIntents.Identities(request));
+                RecordedIntents.Send(app, engine, request, intents, window);
+            } else if (RecordedIntents.Navigation(request) is { } navigation) {
+                clock.Now = navigation.At;
+                RecordedIntents.Report(app, engine, navigation, workspace, window!.Value);
+            } else {
+                throw new InvalidOperationException($"{name}: every recorded command is an intent or an engine report now.");
+            }
+            if (window is { } opened) app.Send(new CloseWindow(opened));
+        }
+        var checkpoint = authority.Checkpoint();
+        var core = JsonNode.Parse(checkpoint.Read("core"))!;
+        Compare("checkpoint.core", core);
+        foreach (var (name, history) in expected.Where(pair => pair.Key.StartsWith("checkpoint.history.", StringComparison.Ordinal)))
+            differences.AddRange(StoredJson.Differences(history,
+                JsonNode.Parse(checkpoint.Read(name["checkpoint.history.".Length..])), StoredJson.Comparison.AsSwiftReads, name));
+        Compare("session.repair", new JsonObject { ["value"] = NativeSessionMaintenance.Repair(session.DeepClone().AsObject(), 800000000.0) });
         Assert.True(differences.Count == 0, string.Join(Environment.NewLine, differences));
     }
 }
@@ -79,6 +119,66 @@ internal static class StoredJson {
         /// As Swift's decoder reads them: an explicit null is an absent optional
         /// member, and two spellings of one UUID are the same identity.
         AsSwiftReads
+    }
+
+    /// The fields retained from a historical session, excluding preferences
+    /// and tab overrides the current state no longer stores.
+    internal static JsonObject CurrentSessionFields(JsonObject session) {
+        var expected = session.DeepClone().AsObject();
+        if (expected["appPreferences"] is JsonObject preferences) {
+            preferences.Remove("automaticallyTranslates");
+            preferences.Remove("translationRules");
+            preferences.Remove("automaticallyShowsDeveloperToolbar");
+        }
+        foreach (var space in expected["spaces"]!.AsArray()) {
+            space!.AsObject().Remove("symbol");
+            space.AsObject().Remove("accessPolicy");
+            space.AsObject().Remove("accessPolicyModifiedAt");
+            space.AsObject().Remove("credentialPreferences");
+            space.AsObject().Remove("credentialsEnabledModifiedAt");
+            space.AsObject().Remove("isSavedTabsExpanded");
+            space.AsObject().Remove("savedTabsExpansionModifiedAt");
+            foreach (var folder in space["folders"]!.AsArray()) folder!.AsObject().Remove("symbol");
+            foreach (var tab in space["tabs"]!.AsArray().Concat(space["archivedTabs"]!.AsArray().Select(entry => entry!["tab"])))
+                tab!.AsObject().Remove("keepsPageLoaded");
+        }
+        return CurrentFields(expected);
+    }
+
+    internal static JsonObject CurrentFields(JsonObject source) {
+        var result = source.DeepClone().AsObject();
+        void Clean(JsonNode? node) {
+            if (node is JsonObject value) {
+                if (value["name"] is not null && value["browsingPreferences"] is JsonObject
+                    && (value.ContainsKey("profile") || value.ContainsKey("profileID"))) {
+                    var identity = value["id"] is JsonObject wrapped ? wrapped["rawValue"] : value["id"];
+                    value["spaceColor"] ??= SpaceColor.For(Guid.Parse(identity!.GetValue<string>())).Name;
+                    value.Remove("emoji");
+                }
+                value.Remove("currentTabCleanupPolicy");
+                value.Remove("defaultSpaceID");
+                value.Remove("startupBehavior");
+                value.Remove("palette");
+                value.Remove("splitGroups");
+                value.Remove("searchProvider");
+                value.Remove("selectedSearchProviderID");
+                value.Remove("customSearchProviders");
+                value.Remove("searchSuggestionsEnabled");
+                value.Remove("searchFollowsDefault");
+                value.Remove("suggestionsFollowDefault");
+                value.Remove("offersTranslation");
+                value.Remove("automaticallyEntersPictureInPicture");
+                value.Remove("checksSpelling");
+                if (value["appPreferences"] is JsonObject preferences && !preferences.ContainsKey("translationLanguage"))
+                    preferences["translationLanguage"] = "en";
+                if (value["reason"]?.ToString() == "autoCleanup") value["reason"] = "closed";
+                foreach (var child in value.ToArray()) Clean(child.Value);
+            } else if (node is JsonArray array) {
+                foreach (var child in array) Clean(child);
+            }
+        }
+        Clean(result);
+        return result;
     }
 
     public static IReadOnlyList<string> Differences(JsonNode? expected, JsonNode? actual, Comparison comparison, string path = "$") {

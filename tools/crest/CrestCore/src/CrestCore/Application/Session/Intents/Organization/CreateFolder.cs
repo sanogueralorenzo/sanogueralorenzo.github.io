@@ -8,7 +8,7 @@ namespace CrestCore.Contracts;
 /// see empty is never published, and one whose tabs cannot move is never made.
 /// A split member brings its split along, unless `LeavesSplits` takes it out.
 public sealed record CreateFolder(Guid WorkspaceId, Guid SpaceId, Guid FolderId, TabPlacement Placement, Guid? ParentId,
-    string? Title, BrandColor? Color, string? Symbol, IReadOnlyList<Guid> TabIds, bool LeavesSplits) : SessionIntent(WorkspaceId) {
+    string? Title, BrandColor? Color, IReadOnlyList<Guid> TabIds, bool LeavesSplits) : SessionIntent(WorkspaceId) {
     #region Actions - Session
 
     /// Creates the folder and files its tabs in one edit.
@@ -16,7 +16,6 @@ public sealed record CreateFolder(Guid WorkspaceId, Guid SpaceId, Guid FolderId,
         workspace.Organizing(turn.Basis, SpaceId, SyncStaging.Creation, edited => {
             edited.AddFolder(FolderId, NativeSessionAuthority.FolderTitle(Title), Placement, ParentId);
             if (Color is { } color) edited.SetFolderColor(FolderId, color);
-            if (Symbol is { } symbol) edited.SetFolderSymbol(FolderId, symbol);
             if (TabIds.Count > 0)
                 edited.FileTabs(TabIds, Placement, FolderId, turn.Now, null, null, LeavesSplits);
         });

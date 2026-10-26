@@ -63,8 +63,7 @@ internal sealed class Window {
     public static Window Copying(Window other, Guid id, bool saved) =>
         new(id, other.WorkspaceId, saved, other.ShownSpaceId, new(other.tabs), [], [], [], []);
 
-    /// A window on `session`'s launch Space: its default Space unless that is
-    /// being deleted, else the first Space. `legacyTabs` are the tabs an older
+    /// A window on `session`'s first available Space. `legacyTabs` are the tabs an older
     /// release kept in the session, which a window without a record adopts.
     public static Window Launching(Guid id, Guid workspaceId, bool saved, SessionState session,
         IReadOnlyDictionary<Guid, Guid> legacyTabs) {
@@ -76,12 +75,11 @@ internal sealed class Window {
         return window;
     }
 
-    /// The Space a window without a record opens on over `session`: its
-    /// default Space unless that is being deleted, else the first Space, or
-    /// none while every Space is going.
+    /// The first Space a window without a record can show, or none while
+    /// every Space is being deleted.
     public static SpaceState? LaunchSpace(SessionState session) {
         var available = Showable(session).ToArray();
-        return available.FirstOrDefault(space => space.Id == session.DefaultSpaceId) ?? available.FirstOrDefault();
+        return available.FirstOrDefault();
     }
 
     /// What the window shows over `session`, as the platform reads it: what

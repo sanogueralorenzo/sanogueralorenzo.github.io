@@ -2,7 +2,7 @@ namespace CrestCore.Contracts;
 
 /// What activating a palette row does, which the platform performs: switch
 /// to its tab, open its address, search with its provider, run its command,
-/// open its settings page, show its Space, reopen its archived tab, copy its
+/// open its settings page, show its Space, copy its
 /// answer, or narrow the palette to its scope. Each says whether
 /// the palette closes once it is done and remembers the pick for what was
 /// typed, and whether the keys a person holds choose where the row opens. An
@@ -17,13 +17,11 @@ public sealed class PaletteActivation {
     public static readonly PaletteActivation OpensSettingsPage = new(name: "opensSettingsPage", closesPalette: true,
         opensWhereKeysChoose: false);
     public static readonly PaletteActivation ShowsSpace = new(name: "showsSpace", closesPalette: true, opensWhereKeysChoose: false);
-    public static readonly PaletteActivation ReopensArchivedTab = new(name: "reopensArchivedTab", closesPalette: true,
-        opensWhereKeysChoose: false);
     public static readonly PaletteActivation CopiesAnswer = new(name: "copiesAnswer", closesPalette: true, opensWhereKeysChoose: false);
     public static readonly PaletteActivation EntersScope = new(name: "entersScope", closesPalette: false, opensWhereKeysChoose: false);
 
     public static IReadOnlyList<PaletteActivation> All { get; } = [SwitchesToTab, OpensAddress, Searches, RunsCommand, OpensSettingsPage,
-        ShowsSpace, ReopensArchivedTab, CopiesAnswer, EntersScope];
+        ShowsSpace, CopiesAnswer, EntersScope];
 
     #endregion
 
@@ -35,8 +33,6 @@ public sealed class PaletteActivation {
     /// was typed; otherwise it narrows to what the row names and stays open.
     public bool ClosesPalette { get; }
 
-    /// The keys a person holds choose where the row opens: here, in a new tab
-    /// behind or in front, beside it in Split View or in a Quick Window.
     public bool OpensWhereKeysChoose { get; }
 
     #endregion

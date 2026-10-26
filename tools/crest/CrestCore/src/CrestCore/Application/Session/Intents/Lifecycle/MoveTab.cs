@@ -14,13 +14,10 @@ public sealed record MoveTab(Guid WorkspaceId, Guid SpaceId, Guid TabId, TabPlac
     #region Actions - Session
 
     /// Moves the tab, which leaves its split for a section that holds none.
-    /// One that leaves its split takes the split's metadata with it when no
-    /// other tab keeps it.
     internal override SessionEdit? Edit(NativeSessionAuthority workspace, SessionTurn turn) =>
         workspace.Organizing(turn.Basis, SpaceId, SyncStaging.Edit, edited => {
             bool leaves = LeavesSplit || !Placement.HoldsSplits;
             edited.MoveTab(TabId, Placement, FolderId, BeforeTabId, leaves, turn.Now);
-            if (leaves) edited.PruneSplitMetadata();
         });
 
     #endregion

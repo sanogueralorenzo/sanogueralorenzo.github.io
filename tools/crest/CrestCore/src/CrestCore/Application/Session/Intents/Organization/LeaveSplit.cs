@@ -10,7 +10,6 @@ public sealed record LeaveSplit(Guid WorkspaceId, Guid SpaceId, Guid TabId) : Se
     internal override SessionEdit? Edit(NativeSessionAuthority workspace, SessionTurn turn) =>
         workspace.Organizing(turn.Basis, SpaceId, SyncStaging.Edit, edited => {
             edited.LeaveSplit(TabId, turn.Now);
-            edited.PruneSplitMetadata();
         });
 
     #endregion

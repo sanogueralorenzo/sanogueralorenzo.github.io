@@ -20,13 +20,10 @@ struct CoreChangeBatch {
     var rehostedPages: [PageRehosted] = []
     var adoptedPages: [OfferedPageAdopted] = []
     var broughtForward: [WindowBroughtForward] = []
-    var adoptedWindows: [OfferedWindowAdopted] = []
     var closedTransientPages: [TransientPageClosed] = []
     var closesReady: [CloseReady] = []
     var dataDeleted: [DataDeleted] = []
     var websiteDataRead: [WebsiteDataRead] = []
-    /// Whether the batch changed which Spaces may show notifications: a Space
-    /// locked, went away, or changed its permission choices.
     var notificationAccessChanged = false
 }
 

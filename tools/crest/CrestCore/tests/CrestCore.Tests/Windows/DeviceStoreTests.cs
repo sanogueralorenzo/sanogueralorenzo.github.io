@@ -24,7 +24,6 @@ public sealed partial class BrowserContractsTests {
         var (workspace, _) = TestWorkspaces.OpenStored(app);
         var opened = app.Workspace(workspace).Current;
         var spaces = StoredSessionCodec.Encode(opened)["spaces"]!.AsArray();
-        TestGrants.UnlockGuarded(app.Send, workspace, opened);
         app.Drain();
         return (app, workspace, spaces);
     }
@@ -45,7 +44,7 @@ public sealed partial class BrowserContractsTests {
             using var disposal = app;
             second = SpaceId(spaces[1]!);
             tab = TabId(spaces[1]!, 3);
-            group = Guid.Parse(spaces[0]!["splitGroups"]![0]!["id"]!["rawValue"]!.GetValue<string>());
+            group = Guid.Parse(spaces[0]!["tabs"]!.AsArray().First(tab => tab!["splitGroupID"] is not null)!["splitGroupID"]!["rawValue"]!.GetValue<string>());
             app.Send(new OpenWindow(window, workspace, Saved: true, CopyingWindowId: null, ShowingSpaceId: null, ShowingTabs: [], RestoresTabs: true));
             var touched = app.Send(new ShowTab(window, second, tab));
             Assert.Equal(tab, Assert.Single(Assert.Single(touched.OfType<TabsChanged>()).Updated).Id);
@@ -161,7 +160,6 @@ public sealed partial class BrowserContractsTests {
     public void ALaunchReopensTheWindowsLeftOpenBackToFrontOrTheOneUsedLast() {
         using var directory = new StorageDirectory();
         Guid back = Guid.NewGuid(), closed = Guid.NewGuid(), minimized = Guid.NewGuid(), front = Guid.NewGuid();
-        var installed = LaunchEnvironment.Installed;
         {
             var (app, workspace, _) = DeviceApp(directory);
             using var disposal = app;
@@ -170,7 +168,7 @@ public sealed partial class BrowserContractsTests {
             app.Send(new OpenWindow(Guid.NewGuid(), workspace, Saved: false, null, null, [], RestoresTabs: true));
             // A window the person closed is not reopened, and one never saved is not either.
             app.Send(new CloseWindow(closed));
-            Assert.Equal([back, minimized, front], app.Query(new LaunchWindows(installed)).WindowIds);
+            Assert.Equal([back, minimized, front], app.Query(new LaunchWindows()).WindowIds);
 
             // At quit the platform says how its windows stack; one it left out
             // goes behind. Once the quit is allowed, the windows closing as
@@ -182,7 +180,7 @@ public sealed partial class BrowserContractsTests {
         {
             var (relaunched, workspace, _) = DeviceApp(directory);
             using var disposal = relaunched;
-            var plan = relaunched.Query(new LaunchWindows(installed));
+            var plan = relaunched.Query(new LaunchWindows());
             Assert.Equal([minimized, front, back], plan.WindowIds);
             Assert.Equal(back, plan.StartupWindowId);
             // With every window closed, the Dock brings back the one used last.
@@ -194,11 +192,85 @@ public sealed partial class BrowserContractsTests {
         }
         var (again, _, _) = DeviceApp(directory);
         using var againDisposal = again;
-        Assert.Equal([minimized], again.Query(new LaunchWindows(installed)).WindowIds);
+        Assert.Equal([minimized], again.Query(new LaunchWindows()).WindowIds);
         using var fresh = new StorageDirectory();
         var (first, _, _) = DeviceApp(fresh);
         using var firstDisposal = first;
-        Assert.NotEqual(Guid.Empty, Assert.Single(first.Query(new LaunchWindows(installed)).WindowIds));
+        Assert.NotEqual(Guid.Empty, Assert.Single(first.Query(new LaunchWindows()).WindowIds));
     }
 
+    [Fact]
+    public void TheChromiumWindowListIsCarriedOnceAndNeverOverWindowsTheDeviceReopens() {
+        using var directory = new StorageDirectory();
+        Guid[] listed = [Guid.NewGuid(), Guid.NewGuid()];
+        {
+            var (app, workspace, _) = DeviceApp(directory);
+            using var disposal = app;
+            foreach (var window in listed) app.Send(new OpenWindow(window, workspace, Saved: true, null, null, [], RestoresTabs: true));
+            foreach (var window in listed) app.Send(new CloseWindow(window));
+            Assert.Empty(Own(app.Send(new AdoptOpenWindows(listed))));
+            Assert.Equal(listed, app.Query(new LaunchWindows()).WindowIds);
+            app.Send(new AdoptOpenWindows([listed[1]]));
+            Assert.Equal(listed, app.Query(new LaunchWindows()).WindowIds);
+        }
+        var (relaunched, _, _) = DeviceApp(directory);
+        using (relaunched) {
+            relaunched.Send(new AdoptOpenWindows([Guid.NewGuid()]));
+            Assert.Equal(listed, relaunched.Query(new LaunchWindows()).WindowIds);
+        }
+
+        // A device the other composition already reopens windows for keeps them.
+        using var other = new StorageDirectory();
+        var (kept, keptWorkspace, _) = DeviceApp(other);
+        using var keptDisposal = kept;
+        var own = Guid.NewGuid();
+        kept.Send(new OpenWindow(own, keptWorkspace, Saved: true, null, null, [], RestoresTabs: true));
+        kept.Send(new AdoptOpenWindows(listed));
+        Assert.Equal([own], kept.Query(new LaunchWindows()).WindowIds);
+    }
+
+    [Fact]
+    public void ADraggedTabMayLeaveOnlyAloneFromAnUnchangedSpace() {
+        using var directory = new StorageDirectory();
+        var (app, workspace, spaces) = DeviceApp(directory);
+        using var disposal = app;
+        var window = Guid.NewGuid();
+        app.Send(new OpenWindow(window, workspace, false, null, null, [], true));
+        var (space, profile, tab) = (SpaceId(spaces[0]!), Guid.Parse(spaces[0]!["profile"]!["id"]!.GetValue<string>()), TabId(spaces[0]!, 0));
+        Assert.Equal(new TearOffPermission(true, null), app.Query(new CanTearOff(window, space, profile, tab, null)));
+        Assert.Equal(new TearOffPermission(true, null), app.Query(new CanTearOff(window, space, profile, tab, [tab])));
+        Assert.Equal(TearOffRefusal.SeveralTabs, app.Query(new CanTearOff(window, space, profile, tab, [tab, TabId(spaces[0]!, 1)])).Reason);
+        Assert.Equal(TearOffRefusal.SpaceChanged, app.Query(new CanTearOff(window, space, Guid.NewGuid(), tab, null)).Reason);
+        Assert.Equal(TearOffRefusal.TabGone, app.Query(new CanTearOff(window, space, profile, Guid.NewGuid(), null)).Reason);
+    }
+
+    [Fact]
+    public void DismissingAShownTabReturnsToTheTabTheWindowShowedBefore() {
+        using var directory = new StorageDirectory();
+        var (app, workspace, spaces) = DeviceApp(directory);
+        using var disposal = app;
+        var space = SpaceId(spaces[1]!);
+        var (earlier, dismissed) = (TabId(spaces[1]!, 0), TabId(spaces[1]!, 2));
+        var window = Guid.NewGuid();
+        app.Send(new OpenWindow(window, workspace, Saved: false, null, space, [], RestoresTabs: false));
+        app.Send(new ShowTab(window, space, earlier));
+        app.Send(new ShowTab(window, space, dismissed));
+        // A window that no longer shows the tab is left alone.
+        Assert.Empty(Own(app.Send(new DismissShownTab(window, space, earlier))));
+
+        var returned = app.Send(new DismissShownTab(window, space, dismissed));
+        Assert.Equal(earlier, Assert.Single(Assert.Single(returned.OfType<TabsChanged>()).Updated).Id);
+        Assert.Equal(earlier, ShownTab(Shown(returned), space));
+        // With nothing left to return to, it shows nothing there.
+        Assert.Null(ShownTab(Shown(app.Send(new DismissShownTab(window, space, earlier))), space));
+    }
+
+    [Fact]
+    public void ASpaceNoWindowChoseATabForShowsItsFirstOpenThenPinnedThenFirstTab() {
+        using var app = new CrestApp();
+        Assert.Equal(1, app.Query(new FallbackTab([TabPlacement.Pinned, TabPlacement.Current])).Index);
+        Assert.Equal(1, app.Query(new FallbackTab([TabPlacement.Saved, TabPlacement.Pinned])).Index);
+        Assert.Equal(0, app.Query(new FallbackTab([TabPlacement.Saved])).Index);
+        Assert.Null(app.Query(new FallbackTab([])).Index);
+    }
 }

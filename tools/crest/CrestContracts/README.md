@@ -103,15 +103,6 @@ older session-level `selectedSpaceID` and per-Space `selectedTabID` still loads,
 gives its tabs to a window without a record during that launch, and loses them
 at the next save. `SweepExpiredRecords` keeps every tab an open window or a
 saved window's record shows.
-Process-local Space unlock grants belong to the app: `BeginUnlockingSpace`,
-`FinishUnlockingSpace`, `LockSpace` and `LockAllSpaces` go through
-`crest_app_dispatch`, and each publishes `SpaceLockChanged` for the Space
-profiles it changed. The platform presents the authentication prompt and
-answers with its result; the core accepts only the pending request for the
-exact Space/profile identity, and relocking cancels it. Grants are never
-persisted or synced. The device attaches the grants to every session it shows,
-which then refuses intents with `SpaceLocked`; cloud sync intents are not
-gated.
 
 The asynchronous message-based kernel (`crest_core_create` through
 `crest_core_destroy`, envelopes and adapter message routing) has been retired.
@@ -143,16 +134,7 @@ file-system-safe filename and type registry facts. The
 `AutomaticDownloadCheck` query answers the automatic-download throttle from
 the site's saved decision.
 
-The credentials area of `crest_app_*` answers typed queries that carry no
-credential values. `CredentialCapture` takes a form observation as its event,
-origins and presence flags; `MostRecentCredential` and `CredentialSaveMatch`
-take record identities, dates and, for matching, usernames; `CredentialSave`
-takes the platform's yes-or-no comparison against the stored secret.
-`StrongPassword` answers a length and character groups, and the platform
-generates the password itself. `CredentialFill`, `CredentialSaveCheck`,
-`PasskeyAccess`, `SystemPasswordWriteThrough` and `SystemPasswordOffer` answer
-the remaining fill, save, passkey and system Passwords rules. Record batches
-hold at most 64 entries; callers reduce longer lists batch by batch.
+`PasskeyAccess` answers whether the platform can offer system passkey providers. HTTP authentication credentials are passed to the engine for one challenge and are never stored.
 
 Site permission choices are device state. `DecideSitePermission`,
 `ResetSitePermission` and `ResetSpacePermissions` change them, and
@@ -174,21 +156,12 @@ answer the origin, scheme, popup-notice and HTTP authentication rules through
 `SitePermissionDecision`, so no query answers it. URLs arrive as the platform
 parser's facts; every caller refuses, blocks or asks when it gets no answer.
 
-Link preferences are device state too, never synced. `AddLinkRoute`,
-`EditLinkRoute`, `MoveLinkRoute`, `RemoveLinkRoute`, `SetLinkBehavior`,
-`ChoosePeekModifier`, `ChooseExternalLinkDestination`,
-`ChooseQuickWindowArchivePolicy` and `RememberQuickWindowSpace` edit them, and
-`LinkPreferencesChanged` carries them. `AdoptLinkPreferences` carries the
-document earlier releases kept under `crest.link-preferences.v1` into the
-device store once. A deleted Space takes its routes with it and is forgotten
-wherever the preferences remembered it. The `RouteExternalLink` query answers
-where a link another app hands Crest opens, over the windows as the platform
-stacks them: the Space and window, which is the frontmost over the persistent
-session or, with none open, one to open (`OpensWindow`), or a Quick Window
-alone. A link routed to a locked Space opens in a Quick Window on an unlocked
-one with `SubstitutesForLockedSpace`, or nowhere when every Space is locked.
-`RouteLocalDocument` answers the same for a document, which opens in the Space
-on screen. `LinkNavigation` answers what following a
+Command-click and middle-click open background tabs; adding Shift selects the
+new tab. Moving tabs between Spaces follows them to their destination.
+`ExternalOpenDestination` selects the current Space of the frontmost regular
+window, or the most recent regular window to reopen. Links, local documents
+and system sign-in use this fixed destination; Private Windows are excluded.
+`LinkNavigation` answers what following a
 link from a page does. `PresentPage` and `NormalizeBranding` answer page
 surfaces and branding range rules, and the `BalancedProtectionRules` query
 answers the Balanced rule list.
@@ -241,18 +214,11 @@ The `LaunchPlan` query answers the same for the persistent workspace, with the
 startup preference it keeps, while first-run setup that holds the first window
 back, as the device decides, restores the last active tab.
 
-The persistent session's `appPreferences` record holds the app-wide behavior
-preferences (`startupBehavior`, `offersTranslation`, `automaticallyTranslates`,
-`translationRules`, `checksSpelling`, `automaticallyEntersPictureInPicture`,
-`savedTabClosePolicy`, `savedTabFaviconReturnsToSavedURL`,
-`splitFocusFollowsMouse`, `automaticallyShowsDeveloperToolbar`, `showsRecentTabs`), using the raw
-values the native settings stored.
-`SetAppPreferences` sets the record, `SetTranslationRule` edits one source
-language's rule, and `ImportAppPreferences` takes the old defaults values
-(translation rules as their stored JSON text), applied only while the session
-has no record. Private and borrowed workspaces refuse them with
-`PersistentWorkspaceRequired`. Value deltas and sync replacement never change
-the record, and sync never uploads it.
+The persistent session's `appPreferences` record holds the device-wide search
+provider and translation language. `SetAppPreferences` sets the record; before
+one is saved, readers use Google and English. Private and borrowed workspaces
+refuse preference edits with `PersistentWorkspaceRequired`. Value deltas and
+sync replacement never change the record, and sync never uploads it.
 The standalone `MediaSessionReport` query decides what one sequenced page
 media-session report does (ignored, retired, withdrawn or published, with its
 ordinal, sibling supersession, identity-window eviction and dismissal clearing)

@@ -7,9 +7,8 @@ namespace CrestCore.Application;
 /// shows when none is open. The device store keeps the saved windows the next
 /// launch reopens, back to front: opening a saved window puts it in front, and
 /// closing one forgets it, unless the person agreed to quit, when every window
-/// still open is one to reopen. Setup stands in front of them on a device that
-/// has not completed it, or in a launch that forces it, until it finishes. A
-/// quit waits for the Spaces being deleted whose data the engines still erase.
+/// still open is one to reopen. A quit waits for the Spaces being deleted
+/// whose data the engines still erase.
 internal sealed partial class Device {
     #region Variables
 
@@ -19,9 +18,6 @@ internal sealed partial class Device {
     /// The person agreed to quit, so the windows still open are the ones the
     /// next launch reopens, and closing them as the app goes forgets none.
     private bool quitAccepted;
-    /// Setup finished during this run, which opens its launch gate whatever
-    /// the launch forced.
-    private bool setupFinishedThisRun;
 
     #endregion
 
@@ -113,17 +109,6 @@ internal sealed partial class Device {
         Guid? kept;
         lock (gate) kept = saved.GetValueOrDefault(windowId)?.ShownSpaceId;
         return kept is { } space && Available(session, space) is not null ? space : Window.LaunchSpace(session)?.Id;
-    }
-
-    /// The setup a launch in `environment` on `platform` opens in front of its
-    /// windows, or null when it opens none: first-run setup, until it finishes
-    /// in this run, on a device that has not completed it or in a launch that
-    /// forces it.
-    internal SetupEntry? LaunchSetup(LaunchEnvironment environment, DevicePlatform platform) {
-        ArgumentNullException.ThrowIfNull(environment);
-        ArgumentNullException.ThrowIfNull(platform);
-        lock (gate)
-            return !setupFinishedThisRun && (platform.ForcesSetup(environment) || !setupCompleted) ? SetupEntry.FirstRun : null;
     }
 
     #endregion

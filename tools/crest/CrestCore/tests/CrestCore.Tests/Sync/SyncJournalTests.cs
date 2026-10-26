@@ -55,7 +55,7 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
-    public void RestagingRetainsAdditiveFieldsWithoutRevivingClearedFieldsOrRemovedMembers() {
+    public void RestagingRetainsAdditiveFieldsWithoutRevivingRetiredFields() {
         var session = SavedSession().Document["session"]!.AsObject();
         var payload = NativeSyncProjection.Project(session, SyncProjectionPreferences(), [])[0]!.AsObject();
         var groupA = new JsonObject { ["id"] = SwiftId(Guid.NewGuid()), ["customTitle"] = "Clear me", ["futureGroup"] = "a" };
@@ -63,11 +63,7 @@ public sealed partial class BrowserContractsTests {
         var removed = new JsonObject { ["id"] = SwiftId(Guid.NewGuid()), ["futureGroup"] = "removed" };
         payload["futureEnvelope"] = new JsonArray(true, "opaque", null);
         payload["value"]!["futureSpace"] = ulong.MaxValue;
-        payload["value"]!["branding"] = new JsonObject {
-            ["futureBranding"] = "kept",
-            ["symbolColor"] = new JsonObject { ["red"] = 1.0 },
-            ["crest"] = new JsonObject { ["symbol"] = "lion", ["charge"] = new JsonObject { ["kind"] = "system", ["value"] = "star" }, ["futureCrest"] = 4 }
-        };
+
         payload["value"]!["splitGroups"] = new JsonArray(groupA, groupB, removed);
         var record = new JsonObject {
             ["id"] = new JsonObject { ["kind"] = "space", ["value"] = IdForTest(payload["value"]!["id"]!) },
@@ -80,8 +76,7 @@ public sealed partial class BrowserContractsTests {
         var journal = new NativeSyncJournal(Bytes(document));
         var desired = payload.DeepClone().AsObject(); desired.Remove("futureEnvelope");
         var value = desired["value"]!.AsObject(); value.Remove("futureSpace"); value["name"] = "Renamed";
-        value["branding"] = new JsonObject { ["crest"] = new JsonObject { ["symbol"] = "oak" } };
-        value["splitGroups"] = new JsonArray(new JsonObject { ["id"] = groupB["id"]!.DeepClone() }, new JsonObject { ["id"] = groupA["id"]!.DeepClone() });
+        value.Remove("splitGroups");
         var updated = new NativeSyncJournal(Staging(journal, SyncDeletionReason.ExplicitDelete, 100, desired).Read());
         var result = JsonNode.Parse(updated.Read())!["records"]![0]!;
         Assert.Equal("kept", result["futureRecord"]!.GetValue<string>());
@@ -89,11 +84,7 @@ public sealed partial class BrowserContractsTests {
         var body = result["payload"]!["value"]!;
         Assert.Equal(ulong.MaxValue, body["futureSpace"]!.GetValue<ulong>());
         Assert.Equal("Renamed", body["name"]!.GetValue<string>());
-        Assert.Equal("kept", body["branding"]!["futureBranding"]!.GetValue<string>());
-        Assert.Equal(4, body["branding"]!["crest"]!["futureCrest"]!.GetValue<int>());
-        Assert.Null(body["branding"]!["symbolColor"]); Assert.Null(body["branding"]!["crest"]!["charge"]);
-        Assert.Equal(new[] { "b", "a" }, body["splitGroups"]!.AsArray().Select(g => g!["futureGroup"]!.GetValue<string>()));
-        Assert.Null(body["splitGroups"]![1]!["customTitle"]);
+        Assert.Null(body["splitGroups"]);
         Assert.Equal(2UL, JsonNode.Parse(Staging(updated, SyncDeletionReason.ExplicitDelete, 100, desired).Read())!["logicalClock"]!.GetValue<ulong>());
         var deleted = Staging(updated, SyncDeletionReason.ExplicitDelete, 101);
         Assert.Null(JsonNode.Parse(deleted.Read())!["records"]![0]!["payload"]);

@@ -102,7 +102,7 @@ public sealed class SessionIdentitiesTests {
         return space with { Tabs = [.. Enumerable.Range(0, tabs).Select(_ => template with { Id = Guid.NewGuid() })] };
     }
 
-    private static SessionState Session(params SpaceState[] spaces) => new(spaces, DefaultSpaceId: null, DisposableSeedMarker: null,
+    private static SessionState Session(params SpaceState[] spaces) => new(spaces, DisposableSeedMarker: null,
         SpaceDeletions: [], AppPreferences: null);
 
     private static SessionState Replacing(SessionState session, SpaceState space) =>

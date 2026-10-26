@@ -18,8 +18,7 @@ public sealed record OpenLinkInSplit(Guid WorkspaceId, Guid WindowId, Guid Space
         var edited = BrowserTabCollection.Restore(space);
         edited.InsertTab(BrowserTab.Restore(new TabState(TabId, Title, Address, NativeContent: null,
             SavedUrl: null, TabIconMode.WebSymbol, FaviconUrl: null, IconAccent: null, StoredIconMode: null, TabPlacement.Current,
-            FolderId: null, SplitGroupId: null, turn.Now, PositionModifiedAt: null, CustomTitle: null, TitleModifiedAt: null,
-            KeepsPageLoaded: false)), null);
+            FolderId: null, SplitGroupId: null, turn.Now, PositionModifiedAt: null, CustomTitle: null, TitleModifiedAt: null)), null);
         return workspace.Joining(turn.Basis, space, edited, WindowId, TabId, TargetTabId, null, turn.Pages, turn.Now, turn.Ids);
     }
 

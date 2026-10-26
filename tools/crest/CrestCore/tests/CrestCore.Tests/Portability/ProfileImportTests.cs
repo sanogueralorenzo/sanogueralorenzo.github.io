@@ -64,6 +64,92 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
+    public void ABrowserNotListedIsFoundWhereItKeepsChromiumData() {
+        using var home = new BrowserDataFolder();
+        string support = Path.Combine("Library", "Application Support");
+        const string Bookmarks = """{"roots":{"bookmark_bar":{"type":"folder","name":"Bar","children":[{"type":"url","name":"A","url":"https://a.example/"}]}}}""";
+        void Chromium(string folder, bool atRoot = false, bool bookmarks = true) {
+            string profile = atRoot ? folder : Path.Combine(folder, "Default");
+            home.Write(Path.Combine(support, folder, "Local State"), "{}");
+            home.Write(Path.Combine(support, profile, "Preferences"), "{}");
+            if (bookmarks) home.Write(Path.Combine(support, profile, "Bookmarks"), Bookmarks);
+        }
+        Chromium("Thorium");
+        // Opera's way: the data folder is the first profile, named for the bundle.
+        Chromium("com.example.Rare", atRoot: true);
+        // A listed browser's folder, and an app that keeps no tabs or bookmarks.
+        Chromium(Path.Combine("Google", "Chrome"));
+        Chromium("Slack", bookmarks: false);
+        using var app = Importer();
+
+        var found = app.Query(new FindChromiumBrowsers(home.Path, [
+            new("org.example.thorium", "Thorium"), new("com.example.Rare", "Rare Browser"), new("com.example.clone", "Chrome"),
+            new("com.tinyspeck.slackmacgap", "Slack"), new("com.example.lonely", "Lonely")
+        ]));
+
+        Assert.Equal(["Rare Browser", "Thorium"], found.Select(browser => browser.Name));
+        var rare = found[0];
+        Assert.Equal(Path.Combine(home.Path, support, "com.example.Rare"), rare.DataFolder);
+        Assert.Equal(["Personal"], rare.Data.Profiles.Select(profile => profile.Name));
+    }
+
+    [Fact]
+    public void ChromeProfilesAreFoundInOrderWithTheirNamesAndNewestSessions() {
+        using var chrome = new BrowserDataFolder();
+        chrome.Write("Local State", """{"profile":{"info_cache":{"Profile 10":{"name":"Ten"},"Profile 2":{"name":"Two"},"Profile 3":{"name":"Gone"}}}}""");
+        string personal = chrome.Write(Path.Combine("Default", "Bookmarks"), "{}");
+        // Chrome's `Tabs_` files hold the tabs it closed, which are no session.
+        string newest = chrome.Write(Path.Combine("Profile 2", "Sessions", "Session_300"), changed: 100);
+        chrome.Write(Path.Combine("Profile 2", "Sessions", "Tabs_200"), changed: 200);
+        chrome.Write(Path.Combine("Profile 2", "Sessions", "Current Tabs"), changed: 300);
+        string ten = chrome.Write(Path.Combine("Profile 10", "Sessions", "Session_1"));
+        chrome.Write(Path.Combine("System Profile", "Bookmarks"), "{}");
+
+        var found = Found(ImportSource.Chrome, chrome.Path);
+
+        // The first profile is first and the rest follow their numbers; a
+        // profile without bookmarks or a session brings nothing.
+        Assert.Equal([
+            new ImportProfile("Default", "Personal", personal, null, Path.Combine(chrome.Path, "Default")),
+            new ImportProfile("Profile 2", "Two", null, newest, Path.Combine(chrome.Path, "Profile 2")),
+            new ImportProfile("Profile 10", "Ten", null, ten, Path.Combine(chrome.Path, "Profile 10"))
+        ], found.Profiles);
+    }
+
+    [Fact]
+    public void ArcZenFirefoxAndSafariAreFoundWhereEachKeepsItsData() {
+        using var arc = new BrowserDataFolder();
+        string sidebar = arc.Write("StorableSidebar.json", "{}");
+        var arcData = Found(ImportSource.Arc, arc.Path);
+        Assert.Equal([new ImportProfile("arc", "Arc", null, sidebar, Path.Combine(arc.Path, "User Data", "Default"))], arcData.Profiles);
+
+        // Every Zen and Firefox profile with a session, named as the
+        // `profiles.ini` beside their folder names it, else by its folder;
+        // Zen's used last first.
+        using var zen = new BrowserDataFolder();
+        zen.Write("profiles.ini", "[General]\nStartWithLastProfile=1\n\n[Profile0]\nName=Work\nIsRelative=1\nPath=Profiles/current\n");
+        string first = zen.Write(Path.Combine("Profiles", "first", "zen-sessions.jsonlz4"), changed: 100);
+        string current = zen.Write(Path.Combine("Profiles", "current", "zen-sessions.jsonlz4"), changed: 200);
+        Assert.Equal([new ImportProfile("current", "Work", null, current), new ImportProfile("first", "first", null, first)],
+            Found(ImportSource.Zen, Path.Combine(zen.Path, "Profiles")).Profiles);
+
+        using var firefox = new BrowserDataFolder();
+        firefox.Write("profiles.ini", $"[Profile0]\nName=Main\nIsRelative=0\nPath={Path.Combine(firefox.Path, "Profiles", "main")}\n");
+        firefox.Write(Path.Combine("Profiles", "main", "sessionstore-backups", "recovery.jsonlz4"), changed: 100);
+        string latest = firefox.Write(Path.Combine("Profiles", "main", "sessionstore.jsonlz4"), changed: 200);
+        firefox.Write(Path.Combine("Profiles", "empty", "times.json"));
+        Assert.Equal([new ImportProfile("main", "Main", null, latest)], Found(ImportSource.Firefox, Path.Combine(firefox.Path, "Profiles")).Profiles);
+
+        using var safari = new BrowserDataFolder();
+        string bookmarks = safari.Write("Bookmarks.plist"), session = safari.Write("LastSession.plist");
+        var safariData = Found(ImportSource.Safari, safari.Path);
+        Assert.Equal([new ImportProfile("safari", "Safari", bookmarks, session)], safariData.Profiles);
+
+        using var nothing = new BrowserDataFolder();
+        Assert.Empty(Found(ImportSource.Chrome, Path.Combine(nothing.Path, "Missing")).Profiles);
+    }
+
+    [Fact]
     public void AProfileBringsItsBookmarksAndOpenTabsAsOneSpaceNamedForIt() {
         string root = ImportFixture("chrome-profile", "");
         using var app = Importer();
@@ -74,7 +160,6 @@ public sealed partial class BrowserContractsTests {
         ])).Spaces;
 
         Assert.Equal(["Personal", "Work", "Locked"], spaces.Select(space => space.Settings.Name));
-        Assert.All(spaces, space => Assert.Equal(("globe", SpaceAccent.Orange), (space.Settings.Symbol, space.Settings.Accent)));
         // Every bookmark root holding a link becomes a folder, the named ones
         // after Chrome's own in the order of their keys; an empty root, as
         // Mobile bookmarks is here, makes none, and a browser page is dropped.
@@ -151,14 +236,58 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
-    public void ASignedInChromeProfileBringsItsAccountsBookmarksAndPasswordsToo() {
+    public void AnUnreadableChromeSessionGivesWayToTheOneBeforeIt() {
+        using var chrome = new BrowserDataFolder();
+        chrome.Copy(ImportFixture("chromium-windows", Path.Combine("Sessions", "Session_1")), Path.Combine("Default", "Sessions", "Session_1"),
+            changed: 100);
+        string newest = chrome.Write(Path.Combine("Default", "Sessions", "Session_2"), "not a session", changed: 200);
+        var profile = Assert.Single(Found(ImportSource.Chrome, chrome.Path).Profiles);
+        Assert.Equal(newest, profile.SessionPath);
+        using var app = Importer();
+
+        var read = app.Query(new ReadImport(ImportSource.Chrome, [profile]));
+
+        Assert.Equal(["Other Window", "Current"], Assert.Single(read.Spaces).Tabs.Select(tab => tab.Title));
+        Assert.Empty(read.LeftOut);
+    }
+
+    [Fact]
+    public void AProfileKeepsItsOpenTabsAndAsManyBookmarksAsFitBesideThem() {
+        using var chrome = new BrowserDataFolder();
+        // One bookmark more than a Space keeps tabs, beside two open tabs.
+        string bookmarks = chrome.Write(Path.Combine("Default", "Bookmarks"),
+            Bar([.. Enumerable.Range(0, SessionDraft.MaximumTabs + 1).Select(index => $"link{index}")]));
+        string session = chrome.Copy(ImportFixture("chromium-windows", Path.Combine("Sessions", "Session_1")),
+            Path.Combine("Default", "Sessions", "Session_1"));
+        using var app = Importer();
+
+        var read = app.Query(new ReadImport(ImportSource.Chrome, [new("Default", "Personal", bookmarks, session)]));
+
+        var space = Assert.Single(read.Spaces);
+        Assert.Equal(SessionDraft.MaximumTabs, space.Tabs.Count);
+        Assert.Equal(2, space.Tabs.Count(tab => tab.Placement != TabPlacement.Saved));
+        Assert.Equal([new ImportLeftOut("Personal", new BookmarksOverLimits())], read.LeftOut);
+
+        // Firefox's windows, however many, come in its profile's one Space.
+        var windows = new JsonArray([.. Enumerable.Range(0, BrowserDataFile.MaximumSpaces + 6).Select(index => (JsonNode)new JsonObject {
+            ["tabs"] = new JsonArray(new JsonObject {
+                ["entries"] = new JsonArray(new JsonObject { ["url"] = $"https://window{index}.example/", ["title"] = $"W{index}" }),
+                ["index"] = 1
+            })
+        })]);
+        string firefox = chrome.Write(Path.Combine("firefox", "recovery.jsonlz4"), new JsonObject { ["windows"] = windows }.ToJsonString());
+        var merged = app.Query(new ReadImport(ImportSource.Firefox, [new("firefox", "Firefox", null, firefox)]));
+        Assert.Equal(BrowserDataFile.MaximumSpaces + 6, Assert.Single(merged.Spaces).Tabs.Count);
+        Assert.Empty(merged.LeftOut);
+    }
+
+    [Fact]
+    public void ASignedInChromeProfileBringsItsAccountsBookmarksToo() {
         using var chrome = new BrowserDataFolder();
         // The account's bookmarks join the profile's own, without repeating
         // one the same folder already holds.
         string own = chrome.Write(Path.Combine("Default", "Bookmarks"), Bar("a", "b"));
         chrome.Write(Path.Combine("Default", "AccountBookmarks"), Bar("b", "c"));
-        string ownStore = chrome.Write(Path.Combine("Default", "Login Data"));
-        string accountStore = chrome.Write(Path.Combine("Default", "Login Data For Account"));
         // A profile may keep only its account's bookmarks; what it deleted, as Vivaldi keeps it, stays behind.
         string accountOnly = chrome.Write(Path.Combine("Profile 1", "AccountBookmarks"), """
             {"roots":{"bookmark_bar":{"type":"folder","name":"Bar","children":[{"type":"url","name":"d","url":"https://d.example/"}]},
@@ -167,8 +296,6 @@ public sealed partial class BrowserContractsTests {
 
         var found = Found(ImportSource.Chrome, chrome.Path);
         Assert.Equal([own, accountOnly], found.Profiles.Select(profile => profile.BookmarksPath));
-        Assert.Equal([new ImportPasswordStore("Default", "Personal", ownStore), new ImportPasswordStore("Default", "Personal", accountStore)],
-            found.PasswordStores);
         using var app = Importer();
         var spaces = app.Query(new ReadImport(ImportSource.Chrome, found.Profiles)).Spaces;
 

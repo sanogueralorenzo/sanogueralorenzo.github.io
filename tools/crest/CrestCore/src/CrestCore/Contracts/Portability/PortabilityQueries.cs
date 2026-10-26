@@ -6,11 +6,11 @@ public sealed record ExportedDocument(byte[] Contents, ExportFormat Format);
 /// What a browser keeps in its data folder: each profile with the files an
 /// import reads, and each store of saved passwords, in the order a person
 /// meets them there.
-public sealed record ImportData(IReadOnlyList<ImportProfile> Profiles, IReadOnlyList<ImportPasswordStore> PasswordStores);
+public sealed record ImportData(IReadOnlyList<ImportProfile> Profiles);
 
 /// A profile's store of saved passwords: `Id`, the name the browser keeps the
 /// profile under, the `ProfileName` the person gave it, and the store's path.
-public sealed record ImportPasswordStore(string Id, string ProfileName, string Path);
+
 
 /// One profile of a browser: `Id`, the name the browser keeps it under, the
 /// `Name` the person gave it, and the paths of its bookmarks and of its latest

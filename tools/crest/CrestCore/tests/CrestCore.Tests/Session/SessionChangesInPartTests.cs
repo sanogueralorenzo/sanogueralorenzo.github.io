@@ -108,7 +108,7 @@ public sealed class SessionChangesInPartTests {
             History = [.. Enumerable.Range(0, history).Select(index => new HistoryEntryState(Guid.NewGuid(), $"https://visited-{index}.example/",
                 $"Visited {index}", Now, Now, 1))]
         };
-        var session = new SessionState([space], DefaultSpaceId: null, DisposableSeedMarker: null, SpaceDeletions: [], AppPreferences: null);
+        var session = new SessionState([space], DisposableSeedMarker: null, SpaceDeletions: [], AppPreferences: null);
         var edited = space with { Tabs = [.. space.Tabs.Skip(1), space.Tabs[0]], History = [.. space.History.Skip(1), space.History[0]] };
         _ = Editing(ref session, Guid.NewGuid(), space.Id, edited.Tabs, edited.History);
         return (session, Current(session));
@@ -136,7 +136,7 @@ public sealed class SessionChangesInPartTests {
         var id = Guid.NewGuid();
         return new TabState(id, $"Tab {id}", $"https://{id}.example/", NativeContent: null, SavedUrl: null, "globe", FaviconUrl: null,
             IconAccent: null, StoredIconMode: null, TabPlacement.Current, FolderId: null, SplitGroupId: null, Now, PositionModifiedAt: null,
-            CustomTitle: null, TitleModifiedAt: null, KeepsPageLoaded: false);
+            CustomTitle: null, TitleModifiedAt: null);
     }
 
     #endregion

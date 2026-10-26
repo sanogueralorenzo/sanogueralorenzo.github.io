@@ -2,14 +2,6 @@ using CrestCore.Contracts;
 
 namespace CrestCore.Domain;
 
-/// Per-Space site permission choices.
-///
-/// Persistent choices are the ledger's records; session choices override them
-/// until the process ends and are never kept. A request with a detail (such as
-/// one URL scheme) is answered by the narrowest choice first, then by the
-/// site-wide rule for the same capability. A locked Space never answers: its
-/// questions are Ask. Removals always apply, so deleting or resetting a Space
-/// cannot be blocked by its lock. Callers serialize access.
 public sealed class SitePermissionLedger {
     #region Static Variables
 
@@ -59,13 +51,10 @@ public sealed class SitePermissionLedger {
 
     #region Actions - Decisions
 
-    /// The choice that answers one request. A locked Space, an origin the
-    /// rules cannot read and a detail that is not one answer Ask.
-    public SitePermissionDecision Decision(Guid space, SiteOrigin origin, SitePermission permission, string? detail,
-        bool isLocked) {
+    public SitePermissionDecision Decision(Guid space, SiteOrigin origin, SitePermission permission, string? detail) {
         ArgumentNullException.ThrowIfNull(origin);
         ArgumentNullException.ThrowIfNull(permission);
-        if (isLocked || !origin.IsValid || !IsValidDetail(detail)) return SitePermissionDecision.Ask;
+        if (!origin.IsValid || !IsValidDetail(detail)) return SitePermissionDecision.Ask;
         var key = new SitePermissionKey(origin, permission, detail);
         foreach (var candidate in detail is null ? [key] : new[] { key, key with { Detail = null } }) {
             if (session.TryGetValue(space, out var decisions) && decisions.TryGetValue(candidate, out var decision)) return decision;
@@ -79,11 +68,10 @@ public sealed class SitePermissionLedger {
     /// either device, and an existing combined grant still answers a request
     /// for just one of those devices. A capability that stands alone answers
     /// with its own decision.
-    public SitePermissionDecision MediaDecision(Guid space, SiteOrigin origin, SitePermission media, bool isLocked) {
+    public SitePermissionDecision MediaDecision(Guid space, SiteOrigin origin, SitePermission media) {
         ArgumentNullException.ThrowIfNull(media);
-        if (isLocked) return SitePermissionDecision.Ask;
-        var devices = media.Devices().Select(device => Decision(space, origin, device, null, false)).ToArray();
-        var combinations = media.Combinations().Select(combination => Decision(space, origin, combination, null, false)).ToArray();
+        var devices = media.Devices().Select(device => Decision(space, origin, device, null)).ToArray();
+        var combinations = media.Combinations().Select(combination => Decision(space, origin, combination, null)).ToArray();
         var strongest = SitePermissionDecision.Strongest(devices.Concat(combinations));
         if (strongest.Denies) return strongest;
         return combinations.FirstOrDefault(decision => decision.Grants) ?? SitePermissionDecision.Strongest(devices);

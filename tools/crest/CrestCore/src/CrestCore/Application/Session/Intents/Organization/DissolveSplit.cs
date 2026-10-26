@@ -9,7 +9,6 @@ public sealed record DissolveSplit(Guid WorkspaceId, Guid SpaceId, Guid GroupId)
     internal override SessionEdit? Edit(NativeSessionAuthority workspace, SessionTurn turn) =>
         workspace.Organizing(turn.Basis, SpaceId, SyncStaging.Edit, edited => {
             edited.DissolveSplit(GroupId, turn.Now);
-            edited.PruneSplitMetadata();
         });
 
     #endregion

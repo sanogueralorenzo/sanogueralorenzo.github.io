@@ -20,11 +20,11 @@ public sealed partial class NativeSessionAuthority {
     }
 
     /// What a Space keeps and for how long.
-    internal sealed record SpaceRetention(Guid SpaceId, CurrentTabCleanup Cleanup, DataRetentionPreferences Records) {
+    internal sealed record SpaceRetention(Guid SpaceId, DataRetentionPreferences Records) {
         #region Actions - Reading
 
         public static IReadOnlyList<SpaceRetention> Of(SessionState session) => [.. session.Spaces.Select(space =>
-            new SpaceRetention(space.Id, space.Settings.BrowsingPreferences.CurrentTabCleanup, space.Settings.BrowsingPreferences.DataRetention))];
+            new SpaceRetention(space.Id, space.Settings.BrowsingPreferences.DataRetention))];
 
         #endregion
     }
@@ -47,20 +47,29 @@ public sealed partial class NativeSessionAuthority {
 
     #region Actions - Retention
 
-    /// The tabs cleanup keeps open in this workspace however long they went
-    /// unused: those its windows show or its saved windows will show, those
-    /// whose pages run media, such as a video playing in Picture in Picture or
-    /// a screen being shared, and those an agent uses.
-    internal IReadOnlySet<Guid>? TabsCleanupKeeps(SessionTurn turn) {
-        var shown = Device?.ShownTabs(WorkspaceId);
-        var media = turn.Pages?.TabsRunningMedia(WorkspaceId);
-        var agents = Device?.AgentTabs;
-        IEnumerable<Guid>? kept = null;
-        foreach (var set in new[] { shown, media, agents }) {
-            if (set is { Count: > 0 }) kept = kept is null ? set : kept.Union(set);
+    /// `space` without the history and archive entries older than it keeps them.
+    internal SpaceState Expired(SpaceState space, DateTimeOffset now) {
+        var retention = space.Settings.BrowsingPreferences.DataRetention;
+        var seconds = StoredSessionCodec.Seconds(now);
+        if (retention.History.Lifetime is { } history) {
+            var expired = DataRetention.Expired(Seconds(space.History.Select(entry => entry.LastVisitedAt)), seconds,
+                history.TotalSeconds).ToHashSet();
+            space = space.WithoutHistory((_, index) => expired.Contains(index));
         }
-        return kept?.ToHashSet() ?? shown;
+        if (retention.Archive.Lifetime is { } archive) {
+            var expired = DataRetention.Expired(Seconds(space.ArchivedTabs.Select(archived => archived.ArchivedAt)), seconds,
+                archive.TotalSeconds).ToHashSet();
+            if (expired.Count > 0) space = space with { ArchivedTabs = [.. space.ArchivedTabs.Where((_, index) => !expired.Contains(index))] };
+        }
+        return space;
     }
+
+    #endregion
+
+    #region Actions - Dates
+
+    /// The dates as the stored format's seconds, which the removal policies read.
+    internal double[] Seconds(IEnumerable<DateTimeOffset> dates) => dates.Select(StoredSessionCodec.Seconds).ToArray();
 
     #endregion
 }

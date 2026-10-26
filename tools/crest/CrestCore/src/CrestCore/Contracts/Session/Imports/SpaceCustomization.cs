@@ -2,17 +2,12 @@ using CrestCore.Domain;
 
 namespace CrestCore.Contracts;
 
-/// The name, symbol, accent and look an imported or drafted Space takes. A
-/// blank name reads as `UntitledName` and a blank symbol as the default one;
-/// the look is kept within the ranges every device draws.
-public sealed record SpaceCustomization(string Name, string Symbol, SpaceAccent Accent, SpaceBranding Branding) {
+/// The name an imported or drafted Space takes. A blank name reads as `UntitledName`.
+public sealed record SpaceCustomization(string Name) {
     #region Static Variables
 
     /// What a Space named with nothing but blanks is called.
     public const string UntitledName = "Untitled Space";
-
-    /// The symbol a Space given a blank one wears.
-    private const string DefaultSymbol = "square.grid.2x2";
 
     #endregion
 
@@ -29,9 +24,6 @@ public sealed record SpaceCustomization(string Name, string Symbol, SpaceAccent 
             throw new Rejected(new InvalidName(BrowserTabCollection.MaximumNameLength));
         return resolved;
     }
-
-    /// The symbol `symbol` gives a Space: trimmed, or the default one when blank.
-    internal static string ResolvedSymbol(string symbol) => string.IsNullOrWhiteSpace(symbol) ? DefaultSymbol : symbol.Trim();
 
     #endregion
 }

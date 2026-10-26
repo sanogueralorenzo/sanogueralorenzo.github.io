@@ -6,9 +6,7 @@ namespace CrestCore.Application;
 public sealed partial class NativeSessionAuthority {
     #region Variables
 
-    /// The search providers of the device whose windows show this session,
-    /// or what a device that never chose offers before one is attached.
-    internal SearchCatalog SearchCatalog => device?.SearchCatalog ?? SearchCatalog.Starting(language: null, region: null);
+    internal SearchProvider SearchProvider => device?.SearchProvider ?? Current.AppPreferences?.SearchProvider ?? AppPreferences.Default.SearchProvider;
 
     #endregion
 
@@ -30,9 +28,10 @@ public sealed partial class NativeSessionAuthority {
     /// What a Space of the accepted session searches with. Throws `Rejected`
     /// with `UnknownSpace` for one it does not hold.
     internal SearchProvider Searches(Guid spaceId) {
-        SpaceState space;
-        lock (Gate) space = session.KnownSpace(spaceId);
-        return SearchCatalog.For(space.Settings.BrowsingPreferences, Kind.IsPrivate);
+        lock (Gate) {
+            if (!session.Spaces.Any(space => space.Id == spaceId)) throw new Rejected(new UnknownSpace(spaceId));
+        }
+        return SearchProvider;
     }
 
     #endregion

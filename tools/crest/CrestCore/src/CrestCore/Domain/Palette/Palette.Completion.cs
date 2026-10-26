@@ -11,7 +11,7 @@ public sealed partial class Palette {
     #region Actions - Intent
 
     /// The rows the text runs: the address it opens, when it names one, then
-    /// the search it runs with the Space's engine, or only that search when it
+    /// the search it runs with the global search engine, or only that search when it
     /// names no address; none when nothing was typed or the text names nothing
     /// loadable. An address the Space knows under another spelling, such as
     /// with `www.`, opens the way the Space knows it, in the scheme the person
@@ -20,7 +20,7 @@ public sealed partial class Palette {
         if (query.IsEmpty) return [];
         AddressResolution? resolution;
         try {
-            resolution = AddressResolution.Resolve(query.Text, context.Search, context.AllowsInternalPages);
+            resolution = AddressResolution.Resolve(query.Text, context.Provider, context.AllowsInternalPages);
         } catch (Rejected refused) when (refused.Rejection is UnsupportedAddress) {
             return [];
         }
@@ -28,21 +28,21 @@ public sealed partial class Palette {
         if (resolution.SearchQuery is { } searched) return [Searching(searched, resolution.Url)];
         bool typedScheme = Uri.TryCreate(query.Text, UriKind.Absolute, out var typed) && WebScheme.Named(typed.Scheme) is not null;
         string address = Known(resolution.Url, typedScheme ? url.Scheme : null) ?? resolution.Url;
-        string host = url.Host.Length > 0 ? PaletteMemory.WithoutWww(url.Host) : resolution.Url;
+        string host = url.Host.Length > 0 ? WebAddress.WithoutWww(url.Host) : resolution.Url;
         return [PaletteRow.Of(PaletteRowKind.OpenAddress, $"Open {host}", address, address: address),
-            Searching(query.Text, context.Search.Search(query.Text))];
+            Searching(query.Text, context.Provider.Search(query.Text))];
     }
 
     private PaletteRow Searching(string text, string address) =>
-        Searching(PaletteRowKind.Search, context.Search.Kind.RowTitle(context.Search.Title), text, address, context.Search);
+        Searching(PaletteRowKind.Search, $"Search {context.Provider.Title}", text, address, context.Provider);
 
     /// The address the Space knows for the same place as `url`: an open or
     /// kept tab's, else history's; null when it knows none. Only an address
     /// in `scheme`, the one the person typed, is the same place when they
     /// typed one, so a typed `http://` never opens a known `https://` page.
     private string? Known(string url, string? scheme) {
-        if (context.Space is not { } space || PaletteMemory.Place(url) is not { } place) return null;
-        bool Same(string known) => PaletteMemory.Place(known) == place
+        if (context.Space is not { } space || new WebAddress(url).Place is not { } place) return null;
+        bool Same(string known) => new WebAddress(known).Place == place
             && (scheme is null || Uri.TryCreate(known, UriKind.Absolute, out var parsed) && parsed.Scheme == scheme);
         foreach (var tab in space.Tabs)
             if ((tab.SavedAddress ?? tab.Url) is { } known && Same(known)) return known;
@@ -65,10 +65,10 @@ public sealed partial class Palette {
         foreach (var row in shown) claimed.Add(Folded(Collapsed(row.Title)));
         List<PaletteRow> rows = [];
         foreach (var fetched in remote) {
-            if (rows.Count >= Preferences.Limit(PaletteSource.Suggestions)) break;
+            if (rows.Count >= PaletteSection.SearchSuggestions.Limit) break;
             string suggestion = Collapsed(fetched);
             if (suggestion.Length == 0 || suggestion.Length > MaximumSuggestionLength || !claimed.Add(Folded(suggestion))) continue;
-            rows.Add(Searching(PaletteRowKind.SearchSuggestion, suggestion, provider.Kind.RowTitle(provider.Title), provider.Search(suggestion),
+            rows.Add(Searching(PaletteRowKind.SearchSuggestion, suggestion, $"Search {provider.Title}", provider.Search(suggestion),
                 provider));
         }
         return rows;
@@ -78,19 +78,9 @@ public sealed partial class Palette {
     /// for none.
     private string? SuggestionAddress(string text) {
         string trimmed = text.Trim();
-        if (trimmed.Length == 0 || trimmed.Length > MaximumSuggestionLength || context.IsPrivate || context.Space is null || !context.Suggests
-            || !Preferences.Offers(PaletteSource.Suggestions))
+        if (trimmed.Length == 0 || trimmed.Length > MaximumSuggestionLength || context.IsPrivate || context.Space is null)
             return null;
-        return context.Search.Suggest(text);
-    }
-
-    /// Where to fetch the suggestions of `provider`, which the person entered,
-    /// for `text`, or null when this palette asks for none.
-    private string? ProviderSuggestionAddress(SearchProvider provider, string text) {
-        string trimmed = text.Trim();
-        if (trimmed.Length == 0 || trimmed.Length > MaximumSuggestionLength || context.IsPrivate || context.Space is null || !context.Suggests)
-            return null;
-        return provider.Suggest(text);
+        return context.Provider.Suggest(text);
     }
 
     /// The words of `value`, one space apart.
@@ -112,23 +102,19 @@ public sealed partial class Palette {
 
     /// The address the Space knows that best completes the text, as other
     /// browsers complete it: the host whole, without a `www.` nobody typed,
-    /// up to the next `/` once a path is typed, and only for places a person
-    /// typed or picked within the lifetime, a tab shows or keeps, or history
-    /// visited at least four times before the Space began remembering. Null
+    /// up to the next `/` once a path is typed, using tabs and browsing history. Null
     /// when none does, when one is exactly what was typed, or when the field
     /// may not complete now.
     private AddressMatch? Completion(PaletteSuggestions question) {
-        if (context.Space is null || !question.AllowsCompletion || !Preferences.CompletesInline
+        if (context.Space is null || !question.AllowsCompletion
             || TypedAddress.Of(question.Text) is not { } typed)
             return null;
         AddressMatch? best = null;
         double Use(AddressCandidate candidate) {
-            double remembered = context.Memory.Frecency(candidate.Url, null, context.Now);
-            return remembered > 0 ? remembered
-                : candidate.Visits * Math.Pow(2, -(context.Now - candidate.Date).TotalDays / PaletteMemory.HalfLifeDays);
+            return candidate.Visits * Math.Pow(2, -(context.Now - candidate.Date).TotalDays / 30);
         }
         foreach (var candidate in CompletionCandidates()) {
-            if (!Completes(candidate) || candidate.Completing(typed) is not { } match) continue;
+            if (candidate.Completing(typed) is not { } match) continue;
             if (string.Equals(match.Text, typed.Text, StringComparison.OrdinalIgnoreCase)) return null;
             if (best is null || match.Outranks(best, Use)) best = match;
         }
@@ -140,14 +126,6 @@ public sealed partial class Palette {
     private static string Accepted(AddressMatch match) =>
         match.Text.Contains("://", StringComparison.Ordinal) || match.Candidate.Scheme == WebScheme.Https.Name
             ? match.Text : $"{match.Candidate.Scheme}://{match.Text}";
-
-    /// Whether `candidate` may complete inline: a tab's address always, and
-    /// a history address the person typed or used heavily before memory began.
-    private bool Completes(AddressCandidate candidate) {
-        if (candidate.Source != AddressCandidate.HistorySource) return true;
-        if (context.Memory.WasTyped(candidate.Authority, context.Now)) return true;
-        return candidate.Visits >= 4 && candidate.FirstVisited is { } first && first < context.Memory.Since;
-    }
 
     private IEnumerable<AddressCandidate> CompletionCandidates() {
         foreach (var tab in context.Space!.Tabs.Where(tab => !tab.IsStartPage)) {

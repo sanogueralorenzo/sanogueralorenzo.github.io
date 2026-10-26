@@ -7,8 +7,7 @@ namespace CrestCore.Tests;
 
 /// A page moving to another engine: the old engine closes it and nothing it
 /// asked or reports afterwards counts, the new engine creates it and then
-/// loads the address it showed, and a navigation to a site chosen for another
-/// engine moves the page there.
+/// loads the address it showed.
 public sealed partial class BrowserContractsTests {
     [Fact]
     public void APageMovesToAnotherEngineThatLoadsWhatItShowedAndTheOldEnginesQuestionsEnd() {
@@ -50,25 +49,5 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal(commands, chromiumBinding.Commands.Count);
         Assert.Equal(new UnknownPage(workspace), Refusal(app, new RehostPage(workspace, EngineKind.WebKit)));
 
-        // A navigation the document starts toward a site chosen for another engine moves the page there, which loads it.
-        const string video = "https://video.example/watch";
-        app.Send(new ChooseSiteEngine(space, new WebAddress(video).Origin!, EngineKind.WebKit));
-        app.Report(chromium, new NavigationStarted(page, "https://example.com/next#part", SameDocument: false));
-        Assert.Equal(new LoadPage(page, article), chromiumBinding.Commands[^1]);
-        app.Report(chromium, new NavigationStarted(page, video, SameDocument: false));
-        // The engine it left hosts no page now, so what only that engine supports is no longer offered.
-        Assert.DoesNotContain(EngineCapability.Reader, Assert.Single(app.Drain().OfType<EnginesChanged>()).Roster.Offered);
-        Assert.Equal(new ClosePage(page, KeepsState: true), chromiumBinding.Commands[^1]);
-        Assert.IsType<CreatePage>(webKitBinding.Commands[^1]);
-        app.Report(webKit, new PageCreated(page));
-        Assert.Equal(new LoadPage(page, video), webKitBinding.Commands[^1]);
-
-        // So does a load the person asks for.
-        app.Send(new ChooseSiteEngine(space, new WebAddress(article).Origin!, EngineKind.Chromium));
-        app.Send(new Navigate(page, article));
-        Assert.Equal(new CheckBeforeUnload(page), webKitBinding.Commands[^1]);
-        app.Report(webKit, new BeforeUnloadAnswered(page, Proceeds: true));
-        Assert.Equal(new ClosePage(page, KeepsState: true), webKitBinding.Commands[^1]);
-        Assert.IsType<CreatePage>(chromiumBinding.Commands[^1]);
     }
 }

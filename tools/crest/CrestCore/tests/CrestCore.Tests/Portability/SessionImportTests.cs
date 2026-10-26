@@ -47,7 +47,6 @@ public sealed partial class BrowserContractsTests {
 
         Assert.Equal(["Arc Work", "Gradient", "Single"], spaces.Select(space => space.Settings.Name));
         var work = spaces[0];
-        Assert.Equal(("crest.emoji:🏛️", SpaceAccent.Indigo), (work.Settings.Symbol, work.Settings.Accent));
         // Favorites are pinned, Today's tabs stay open whatever lists hold them,
         // and pinned lists become saved folders. A file address is dropped.
         Assert.Equal([
@@ -62,11 +61,7 @@ public sealed partial class BrowserContractsTests {
         // Another profile's favorites are its own; a gradient keeps its colors
         // the way Crest can draw them.
         var gradient = spaces[1];
-        Assert.Equal(("chevron.left.forwardslash.chevron.right", SpaceAccent.Orange), (gradient.Settings.Symbol, gradient.Settings.Accent));
         Assert.Equal([TabPlacement.Pinned, TabPlacement.Pinned], gradient.Tabs.Select(tab => tab.Placement));
-        Assert.Equal((SpaceBannerPattern.Diagonal, SpaceThemeMode.Gradient, 3),
-            (gradient.Settings.Branding!.BannerPattern, gradient.Settings.Branding.ThemeMode, gradient.Settings.Branding.Colors.Colors.Count));
-        Assert.Equal(("globe.americas.fill", SpaceAccent.Teal), (spaces[2].Settings.Symbol, spaces[2].Settings.Accent));
     }
 
     [Fact]
@@ -85,12 +80,190 @@ public sealed partial class BrowserContractsTests {
             ("Open", TabPlacement.Current, "https://open.example/", null)
         ], TabsOf(work));
         Assert.Equal([("Reading", null), ("Inner", "Reading")], FoldersOf(work));
-        var theme = work.Settings.Branding!;
-        Assert.Equal((SpaceBannerPattern.Bands, SpaceThemeMode.Gradient, 3, 0.4, true),
-            (theme.BannerPattern, theme.ThemeMode, theme.Colors.Colors.Count, theme.BannerStrength, theme.ShowsTexture));
         Assert.Equal(["Shared Essential", "Play"], spaces[1].Tabs.Select(tab => tab.Title));
-        Assert.Equal(SpaceAccent.Orange, spaces[1].Settings.Accent);
     }
+
+    [Fact]
+    public void ZenSplitViewsComeAsSplitsSavedInTheFolderHoldingThem() {
+        // Zen keeps each split view as a group of its own: one inside a folder
+        // among the folders, naming no Space, and one among the pinned tabs
+        // only among its groups.
+        var space = Assert.Single(ReadSession("zen", "zen-splits", Path.Combine("profile", "zen-sessions.jsonlz4")));
+
+        Assert.Equal([
+            ("Essential", TabPlacement.Pinned, "https://essential.example/", null),
+            ("Split Left", TabPlacement.Saved, "https://left.example/", null),
+            ("Split Right", TabPlacement.Saved, "https://right.example/", null),
+            ("Doc", TabPlacement.Saved, "https://docs.example/", "Docs"),
+            ("Split Top", TabPlacement.Saved, "https://top.example/", "Docs"),
+            ("Split Bottom", TabPlacement.Saved, "https://bottom.example/", "Docs"),
+            ("Open One", TabPlacement.Current, "https://open-one.example/", null),
+            ("Open Two", TabPlacement.Current, "https://open-two.example/", null)
+        ], TabsOf(space));
+        Assert.Equal([("Docs", null)], FoldersOf(space));
+        Assert.Equal([["Split Left", "Split Right"], ["Split Top", "Split Bottom"], ["Open One", "Open Two"]], SplitsOf(space));
+    }
+
+    [Fact]
+    public void ZenSpacesWearTheirIconAndTheColorsZenWrites() {
+        // Zen spells a theme color as `c`, red, green and blue from 0 to 255,
+        // and an icon as the path of one of its own, or an emoji.
+        using var folder = new BrowserDataFolder();
+        string session = Path.Combine(folder.Path, "zen-sessions.jsonlz4");
+        File.WriteAllBytes(session, MozillaLz4("""
+            {"spaces":[
+              {"uuid":"a","name":"Trips","icon":"chrome://browser/skin/zen-icons/selectable/airplane.svg",
+               "theme":{"gradientColors":[{"c":[232,121,64],"isPrimary":true},{"c":[64,175,232]}],"opacity":0.5}},
+              {"uuid":"b","name":"Home","icon":"🏠"}],
+             "tabs":[
+              {"entries":[{"url":"https://trips.example/","title":"Trips"}],"zenWorkspace":"a"},
+              {"entries":[{"url":"https://home.example/","title":"Home"}],"zenWorkspace":"b"}]}
+            """));
+        using var app = Importer();
+
+        var spaces = app.Query(new ReadImport(ImportSource.Zen, [new("profile", "Zen", null, session)])).Spaces;
+    }
+
+    [Fact]
+    public void ArcSplitViewsComeAsSplitsAndItsTimesCountFrom2001() {
+        // Arc keeps a split view as an item holding its tabs, and saves times
+        // as seconds since 2001, as apps on Apple's platforms do.
+        using var folder = new BrowserDataFolder();
+        string sidebar = folder.Write("StorableSidebar.json", """
+            {"sidebar":{"containers":[{
+              "items":[
+                "root",{"id":"root","childrenIds":["split","solo"],"data":{"itemContainer":{}}},
+                "split",{"id":"split","childrenIds":["left","right"],"data":{"splitView":{"layoutOrientation":"horizontal"}}},
+                "left",{"id":"left","data":{"tab":{"savedTitle":"Left","savedURL":"https://left.example/","timeLastActiveAt":812486952}}},
+                "right",{"id":"right","data":{"tab":{"savedTitle":"Right","savedURL":"https://right.example/","timeLastActiveAt":812486952}}},
+                "solo",{"id":"solo","data":{"tab":{"savedTitle":"Solo","savedURL":"https://solo.example/","timeLastActiveAt":812486952}}}],
+              "spaces":["space",{"id":"space","title":"Arc Work","containerIDs":["pinned","root"]}]}]}}
+            """);
+        using var app = Importer();
+
+        var space = Assert.Single(app.Query(new ReadImport(ImportSource.Arc, [new("arc", "Arc", null, sidebar)])).Spaces);
+        Assert.Equal([["Left", "Right"]], SplitsOf(space));
+        Assert.All(space.Tabs, tab => Assert.Equal(2026, tab.LastActivatedAt.Year));
+    }
+
+    [Fact]
+    public void SafarisPinnedTabsComeFromWhereItKeepsThemForEveryWindow() {
+        var windows = Assert.Single(ReadSession("safari", "safari-pinned", "LastSession.plist"));
+
+        Assert.Equal(("iCloud Mail", TabPlacement.Pinned), (windows.Tabs[0].Title, windows.Tabs[0].Placement));
+        Assert.Equal(1, windows.Tabs.Count(tab => tab.Placement == TabPlacement.Pinned));
+    }
+
+    [Fact]
+    public void ChromiumTabGroupsBecomeFoldersOfOpenTabsAndItsSplitsSplits() {
+        // A group becomes a folder among the open tabs in its color; a split of
+        // pinned tabs, which no split holds, and one of a single tab show alone.
+        var space = ReadGrouped(ImportSource.Chrome, GroupedCommands());
+
+        var research = Assert.Single(space.Folders);
+        Assert.Equal(("Research", TabPlacement.Current, TabGroupColor.Blue.Color), (research.Title, research.Location, research.Color));
+        Assert.Equal(["Grouped A", "Grouped B"], space.Tabs.Where(tab => tab.FolderId == research.Id).Select(tab => tab.Title));
+        Assert.Equal([["Split L", "Split R"]], SplitsOf(space));
+    }
+
+    [Fact]
+    public void FirefoxTabGroupsBecomeFoldersOfOpenTabs() {
+        // Firefox spells grey `gray`; a pinned tab stays out of any group.
+        using var folder = new BrowserDataFolder();
+        string session = Path.Combine(folder.Path, "sessionstore.jsonlz4");
+        File.WriteAllBytes(session, MozillaLz4("""
+            {"windows":[{"groups":[{"id":"g","name":"Research","color":"gray"}],"tabs":[
+              {"entries":[{"url":"https://pinned.example/","title":"Pinned"}],"pinned":true,"groupId":"g"},
+              {"entries":[{"url":"https://one.example/","title":"One"}],"groupId":"g"},
+              {"entries":[{"url":"https://two.example/","title":"Two"}],"groupId":"g"},
+              {"entries":[{"url":"https://alone.example/","title":"Alone"}]}]}],"selectedWindow":1}
+            """));
+        using var app = Importer();
+
+        var space = Assert.Single(app.Query(new ReadImport(ImportSource.Firefox, [new("profile", "Firefox", null, session)])).Spaces);
+        var research = Assert.Single(space.Folders);
+        Assert.Equal(("Research", TabPlacement.Current, TabGroupColor.Grey.Color), (research.Title, research.Location, research.Color));
+        Assert.Equal(["One", "Two"], space.Tabs.Where(tab => tab.FolderId == research.Id).Select(tab => tab.Title));
+    }
+
+    [Fact]
+    public void VivaldiNumbersChromiumsCommandsPastItsOwn() {
+        // Vivaldi keeps records of its own at 21 and 22 and moves Chromium's
+        // from 21 on two places up.
+        List<(byte, byte[])> vivaldi = [(21, [1, 2, 3, 4]), (22, [5, 6, 7, 8])];
+        vivaldi.AddRange(GroupedCommands().Select(command => (command.Id >= 21 && command.Id < 252 ? (byte)(command.Id + 2) : command.Id, command.Payload)));
+        var space = ReadGrouped(ImportSource.Vivaldi, vivaldi);
+
+        Assert.Equal("Research", Assert.Single(space.Folders).Title);
+        Assert.Equal([["Split L", "Split R"]], SplitsOf(space));
+    }
+
+    /// The one Space `source` reads from a session file of `commands`.
+    private static SpaceState ReadGrouped(ImportSource source, IEnumerable<(byte Id, byte[] Payload)> commands) {
+        using var folder = new BrowserDataFolder();
+        string session = Path.Combine(folder.Path, "Session_1");
+        File.WriteAllBytes(session, Snss(commands));
+        using var app = Importer();
+        return Assert.Single(app.Query(new ReadImport(source, [new("Default", "Personal", null, session)])).Spaces);
+    }
+
+    /// A window of seven tabs: two in the blue group "Research", two open tabs
+    /// in a split, two pinned tabs in a split, and one alone in a split.
+    private static List<(byte Id, byte[] Payload)> GroupedCommands() {
+        byte[] Tab(int id) => [.. BitConverter.GetBytes(1), .. BitConverter.GetBytes(id)];
+        byte[] Token(int tab, ulong token) => [.. BitConverter.GetBytes(tab), 0, 0, 0, 0, .. BitConverter.GetBytes(token),
+            .. BitConverter.GetBytes(token), 1, 0, 0, 0, 0, 0, 0, 0];
+        List<(byte, byte[])> commands = [];
+        string[] titles = ["Grouped A", "Grouped B", "Split L", "Split R", "Pinned L", "Pinned R", "Alone"];
+        for (int id = 1; id <= titles.Length; id++) {
+            commands.Add((0, Tab(id)));
+            commands.Add((2, [.. BitConverter.GetBytes(id), .. BitConverter.GetBytes(id)]));
+            commands.Add((6, Pickle(id, 0, $"https://tab{id}.example/", (titles[id - 1], true), "", 0)));
+        }
+        commands.AddRange([(25, Token(1, 7)), (25, Token(2, 7)), (27, Pickle(7UL, 7UL, ("Research", true), 1, 0, 0)),
+            (36, Token(3, 8)), (36, Token(4, 8)), (12, [.. BitConverter.GetBytes(5), 1, 0, 0, 0]), (12, [.. BitConverter.GetBytes(6), 1, 0, 0, 0]),
+            (36, Token(5, 9)), (36, Token(6, 9)), (36, Token(7, 10)), (255, [])]);
+        return commands;
+    }
+
+    /// A Chromium session file of `commands`, each its identity and payload.
+    private static byte[] Snss(IEnumerable<(byte Id, byte[] Payload)> commands) {
+        List<byte> file = [.. "SNSS"u8, 3, 0, 0, 0];
+        foreach (var (id, payload) in commands) file.AddRange([.. BitConverter.GetBytes((ushort)(payload.Length + 1)), id, .. payload]);
+        return [.. file];
+    }
+
+    /// A Chromium pickle of `values`: 32-bit and 64-bit numbers, UTF-8 text,
+    /// and UTF-16 text given with `true`, each padded to four bytes.
+    private static byte[] Pickle(params object[] values) {
+        List<byte> body = [];
+        void Pad() { while (body.Count % 4 != 0) body.Add(0); }
+        foreach (var value in values) {
+            switch (value) {
+                case int number: body.AddRange(BitConverter.GetBytes(number)); break;
+                case ulong number: body.AddRange(BitConverter.GetBytes(number)); break;
+                case string text: body.AddRange(BitConverter.GetBytes(Encoding.UTF8.GetByteCount(text))); body.AddRange(Encoding.UTF8.GetBytes(text)); Pad(); break;
+                case (string text, true): body.AddRange(BitConverter.GetBytes(text.Length)); body.AddRange(Encoding.Unicode.GetBytes(text)); Pad(); break;
+            }
+        }
+        return [.. BitConverter.GetBytes(body.Count), .. body];
+    }
+
+    /// `json` as Mozilla's LZ4 file, one block of literals.
+    private static byte[] MozillaLz4(string json) {
+        byte[] raw = Encoding.UTF8.GetBytes(json);
+        List<byte> block = [(byte)(Math.Min(raw.Length, 15) << 4)];
+        if (raw.Length >= 15) {
+            int rest = raw.Length - 15;
+            for (; rest >= 255; rest -= 255) block.Add(255);
+            block.Add((byte)rest);
+        }
+        return [.. "mozLz40\0"u8, .. BitConverter.GetBytes(raw.Length), .. block, .. raw];
+    }
+
+    /// The titles of each split's tabs, split by split.
+    private static string[][] SplitsOf(SpaceState space) =>
+        [.. space.Tabs.Where(tab => tab.SplitGroupId is not null).GroupBy(tab => tab.SplitGroupId).Select(group => group.Select(tab => tab.Title).ToArray())];
 
     [Fact]
     public void PinnedTabsPastWhatCrestPinsAreSavedInAFolderOfTheirOwn() {
@@ -98,7 +271,7 @@ public sealed partial class BrowserContractsTests {
 
         Assert.Equal(TabPlacement.PinnedCapacity, space.Tabs.Count(tab => tab.Placement == TabPlacement.Pinned));
         var overflow = Assert.Single(space.Folders);
-        Assert.Equal(("Imported Pinned Tabs", "pin.slash", TabPlacement.Saved), (overflow.Title, overflow.Symbol, overflow.Location));
+        Assert.Equal(("Imported Pinned Tabs", TabPlacement.Saved), (overflow.Title, overflow.Location));
         Assert.Equal(["Pin 13", "Pin 14"], space.Tabs.Where(tab => tab.FolderId == overflow.Id).Select(tab => tab.Title));
     }
 

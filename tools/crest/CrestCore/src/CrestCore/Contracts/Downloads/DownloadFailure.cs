@@ -15,7 +15,7 @@ public sealed class DownloadFailure {
     public static readonly DownloadFailure NoSpace = new(name: "noSpace", message: "There isn’t enough disk space to save the file.");
     public static readonly DownloadFailure FileAccess = new(name: "fileAccess", message: "The file couldn’t be saved in its folder.");
     public static readonly DownloadFailure FolderUnavailable = new(name: "folderUnavailable",
-        message: "The download folder is unavailable. Choose another folder in Space settings.");
+        message: "The Downloads folder is unavailable.");
     public static readonly DownloadFailure BlockedUnsafe = new(name: "blockedUnsafe",
         message: "This download was blocked because it could harm your computer.");
     public static readonly DownloadFailure BlockedInsecure = new(name: "blockedInsecure",

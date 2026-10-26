@@ -123,4 +123,24 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal((group, "", TabGroupColor.Cyan, false), (asked.GroupId, asked.Title, asked.Color, asked.IsCollapsed));
         Assert.Equal([reopened], asked.PageIds);
     }
+
+    [Fact]
+    public void DeletingAGroupsFolderRemovesItsTabsAndTakesEveryPageOutOfTheGroup() {
+        var session = TwoSpaceSession();
+        var space = SpaceId(session["spaces"]![0]!);
+        var (app, engine, binding, workspace, window) = PageHost(session);
+        using var disposal = app;
+        var (firstTab, firstPage) = LiveTab(app, engine, workspace, window, space, "https://one.example/");
+        var (secondTab, secondPage) = LiveTab(app, engine, workspace, window, space, "https://two.example/");
+        var group = Guid.NewGuid();
+        app.Report(engine, new PageGroupChanged(group, window, "Claude", TabGroupColor.Orange, IsCollapsed: false, [firstPage, secondPage]));
+
+        app.Send(new DeleteFolder(workspace, space, group));
+
+        var asked = Assert.IsType<GroupPages>(binding.Commands[^1]);
+        Assert.Equal(group, asked.GroupId);
+        Assert.Empty(asked.PageIds);
+        Assert.All(CurrentTabs(app, workspace, space), tab => Assert.Null(tab.FolderId));
+        Assert.DoesNotContain(CurrentTabs(app, workspace, space), tab => tab.Id == firstTab || tab.Id == secondTab);
+    }
 }

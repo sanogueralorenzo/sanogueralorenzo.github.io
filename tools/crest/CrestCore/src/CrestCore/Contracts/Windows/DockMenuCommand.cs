@@ -9,12 +9,10 @@ public sealed class DockMenuCommand {
     #region Static Variables
 
     public static readonly DockMenuCommand NewWindow = new(name: "newWindow", ShortcutCommand.NewWindow, title: "New Window");
-    public static readonly DockMenuCommand NewQuickWindow = new(name: "newQuickWindow", ShortcutCommand.NewQuickWindow,
-        title: "New Quick Window");
     public static readonly DockMenuCommand NewPrivateWindow = new(name: "newPrivateWindow", ShortcutCommand.NewPrivateWindow,
         title: "New Private Window");
 
-    public static IReadOnlyList<DockMenuCommand> All { get; } = [NewWindow, NewQuickWindow, NewPrivateWindow];
+    public static IReadOnlyList<DockMenuCommand> All { get; } = [NewWindow, NewPrivateWindow];
 
     #endregion
 

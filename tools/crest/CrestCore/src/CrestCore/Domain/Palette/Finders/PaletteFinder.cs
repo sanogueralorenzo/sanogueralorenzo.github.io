@@ -21,7 +21,7 @@ internal abstract class PaletteFinder {
 
     /// The signals that score this kind's rows, in the order they name a
     /// row's reason.
-    protected virtual IReadOnlyList<PaletteSignal> Signals => [PaletteSignal.Learned, PaletteSignal.Match];
+    protected virtual IReadOnlyList<PaletteSignal> Signals => [PaletteSignal.Match];
 
     /// What every row of this kind starts from.
     protected virtual int Bias => 0;
@@ -43,9 +43,6 @@ internal abstract class PaletteFinder {
 
     /// The rows the kind adds beside the address or search typed text runs.
     internal virtual IEnumerable<PaletteRow> Offers(PaletteContext context, PaletteQuery query, PaletteSuggestions question) => [];
-
-    /// The rows the kind adds before anything is typed, above every section.
-    internal virtual IEnumerable<PaletteRow> RestingOffers(PaletteContext context, PaletteSuggestions question) => [];
 
     #endregion
 

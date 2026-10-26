@@ -59,8 +59,7 @@ public sealed class SyncDeletionReason {
         if (archiveReason?.IsExplicitDeletion == true)
             return ExplicitDelete;
         if (archiveReason is not null)
-            return placement?.IsDurable != false ? null : archiveReason.IsCleanup
-                ? Retention : Superseded;
+            return placement?.IsDurable != false ? null : Superseded;
         return !owningSpaceRemains && IsExplicit ? ExplicitDelete : null;
     }
 

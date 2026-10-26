@@ -5,7 +5,7 @@ namespace CrestCore.Contracts;
 
 /// <summary>
 /// A Space: one browsing profile with its <see cref="Settings"/>, its tabs, folders
-/// and split metadata, and the history and archive it keeps. Space and profile are
+/// and the history and archive it keeps. Space and profile are
 /// one to one.
 /// </summary>
 public sealed record SpaceState(
@@ -14,7 +14,6 @@ public sealed record SpaceState(
     SpaceSettings Settings,
     IReadOnlyList<FolderState> Folders,
     IReadOnlyList<TabState> Tabs,
-    IReadOnlyList<SplitGroupState> SplitGroups,
     IReadOnlyList<ArchivedTabState> ArchivedTabs,
     IReadOnlyList<HistoryEntryState> History) {
     #region Types
@@ -40,11 +39,6 @@ public sealed record SpaceState(
         init => field = [.. value];
     } = [.. Tabs];
 
-    public IReadOnlyList<SplitGroupState> SplitGroups {
-        get;
-        init => field = [.. value];
-    } = [.. SplitGroups];
-
     public IReadOnlyList<ArchivedTabState> ArchivedTabs {
         get;
         init => field = [.. value];
@@ -54,7 +48,6 @@ public sealed record SpaceState(
         get;
         init => field = [.. value];
     } = [.. History];
-
 
     /// <summary>What the Space's sidebar lists, resolved from its tabs and folders. It is
     /// resolved once for the lists it reads; a copy made with <c>with</c> keeps it only
@@ -75,24 +68,17 @@ public sealed record SpaceState(
 
     #region Actions - Sidebar
 
-    /// <summary>Whether the Space's sidebar shows the section's rows: a section a person
-    /// may collapse shows them while the Space keeps its saved tabs expanded.</summary>
-    public bool Shows(TabPlacement section) {
-        ArgumentNullException.ThrowIfNull(section);
-        return !section.IsCollapsible || Settings.IsSavedTabsExpanded;
-    }
-
     /// <summary>The rows a person steps through in the Space's sidebar, in order; see
     /// <see cref="SidebarOutline.Stops"/>.</summary>
-    public IReadOnlyList<SidebarRow> Stops() => Sidebar.Stops(Folders, Shows);
+    public IReadOnlyList<SidebarRow> Stops() => Sidebar.Stops(Folders);
 
     /// <summary>The tab one step in <paramref name="direction"/> from the shown tab shows,
     /// or null; see <see cref="SidebarOutline.Step"/>.</summary>
-    public Guid? Step(Guid shownTabId, AdjacentDirection direction) => Sidebar.Step(shownTabId, direction, Folders, Shows);
+    public Guid? Step(Guid shownTabId, AdjacentDirection direction) => Sidebar.Step(shownTabId, direction, Folders);
 
     /// <summary>The tab a swipe in <paramref name="direction"/> from the shown tab reaches,
     /// or null at either end; see <see cref="SidebarOutline.Swipe"/>.</summary>
-    public Guid? Swipe(Guid shownTabId, AdjacentDirection direction) => Sidebar.Swipe(shownTabId, direction, Folders, Shows);
+    public Guid? Swipe(Guid shownTabId, AdjacentDirection direction) => Sidebar.Swipe(shownTabId, direction, Folders);
 
     /// <summary>The tab "Split With Next Tab" would add to the split of the shown tab
     /// <paramref name="shownTabId"/>: the first tab row after the row that holds it, in
@@ -115,7 +101,7 @@ public sealed record SpaceState(
     #region Actions - Imports
 
     /// The name and look the Space has, as a review or a setup offers them.
-    internal SpaceCustomization Customization => new(Settings.Name, Settings.Symbol, Settings.Accent, Settings.Look);
+    internal SpaceCustomization Customization => new(Settings.Name);
 
     /// The first of `destinations` not in `joined` whose name matches this
     /// Space's. Two Space names match on letters and digits only, ignoring
@@ -181,15 +167,6 @@ public sealed record SpaceState(
         return space;
     }
 
-    /// The Space with its open tabs unused at `now` for longer than its
-    /// cleanup lifetime archived, keeping `kept`, or itself when none are.
-    internal SpaceState CleanedUp(DateTimeOffset now, IReadOnlySet<Guid>? kept) {
-        if (Settings.BrowsingPreferences.CurrentTabCleanup.Lifetime is not { } lifetime) return this;
-        var edited = BrowserTabCollection.Restore(this);
-        edited.CleanupCurrentTabs(null, lifetime, now, kept?.ToArray());
-        return Tabs.SequenceEqual(edited.TabStates) ? this : edited.Capture(this);
-    }
-
     /// The dates as the stored format's seconds, which the removal policies read.
     private static double[] Seconds(IEnumerable<DateTimeOffset> dates) => dates.Select(StoredSessionCodec.Seconds).ToArray();
 
@@ -203,11 +180,10 @@ public sealed record SpaceState(
         && Settings == other.Settings
         && Folders.SequenceEqual(other.Folders)
         && Tabs.SequenceEqual(other.Tabs)
-        && SplitGroups.SequenceEqual(other.SplitGroups)
         && ArchivedTabs.SequenceEqual(other.ArchivedTabs)
         && History.SequenceEqual(other.History);
 
-    public override int GetHashCode() => HashCode.Combine(Id, ProfileId, Settings.Name, Tabs.Count, Settings.AccessPolicy);
+    public override int GetHashCode() => HashCode.Combine(Id, ProfileId, Settings.Name, Tabs.Count);
 
     #endregion
 }

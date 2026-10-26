@@ -26,10 +26,4 @@ public sealed record DeleteSiteData(Guid RequestId, Guid ProfileId, bool Ephemer
 
     #endregion
 
-    #region Actions - Access
-
-    /// Refused with `SpaceLocked` while a locked Space holds the profile.
-    internal override void Guard(Device device) => device.RefuseLockedProfile(ProfileId);
-
-    #endregion
 }

@@ -79,26 +79,11 @@ public static class NativeSyncProjection {
         for (int i = 0; i < spaces.Length; i++) {
             var space = spaces[i];
             var portable = Items(space, StoredSessionCodec.Key.Tabs).Where(t => PortableTab(t!)).Select(t => t!).ToArray();
-            var splitIds = portable.Where(t => t[StoredSessionCodec.Key.SplitGroupId] is not null)
-                .Select(t => Id(t[StoredSessionCodec.Key.SplitGroupId])).ToHashSet();
-            // A Space's profile, credentials choice, splits and position are
-            // its record's own; the rest is copied as the session holds it.
-            var spaceValue = Fields(space, StoredSessionCodec.Key.Id, StoredSessionCodec.Key.Name, StoredSessionCodec.Key.Symbol,
-                StoredSessionCodec.Key.Accent, StoredSessionCodec.Key.Branding, StoredSessionCodec.Key.BrowsingPreferences,
-                StoredSessionCodec.Key.AccessPolicy, StoredSessionCodec.Key.AccessPolicyModifiedAt, StoredSessionCodec.Key.IsSavedTabsExpanded,
-                StoredSessionCodec.Key.SavedTabsExpansionModifiedAt);
-            spaceValue[StoredSessionCodec.Key.ProfileId] = space[StoredSessionCodec.Key.Profile]![StoredSessionCodec.Key.Id]!.DeepClone();
-            if (space[StoredSessionCodec.Key.CredentialsEnabledModifiedAt] is { } credentialsModifiedAt) {
-                spaceValue[SyncPayload.Key.CredentialsEnabled] = StoredSessionCodec.DecodeCredentialPreferences(
-                    space[StoredSessionCodec.Key.CredentialPreferences] ?? new JsonObject()).IsEnabled;
-                spaceValue[StoredSessionCodec.Key.CredentialsEnabledModifiedAt] = credentialsModifiedAt.DeepClone();
-            }
+            var spaceValue = Fields(space, "id", "name", "spaceColor", "browsingPreferences",
+                "isGitHubFolderDismissed");
+            spaceValue["profileID"] = space["profile"]!["id"]!.DeepClone();
             SyncedText.SpaceName.Fit(spaceValue);
-            SyncedText.SpaceSymbol.Fit(spaceValue);
-            spaceValue[StoredSessionCodec.Key.SplitGroups] = new JsonArray(Items(space, StoredSessionCodec.Key.SplitGroups)
-                .Where(g => splitIds.Contains(Id(g![StoredSessionCodec.Key.Id]))).DistinctBy(g => Id(g![StoredSessionCodec.Key.Id]))
-                .Select(SplitGroup).ToArray());
-            spaceValue[SyncPayload.Key.OrderToken] = spaceTokens[i];
+            spaceValue["orderToken"] = spaceTokens[i];
             Add(SyncPayloadType.Space, spaceValue);
 
             if (policy.CurrentTabs || policy.SavedStructure) {
@@ -117,11 +102,11 @@ public static class NativeSyncProjection {
                     for (int j = 0; j < children.Length; j++) folderTokens[children[j].Id] = tokens[j];
                 }
                 foreach (var folder in display) {
-                    var value = Fields(byId[folder.Id], Copied(FolderPayload.Members));
-                    value[StoredSessionCodec.Key.SpaceId] = space[StoredSessionCodec.Key.Id]!.DeepClone();
-                    value[SyncPayload.Key.OrderToken] = folderTokens[folder.Id];
+                    var value = Fields(byId[folder.Id], "id", "title", "location", "color", "parentID",
+                        "isCollapsed", "collapseModifiedAt", "orderAnchorTabID", "liveFolderSource", "githubOptions");
+                    value["spaceID"] = space["id"]!.DeepClone();
+                    value["orderToken"] = folderTokens[folder.Id];
                     SyncedText.FolderTitle.Fit(value);
-                    SyncedText.FolderSymbol.Fit(value);
                     Add(SyncPayloadType.Folder, value);
                 }
             }
@@ -156,16 +141,10 @@ public static class NativeSyncProjection {
     }
 
     private static JsonObject Tab(JsonNode source, JsonNode spaceId, string token, bool archived) {
-        // The placement and what it holds are the tab's own as it sits now; a
-        // native view never syncs, so its content is never copied.
-        var value = Fields(source, StoredSessionCodec.Key.Id, StoredSessionCodec.Key.Title, StoredSessionCodec.Key.Url,
-            StoredSessionCodec.Key.Symbol, StoredSessionCodec.Key.LastActivatedAt, StoredSessionCodec.Key.PositionModifiedAt,
-            StoredSessionCodec.Key.CustomTitle, StoredSessionCodec.Key.TitleModifiedAt, StoredSessionCodec.Key.KeepsPageLoaded);
-        value[StoredSessionCodec.Key.SpaceId] = spaceId.DeepClone();
-        value[SyncPayload.Key.OrderToken] = token;
-        Spell(value, StoredSessionCodec.Key.Url);
-        value[StoredSessionCodec.Key.Placement] = archived
-            ? JsonValue.Create(TabPlacement.Current.Name) : source[StoredSessionCodec.Key.Placement]!.DeepClone();
+        var value = Fields(source, "id", "title", "url", "symbol", "lastActivatedAt", "positionModifiedAt", "customTitle", "titleModifiedAt");
+        value["spaceID"] = spaceId.DeepClone(); value["orderToken"] = token;
+        Spell(value, "url");
+        value["placement"] = archived ? JsonValue.Create(TabPlacement.Current.Name) : source["placement"]!.DeepClone();
         if (!archived) {
             if (SavedUrl(source) is { } saved) value[StoredSessionCodec.Key.SavedUrl] = new SyncedAddress(saved).Spelled ?? saved;
             // Only a placement that holds folders names one: a pinned tab never does.
@@ -186,13 +165,6 @@ public static class NativeSyncProjection {
     }
 
     /// A split's metadata as every client reads it.
-    private static JsonNode SplitGroup(JsonNode? source) {
-        var group = source!.DeepClone().AsObject();
-        SyncedText.SplitTitle.Fit(group);
-        SyncedText.SplitIcon.Fit(group);
-        return group;
-    }
-
     /// A visit as every client reads it: titled, counted at least once, and
     /// first visited no later than last. A session that holds it otherwise
     /// keeps it; only the record is fitted.

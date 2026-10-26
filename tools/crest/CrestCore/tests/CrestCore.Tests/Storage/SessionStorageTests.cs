@@ -111,7 +111,6 @@ public sealed unsafe partial class BrowserContractsTests {
         using (var app = new CrestApp(new AppConfiguration(directory.Path, DevicePlatform.Desktop))) {
             var spaces = StoredDocument(app)["spaces"]!.AsArray();
             Assert.Equal(["Work", "Personal"], spaces.Select(space => space!["name"]!.GetValue<string>()));
-            Assert.Equal("deviceOwnerAuthentication", spaces[1]!["accessPolicy"]!.GetValue<string>());
             Assert.Equal([13, 12], spaces.Select(space => space!["history"]!.AsArray().Count));
             Assert.Equal([12, 8], spaces.Select(space => space!["tabs"]!.AsArray().Count));
             var journal = JsonNode.Parse(app.StoredSync!.Snapshot.Read())!;
@@ -119,8 +118,33 @@ public sealed unsafe partial class BrowserContractsTests {
             Assert.Equal(27, journal["pendingRecordIDs"]!.AsArray().Count);
         }
 
-        // The launch save found nothing to change, and recovery kept the file as it was.
-        AssertSameParts(original, StoredParts(directory.File));
+        // Removed folder icons and tab-archive preferences stage their records for sync.
+        // Histories and every other journal field remain intact.
+        var expectedJournal = JsonNode.Parse(original["journal"])!;
+        var clock = expectedJournal["logicalClock"]!.GetValue<int>();
+        var pending = expectedJournal["pendingRecordIDs"]!.AsArray();
+        foreach (var record in expectedJournal["records"]!.AsArray().Where(record =>
+            record!["payload"]?["type"]?.GetValue<string>() is "folder" or "space")) {
+            var value = record!["payload"]!["value"]!.AsObject();
+            if (record["payload"]!["type"]!.GetValue<string>() == "folder") value.Remove("symbol");
+            if (value["browsingPreferences"] is JsonObject browsing) browsing.Remove("currentTabCleanupPolicy");
+            record["version"]!["logicalClock"] = ++clock;
+            if (!pending.Any(id => JsonNode.DeepEquals(id, record["id"]))) pending.Add(record["id"]!.DeepClone());
+        }
+        expectedJournal["logicalClock"] = clock;
+        expectedJournal["pendingRecordIDs"] = new JsonArray([.. pending.OrderBy(id =>
+            id!["kind"]!.GetValue<string>() + ":" + id["value"]!.GetValue<string>().ToLowerInvariant(),
+            StringComparer.Ordinal).Select(id => id!.DeepClone())]);
+        var actual = StoredParts(directory.File);
+        var differences = StoredJson.Differences(StoredJson.CurrentSessionFields(StoredCore(original)),
+            StoredCore(actual), StoredJson.Comparison.Exact);
+        Assert.True(differences.Count == 0, string.Join(Environment.NewLine, differences));
+        var journalDifferences = StoredJson.Differences(StoredJson.CurrentFields(expectedJournal.AsObject()),
+            JsonNode.Parse(actual["journal"]), StoredJson.Comparison.Exact);
+        Assert.True(journalDifferences.Count == 0, string.Join(Environment.NewLine, journalDifferences));
+        AssertSameParts(original.Where(part => part.Key is not ("core" or "journal")).ToDictionary(),
+            actual.Where(part => part.Key is not ("core" or "journal")).ToDictionary());
+        // Recovery keeps the last known-good checkpoint from before this launch.
         AssertSameParts(original, StoredParts(directory.Recovery));
     }
 
@@ -230,9 +254,8 @@ public sealed unsafe partial class BrowserContractsTests {
             var workspace = Assert.Single(app.Send(new OpenWorkspace(WorkspaceKind.Private, Seed: null)).OfType<WorkspaceOpened>());
             var space = Assert.Single(workspace.Session.Spaces);
             Assert.Equal(WorkspaceKind.Private, workspace.Kind);
-            Assert.Equal(("Private", "eyeglasses", BuiltInSearchProvider.DuckDuckGo, CurrentTabCleanup.Never, false),
-                (space.Settings.Name, space.Settings.Symbol, space.Settings.BrowsingPreferences.SelectedBuiltInEngine,
-                    space.Settings.BrowsingPreferences.CurrentTabCleanup, space.Settings.CredentialPreferences.IsEnabled));
+            Assert.Equal(("Private", ContentBlockingPolicy.Balanced),
+                (space.Settings.Name, space.Settings.BrowsingPreferences.ContentBlocking));
             Assert.Single(space.Tabs);
 
             // What it browses stays in memory: nothing is saved or staged.
@@ -240,7 +263,7 @@ public sealed unsafe partial class BrowserContractsTests {
             app.Send(new OpenWindow(window, workspace.WorkspaceId, Saved: false, null, null, [], RestoresTabs: true));
             app.Send(new OpenTab(workspace.WorkspaceId, window, space.Id, Guid.NewGuid(),
                 new TabContent("https://private.example/", null, "Private page"), TabPlacement.Current, null, false));
-            app.Send(new SetSpaceIdentity(workspace.WorkspaceId, space.Id, "Renamed in private", "eyeglasses", SpaceAccent.Teal));
+            app.Send(new SetSpaceIdentity(workspace.WorkspaceId, space.Id, "Renamed in private"));
             Assert.Null(app.Workspace(workspace.WorkspaceId).Storage);
             Assert.Same(staged, sync.Snapshot);
             Assert.DoesNotContain(app.Drain(), change => change is Saved or SyncJournalChanged);

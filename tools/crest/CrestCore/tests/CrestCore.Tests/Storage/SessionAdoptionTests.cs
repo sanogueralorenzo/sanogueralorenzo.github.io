@@ -39,7 +39,7 @@ public sealed partial class BrowserContractsTests {
     private static JsonObject StoredDocument(CrestApp app) => StoredSessionCodec.Encode(StoredSession(app).Current);
 
     private static void AssertSameSession(JsonObject expected, JsonNode actual) {
-        var differences = StoredJson.Differences(expected, actual, StoredJson.Comparison.AsSwiftReads);
+        var differences = StoredJson.Differences(StoredJson.CurrentSessionFields(expected), actual, StoredJson.Comparison.AsSwiftReads);
         Assert.True(differences.Count == 0, string.Join(Environment.NewLine, differences));
     }
 
@@ -64,9 +64,8 @@ public sealed partial class BrowserContractsTests {
             AssertSameSession(expected, stored);
             var spaces = stored["spaces"]!.AsArray();
             Assert.Equal([13, 12], spaces.Select(space => space!["history"]!.AsArray().Count));
-            Assert.Contains(spaces, space => space!["accessPolicy"]!.GetValue<string>() == "deviceOwnerAuthentication");
             Assert.Contains(spaces.SelectMany(space => space!["tabs"]!.AsArray()), tab => tab!["faviconURL"] is not null);
-            Assert.NotEmpty(spaces.SelectMany(space => space!["splitGroups"]!.AsArray()));
+            Assert.Contains(spaces.SelectMany(space => space!["tabs"]!.AsArray()), tab => tab!["splitGroupID"] is not null);
             Assert.NotEmpty(spaces.SelectMany(space => space!["archivedTabs"]!.AsArray()));
             // A window without a record of its own still adopts the tabs the release showed.
             var window = Assert.IsType<WindowChanged>(Assert.Single(Own(app.Send(new OpenWindow(Guid.NewGuid(),
@@ -168,7 +167,6 @@ public sealed partial class BrowserContractsTests {
         using var directory = new StorageDirectory();
         var (core, installed, _) = InstalledDefaults();
         var space = core["spaces"]![1]!.AsObject();
-        space["accent"] = "chartreuse";
         space["accessPolicy"] = "hardwareKeyRequired";
         var tab = space["tabs"]![0]!.AsObject();
         tab["placement"] = "hibernated";
@@ -180,10 +178,7 @@ public sealed partial class BrowserContractsTests {
 
         var spaces = StoredDocument(app)["spaces"]!.AsArray();
         Assert.Equal(core["spaces"]!.AsArray().Select(item => SpaceId(item!)), spaces.Select(item => SpaceId(item!)));
-        Assert.Equal("indigo", spaces[1]!["accent"]!.GetValue<string>());
         // An unreadable restriction keeps the Space guarded; none at all is open.
-        Assert.Equal("deviceOwnerAuthentication", spaces[1]!["accessPolicy"]!.GetValue<string>());
-        Assert.Equal("open", spaces[0]!["accessPolicy"]!.GetValue<string>());
         var carriedTab = spaces[1]!["tabs"]!.AsArray().Single(item => SpaceId(item!) == SpaceId(tab))!;
         Assert.Equal("saved", carriedTab["placement"]!.GetValue<string>());
         Assert.Null(carriedTab["storedIconMode"]);
@@ -213,6 +208,25 @@ public sealed partial class BrowserContractsTests {
             Assert.Equal(SpaceId(seed["spaces"]![0]!), SpaceId(StoredDocument(app)["spaces"]![0]!));
             Assert.False(File.Exists(directory.File + ".cloud-recovery"));
         }
+    }
+
+    /// A file with nothing to carry and no seed takes the session a first
+    /// launch starts with: one Personal Space in the Winter house look,
+    /// showing a Start Page, marked as the disposable seed. A launch without a
+    /// file asks the same session of the standalone answers.
+    [Fact]
+    public void AFileWithNothingToCarryTakesTheFirstInstallSession() {
+        using var directory = new StorageDirectory();
+        using var app = new CrestApp(new AppConfiguration(directory.Path, DevicePlatform.Desktop));
+        app.Send(new AdoptLegacySession(new LegacySession(Core: null, WholeGraph: null, [], Journal: null), Seed: null));
+
+        foreach (var session in new[] { StoredSession(app).Current, new StandaloneAnswers().Query(new FirstInstallSession()) }) {
+            var space = Assert.Single(session.Spaces);
+            Assert.Equal("Personal", space.Settings.Name);
+            Assert.True(Assert.Single(space.Tabs).IsStartPage);
+            Assert.NotNull(session.DisposableSeedMarker);
+        }
+        Assert.False(File.Exists(directory.File + ".cloud-recovery"));
     }
 
     [Fact]

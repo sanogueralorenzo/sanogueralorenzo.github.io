@@ -36,6 +36,7 @@ public sealed partial class BrowserContractsTests {
             StoredSessionCodec.DecodeSpace(FirstSpace(materialized)).Settings.BrowsingPreferences);
     }
 
+
     [Fact]
     public void NestedFoldersTravelInSiblingOrderWithTheirLook() {
         var session = OneSpaceSession();
@@ -96,6 +97,24 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal([null, group, group, group], tabs.Select(tab => SplitOf(tab!)));
     }
 
+    /// Positions, not the membership field, decide which tabs are neighbours: a
+    /// tab that is no member between two members interrupts the run, and repair
+    /// keeps the first run and clears the tail, the same way every time.
+    [Fact]
+    public void ANonMemberBetweenMembersClearsOnlyTheRunAfterIt() {
+        var group = Fixed(1_150);
+        var session = SplitSession([group, group, null, group]);
+        var journal = new JournalUnderTest(Fixed(1_151));
+        journal.Stage(session, at: 300);
+
+        var materialized = journal.Materialize(session);
+
+        var tabs = FirstSpace(materialized)["tabs"]!.AsArray();
+        Assert.Equal(Ids(FirstSpace(session)["tabs"]), Ids(tabs));
+        Assert.Equal([group, group, null, null], tabs.Select(tab => SplitOf(tab!)));
+        Assert.Equal([group, group, null, null], FirstSpace(journal.Materialize(materialized))["tabs"]!.AsArray().Select(tab => SplitOf(tab!)));
+    }
+
     /// A deletion's archive record is its audit trail. It cannot remove the live
     /// tab before the tab's own tombstone arrives, in whatever batch that is.
     [Fact]
@@ -141,53 +160,9 @@ public sealed partial class BrowserContractsTests {
         Assert.DoesNotContain(Fixed(102), ArchivedIds(materialized["archivedTabs"]));
     }
 
-    [Fact]
-    public void ANewerActivationDefeatsAStaleCleanupArchive() {
-        var session = OneSpaceSession(activated: 300);
-        var materialized = FirstSpace(CleanedUp(session, archivedAt: 200));
-
-        Assert.Equal([Fixed(102)], Ids(materialized["tabs"]));
-        Assert.Empty(materialized["archivedTabs"]!.AsArray());
-    }
-
     /// Whether a Space uses Crest Passwords travels with it once someone chose;
     /// this device's default Space and where each Space keeps its passwords
     /// stay its own.
-    [Fact]
-    public void MaterializingTakesWhetherASpaceUsesCrestPasswordsAndKeepsThisDevicesDefaultSpaceAndPasswordStorage() {
-        var source = SessionOf(FirstSpace(OneSpaceSession(Fixed(20_001), Fixed(20_002), Fixed(20_003))),
-            FirstSpace(OneSpaceSession(Fixed(20_004), Fixed(20_005), Fixed(20_006))));
-        source["spaces"]![1]!["credentialPreferences"] = new JsonObject {
-            ["isEnabled"] = false,
-            ["syncsCrestPasswordsWithICloud"] = true,
-            ["alsoOffersSaveToSystemPasswords"] = false
-        };
-        source["spaces"]![1]!["credentialsEnabledModifiedAt"] = 800_000_100.0;
-        var local = source.DeepClone().AsObject();
-        local["defaultSpaceID"] = SwiftId(Fixed(20_001));
-        local["spaces"]![0]!["credentialPreferences"] = new JsonObject { ["isEnabled"] = false };
-        local["spaces"]![1]!["credentialPreferences"] = new JsonObject {
-            ["isEnabled"] = true,
-            ["syncsCrestPasswordsWithICloud"] = false,
-            ["alsoOffersSaveToSystemPasswords"] = true
-        };
-        local["spaces"]![1]!.AsObject().Remove("credentialsEnabledModifiedAt");
-        var journal = new JournalUnderTest(Fixed(20));
-        journal.Stage(source);
-
-        var result = journal.Materialize(local);
-
-        Assert.Equal(Fixed(20_001), StoredSessionCodec.Identity(result["defaultSpaceID"]));
-        var chosen = StoredSessionCodec.DecodeSpace(SpaceIn(result, Fixed(20_004))).Settings;
-        Assert.Equal(new CredentialPreferences(IsEnabled: false, SyncsCrestPasswordsWithICloud: false, AlsoOffersSaveToSystemPasswords: true),
-            chosen.CredentialPreferences);
-        Assert.Equal(StoredSessionCodec.Date(800_000_100.0), chosen.CredentialsEnabledModifiedAt);
-        // A Space nobody chose for keeps this device's own choice.
-        Assert.False(StoredSessionCodec.DecodeSpace(SpaceIn(result, Fixed(20_001))).Settings.CredentialPreferences.IsEnabled);
-    }
-
-    /// A device that syncs neither current tabs nor history keeps its own of
-    /// both, and still takes the Space's other values.
     [Fact]
     public void CategoriesThisDeviceDoesNotSyncKeepItsOwnContent() {
         var remote = OneSpaceSession();
@@ -212,22 +187,6 @@ public sealed partial class BrowserContractsTests {
 
     /// The split a tab or tab record names, or null.
     private static Guid? SplitOf(JsonNode tab) => StoredSessionCodec.OptionalIdentity(tab["splitGroupID"]);
-
-    /// What `local` becomes once the cloud holds its tab and a cleanup archive
-    /// of it made `archivedAt` seconds after 1970, written after the tab.
-    private static JsonObject CleanedUp(JsonObject local, double archivedAt) {
-        var space = FirstSpace(local);
-        var tab = space["tabs"]![0]!.AsObject();
-        var journal = new JournalUnderTest(Fixed(16));
-        journal.Merge(SavedRecord(SyncRecordKind.Space, SpaceValue(space), 1, Fixed(200)),
-            SavedRecord(SyncRecordKind.Tab, TabValue(tab, Fixed(100)), 10, Fixed(14)),
-            SavedRecord(SyncRecordKind.Archive, new JsonObject {
-                ["tab"] = TabValue(tab, Fixed(100)),
-                ["archivedAt"] = At(archivedAt),
-                ["reason"] = "autoCleanup"
-            }, 20, Fixed(15)));
-        return journal.Materialize(local);
-    }
 
     #endregion
 }

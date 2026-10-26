@@ -27,17 +27,10 @@ final class SpaceModel: ObservedModel, Identifiable {
         set { publish(newValue, into: \.profileIDStorage, as: \.profileID) }
     }
     @ObservationIgnored private var profileIDStorage: UUID
-    /// What a person chose for each split. Membership stays on the tabs.
-    private(set) var splitGroups: [SplitGroupState] {
-        get { observed(\.splitGroupsStorage, as: \.splitGroups) }
-        set { publish(newValue, into: \.splitGroupsStorage, as: \.splitGroups) }
-    }
-    @ObservationIgnored private var splitGroupsStorage: [SplitGroupState]
-
     var value: SpaceState {
         SpaceState(
             id: id, profileID: profileID, settings: settings.value, folders: folders.values, tabs: tabs.values,
-            splitGroups: splitGroups, archivedTabs: archive.entries, history: history.entries,
+            archivedTabs: archive.entries, history: history.entries,
             sidebar: sidebar.outline(folders: folders.models))
     }
 
@@ -55,7 +48,6 @@ final class SpaceModel: ObservedModel, Identifiable {
         tabs = ObservedList(value.tabs)
         folders = ObservedList(value.folders)
         sidebar = SidebarModel(value.sidebar)
-        splitGroupsStorage = value.splitGroups
         history = HistoryModel(value.history)
         archive = ArchiveModel(value.archivedTabs)
     }
@@ -69,7 +61,6 @@ final class SpaceModel: ObservedModel, Identifiable {
         tabs.replace(with: value.tabs)
         folders.replace(with: value.folders)
         sidebar.replace(with: value.sidebar)
-        splitGroups = value.splitGroups
         history.replace(with: value.history)
         archive.replace(with: value.archivedTabs)
     }
@@ -93,10 +84,6 @@ final class SpaceModel: ObservedModel, Identifiable {
 
     func apply(_ change: FoldersChanged) {
         folders.apply(updated: change.updated, removed: change.removed, order: change.order)
-    }
-
-    func apply(_ change: SplitGroupsChanged) {
-        splitGroups = change.groups
     }
 
     func apply(_ change: SidebarChanged) {

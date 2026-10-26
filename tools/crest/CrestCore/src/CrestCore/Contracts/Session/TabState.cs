@@ -27,8 +27,7 @@ public sealed record TabState(
     DateTimeOffset LastActivatedAt,
     DateTimeOffset? PositionModifiedAt,
     string? CustomTitle,
-    DateTimeOffset? TitleModifiedAt,
-    bool KeepsPageLoaded) {
+    DateTimeOffset? TitleModifiedAt) {
     #region Variables
 
     /// <summary>How the tab's icon is filled: its stored mode, or for a tab written
@@ -79,7 +78,7 @@ public sealed record TabState(
 
     /// A new Start Page tab, last shown `now`.
     internal static TabState NewStartPage(Guid id, DateTimeOffset now) => new(id, TabKind.StartPage.Name, null, null, null,
-        TabKind.StartPage.Symbol, null, null, null, TabPlacement.Current, null, null, now, null, null, null, false);
+        TabKind.StartPage.Symbol, null, null, null, TabPlacement.Current, null, null, now, null, null, null);
 
     /// The tab as repair keeps it: a blank rename is no rename, edit clocks
     /// are whole milliseconds, and a Start Page wears its own title and symbol.

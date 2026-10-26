@@ -28,8 +28,7 @@ extension TabState.Seed {
         lastActivatedAt: Date = .now,
         positionModifiedAt: Date? = nil,
         customTitle: String? = nil,
-        titleModifiedAt: Date? = nil,
-        keepsPageLoaded: Bool = false
+        titleModifiedAt: Date? = nil
     ) {
         let address = nativeContent == nil ? url : nil
         self.init(
@@ -38,8 +37,7 @@ extension TabState.Seed {
             savedURL: nativeContent == nil ? (savedURL ?? (placement.isDurable ? address : nil))?.absoluteString : nil,
             symbol: symbol, faviconURL: faviconURL?.absoluteString, iconAccent: iconAccent, storedIconMode: iconMode,
             placement: placement, folderID: folderID, splitGroupID: splitGroupID, lastActivatedAt: lastActivatedAt,
-            positionModifiedAt: positionModifiedAt, customTitle: customTitle, titleModifiedAt: titleModifiedAt,
-            keepsPageLoaded: keepsPageLoaded)
+            positionModifiedAt: positionModifiedAt, customTitle: customTitle, titleModifiedAt: titleModifiedAt)
     }
 
     /// A Start Page tab to seed a Space with.
@@ -47,7 +45,7 @@ extension TabState.Seed {
         -> TabState.Seed
     {
         TabState.Seed(
-            id: id, title: startPageTitle, url: nil, symbol: startPageSymbol,
+            id: id, title: startPageTitle, url: nil as URL?, symbol: startPageSymbol,
             placement: placement,
             lastActivatedAt: lastActivatedAt)
     }

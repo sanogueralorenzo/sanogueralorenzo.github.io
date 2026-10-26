@@ -61,8 +61,6 @@ internal readonly struct BrowserDataValue(JsonObject value) {
     public BrandColor? OptionalColor(string key) {
         if (IsAbsent(key)) return null;
         var node = Object[key];
-        if (node is JsonValue name && name.GetValueKind() == JsonValueKind.String
-            && Tincture.Named(name.GetValue<string>()) is { } tincture) return tincture.Color;
         var color = Of(node);
         return new(Unit(color.Number("red")), Unit(color.Number("green")), Unit(color.Number("blue")),
             Unit(color.OptionalNumber("alpha") ?? 1));

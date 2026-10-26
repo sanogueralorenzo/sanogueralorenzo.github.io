@@ -46,7 +46,7 @@ public static class NativeSessionMaintenance {
         .Where(pair => pair.Source != pair.Copy)];
 
     /// Gives every Space, profile and tab its own identity, repairs folder trees,
-    /// pin limits, split runs and split metadata, keeps a Space that is being
+    /// pin limits and split runs, keeps a Space that is being
     /// deleted exactly as it was, and adds a Space when none would remain.
     internal static SessionState Repair(SessionState source, DateTimeOffset now, SpaceState? emptySpace, IIdSource ids,
         out IReadOnlyList<TabOrigin> origins) {
@@ -58,11 +58,7 @@ public static class NativeSessionMaintenance {
         IReadOnlyList<SpaceState> repaired = [.. spaces.Select((space, spaceIndex) =>
             pending.Contains(space.Id) ? repair.Kept(space, spaceIndex) : repair.Repaired(space, spaceIndex))];
         origins = repair.Origins;
-        // A launch Space that is gone falls back to the first Space that stays.
-        var active = repaired.Select(space => space.Id).ToHashSet();
-        var launch = source.DefaultSpaceId is { } chosen && active.Contains(chosen)
-            ? chosen : repaired.First(space => !pending.Contains(space.Id)).Id;
-        return source with { Spaces = repaired, DefaultSpaceId = launch };
+        return source with { Spaces = repaired };
     }
 
     /// `seed` repaired as a stored session is when it loads, stamped as the

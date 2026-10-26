@@ -1,41 +1,12 @@
 namespace CrestCore.Contracts;
 
-/// The palette's rows, in the groups it shows them, first to last. The first
-/// row is what Return activates: the best match when one clearly leads, else
-/// the address or search for the text. `Completion` completes the text as an
-/// address the Space already knows, or is null. `SuggestionAddress` is where
-/// the platform may fetch search suggestions for the text, or null when the
-/// window is private, the Space does not offer them, the person narrowed the
-/// palette, or the provider has none. `OfferedSearch` is the search provider
-/// Tab would enter for the text, and `OfferedScope` the scope; each is null
-/// when Tab offers none. `MatchingProviders` are every provider the text
-/// names or starts to name while it is one word, closest first, which the
-/// palette offers as chips. `Entry` is the provider or scope the text names
-/// in the palette's notation, which the platform enters at once, or null.
+/// The palette's fixed result groups, optional address completion, Google suggestions address,
+/// offered local scope and any @ scope entered by the text. Private windows never request suggestions.
 public sealed record PaletteAnswer(IReadOnlyList<PaletteGroup> Groups, AddressCompletion? Completion, string? SuggestionAddress,
-    SearchOffer? OfferedSearch, PaletteScope? OfferedScope, IReadOnlyList<SearchProvider> MatchingProviders, PaletteEntry? Entry) {
-    #region Variables
+    PaletteScope? OfferedScope, PaletteEntry? Entry);
 
-    /// Collections are owned when constructed or replaced on a copy.
-    public IReadOnlyList<SearchProvider> MatchingProviders {
-        get;
-        init => field = [.. value];
-    } = [.. MatchingProviders];
-
-    #endregion
-}
-
-/// What a person typed in the palette's notation: `$` and a search
-/// provider's shortcut or name, or a scope's `@` keyword, then a space. The
-/// platform enters `Provider` or `Scope`, whichever is set, without waiting
-/// for Tab, and keeps `Text`, what followed the space, as what is typed.
-public sealed record PaletteEntry(SearchProvider? Provider, PaletteScope? Scope, string Text);
-
-/// The search provider Tab enters for what a person typed: the closest that
-/// the text names or starts to name. Tab takes the offer over accepting a
-/// completion when the text is exactly one of the provider's shortcuts,
-/// `BeatsCompletion`; any other waits until no completion shows.
-public sealed record SearchOffer(SearchProvider Provider, bool BeatsCompletion);
+/// A local @ scope and the text that follows it.
+public sealed record PaletteEntry(PaletteScope Scope, string Text);
 
 /// Completes what a person typed, `Typed`, as an address the Space already
 /// knows: `Suffix` follows the text as typed, and accepting the completion
@@ -47,7 +18,7 @@ public sealed record AddressCompletion(string Typed, string Suffix, string Accep
 public sealed record PaletteGroup(PaletteSection Section, IReadOnlyList<PaletteRow> Rows);
 
 /// One thing the palette offers. Activating it shows `TabId`, opens `Address`,
-/// performs `Command`, enters the search provider `Provider`, opens the settings page
+/// performs `Command`, opens the settings page
 /// `SettingsPage` or narrows to `Scope`, whichever it names. `SubjectId` is
 /// what the row stands for when that is not its target: the folder a folder
 /// row opens the first tab of, a history entry, a Space to switch to or an

@@ -47,99 +47,7 @@
         },
         "currentTabCleanupPolicy" : "after7Days"
       },
-      "isSavedTabsExpanded" : false,
-      "savedTabsExpansionModifiedAt" : 780123475.7891234,
-      "symbol" : "star.fill",
       "name" : "Everything",
-      "accessPolicy" : "deviceOwnerAuthentication",
-      "branding" : {
-        "renderingVersion" : 5,
-        "bannerPattern" : "quartered",
-        "colors" : [
-          {
-            "green" : 0.2,
-            "red" : 0.1,
-            "blue" : 0.3,
-            "alpha" : 1
-          },
-          {
-            "green" : 0.5,
-            "red" : 0.4,
-            "blue" : 0.6,
-            "alpha" : 0.8
-          },
-          {
-            "green" : 0.8,
-            "red" : 0.7,
-            "blue" : 0.9,
-            "alpha" : 1
-          }
-        ],
-        "gradientAngle" : 135,
-        "themeMode" : "gradient",
-        "bannerStrength" : 0.8,
-        "iconStyle" : "layeredCrest",
-        "readabilityFade" : 0.4,
-        "textColorMode" : "light",
-        "hasCustomAppearance" : true,
-        "crest" : {
-          "ordinaryColorIndex" : 1,
-          "divisionCount" : 6,
-          "symbolColorIndex" : 1,
-          "chargeWeight" : "light",
-          "depth" : "lifted",
-          "edgeWidth" : 0.5,
-          "showsOutline" : true,
-          "plateScale" : 0.9,
-          "sealTeeth" : 18,
-          "sheenAngle" : 90,
-          "symbol" : "griffin",
-          "backplateColorIndex" : 1,
-          "trimColorIndex" : 0,
-          "palette" : [
-            {
-              "green" : 0.1,
-              "red" : 0.3,
-              "blue" : 0.2,
-              "alpha" : 1
-            },
-            {
-              "green" : 0.7,
-              "red" : 0.9,
-              "blue" : 0.3,
-              "alpha" : 1
-            }
-          ],
-          "trimWeight" : 1.5,
-          "edgeColorIndex" : 1,
-          "ordinaryWidth" : 1.2,
-          "fieldDivision" : "gyronny",
-          "secondaryFieldColorIndex" : 0,
-          "chargeScale" : 1.2,
-          "charge" : {
-            "kind" : "monogram",
-            "value" : "AB",
-            "style" : "sans"
-          },
-          "finish" : "sheen",
-          "ordinary" : "chevron",
-          "backplate" : "frenchShield",
-          "trim" : "beaded",
-          "chargeLayout" : "ring",
-          "chargeOffset" : 0.1,
-          "startingPresetID" : "winter",
-          "trimDetail" : 16
-        },
-        "folderColorIntensity" : 0.6,
-        "keepsControlsReadable" : true,
-        "symbolColor" : {
-          "green" : 0.85,
-          "red" : 0.9,
-          "blue" : 0.2,
-          "alpha" : 1
-        },
-        "showsTexture" : true
-      },
       "folders" : [
         {
           "location" : "saved",
@@ -153,11 +61,9 @@
             "red" : 0.2,
             "blue" : 0.6,
             "alpha" : 0.5
-          },
-          "symbol" : "books.vertical"
+          }
         },
         {
-          "symbol" : "crest.emoji:📚",
           "location" : "saved",
           "id" : {
             "rawValue" : "103A72E0-C616-41BC-A248-CA740907813F"
@@ -187,8 +93,7 @@
             "red" : 0.43,
             "blue" : 0.54,
             "alpha" : 1
-          },
-          "symbol" : "folder"
+          }
         },
         {
           "isCollapsed" : false,
@@ -196,7 +101,6 @@
           "id" : {
             "rawValue" : "72ACEC3C-6348-4403-89C3-76E1901AA666"
           },
-          "symbol" : "tray",
           "orderAnchorTabID" : {
             "rawValue" : "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
           },
@@ -229,8 +133,7 @@
             "blue" : 0.75
           },
           "customTitle" : "Mail",
-          "url" : "https://pinned.example/inbox?view=all#top",
-          "keepsPageLoaded" : true
+          "url" : "https://pinned.example/inbox?view=all#top"
         },
         {
           "id" : {
@@ -248,8 +151,7 @@
             "rawValue" : "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
           },
           "lastActivatedAt" : 780123463.7891234,
-          "positionModifiedAt" : 780123464.789,
-          "keepsPageLoaded" : false
+          "positionModifiedAt" : 780123464.789
         },
         {
           "lastActivatedAt" : 780123460.7891234,
@@ -273,11 +175,9 @@
             "rawValue" : "103A72E0-C616-41BC-A248-CA740907813F"
           },
           "customTitle" : "Reading",
-          "url" : "https://news.example/article/42",
-          "keepsPageLoaded" : false
+          "url" : "https://news.example/article/42"
         },
         {
-          "keepsPageLoaded" : true,
           "symbol" : "globe",
           "id" : {
             "rawValue" : "428CAA9C-9A7A-4386-B120-F6096032C167"
@@ -301,7 +201,6 @@
           "faviconURL" : "https://left.example/f.ico"
         },
         {
-          "keepsPageLoaded" : false,
           "symbol" : "globe",
           "id" : {
             "rawValue" : "942AC076-B0D8-454B-9EEB-3791E6113F77"
@@ -326,7 +225,6 @@
           "id" : {
             "rawValue" : "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
           },
-          "keepsPageLoaded" : false,
           "lastActivatedAt" : 780123470.7891234,
           "symbol" : "flag.fill"
         }
@@ -358,8 +256,7 @@
               "blue" : 0.75
             },
             "customTitle" : "CLOSED",
-            "url" : "https://archive.example/closed",
-            "keepsPageLoaded" : true
+            "url" : "https://archive.example/closed"
           },
           "archivedAt" : 780123479.7891234
         },
@@ -383,8 +280,7 @@
               "blue" : 0.75
             },
             "customTitle" : "DELETED",
-            "url" : "https://archive.example/deleted",
-            "keepsPageLoaded" : true
+            "url" : "https://archive.example/deleted"
           },
           "archivedAt" : 780123489.7891234,
           "deletionOrigin" : "local"
@@ -409,8 +305,7 @@
               "blue" : 0.75
             },
             "customTitle" : "REMOTE",
-            "url" : "https://archive.example/remote",
-            "keepsPageLoaded" : true
+            "url" : "https://archive.example/remote"
           },
           "archivedAt" : 780123499.7891234,
           "deletionOrigin" : "remote"
@@ -435,13 +330,12 @@
               "blue" : 0.75
             },
             "customTitle" : "CLEANUP",
-            "url" : "https://archive.example/cleanup",
-            "keepsPageLoaded" : true
+            "url" : "https://archive.example/cleanup"
           },
           "archivedAt" : 780123509.7891234
         },
         {
-          "reason" : "quickWindow",
+          "reason" : "closed",
           "tab" : {
             "lastActivatedAt" : 780123516.7891234,
             "faviconURL" : "https://archive.example/favicon.ico",
@@ -460,8 +354,7 @@
               "blue" : 0.75
             },
             "customTitle" : "QUICK",
-            "url" : "https://archive.example/quick",
-            "keepsPageLoaded" : true
+            "url" : "https://archive.example/quick"
           },
           "archivedAt" : 780123519.7891234
         },
@@ -485,13 +378,11 @@
               "blue" : 0.75
             },
             "customTitle" : "SYNCED",
-            "url" : "https://archive.example/synced",
-            "keepsPageLoaded" : true
+            "url" : "https://archive.example/synced"
           },
           "archivedAt" : 780123529.7891234
         }
       ],
-      "accent" : "rose",
       "splitGroups" : [
         {
           "iconModifiedAt" : 780123473.789,
@@ -517,16 +408,12 @@
       }
     },
     {
-      "history" : [
-
-      ],
+      "history" : [],
       "browsingPreferences" : {
         "contentBlockingPolicy" : "balanced",
         "searchSuggestionsEnabled" : false,
         "searchProvider" : "duckDuckGo",
-        "customSearchProviders" : [
-
-        ],
+        "customSearchProviders" : [],
         "selectedSearchProviderID" : "duckDuckGo",
         "dataRetention" : {
           "archive" : "forever",
@@ -535,66 +422,8 @@
         },
         "currentTabCleanupPolicy" : "never"
       },
-      "isSavedTabsExpanded" : true,
-      "symbol" : "square.grid.2x2.fill",
       "name" : "Plain",
-      "accessPolicy" : "open",
-      "branding" : {
-        "renderingVersion" : 5,
-        "bannerPattern" : "diagonal",
-        "colors" : [
-          {
-            "green" : 0.49,
-            "red" : 0.12,
-            "blue" : 0.52,
-            "alpha" : 1
-          }
-        ],
-        "gradientAngle" : 0,
-        "themeMode" : "banner",
-        "bannerStrength" : 1,
-        "iconStyle" : "simpleSymbol",
-        "readabilityFade" : 0.25,
-        "textColorMode" : "automatic",
-        "crest" : {
-          "ordinaryColorIndex" : 0,
-          "divisionCount" : 4,
-          "symbolColorIndex" : 0,
-          "chargeWeight" : "bold",
-          "depth" : "none",
-          "edgeWidth" : 0,
-          "showsOutline" : false,
-          "plateScale" : 1,
-          "sealTeeth" : 12,
-          "sheenAngle" : 45,
-          "symbol" : "dragon",
-          "backplateColorIndex" : 0,
-          "trimColorIndex" : 0,
-          "edgeColorIndex" : 0,
-          "trimWeight" : 1,
-          "ordinaryWidth" : 1,
-          "fieldDivision" : "plain",
-          "secondaryFieldColorIndex" : 0,
-          "chargeScale" : 1,
-          "charge" : {
-            "kind" : "emoji",
-            "value" : "🦊"
-          },
-          "finish" : "flat",
-          "ordinary" : "none",
-          "backplate" : "shield",
-          "trim" : "none",
-          "chargeLayout" : "single",
-          "chargeOffset" : 0,
-          "trimDetail" : 12
-        },
-        "folderColorIntensity" : 0,
-        "keepsControlsReadable" : true,
-        "showsTexture" : false
-      },
-      "folders" : [
-
-      ],
+      "folders" : [],
       "tabs" : [
         {
           "symbol" : "globe",
@@ -604,8 +433,7 @@
           "title" : "Plain",
           "placement" : "current",
           "lastActivatedAt" : 780123556.7891234,
-          "url" : "https://plain.example/",
-          "keepsPageLoaded" : false
+          "url" : "https://plain.example/"
         }
       ],
       "id" : {
@@ -614,13 +442,8 @@
       "profile" : {
         "id" : "EF488B84-5E8C-40BA-8A63-808A89DDD3DB"
       },
-      "archivedTabs" : [
-
-      ],
-      "accent" : "teal",
-      "splitGroups" : [
-
-      ],
+      "archivedTabs" : [],
+      "splitGroups" : [],
       "credentialPreferences" : {
         "syncsCrestPasswordsWithICloud" : true,
         "alsoOffersSaveToSystemPasswords" : false,
@@ -628,16 +451,12 @@
       }
     },
     {
-      "history" : [
-
-      ],
+      "history" : [],
       "browsingPreferences" : {
         "contentBlockingPolicy" : "balanced",
         "searchSuggestionsEnabled" : false,
         "searchProvider" : "google",
-        "customSearchProviders" : [
-
-        ],
+        "customSearchProviders" : [],
         "selectedSearchProviderID" : "google",
         "dataRetention" : {
           "archive" : "forever",
@@ -646,72 +465,8 @@
         },
         "currentTabCleanupPolicy" : "after12Hours"
       },
-      "isSavedTabsExpanded" : true,
-      "symbol" : "leaf",
       "name" : "Leaving",
-      "accessPolicy" : "open",
-      "branding" : {
-        "renderingVersion" : 5,
-        "bannerPattern" : "diagonal",
-        "colors" : [
-          {
-            "green" : 0.27,
-            "red" : 0.85,
-            "blue" : 0.2,
-            "alpha" : 1
-          },
-          {
-            "green" : 0.67,
-            "red" : 0.88,
-            "blue" : 0.25,
-            "alpha" : 1
-          }
-        ],
-        "gradientAngle" : 0,
-        "themeMode" : "banner",
-        "bannerStrength" : 1,
-        "iconStyle" : "simpleSymbol",
-        "readabilityFade" : 0.25,
-        "textColorMode" : "automatic",
-        "crest" : {
-          "ordinaryColorIndex" : 0,
-          "divisionCount" : 4,
-          "symbolColorIndex" : 0,
-          "chargeWeight" : "bold",
-          "depth" : "none",
-          "edgeWidth" : 0,
-          "showsOutline" : false,
-          "plateScale" : 1,
-          "sealTeeth" : 12,
-          "sheenAngle" : 45,
-          "symbol" : "oak",
-          "backplateColorIndex" : 1,
-          "trimColorIndex" : 1,
-          "edgeColorIndex" : 1,
-          "trimWeight" : 1,
-          "ordinaryWidth" : 1,
-          "fieldDivision" : "plain",
-          "secondaryFieldColorIndex" : 1,
-          "chargeScale" : 1,
-          "charge" : {
-            "kind" : "system",
-            "value" : "star.fill"
-          },
-          "finish" : "flat",
-          "ordinary" : "none",
-          "backplate" : "shield",
-          "trim" : "none",
-          "chargeLayout" : "single",
-          "chargeOffset" : 0,
-          "trimDetail" : 12
-        },
-        "folderColorIntensity" : 0,
-        "keepsControlsReadable" : true,
-        "showsTexture" : false
-      },
-      "folders" : [
-
-      ],
+      "folders" : [],
       "tabs" : [
         {
           "placement" : "current",
@@ -719,7 +474,6 @@
           "id" : {
             "rawValue" : "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
           },
-          "keepsPageLoaded" : false,
           "lastActivatedAt" : 780123656.7891234,
           "symbol" : "flag.fill"
         }
@@ -730,13 +484,8 @@
       "profile" : {
         "id" : "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7"
       },
-      "archivedTabs" : [
-
-      ],
-      "accent" : "orange",
-      "splitGroups" : [
-
-      ],
+      "archivedTabs" : [],
+      "splitGroups" : [],
       "credentialPreferences" : {
         "syncsCrestPasswordsWithICloud" : true,
         "alsoOffersSaveToSystemPasswords" : false,
@@ -746,25 +495,7 @@
   ],
   "disposableSeedMarker" : "027A55FA-1FCB-48D5-B850-6525D2B18BB9",
   "appPreferences" : {
-    "savedTabFaviconReturnsToSavedURL" : true,
     "offersTranslation" : false,
-    "automaticallyTranslates" : true,
-    "splitFocusFollowsMouse" : true,
-    "automaticallyShowsDeveloperToolbar" : false,
-    "showsRecentTabs" : false,
-    "savedTabClosePolicy" : "returnToSavedURL",
-    "translationRules" : {
-      "sources" : {
-        "fr" : {
-          "targetID" : "de",
-          "isEnabled" : false
-        },
-        "es" : {
-          "targetID" : "en",
-          "isEnabled" : true
-        }
-      }
-    },
     "startupBehavior" : "lastActiveTab",
     "automaticallyEntersPictureInPicture" : false,
     "checksSpelling" : true

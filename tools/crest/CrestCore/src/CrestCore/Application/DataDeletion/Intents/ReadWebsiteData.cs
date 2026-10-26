@@ -14,7 +14,6 @@ public sealed record ReadWebsiteData(Guid RequestId, Guid ProfileId, bool Epheme
 
     internal override IReadOnlyList<Change> Route(CrestApp app) =>
         app.Turn(changes => {
-            app.Device.RefuseLockedProfile(ProfileId);
             var host = Host is null ? null : SiteDataReads.SiteName(Host);
             if (host is { Length: 0 or > DataDeletions.MaximumHostLength }) throw new Rejected(new InvalidSiteHost());
             app.SiteDataReads.Start(RequestId, ProfileId, Ephemeral, host, app.Device, changes, app.Issue);

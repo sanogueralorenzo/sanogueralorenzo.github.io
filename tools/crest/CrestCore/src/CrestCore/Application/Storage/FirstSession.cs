@@ -49,7 +49,7 @@ internal sealed record FirstSession(SessionState Session, NativeSyncJournal? Jou
         ArgumentNullException.ThrowIfNull(ids);
         var stamped = StoredSessionCodec.Date(StoredSessionCodec.Seconds(now));
         var space = SpaceTemplate.FirstInstall.Make(ids(), ids(), ids, number: 1, stamped);
-        return new([space], DefaultSpaceId: null, DisposableSeedMarker: ids(), SpaceDeletions: [], AppPreferences: null);
+        return new([space], DisposableSeedMarker: ids(), SpaceDeletions: [], AppPreferences: null);
     }
 
     /// The installed session with each Space's history from `history`, or null

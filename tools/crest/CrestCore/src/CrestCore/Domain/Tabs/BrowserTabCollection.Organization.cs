@@ -1,5 +1,3 @@
-using System.Text;
-
 using CrestCore.Contracts;
 
 namespace CrestCore.Domain;
@@ -7,7 +5,6 @@ namespace CrestCore.Domain;
 public sealed partial class BrowserTabCollection {
     #region Variables
 
-    private const int MaximumFolderSymbolBytes = 128;
     private const string UntitledFolderName = "Untitled Folder";
 
     #endregion
@@ -48,24 +45,15 @@ public sealed partial class BrowserTabCollection {
         return true;
     }
 
-    /// Whether the folder's symbol changed. A symbol is an SF Symbol name or an
-    /// emoji spelling, and never empty or longer than 128 UTF-8 bytes.
-    public bool SetFolderSymbol(Guid id, string symbol) {
-        var folder = KnownFolder(id);
-        if (symbol.Length == 0 || Encoding.UTF8.GetByteCount(symbol) > MaximumFolderSymbolBytes)
-            throw new Rejected(new InvalidFolderSymbol(MaximumFolderSymbolBytes));
-        if (folder.Symbol == symbol) return false;
-        folders[folders.IndexOf(folder)] = folder with { Symbol = symbol };
-        return true;
-    }
-
-    public void DeleteFolder(Guid id, DateTimeOffset now) {
-        var folder = KnownFolder(id);
-        var next = folders.Where(f => f.Id != id).Select(f => f.ParentId == id ? f with { ParentId = folder.ParentId } : f).ToArray();
-        var ordered = new FolderTree(next).DisplayOrder();
-        foreach (var tab in tabs.Where(t => t.FolderId == id))
-            tab.Place(tab.Placement, folder.ParentId, now, preservesSplit: true);
-        folders.Clear(); folders.AddRange(ordered);
+    /// Deletes the whole subtree and archives its tabs for recovery. Returns
+    /// the removed folders so their owners can dismiss live integrations too.
+    public IReadOnlyList<FolderState> DeleteFolder(Guid id, DateTimeOffset now) {
+        var removing = new FolderTree(folders).Subtree(id);
+        var deleted = folders.Where(folder => removing.Contains(folder.Id)).ToArray();
+        var members = tabs.Where(tab => tab.FolderId is { } folder && removing.Contains(folder)).Select(tab => tab.Id).ToArray();
+        DismissTabs(members, null, null, now, deleting: true, ensureSelection: false, resetArchivePlacement: true);
+        folders.RemoveAll(folder => removing.Contains(folder.Id));
+        return deleted;
     }
 
     private static void ValidateInsertion(IReadOnlyList<BrowserTab> remaining, int insertion) {
@@ -134,7 +122,9 @@ public sealed partial class BrowserTabCollection {
         if (destinationDepth + movingIds.Max(tree.Depth) - tree.Depth(id) >= FolderTree.MaximumDepth)
             throw new Rejected(new FolderDepthLimitReached(FolderTree.MaximumDepth));
         var destination = parent is { } owner ? tree.Folder(owner).Location : location ?? source.Location;
-        if (!destination.HoldsFolders) throw new Rejected(new InvalidFolderPlacement());
+        if (!destination.HoldsFolders || destination != TabPlacement.Saved
+            && folders.Any(folder => movingIds.Contains(folder.Id) && folder.Source is not null))
+            throw new Rejected(new InvalidFolderPlacement());
         if (beforeFolder is { } sibling && (movingIds.Contains(sibling) || KnownFolder(sibling).ParentId != parent
             || KnownFolder(sibling).Location != destination)) throw new Rejected(new InvalidFolderPlacement());
         var members = tabs.Where(t => t.FolderId is { } f && movingIds.Contains(f)).ToArray();

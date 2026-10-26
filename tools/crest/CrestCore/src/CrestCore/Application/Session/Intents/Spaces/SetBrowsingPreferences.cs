@@ -2,32 +2,28 @@ using CrestCore.Application;
 
 namespace CrestCore.Contracts;
 
-/// Sets when a Space cleans up open tabs, how it blocks content and how long
-/// it keeps what it browses. A Space whose cleanup or retention changed is
-/// swept under the new rules in the same edit. What it searches with and
-/// whether it suggests searches is `SetSpaceSearch`'s.
-public sealed record SetBrowsingPreferences(Guid WorkspaceId, Guid SpaceId, CurrentTabCleanup CurrentTabCleanup,
+/// Sets how a Space blocks content and how long it keeps browsing records.
+/// A Space whose retention changed is swept under the new rules in the same edit.
+public sealed record SetBrowsingPreferences(Guid WorkspaceId, Guid SpaceId,
     ContentBlockingPolicy ContentBlocking, DataRetentionPreferences DataRetention)
     : SessionIntent(WorkspaceId) {
     #region Actions - Session
 
-    /// Sets the Space's browsing preferences apart from its search. A
-    /// changed cleanup or retention sweeps the Space under the new rules in
+    /// Sets the Space's browsing preferences. A
+    /// changed retention sweeps the Space under the new rules in
     /// the same edit, which then stages as the records it expired.
     internal override SessionEdit? Edit(NativeSessionAuthority workspace, SessionTurn turn) {
         workspace.RequireOwnedSpaces();
         var space = workspace.Editable(turn.Basis, SpaceId);
         var before = space.Settings.BrowsingPreferences;
         var preferences = before with {
-            CurrentTabCleanup = CurrentTabCleanup,
             ContentBlocking = ContentBlocking,
             DataRetention = DataRetention
         };
         var configured = space.Configured(space.Settings with { BrowsingPreferences = preferences });
-        if (before.CurrentTabCleanup == preferences.CurrentTabCleanup && before.DataRetention == preferences.DataRetention)
+        if (before.DataRetention == preferences.DataRetention)
             return new(turn.Basis.Replacing(configured), SyncStaging.Edit);
-        var kept = workspace.TabsCleanupKeeps(turn);
-        var swept = configured.CleanedUp(turn.Now, kept).Retained(turn.Now);
+        var swept = workspace.Expired(configured, turn.Now);
         return new(turn.Basis.Replacing(swept),
             workspace.SameRecords(configured, swept) ? SyncStaging.Edit : SyncStaging.Expiry);
     }

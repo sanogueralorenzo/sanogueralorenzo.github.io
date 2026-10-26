@@ -28,10 +28,9 @@ public sealed partial class NativeSessionAuthority {
 
         /// The session with the edited organization, staged as `staging`, with
         /// what the window shows next and what the edit did that the states
-        /// cannot tell. Split metadata no tab uses goes with the edit.
+        /// cannot tell.
         public SessionEdit Result(SessionState basis, SyncStaging staging, SessionTabEvents? events = null,
             params SpaceState[] alsoEdited) {
-            Edited.PruneSplitMetadata();
             return new(basis.Replacing([Edited.Capture(Space), .. alsoEdited]), staging, FollowUp, events);
         }
 

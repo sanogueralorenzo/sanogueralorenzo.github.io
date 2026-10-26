@@ -62,13 +62,11 @@ public sealed record PageViewReady(Guid PageId) : EnginePagePresentation(PageId)
 /// The engine could not create the page, so it has no view to show.
 public sealed record PageViewUnavailable(Guid PageId) : EnginePagePresentation(PageId);
 
-/// A link in the page asked to open in Peek, as the core decided (`Decision`),
+/// A link in the page asked to open in page, as the core decided (`Decision`),
 /// and the engine kept the page where it was. `StagedLinkId` names the link the
-/// engine staged for the Peek's first load, which keeps its referrer and
-/// initiator; without one the Peek loads `Url` afresh. A Peek that does not
+/// engine staged for the page's first load, which keeps its referrer and
+/// initiator; without one the page loads `Url` afresh. A page that does not
 /// open discards the staged link.
-public sealed record PeekRequested(Guid PageId, string Url, LinkNavigationDecision Decision, Guid? StagedLinkId)
-    : EnginePagePresentation(PageId);
 
 /// The engine blocked a pop-up the document at `PageUrl` opened.
 public sealed record PopupBlocked(Guid PageId, string PageUrl) : EnginePagePresentation(PageId);
