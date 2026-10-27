@@ -8,6 +8,8 @@ import WebKit
 final class BrowserSessionOwner {
     var session: BrowserSession
     let persistence: BrowserPersistence
+    let webKitFeatures = BrowserWebKitFeatureFlagRegistry()
+    var webKitFlagsRequireRestart = false
     var pages: [UUID: BrowserPage] = [:]
     var profiles: [UUID: WKWebsiteDataStore] = [:]
     var integrations: [UUID: GitHubFolder] = [:]

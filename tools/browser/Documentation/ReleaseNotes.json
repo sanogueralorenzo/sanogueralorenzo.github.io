@@ -4677,6 +4677,10 @@
     "lean-broad-soft-fold-icon": {
       "category": "improved",
       "message": "Use the selected Broad Soft Fold ribbon icon, centered within its white square"
+    },
+    "lean-webkit-feature-flags": {
+      "category": "new",
+      "message": "Match Crest’s WebKit feature flags, saved overrides, 120 FPS control, and background scheduling preferences"
     }
   }
 }

@@ -22,6 +22,7 @@ extension BrowserStore {
         }
         let config = WKWebViewConfiguration()
         config.websiteDataStore = profile(for: record.spaceID)
+        configureWebKit(config.preferences)
         let view = WKWebView(frame: .zero, configuration: config)
         view.resumeDownload(fromResumeData: data) { [weak self, view] download in
             self?.beginDownload(download, spaceID: record.spaceID, restoring: record.id)
@@ -35,6 +36,7 @@ extension BrowserStore {
         else { return }
         let config = WKWebViewConfiguration()
         config.websiteDataStore = profile(for: record.spaceID)
+        configureWebKit(config.preferences)
         let view = WKWebView(frame: .zero, configuration: config)
         if let i = session.downloads.firstIndex(where: { $0.id == record.id }) {
             session.downloads[i].destination = nil

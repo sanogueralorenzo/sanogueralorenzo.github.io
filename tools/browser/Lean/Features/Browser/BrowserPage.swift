@@ -73,6 +73,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         if owner.preferences.blocksContent, let rules = BrowserContentBlocking.shared.ready {
             configuration.userContentController.add(rules)
         }
+        owner.configureWebKit(configuration.preferences)
         BrowserDesktopPictureInPictureAccess.enable(in: configuration.preferences)
         BrowserPictureInPictureContentBridge.shared.install(in: configuration.userContentController)
         webView = BrowserNativeWebView(frame: .zero, configuration: configuration)
