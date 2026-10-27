@@ -4705,6 +4705,10 @@
     "lean-native-window-control-positions": {
       "category": "fixed",
       "message": "Keep native window controls at their original AppKit positions to avoid refresh glitches."
+    },
+    "lean-system-titlebar-controls": {
+      "category": "improved",
+      "message": "Use AppKit’s unified titlebar to align window controls with Spaces without overriding native button positions."
     }
   }
 }

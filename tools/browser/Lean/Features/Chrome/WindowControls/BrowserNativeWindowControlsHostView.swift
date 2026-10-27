@@ -8,13 +8,14 @@ struct BrowserNativeWindowChromeSnapshot {
     let titleVisibility: NSWindow.TitleVisibility
     let titlebarSeparatorStyle: NSTitlebarSeparatorStyle
     let toolbar: NSToolbar?
+    let toolbarStyle: NSWindow.ToolbarStyle
     let contentFrameClipsToBounds: Bool
     let buttonVisibility: [(NSWindow.ButtonType, Bool)]
 }
 
 /// Styles the window that shows Lean's chrome, which acts as the window's
 /// title bar: the title bar is transparent and shows no title, and the
-/// window's own controls keep their standard AppKit positions.
+/// unified titlebar lets AppKit position its controls alongside Spaces.
 ///
 /// In fullscreen the title bar slides down over the page with the menu bar,
 /// so there it is the system's standard one while it is revealed, from the
@@ -36,6 +37,12 @@ final class BrowserNativeWindowControlsHostView: NSView {
 
     // MARK: - Variables
 
+    private lazy var titlebarToolbar: NSToolbar = {
+        let toolbar = NSToolbar(identifier: "LeanWindowTitlebar")
+        toolbar.displayMode = .iconOnly
+        toolbar.allowsUserCustomization = false
+        return toolbar
+    }()
     private var originalChrome: BrowserNativeWindowChromeSnapshot?
     private var windowObservers: [NSObjectProtocol] = []
     var isVisible = true {
@@ -124,6 +131,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
         window.titleVisibility = originalChrome.titleVisibility
         window.titlebarAppearsTransparent = originalChrome.titlebarAppearsTransparent
         window.titlebarSeparatorStyle = originalChrome.titlebarSeparatorStyle
+        window.toolbarStyle = originalChrome.toolbarStyle
         window.toolbar = originalChrome.toolbar
         window.contentView?.superview?.clipsToBounds =
             originalChrome.contentFrameClipsToBounds
@@ -141,6 +149,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
             titleVisibility: window.titleVisibility,
             titlebarSeparatorStyle: window.titlebarSeparatorStyle,
             toolbar: window.toolbar,
+            toolbarStyle: window.toolbarStyle,
             contentFrameClipsToBounds:
                 window.contentView?.superview?.clipsToBounds ?? false,
             buttonVisibility: Self.buttonTypes.map { type in
@@ -150,11 +159,10 @@ final class BrowserNativeWindowControlsHostView: NSView {
     }
 
     private func applyWindowShape(to window: NSWindow) {
-        // A toolbar, even an empty one, gives macOS windows larger corners.
-        // The sidebar supplies all chrome, so use the smaller titlebar-only shape.
-        if window.toolbar != nil {
-            window.toolbar = nil
-        }
+        // Let AppKit own button placement through its supported titlebar layout.
+        // An empty toolbar supplies the native layout without adding browser actions.
+        if window.toolbarStyle != .unified { window.toolbarStyle = .unified }
+        if window.toolbar !== titlebarToolbar { window.toolbar = titlebarToolbar }
         // Avoid resetting this during sidebar animation: AppKit redraws the frame.
         if let frameView = window.contentView?.superview, !frameView.clipsToBounds {
             frameView.clipsToBounds = true
