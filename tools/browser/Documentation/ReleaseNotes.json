@@ -4673,6 +4673,10 @@
     "lean-swept-ribbon-icon": {
       "category": "improved",
       "message": "Adopt a centered blue and cyan folded-ribbon icon with a red inner edge"
+    },
+    "lean-broad-soft-fold-icon": {
+      "category": "improved",
+      "message": "Use the selected Broad Soft Fold ribbon icon, centered within its white square"
     }
   }
 }
