@@ -78,6 +78,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
             configuration.userContentController.add(rules)
         }
         BrowserWebKitDefaults.apply(to: configuration.preferences)
+        configuration.applicationNameForUserAgent = BrowserPlatformUserAgent.applicationName
         BrowserDesktopPictureInPictureAccess.enable(in: configuration.preferences)
         BrowserPictureInPictureContentBridge.shared.install(in: configuration.userContentController)
         webView = BrowserNativeWebView(frame: .zero, configuration: configuration)

@@ -13,6 +13,7 @@
 		036A044BA40F1D8570109506 /* GitHubFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28A88C3A4AF0E32CF9658693 /* GitHubFolder.swift */; };
 		06CB4D40896BDE5CAE726FFA /* BrowserPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D4A67D8575FC45F928434D1 /* BrowserPalette.swift */; };
 		085D9E4EC5269509E7BAE501 /* BrowserShortcutHint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97285B72A6DA7FD12E13726B /* BrowserShortcutHint.swift */; };
+		0BC018DA6887C085E0C61464 /* BrowserPlatformUserAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBAE3CFE485947B54F0E7BA1 /* BrowserPlatformUserAgent.swift */; };
 		0F2C2226271FBA6441F47271 /* BrowserContentBlocking.swift in Sources */ = {isa = PBXBuildFile; fileRef = D06B4C3F1D60CFF010175747 /* BrowserContentBlocking.swift */; };
 		104F10B857D2CD713E0AB9C4 /* BrowserPage+ScreenCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD740168CC91CA6C2B4FFD64 /* BrowserPage+ScreenCapture.swift */; };
 		14D084FA94A61C56A1424906 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2ADA8DD947512AB34595A0CC /* WebKit.framework */; };
@@ -263,6 +264,7 @@
 		C6D00E7A3F1DB6C9C34DE44C /* MediaPlayer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MediaPlayer.framework; path = System/Library/Frameworks/MediaPlayer.framework; sourceTree = SDKROOT; };
 		C6FBD342678EA12655405714 /* LeanBrandTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeanBrandTheme.swift; sourceTree = "<group>"; };
 		C9D41FC3B7C0D6878B5D19D4 /* BrowserSidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSidebar.swift; sourceTree = "<group>"; };
+		CBAE3CFE485947B54F0E7BA1 /* BrowserPlatformUserAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserPlatformUserAgent.swift; sourceTree = "<group>"; };
 		CE3A8C3B1FD714EDA6529B0A /* BrowserStore+Folders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Folders.swift"; sourceTree = "<group>"; };
 		D0106AA0E3E41AEC76944878 /* BrowserSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSettings.swift; sourceTree = "<group>"; };
 		D06B4C3F1D60CFF010175747 /* BrowserContentBlocking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserContentBlocking.swift; sourceTree = "<group>"; };
@@ -480,6 +482,7 @@
 			isa = PBXGroup;
 			children = (
 				ED1972C72451C6076150DD86 /* BrowserNativeWebView.swift */,
+				CBAE3CFE485947B54F0E7BA1 /* BrowserPlatformUserAgent.swift */,
 				7D22B264A13F91CF27397DFE /* BrowserWebKitDefaults.swift */,
 			);
 			path = Pages;
@@ -863,6 +866,7 @@
 				CC400C88FEF63B808E2DDD9C /* BrowserPictureInPictureContentBridge.swift in Sources */,
 				C774FC8CFE52B0AC839A9ED2 /* BrowserPictureInPicturePageController.swift in Sources */,
 				7E01FC011A859D6AE15468B0 /* BrowserPictureInPictureScript.swift in Sources */,
+				0BC018DA6887C085E0C61464 /* BrowserPlatformUserAgent.swift in Sources */,
 				C17A97F5370AA05735115205 /* BrowserRecentSwitcher.swift in Sources */,
 				430E28A1EA3A3528F46D092E /* BrowserRoot.swift in Sources */,
 				A6E350800DD0D071BAC1C43D /* BrowserSearchSuggestionClient.swift in Sources */,

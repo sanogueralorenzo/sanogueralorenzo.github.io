@@ -4717,6 +4717,10 @@
     "lean-crest-sidebar-hover-dismissal": {
       "category": "fixed",
       "message": "Use Crest’s separate native edge and sidebar hover trackers so leaving the sidebar dismisses it and menu holds release correctly."
+    },
+    "lean-youtube-system-appearance": {
+      "category": "fixed",
+      "message": "Use Crest’s native Safari-compatible browser identification so YouTube follows the system’s dark appearance."
     }
   }
 }
