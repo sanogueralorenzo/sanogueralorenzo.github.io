@@ -25,7 +25,8 @@ Passkeys require an Apple-authorized browser signing profile and
 
 Reveal the sidebar within 32 points of the left edge; empty Spaces keep it visible.
 Drag its right edge to resize it. Settings includes default page zoom, per-Space
-content blocking with bundled uBlock Origin Lite in Complete mode and data retention.
+content blocking with bundled uBlock Origin Lite in Complete mode, EasyList Spanish,
+and data retention.
 Use ⌘L for addresses and commands, ⌘T for a new tab, ⌃Tab for recent tabs,
 and ⌥⌘←/→ to switch Spaces. On saved tabs, ⌘W returns to the saved address,
 then sleeps the page and selects another loaded tab.

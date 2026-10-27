@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Vendor an official Safari release with Complete filtering and a startup handshake."""
+"""Vendor an official Safari release with Complete mode, Spanish rules and a startup handshake."""
 
 import hashlib
 import io
@@ -15,10 +15,25 @@ def package(archive):
     manifest = json.loads(source.read("manifest.json"))
     manifest["permissions"].append("nativeMessaging")
     background = source.read("js/background.js").decode()
+    environment = source.read("js/ext.js").decode()
+    safari_check = "if ( extURL.startsWith('safari-web-extension:') ) { return 'safari'; }"
+    if environment.count(safari_check) != 1:
+        raise ValueError("Upstream runtime detection changed; review the WebKit adaptation")
+    environment = environment.replace(safari_check,
+        "if ( extURL.startsWith('safari-web-extension:') || extURL.startsWith('webkit-extension:') ) { return 'safari'; }")
     success = "const isFullyInitialized = start().then(( ) => {"
     failure = "}).catch(reason => {\n    ubolErr(reason);"
-    if background.count(success) != 1 or background.count(failure) != 1:
+    bootstrap = "async function start() {\n    await loadRulesetConfig();"
+    if background.count(success) != 1 or background.count(failure) != 1 or background.count(bootstrap) != 1:
         raise ValueError("Upstream startup changed; review the Lean handshake before updating")
+    background = background.replace(bootstrap, bootstrap + "\n" +
+        "    const leanRulesets = rulesetConfig.enabledRulesets.filter(id => id !== 'spa-1');\n" +
+        "    if ( leanRulesets.includes('spa-0') === false ) { leanRulesets.push('spa-0'); }\n" +
+        "    if ( JSON.stringify(leanRulesets) !== JSON.stringify(rulesetConfig.enabledRulesets) || rulesetConfig.strictBlockMode !== false ) {\n" +
+        "        rulesetConfig.enabledRulesets = leanRulesets;\n" +
+        "        rulesetConfig.strictBlockMode = false; // Match the upstream Safari default.\n" +
+        "        await saveRulesetConfig();\n" +
+        "    }\n")
     background = background.replace(success, "const isFullyInitialized = start().then(async () => {\n" +
         "    if ( await getDefaultFilteringMode() !== 3 ) {\n" +
         "        await setDefaultFilteringMode(3); // Lean uses uBOL Complete filtering.\n" +
@@ -31,6 +46,7 @@ def package(archive):
     replacements = {
         "manifest.json": (json.dumps(manifest, indent=2) + "\n").encode(),
         "js/background.js": background.encode(),
+        "js/ext.js": environment.encode(),
     }
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as target:
@@ -60,7 +76,7 @@ def main():
         "archive": asset["browser_download_url"],
         "upstreamSHA256": digest.removeprefix("sha256:"),
         "bundledSHA256": hashlib.sha256(bundled).hexdigest(),
-        "changes": "Enabled Complete filtering and added nativeMessaging success/error startup messages to Lean; filtering algorithms and rules are unchanged.",
+        "changes": "Recognize WebKit's extension scheme as the Safari runtime, enable Complete filtering and EasyList Spanish (spa-0), exclude Spanish/Portuguese (spa-1), and add nativeMessaging startup messages; filtering algorithms and rules are unchanged.",
     }
     (resources / "uBlockOriginLite.json").write_text(json.dumps(metadata, indent=2) + "\n")
     print(f"Bundled uBlock Origin Lite {version}")
