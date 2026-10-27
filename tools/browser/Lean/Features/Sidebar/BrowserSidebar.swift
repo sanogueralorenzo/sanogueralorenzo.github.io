@@ -19,6 +19,7 @@ struct BrowserSidebar: View {
             }
             .padding(.horizontal, SidebarGeometry.titlebarHorizontalInset)
             .frame(height: SidebarGeometry.titlebarHeight)
+            .background(BrowserWindowTitleBarSurface())
             navigation.padding(.bottom, 4)
             if !store.activeSpace.isPrivate, let playing = store.playingPage { nowPlaying(playing) }
             if let utility = store.utility {

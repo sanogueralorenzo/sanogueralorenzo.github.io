@@ -4725,6 +4725,10 @@
     "lean-aligned-controls-small-corners": {
       "category": "fixed",
       "message": "Keep standard AppKit window controls aligned with Spaces through refreshes without enlarging the window corners."
+    },
+    "lean-sidebar-header-window-drag": {
+      "category": "fixed",
+      "message": "Let the empty header beside window and Space controls drag the window and follow the system’s titlebar double-click action."
     }
   }
 }
