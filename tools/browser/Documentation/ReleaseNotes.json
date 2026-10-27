@@ -4657,6 +4657,10 @@
     "fork-lean-browser-branding": {
       "category": "improved",
       "message": "Rename the native browser to Lean, including its app identity, project, assets, and data paths"
+    },
+    "lean-now-playing-artwork-concurrency": {
+      "category": "fixed",
+      "message": "Prevent crashes when macOS requests Now Playing artwork or media commands on background queues"
     }
   }
 }

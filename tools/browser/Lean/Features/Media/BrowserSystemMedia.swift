@@ -15,13 +15,13 @@ import AppKit
             (center.previousTrackCommand, "previoustrack"), (center.skipForwardCommand, "seekforward"),
             (center.skipBackwardCommand, "seekbackward"),
         ] {
-            let target = command.addTarget { [weak self] _ in
+            let target = command.addTarget { @Sendable [weak self] _ in
                 Task { @MainActor in self?.perform(action) }
                 return .success
             }
             targets.append((command, target))
         }
-        let target = center.changePlaybackPositionCommand.addTarget { [weak self] event in
+        let target = center.changePlaybackPositionCommand.addTarget { @Sendable [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
             let time = event.positionTime
             Task { @MainActor in self?.perform("seekto", time: time) }
@@ -49,7 +49,7 @@ import AppKit
             MPNowPlayingInfoPropertyExternalContentIdentifier: page.id.uuidString,
         ]
         if let data = page.favicon, let image = NSImage(data: data) {
-            info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+            info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: image.size) { @Sendable _ in image }
         }
         center.nowPlayingInfo = info
         center.playbackState = page.isPlaying ? .playing : .paused
