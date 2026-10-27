@@ -5,9 +5,8 @@ enum SidebarGeometry {
     static let widthRange: ClosedRange<CGFloat> = 280...380
     static let inset: CGFloat = 7
     static let hoverMargin: CGFloat = 32
-    // Match AppKit’s unified titlebar: controls center at 26pt, leading edge at 19pt.
-    static let titlebarHeight: CGFloat = 38
-    static let titlebarHorizontalInset: CGFloat = 12
+    static let titlebarHeight: CGFloat = 36
+    static let titlebarHorizontalInset: CGFloat = 16
     static let navigationSymbolPointSize: CGFloat = 15
     static let rowHeight = LeanLayout.sidebarRowHeight
 

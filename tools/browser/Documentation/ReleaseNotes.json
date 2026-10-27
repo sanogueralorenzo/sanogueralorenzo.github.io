@@ -4709,6 +4709,10 @@
     "lean-system-titlebar-controls": {
       "category": "improved",
       "message": "Use AppKit’s unified titlebar to align window controls with Spaces without overriding native button positions."
+    },
+    "lean-crest-window-corners": {
+      "category": "fixed",
+      "message": "Restore Crest’s smaller titlebar-only window corners while preserving the seven-point floating sidebar gap."
     }
   }
 }
