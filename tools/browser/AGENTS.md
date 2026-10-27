@@ -1,13 +1,7 @@
 # Lean
 
-- This app is macOS-only: SwiftUI/AppKit controls and direct WebKit calls.
-- Organize by feature; keep entry points thin and remove replaced code.
-- `BrowserSessionOwner` owns the session; `BrowserStore` holds a window's presentation and selection.
-- Treat external callbacks without a documented main-thread guarantee as `@Sendable`; hop to `@MainActor` before touching browser state or UI. Use `MainActor.assumeIsolated` only with guaranteed main-thread delivery; declare native completion blocks `@escaping` when retained.
-- Preserve per-Space isolation, private data staying out of checkpoints, native recovery, and closing/download safeguards.
-- Keep one durable JSON checkpoint and its validated recovery copy; never silently replace unreadable data with an empty session.
-- Build the affected configuration and run focused checks. Keep temporary probes and artifacts outside the checkout.
-- Launch review builds with a distinct bundle identifier and `LEAN_REVIEW_DATA_DIRECTORY`; never use a personal profile for fixtures.
-- After review, quit, unregister, and remove test app copies without touching the installed app.
-- Advance `Config/Version.xcconfig` by one patch for app changes; append a unique entry to `Documentation/ReleaseNotes.json` and preserve existing entry IDs.
-- Keep the README to product basics and setup; do not add work logs.
+- Use native macOS controls with SwiftUI/AppKit and WebKit.
+- Keep browser state and UI on `MainActor`; handle external callbacks explicitly.
+- Preserve Space isolation, private browsing, session recovery, and closing/download safeguards. Never discard unreadable session data silently.
+- Build the affected configuration and run focused checks. Use disposable test profiles with `LEAN_REVIEW_DATA_DIRECTORY` and distinct bundle IDs for review builds. Keep temporary artifacts outside the checkout and clean up review apps afterward; never use the personal profile for fixtures.
+- For app changes, bump the patch in `Config/Version.xcconfig` and add an entry to `Documentation/ReleaseNotes.json`. Documentation-only changes need neither.
