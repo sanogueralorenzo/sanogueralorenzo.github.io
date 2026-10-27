@@ -45,7 +45,7 @@ final class BrowserContentBlocking {
             let data = try JSONSerialization.data(withJSONObject: rules, options: [.sortedKeys])
             let identifier = "Lean." + SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
             if let existing: WKContentRuleList = await withCheckedContinuation({ continuation in
-                WKContentRuleListStore.default().lookUpContentRuleList(forIdentifier: identifier) { list, _ in
+                WKContentRuleListStore.default().lookUpContentRuleList(forIdentifier: identifier) { @Sendable list, _ in
                     continuation.resume(returning: list)
                 }
             }) {
@@ -54,7 +54,7 @@ final class BrowserContentBlocking {
             return try await withCheckedThrowingContinuation { continuation in
                 WKContentRuleListStore.default().compileContentRuleList(
                     forIdentifier: identifier, encodedContentRuleList: String(decoding: data, as: UTF8.self)
-                ) { list, error in
+                ) { @Sendable list, error in
                     if let list {
                         continuation.resume(returning: list)
                     } else {

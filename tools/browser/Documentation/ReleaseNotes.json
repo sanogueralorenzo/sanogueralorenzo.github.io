@@ -4661,6 +4661,10 @@
     "lean-now-playing-artwork-concurrency": {
       "category": "fixed",
       "message": "Prevent crashes when macOS requests Now Playing artwork or media commands on background queues"
+    },
+    "lean-callback-threading-audit": {
+      "category": "fixed",
+      "message": "Fix the screen-capture shutdown callback lifetime and make content-blocking completions independent of the main actor"
     }
   }
 }

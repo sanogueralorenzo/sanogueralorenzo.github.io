@@ -3,6 +3,7 @@
 - This app is macOS-only: SwiftUI/AppKit controls and direct WebKit calls.
 - Organize by feature; keep entry points thin and remove replaced code.
 - `BrowserSessionOwner` owns the session; `BrowserStore` holds a window's presentation and selection.
+- Treat external callbacks without a documented main-thread guarantee as `@Sendable`; hop to `@MainActor` before touching browser state or UI. Use `MainActor.assumeIsolated` only with guaranteed main-thread delivery; declare native completion blocks `@escaping` when retained.
 - Preserve per-Space isolation, private data staying out of checkpoints, native recovery, and closing/download safeguards.
 - Keep one durable JSON checkpoint and its validated recovery copy; never silently replace unreadable data with an empty session.
 - Build the affected configuration and run focused checks. Keep temporary probes and artifacts outside the checkout.

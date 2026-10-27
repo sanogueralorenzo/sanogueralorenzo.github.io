@@ -52,8 +52,9 @@ final class BrowserNativeWebView: WKWebView {
     func stopDisplayCapture() {
         let selector = NSSelectorFromString("_setDisplayCaptureState:completionHandler:")
         guard responds(to: selector) else { return }
-        typealias Action = @convention(c) (AnyObject, Selector, Int, @convention(block) () -> Void) -> Void
-        unsafeBitCast(method(for: selector), to: Action.self)(self, selector, 0, {})
+        typealias Action =
+            @convention(c) (AnyObject, Selector, Int, @escaping @convention(block) @Sendable () -> Void) -> Void
+        unsafeBitCast(method(for: selector), to: Action.self)(self, selector, 0, { @Sendable in })
     }
 
     override func updateTrackingAreas() {
