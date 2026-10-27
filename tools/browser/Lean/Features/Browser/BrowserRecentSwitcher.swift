@@ -38,3 +38,21 @@ struct BrowserRecentSwitcher: View {
             LeanBrandTheme.surface, in: RoundedRectangle(cornerRadius: LeanRadius.panel))
     }
 }
+
+extension BrowserStore {
+    func selectRecentTab(delta: Int) {
+        if !recentSwitcherPresented {
+            recentSwitcherIndex = 0
+            recentSwitcherPresented = true
+        }
+        let ids = recentTabIDs
+        guard !ids.isEmpty else { return }
+        recentSwitcherIndex = (recentSwitcherIndex + delta + ids.count) % ids.count
+    }
+
+    func commitRecentTab() {
+        let ids = recentTabIDs
+        if ids.indices.contains(recentSwitcherIndex) { selectTab(ids[recentSwitcherIndex]) }
+        recentSwitcherPresented = false
+    }
+}

@@ -87,4 +87,10 @@ extension BrowserStore {
         NSWorkspace.shared.activateFileViewerSelecting([url])
         if access { scoped.stopAccessingSecurityScopedResource() }
     }
+
+    func beginDownload(_ download: WKDownload, spaceID: UUID? = nil, restoring id: UUID? = nil) {
+        let job = BrowserDownload(download: download, store: self, spaceID: spaceID ?? activeSpace.id, restoring: id)
+        downloads[ObjectIdentifier(download)] = job
+        runtimeRevision &+= 1
+    }
 }

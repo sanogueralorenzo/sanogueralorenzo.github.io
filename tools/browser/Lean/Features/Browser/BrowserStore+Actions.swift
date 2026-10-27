@@ -10,36 +10,6 @@ extension BrowserStore {
         activePage?.webView.find(findText, configuration: config) { _ in }
     }
 
-    func adjacentTab(_ delta: Int) {
-        let tabs = sidebarOrder
-        guard !tabs.isEmpty else { return }
-        let index = tabs.firstIndex { $0.id == selectedTab?.id } ?? 0
-        selectTab(tabs[(index + delta + tabs.count) % tabs.count].id)
-    }
-
-    func adjacentSpace(_ delta: Int) {
-        guard let index = session.spaces.firstIndex(where: { $0.id == activeSpace.id }) else { return }
-        selectSpace(session.spaces[(index + delta + session.spaces.count) % session.spaces.count].id)
-    }
-
-    func focusSplit(_ delta: Int) {
-        guard let split = activeSplit, let index = split.tabIDs.firstIndex(of: selectedTab?.id ?? UUID()) else {
-            return
-        }
-        selectTab(split.tabIDs[(index + delta + split.tabIDs.count) % split.tabIDs.count])
-    }
-
-    func moveSplitCard(_ delta: Int) {
-        guard let split = activeSplit, let index = split.tabIDs.firstIndex(of: selectedTab?.id ?? UUID()),
-            let position = activeSpace.splits.firstIndex(where: { $0.id == split.id }),
-            split.tabIDs.indices.contains(index + delta)
-        else { return }
-        let s = spaceIndex(activeSpace.id)
-        session.spaces[s].splits[position].tabIDs.swapAt(index, index + delta)
-        session.spaces[s].splits[position].fractions.swapAt(index, index + delta)
-        changed()
-    }
-
     func copyAddress(markdown: Bool = false) {
         guard let url = activePage?.url ?? selectedTab?.url else { return }
         let text =
@@ -48,19 +18,6 @@ extension BrowserStore {
             : url.absoluteString
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
-    }
-
-    func togglePin() {
-        guard let tab = selectedTab else { return }
-        placeTabs([tab.id], as: tab.placement == .pinned ? .current : .pinned)
-    }
-
-    func reopenClosedTab() {
-        if let entry = session.archive.first(where: { $0.spaceID == activeSpace.id }) { restore(entry) }
-    }
-
-    func archiveSelected() {
-        if let id = selectedTab?.id { requestDeleteTabs([id]) }
     }
 
     func openFile() {

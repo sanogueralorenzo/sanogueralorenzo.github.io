@@ -74,3 +74,15 @@ final class BrowserContentBlocking {
         }
     }
 }
+
+extension BrowserStore {
+    func reloadContentBlocking(in spaceID: UUID? = nil) {
+        for page in pages.values where spaceID == nil || page.spaceID == spaceID {
+            page.applyContentBlocking()
+            Task {
+                await page.waitForContentBlocking()
+                page.webView.reload()
+            }
+        }
+    }
+}

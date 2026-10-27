@@ -47,4 +47,12 @@ extension BrowserStore {
         }
         changed()
     }
+
+    func integration(for spaceID: UUID) -> GitHubFolder {
+        if let service = integrations[spaceID] { return service }
+        let service = GitHubFolder(spaceID: spaceID, store: self)
+        integrations[spaceID] = service
+        service.start()
+        return service
+    }
 }

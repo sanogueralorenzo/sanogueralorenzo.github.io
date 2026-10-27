@@ -36,12 +36,14 @@ final class LeanAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, 
             pointerMonitor = NSEvent.addLocalMonitorForEvents(matching: [
                 .mouseMoved, .leftMouseDown, .leftMouseUp, .swipe,
             ]) { [weak self] event in
-                MainActor.assumeIsolated { self?.pointerChanged(event) }
+                MainActor.assumeIsolated {
+                    if let window = event.window { self?.context(for: window)?.handleSidebarPointer(event) }
+                }
                 return event
             }
             keyboardMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) {
                 [weak self] event in
-                let consumed = MainActor.assumeIsolated { self?.handleKeyboard(event) ?? false }
+                let consumed = MainActor.assumeIsolated { self?.store?.handleKeyboard(event) ?? false }
                 return consumed ? nil : event
             }
             NSApp.activate(ignoringOtherApps: true)
@@ -201,109 +203,6 @@ final class LeanAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, 
     }
     func windowDidExitFullScreen(_ notification: Notification) {
         (notification.object as? NSWindow).flatMap(context(for:))?.isFullScreen = false
-    }
-
-    private func handleKeyboard(_ event: NSEvent) -> Bool {
-        guard let store else { return false }
-        if event.type == .keyDown {
-            if event.keyCode == 53 && store.recentSwitcherPresented {
-                store.recentSwitcherPresented = false
-                return true
-            }
-            let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
-            if store.handleSidebarSelectionKey(event, modifiers: modifiers) { return true }
-            if let value = event.charactersIgnoringModifiers?.first?.wholeNumberValue, (1...9).contains(value) {
-                if modifiers == .command {
-                    let tabs = store.sidebarOrder
-                    if tabs.indices.contains(value - 1) { store.selectTab(tabs[value - 1].id) }
-                    return true
-                }
-                if modifiers == .control {
-                    if store.session.spaces.indices.contains(value - 1) {
-                        store.selectSpace(store.session.spaces[value - 1].id)
-                    }
-                    return true
-                }
-            }
-            if modifiers == [.command, .option] {
-                switch event.keyCode {
-                case 123:
-                    store.adjacentSpace(-1)
-                    return true
-                case 124:
-                    store.adjacentSpace(1)
-                    return true
-                case 125:
-                    store.adjacentTab(1)
-                    return true
-                case 126:
-                    store.adjacentTab(-1)
-                    return true
-                default: break
-                }
-            }
-            if modifiers == [.command, .control], store.activeSplit != nil {
-                if event.keyCode == 123 {
-                    store.focusSplit(-1)
-                    return true
-                }
-                if event.keyCode == 124 {
-                    store.focusSplit(1)
-                    return true
-                }
-            }
-            if modifiers == [.command, .shift], store.activeSplit != nil {
-                if event.keyCode == 123 {
-                    store.moveSplitCard(-1)
-                    return true
-                }
-                if event.keyCode == 124 {
-                    store.moveSplitCard(1)
-                    return true
-                }
-            }
-        }
-        if event.type == .keyDown, event.keyCode == 48, event.modifierFlags.contains(.control) {
-            store.selectRecentTab(delta: event.modifierFlags.contains(.shift) ? -1 : 1)
-            return true
-        }
-        if event.type == .flagsChanged, !event.modifierFlags.contains(.control), store.recentSwitcherPresented {
-            store.commitRecentTab()
-        }
-        return false
-    }
-
-    private func pointerChanged(_ event: NSEvent) {
-        guard let window = event.window, let store = context(for: window) else { return }
-        if event.type == .leftMouseUp {
-            for context in owner?.contexts.values ?? [:].values { context.isDragging = false }
-        }
-        if event.type == .swipe {
-            if event.deltaY != 0 {
-                store.adjacentSpace(event.deltaY > 0 ? -1 : 1)
-            } else if event.deltaX > 0 {
-                store.activePage?.webView.goBack()
-            } else if event.deltaX < 0 {
-                store.activePage?.webView.goForward()
-            }
-            return
-        }
-        let point = event.locationInWindow
-        let onSidebar = store.showsSidebar && point.x < store.sidebarWidth + SidebarGeometry.inset
-        if event.type == .leftMouseDown, !onSidebar, !store.addressPresented {
-            store.sidebarKeyboardSelection = false
-            store.selectedTabs.removeAll()
-            store.selectedFolders.removeAll()
-            store.selectionAnchor = nil
-            store.selectionRangeBase = nil
-            for page in store.visiblePages {
-                let location = page.webView.convert(point, from: nil)
-                if page.webView.window === window, page.webView.bounds.contains(location) {
-                    if store.selectedTab?.id != page.id { store.selectTab(page.id) }
-                    break
-                }
-            }
-        }
     }
 
     nonisolated func userNotificationCenter(
