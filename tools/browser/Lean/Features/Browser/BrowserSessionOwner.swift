@@ -10,6 +10,7 @@ final class BrowserSessionOwner {
     let persistence: BrowserPersistence
     var pages: [UUID: BrowserPage] = [:]
     var profiles: [UUID: WKWebsiteDataStore] = [:]
+    var contentBlockers: [UUID: BrowserContentBlocking] = [:]
     var integrations: [UUID: GitHubFolder] = [:]
     var downloads: [ObjectIdentifier: BrowserDownload] = [:]
     var contexts: [UUID: BrowserStore] = [:]

@@ -161,12 +161,17 @@ final class BrowserStore {
         }
         guard let (space, _) = tabIndex(id) else { return }
         let previousPages = visiblePages
+        let previousPage = activePage
         windowState.spaceID = session.spaces[space].id
         if !session.spaces[space].isPrivate { session.selectedSpaceID = session.spaces[space].id }
         setSelectedTab(id, in: session.spaces[space].id)
         utility = nil
         findsPage = false
         loadSelection()
+        if let page = activePage {
+            page.contentBlocker.controller.didActivateTab(
+                page, previousActiveTab: previousPage?.spaceID == page.spaceID ? previousPage : nil)
+        }
         let visible = owner.visiblePageIDs
         for page in previousPages where !visible.contains(page.id) {
             page.lastSelected = Date()
@@ -220,6 +225,7 @@ final class BrowserStore {
         let page = BrowserPage(id: id, spaceID: session.spaces[s].id, configuration: configuration, owner: self)
         page.hostingWindowID = self.id
         pages[id] = page
+        page.contentBlocker.controller.didOpenTab(page)
         runtimeRevision &+= 1
         page.restore(tab)
         return page

@@ -33,6 +33,7 @@ extension BrowserStore {
             for tab in space.tabs { unload(tab.id) }
             integrations.removeValue(forKey: id)?.invalidate()
             profiles[id] = nil
+            var blocker = owner.contentBlockers.removeValue(forKey: id)
             session.spaces.removeAll { $0.id == id }
             session.history.removeAll { $0.spaceID == id }
             session.archive.removeAll { $0.spaceID == id }
@@ -48,8 +49,10 @@ extension BrowserStore {
                 if session.windows[i].spaceID == id { session.windows[i].spaceID = fallback }
             }
             if session.selectedSpaceID == id { session.selectedSpaceID = fallback }
-            if !space.isPrivate { WKWebsiteDataStore.remove(forIdentifier: id) { _ in } }
             changed()
+            await blocker?.removeData()
+            blocker = nil
+            if !space.isPrivate { WKWebsiteDataStore.remove(forIdentifier: id) { _ in } }
         }
     }
 

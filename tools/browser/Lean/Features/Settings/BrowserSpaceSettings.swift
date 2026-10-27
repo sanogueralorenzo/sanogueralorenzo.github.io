@@ -108,7 +108,7 @@ struct BrowserSpaceSettings: View {
         }
         Section("Content blocking") {
             Toggle(
-                "Block known ads and trackers",
+                "Block ads and trackers with uBlock Origin Lite",
                 isOn: Binding(
                     get: { store.spacePreferences(spaceID).blocksContent },
                     set: { value in store.updateSpacePreferences(spaceID) { $0.blocksContent = value } }

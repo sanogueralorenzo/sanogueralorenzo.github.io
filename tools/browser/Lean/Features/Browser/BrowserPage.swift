@@ -11,6 +11,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     let id: UUID
     let spaceID: UUID
     let webView: WKWebView
+    let contentBlocker: BrowserContentBlocking
     var title = ""
     var url: URL?
     var favicon: Data?
@@ -72,11 +73,10 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         self.id = id
         self.spaceID = spaceID
         self.owner = owner
+        contentBlocker = owner.contentBlocker(for: spaceID)
+        configuration.webExtensionController = contentBlocker.controller
         // Popup configurations share process/data stores with their opener, but handlers belong to one document host.
         configuration.userContentController = WKUserContentController()
-        if owner.spacePreferences(spaceID).blocksContent, let rules = BrowserContentBlocking.shared.ready {
-            configuration.userContentController.add(rules)
-        }
         BrowserWebKitDefaults.apply(to: configuration.preferences)
         configuration.applicationNameForUserAgent = BrowserPlatformUserAgent.applicationName
         BrowserDesktopPictureInPictureAccess.enable(in: configuration.preferences)
@@ -145,24 +145,20 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
 
     func applyContentBlocking() {
         blockingTask?.cancel()
-        guard owner?.spacePreferences(spaceID).blocksContent == true else {
-            webView.configuration.userContentController.removeAllContentRuleLists()
-            return
-        }
+        let enabled = owner?.spacePreferences(spaceID).blocksContent == true
         blockingTask = Task { [weak self] in
+            guard let self else { return }
             do {
-                let rules = try await BrowserContentBlocking.shared.rules()
-                guard let self, !Task.isCancelled, !isRetired else { return }
-                webView.configuration.userContentController.removeAllContentRuleLists()
-                webView.configuration.userContentController.add(rules)
+                try await contentBlocker.setEnabled(enabled)
             } catch {
                 guard !Task.isCancelled else { return }
-                self?.owner?.showNotice("Content blocking could not load: " + error.localizedDescription)
+                owner?.showNotice("Content blocking could not load: " + error.localizedDescription)
             }
         }
     }
 
     func invalidate() {
+        contentBlocker.controller.didCloseTab(self, windowIsClosing: false)
         isRetired = true
         blockingTask?.cancel()
         observations.removeAll()
@@ -185,6 +181,9 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         progress = webView.estimatedProgress
         canGoBack = webView.canGoBack
         canGoForward = webView.canGoForward
+        if owner?.pages[id] === self {
+            contentBlocker.controller.didChangeTabProperties([.URL, .title, .loading], for: self)
+        }
         owner?.pageChanged(self)
     }
 

@@ -7,10 +7,14 @@ The GitHub live folder adapts response formats and selectors from
 [Zen Browser](https://github.com/zen-browser/desktop/blob/2ad194525da74d7f00609a424d93a3c7db430d21/src/zen/live-folders/providers/GithubLiveFolder.sys.mjs),
 also under MPL-2.0.
 
-Bundled blocking data retains its own licenses:
-
-- EasyList cosmetic rules: [GPL-3.0](Resources/EasyList-LICENSE.txt).
-- Peter Lowe's host list: [license and attribution](Resources/PeterLowe-LICENSE.txt).
+The bundled [uBlock Origin Lite](https://github.com/uBlockOrigin/uBOL-home)
+Safari extension is copyright Raymond Hill and licensed GPL-3.0-or-later.
+`Resources/uBlockOriginLite.zip` includes its license, source code and filtering
+data. `Resources/uBlockOriginLite.json` records the upstream release and hashes.
+Lean selects Complete filtering and adds a native startup handshake;
+filtering algorithms and rules are unchanged.
+The matching upstream build sources are linked from that release's repository
+(including its pinned `uBlock` submodule).
 
 The app uses Apple system frameworks, including WebKit, SwiftUI, Translation,
 AuthenticationServices, CoreLocation, MediaPlayer, and UserNotifications.

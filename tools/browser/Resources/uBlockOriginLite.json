@@ -1,0 +1,8 @@
+{
+  "version": "2026.1026.1812",
+  "source": "https://github.com/uBlockOrigin/uBOL-home/releases/tag/2026.1026.1812",
+  "archive": "https://github.com/uBlockOrigin/uBOL-home/releases/download/2026.1026.1812/uBOLite_2026.1026.1812.safari.zip",
+  "upstreamSHA256": "f56b42e7e753143b1da4f64e12baf67724d48cef055eb46f9d49eddb4665f5b3",
+  "bundledSHA256": "cac37496b200e89fc9a70c1e5b88fc25911d440754238414ae3ce2b9dee7acc9",
+  "changes": "Enabled Complete filtering and added nativeMessaging success/error startup messages to Lean; filtering algorithms and rules are unchanged."
+}

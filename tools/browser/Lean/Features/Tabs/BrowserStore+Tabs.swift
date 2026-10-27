@@ -37,6 +37,7 @@ extension BrowserStore {
         let page = BrowserPage(id: tab.id, spaceID: spaceID, configuration: configuration, owner: self)
         page.scriptMayClose = true
         pages[tab.id] = page
+        page.contentBlocker.controller.didOpenTab(page)
         runtimeRevision &+= 1
         selectTab(tab.id)
         return page.webView

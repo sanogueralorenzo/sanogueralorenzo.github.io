@@ -25,7 +25,7 @@ Passkeys require an Apple-authorized browser signing profile and
 
 Reveal the sidebar within 32 points of the left edge; empty Spaces keep it visible.
 Drag its right edge to resize it. Settings includes default page zoom, per-Space
-content blocking and data retention.
+content blocking with bundled uBlock Origin Lite in Complete mode and data retention.
 Use ⌘L for addresses and commands, ⌘T for a new tab, ⌃Tab for recent tabs,
 and ⌥⌘←/→ to switch Spaces. On saved tabs, ⌘W returns to the saved address,
 then sleeps the page and selects another loaded tab.
@@ -38,3 +38,6 @@ and use a distinct bundle identifier; never launch fixtures against a personal s
 
 Source is [MPL-2.0](LICENSE), derived from [Crest](https://github.com/pauljoda/Crest).
 See [third-party notices](THIRD_PARTY_NOTICES.md) and [trademark terms](TRADEMARKS.md).
+
+To update the bundled blocker, run `python3 scripts/update-ublock-origin-lite.py VERSION`
+with an upstream Safari release tag, then rebuild. App builds need no downloads.
