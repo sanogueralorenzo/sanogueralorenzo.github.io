@@ -1,0 +1,62 @@
+name: Lean
+configs:
+  Debug: debug
+  Release: release
+configFiles:
+  Debug: Config/Version.xcconfig
+  Release: Config/Version.xcconfig
+options:
+  deploymentTarget:
+    macOS: '26.1'
+settings:
+  base:
+    ARCHS: arm64
+    SWIFT_VERSION: '6.0'
+    SWIFT_STRICT_CONCURRENCY: complete
+    DEVELOPMENT_LANGUAGE: en
+    SWIFT_EMIT_LOC_STRINGS: NO
+    CURRENT_PROJECT_VERSION: '1'
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: '-'
+    DEVELOPMENT_TEAM: ''
+    ENABLE_HARDENED_RUNTIME: YES
+targets:
+  Lean:
+    type: application
+    platform: macOS
+    sources:
+      - path: Lean
+      - path: Resources
+      - path: Documentation/ReleaseNotes.json
+        buildPhase: resources
+      - path: LICENSE
+        buildPhase: resources
+      - path: NOTICE
+        buildPhase: resources
+      - path: THIRD_PARTY_NOTICES.md
+        buildPhase: resources
+    dependencies:
+      - sdk: WebKit.framework
+      - sdk: Translation.framework
+      - sdk: NaturalLanguage.framework
+      - sdk: MediaPlayer.framework
+      - sdk: CoreLocation.framework
+      - sdk: UserNotifications.framework
+      - sdk: AuthenticationServices.framework
+      - sdk: AVFoundation.framework
+      - sdk: Security.framework
+      - sdk: libcompression.tbd
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.leanbrowser.Lean
+        PRODUCT_NAME: Lean
+        PRODUCT_MODULE_NAME: Lean
+        INFOPLIST_FILE: Config/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: Config/Local.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: Lean
+schemes:
+  Lean:
+    build:
+      targets:
+        Lean: all
