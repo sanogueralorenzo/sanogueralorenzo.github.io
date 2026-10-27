@@ -14,6 +14,7 @@ final class BrowserSessionOwner {
     var downloads: [ObjectIdentifier: BrowserDownload] = [:]
     var contexts: [UUID: BrowserStore] = [:]
     var runtimeRevision = 0
+    var lastRetentionSweep = Date.distantPast
     var storageError: String?
     var activeWindowID: UUID?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
@@ -25,6 +26,7 @@ final class BrowserSessionOwner {
     init() throws {
         persistence = try BrowserPersistence()
         session = try persistence.load()
+        sweepExpiredRecords()
         session.selectedSpaceID = session.selectedSpaceID ?? session.spaces[0].id
         for i in session.downloads.indices where session.downloads[i].status == .running {
             session.downloads[i].status = session.downloads[i].resumeData == nil ? .failed : .paused
@@ -55,6 +57,7 @@ final class BrowserSessionOwner {
                         }
                     }
                 }
+                sweepExpiredRecords()
                 media?.refresh()
             }
         }

@@ -34,7 +34,7 @@ final class LeanAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, 
             if previous.isEmpty { createWindow() } else { for state in previous { createWindow(restoring: state) } }
             owner.startMaintenance()
             pointerMonitor = NSEvent.addLocalMonitorForEvents(matching: [
-                .mouseMoved, .leftMouseDown, .leftMouseUp, .flagsChanged, .swipe,
+                .mouseMoved, .leftMouseDown, .leftMouseUp, .swipe,
             ]) { [weak self] event in
                 MainActor.assumeIsolated { self?.pointerChanged(event) }
                 return event
@@ -211,6 +211,7 @@ final class LeanAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, 
                 return true
             }
             let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+            if store.handleSidebarSelectionKey(event, modifiers: modifiers) { return true }
             if let value = event.charactersIgnoringModifiers?.first?.wholeNumberValue, (1...9).contains(value) {
                 if modifiers == .command {
                     let tabs = store.sidebarOrder
@@ -288,12 +289,13 @@ final class LeanAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, 
             return
         }
         let point = event.locationInWindow
-        let margin =
-            store.showsSidebar
-            ? SidebarGeometry.width + SidebarGeometry.inset + SidebarGeometry.hoverMargin : SidebarGeometry.hoverMargin
-        store.sidebarRevealed = point.x >= 0 && point.x <= margin
-        let onSidebar = store.showsSidebar && point.x < SidebarGeometry.width + SidebarGeometry.inset
+        let onSidebar = store.showsSidebar && point.x < store.sidebarWidth + SidebarGeometry.inset
         if event.type == .leftMouseDown, !onSidebar, !store.addressPresented {
+            store.sidebarKeyboardSelection = false
+            store.selectedTabs.removeAll()
+            store.selectedFolders.removeAll()
+            store.selectionAnchor = nil
+            store.selectionRangeBase = nil
             for page in store.visiblePages {
                 let location = page.webView.convert(point, from: nil)
                 if page.webView.window === window, page.webView.bounds.contains(location) {

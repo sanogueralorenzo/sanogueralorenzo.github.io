@@ -32,8 +32,11 @@ import AppKit
 
     func refresh() {
         guard let owner else { return }
-        let playing = owner.pages.values.filter { $0.isPlaying }.sorted { $0.lastSelected > $1.lastSelected }
-        let page = playing.first ?? selected.flatMap { owner.pages[$0] }
+        let eligible = owner.pages.values.filter { page in
+            page.hasMedia && owner.session.spaces.first(where: { $0.id == page.spaceID })?.isPrivate == false
+        }
+        let playing = eligible.filter { $0.isPlaying }.sorted { $0.lastSelected > $1.lastSelected }
+        let page = playing.first ?? selected.flatMap { id in eligible.first { $0.id == id } }
         selected = page?.id
         let center = MPNowPlayingInfoCenter.default()
         guard let page else {

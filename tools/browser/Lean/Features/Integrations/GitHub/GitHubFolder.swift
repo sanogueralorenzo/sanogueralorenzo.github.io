@@ -68,7 +68,9 @@ final class GitHubFolder: NSObject, WKHTTPCookieStoreObserver {
     }
 
     private func refresh() async {
-        guard !retired, let store else { return }
+        guard !retired, let store,
+            store.session.spaces.first(where: { $0.id == spaceID })?.isPrivate == false
+        else { return }
         let values = await cookies.allCookies()
         guard !retired, !Task.isCancelled else { return }
         isSignedIn = values.contains {
@@ -101,6 +103,7 @@ final class GitHubFolder: NSObject, WKHTTPCookieStoreObserver {
                 let latest = store.session.spaces.first(where: { $0.id == spaceID }),
                 latest.folders.contains(where: { $0.id == folder.id && $0.githubOptions == folder.githubOptions })
             else { return }
+            await store.reconcileGitHub(result, folderID: folder.id, in: spaceID, options: folder.githubOptions)
             items = result
             repositories = Array(Set(result.map(\.repository) + folder.githubOptions.excludedRepositories)).sorted()
             lastFetched = Date()

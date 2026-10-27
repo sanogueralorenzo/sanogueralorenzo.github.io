@@ -44,8 +44,13 @@ extension BrowserStore {
     }
 
     func requestCloseSelected() {
-        guard let tab = selectedTab else { return }
-        let originalSpace = activeSpace.id
+        if let id = selectedTab?.id { requestCloseTab(id) }
+    }
+
+    func requestCloseTab(_ id: UUID) {
+        guard let (space, position) = tabIndex(id) else { return }
+        let tab = session.spaces[space].tabs[position]
+        let originalSpace = session.spaces[space].id
         if tab.placement != .current, let saved = tab.savedURL, !BrowserURLs.same(tab.url, saved) {
             navigate(saved, in: tab.id)
             return

@@ -55,12 +55,12 @@ extension BrowserStore {
         NSWorkspace.shared.open(url)
     }
 
-    func chooseDownloadDirectory() {
+    func chooseDownloadDirectory(in requestedSpaceID: UUID? = nil) {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
-        let spaceID = activeSpace.id
+        let spaceID = requestedSpaceID ?? activeSpace.id
         guard let window else { return }
         panel.beginSheetModal(for: window) { result in
             guard result == .OK, let url = panel.url,

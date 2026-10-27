@@ -2,92 +2,176 @@ import SwiftUI
 
 struct BrowserSidebar: View {
     let store: BrowserStore
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var editingSpace: BrowserSpace?
     @State private var showsSpaceEditor = false
 
+    @State private var resizeStart: CGFloat?
+    @State private var listHovered = false
+    @State private var listHeight: CGFloat = 0
+    @State private var menuReleaseTask: Task<Void, Never>?
+
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 0) {
             HStack {
-                Color.clear.frame(width: 70, height: SidebarGeometry.titlebarHeight)
-                Spacer(minLength: 4)
-                spaceSwitcher
+                Spacer(minLength: 70)
+                BrowserSpaceSwitcher(store: store, edit: showEditor)
             }
-            navigation
-            if let playing = store.playingPage { nowPlaying(playing) }
+            .padding(.horizontal, 16)
+            .frame(height: SidebarGeometry.titlebarHeight)
+            navigation.padding(.bottom, 4)
+            if !store.activeSpace.isPrivate, let playing = store.playingPage { nowPlaying(playing) }
             if let utility = store.utility {
-                BrowserUtilityList(utility: utility, store: store)
+                BrowserUtilityList(utility: utility, store: store).padding(.horizontal, 16)
             } else {
-                ScrollView {
-                    VStack(spacing: 4) {
-                        if store.isDragging && pins.isEmpty { dropTarget("Pinned Tabs", placement: .pinned) }
-                        if !pins.isEmpty {
-                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
-                                ForEach(pins) { BrowserSidebarItem(tab: $0, store: store, pinned: true) }
+                pinnedTabs
+                GeometryReader { viewport in
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            tabRows.onGeometryChange(for: CGFloat.self) {
+                                $0.size.height
+                            } action: {
+                                listHeight = $0
                             }
-                            .padding(.bottom, 8)
+                            BrowserSidebarBackground(store: store)
+                                .frame(height: max(0, viewport.size.height - listHeight))
                         }
-                        ForEach(store.visibleFolders) { entry in
-                            BrowserFolderRow(folder: entry.folder, store: store, depth: entry.depth)
-                        }
-                        ForEach(saved) { BrowserSidebarItem(tab: $0, store: store) }
-                        if store.isDragging { dropTarget("Saved Tabs", placement: .saved) }
-                        if !current.isEmpty,
-                            !saved.isEmpty
-                                || store.visibleFolders.contains(where: {
-                                    $0.folder.kind == .regular
-                                        || store.integration(for: store.activeSpace.id).isSignedIn
-                                })
-                        {
-                            Divider().padding(.vertical, 8)
-                        }
-                        ForEach(current) { BrowserSidebarItem(tab: $0, store: store) }
-                        if store.isDragging { dropTarget("Current Tabs", placement: .current) }
-                        HStack(spacing: 0) {
-                            Button {
-                                store.presentAddress(newTab: true)
-                            } label: {
-                                HStack {
-                                    Image(systemName: "plus").frame(width: 20)
-                                    Text("New Tab")
-                                    Spacer(minLength: 2)
-                                    BrowserShortcutHint(text: "⌘T")
-                                }
-                                .frame(height: SidebarGeometry.rowHeight).padding(.horizontal, 10)
-                            }
-                            .buttonStyle(LeanChromeButtonStyle(controlSize: nil, cornerRadius: 20))
-                            if !current.isEmpty {
-                                Divider().frame(height: 20).padding(.horizontal, 6)
-                                Button {
-                                    store.clearCurrentTabs()
-                                } label: {
-                                    Image(systemName: "archivebox")
-                                }
-                                .accessibilityLabel("Archive Current Tabs")
-                                .buttonStyle(
-                                    LeanChromeButtonStyle(controlSize: CGSize(width: 36, height: 36), cornerRadius: 18)
-                                )
-                            }
-                        }
-                        .padding(.top, 6)
                     }
-                    .padding(.top, 6)
-                    .padding(.bottom, 8)
+                    .scrollIndicators(.never)
+                    .onHover { listHovered = $0 }
                 }
-                .scrollIndicators(.hidden)
             }
-            Spacer(minLength: 0)
         }
+        .font(.system(size: 13))
         .focusEffectDisabled()
-        .padding(.horizontal, 16)
-        .padding(.vertical, LeanSpacing.medium)
-        .frame(width: SidebarGeometry.width)
+        .frame(width: store.sidebarWidth)
         .background(LeanBrandTheme.surface, in: RoundedRectangle(cornerRadius: SidebarGeometry.radius))
-        .overlay { RoundedRectangle(cornerRadius: SidebarGeometry.radius).stroke(LeanBrandTheme.line, lineWidth: 0.5) }
+        .clipShape(RoundedRectangle(cornerRadius: SidebarGeometry.radius))
+        .overlay {
+            RoundedRectangle(cornerRadius: SidebarGeometry.radius).strokeBorder(LeanBrandTheme.line, lineWidth: 0.75)
+                .allowsHitTesting(false)
+        }
+        .shadow(color: .black.opacity(reduceTransparency ? 0 : 0.3), radius: 28, x: 8, y: 8)
+        .overlay(alignment: .trailing) { resizeHandle }
+        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { _ in
+            menuReleaseTask?.cancel()
+            if store.window?.isKeyWindow == true { store.sidebarMenuPresented = true }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)) { _ in
+            menuReleaseTask = Task {
+                do { try await Task.sleep(for: .milliseconds(150)) } catch { return }
+                store.sidebarMenuPresented = false
+            }
+        }
         .sheet(
             isPresented: $showsSpaceEditor, onDismiss: { store.sidebarEditorPresented = false },
             content: {
                 SpaceEditor(space: editingSpace, store: store) { showsSpaceEditor = false }
             })
+    }
+
+    private var tabRows: some View {
+        VStack(spacing: 2) {
+            BrowserSidebarList(store: store, placement: .saved)
+            if store.isDragging { dropTarget("Saved Tabs", placement: .saved) }
+            if store.activeSpace.tabs.contains(where: { $0.placement == .current })
+                || store.activeSpace.folders.contains(where: { $0.parentID == nil && $0.placement == .current })
+            {
+                currentDivider
+            }
+            BrowserSidebarList(store: store, placement: .current)
+            if store.isDragging { dropTarget("Current Tabs", placement: .current) }
+            newTab
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+        .padding(.top, 8)
+        .frame(maxWidth: .infinity, alignment: .top)
+    }
+
+    @ViewBuilder
+    private var pinnedTabs: some View {
+        if store.isDragging && pins.isEmpty {
+            dropTarget("Pinned Tabs", placement: .pinned).padding(.horizontal, 16)
+        }
+        if !pins.isEmpty {
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: min(2, pins.count)), spacing: 8
+            ) {
+                ForEach(pins) { BrowserSidebarItem(tab: $0, store: store, pinned: true) }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 12)
+        }
+    }
+
+    private var currentDivider: some View {
+        HStack(spacing: 8) {
+            Rectangle().fill(LeanBrandTheme.line).frame(height: 0.5)
+            if listHovered {
+                Button {
+                    store.clearCurrentTabs()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Clear")
+                        BrowserShortcutHint(text: "⇧⌘K")
+                        Image(systemName: "archivebox")
+                    }.padding(.horizontal, 8).frame(height: 28)
+                }
+                .font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                .buttonStyle(LeanChromeButtonStyle(controlSize: nil, cornerRadius: 14))
+                .accessibilityLabel("Archive Current Tabs")
+            }
+        }.frame(height: 28)
+    }
+
+    private var newTab: some View {
+        Button {
+            store.presentAddress(newTab: true)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "plus").font(.system(size: 17)).frame(width: 28)
+                Text("New Tab")
+                Spacer(minLength: 0)
+                BrowserShortcutHint(text: "⌘T")
+            }
+            .padding(.horizontal, 9)
+            .frame(height: SidebarGeometry.rowHeight)
+            .contentShape(Rectangle())
+        }
+        .foregroundStyle(.secondary)
+        .buttonStyle(LeanChromeButtonStyle(controlSize: nil, cornerRadius: 20))
+        .accessibilityIdentifier("new-tab")
+    }
+
+    private var resizeHandle: some View {
+        Color.clear.frame(width: 6)
+            .contentShape(Rectangle())
+            .onHover { inside in
+                if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        if resizeStart == nil { resizeStart = store.sidebarWidth }
+                        store.isResizingSidebar = true
+                        store.session.preferences.sidebarWidth = Double(
+                            SidebarGeometry.clampedWidth((resizeStart ?? store.sidebarWidth) + value.translation.width))
+                    }
+                    .onEnded { _ in
+                        resizeStart = nil
+                        store.isResizingSidebar = false
+                        store.changed()
+                    }
+            )
+            .accessibilityLabel("Resize Sidebar")
+            .accessibilityAdjustableAction { direction in
+                let delta: CGFloat = direction == .increment ? 10 : -10
+                store.updatePreferences {
+                    $0.sidebarWidth = Double(SidebarGeometry.clampedWidth(store.sidebarWidth + delta))
+                }
+            }
     }
 
     private func dropTarget(_ title: String, placement: BrowserTab.Placement) -> some View {
@@ -101,46 +185,8 @@ struct BrowserSidebar: View {
     }
 
     private var pins: [BrowserTab] { store.activeSpace.tabs.filter { $0.placement == .pinned } }
-    private var saved: [BrowserTab] { store.activeSpace.tabs.filter { $0.placement == .saved && $0.folderID == nil } }
-    private var current: [BrowserTab] {
-        store.activeSpace.tabs.filter { $0.placement == .current && $0.folderID == nil }
-    }
-
-    private var spaceSwitcher: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 4) {
-                ForEach(store.session.spaces) { space in
-                    Button {
-                        store.selectSpace(space.id)
-                    } label: {
-                        Circle().fill(Color.space(space.color)).frame(width: 12, height: 12)
-                            .padding(4)
-                            .overlay {
-                                if store.activeSpace.id == space.id {
-                                    Circle().stroke(.primary.opacity(0.8), lineWidth: 1)
-                                }
-                            }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(space.name)
-                    .contextMenu {
-                        Button("New Space") { showEditor(nil) }
-                        Button("Edit Space") { showEditor(space) }
-                        Button("Delete Space", role: .destructive) { store.deleteSpace(space.id) }
-                    }
-                    .modifier(BrowserDropArea(store: store, spaceID: space.id))
-                }
-            }
-            .padding(3)
-        }
-        .scrollIndicators(.hidden)
-        .frame(width: min(CGFloat(store.session.spaces.count) * 28 + 4, 178), height: 24)
-        .background(LeanColor.hover, in: Capsule())
-        .contextMenu { Button("New Space") { showEditor(nil) } }
-    }
-
     private var navigation: some View {
-        HStack(alignment: .top, spacing: 4) {
+        HStack(alignment: .top, spacing: 0) {
             navigationButton("chevron.left", hint: "⌘[", enabled: store.activePage?.canGoBack == true) {
                 store.activePage?.webView.goBack()
             }
@@ -156,25 +202,28 @@ struct BrowserSidebar: View {
             }
             Spacer(minLength: 0)
             navigationButton("magnifyingglass", hint: "⌘L") { store.presentAddress() }
-            moreMenu
+            moreMenu.offset(y: -8)
         }
-        .padding(.top, LeanSpacing.extraSmall)
+        .padding(.horizontal, 16)
         .background(BrowserWindowTitleBarSurface())
     }
 
     private func navigationButton(_ symbol: String, hint: String, enabled: Bool = true, action: @escaping () -> Void)
         -> some View
     {
-        VStack(spacing: 1) {
-            Button(action: action) {
-                BrowserChromeSymbolLabel(
-                    systemName: symbol, pointSize: SidebarGeometry.navigationSymbolPointSize)
-            }
-            .buttonStyle(LeanChromeButtonStyle(controlSize: CGSize(width: 40, height: 40)))
-            .disabled(!enabled)
-            .accessibilityLabel(symbol == "magnifyingglass" ? "Address and Search" : symbol)
-            BrowserShortcutHint(text: hint).opacity(enabled ? 1 : 0.4)
+        Button(action: action) {
+            VStack(spacing: 2) {
+                BrowserChromeSymbolLabel(systemName: symbol, pointSize: SidebarGeometry.navigationSymbolPointSize)
+                BrowserShortcutHint(text: hint)
+            }.frame(width: 40, height: 40)
         }
+        .buttonStyle(LeanChromeButtonStyle(controlSize: nil))
+        .disabled(!enabled)
+        .accessibilityLabel(
+            symbol == "magnifyingglass"
+                ? "Address and search"
+                : symbol == "chevron.left"
+                    ? "Back" : symbol == "chevron.right" ? "Forward" : symbol == "xmark" ? "Stop Loading" : "Reload")
     }
 
     private var moreMenu: some View {
@@ -199,6 +248,7 @@ struct BrowserSidebar: View {
                 .keyboardShortcut("c", modifiers: [.command, .shift])
                 Divider()
             }
+            Button("New Tab", systemImage: "plus") { store.presentAddress(newTab: true) }.keyboardShortcut("t")
             Button("New Private Space", systemImage: "eye.slash") { store.savePrivateSpace() }
             Button("New Folder", systemImage: "folder.badge.plus") { store.addFolder() }
             Menu("Live Folder") {
@@ -207,7 +257,9 @@ struct BrowserSidebar: View {
                     store.integration(for: store.activeSpace.id).requestRefresh()
                 }
             }
+            .disabled(store.activeSpace.isPrivate)
             Divider()
+            if store.utility != nil { Button("Back to Tabs", systemImage: "sidebar.left") { store.utility = nil } }
             Button("History", systemImage: "clock.arrow.circlepath") { store.utility = .history }.keyboardShortcut("y")
             Button("Archive", systemImage: "archivebox") { store.utility = .archive }
             Button("Downloads", systemImage: "arrow.down.circle") { store.utility = .downloads }.keyboardShortcut(
@@ -224,27 +276,52 @@ struct BrowserSidebar: View {
     }
 
     private func nowPlaying(_ page: BrowserPage) -> some View {
-        HStack(spacing: 9) {
+        HStack(spacing: 0) {
             Button {
                 store.selectTab(page.id)
             } label: {
-                HStack(spacing: 9) {
-                    Image(systemName: "waveform").frame(width: 20)
+                HStack(spacing: 8) {
+                    if let data = page.favicon, let icon = NSImage(data: data) {
+                        Image(nsImage: icon).resizable().scaledToFit().frame(width: 22, height: 22).frame(width: 28)
+                    } else {
+                        Image(systemName: "music.note").frame(width: 28)
+                    }
                     Text(page.mediaTitle.isEmpty ? page.title : page.mediaTitle).lineLimit(1)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 9).padding(.trailing, 4)
+                .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+                .contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityLabel("Show tab playing \(page.mediaTitle)")
+            if page.mediaActions.contains("previoustrack") {
+                mediaButton(page, action: "previoustrack", symbol: "backward.fill", label: "Previous Track")
             }
-            .buttonStyle(.plain)
-            Button {
-                page.toggleMedia()
-            } label: {
-                Image(systemName: page.isPlaying ? "pause.fill" : "play.fill")
+            mediaButton(
+                page, action: page.isPlaying ? "pause" : "play", symbol: page.isPlaying ? "pause.fill" : "play.fill",
+                label: page.isPlaying ? "Pause" : "Play")
+            if page.mediaActions.contains("nexttrack") {
+                mediaButton(page, action: "nexttrack", symbol: "forward.fill", label: "Next Track")
             }
-            .buttonStyle(LeanChromeButtonStyle())
         }
-        .padding(.horizontal, 10).frame(height: SidebarGeometry.rowHeight)
+        .padding(.trailing, 6).frame(height: SidebarGeometry.rowHeight)
         .leanHoverSurface(cornerRadius: 20, showsRestingSurface: true)
-        .padding(.top, 6)
+        .padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 4)
+        .accessibilityElement(children: .contain).accessibilityLabel("Now Playing")
+        .contextMenu {
+            Button(page.mediaIsMuted ? "Unmute" : "Mute") {
+                page.performMediaAction(page.mediaIsMuted ? "unmute" : "mute")
+            }
+            Button("Hide Now Playing") { page.nowPlayingHidden = true }
+        }
+    }
+
+    private func mediaButton(_ page: BrowserPage, action: String, symbol: String, label: String) -> some View {
+        Button {
+            page.performMediaAction(action)
+        } label: {
+            Image(systemName: symbol).font(.system(size: 12))
+        }
+        .buttonStyle(LeanChromeButtonStyle(controlSize: CGSize(width: 28, height: 28), cornerRadius: 14))
+        .accessibilityLabel(label)
     }
 
     private func showEditor(_ space: BrowserSpace?) {

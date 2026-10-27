@@ -33,6 +33,10 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     var isReaderMode = false
     var readerAvailable = false
     var mediaArtist = ""
+    var mediaActions: Set<String> = []
+    var hasMedia = false
+    var mediaIsMuted = false
+    var nowPlayingHidden = false
     var mediaDuration = 0.0
     var mediaElapsed = 0.0
     @ObservationIgnored var mediaFrame: WKFrameInfo?
@@ -70,7 +74,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         self.owner = owner
         // Popup configurations share process/data stores with their opener, but handlers belong to one document host.
         configuration.userContentController = WKUserContentController()
-        if owner.preferences.blocksContent, let rules = BrowserContentBlocking.shared.ready {
+        if owner.spacePreferences(spaceID).blocksContent, let rules = BrowserContentBlocking.shared.ready {
             configuration.userContentController.add(rules)
         }
         BrowserWebKitDefaults.apply(to: configuration.preferences)
@@ -140,7 +144,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
 
     func applyContentBlocking() {
         blockingTask?.cancel()
-        guard owner?.preferences.blocksContent == true else {
+        guard owner?.spacePreferences(spaceID).blocksContent == true else {
             webView.configuration.userContentController.removeAllContentRuleLists()
             return
         }
@@ -457,7 +461,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
               (!e.isContentEditable && (e.type === 'checkbox' || e.type === 'radio' ? e.checked !== e.defaultChecked :
               e.tagName === 'SELECT' ? [...e.options].some(o => o.selected !== o.defaultSelected) : e.value !== e.defaultValue)));
             const e = document.querySelector('video,audio');
-            return {playing:media, dirty, title:navigator.mediaSession?.metadata?.title || document.title,
+            return {playing:media, hasMedia:!!e, muted:e?.muted || false, dirty, title:navigator.mediaSession?.metadata?.title || document.title,
               artist:navigator.mediaSession?.metadata?.artist || '', duration: Number.isFinite(e?.duration) ? e.duration : 0,
               elapsed:Number.isFinite(e?.currentTime) ? e.currentTime : 0};
             """#
@@ -477,10 +481,12 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
                     revision == documentRevision
                 else { continue }
                 dirty = dirty || child["dirty"] as? Bool != false
-                if child["playing"] as? Bool == true {
+                if child["playing"] as? Bool == true
+                    || (value["hasMedia"] as? Bool != true && child["hasMedia"] as? Bool == true)
+                {
                     value = child
                     mediaFrame = frame
-                    break
+                    if child["playing"] as? Bool == true { break }
                 }
             }
         }
@@ -489,10 +495,23 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
             webView.requestMediaPlaybackState { continuation.resume(returning: $0) }
         }
         guard revision == documentRevision, !isRetired else { return }
-        isPlaying = native == .playing || value["playing"] as? Bool == true
+        isPlaying =
+            value["playing"] as? Bool == true
+            || (native == .playing && value["hasMedia"] as? Bool != true)
         documentHasEdits = dirty
         hasUnsavedEdits = documentHasEdits || frameEdits.values.contains(true)
-        mediaTitle = value["title"] as? String ?? title
+        let nextTitle = value["title"] as? String ?? title
+        if mediaTitle != nextTitle { nowPlayingHidden = false }
+        mediaTitle = nextTitle
+        hasMedia = isPlaying || value["hasMedia"] as? Bool == true
+        mediaIsMuted = value["muted"] as? Bool == true
+        let actions =
+            try? await webView.callAsyncJavaScript(
+                "return [...(globalThis.__leanMediaActions || new Map())].filter(([key,value]) => typeof value === 'function').map(([key]) => key)",
+                arguments: [:], in: mediaFrame, contentWorld: .page) as? [String]
+        guard revision == documentRevision, !isRetired else { return }
+        mediaActions = Set(actions ?? [])
+        if hasMedia { mediaActions.formUnion(["play", "pause"]) }
         mediaArtist = value["artist"] as? String ?? ""
         mediaDuration = value["duration"] as? Double ?? 0
         mediaElapsed = value["elapsed"] as? Double ?? 0

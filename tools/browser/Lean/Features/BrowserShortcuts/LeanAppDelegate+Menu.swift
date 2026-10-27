@@ -126,7 +126,9 @@ extension LeanAppDelegate {
     @objc private func exportData() { store?.exportBrowserData() }
     @objc private func about() { NSApp.orderFrontStandardAboutPanel(nil) }
     @objc private func settings() { store?.openSettings() }
-    @objc private func newTab() { store?.presentAddress(newTab: true) }
+    @objc private func newTab() {
+        if store?.addressPresented == true { store?.dismissAddress() } else { store?.presentAddress(newTab: true) }
+    }
     @objc private func openLocation() { store?.presentAddress() }
     @objc private func closeTab() {
         if store?.addressPresented == true {
@@ -148,11 +150,17 @@ extension LeanAppDelegate {
     @objc private func showArchive() { store?.utility = .archive }
     @objc private func showDownloads() { store?.utility = .downloads }
     @objc private func zoomIn() {
-        if let web = store?.activePage?.webView { web.pageZoom = min(3, web.pageZoom + 0.1) }
+        if let web = store?.activePage?.webView {
+            web.pageZoom = CGFloat(BrowserPageZoom.step(Double(web.pageZoom), increasing: true))
+        }
     }
     @objc private func zoomOut() {
-        if let web = store?.activePage?.webView { web.pageZoom = max(0.5, web.pageZoom - 0.1) }
+        if let web = store?.activePage?.webView {
+            web.pageZoom = CGFloat(BrowserPageZoom.step(Double(web.pageZoom), increasing: false))
+        }
     }
-    @objc private func resetZoom() { store?.activePage?.webView.pageZoom = 1 }
+    @objc private func resetZoom() {
+        store?.activePage?.webView.pageZoom = CGFloat(store?.preferences.defaultPageZoom ?? 1)
+    }
     @objc private func fullscreen() { window?.toggleFullScreen(nil) }
 }

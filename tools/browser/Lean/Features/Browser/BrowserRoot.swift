@@ -12,8 +12,8 @@ struct BrowserRoot: View {
                     BrowserSettings(store: store)
                 } else if !store.visiblePages.isEmpty {
                     splitContent
-                } else {
-                    AddressPalette(store: store, standalone: true)
+                } else if !store.addressPresented {
+                    BrowserStartPage(store: store)
                 }
                 if store.showsSidebar {
                     BrowserSidebar(store: store)
@@ -24,7 +24,7 @@ struct BrowserRoot: View {
                 }
                 if store.addressPresented {
                     LeanBrandTheme.canvas.opacity(0.3).onTapGesture { store.dismissAddress() }
-                    AddressPalette(store: store)
+                    AddressPalette(store: store).id(store.addressPresentationID)
                 }
                 if store.recentSwitcherPresented { BrowserRecentSwitcher(store: store) }
                 if let notice = store.notice ?? store.owner.storageError {
@@ -35,8 +35,8 @@ struct BrowserRoot: View {
                 }
             }
             .background(BrowserNativeWindowControlsBridge(isVisible: store.showsSidebar))
+            .background(BrowserSidebarPointerTracker(store: store))
             .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: store.showsSidebar)
-            .onHover { if !$0 { store.sidebarRevealed = false } }
         }
         .sheet(isPresented: Binding(get: { store.siteSettingsPresented }, set: { store.siteSettingsPresented = $0 })) {
             BrowserSiteSettings(store: store)

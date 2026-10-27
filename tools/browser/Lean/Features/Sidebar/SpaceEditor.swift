@@ -23,7 +23,7 @@ struct SpaceEditor: View {
                             .padding(4).overlay { if color == index { Circle().stroke(.primary, lineWidth: 1) } }
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(["Blue", "Orange", "Purple", "Green", "Coral", "Yellow"][index])
+                    .accessibilityLabel(SpaceColors.names[index])
                 }
             }
             if space == nil { Toggle("Private Space", isOn: $isPrivate) }

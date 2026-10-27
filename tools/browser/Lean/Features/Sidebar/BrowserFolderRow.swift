@@ -8,17 +8,19 @@ struct BrowserFolderRow: View {
     private var service: GitHubFolder { store.integration(for: store.activeSpace.id) }
 
     var body: some View {
-        if folder.kind == .regular || service.isSignedIn {
+        if folder.kind == .regular || !store.activeSpace.isPrivate {
             VStack(spacing: 2) {
                 HStack(spacing: 8) {
                     if store.editingFolderID == folder.id {
-                        InlineNameField(title: folder.title) { title in
-                            store.updateFolder(folder.id) { $0.title = title.isEmpty ? "Folder" : title }
-                            store.editingFolderID = nil
-                        }
+                        InlineNameField(
+                            title: folder.title,
+                            commit: { title in
+                                store.updateFolder(folder.id) { $0.title = title.isEmpty ? "New Folder" : title }
+                                store.editingFolderID = nil
+                            }, cancel: { store.editingFolderID = nil })
                     } else {
                         Button {
-                            store.updateFolder(folder.id) { $0.isExpanded.toggle() }
+                            store.clickFolder(folder.id)
                         } label: {
                             HStack(spacing: 9) {
                                 Image(systemName: folder.isExpanded ? "folder.fill" : "folder").frame(width: 28)
@@ -39,58 +41,93 @@ struct BrowserFolderRow: View {
                     }
                 }
                 .frame(height: SidebarGeometry.rowHeight)
-                .leanInteractiveSurface(isSelected: false, isHovering: hovering, cornerRadius: 20)
+                .leanInteractiveSurface(
+                    isSelected: false,
+                    isHovering: hovering, cornerRadius: 20
+                )
                 .onHover { hovering = $0 }
                 .onDrag { store.dragProvider(folder: folder.id) }
                 .modifier(BrowserDropArea(store: store, folder: folder.id))
+                .overlay(alignment: .top) {
+                    Color.clear.frame(height: 5).contentShape(Rectangle())
+                        .modifier(
+                            BrowserDropArea(store: store, before: folder.id, placement: folder.placement ?? .saved))
+                }
                 .contextMenu {
-                    Button("Rename") { store.editingFolderID = folder.id }
-                    if folder.kind == .regular { Button("New Folder") { store.addFolder(parentID: folder.id) } }
-                    if folder.kind == .github { GitHubFolderMenu(folder: folder, store: store) }
-                    Divider()
-                    Button("Delete Folder", role: .destructive) { store.deleteFolder(folder.id) }
+                    if store.selectedFolders.contains(folder.id) {
+                        BrowserSidebarBatchMenu(store: store)
+                    } else {
+                        Button("Rename Folder") { store.editingFolderID = folder.id }
+                        if folder.kind == .regular {
+                            Button("New Nested Folder") { store.addFolder(parentID: folder.id) }
+                        }
+                        if folder.kind == .github {
+                            Menu("Live Folder Options") { GitHubFolderMenu(folder: folder, store: store) }
+                        }
+                        if folder.kind == .regular {
+                            Button(folder.placement == .current ? "Move to Saved Tabs" : "Move to Current Tabs") {
+                                store.moveFolderLocally(
+                                    folder.id, into: nil, placement: folder.placement == .current ? .saved : .current)
+                            }
+                        }
+                        Menu("Move to Folder") {
+                            Button("Top Level") { store.moveFolderLocally(folder.id, into: nil) }.disabled(
+                                folder.parentID == nil)
+                            ForEach(
+                                store.activeSpace.folders.filter {
+                                    $0.kind == .regular
+                                        && !store.descendants(folder.id, in: store.activeSpace).contains($0.id)
+                                }
+                            ) { target in
+                                Button(target.title) { store.moveFolderLocally(folder.id, into: target.id) }.disabled(
+                                    folder.parentID == target.id)
+                            }
+                        }
+                        Divider()
+                        Button("Delete Folder", role: .destructive) { store.deleteFolder(folder.id) }
+                    }
                 }
                 if folder.isExpanded {
                     if folder.kind == .github {
                         githubItems
                     } else {
-                        ForEach(store.activeSpace.tabs.filter { $0.folderID == folder.id }) { tab in
-                            BrowserSidebarItem(tab: tab, store: store).padding(.leading, 12)
-                        }
+                        BrowserSidebarList(
+                            store: store, placement: folder.placement ?? .saved, parentID: folder.id, depth: depth + 1)
                     }
                 }
             }
-            .padding(.leading, CGFloat(depth) * 12)
+            .padding(folder.isExpanded ? 4 : 0)
+            .leanInteractiveSurface(
+                isSelected: store.selectedFolders.contains(folder.id) && !store.selectionCovers(folder.parentID),
+                isHovering: false, cornerRadius: max(0, 20 - CGFloat(depth) * 4),
+                selectionEmphasis: store.sidebarKeyboardSelection && store.selectedFolders.contains(folder.id)
+            )
+            .background(
+                LeanBrandTheme.line.opacity(folder.isExpanded ? 0.22 : 0),
+                in: RoundedRectangle(cornerRadius: max(0, 20 - CGFloat(depth) * 4)))
         }
     }
 
     private var githubItems: some View {
         VStack(spacing: 2) {
-            if service.items.isEmpty {
-                Text(service.error ?? "No matching pull requests").font(.caption).foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 12).padding(.vertical, 6)
-            }
-            ForEach(service.items) { item in
-                if let tab = store.activeSpace.tabs.first(where: { $0.folderID == folder.id && $0.savedURL == item.url }
-                ) {
-                    BrowserSidebarItem(tab: tab, store: store).padding(.leading, 12)
+            let tabs = store.activeSpace.tabs.filter { $0.folderID == folder.id }
+            if tabs.isEmpty {
+                if service.isLoading {
+                    ProgressView().controlSize(.small).padding(8)
+                } else if !folder.githubOptions.hasFilters {
+                    Text("Filter is not set").foregroundStyle(.secondary).padding(8)
+                } else if !service.isSignedIn {
+                    Button("Connect GitHub") { store.open(URL(string: "https://github.com/pulls")!) }
+                        .buttonStyle(.plain).padding(8)
                 } else {
-                    Button {
-                        _ = store.open(item.url, placement: .saved, folderID: folder.id)
-                    } label: {
-                        HStack(spacing: 9) {
-                            Circle().fill(.green).frame(width: 6, height: 6).frame(width: 28)
-                            Text(item.title).lineLimit(1)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.horizontal, 10).frame(height: SidebarGeometry.rowHeight)
-                    }
-                    .buttonStyle(LeanChromeButtonStyle(controlSize: nil, cornerRadius: 20))
-                    .padding(.leading, 12)
+                    Text(service.error ?? "No open pull requests").foregroundStyle(.secondary).padding(8)
                 }
             }
-        }
+            ForEach(tabs) { tab in BrowserSidebarItem(tab: tab, store: store, depth: depth + 1).font(.system(size: 13))
+            }
+        }.font(.caption).frame(maxWidth: .infinity, alignment: .leading)
     }
+
 }
 
 private struct GitHubFolderMenu: View {
@@ -98,23 +135,37 @@ private struct GitHubFolderMenu: View {
     let store: BrowserStore
 
     var body: some View {
+        let service = store.integration(for: store.activeSpace.id)
+        Text(
+            !service.isSignedIn
+                ? "Not signed in to GitHub"
+                : !folder.githubOptions.hasFilters
+                    ? "Filter is not set"
+                    : service.error != nil
+                        ? "Failed to update"
+                        : service.lastFetched.map { "Last fetch: " + $0.formatted(.relative(presentation: .numeric)) }
+                            ?? "Not fetched yet"
+        ).disabled(true)
         Picker("Fetch Interval", selection: option(\.intervalMinutes)) {
             ForEach([15, 30, 60, 120, 240, 480], id: \.self) { minutes in
-                Text(minutes < 60 ? "\(minutes) minutes" : "\(minutes / 60) hour(s)").tag(minutes)
+                Text(minutes < 60 ? "\(minutes) minutes" : "\(minutes / 60) \(minutes == 60 ? "hour" : "hours")").tag(
+                    minutes)
             }
         }
         Button("Refresh") { store.integration(for: store.activeSpace.id).requestRefresh() }
         Toggle("Created by Me", isOn: option(\.authorMe))
         Toggle("Assigned to Me", isOn: option(\.assignedMe))
-        Toggle("Review Requested", isOn: option(\.reviewRequested))
-        Toggle("Include Drafts", isOn: option(\.includeDrafts))
+        Toggle("Review Requests", isOn: option(\.reviewRequested))
+        Toggle("Include Draft Pull Requests", isOn: option(\.includeDrafts))
         Menu("Repositories") {
             ForEach(store.integration(for: store.activeSpace.id).repositories, id: \.self) { repository in
                 Toggle(
                     repository,
                     isOn: Binding(
                         get: {
-                            !folder.githubOptions.excludedRepositories.contains(repository)
+                            !folder.githubOptions.excludedRepositories.contains {
+                                $0.caseInsensitiveCompare(repository) == .orderedSame
+                            }
                         },
                         set: { included in
                             store.updateFolder(folder.id) { value in

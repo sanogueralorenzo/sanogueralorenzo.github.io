@@ -19,6 +19,8 @@ struct LeanInteractiveSurfaceModifier: ViewModifier {
     let selectedBorderColor: Color
     let selectedBorderWidth: CGFloat
     var customHoverFill: Color? = nil
+    var customSelectedFill: Color? = nil
+    var customRestingFill: Color? = nil
     var restingBorderColor: Color = .clear
 
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -71,6 +73,7 @@ struct LeanInteractiveSurfaceModifier: ViewModifier {
         if isSelected || isPressed || showsRestingSurface {
             LeanSurfaceLayer(
                 shape: shape,
+                tint: isSelected || isPressed ? customSelectedFill : customRestingFill,
                 hoverTint: isHovering ? hoverFill : nil
             )
         } else if isHovering {
@@ -139,7 +142,9 @@ extension View {
         showsRestingSurface: Bool = false,
         selectedBorderColor: Color = LeanColor.selectedBorder,
         selectedBorderWidth: CGFloat =
-            LeanInteractiveSurfaceMetrics.defaultSelectedBorderWidth
+            LeanInteractiveSurfaceMetrics.defaultSelectedBorderWidth,
+        customSelectedFill: Color? = nil,
+        customRestingFill: Color? = nil
     ) -> some View {
         modifier(
             LeanInteractiveSurfaceModifier(
@@ -151,7 +156,9 @@ extension View {
                 isPressed: isPressed,
                 showsRestingSurface: showsRestingSurface,
                 selectedBorderColor: selectedBorderColor,
-                selectedBorderWidth: selectedBorderWidth
+                selectedBorderWidth: selectedBorderWidth,
+                customSelectedFill: customSelectedFill,
+                customRestingFill: customRestingFill
             )
         )
     }

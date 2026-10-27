@@ -16,6 +16,7 @@ extension BrowserPage {
             if(callback) { callback({action,seekTime:time,seekOffset:10,fastSeek:false}); return; }
             const e = document.querySelector('video,audio'); if(!e) return;
             if(action === 'play') await e.play(); else if(action === 'pause') e.pause();
+            else if(action === 'mute') e.muted=true; else if(action === 'unmute') e.muted=false;
             else if(action === 'seekto') e.currentTime = Math.max(0,time);
             else if(action === 'seekforward') e.currentTime = Math.min(e.duration,e.currentTime+10);
             else if(action === 'seekbackward') e.currentTime = Math.max(0,e.currentTime-10);

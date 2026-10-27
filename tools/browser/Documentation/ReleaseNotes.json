@@ -4685,6 +4685,18 @@
     "lean-webkit-fixed-defaults": {
       "category": "improved",
       "message": "Apply Crest’s WebKit defaults automatically and remove feature-flag settings and saved overrides"
+    },
+    "lean-sidebar-settings-organization": {
+      "category": "improved",
+      "message": "Resize the hover sidebar, organize nested folders and split views, and manage default zoom and per-Space privacy in grouped Settings."
+    },
+    "lean-durable-github-live-folders": {
+      "category": "fixed",
+      "message": "Keep GitHub live-folder tabs and their names across refreshes and relaunches without collecting private Spaces."
+    },
+    "lean-sidebar-media-playback-state": {
+      "category": "fixed",
+      "message": "Keep Now Playing controls in sync with paused media, with track controls, mute and hide actions, and private playback kept out of the system media card."
     }
   }
 }

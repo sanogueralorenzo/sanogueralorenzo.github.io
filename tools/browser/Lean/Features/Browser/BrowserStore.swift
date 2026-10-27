@@ -14,6 +14,11 @@ final class BrowserStore {
     var isClosed = false
     @ObservationIgnored weak var window: NSWindow?
     var selectedTabs: Set<UUID> = []
+    var selectedFolders: Set<UUID> = []
+    var selectionAnchor: UUID?
+    var selectionFocusedID: UUID?
+    var selectionRangeBase: Set<UUID>?
+    var sidebarKeyboardSelection = false
     var isDragging = false
     var recentSwitcherPresented = false
     var recentSwitcherIndex = 0
@@ -28,6 +33,7 @@ final class BrowserStore {
         }
     }
     var addressPresented = false
+    var addressPresentationID = UUID()
     var addressCreatesTab = false
     var addressText = ""
     var utility: BrowserUtility?
@@ -37,9 +43,27 @@ final class BrowserStore {
     var importPresented = false
     var exportPresented = false
     var notice: String?
+    var settingsTabs: [UUID: BrowserSettingsTabState] = [:]
+    var settingsState: BrowserSettingsTabState {
+        get { selectedTab.flatMap { settingsTabs[$0.id] } ?? BrowserSettingsTabState() }
+        set { if let id = selectedTab?.id { settingsTabs[id] = newValue } }
+    }
+    var settingsSelection: BrowserSettingsSelection {
+        get { settingsState.selection }
+        set { settingsState.selection = newValue }
+    }
+    var settingsSpacePrivacy: Bool {
+        get { settingsState.spacePrivacy }
+        set { settingsState.spacePrivacy = newValue }
+    }
     var isFullScreen = false
     var sidebarRevealed = false
     var sidebarEditorPresented = false
+    var sidebarMenuPresented = false
+    var isResizingSidebar = false
+    var sidebarWidth: CGFloat {
+        SidebarGeometry.clampedWidth(CGFloat(preferences.sidebarWidth ?? Double(SidebarGeometry.width)))
+    }
     var pendingSplitSourceID: UUID?
     var editingTabID: UUID?
     var editingFolderID: UUID?
@@ -79,8 +103,11 @@ final class BrowserStore {
     }
     var playingPage: BrowserPage? {
         _ = runtimeRevision
-        return pages.values.filter { $0.isPlaying }.max { $0.lastSelected < $1.lastSelected }
-            ?? owner.media?.currentPage
+        let visible = pages.values.filter { page in
+            !page.nowPlayingHidden && session.spaces.first(where: { $0.id == page.spaceID })?.isPrivate == false
+        }
+        return visible.filter { $0.isPlaying }.max { $0.lastSelected < $1.lastSelected }
+            ?? owner.media?.currentPage.flatMap { page in visible.contains(where: { $0.id == page.id }) ? page : nil }
     }
     var preferences: BrowserPreferences { session.preferences }
     var activeDownloads: [BrowserDownload] {
@@ -88,7 +115,8 @@ final class BrowserStore {
         return Array(downloads.values)
     }
     var showsSidebar: Bool {
-        sidebarRevealed || sidebarEditorPresented || utility != nil || addressPresented || activeSpace.tabs.isEmpty
+        sidebarRevealed || sidebarEditorPresented || sidebarMenuPresented || isResizingSidebar
+            || editingTabID != nil || editingFolderID != nil || utility != nil || activeSpace.tabs.isEmpty
     }
 
     // MARK: - Initializers
@@ -103,6 +131,8 @@ final class BrowserStore {
     // MARK: - Actions - Navigation
 
     func presentAddress(newTab: Bool = false) {
+        addressPresentationID = UUID()
+        sidebarRevealed = false
         pendingSplitSourceID = nil
         utility = nil
         addressCreatesTab = newTab || selectedTab == nil || selectedTab?.isSettings == true
@@ -126,6 +156,7 @@ final class BrowserStore {
     @discardableResult
     func open(_ url: URL, placement: BrowserTab.Placement = .current, folderID: UUID? = nil) -> UUID {
         var tab = BrowserTab()
+        tab.zoom = preferences.defaultPageZoom ?? 1
         tab.url = url
         tab.title = url.host ?? url.lastPathComponent
         tab.placement = placement
@@ -145,7 +176,12 @@ final class BrowserStore {
     }
 
     func selectTab(_ id: UUID, keepingSelection: Bool = false) {
-        if !keepingSelection { selectedTabs = [id] }
+        if !keepingSelection {
+            selectedTabs = [id]
+            selectedFolders = []
+            selectionAnchor = nil
+            sidebarKeyboardSelection = false
+        }
         guard let (space, _) = tabIndex(id) else { return }
         let previousPages = visiblePages
         windowState.spaceID = session.spaces[space].id
@@ -168,6 +204,10 @@ final class BrowserStore {
         windowState.spaceID = id
         if !activeSpace.isPrivate { session.selectedSpaceID = id }
         selectedTabs.removeAll()
+        selectedFolders.removeAll()
+        selectionAnchor = nil
+        selectionRangeBase = nil
+        sidebarKeyboardSelection = false
         utility = nil
         findsPage = false
         loadSelection()
@@ -243,7 +283,7 @@ final class BrowserStore {
 
     func closeSelectedTab() { requestCloseSelected() }
 
-    func deleteTab(_ id: UUID) {
+    func deleteTab(_ id: UUID, liveFolderRefresh: Bool = false) {
         guard let (s, t) = tabIndex(id) else { return }
         let spaceID = session.spaces[s].id
         let affected = owner.contexts.values.filter {
@@ -251,7 +291,10 @@ final class BrowserStore {
         }
         detachFromSplits(id)
         let tab = session.spaces[s].tabs.remove(at: t)
-        session.archive.insert(BrowserArchiveEntry(spaceID: session.spaces[s].id, tab: tab), at: 0)
+        let liveFolder = session.spaces[s].folders.contains { $0.id == tab.folderID && $0.kind == .github }
+        var entry = BrowserArchiveEntry(spaceID: session.spaces[s].id, tab: tab)
+        entry.wasDeletedFromLiveFolder = liveFolder && !liveFolderRefresh ? true : nil
+        session.archive.insert(entry, at: 0)
         unload(id)
         for context in affected {
             context.setSelectedTab(nil, in: spaceID)
@@ -328,7 +371,9 @@ final class BrowserStore {
     }
 
     func deleteSpace(_ id: UUID, prepared: Bool = false) {
-        guard let space = session.spaces.first(where: { $0.id == id }) else { return }
+        guard let space = session.spaces.first(where: { $0.id == id }),
+            space.isPrivate || session.spaces.filter({ !$0.isPrivate }).count > 1
+        else { return }
         Task {
             if !prepared {
                 guard await prepareTabs(space.tabs.map(\.id)), await prepareToDeleteSpace(id) else { return }
@@ -364,6 +409,7 @@ final class BrowserStore {
         let index = spaceIndex(spaceID ?? activeSpace.id)
         var folder = BrowserFolder()
         folder.parentID = parentID
+        folder.placement = parentID.flatMap { id in session.spaces[index].folders.first { $0.id == id }?.placement }
         if github {
             if let existing = session.spaces[index].folders.first(where: { $0.kind == .github }) { return existing.id }
             folder.kind = .github
@@ -582,20 +628,4 @@ extension BrowserStore {
         pendingSplitSourceID = nil
     }
 
-    // MARK: - Actions - Folder outline
-
-    var visibleFolders: [BrowserFolderEntry] {
-        var entries: [BrowserFolderEntry] = []
-        var seen: Set<UUID> = []
-        func appendChildren(_ parent: UUID?, depth: Int) {
-            guard depth < 32 else { return }
-            for folder in activeSpace.folders where folder.parentID == parent {
-                guard seen.insert(folder.id).inserted else { continue }
-                entries.append(BrowserFolderEntry(folder: folder, depth: depth))
-                if folder.isExpanded { appendChildren(folder.id, depth: depth + 1) }
-            }
-        }
-        appendChildren(nil, depth: 0)
-        return entries
-    }
 }

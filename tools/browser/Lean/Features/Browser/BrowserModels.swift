@@ -32,10 +32,11 @@ struct BrowserDocumentState: Codable, Equatable, Sendable {
 struct BrowserFolder: Codable, Identifiable, Equatable {
     enum Kind: String, Codable { case regular, github }
     var id = UUID()
-    var title = "Folder"
+    var title = "New Folder"
     var parentID: UUID?
     var isExpanded = true
     var kind = Kind.regular
+    var placement: BrowserTab.Placement?
     var githubOptions = GitHubLiveFolderOptions.default
 }
 
@@ -46,11 +47,13 @@ struct BrowserSpace: Codable, Identifiable, Equatable {
     var isPrivate = false
     var tabs: [BrowserTab] = []
     var folders: [BrowserFolder] = []
+    var sidebarOrderIDs: [UUID]?
     var selectedTabID: UUID?
     var splits: [BrowserSplit] = []
     var githubDismissed = false
     var permissions: [BrowserSitePermission] = []
     var downloadDirectory: Data?
+    var browsingPreferences: BrowserSpacePreferences?
 }
 
 struct BrowserSitePermission: Codable, Identifiable, Equatable {
@@ -89,6 +92,7 @@ struct BrowserArchiveEntry: Codable, Identifiable {
     var id = UUID()
     var spaceID: UUID
     var tab: BrowserTab
+    var wasDeletedFromLiveFolder: Bool?
     var date = Date()
 }
 
@@ -119,6 +123,8 @@ struct BrowserPreferences: Codable {
     var translationLanguage = "en"
     var excludedLanguages: Set<String> = []
     var downloadsAskEveryTime = true
+    var sidebarWidth: Double?
+    var defaultPageZoom: Double?
 }
 
 struct BrowserWindowState: Codable, Identifiable {
@@ -229,10 +235,4 @@ struct BrowserSplit: Codable, Identifiable, Equatable {
         self.tabIDs = tabIDs
         fractions = tabIDs.map { _ in 1 / Double(tabIDs.count) }
     }
-}
-
-struct BrowserFolderEntry: Identifiable {
-    let folder: BrowserFolder
-    let depth: Int
-    var id: UUID { folder.id }
 }

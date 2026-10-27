@@ -4,17 +4,28 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct BrowserDragPayload: Codable {
-    enum Kind: String, Codable { case tabs, folder }
+    enum Kind: String, Codable { case tabs, folder, space }
     let kind: Kind
     let spaceID: UUID
     let ids: [UUID]
+    var folderIDs: [UUID] = []
     static let type = "dev.leanbrowser.organization"
 }
 
 extension BrowserStore {
     var sidebarOrder: [BrowserTab] {
-        activeSpace.tabs.filter { $0.placement == .pinned } + activeSpace.tabs.filter { $0.placement == .saved }
-            + activeSpace.tabs.filter { $0.placement == .current }
+        var result = activeSpace.tabs.filter { $0.placement == .pinned }
+        func append(_ parent: UUID?, _ placement: BrowserTab.Placement) {
+            for entry in activeSpace.sidebarEntries(parentID: parent, placement: placement) {
+                switch entry.kind {
+                case .folder(let folder): append(folder.id, placement)
+                case .tab(let tab): result.append(tab)
+                }
+            }
+        }
+        append(nil, .saved)
+        append(nil, .current)
+        return result
     }
     var recentTabIDs: [UUID] {
         var seen = Set<UUID>()
@@ -24,35 +35,28 @@ extension BrowserStore {
             return seen.insert(split?.id ?? id).inserted
         }
     }
-    func clickTab(_ id: UUID) {
-        let modifiers = NSEvent.modifierFlags
-        if modifiers.contains(.shift), let anchor = selectedTab?.id,
-            let first = sidebarOrder.firstIndex(where: { $0.id == anchor }),
-            let last = sidebarOrder.firstIndex(where: { $0.id == id })
-        {
-            selectedTabs.formUnion(sidebarOrder[min(first, last)...max(first, last)].map(\.id))
-        } else if modifiers.contains(.command) {
-            if !selectedTabs.insert(id).inserted { selectedTabs.remove(id) }
-        } else {
-            selectedTabs = [id]
-        }
-        selectTab(id, keepingSelection: true)
-    }
-    func actionTabs(_ id: UUID) -> [UUID] {
-        sidebarOrder.filter { selectedTabs.contains(id) ? selectedTabs.contains($0.id) : $0.id == id }.map(\.id)
-    }
     func dragProvider(tab id: UUID) -> NSItemProvider {
         isDragging = true
-        var ids = actionTabs(id)
+        var ids = selectedTabs.contains(id) ? selectedLooseTabIDs : actionTabs(id)
         for split in activeSpace.splits where !Set(split.tabIDs).isDisjoint(with: ids) {
             ids += split.tabIDs.filter { !ids.contains($0) }
         }
-        let payload = BrowserDragPayload(kind: .tabs, spaceID: activeSpace.id, ids: ids)
+        let payload = BrowserDragPayload(
+            kind: .tabs, spaceID: activeSpace.id, ids: ids,
+            folderIDs: selectedTabs.contains(id) ? selectionRootFolders : [])
         return dragProvider(payload, url: activeSpace.tabs.first(where: { $0.id == id })?.url)
+    }
+    func dragProvider(space id: UUID) -> NSItemProvider {
+        isDragging = true
+        return dragProvider(BrowserDragPayload(kind: .space, spaceID: id, ids: [id]), url: nil)
     }
     func dragProvider(folder: UUID) -> NSItemProvider {
         isDragging = true
-        return dragProvider(BrowserDragPayload(kind: .folder, spaceID: activeSpace.id, ids: [folder]), url: nil)
+        return dragProvider(
+            BrowserDragPayload(
+                kind: .folder, spaceID: activeSpace.id,
+                ids: selectedFolders.contains(folder) ? selectedLooseTabIDs : [],
+                folderIDs: selectedFolders.contains(folder) ? selectionRootFolders : [folder]), url: nil)
     }
     private func dragProvider(_ payload: BrowserDragPayload, url: URL?) -> NSItemProvider {
         let provider = url.map { NSItemProvider(object: $0 as NSURL) } ?? NSItemProvider()
@@ -72,7 +76,8 @@ extension BrowserStore {
         let dropFolder =
             folder
             ?? before.flatMap { id in
-                session.spaces.first(where: { $0.id == destination })?.tabs.first(where: { $0.id == id })?.folderID
+                let space = session.spaces.first { $0.id == destination }
+                return space?.tabs.first { $0.id == id }?.folderID ?? space?.folders.first { $0.id == id }?.parentID
             }
         if let folder = dropFolder,
             session.spaces.first(where: { $0.id == destination })?.folders.first(where: { $0.id == folder })?.kind
@@ -101,7 +106,14 @@ extension BrowserStore {
                 Task { @MainActor in
                     guard let self else { return }
                     self.selectSpace(destination)
-                    _ = self.open(url, placement: placement ?? (folder == nil ? .current : .saved), folderID: folder)
+                    let target = before.flatMap { id in self.activeSpace.tabs.first { $0.id == id } }
+                    let id = self.open(
+                        url,
+                        placement: placement ?? target?.placement ?? dropFolder.flatMap { id in
+                            self.activeSpace.folders.first { $0.id == id }?.placement ?? .saved
+                        } ?? .current, folderID: dropFolder)
+                    self.reorderSidebarItems([id], in: destination, before: before)
+                    self.changed()
                     self.isDragging = false
                 }
             }
@@ -115,24 +127,44 @@ extension BrowserStore {
         guard let source = session.spaces.first(where: { $0.id == payload.spaceID }),
             session.spaces.contains(where: { $0.id == spaceID })
         else { return }
-        if payload.kind == .folder {
-            guard let id = payload.ids.first, source.folders.contains(where: { $0.id == id }) else { return }
-            if payload.spaceID == spaceID {
-                let nested = descendants(id, in: source)
-                guard folder != id, folder.map({ !nested.contains($0) }) ?? true else { return }
-                let s = spaceIndex(spaceID)
-                guard let index = session.spaces[s].folders.firstIndex(where: { $0.id == id }) else { return }
-                session.spaces[s].folders[index].parentID = folder
-                changed()
-            } else {
-                moveFolder(id, from: payload.spaceID, to: spaceID)
-            }
+        if payload.kind == .space {
+            guard payload.spaceID != spaceID,
+                let index = session.spaces.firstIndex(where: { $0.id == payload.spaceID })
+            else { return }
+            let moving = session.spaces.remove(at: index)
+            let destination = session.spaces.firstIndex { $0.id == spaceID } ?? session.spaces.count
+            session.spaces.insert(moving, at: destination)
+            changed()
             return
+        }
+        let destinationSpace = session.spaces[spaceIndex(spaceID)]
+        let beforeFolder = before.flatMap { id in destinationSpace.folders.first { $0.id == id } }
+        let beforeTab = before.flatMap { id in destinationSpace.tabs.first { $0.id == id } }
+        let destinationParent = folder ?? beforeFolder?.parentID ?? beforeTab?.folderID
+        let location =
+            placement ?? beforeFolder?.placement ?? beforeTab?.placement
+            ?? destinationParent.flatMap { id in destinationSpace.folders.first { $0.id == id }?.placement }
+        if !payload.folderIDs.isEmpty {
+            let nested = payload.folderIDs.reduce(into: Set<UUID>()) { $0.formUnion(descendants($1, in: source)) }
+            guard location != .pinned,
+                destinationParent.map({ !nested.contains($0) }) ?? true,
+                before.map({ !nested.contains($0) }) ?? true
+            else { return }
+            for id in payload.folderIDs {
+                if payload.spaceID == spaceID {
+                    moveFolderLocally(id, into: destinationParent, placement: location, before: before)
+                } else {
+                    moveFolder(
+                        id, from: payload.spaceID, to: spaceID, parentID: destinationParent, placement: location,
+                        before: before)
+                }
+            }
+            if payload.kind == .folder && payload.ids.isEmpty { return }
         }
         let ids = relatedTabIDs(payload.ids).filter { id in source.tabs.contains(where: { $0.id == id }) }
         guard !ids.isEmpty else { return }
         if payload.spaceID != spaceID {
-            moveTabs(ids, to: spaceID, folderID: folder, placement: placement)
+            moveTabs(ids, to: spaceID, folderID: destinationParent, placement: location, before: before)
             return
         }
         let s = spaceIndex(spaceID)
@@ -141,13 +173,21 @@ extension BrowserStore {
         var moved = session.spaces[s].tabs.filter { ids.contains($0.id) }
         session.spaces[s].tabs.removeAll { ids.contains($0.id) }
         for i in moved.indices {
-            moved[i].placement = placement ?? target?.placement ?? (folder != nil ? .saved : moved[i].placement)
-            moved[i].folderID = moved[i].placement == .pinned ? nil : (folder ?? target?.folderID)
-            if moved[i].placement != .current, moved[i].savedURL == nil { moved[i].savedURL = moved[i].url }
+            moved[i].placement =
+                location ?? target?.placement ?? folder.map { id in
+                    session.spaces[s].folders.first { $0.id == id }?.placement ?? .saved
+                } ?? moved[i].placement
+            moved[i].folderID = moved[i].placement == .pinned ? nil : destinationParent
+            if moved[i].placement == .current {
+                moved[i].savedURL = nil
+            } else if moved[i].savedURL == nil {
+                moved[i].savedURL = moved[i].url
+            }
         }
         let index =
             before.flatMap { id in session.spaces[s].tabs.firstIndex { $0.id == id } } ?? session.spaces[s].tabs.count
         session.spaces[s].tabs.insert(contentsOf: moved, at: index)
+        reorderSidebarItems(ids, in: spaceID, before: before)
         changed()
     }
     func relatedTabIDs(_ ids: [UUID]) -> [UUID] {
@@ -170,7 +210,10 @@ extension BrowserStore {
         }
         changed()
     }
-    func moveTabs(_ ids: [UUID], to destination: UUID, folderID: UUID? = nil, placement: BrowserTab.Placement? = nil) {
+    func moveTabs(
+        _ ids: [UUID], to destination: UUID, folderID: UUID? = nil, placement: BrowserTab.Placement? = nil,
+        before: UUID? = nil
+    ) {
         let ids = relatedTabIDs(ids)
         Task {
             guard await prepareTabs(ids) else { return }
@@ -191,7 +234,11 @@ extension BrowserStore {
                 var tab = session.spaces[s].tabs.remove(at: t)
                 tab.folderID = folderID
                 tab.placement = placement ?? tab.placement
-                if tab.placement == .current { tab.savedURL = nil }
+                if tab.placement == .current {
+                    tab.savedURL = nil
+                } else if tab.savedURL == nil {
+                    tab.savedURL = tab.url
+                }
                 unload(id)
                 session.spaces[spaceIndex(destination)].tabs.append(tab)
                 for context in affected {
@@ -203,6 +250,7 @@ extension BrowserStore {
                     group.tabIDs.allSatisfy { id in session.spaces[target].tabs.contains { $0.id == id } }
                 }
             }
+            reorderSidebarItems(ids, in: destination, before: before)
             if let first = ids.first { selectTab(first) }
             changed()
         }
@@ -216,8 +264,56 @@ extension BrowserStore {
             if ids.count == count { return ids }
         }
     }
-    func moveFolder(_ id: UUID, from source: UUID, to destination: UUID) {
-        guard let space = session.spaces.first(where: { $0.id == source }) else { return }
+    func moveFolderLocally(
+        _ id: UUID, into parentID: UUID?, placement: BrowserTab.Placement? = nil, before: UUID? = nil
+    ) {
+        let s = spaceIndex(activeSpace.id)
+        guard let folder = activeSpace.folders.first(where: { $0.id == id }) else { return }
+        let nested = descendants(id, in: activeSpace)
+        guard parentID.map({ !nested.contains($0) }) ?? true,
+            parentID.map({ parent in activeSpace.folders.contains { $0.id == parent && $0.kind == .regular } }) ?? true
+        else { return }
+        let parent = parentID.flatMap { parent in activeSpace.folders.first { $0.id == parent } }
+        let location = placement ?? parent?.placement ?? folder.placement ?? .saved
+        guard location != .pinned, folder.kind != .github || location == .saved else { return }
+        var candidate = session
+        for i in candidate.spaces[s].folders.indices where nested.contains(candidate.spaces[s].folders[i].id) {
+            candidate.spaces[s].folders[i].placement = location
+            if candidate.spaces[s].folders[i].id == id { candidate.spaces[s].folders[i].parentID = parentID }
+        }
+        for i in candidate.spaces[s].tabs.indices
+        where candidate.spaces[s].tabs[i].folderID.map(nested.contains) == true {
+            candidate.spaces[s].tabs[i].placement = location
+            if location == .current {
+                candidate.spaces[s].tabs[i].savedURL = nil
+            } else if candidate.spaces[s].tabs[i].savedURL == nil {
+                candidate.spaces[s].tabs[i].savedURL = candidate.spaces[s].tabs[i].url
+            }
+        }
+        if let before, before != id,
+            let index = candidate.spaces[s].folders.firstIndex(where: { $0.id == id })
+        {
+            let moved = candidate.spaces[s].folders.remove(at: index)
+            let target = candidate.spaces[s].folders.firstIndex { $0.id == before } ?? candidate.spaces[s].folders.count
+            candidate.spaces[s].folders.insert(moved, at: target)
+        }
+        guard (try? candidate.validate()) != nil else { return }
+        session = candidate
+        reorderSidebarItems([id], in: activeSpace.id, before: before)
+        changed()
+    }
+
+    func moveFolder(
+        _ id: UUID, from source: UUID, to destination: UUID, parentID: UUID? = nil,
+        placement: BrowserTab.Placement? = nil, before: UUID? = nil
+    ) {
+        guard source != destination, let space = session.spaces.first(where: { $0.id == source }),
+            let target = session.spaces.first(where: { $0.id == destination }),
+            parentID.map({ parent in target.folders.contains { $0.id == parent && $0.kind == .regular } }) ?? true
+        else { return }
+        let targetPlacement =
+            placement ?? parentID.flatMap { parent in target.folders.first { $0.id == parent }?.placement }
+        guard targetPlacement != .pinned else { return }
         let folderIDs = descendants(id, in: space)
         let tabs = relatedTabIDs(space.tabs.filter { $0.folderID.map { folderIDs.contains($0) } ?? false }.map(\.id))
         Task {
@@ -231,13 +327,24 @@ extension BrowserStore {
             else { return }
             let groups = session.spaces[sourceIndex].splits.filter { Set($0.tabIDs).isSubset(of: Set(tabs)) }
             if session.spaces[sourceIndex].folders.contains(where: { folderIDs.contains($0.id) && $0.kind == .github }),
-                session.spaces[targetIndex].folders.contains(where: { $0.kind == .github })
+                session.spaces[targetIndex].isPrivate
+                    || session.spaces[targetIndex].folders.contains(where: { $0.kind == .github })
             {
                 return
             }
             var folders = session.spaces[sourceIndex].folders.filter { folderIDs.contains($0.id) }
-            for i in folders.indices where folders[i].id == id { folders[i].parentID = nil }
-            let moving = session.spaces[sourceIndex].tabs.filter { tabs.contains($0.id) }
+            for i in folders.indices {
+                if folders[i].id == id { folders[i].parentID = parentID }
+                if let targetPlacement { folders[i].placement = targetPlacement }
+            }
+            guard !folders.contains(where: { $0.kind == .github && $0.placement == .current }) else { return }
+            var moving = session.spaces[sourceIndex].tabs.filter { tabs.contains($0.id) }
+            for i in moving.indices {
+                if let targetPlacement {
+                    moving[i].placement = targetPlacement
+                    moving[i].savedURL = targetPlacement == .current ? nil : moving[i].savedURL ?? moving[i].url
+                }
+            }
             session.spaces[sourceIndex].folders.removeAll { folderIDs.contains($0.id) }
             session.spaces[sourceIndex].tabs.removeAll { tabs.contains($0.id) }
             for id in tabs {
@@ -253,6 +360,7 @@ extension BrowserStore {
                     context.setSelectedTab(nil, in: source)
                 }
             }
+            reorderSidebarItems([id], in: destination, before: before)
             selectSpace(destination)
             changed()
         }

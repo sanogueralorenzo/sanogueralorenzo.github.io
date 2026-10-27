@@ -17,7 +17,7 @@ struct AddressPalette: View {
         let enabled: Bool
         let isPrivate: Bool
     }
-    private var results: [BrowserPaletteResult] { store.paletteResults(text) }
+    private var results: [BrowserPaletteResult] { standalone && text.isEmpty ? [] : store.paletteResults(text) }
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
@@ -60,8 +60,11 @@ struct AddressPalette: View {
                     }
                 }.padding(8)
             }
-        }.frame(width: 580).background(LeanBrandTheme.surface, in: RoundedRectangle(cornerRadius: 20))
-            .overlay { RoundedRectangle(cornerRadius: 20).stroke(LeanBrandTheme.line, lineWidth: 0.5) }
+        }.frame(width: standalone ? 720 : 580)
+            .background(LeanBrandTheme.surface, in: RoundedRectangle(cornerRadius: standalone ? 30 : 20))
+            .overlay {
+                RoundedRectangle(cornerRadius: standalone ? 30 : 20).stroke(LeanBrandTheme.line, lineWidth: 0.5)
+            }
 
             .onChange(of: text) { selected = -1 }
             .task(
