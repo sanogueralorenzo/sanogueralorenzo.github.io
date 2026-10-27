@@ -10,12 +10,11 @@ struct BrowserNativeWindowChromeSnapshot {
     let toolbar: NSToolbar?
     let contentFrameClipsToBounds: Bool
     let buttonVisibility: [(NSWindow.ButtonType, Bool)]
-    let buttonFrames: [(NSWindow.ButtonType, NSRect)]
 }
 
 /// Styles the window that shows Lean's chrome, which acts as the window's
 /// title bar: the title bar is transparent and shows no title, and the
-/// native controls share the floating sidebar’s title-row alignment.
+/// window's own controls keep their standard AppKit positions.
 ///
 /// In fullscreen the title bar slides down over the page with the menu bar,
 /// so there it is the system's standard one while it is revealed, from the
@@ -49,7 +48,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
     /// fullscreen and its title bar is revealed, and not once it starts to
     /// leave.
     private var showsStandardTitleBar = false
-    private var isTransitioningFullScreen = false
     /// Follows the window that holds the title bar in fullscreen, which AppKit
     /// shows from just before the title bar slides down with the menu bar
     /// until just after it slides away.
@@ -67,7 +65,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         showsStandardTitleBar = false
-        isTransitioningFullScreen = false
         captureOriginalChrome()
         observeWindow()
         if window?.styleMask.contains(.fullScreen) == true {
@@ -92,7 +89,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
         }
         applyTitleBar(to: window)
         applyWindowShape(to: window)
-        positionWindowControls(in: window)
         let shouldShowWindowControls = window.styleMask.showsWindowControls(
             sidebarPresentationShowsControls: isVisible)
         for type in Self.buttonTypes {
@@ -131,7 +127,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
         window.toolbar = originalChrome.toolbar
         window.contentView?.superview?.clipsToBounds =
             originalChrome.contentFrameClipsToBounds
-        if !window.styleMask.contains(.fullScreen) { restoreWindowControlsPosition() }
         for (type, wasHidden) in originalChrome.buttonVisibility {
             window.standardWindowButton(type)?.isHidden = wasHidden
         }
@@ -150,9 +145,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
                 window.contentView?.superview?.clipsToBounds ?? false,
             buttonVisibility: Self.buttonTypes.map { type in
                 (type, window.standardWindowButton(type)?.isHidden ?? false)
-            },
-            buttonFrames: Self.buttonTypes.compactMap { type in
-                window.standardWindowButton(type).map { (type, $0.frame) }
             }
         )
     }
@@ -169,33 +161,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
         }
     }
 
-    private func positionWindowControls(in window: NSWindow) {
-        guard !isTransitioningFullScreen, !window.styleMask.contains(.fullScreen),
-            let frameView = window.contentView?.superview,
-            let close = window.standardWindowButton(.closeButton)
-        else { return }
-        let closeFrame = close.convert(close.bounds, to: frameView)
-        let centerY =
-            frameView.isFlipped
-            ? frameView.bounds.minY + SidebarGeometry.titlebarCenterFromTop
-            : frameView.bounds.maxY - SidebarGeometry.titlebarCenterFromTop
-        let dx = SidebarGeometry.windowControlsLeadingInset - closeFrame.minX
-        let dy = centerY - closeFrame.midY
-        guard abs(dx) > 0.01 || abs(dy) > 0.01 else { return }
-        for type in Self.buttonTypes {
-            guard let button = window.standardWindowButton(type), let parent = button.superview else { continue }
-            let frame = button.convert(button.bounds, to: frameView).offsetBy(dx: dx, dy: dy)
-            button.frame = parent.convert(frame, from: frameView)
-        }
-    }
-
-    private func restoreWindowControlsPosition() {
-        guard let window, let originalChrome else { return }
-        for (type, frame) in originalChrome.buttonFrames {
-            window.standardWindowButton(type)?.frame = frame
-        }
-    }
-
     // MARK: - Actions - Observing
 
     private func observeWindow() {
@@ -205,7 +170,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
             NSWindow.didBecomeKeyNotification,
             NSWindow.didResignKeyNotification,
             NSWindow.didResizeNotification,
-            NSWindow.willEnterFullScreenNotification,
             NSWindow.didEnterFullScreenNotification,
             NSWindow.willExitFullScreenNotification,
             NSWindow.didExitFullScreenNotification,
@@ -225,15 +189,9 @@ final class BrowserNativeWindowControlsHostView: NSView {
 
     private func windowChanged(_ name: Notification.Name) {
         switch name {
-        case NSWindow.willEnterFullScreenNotification:
-            isTransitioningFullScreen = true
-            restoreWindowControlsPosition()
-            return
         case NSWindow.didEnterFullScreenNotification:
-            isTransitioningFullScreen = false
             observeFullScreenTitleBar()
         case NSWindow.willExitFullScreenNotification:
-            isTransitioningFullScreen = true
             // The title bar returns to the window as it leaves fullscreen, so
             // it is Lean's again before it does.
             stopObservingFullScreenTitleBar()
@@ -241,7 +199,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
             if let window { applyTitleBar(to: window) }
             return
         case NSWindow.didExitFullScreenNotification:
-            isTransitioningFullScreen = false
             showsStandardTitleBar = false
         default:
             break

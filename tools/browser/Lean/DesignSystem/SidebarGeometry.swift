@@ -7,8 +7,6 @@ enum SidebarGeometry {
     static let hoverMargin: CGFloat = 32
     static let titlebarHeight: CGFloat = 36
     static let titlebarHorizontalInset: CGFloat = 16
-    static var titlebarCenterFromTop: CGFloat { inset + titlebarHeight / 2 }
-    static var windowControlsLeadingInset: CGFloat { inset + titlebarHorizontalInset }
     static let navigationSymbolPointSize: CGFloat = 15
     static let rowHeight = LeanLayout.sidebarRowHeight
 

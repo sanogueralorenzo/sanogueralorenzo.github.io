@@ -4701,6 +4701,10 @@
     "lean-floating-sidebar-chrome-alignment": {
       "category": "improved",
       "message": "Keep a seven-point gap around the floating sidebar, follow the window’s corners, and align native window controls with Spaces."
+    },
+    "lean-native-window-control-positions": {
+      "category": "fixed",
+      "message": "Keep native window controls at their original AppKit positions to avoid refresh glitches."
     }
   }
 }
