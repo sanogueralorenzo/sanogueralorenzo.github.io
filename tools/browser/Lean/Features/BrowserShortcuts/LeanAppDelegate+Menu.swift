@@ -146,9 +146,9 @@ extension LeanAppDelegate {
     @objc private func split() { store?.beginSplit() }
     @objc private func changeSplit() { store?.changeSplitDirection() }
     @objc private func leaveSplit() { store?.leaveSplit() }
-    @objc private func showHistory() { store?.utility = .history }
-    @objc private func showArchive() { store?.utility = .archive }
-    @objc private func showDownloads() { store?.utility = .downloads }
+    @objc private func showHistory() { store?.presentUtility(.history) }
+    @objc private func showArchive() { store?.presentUtility(.archive) }
+    @objc private func showDownloads() { store?.presentUtility(.downloads) }
     @objc private func zoomIn() {
         if let web = store?.activePage?.webView {
             web.pageZoom = CGFloat(BrowserPageZoom.step(Double(web.pageZoom), increasing: true))

@@ -10,7 +10,6 @@ struct BrowserSidebar: View {
     @State private var resizeStart: CGFloat?
     @State private var listHovered = false
     @State private var listHeight: CGFloat = 0
-    @State private var menuReleaseTask: Task<Void, Never>?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -56,16 +55,6 @@ struct BrowserSidebar: View {
         }
         .shadow(color: .black.opacity(reduceTransparency ? 0 : 0.3), radius: 28, x: 8, y: 8)
         .overlay(alignment: .trailing) { resizeHandle }
-        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { _ in
-            menuReleaseTask?.cancel()
-            if store.window?.isKeyWindow == true { store.sidebarMenuPresented = true }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)) { _ in
-            menuReleaseTask = Task {
-                do { try await Task.sleep(for: .milliseconds(150)) } catch { return }
-                store.sidebarMenuPresented = false
-            }
-        }
         .sheet(
             isPresented: $showsSpaceEditor, onDismiss: { store.sidebarEditorPresented = false },
             content: {
@@ -263,9 +252,10 @@ struct BrowserSidebar: View {
             .disabled(store.activeSpace.isPrivate)
             Divider()
             if store.utility != nil { Button("Back to Tabs", systemImage: "sidebar.left") { store.utility = nil } }
-            Button("History", systemImage: "clock.arrow.circlepath") { store.utility = .history }.keyboardShortcut("y")
-            Button("Archive", systemImage: "archivebox") { store.utility = .archive }
-            Button("Downloads", systemImage: "arrow.down.circle") { store.utility = .downloads }.keyboardShortcut(
+            Button("History", systemImage: "clock.arrow.circlepath") { store.presentUtility(.history) }
+                .keyboardShortcut("y")
+            Button("Archive", systemImage: "archivebox") { store.presentUtility(.archive) }
+            Button("Downloads", systemImage: "arrow.down.circle") { store.presentUtility(.downloads) }.keyboardShortcut(
                 "j", modifiers: [.command, .shift])
             Divider()
             Button("Settings…", systemImage: "gearshape") { store.openSettings() }.keyboardShortcut(",")

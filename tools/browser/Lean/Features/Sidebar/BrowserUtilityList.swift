@@ -108,3 +108,10 @@ struct BrowserUtilityList: View {
         .padding(10).frame(maxWidth: .infinity, alignment: .leading)
     }
 }
+
+extension BrowserStore {
+    func presentUtility(_ utility: BrowserUtility) {
+        self.utility = utility
+        sidebarRevealed = true
+    }
+}

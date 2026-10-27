@@ -22,10 +22,6 @@ enum SidebarGeometry {
         max(0, (windowCornerRadius ?? 13) - inset)
     }
 
-    static func containsPointer(x: CGFloat, sidebarVisible: Bool, width: CGFloat) -> Bool {
-        x >= 0 && x <= (sidebarVisible ? width + inset + hoverMargin : hoverMargin)
-    }
-
     static func clampedWidth(_ width: CGFloat) -> CGFloat {
         width.isFinite ? min(max(width, widthRange.lowerBound), widthRange.upperBound) : self.width
     }

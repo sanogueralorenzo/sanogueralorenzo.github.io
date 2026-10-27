@@ -59,7 +59,6 @@ final class BrowserStore {
     var isFullScreen = false
     var sidebarRevealed = false
     var sidebarEditorPresented = false
-    var sidebarMenuPresented = false
     var isResizingSidebar = false
     var sidebarWidth: CGFloat {
         SidebarGeometry.clampedWidth(CGFloat(preferences.sidebarWidth ?? Double(SidebarGeometry.width)))
@@ -115,8 +114,8 @@ final class BrowserStore {
         return Array(downloads.values)
     }
     var showsSidebar: Bool {
-        sidebarRevealed || sidebarEditorPresented || sidebarMenuPresented || isResizingSidebar
-            || editingTabID != nil || editingFolderID != nil || utility != nil || activeSpace.tabs.isEmpty
+        sidebarRevealed || sidebarEditorPresented || isResizingSidebar
+            || editingTabID != nil || editingFolderID != nil || activeSpace.tabs.isEmpty
     }
 
     // MARK: - Initializers

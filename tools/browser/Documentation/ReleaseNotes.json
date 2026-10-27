@@ -4713,6 +4713,10 @@
     "lean-crest-window-corners": {
       "category": "fixed",
       "message": "Restore Crest’s smaller titlebar-only window corners while preserving the seven-point floating sidebar gap."
+    },
+    "lean-crest-sidebar-hover-dismissal": {
+      "category": "fixed",
+      "message": "Use Crest’s separate native edge and sidebar hover trackers so leaving the sidebar dismisses it and menu holds release correctly."
     }
   }
 }

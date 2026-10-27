@@ -22,8 +22,30 @@ struct BrowserRoot: View {
                     )
                     .frame(height: max(0, geometry.size.height - SidebarGeometry.inset * 2))
                     .padding(SidebarGeometry.inset)
+                    .overlay {
+                        BrowserSidebarHoverTracker(isRevealedByPointer: store.sidebarRevealed) { inside in
+                            store.sidebarRevealed = inside
+                        }
+                        .padding(SidebarGeometry.inset - SidebarGeometry.hoverMargin)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .transition(.move(edge: .leading).combined(with: .opacity))
+                }
+                if !store.showsSidebar {
+                    Color.clear
+                        .frame(width: SidebarGeometry.hoverMargin)
+                        .frame(maxHeight: .infinity)
+                        .overlay {
+                            BrowserCollapsedSidebarHoverTracker { inside in
+                                guard inside, store.window?.isKeyWindow == true else { return }
+                                store.sidebarRevealed = true
+                            }
+                        }
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 }
                 if store.addressPresented {
                     LeanBrandTheme.canvas.opacity(0.3).onTapGesture { store.dismissAddress() }
@@ -38,7 +60,6 @@ struct BrowserRoot: View {
                 }
             }
             .background(BrowserNativeWindowControlsBridge(isVisible: store.showsSidebar))
-            .background(BrowserSidebarPointerTracker(store: store))
             .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: store.showsSidebar)
         }
         .onGeometryChange(for: CGFloat?.self) { proxy in
