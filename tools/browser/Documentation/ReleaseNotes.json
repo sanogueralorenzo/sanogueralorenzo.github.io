@@ -4669,6 +4669,10 @@
     "lean-version-1-0-0": {
       "category": "internal",
       "message": "Set Lean’s release version to 1.0.0"
+    },
+    "lean-swept-ribbon-icon": {
+      "category": "improved",
+      "message": "Adopt a centered blue and cyan folded-ribbon icon with a red inner edge"
     }
   }
 }
