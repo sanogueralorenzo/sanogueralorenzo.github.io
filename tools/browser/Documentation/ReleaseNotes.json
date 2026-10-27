@@ -4697,6 +4697,10 @@
     "lean-sidebar-media-playback-state": {
       "category": "fixed",
       "message": "Keep Now Playing controls in sync with paused media, with track controls, mute and hide actions, and private playback kept out of the system media card."
+    },
+    "lean-floating-sidebar-chrome-alignment": {
+      "category": "improved",
+      "message": "Keep a seven-point gap around the floating sidebar, follow the window’s corners, and align native window controls with Spaces."
     }
   }
 }

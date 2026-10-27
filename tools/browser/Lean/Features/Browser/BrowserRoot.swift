@@ -2,6 +2,7 @@ import SwiftUI
 
 struct BrowserRoot: View {
     let store: BrowserStore
+    @State private var windowCornerRadius: CGFloat?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -16,11 +17,13 @@ struct BrowserRoot: View {
                     BrowserStartPage(store: store)
                 }
                 if store.showsSidebar {
-                    BrowserSidebar(store: store)
-                        .frame(height: max(0, geometry.size.height - SidebarGeometry.inset * 2))
-                        .padding(SidebarGeometry.inset)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        .transition(.move(edge: .leading).combined(with: .opacity))
+                    BrowserSidebar(
+                        store: store, cornerRadius: SidebarGeometry.radius(windowCornerRadius: windowCornerRadius)
+                    )
+                    .frame(height: max(0, geometry.size.height - SidebarGeometry.inset * 2))
+                    .padding(SidebarGeometry.inset)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .transition(.move(edge: .leading).combined(with: .opacity))
                 }
                 if store.addressPresented {
                     LeanBrandTheme.canvas.opacity(0.3).onTapGesture { store.dismissAddress() }
@@ -37,6 +40,11 @@ struct BrowserRoot: View {
             .background(BrowserNativeWindowControlsBridge(isVisible: store.showsSidebar))
             .background(BrowserSidebarPointerTracker(store: store))
             .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: store.showsSidebar)
+        }
+        .onGeometryChange(for: CGFloat?.self) { proxy in
+            SidebarGeometry.windowCornerRadius(from: proxy.containerCornerInsets)
+        } action: { radius in
+            windowCornerRadius = radius
         }
         .sheet(isPresented: Binding(get: { store.siteSettingsPresented }, set: { store.siteSettingsPresented = $0 })) {
             BrowserSiteSettings(store: store)

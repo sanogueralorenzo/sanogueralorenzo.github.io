@@ -2,6 +2,7 @@ import SwiftUI
 
 struct BrowserSidebar: View {
     let store: BrowserStore
+    let cornerRadius: CGFloat
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var editingSpace: BrowserSpace?
     @State private var showsSpaceEditor = false
@@ -17,7 +18,7 @@ struct BrowserSidebar: View {
                 Spacer(minLength: 70)
                 BrowserSpaceSwitcher(store: store, edit: showEditor)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, SidebarGeometry.titlebarHorizontalInset)
             .frame(height: SidebarGeometry.titlebarHeight)
             navigation.padding(.bottom, 4)
             if !store.activeSpace.isPrivate, let playing = store.playingPage { nowPlaying(playing) }
@@ -45,11 +46,13 @@ struct BrowserSidebar: View {
         .font(.system(size: 13))
         .focusEffectDisabled()
         .frame(width: store.sidebarWidth)
-        .background(LeanBrandTheme.surface, in: RoundedRectangle(cornerRadius: SidebarGeometry.radius))
-        .clipShape(RoundedRectangle(cornerRadius: SidebarGeometry.radius))
+        .background(LeanBrandTheme.surface, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: SidebarGeometry.radius).strokeBorder(LeanBrandTheme.line, lineWidth: 0.75)
-                .allowsHitTesting(false)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).strokeBorder(
+                LeanBrandTheme.line, lineWidth: 0.75
+            )
+            .allowsHitTesting(false)
         }
         .shadow(color: .black.opacity(reduceTransparency ? 0 : 0.3), radius: 28, x: 8, y: 8)
         .overlay(alignment: .trailing) { resizeHandle }

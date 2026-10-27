@@ -3,12 +3,26 @@ import SwiftUI
 enum SidebarGeometry {
     static let width = CGFloat(289)
     static let widthRange: ClosedRange<CGFloat> = 280...380
-    static let inset: CGFloat = 6
+    static let inset: CGFloat = 7
     static let hoverMargin: CGFloat = 32
-    static let radius: CGFloat = 7
     static let titlebarHeight: CGFloat = 36
+    static let titlebarHorizontalInset: CGFloat = 16
+    static var titlebarCenterFromTop: CGFloat { inset + titlebarHeight / 2 }
+    static var windowControlsLeadingInset: CGFloat { inset + titlebarHorizontalInset }
     static let navigationSymbolPointSize: CGFloat = 15
     static let rowHeight = LeanLayout.sidebarRowHeight
+
+    static func windowCornerRadius(from insets: RectangleCornerInsets) -> CGFloat? {
+        // Bottom corners describe the window; top insets can also reserve its controls.
+        let radius = max(
+            min(insets.bottomLeading.width, insets.bottomLeading.height),
+            min(insets.bottomTrailing.width, insets.bottomTrailing.height))
+        return radius > 0 ? radius : nil
+    }
+
+    static func radius(windowCornerRadius: CGFloat?) -> CGFloat {
+        max(0, (windowCornerRadius ?? 13) - inset)
+    }
 
     static func containsPointer(x: CGFloat, sidebarVisible: Bool, width: CGFloat) -> Bool {
         x >= 0 && x <= (sidebarVisible ? width + inset + hoverMargin : hoverMargin)
