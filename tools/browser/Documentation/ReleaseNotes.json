@@ -4721,6 +4721,10 @@
     "lean-youtube-system-appearance": {
       "category": "fixed",
       "message": "Use Crest’s native Safari-compatible browser identification so YouTube follows the system’s dark appearance."
+    },
+    "lean-aligned-controls-small-corners": {
+      "category": "fixed",
+      "message": "Keep standard AppKit window controls aligned with Spaces through refreshes without enlarging the window corners."
     }
   }
 }

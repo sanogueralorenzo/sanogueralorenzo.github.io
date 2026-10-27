@@ -14,7 +14,7 @@ struct BrowserNativeWindowChromeSnapshot {
 
 /// Styles the window that shows Lean's chrome, which acts as the window's
 /// title bar: the title bar is transparent and shows no title, and the
-/// window's own controls keep their standard AppKit positions.
+/// window's own controls align with Spaces independently of toolbar styling.
 ///
 /// In fullscreen the title bar slides down over the page with the menu bar,
 /// so there it is the system's standard one while it is revealed, from the
@@ -27,6 +27,8 @@ struct BrowserNativeWindowChromeSnapshot {
 final class BrowserNativeWindowControlsHostView: NSView {
     // MARK: - Static Variables
 
+    static let fullScreenEntryFailed = Notification.Name("LeanWindowFullScreenEntryFailed")
+
     /// The standard window buttons the chrome hides and shows.
     static let buttonTypes: [NSWindow.ButtonType] = [
         .closeButton,
@@ -37,6 +39,8 @@ final class BrowserNativeWindowControlsHostView: NSView {
     // MARK: - Variables
 
     private var originalChrome: BrowserNativeWindowChromeSnapshot?
+    private var controlLayout: BrowserWindowControlLayout?
+    private var enteringFullScreen = false
     private var windowObservers: [NSObjectProtocol] = []
     var isVisible = true {
         didSet {
@@ -89,6 +93,9 @@ final class BrowserNativeWindowControlsHostView: NSView {
         }
         applyTitleBar(to: window)
         applyWindowShape(to: window)
+        if !enteringFullScreen, !window.styleMask.contains(.fullScreen), controlLayout == nil {
+            controlLayout = BrowserWindowControlLayout(window: window)
+        }
         let shouldShowWindowControls = window.styleMask.showsWindowControls(
             sidebarPresentationShowsControls: isVisible)
         for type in Self.buttonTypes {
@@ -119,6 +126,9 @@ final class BrowserNativeWindowControlsHostView: NSView {
 
     func restoreWindowChrome() {
         stopObservingWindow()
+        controlLayout?.restore()
+        controlLayout = nil
+        enteringFullScreen = false
         guard let window, let originalChrome else { return }
         window.styleMask = window.styleMask.restoringBrowserChrome(to: originalChrome.styleMask)
         window.titleVisibility = originalChrome.titleVisibility
@@ -170,9 +180,11 @@ final class BrowserNativeWindowControlsHostView: NSView {
             NSWindow.didBecomeKeyNotification,
             NSWindow.didResignKeyNotification,
             NSWindow.didResizeNotification,
+            NSWindow.willEnterFullScreenNotification,
             NSWindow.didEnterFullScreenNotification,
             NSWindow.willExitFullScreenNotification,
             NSWindow.didExitFullScreenNotification,
+            Self.fullScreenEntryFailed,
         ]
         windowObservers = names.map { name in
             NotificationCenter.default.addObserver(
@@ -189,7 +201,12 @@ final class BrowserNativeWindowControlsHostView: NSView {
 
     private func windowChanged(_ name: Notification.Name) {
         switch name {
+        case NSWindow.willEnterFullScreenNotification:
+            enteringFullScreen = true
+            controlLayout?.restore()
+            controlLayout = nil
         case NSWindow.didEnterFullScreenNotification:
+            enteringFullScreen = false
             observeFullScreenTitleBar()
         case NSWindow.willExitFullScreenNotification:
             // The title bar returns to the window as it leaves fullscreen, so
@@ -198,7 +215,8 @@ final class BrowserNativeWindowControlsHostView: NSView {
             showsStandardTitleBar = false
             if let window { applyTitleBar(to: window) }
             return
-        case NSWindow.didExitFullScreenNotification:
+        case NSWindow.didExitFullScreenNotification, Self.fullScreenEntryFailed:
+            enteringFullScreen = false
             showsStandardTitleBar = false
         default:
             break

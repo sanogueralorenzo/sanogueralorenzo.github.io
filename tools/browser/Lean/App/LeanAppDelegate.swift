@@ -201,6 +201,9 @@ final class LeanAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, 
     func windowDidEnterFullScreen(_ notification: Notification) {
         (notification.object as? NSWindow).flatMap(context(for:))?.isFullScreen = true
     }
+    func windowDidFailToEnterFullScreen(_ window: NSWindow) {
+        NotificationCenter.default.post(name: BrowserNativeWindowControlsHostView.fullScreenEntryFailed, object: window)
+    }
     func windowDidExitFullScreen(_ notification: Notification) {
         (notification.object as? NSWindow).flatMap(context(for:))?.isFullScreen = false
     }
