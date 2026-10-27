@@ -4665,6 +4665,10 @@
     "lean-callback-threading-audit": {
       "category": "fixed",
       "message": "Fix the screen-capture shutdown callback lifetime and make content-blocking completions independent of the main actor"
+    },
+    "lean-version-1-0-0": {
+      "category": "internal",
+      "message": "Set Lean’s release version to 1.0.0"
     }
   }
 }
