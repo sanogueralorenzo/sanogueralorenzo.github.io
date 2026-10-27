@@ -22,7 +22,8 @@ extension BrowserStore {
 
     func split(_ source: UUID, with destination: UUID) {
         guard source != destination, let (s, a) = tabIndex(source), let (other, b) = tabIndex(destination),
-            s == other, !session.spaces[s].tabs[a].isSettings, !session.spaces[s].tabs[b].isSettings
+            s == other, !session.spaces[s].tabs[a].isSettings, !session.spaces[s].tabs[b].isSettings,
+            !session.spaces[s].splits.contains(where: { $0.tabIDs.contains(source) && $0.tabIDs.contains(destination) })
         else { return }
         let existing = session.spaces[s].splits.first { $0.tabIDs.contains(source) }
         guard (existing?.tabIDs.count ?? 1) < 4 else { return }
@@ -51,12 +52,16 @@ extension BrowserStore {
     func leaveSplit() {
         guard let split = activeSplit else { return }
         for page in visiblePages where page.id != selectedTab?.id { page.lastSelected = Date() }
+        session.spaces[spaceIndex(activeSpace.id)].sidebarOrderIDs = activeSpace.orderedSidebarIDs
         session.spaces[spaceIndex(activeSpace.id)].splits.removeAll { $0.id == split.id }
         changed()
     }
 
     func detachFromSplits(_ id: UUID) {
         for index in session.spaces.indices {
+            if session.spaces[index].splits.contains(where: { $0.tabIDs.contains(id) }) {
+                session.spaces[index].sidebarOrderIDs = session.spaces[index].orderedSidebarIDs
+            }
             for split in session.spaces[index].splits.indices {
                 guard let removed = session.spaces[index].splits[split].tabIDs.firstIndex(of: id) else { continue }
                 session.spaces[index].splits[split].tabIDs.remove(at: removed)
@@ -85,6 +90,7 @@ extension BrowserStore {
             split.tabIDs.indices.contains(index + delta)
         else { return }
         let s = spaceIndex(activeSpace.id)
+        session.spaces[s].sidebarOrderIDs = activeSpace.orderedSidebarIDs
         session.spaces[s].splits[position].tabIDs.swapAt(index, index + delta)
         session.spaces[s].splits[position].fractions.swapAt(index, index + delta)
         changed()
@@ -102,10 +108,12 @@ extension BrowserStore {
     }
 
     func relatedTabIDs(_ ids: [UUID]) -> [UUID] {
-        var result = Set(ids)
-        for split in session.spaces.flatMap(\.splits) where !result.isDisjoint(with: split.tabIDs) {
-            result.formUnion(split.tabIDs)
-        }
-        return session.spaces.flatMap(\.tabs).filter { result.contains($0.id) }.map(\.id)
+        let available = Set(session.spaces.flatMap { $0.tabs.map(\.id) })
+        let groups = Dictionary(
+            uniqueKeysWithValues: session.spaces.flatMap(\.splits).flatMap { split in
+                split.tabIDs.map { ($0, split.tabIDs) }
+            })
+        var seen = Set<UUID>()
+        return ids.flatMap { groups[$0] ?? [$0] }.filter { available.contains($0) && seen.insert($0).inserted }
     }
 }

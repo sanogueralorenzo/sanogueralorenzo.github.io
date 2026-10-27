@@ -46,12 +46,18 @@ struct BrowserFolderRow: View {
                     isHovering: hovering, cornerRadius: 20
                 )
                 .onHover { hovering = $0 }
-                .onDrag { store.dragProvider(folder: folder.id) }
+                .modifier(
+                    BrowserSidebarDragSource(
+                        store: store, payload: { store.dragPayload(folder: folder.id) }, title: folder.title,
+                        isEnabled: store.editingFolderID != folder.id)
+                )
                 .modifier(BrowserDropArea(store: store, folder: folder.id))
                 .overlay(alignment: .top) {
                     Color.clear.frame(height: 5).contentShape(Rectangle())
                         .modifier(
-                            BrowserDropArea(store: store, before: folder.id, placement: folder.placement ?? .saved))
+                            BrowserDropArea(
+                                store: store, before: folder.id, placement: folder.placement ?? .saved,
+                                allowsAfter: false))
                 }
                 .contextMenu {
                     if store.selectedFolders.contains(folder.id) {

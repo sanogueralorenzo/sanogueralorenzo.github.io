@@ -34,7 +34,10 @@ struct BrowserSpaceSwitcher: View {
                                 Button("Delete Space", role: .destructive) { store.deleteSpace(space.id) }
                                     .disabled(!space.isPrivate && spaces.filter { !$0.isPrivate }.count == 1)
                             }
-                            .onDrag { store.dragProvider(space: space.id) }
+                            .modifier(
+                                BrowserSidebarDragSource(
+                                    store: store, payload: { store.dragPayload(space: space.id) }, title: space.name)
+                            )
                             .modifier(BrowserDropArea(store: store, spaceID: space.id))
                             .id(space.id)
                         }

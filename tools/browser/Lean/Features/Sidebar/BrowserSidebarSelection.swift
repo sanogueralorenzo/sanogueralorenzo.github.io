@@ -33,7 +33,7 @@ extension BrowserStore {
                 }
             }
         }
-        append(activeSpace.tabs.filter { $0.placement == .pinned })
+        append(activeSpace.pinnedTabs)
         walk(nil, .saved)
         walk(nil, .current)
         return units
@@ -47,7 +47,11 @@ extension BrowserStore {
         }
     }
     var selectionRootFolders: [UUID] {
-        activeSpace.folders.filter { selectedFolders.contains($0.id) && !selectionCovers($0.parentID) }.map(\.id)
+        let roots = Set(
+            activeSpace.folders.filter {
+                selectedFolders.contains($0.id) && !selectionCovers($0.parentID)
+            }.map(\.id))
+        return activeSpace.sidebarItemIDs.filter(roots.contains)
     }
     func selectionCovers(_ folderID: UUID?) -> Bool {
         var cursor = folderID
@@ -119,12 +123,13 @@ extension BrowserStore {
             ? selectedActionTabIDs : relatedTabIDs([id])
     }
     func fileSidebarSelection(as placement: BrowserTab.Placement, folderID: UUID? = nil) {
-        guard placement != .pinned || selectedFolders.isEmpty else { return }
-        let roots = selectionRootFolders
-        let loose = selectedLooseTabIDs
-        for id in roots { moveFolderLocally(id, into: folderID, placement: placement) }
-        placeTabs(loose, as: placement, folderID: folderID)
+        moveSidebarItems(
+            BrowserDragPayload(
+                kind: .tabs, spaceID: activeSpace.id, ids: selectedLooseTabIDs,
+                folderIDs: selectionRootFolders, activeTabID: selectedTab?.id),
+            to: activeSpace.id, parentID: folderID, placement: placement)
     }
+
     func deleteSidebarSelection() {
         let folders = selectionRootFolders
         let tabs = selectedActionTabIDs

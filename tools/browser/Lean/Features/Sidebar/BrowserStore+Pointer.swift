@@ -3,9 +3,6 @@ import AppKit
 extension BrowserStore {
     func handleSidebarPointer(_ event: NSEvent) {
         guard let window = event.window else { return }
-        if event.type == .leftMouseUp {
-            for context in owner.contexts.values { context.isDragging = false }
-        }
         if event.type == .swipe {
             if event.deltaY != 0 {
                 adjacentSpace(event.deltaY > 0 ? -1 : 1)

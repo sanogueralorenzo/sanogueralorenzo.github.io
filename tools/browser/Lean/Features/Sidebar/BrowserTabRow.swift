@@ -84,7 +84,11 @@ struct BrowserTabRow: View {
                 contextMenu
             }
         }
-        .onDrag { store.dragProvider(tab: tab.id) }
+        .modifier(
+            BrowserSidebarDragSource(
+                store: store, payload: { store.dragPayload(tab: tab.id) }, title: title, url: tab.url,
+                isEnabled: store.editingTabID != tab.id)
+        )
         .modifier(BrowserDropArea(store: store, before: tab.id))
     }
 

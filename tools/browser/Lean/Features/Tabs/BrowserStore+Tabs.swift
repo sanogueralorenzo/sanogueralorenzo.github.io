@@ -147,11 +147,16 @@ extension BrowserStore {
     }
 
     func duplicateTabs(_ ids: [UUID]) {
-        for id in ids {
+        let destinations: [(UUID, UUID?)] = ids.compactMap { id in
+            guard let (s, _) = tabIndex(id) else { return nil }
+            return (id, sidebarInsertionTarget(id, after: true, in: session.spaces[s].id))
+        }
+        for (id, before) in destinations {
             guard let (s, t) = tabIndex(id) else { continue }
             var tab = session.spaces[s].tabs[t]
             tab.id = UUID()
             session.spaces[s].tabs.insert(tab, at: t + 1)
+            reorderSidebarItems([tab.id], in: session.spaces[s].id, before: before)
             selectTab(tab.id)
         }
         changed()
@@ -162,44 +167,11 @@ extension BrowserStore {
         before: UUID? = nil
     ) {
         let ids = relatedTabIDs(ids)
-        Task {
-            guard await prepareTabs(ids) else { return }
-            let groups = session.spaces.flatMap(\.splits).filter { Set($0.tabIDs).isSubset(of: Set(ids)) }
-            guard session.spaces.contains(where: { $0.id == destination }) else { return }
-            for id in ids {
-                await pages[id]?.captureDocumentState()
-                pages[id]?.checkpointNativeState()
-            }
-            for id in ids {
-                guard let (s, t) = tabIndex(id), session.spaces[s].id != destination else { continue }
-                let source = session.spaces[s].id
-                let affected = owner.contexts.values.filter {
-                    $0.selectedTab?.id == id || $0.windowState.tabsBySpace[source] == id
-                }
-                detachFromSplits(id)
-                pages[id]?.checkpointNativeState()
-                var tab = session.spaces[s].tabs.remove(at: t)
-                tab.folderID = folderID
-                tab.placement = placement ?? tab.placement
-                if tab.placement == .current {
-                    tab.savedURL = nil
-                } else if tab.savedURL == nil {
-                    tab.savedURL = tab.url
-                }
-                unload(id)
-                session.spaces[spaceIndex(destination)].tabs.append(tab)
-                for context in affected {
-                    context.setSelectedTab(nil, in: source)
-                }
-            }
-            if let target = session.spaces.firstIndex(where: { $0.id == destination }) {
-                session.spaces[target].splits += groups.filter { group in
-                    group.tabIDs.allSatisfy { id in session.spaces[target].tabs.contains { $0.id == id } }
-                }
-            }
-            reorderSidebarItems(ids, in: destination, before: before)
-            if let first = ids.first { selectTab(first) }
-            changed()
-        }
+        guard let first = ids.first, let (source, _) = tabIndex(first), session.spaces[source].id != destination,
+            ids.allSatisfy({ id in session.spaces[source].tabs.contains { $0.id == id } })
+        else { return }
+        moveSidebarItems(
+            BrowserDragPayload(kind: .tabs, spaceID: session.spaces[source].id, ids: ids, activeTabID: selectedTab?.id),
+            to: destination, parentID: folderID, placement: placement, before: before)
     }
 }

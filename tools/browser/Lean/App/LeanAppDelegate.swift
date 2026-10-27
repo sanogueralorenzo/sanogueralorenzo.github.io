@@ -34,7 +34,7 @@ final class LeanAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, 
             if previous.isEmpty { createWindow() } else { for state in previous { createWindow(restoring: state) } }
             owner.startMaintenance()
             pointerMonitor = NSEvent.addLocalMonitorForEvents(matching: [
-                .mouseMoved, .leftMouseDown, .leftMouseUp, .swipe,
+                .mouseMoved, .leftMouseDown, .swipe,
             ]) { [weak self] event in
                 MainActor.assumeIsolated {
                     if let window = event.window { self?.context(for: window)?.handleSidebarPointer(event) }

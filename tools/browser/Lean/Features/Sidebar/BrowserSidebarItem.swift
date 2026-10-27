@@ -57,7 +57,11 @@ struct BrowserSidebarItem: View {
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().accessibilityLabel("Split View actions")
         }
         .frame(height: 30).padding(.horizontal, 9)
-        .onDrag { store.dragProvider(tab: tab.id) }
+        .modifier(
+            BrowserSidebarDragSource(
+                store: store, payload: { store.dragPayload(split: split) }, title: tab.customTitle ?? tab.title,
+                url: tab.url)
+        )
         .accessibilityElement(children: .contain).accessibilityValue("Split View with \(split.tabIDs.count) tabs")
     }
 

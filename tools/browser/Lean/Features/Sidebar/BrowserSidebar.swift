@@ -175,7 +175,7 @@ struct BrowserSidebar: View {
             .modifier(BrowserDropArea(store: store, placement: placement))
     }
 
-    private var pins: [BrowserTab] { store.activeSpace.tabs.filter { $0.placement == .pinned } }
+    private var pins: [BrowserTab] { store.activeSpace.pinnedTabs }
     private var navigation: some View {
         HStack(alignment: .top, spacing: 0) {
             navigationButton("chevron.left", hint: "⌘[", enabled: store.activePage?.canGoBack == true) {

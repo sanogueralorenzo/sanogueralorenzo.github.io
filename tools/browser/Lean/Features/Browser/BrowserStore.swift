@@ -114,7 +114,7 @@ final class BrowserStore {
         return Array(downloads.values)
     }
     var showsSidebar: Bool {
-        sidebarRevealed || sidebarEditorPresented || isResizingSidebar
+        sidebarRevealed || sidebarEditorPresented || isResizingSidebar || isDragging
             || editingTabID != nil || editingFolderID != nil || activeSpace.tabs.isEmpty
     }
 
@@ -232,11 +232,7 @@ final class BrowserStore {
     }
 
     func selectNextLoaded(excluding id: UUID) {
-        let tabs = activeSpace.tabs
-        let ordered =
-            tabs.filter { $0.placement == .pinned } + tabs.filter { $0.placement == .saved }
-            + tabs.filter { $0.placement == .current }
-        let next = ordered.first { $0.id != id && (pages[$0.id] != nil || $0.isSettings) }
+        let next = sidebarOrder.first { $0.id != id && (pages[$0.id] != nil || $0.isSettings) }
         setSelectedTab(next?.id, in: activeSpace.id)
         runtimeRevision &+= 1
     }

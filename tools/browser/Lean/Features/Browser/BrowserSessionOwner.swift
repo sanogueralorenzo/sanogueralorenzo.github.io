@@ -18,6 +18,8 @@ final class BrowserSessionOwner {
     var lastRetentionSweep = Date.distantPast
     var storageError: String?
     var activeWindowID: UUID?
+    var sidebarDrag: BrowserDragPayload?
+    @ObservationIgnored var sidebarDragSource: BrowserSidebarDragSourceView?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var maintenance: Task<Void, Never>?
     @ObservationIgnored private var pageMaintenance: [UUID: Task<Void, Never>] = [:]
