@@ -4681,6 +4681,10 @@
     "lean-webkit-feature-flags": {
       "category": "new",
       "message": "Match Crest’s WebKit feature flags, saved overrides, 120 FPS control, and background scheduling preferences"
+    },
+    "lean-webkit-fixed-defaults": {
+      "category": "improved",
+      "message": "Apply Crest’s WebKit defaults automatically and remove feature-flag settings and saved overrides"
     }
   }
 }

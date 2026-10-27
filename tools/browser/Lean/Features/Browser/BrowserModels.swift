@@ -119,7 +119,6 @@ struct BrowserPreferences: Codable {
     var translationLanguage = "en"
     var excludedLanguages: Set<String> = []
     var downloadsAskEveryTime = true
-    var webKit: BrowserWebKitPreferences?
 }
 
 struct BrowserWindowState: Codable, Identifiable {

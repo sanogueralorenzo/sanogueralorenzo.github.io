@@ -9,17 +9,8 @@ struct BrowserSettings: View {
     let store: BrowserStore
     @State private var accessRevision = 0
     @State private var languages = ["en"]
-    @State private var showsWebKitFeatures = false
 
     var body: some View {
-        if showsWebKitFeatures {
-            BrowserWebKitFeatureFlagSettings(store: store) { showsWebKitFeatures = false }
-        } else {
-            settingsForm
-        }
-    }
-
-    private var settingsForm: some View {
         Form {
             Section("General") {
                 Button("Make Default Browser") {
@@ -136,9 +127,6 @@ struct BrowserSettings: View {
                         }.labelsHidden()
                     }
                 }
-            }
-            Section("Advanced") {
-                Button("WebKit Feature Flags…") { showsWebKitFeatures = true }
             }
             Section("About") {
                 LabeledContent(
