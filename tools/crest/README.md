@@ -1,23 +1,37 @@
 # Crest
 
-A streamlined fork of [pauljoda/Crest](https://github.com/pauljoda/Crest), with system light/dark appearance, a frameless Mac window, a hover sidebar, and GitHub live folders. The Mac app uses WebKit in the local build; the upstream Chromium composition remains available separately.
+A native macOS browser built with SwiftUI, AppKit, and WebKit.
+Spaces have separate website sessions; private Spaces stay in memory.
+The hover sidebar contains pins, saved tabs, folders, GitHub live folders,
+and compact media controls. Split views, translation, content blocking,
+Reader Mode, downloads, history, Archive, and browser import/export are included.
 
-## Setup
+## Build
 
-Requires Apple silicon, Xcode with macOS/iOS 26.1 SDKs, XcodeGen, and the .NET SDK pinned in `CrestCore/global.json`.
+Requires Apple silicon, macOS 26.1+, Xcode, and XcodeGen (`brew install xcodegen`).
 
 ```sh
-git clone git@github.com:sanogueralorenzo/Crest.git
-cd Crest
-Scripts/control-plane/install-dotnet.sh
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer Scripts/bootstrap.sh
-Scripts/run-local.sh
+xcodegen generate
+xcodebuild -project Crest.xcodeproj -scheme Crest -configuration Release build
 ```
 
-The local runner uses an ad-hoc signature and the persistent `browser-local` profile, shared with the existing local Crest installation. Pass `--build-only` to avoid opening it. Use a different `CREST_ISOLATED_PERSISTENCE_ID` for testing so real tabs and logins stay untouched. No Apple developer team is required; local iCloud sync and upstream binary updates are disabled.
+Open `Crest.xcodeproj` to build and run in Xcode.
+Local builds use ad hoc signing and require no .NET, package downloads, or engine build.
+Passkeys require an Apple-authorized browser signing profile and
+`CODE_SIGN_ENTITLEMENTS=Config/Browser.entitlements`; local builds show their availability in Settings.
 
-See [the fork differences](Documentation/ForkDifferences.md) for product decisions and upstream maintenance, [CONTRIBUTING.md](CONTRIBUTING.md) for checks, and [the architecture](Documentation/ARCHITECTURE.md) for implementation boundaries.
+## Browsing
 
-## License
+Reveal the sidebar within 32 points of the left edge; empty Spaces keep it visible.
+Use ⌘L for addresses and commands, ⌘T for a new tab, ⌃Tab for recent tabs,
+and ⌥⌘←/→ to switch Spaces. On saved tabs, ⌘W returns to the saved address,
+then sleeps the page and selects another loaded tab.
+Background pages unload after five idle minutes, protecting media and unsaved edits.
 
-Crest retains its [MPL-2.0 license](LICENSE), [NOTICE](NOTICE), [third-party notices](THIRD_PARTY_NOTICES.md), and [trademark requirements](TRADEMARKS.md).
+Session checkpoints live in `~/Library/Application Support/Crest/SwiftSession`.
+A validated previous checkpoint supports recovery from a damaged write.
+For isolated review builds, set `CREST_REVIEW_DATA_DIRECTORY` to a disposable directory
+and use a distinct bundle identifier; never launch fixtures against a personal session.
+
+Source is [MPL-2.0](LICENSE), derived from [Crest](https://github.com/pauljoda/Crest).
+See [third-party notices](THIRD_PARTY_NOTICES.md) and [trademark terms](TRADEMARKS.md).

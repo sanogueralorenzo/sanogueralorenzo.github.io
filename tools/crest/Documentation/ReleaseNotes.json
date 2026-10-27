@@ -536,7 +536,7 @@
     },
     "2026-09-04-extension-frame-content-security-policy": {
       "category": "fixed",
-      "message": "Let websites an extension embeds in its side panel run under their own security policy instead of the extension\u2019s"
+      "message": "Let websites an extension embeds in its side panel run under their own security policy instead of the extension’s"
     },
     "2026-09-04-extension-identity-web-auth-flow": {
       "category": "new",
@@ -544,7 +544,7 @@
     },
     "2026-09-04-extension-frame-message-relay": {
       "category": "fixed",
-      "message": "Deliver messages from websites embedded in an extension\u2019s side panel back to that extension, as Chrome does"
+      "message": "Deliver messages from websites embedded in an extension’s side panel back to that extension, as Chrome does"
     },
     "2026-09-04-extension-window-resolution": {
       "category": "fixed",
@@ -572,7 +572,7 @@
     },
     "2026-09-05-sidepanel-content-isolation": {
       "category": "fixed",
-      "message": "Keep website styling extensions from changing other extensions\u2019 sidebars"
+      "message": "Keep website styling extensions from changing other extensions’ sidebars"
     },
     "2026-09-05-safe-extension-worker-paths": {
       "category": "fixed",
@@ -1140,7 +1140,7 @@
     },
     "selected-text-search-in-crest": {
       "category": "fixed",
-      "message": "Search selected text in a new Crest tab using the current Space\u2019s search engine"
+      "message": "Search selected text in a new Crest tab using the current Space’s search engine"
     },
     "tab-owned-peeks": {
       "category": "improved",
@@ -1168,7 +1168,7 @@
     },
     "temporary-blank-windows": {
       "category": "new",
-      "message": "Open disposable blank windows with your Space\u2019s cookies and extensions, or create one by dragging a tab outside the window"
+      "message": "Open disposable blank windows with your Space’s cookies and extensions, or create one by dragging a tab outside the window"
     },
     "window-titles-and-drag-previews": {
       "category": "fixed",
@@ -1552,7 +1552,7 @@
     },
     "chromium-native-downloads": {
       "category": "improved",
-      "message": "Track Chromium downloads in Crest, cancel transfers, and save files using each Space\u2019s download folder preferences."
+      "message": "Track Chromium downloads in Crest, cancel transfers, and save files using each Space’s download folder preferences."
     },
     "chromium-history-and-site-icons": {
       "category": "improved",
@@ -1596,7 +1596,7 @@
     },
     "chromium-native-document-output": {
       "category": "new",
-      "message": "Export PDFs, save offline web archives, capture full pages, and print Chromium pages through Crest\u2019s native controls."
+      "message": "Export PDFs, save offline web archives, capture full pages, and print Chromium pages through Crest’s native controls."
     },
     "core-owned-temporary-window-profiles": {
       "category": "improved",
@@ -2544,7 +2544,7 @@
     },
     "tab-order-follows-sidebar": {
       "category": "improved",
-      "message": "Next and previous tab, and \u23181\u2013\u23189, now follow the order you see in the sidebar."
+      "message": "Next and previous tab, and ⌘1–⌘9, now follow the order you see in the sidebar."
     },
     "sidebar-drops-and-selection-queries-in-core": {
       "category": "internal",
@@ -3168,7 +3168,7 @@
     },
     "chromium-build-names-itself-crest-to-macos": {
       "category": "improved",
-      "message": "In the Chromium build, camera, microphone, location, Bluetooth and passkey prompts name Crest instead of Chromium, and Crest no longer includes a helper app that could appear as \u201cChromium\u201d in Notifications settings."
+      "message": "In the Chromium build, camera, microphone, location, Bluetooth and passkey prompts name Crest instead of Chromium, and Crest no longer includes a helper app that could appear as “Chromium” in Notifications settings."
     },
     "picture-in-picture-returns-to-its-tab": {
       "category": "fixed",
@@ -3200,7 +3200,7 @@
     },
     "window-moves-natively-and-page-top-stays-still": {
       "category": "fixed",
-      "message": "Window \u203a Move & Resize, the Globe-Control tiling shortcuts and the green button's tiling options work for Crest windows again, while dragging at the very top of a page still selects text instead of moving the window. Double-clicking empty sidebar space opens a new tab again, without also acting as a title bar double-click."
+      "message": "Window › Move & Resize, the Globe-Control tiling shortcuts and the green button's tiling options work for Crest windows again, while dragging at the very top of a page still selects text instead of moving the window. Double-clicking empty sidebar space opens a new tab again, without also acting as a title bar double-click."
     },
     "blank-popups-and-quick-window-popups-open-again": {
       "category": "fixed",
@@ -3352,7 +3352,7 @@
     },
     "pages-get-first-say-over-shortcuts": {
       "category": "fixed",
-      "message": "Pages get first say over shortcuts such as \u2318F, as in other browsers, so a document editor like Google Docs opens its own Find. \u2318T, \u2318W and \u2318N always stay Crest's."
+      "message": "Pages get first say over shortcuts such as ⌘F, as in other browsers, so a document editor like Google Docs opens its own Find. ⌘T, ⌘W and ⌘N always stay Crest's."
     },
     "now-playing-artwork-on-chromium": {
       "category": "fixed",
@@ -3524,11 +3524,11 @@
     },
     "tab-titles-follow-late-page-titles": {
       "category": "fixed",
-      "message": "Tabs take the title a page gives itself after it finishes loading. A link you open in the background with Command-click, or a page that shows \u201cLoading\u2026\u201d first, no longer stays named by its address or placeholder."
+      "message": "Tabs take the title a page gives itself after it finishes loading. A link you open in the background with Command-click, or a page that shows “Loading…” first, no longer stays named by its address or placeholder."
     },
     "chromium-untitled-pages-keep-titles": {
       "category": "fixed",
-      "message": "Pages in Chromium that have no title of their own show the site\u2019s name, as WebKit pages do, instead of their full address. A Chromium tab that reloads in the background keeps its title."
+      "message": "Pages in Chromium that have no title of their own show the site’s name, as WebKit pages do, instead of their full address. A Chromium tab that reloads in the background keeps its title."
     },
     "chromium-host-patch-applies-to-fresh-sources": {
       "category": "internal",
@@ -3600,7 +3600,7 @@
     },
     "login-button-federated-sign-in-crash": {
       "category": "fixed",
-      "message": "Crest on Mac no longer quits when you press a site\u2019s Login or Continue with Google button. Crest doesn\u2019t offer Chrome\u2019s federated sign-in, so these sites use their own sign-in pop-up or page where they have one, as they do in Safari."
+      "message": "Crest on Mac no longer quits when you press a site’s Login or Continue with Google button. Crest doesn’t offer Chrome’s federated sign-in, so these sites use their own sign-in pop-up or page where they have one, as they do in Safari."
     },
     "extension-sign-in-survives-relaunch": {
       "category": "fixed",
@@ -3608,7 +3608,7 @@
     },
     "extension-tab-groups-as-folders": {
       "category": "new",
-      "message": "Tab groups that extensions make, such as the tabs Claude works in, now appear on Mac as folders in the Space\u2019s open tabs, in the group\u2019s name and color. Renaming, recoloring, collapsing or deleting the folder, or moving tabs in or out, changes the group the extension sees, and the folder keeps following the group after Crest restarts."
+      "message": "Tab groups that extensions make, such as the tabs Claude works in, now appear on Mac as folders in the Space’s open tabs, in the group’s name and color. Renaming, recoloring, collapsing or deleting the folder, or moving tabs in or out, changes the group the extension sees, and the folder keeps following the group after Crest restarts."
     },
     "retina-tab-icons": {
       "category": "fixed",
@@ -3620,7 +3620,7 @@
     },
     "zen-import-pinned-split-views": {
       "category": "fixed",
-      "message": "Importing from Zen no longer fails with \u201cCrest could not recognize this browser\u2019s tab-session data\u201d when a Space has pinned tabs in a split view. Those tabs now come over as saved tabs: in the folder that held the split, or outside any folder when the split sat among the Space\u2019s pinned tabs. A Zen session too large to import now says so."
+      "message": "Importing from Zen no longer fails with “Crest could not recognize this browser’s tab-session data” when a Space has pinned tabs in a split view. Those tabs now come over as saved tabs: in the folder that held the split, or outside any folder when the split sat among the Space’s pinned tabs. A Zen session too large to import now says so."
     },
     "site-controls-full-screen": {
       "category": "fixed",
@@ -3628,15 +3628,15 @@
     },
     "extension-download-startup-hold": {
       "category": "fixed",
-      "message": "Installing an extension right after Crest opens no longer stays on \u201cPreparing extension\u2026\u201d for up to three minutes."
+      "message": "Installing an extension right after Crest opens no longer stays on “Preparing extension…” for up to three minutes."
     },
     "import-chrome-arc-extensions": {
       "category": "new",
-      "message": "Importing from Chrome, Arc, or another Chromium browser now lists the extensions you installed from the Chrome Web Store beneath each Space\u2019s address bar. Choose which ones each Space brings, and Crest installs them when the import finishes, without asking about each one."
+      "message": "Importing from Chrome, Arc, or another Chromium browser now lists the extensions you installed from the Chrome Web Store beneath each Space’s address bar. Choose which ones each Space brings, and Crest installs them when the import finishes, without asking about each one."
     },
     "import-more-chromium-browsers": {
       "category": "new",
-      "message": "You can now import from Brave, Microsoft Edge, Vivaldi, Opera, Dia, Comet, Aside, ego lite, Chromium, and Chrome Beta, Dev, and Canary. If your browser isn\u2019t listed, choose \u201cBrowser not listed?\u201d to have Crest look for other Chromium-based browsers on your Mac."
+      "message": "You can now import from Brave, Microsoft Edge, Vivaldi, Opera, Dia, Comet, Aside, ego lite, Chromium, and Chrome Beta, Dev, and Canary. If your browser isn’t listed, choose “Browser not listed?” to have Crest look for other Chromium-based browsers on your Mac."
     },
     "import-split-views-and-tab-groups": {
       "category": "improved",
@@ -3648,7 +3648,7 @@
     },
     "import-passwords-stay-with-their-profile": {
       "category": "fixed",
-      "message": "Passwords imported from a browser profile now go only to that profile\u2019s Space, so turning off passwords for one profile no longer sends them to another. Arc passwords also reach Spaces whose tabs are on a subdomain of the password\u2019s site."
+      "message": "Passwords imported from a browser profile now go only to that profile’s Space, so turning off passwords for one profile no longer sends them to another. Arc passwords also reach Spaces whose tabs are on a subdomain of the password’s site."
     },
     "import-keeps-what-fits": {
       "category": "improved",
@@ -3656,7 +3656,7 @@
     },
     "import-signed-in-chrome-bookmarks": {
       "category": "fixed",
-      "message": "Importing a Chrome profile signed in to a Google account now brings the bookmarks and passwords saved to that account, and bookmarks in a browser\u2019s trash are no longer imported."
+      "message": "Importing a Chrome profile signed in to a Google account now brings the bookmarks and passwords saved to that account, and bookmarks in a browser’s trash are no longer imported."
     },
     "import-zen-firefox-profiles": {
       "category": "improved",
@@ -3672,7 +3672,7 @@
     },
     "import-review-design": {
       "category": "improved",
-      "message": "The import review has matching From and Into menus and one card for each Space\u2019s choices, and says when there\u2019s no room for another Space. The list of browsers scrolls when it doesn\u2019t fit the window."
+      "message": "The import review has matching From and Into menus and one card for each Space’s choices, and says when there’s no room for another Space. The list of browsers scrolls when it doesn’t fit the window."
     },
     "settings-native-redesign": {
       "category": "improved",
@@ -3680,7 +3680,7 @@
     },
     "crest-studio-forge": {
       "category": "new",
-      "message": "Crest Studio shows your crest on your Space\u2019s own background, names every color by what it paints, and walks you through shape, field, band, emblem, border, finish and sidebar with previews of your crest. Each part of a crest can now have its own color."
+      "message": "Crest Studio shows your crest on your Space’s own background, names every color by what it paints, and walks you through shape, field, band, emblem, border, finish and sidebar with previews of your crest. Each part of a crest can now have its own color."
     },
     "settings-space-switch-speed": {
       "category": "fixed",
@@ -3696,7 +3696,7 @@
     },
     "stored-address-loads": {
       "category": "fixed",
-      "message": "Tabs with very long addresses, or addresses that aren\u2019t ordinary web links, open where they were instead of turning into a search."
+      "message": "Tabs with very long addresses, or addresses that aren’t ordinary web links, open where they were instead of turning into a search."
     },
     "ipad-single-tap-controls": {
       "category": "fixed",
@@ -4060,7 +4060,7 @@
     },
     "pinned-tab-status-badge-corner": {
       "category": "fixed",
-      "message": "On pinned tabs, the sound and sharing badge sits in the tile\u2019s bottom corner instead of over the site icon, so the icon is easy to click."
+      "message": "On pinned tabs, the sound and sharing badge sits in the tile’s bottom corner instead of over the site icon, so the icon is easy to click."
     },
     "site-controls-extension-menu-stays-open": {
       "category": "fixed",
@@ -4649,6 +4649,10 @@
     "fork-standalone-development": {
       "category": "internal",
       "message": "Document the fork’s intentional differences and support standalone local builds while keeping upstream history."
+    },
+    "fork-native-swift-webkit-browser": {
+      "category": "improved",
+      "message": "A smaller native WebKit browser keeps Spaces, saved tabs, split views, live folders, recovery, and browsing tools without the separate browser core."
     }
   }
 }

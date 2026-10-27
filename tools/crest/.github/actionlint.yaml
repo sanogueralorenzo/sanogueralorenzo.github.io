@@ -1,6 +1,0 @@
-self-hosted-runner:
-  labels:
-    # GitHub's Xcode 27 public-preview runner label is newer than actionlint's
-    # bundled hosted-runner catalog.
-    - xcode-27
-    - crest-chromium

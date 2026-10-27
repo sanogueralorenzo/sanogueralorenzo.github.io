@@ -1,13 +1,3 @@
 * text=auto eol=lf
-
-# Generated project and documentation output should not dominate language or
-# contribution views. Their source remains project.yml and HelpCenter/.
 Crest.xcodeproj/** linguist-generated=true
-Website/guides/** linguist-generated=true
-
-# Keep user-facing documentation and site sources visible to GitHub Linguist.
 Documentation/** linguist-documentation=true
-HelpCenter/docs/** linguist-documentation=true
-
-# A unified patch's blank context line is one space, required by its format.
-CrestEngines/Chromium/Patches/*.patch whitespace=-blank-at-eol
