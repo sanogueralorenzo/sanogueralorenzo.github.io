@@ -3,7 +3,6 @@ import SwiftUI
 struct BrowserRoot: View {
     let store: BrowserStore
     @State private var windowCornerRadius: CGFloat?
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geometry in
@@ -16,23 +15,9 @@ struct BrowserRoot: View {
                 } else if !store.addressPresented {
                     BrowserStartPage(store: store)
                 }
-                if store.showsSidebar {
-                    BrowserSidebar(
-                        store: store, cornerRadius: SidebarGeometry.radius(windowCornerRadius: windowCornerRadius)
-                    )
-                    .frame(height: max(0, geometry.size.height - SidebarGeometry.inset * 2))
-                    .padding(SidebarGeometry.inset)
-                    .overlay {
-                        BrowserSidebarHoverTracker(isRevealedByPointer: store.sidebarRevealed) { inside in
-                            store.sidebarRevealed = inside
-                        }
-                        .padding(SidebarGeometry.inset - SidebarGeometry.hoverMargin)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .transition(.move(edge: .leading).combined(with: .opacity))
-                }
+                BrowserSidebarSurface(
+                    store: store, cornerRadius: SidebarGeometry.radius(windowCornerRadius: windowCornerRadius),
+                    height: geometry.size.height)
                 if !store.showsSidebar {
                     Color.clear
                         .frame(width: SidebarGeometry.hoverMargin)
@@ -60,7 +45,6 @@ struct BrowserRoot: View {
                 }
             }
             .background(BrowserNativeWindowControlsBridge(isVisible: store.showsSidebar))
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: store.showsSidebar)
         }
         .onGeometryChange(for: CGFloat?.self) { proxy in
             SidebarGeometry.windowCornerRadius(from: proxy.containerCornerInsets)

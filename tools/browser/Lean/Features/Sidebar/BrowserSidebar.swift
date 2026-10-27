@@ -3,7 +3,6 @@ import SwiftUI
 struct BrowserSidebar: View {
     let store: BrowserStore
     let cornerRadius: CGFloat
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var editingSpace: BrowserSpace?
     @State private var showsSpaceEditor = false
 
@@ -54,7 +53,6 @@ struct BrowserSidebar: View {
             )
             .allowsHitTesting(false)
         }
-        .shadow(color: .black.opacity(reduceTransparency ? 0 : 0.3), radius: 28, x: 8, y: 8)
         .overlay(alignment: .trailing) { resizeHandle }
         .sheet(
             isPresented: $showsSpaceEditor, onDismiss: { store.sidebarEditorPresented = false },

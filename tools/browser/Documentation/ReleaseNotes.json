@@ -4729,6 +4729,10 @@
     "lean-sidebar-header-window-drag": {
       "category": "fixed",
       "message": "Let the empty header beside window and Space controls drag the window and follow the system’s titlebar double-click action."
+    },
+    "lean-crest-sidebar-slide-animation": {
+      "category": "improved",
+      "message": "Use Crest’s smooth sidebar slide when revealing and dismissing the floating card, preserving its content and respecting Reduce Motion."
     }
   }
 }

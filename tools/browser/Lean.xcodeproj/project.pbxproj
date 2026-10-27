@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		00CB51DC52E66271A4B15305 /* BrowserSiteSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CA94590CAF25E537133AE19 /* BrowserSiteSettings.swift */; };
+		011E136FF5759591C15834E1 /* BrowserSidebarSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F7B121DEC17F03B5D22CADF /* BrowserSidebarSurface.swift */; };
 		02B2FC23DF0B2DC496A34FD9 /* BrowserTabAuxiliaryClick.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D4B0E206A7CB5FA319A456 /* BrowserTabAuxiliaryClick.swift */; };
 		02C7A68E8CF8391282078550 /* BrowserTranslationDocument+WebKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E847C99816E3CC44263710F /* BrowserTranslationDocument+WebKit.swift */; };
 		036A044BA40F1D8570109506 /* GitHubFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28A88C3A4AF0E32CF9658693 /* GitHubFolder.swift */; };
@@ -185,6 +186,7 @@
 		4A27B4D06EECBF0DB1A2A16D /* GitHubLiveFolderOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubLiveFolderOptions.swift; sourceTree = "<group>"; };
 		4A67E0655AB2CADC53DCD504 /* BrowserSidebarHoverTrackingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSidebarHoverTrackingView.swift; sourceTree = "<group>"; };
 		4AD84D8D5842A010BE46B537 /* BrowserDesktopPictureInPictureAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserDesktopPictureInPictureAccess.swift; sourceTree = "<group>"; };
+		4F7B121DEC17F03B5D22CADF /* BrowserSidebarSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSidebarSurface.swift; sourceTree = "<group>"; };
 		569DB8CAFE01CDF1BDA71CAE /* BrowserChromeSymbolLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserChromeSymbolLabel.swift; sourceTree = "<group>"; };
 		579B325BF3C0B98E707C5792 /* LeanAppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeanAppDelegate.swift; sourceTree = "<group>"; };
 		5AADD6CD82B359568C66B9DB /* BrowserMediaPlayerPolicyScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserMediaPlayerPolicyScript.swift; sourceTree = "<group>"; };
@@ -440,6 +442,7 @@
 				332470355ACE7314AD1E9423 /* BrowserSidebarList.swift */,
 				C660761E359F87E94CC746FE /* BrowserSidebarOutline.swift */,
 				792060A50162739CB7D4313A /* BrowserSidebarSelection.swift */,
+				4F7B121DEC17F03B5D22CADF /* BrowserSidebarSurface.swift */,
 				17C1768F37A36621BF22D2A6 /* BrowserSpaceSwitcher.swift */,
 				F50D9C98CFB0071EF6BD8F1F /* BrowserStore+Pointer.swift */,
 				29D4B0E206A7CB5FA319A456 /* BrowserTabAuxiliaryClick.swift */,
@@ -887,6 +890,7 @@
 				BAD6D2D537A7C540F86FF008 /* BrowserSidebarList.swift in Sources */,
 				6A27F1DC2C06FEAAAF91414C /* BrowserSidebarOutline.swift in Sources */,
 				EF9FABA5079BF5A6C3CB213C /* BrowserSidebarSelection.swift in Sources */,
+				011E136FF5759591C15834E1 /* BrowserSidebarSurface.swift in Sources */,
 				EDA3360707C79DADBCFD7B13 /* BrowserSiteController.swift in Sources */,
 				6BFBAF848FD6762A56AC17C5 /* BrowserSiteScripts.swift in Sources */,
 				00CB51DC52E66271A4B15305 /* BrowserSiteSettings.swift in Sources */,
