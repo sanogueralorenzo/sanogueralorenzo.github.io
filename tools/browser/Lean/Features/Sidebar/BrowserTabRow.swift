@@ -95,7 +95,9 @@ struct BrowserTabRow: View {
         .modifier(
             BrowserSidebarReorderItem(
                 store: store, id: tab.id, placement: tab.placement, folderID: tab.folderID,
-                parentItemID: store.activeSpace.splits.first { $0.tabIDs.contains(tab.id) }?.id))
+                parentItemID: store.activeSpace.splits.first { $0.tabIDs.contains(tab.id) }?.id)
+        )
+        .transition(.opacity)
     }
 
     private var showsAction: Bool {

@@ -240,7 +240,9 @@ final class BrowserSidebarDragPreview {
             case .tab(let tab): row(tab, title: tab.customTitle ?? tab.title)
             case .folder(let folder):
                 HStack(spacing: 9) {
-                    Image(systemName: folder.isExpanded ? "folder.fill" : "folder").frame(width: 28)
+                    BrowserFolderArtwork(isExpanded: folder.isExpanded)
+                        .font(.system(size: 18)).frame(width: 28, height: 20)
+                        .offset(y: folder.isExpanded ? -1.5 : -0.5)
                     Text(folder.title).lineLimit(1)
                     Spacer(minLength: 0)
                 }.font(.system(size: 13)).padding(.horizontal, 10).frame(height: SidebarGeometry.rowHeight)

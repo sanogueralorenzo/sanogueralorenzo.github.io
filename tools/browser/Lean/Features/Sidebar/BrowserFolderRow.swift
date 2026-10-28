@@ -6,6 +6,7 @@ struct BrowserFolderRow: View {
     let depth: Int
     var inheritedKeptTabID: UUID?
     @State private var hovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var service: GitHubFolder { store.integration(for: store.activeSpace.id) }
     private var keptTabID: UUID? { inheritedKeptTabID ?? store.sidebarFolders.state(for: folder.id).keptTabID }
     private var showsRows: Bool { folder.isExpanded || keptTabID != nil }
@@ -26,7 +27,10 @@ struct BrowserFolderRow: View {
                             store.clickFolder(folder.id)
                         } label: {
                             HStack(spacing: 9) {
-                                Image(systemName: folder.isExpanded ? "folder.fill" : "folder").frame(width: 28)
+                                BrowserFolderArtwork(isExpanded: folder.isExpanded)
+                                    .font(.system(size: 18)).frame(width: 28, height: 20)
+                                    .offset(y: folder.isExpanded ? -1.5 : -0.5)
+                                    .accessibilityHidden(true)
                                 Text(folder.title).lineLimit(1)
                                 Spacer(minLength: 0)
                                 if folder.kind == .github {
@@ -97,12 +101,16 @@ struct BrowserFolderRow: View {
                         githubItems
                     } else {
                         BrowserSidebarList(
-                            store: store, placement: folder.placement ?? .saved, parentID: folder.id, depth: depth + 1)
+                            store: store, placement: folder.placement ?? .saved, parentID: folder.id, depth: depth + 1
+                        )
+                        .transition(.opacity)
                     }
                 } else if let keptTabID {
                     BrowserSidebarList(
                         store: store, placement: folder.placement ?? .saved,
-                        parentID: folder.id, depth: depth + 1, keeping: keptTabID)
+                        parentID: folder.id, depth: depth + 1, keeping: keptTabID
+                    )
+                    .transition(.opacity)
                 }
             }
             .padding(showsRows ? 4 : 0)
@@ -117,13 +125,16 @@ struct BrowserFolderRow: View {
             )
             .modifier(
                 BrowserSidebarReorderItem(
-                    store: store, id: folder.id, placement: folder.placement ?? .saved, folderID: folder.parentID))
+                    store: store, id: folder.id, placement: folder.placement ?? .saved, folderID: folder.parentID)
+            )
+            .animation(LeanMotion.collection.unlessReducingMotion(reduceMotion), value: folder.isExpanded)
+            .animation(LeanMotion.collection.unlessReducingMotion(reduceMotion), value: keptTabID)
         }
     }
 
     private var githubItems: some View {
-        VStack(spacing: 2) {
-            let tabs = store.activeSpace.tabs.filter { $0.folderID == folder.id }
+        let tabs = store.activeSpace.tabs.filter { $0.folderID == folder.id }
+        return VStack(spacing: 2) {
             if tabs.isEmpty {
                 if service.isLoading {
                     ProgressView().controlSize(.small).padding(8)
@@ -136,9 +147,14 @@ struct BrowserFolderRow: View {
                     Text(service.error ?? "No open pull requests").foregroundStyle(.secondary).padding(8)
                 }
             }
-            ForEach(tabs) { tab in BrowserSidebarItem(tab: tab, store: store, depth: depth + 1).font(.system(size: 13))
+            ForEach(tabs) { tab in
+                BrowserSidebarItem(tab: tab, store: store, depth: depth + 1).font(.system(size: 13))
+                    .geometryGroup()
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
-        }.font(.caption).frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .font(.caption).frame(maxWidth: .infinity, alignment: .leading)
+        .animation(LeanMotion.collection.unlessReducingMotion(reduceMotion), value: tabs.map(\.id))
     }
 
 }

@@ -5,6 +5,7 @@ struct BrowserSidebarItem: View {
     let store: BrowserStore
     var pinned = false
     var depth = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         if let split = store.activeSpace.splits.first(where: { $0.tabIDs.contains(tab.id) }) {
@@ -25,7 +26,9 @@ struct BrowserSidebarItem: View {
                 .contextMenu { splitActions(split) }
                 .modifier(
                     BrowserSidebarReorderItem(
-                        store: store, id: split.id, placement: tab.placement, folderID: tab.folderID))
+                        store: store, id: split.id, placement: tab.placement, folderID: tab.folderID)
+                )
+                .animation(LeanMotion.collection.unlessReducingMotion(reduceMotion), value: split.tabIDs)
             }
         } else {
             BrowserTabRow(tab: tab, store: store, pinned: pinned, depth: depth)

@@ -116,6 +116,7 @@ struct BrowserSidebar: View {
             .padding(.bottom, projection.height > 0 ? SidebarGeometry.pinnedBottomInset : 0)
             .modifier(BrowserDropArea(store: store, placement: .pinned))
             .padding(.horizontal, 16)
+            .animation(LeanMotion.collection.unlessReducingMotion(reduceMotion), value: pins.map(\.id))
             .animation(LeanMotion.dragSource.unlessReducingMotion(reduceMotion), value: store.sidebarReorder.target)
             .animation(
                 LeanMotion.dragSource.unlessReducingMotion(reduceMotion), value: store.owner.sidebarDrag.lift?.rootIDs)
