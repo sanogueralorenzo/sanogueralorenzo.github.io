@@ -40,6 +40,7 @@ extension BrowserStore {
     func openPopup(configuration: WKWebViewConfiguration, url: URL?, spaceID: UUID) -> WKWebView? {
         guard !isClosed, canChangeTabCount(by: 1, in: spaceID) else { return nil }
         var tab = BrowserTab()
+        tab.zoom = preferences.defaultPageZoom ?? 1
         guard
             url.map({ ["http", "https", "file", "about", "data", "blob", "javascript"].contains($0.scheme ?? "") })
                 ?? true
@@ -48,6 +49,7 @@ extension BrowserStore {
         let index = spaceIndex(spaceID)
         session.spaces[index].tabs.append(tab)
         let page = BrowserPage(id: tab.id, spaceID: spaceID, configuration: configuration, owner: self)
+        page.webView.pageZoom = tab.zoom
         page.scriptMayClose = true
         pages[tab.id] = page
         page.contentBlocker.controller.didOpenTab(page)
@@ -153,28 +155,6 @@ extension BrowserStore {
 
     func placeTabs(_ ids: [UUID], as placement: BrowserTab.Placement, folderID: UUID? = nil) {
         for id in relatedTabIDs(ids) { placeTab(id, as: placement, folderID: folderID) }
-    }
-
-    func duplicateTabs(_ ids: [UUID]) {
-        guard !isClosed, !ids.isEmpty else { return }
-        var seen = Set<UUID>()
-        let ids = ids.filter { seen.insert($0).inserted }
-        let destinations: [(id: UUID, before: UUID?, spaceID: UUID)] = ids.compactMap { id in
-            guard let (s, _) = tabIndex(id) else { return nil }
-            return (id, sidebarInsertionTarget(id, after: true, in: session.spaces[s].id), session.spaces[s].id)
-        }
-        guard destinations.count == ids.count else { return }
-        let counts = Dictionary(grouping: destinations, by: { $0.spaceID }).mapValues(\.count)
-        guard counts.allSatisfy({ canChangeTabCount(by: $0.value, in: $0.key) }) else { return }
-        for (id, before, _) in destinations {
-            guard let (s, t) = tabIndex(id) else { continue }
-            var tab = session.spaces[s].tabs[t]
-            tab.id = UUID()
-            session.spaces[s].tabs.insert(tab, at: t + 1)
-            reorderSidebarItems([tab.id], in: session.spaces[s].id, before: before)
-            selectTab(tab.id)
-        }
-        changed()
     }
 
     func canChangeTabCount(by delta: Int, in spaceID: UUID) -> Bool {

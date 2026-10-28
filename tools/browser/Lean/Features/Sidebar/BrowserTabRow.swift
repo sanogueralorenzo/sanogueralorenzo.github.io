@@ -177,7 +177,7 @@ struct BrowserTabRow: View {
             }
         }
         Divider()
-        Button("Duplicate Tab") { store.duplicateTabs(store.actionTabs(tab.id)) }
+        Button("Duplicate Tab") { store.duplicateTab(tab.id) }
         Button(tab.placement == .current ? "Close Tab" : "Delete Tab", role: .destructive) {
             store.requestDeleteTabs(store.actionTabs(tab.id))
         }
