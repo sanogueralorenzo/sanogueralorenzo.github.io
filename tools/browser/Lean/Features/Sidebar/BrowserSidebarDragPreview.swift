@@ -6,34 +6,53 @@ import SwiftUI
 /// clip them. One host owns the preview through lift, shape changes and landing.
 @MainActor
 final class BrowserSidebarDragPreview {
+    struct Row: Identifiable {
+        enum Content {
+            case tab(BrowserTab)
+            case folder(BrowserFolder)
+            case split([BrowserTab])
+        }
+        let id: UUID
+        let frame: CGRect
+        let content: Content
+    }
     @Observable final class Presentation {
-        let tabs: [BrowserTab]
+        let rows: [Row]
+        let sourceHeight: CGFloat
+        let tab: BrowserTab?
         let title: String
         let count: Int
         let symbol: String
         let spaceColor: Int?
         let spaceHeight: CGFloat
+        let snapshot: NSImage?
+        var cardHeight: CGFloat?
         var pinned: Bool
         var width: CGFloat
         var landing = false
         var opacity = 1.0
         var pointer = CGPoint.zero
         init(
-            tabs: [BrowserTab], title: String, count: Int, symbol: String, spaceColor: Int?, spaceHeight: CGFloat,
-            pinned: Bool, width: CGFloat
+            rows: [Row], sourceHeight: CGFloat, tab: BrowserTab?, title: String, count: Int, symbol: String,
+            spaceColor: Int?, spaceHeight: CGFloat,
+            snapshot: NSImage?, pinned: Bool, width: CGFloat
         ) {
-            self.tabs = tabs
+            self.rows = rows
+            self.sourceHeight = sourceHeight
+            self.tab = tab
             self.title = title
             self.count = count
             self.symbol = symbol
             self.spaceColor = spaceColor
             self.spaceHeight = spaceHeight
+            self.snapshot = snapshot
             self.pinned = pinned
             self.width = width
         }
         var height: CGFloat {
             if spaceColor != nil { return spaceHeight }
-            return pinned ? SidebarGeometry.rowHeight : CGFloat(max(1, tabs.count)) * SidebarGeometry.rowHeight
+            if let cardHeight { return cardHeight }
+            return pinned ? SidebarGeometry.rowHeight : sourceHeight
         }
     }
 
@@ -50,14 +69,18 @@ final class BrowserSidebarDragPreview {
 
     init(store: BrowserStore, payload: BrowserDragPayload, title: String, frame: CGRect, grab: CGPoint) {
         let space = store.session.spaces.first { $0.id == payload.spaceID }
-        let tabs = payload.ids.compactMap { id in space?.tabs.first { $0.id == id } }
-        let pinned = tabs.count == 1 && payload.folderIDs.isEmpty && tabs.first?.placement == .pinned
+        let rows = store.sidebarReorder.previewRows(in: store)
+        let tab: BrowserTab?
+        if rows.count == 1, case .tab(let value) = rows[0].content { tab = value } else { tab = nil }
+        let pinned = tab?.placement == .pinned
         sourcePinned = pinned
         sourceWidth = pinned || payload.kind == .space ? frame.width : store.sidebarWidth - 32
         presentation = Presentation(
-            tabs: Array(tabs.prefix(4)), title: title, count: payload.ids.count + payload.folderIDs.count,
+            rows: rows, sourceHeight: frame.height, tab: tab, title: title,
+            count: store.owner.sidebarLift?.rootIDs.count ?? 1,
             symbol: payload.kind == .space ? "circle.fill" : "folder.fill",
             spaceColor: payload.kind == .space ? space?.color : nil, spaceHeight: frame.height,
+            snapshot: tab.flatMap { store.owner.pages[$0.id]?.mirrorImage },
             pinned: pinned, width: sourceWidth)
         anchor = CGPoint(
             x: min(1, max(0, grab.x / max(1, frame.width))), y: min(1, max(0, grab.y / max(1, frame.height))))
@@ -91,10 +114,15 @@ final class BrowserSidebarDragPreview {
     }
 
     func move(to point: NSPoint, target: BrowserSidebarReorderState.Target?, frame: CGRect?) {
-        let pinned = target.map { $0.placement == .pinned } ?? sourcePinned
-        let canPin = presentation.tabs.count == 1 && presentation.count == 1
+        let pinned: Bool
+        if case .space = target?.kind { pinned = sourcePinned } else { pinned = target.map(\.isPinned) ?? sourcePinned }
+        let canPin = presentation.tab != nil && presentation.count == 1
         presentation.pinned = pinned && canPin
-        if let frame {
+        let isSplit: Bool
+        if let target, case .split = target.kind { isSplit = true } else { isSplit = false }
+        let card = isSplit && presentation.tab != nil && presentation.count == 1
+        presentation.cardHeight = card ? frame?.height : nil
+        if let frame, !isSplit || card {
             presentation.width = frame.width
         } else {
             presentation.width = sourceWidth
@@ -103,14 +131,22 @@ final class BrowserSidebarDragPreview {
             x: point.x - presentation.width * anchor.x,
             y: point.y - presentation.height * (1 - anchor.y),
             width: presentation.width, height: presentation.height)
-        panel.setFrame((panel.parent?.frame ?? parentFrame).union(body.insetBy(dx: -16, dy: -16)), display: true)
+        let scale: CGFloat = presentation.spaceColor == nil ? 1.04 : 1.08
+        let drawing = CGRect(
+            x: body.minX, y: body.maxY - body.height * scale,
+            width: body.width * scale, height: body.height * scale
+        ).insetBy(dx: -16, dy: -16)
+        panel.setFrame((panel.parent?.frame ?? parentFrame).union(drawing), display: true)
         presentation.pointer = CGPoint(x: point.x - panel.frame.minX, y: panel.frame.maxY - point.y)
     }
 
     func finish(accepted: Bool, landing: CGRect?, completion: @escaping @MainActor () -> Void) {
         presentation.landing = true
         if let destination = accepted ? landing : sourceFrame {
-            if !accepted { presentation.pinned = sourcePinned }
+            if !accepted {
+                presentation.pinned = sourcePinned
+                presentation.cardHeight = nil
+            }
             presentation.width = destination.width
             // Keep a stable canvas through the spring so WebKit, clipping and
             // native window animation cannot change the landing curve.
@@ -151,18 +187,36 @@ final class BrowserSidebarDragPreview {
         let anchor: CGPoint
         let reduceMotion: Bool
         var body: some View {
-            VStack(spacing: 0) {
+            ZStack(alignment: .topLeading) {
                 if let color = presentation.spaceColor {
                     Circle().fill(Color.space(color)).frame(width: 12, height: 12)
                         .frame(width: presentation.width, height: presentation.height)
-                } else if presentation.tabs.isEmpty {
+                } else if presentation.rows.isEmpty {
                     row(nil, title: presentation.title)
+                } else if let tab = presentation.tab {
+                    row(tab, title: tab.customTitle ?? tab.title)
                 } else {
-                    ForEach(presentation.tabs) { tab in row(tab, title: tab.customTitle ?? tab.title) }
+                    ForEach(presentation.rows) { item in
+                        previewRow(item)
+                            .frame(
+                                width: min(item.frame.width, max(0, presentation.width - item.frame.minX)),
+                                height: item.frame.height, alignment: .topLeading
+                            )
+                            .offset(x: item.frame.minX, y: item.frame.minY)
+                    }
                 }
             }
             .frame(width: presentation.width, height: presentation.height, alignment: .top)
-            .background(LeanBrandTheme.surface, in: RoundedRectangle(cornerRadius: 20))
+            .background(alignment: .bottom) {
+                if let height = presentation.cardHeight, let snapshot = presentation.snapshot {
+                    Image(nsImage: snapshot).resizable().scaledToFill()
+                        .frame(width: presentation.width, height: max(0, height - SidebarGeometry.rowHeight)).clipped()
+                }
+            }
+            .background(
+                LeanBrandTheme.surface, in: RoundedRectangle(cornerRadius: presentation.cardHeight == nil ? 20 : 13)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: presentation.cardHeight == nil ? 20 : 13))
             .overlay(alignment: .topTrailing) {
                 if presentation.count > 1 {
                     Text("\(presentation.count)").font(.caption.weight(.semibold)).padding(5)
@@ -174,11 +228,30 @@ final class BrowserSidebarDragPreview {
             .opacity(presentation.opacity)
             .animation(LeanMotion.dragPreview.unlessReducingMotion(reduceMotion), value: presentation.pinned)
             .animation(LeanMotion.dragPreview.unlessReducingMotion(reduceMotion), value: presentation.width)
+            .animation(LeanMotion.dragPreview.unlessReducingMotion(reduceMotion), value: presentation.cardHeight)
             .animation(LeanMotion.dragSource.unlessReducingMotion(reduceMotion), value: presentation.landing)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: presentation.opacity)
             .offset(x: presentation.width * (0.5 - anchor.x), y: presentation.height * (0.5 - anchor.y))
             .position(presentation.pointer)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        @ViewBuilder private func previewRow(_ item: Row) -> some View {
+            switch item.content {
+            case .tab(let tab): row(tab, title: tab.customTitle ?? tab.title)
+            case .folder(let folder):
+                HStack(spacing: 9) {
+                    Image(systemName: folder.isExpanded ? "folder.fill" : "folder").frame(width: 28)
+                    Text(folder.title).lineLimit(1)
+                    Spacer(minLength: 0)
+                }.font(.system(size: 13)).padding(.horizontal, 10).frame(height: SidebarGeometry.rowHeight)
+            case .split(let tabs):
+                VStack(spacing: 0) {
+                    Label("\(tabs.count)", systemImage: "rectangle.split.2x1")
+                        .font(.caption.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+                        .padding(.horizontal, 9)
+                    ForEach(tabs) { tab in row(tab, title: tab.customTitle ?? tab.title).padding(.vertical, 1) }
+                }.padding(4).background(.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 16))
+            }
         }
         private func row(_ tab: BrowserTab?, title: String) -> some View {
             HStack(spacing: 9) {

@@ -10,6 +10,7 @@ struct BrowserDragPayload {
     let ids: [UUID]
     var folderIDs: [UUID] = []
     var activeTabID: UUID?
+    var sourceID: UUID?
     static let type = UTType(exportedAs: "dev.leanbrowser.organization", conformingTo: .data).identifier
 }
 
@@ -33,7 +34,7 @@ extension BrowserStore {
         let ids = capturesSelection ? selectedLooseTabIDs : [id]
         return BrowserDragPayload(
             kind: .tabs, spaceID: activeSpace.id, ids: ids,
-            folderIDs: capturesSelection ? selectionRootFolders : [], activeTabID: selectedTab?.id)
+            folderIDs: capturesSelection ? selectionRootFolders : [], activeTabID: selectedTab?.id, sourceID: id)
     }
     func dragPayload(split: BrowserSplit) -> BrowserDragPayload {
         guard let first = split.tabIDs.first else {
@@ -41,7 +42,9 @@ extension BrowserStore {
         }
         let selection = dragPayload(tab: first)
         if !selection.folderIDs.isEmpty || selection.ids.count > 1 { return selection }
-        return BrowserDragPayload(kind: .tabs, spaceID: activeSpace.id, ids: split.tabIDs, activeTabID: selectedTab?.id)
+        return BrowserDragPayload(
+            kind: .tabs, spaceID: activeSpace.id, ids: split.tabIDs, activeTabID: selectedTab?.id,
+            sourceID: split.id)
     }
     func dragPayload(space id: UUID) -> BrowserDragPayload {
         BrowserDragPayload(kind: .space, spaceID: id, ids: [id])
@@ -53,7 +56,8 @@ extension BrowserStore {
         return BrowserDragPayload(
             kind: .folder, spaceID: activeSpace.id,
             ids: capturesSelection ? selectedLooseTabIDs : [],
-            folderIDs: capturesSelection ? selectionRootFolders : [folder], activeTabID: selectedTab?.id)
+            folderIDs: capturesSelection ? selectionRootFolders : [folder], activeTabID: selectedTab?.id,
+            sourceID: folder)
     }
     func acceptDrop(
         _ providers: [NSItemProvider], before: UUID? = nil, folder: UUID? = nil,
@@ -80,7 +84,7 @@ extension BrowserStore {
             guard payload.kind != .space || onSpace,
                 !onSpace || payload.kind == .space || payload.spaceID != destination
             else { return false }
-            return applyDrop(
+            return applySidebarDrop(
                 payload, before: before, folder: folder, spaceID: destination, placement: placement,
                 afterSpace: afterSpace)
         }
@@ -114,7 +118,7 @@ extension BrowserStore {
         }
         return false
     }
-    private func applyDrop(
+    func applySidebarDrop(
         _ payload: BrowserDragPayload, before: UUID?, folder: UUID?, spaceID: UUID, placement: BrowserTab.Placement?,
         afterSpace: Bool
     ) -> Bool {
@@ -135,6 +139,47 @@ extension BrowserStore {
             }
         return moveSidebarItems(
             payload, to: spaceID, parentID: destinationParent, placement: location, before: before)
+    }
+
+    var canCommitSidebarDrop: Bool {
+        guard !isClosed, !owner.sidebarDropCommitted, let payload = owner.sidebarDrag else { return false }
+        if payload.kind == .space {
+            guard let destination = sidebarReorder.spaceLayout?.destination else { return false }
+            return session.spaces.contains { $0.id == payload.spaceID }
+                && session.spaces.contains { $0.id == destination.id }
+        }
+        return sidebarReorder.target.map(canPreviewSidebarDrop) ?? false
+    }
+
+    @discardableResult
+    func commitSidebarDrop() -> Bool {
+        guard canCommitSidebarDrop, let payload = owner.sidebarDrag else { return false }
+        let accepted: Bool
+        if payload.kind == .space, let destination = sidebarReorder.spaceLayout?.destination {
+            accepted = moveSpace(payload.spaceID, relativeTo: destination.id, after: destination.after)
+        } else if let target = sidebarReorder.target {
+            switch target.kind {
+            case .currentFolder(let id):
+                accepted = createSidebarFolder(containing: payload, placement: .current, around: id) != nil
+            case .insert(let section, let before):
+                accepted = applySidebarDrop(
+                    payload, before: before, folder: section.folderID,
+                    spaceID: target.spaceID, placement: section.placement, afterSpace: false)
+            case .folder(let id, let placement):
+                accepted = applySidebarDrop(
+                    payload, before: nil, folder: id,
+                    spaceID: target.spaceID, placement: placement, afterSpace: false)
+            case .space:
+                accepted = applySidebarDrop(
+                    payload, before: nil, folder: nil,
+                    spaceID: target.spaceID, placement: nil, afterSpace: false)
+            case .split(let index): accepted = dropSidebarTabsIntoSplit(payload, at: index)
+            }
+        } else {
+            return false
+        }
+        if accepted { owner.sidebarDropCommitted = true }
+        return accepted
     }
 
     func sidebarInsertionTarget(
@@ -261,12 +306,10 @@ struct BrowserDropArea: ViewModifier {
     }
 
     private var emptyGap: CGFloat {
-        guard before == nil, spaceID == nil else { return 0 }
-        let placement =
-            placement ?? folder.flatMap { id in store.activeSpace.folders.first { $0.id == id }?.placement } ?? .current
+        guard before == nil, folder == nil, spaceID == nil, placement != .pinned else { return 0 }
         return store.sidebarReorder.layout.emptySpace(
             in: .init(
-                spaceID: store.activeSpace.id, placement: placement, folderID: folder))
+                spaceID: store.activeSpace.id, placement: placement ?? .current, folderID: nil))
     }
 }
 
@@ -305,13 +348,9 @@ private struct BrowserSidebarDropDelegate: DropDelegate {
     }
     func dropExited(info: DropInfo) { targeted = false }
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        if onSpace, store.owner.sidebarDrag?.kind == .space {
+        if store.owner.sidebarDrag != nil {
             store.sidebarReorder.move(to: NSEvent.mouseLocation, in: store)
-            return DropProposal(operation: store.sidebarReorder.spaceLayout?.destination == nil ? .cancel : .move)
-        }
-        if store.owner.sidebarLift != nil, !onSpace {
-            store.sidebarReorder.move(to: NSEvent.mouseLocation, in: store)
-            return DropProposal(operation: store.sidebarReorder.target == nil ? .cancel : .move)
+            return DropProposal(operation: store.canCommitSidebarDrop ? .move : .cancel)
         }
         insertAfter = after(info)
         nesting = nests(info)
@@ -319,23 +358,9 @@ private struct BrowserSidebarDropDelegate: DropDelegate {
     }
     func performDrop(info: DropInfo) -> Bool {
         targeted = false
-        if onSpace, store.owner.sidebarDrag?.kind == .space {
-            guard let destination = store.sidebarReorder.spaceLayout?.destination else { return false }
+        if store.owner.sidebarDrag != nil {
             return withAnimation(LeanMotion.collection.unlessReducingMotion(reduceMotion)) {
-                store.acceptDrop(
-                    info.itemProviders(for: [BrowserDragPayload.type]), spaceID: destination.id,
-                    afterSpace: destination.after)
-            }
-        }
-        if store.owner.sidebarLift != nil, !onSpace {
-            guard let target = store.sidebarReorder.target, store.canPreviewSidebarDrop(target) else { return false }
-            return withAnimation(LeanMotion.collection.unlessReducingMotion(reduceMotion)) {
-                if let id = target.aroundTabID, let payload = store.owner.sidebarDrag {
-                    return store.createSidebarFolder(containing: payload, placement: .current, around: id) != nil
-                }
-                return store.acceptDrop(
-                    info.itemProviders(for: [BrowserDragPayload.type, UTType.url.identifier]),
-                    before: target.before, folder: target.folder, spaceID: target.spaceID, placement: target.placement)
+                store.commitSidebarDrop()
             }
         }
         let header = folder.flatMap { id in store.activeSpace.folders.first { $0.id == id } }

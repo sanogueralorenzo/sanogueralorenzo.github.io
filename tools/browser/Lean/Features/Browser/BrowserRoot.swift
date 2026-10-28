@@ -45,6 +45,7 @@ struct BrowserRoot: View {
                 }
             }
             .background(BrowserNativeWindowControlsBridge(isVisible: store.showsSidebar))
+            .overlay { BrowserSidebarDropDestination(store: store).accessibilityHidden(true) }
         }
         .onGeometryChange(for: CGFloat?.self) { proxy in
             SidebarGeometry.windowCornerRadius(from: proxy.containerCornerInsets)
@@ -64,22 +65,9 @@ struct BrowserRoot: View {
         .tint(LeanBrandTheme.textDisplay)
     }
 
-    @ViewBuilder
     private var splitContent: some View {
-        if let split = store.activeSplit {
-            BrowserNativeSplit(store: store, pages: store.visiblePages, split: split)
-        } else if let page = store.visiblePages.first {
-            pane(page)
-        }
-    }
-
-    private func pane(_ page: BrowserPage) -> some View {
-        BrowserPageContent(page: page, store: store)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .overlay {
-                if store.activeSplit != nil, store.selectedTab?.id == page.id {
-                    Rectangle().stroke(LeanBrandTheme.line, lineWidth: 1).allowsHitTesting(false)
-                }
-            }
+        BrowserNativeSplit(
+            store: store, pages: store.visiblePages, split: store.activeSplit,
+            drop: store.sidebarReorder.splitProjection(in: store))
     }
 }

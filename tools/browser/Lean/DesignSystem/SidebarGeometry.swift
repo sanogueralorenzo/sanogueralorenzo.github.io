@@ -9,6 +9,9 @@ enum SidebarGeometry {
     static let titlebarHorizontalInset: CGFloat = 12
     static let navigationSymbolPointSize: CGFloat = 15
     static let rowHeight = LeanLayout.sidebarRowHeight
+    static let pinnedTopInset: CGFloat = 8
+    static let pinnedBottomInset: CGFloat = 12
+    static let currentDividerHeight: CGFloat = 28
 
     static func windowCornerRadius(from insets: RectangleCornerInsets) -> CGFloat? {
         // Bottom corners describe the window; top insets can also reserve its controls.

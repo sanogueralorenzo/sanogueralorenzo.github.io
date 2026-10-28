@@ -20,6 +20,7 @@ final class BrowserSessionOwner {
     var storageError: String?
     var activeWindowID: UUID?
     var sidebarDrag: BrowserDragPayload?
+    var sidebarDropCommitted = false
     var sidebarLift: BrowserSidebarReorderState.Lift?
     var sidebarLandingIDs: Set<UUID> = []
     var sidebarLandingToken: UUID?

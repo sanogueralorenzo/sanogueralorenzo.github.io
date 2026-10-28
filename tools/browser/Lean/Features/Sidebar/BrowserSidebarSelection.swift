@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 extension BrowserStore {
     var sidebarSelectionUnits: [[UUID]] {
@@ -14,21 +15,16 @@ extension BrowserStore {
             }
         }
         func walk(_ parent: UUID?, _ placement: BrowserTab.Placement, keeping: UUID? = nil) {
-            for entry in activeSpace.sidebarEntries(parentID: parent, placement: placement) {
+            for entry in activeSpace.sidebarEntries(parentID: parent, placement: placement, keeping: keeping) {
                 switch entry.kind {
                 case .folder(let folder):
-                    let activeInside =
-                        selectedTab.map { descendants(folder.id, in: activeSpace).contains($0.folderID ?? UUID()) }
-                        ?? false
-                    if keeping != nil && !activeInside { continue }
                     units.append([folder.id])
                     if folder.isExpanded && keeping == nil {
                         walk(folder.id, placement)
-                    } else if activeInside, let active = selectedTab {
-                        walk(folder.id, placement, keeping: active.id)
+                    } else if let kept = keeping ?? sidebarFolders.state(for: folder.id).keptTabID {
+                        walk(folder.id, placement, keeping: kept)
                     }
                 case .tab(let tab):
-                    if let keeping, keeping != tab.id { continue }
                     append([tab])
                 }
             }
@@ -88,7 +84,12 @@ extension BrowserStore {
             clickSidebarItem(id, modifiers: modifiers)
         } else {
             clearSidebarSelection()
-            updateFolder(id) { $0.isExpanded.toggle() }
+            guard let folder = activeSpace.folders.first(where: { $0.id == id }) else { return }
+            withAnimation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : LeanMotion.disclosure) {
+                sidebarFolders.expansionWillChange(
+                    id, expanded: !folder.isExpanded, selected: selectedTab?.id, in: activeSpace)
+                updateFolder(id) { $0.isExpanded.toggle() }
+            }
         }
     }
     private func clickSidebarItem(_ id: UUID, modifiers: NSEvent.ModifierFlags) {
@@ -217,7 +218,12 @@ extension BrowserStore {
         }
         if event.keyCode == 36, let id = selectionFocusedID {
             if activeSpace.folders.contains(where: { $0.id == id }) {
-                updateFolder(id) { $0.isExpanded.toggle() }
+                guard let folder = activeSpace.folders.first(where: { $0.id == id }) else { return false }
+                withAnimation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : LeanMotion.disclosure) {
+                    sidebarFolders.expansionWillChange(
+                        id, expanded: !folder.isExpanded, selected: selectedTab?.id, in: activeSpace)
+                    updateFolder(id) { $0.isExpanded.toggle() }
+                }
             } else {
                 selectTab(id)
             }

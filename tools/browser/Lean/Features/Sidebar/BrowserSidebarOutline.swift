@@ -42,14 +42,27 @@ extension BrowserSpace {
             return group.first == id ? group : []
         }
     }
-    func sidebarEntries(parentID: UUID?, placement: BrowserTab.Placement) -> [BrowserSidebarEntry] {
+    func folderPath(to tabID: UUID) -> Set<UUID> {
+        let byID = Dictionary(uniqueKeysWithValues: folders.map { ($0.id, $0) })
+        var path = Set<UUID>()
+        var parent = tabs.first { $0.id == tabID }?.folderID
+        while let id = parent, path.insert(id).inserted { parent = byID[id]?.parentID }
+        return path
+    }
+
+    func sidebarEntries(parentID: UUID?, placement: BrowserTab.Placement, keeping: UUID? = nil) -> [BrowserSidebarEntry]
+    {
+        let path = keeping.map(folderPath(to:))
+        let keptTabs = keeping.map { id in Set(splits.first { $0.tabIDs.contains(id) }?.tabIDs ?? [id]) }
         let folders = Dictionary(
             uniqueKeysWithValues: folders.filter {
                 $0.parentID == parentID && ($0.placement ?? .saved) == placement
+                    && (path?.contains($0.id) ?? true)
             }.map { ($0.id, $0) })
         let tabs = Dictionary(
             uniqueKeysWithValues: tabs.filter {
                 $0.folderID == parentID && $0.placement == placement
+                    && (keptTabs?.contains($0.id) ?? true)
             }.map { ($0.id, $0) })
         return orderedSidebarIDs.compactMap { id in
             if let folder = folders[id] { return BrowserSidebarEntry(id: id, kind: .folder(folder)) }

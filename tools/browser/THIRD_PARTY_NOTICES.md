@@ -6,6 +6,8 @@ The sidebar's projected reorder layout, pinned slots, folder nesting bands and f
 floating drag-preview host, activation handoff and motion roles adapt the matching Crest components.
 Space-picker displacement and native edge scrolling also adapt Crest's implementations.
 Creating a folder around a Current Tab follows Crest's atomic folder-and-items intent.
+Measured folder/split previews, collapsed-folder resident-tab paths, and proportional
+content split insertion also adapt Crest's sidebar and split-view components.
 
 The GitHub live folder adapts response formats and selectors from
 [Zen Browser](https://github.com/zen-browser/desktop/blob/2ad194525da74d7f00609a424d93a3c7db430d21/src/zen/live-folders/providers/GithubLiveFolder.sys.mjs),

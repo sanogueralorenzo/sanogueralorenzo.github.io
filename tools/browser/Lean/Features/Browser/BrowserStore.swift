@@ -21,6 +21,7 @@ final class BrowserStore {
     var sidebarKeyboardSelection = false
     var isDragging = false
     let sidebarReorder = BrowserSidebarReorderState()
+    let sidebarFolders = BrowserSidebarFolderVisibility()
     var recentSwitcherPresented = false
     var recentSwitcherIndex = 0
     var session: BrowserSession {

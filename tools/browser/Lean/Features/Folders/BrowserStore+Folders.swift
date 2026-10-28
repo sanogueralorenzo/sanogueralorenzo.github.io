@@ -51,7 +51,10 @@ extension BrowserStore {
         guard !isClosed else { return nil }
         do {
             let id = try owner.addFolder(parentID: parentID, github: github, in: spaceID ?? activeSpace.id)
-            if !github { editingFolderID = id }
+            if !github {
+                revealFolderAncestors(id)
+                editingFolderID = id
+            }
             return id
         } catch {
             showNotice(error.localizedDescription)
@@ -66,6 +69,19 @@ extension BrowserStore {
         session.spaces[index].folders[position].title = String(
             session.spaces[index].folders[position].title.prefix(256))
         changed()
+    }
+
+    private func revealFolderAncestors(_ id: UUID) {
+        guard let s = session.spaces.firstIndex(where: { $0.folders.contains { $0.id == id } }) else { return }
+        var parent = session.spaces[s].folders.first { $0.id == id }?.parentID
+        var visited = Set<UUID>()
+        while let id = parent, visited.insert(id).inserted,
+            let index = session.spaces[s].folders.firstIndex(where: { $0.id == id })
+        {
+            sidebarFolders.expansionWillChange(id, expanded: true, selected: selectedTab?.id, in: session.spaces[s])
+            session.spaces[s].folders[index].isExpanded = true
+            parent = session.spaces[s].folders[index].parentID
+        }
     }
 
     func deleteFolder(_ id: UUID) {

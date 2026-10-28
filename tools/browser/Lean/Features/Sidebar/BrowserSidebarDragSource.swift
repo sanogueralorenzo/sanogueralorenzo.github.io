@@ -33,7 +33,6 @@ private struct BrowserSidebarDragSourceHost: NSViewRepresentable {
 @MainActor
 final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
     private weak var owner: BrowserSessionOwner?
-    private weak var sourceStore: BrowserStore?
     private var exportsURL = false
     private var preview: BrowserSidebarDragPreview?
 
@@ -59,13 +58,13 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
         let transparent = NSImage(size: NSSize(width: 1, height: 1), flipped: false) { _ in true }
         dragging.setDraggingFrame(bounds, contents: transparent)
         owner = store.owner
-        sourceStore = store
         exportsURL = url != nil
         store.owner.sidebarLandingToken = nil
         store.owner.sidebarLandingIDs = []
         store.owner.sidebarLandingPreview?.cancel()
         store.owner.sidebarLandingPreview = nil
         store.owner.sidebarDrag = payload
+        store.owner.sidebarDropCommitted = false
         store.owner.sidebarDragSource = self
         if payload.kind == .space {
             for context in store.owner.contexts.values where !context.isClosed {
@@ -81,10 +80,18 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
             }
         }
         if let window {
-            let frame = window.convertToScreen(convert(bounds, to: nil))
+            let frame: CGRect
+            if let id = store.owner.sidebarLift?.anchorID, let measured = store.sidebarReorder.frame(of: id),
+                let content = window.contentView
+            {
+                frame = window.convertToScreen(content.convert(measured, to: nil))
+            } else {
+                frame = window.convertToScreen(convert(bounds, to: nil))
+            }
+            let pointer = NSEvent.mouseLocation
             preview = BrowserSidebarDragPreview(
                 store: store, payload: payload, title: title, frame: frame,
-                grab: convert(event.locationInWindow, from: nil))
+                grab: CGPoint(x: pointer.x - frame.minX, y: frame.maxY - pointer.y))
             preview?.move(to: NSEvent.mouseLocation, target: nil, frame: nil)
         }
         store.isDragging = true
@@ -103,7 +110,17 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
             if context.sidebarReorder.lift == nil, let lift = owner.sidebarLift {
                 context.sidebarReorder.begin(lift, in: context)
             }
-            context.isDragging = context === sourceStore || context.window === window
+            let local = context.window.map { $0.convertPoint(fromScreen: screenPoint) } ?? .zero
+            let edge =
+                context.showsSidebar
+                ? context.sidebarWidth + SidebarGeometry.inset * 2 + SidebarGeometry.hoverMargin
+                : SidebarGeometry.hoverMargin
+            context.isDragging = context.window === window && local.x <= edge
+            if !context.isDragging {
+                context.sidebarRevealed = false
+            } else if local.x <= SidebarGeometry.hoverMargin {
+                context.sidebarRevealed = true
+            }
             if context.window === window {
                 context.sidebarReorder.move(to: screenPoint, in: context)
                 destination = context
@@ -111,9 +128,16 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
                 context.sidebarReorder.move(to: NSPoint(x: -1_000_000, y: -1_000_000), in: context)
             }
         }
+        if let destination {
+            updatePreview(to: screenPoint, in: destination)
+        } else {
+            preview?.move(to: screenPoint, target: nil, frame: nil)
+        }
+    }
+
+    func updatePreview(to point: NSPoint, in store: BrowserStore) {
         preview?.move(
-            to: screenPoint, target: destination?.sidebarReorder.target,
-            frame: destination.flatMap { $0.sidebarReorder.landingFrame(in: $0) })
+            to: point, target: store.sidebarReorder.target, frame: store.sidebarReorder.previewFrame(in: store))
     }
 
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext)
@@ -130,7 +154,7 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
             let token = UUID()
             owner.sidebarLandingToken = token
             if let lift = owner.sidebarLift {
-                owner.sidebarLandingIDs = lift.rootIDs
+                owner.sidebarLandingIDs = lift.rootIDs.union(owner.sidebarDrag?.ids ?? [])
             } else if let payload = owner.sidebarDrag, payload.kind == .space {
                 owner.sidebarLandingIDs = [payload.spaceID]
             } else {
@@ -160,7 +184,6 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
             }
         }
         preview = nil
-        sourceStore = nil
         owner = nil
         exportsURL = false
     }

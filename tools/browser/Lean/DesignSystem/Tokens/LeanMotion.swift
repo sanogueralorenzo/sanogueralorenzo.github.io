@@ -7,4 +7,5 @@ enum LeanMotion {
     static var collection: Animation { .snappy(duration: 0.22) }
     static var dragSource: Animation { .snappy(duration: 0.20) }
     static var dragPreview: Animation { .smooth(duration: 0.18) }
+    static var disclosure: Animation { .snappy(duration: 0.20) }
 }

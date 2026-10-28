@@ -4,8 +4,11 @@ struct BrowserFolderRow: View {
     let folder: BrowserFolder
     let store: BrowserStore
     let depth: Int
+    var inheritedKeptTabID: UUID?
     @State private var hovering = false
     private var service: GitHubFolder { store.integration(for: store.activeSpace.id) }
+    private var keptTabID: UUID? { inheritedKeptTabID ?? store.sidebarFolders.state(for: folder.id).keptTabID }
+    private var showsRows: Bool { folder.isExpanded || keptTabID != nil }
 
     var body: some View {
         if folder.kind == .regular || !store.activeSpace.isPrivate {
@@ -89,23 +92,27 @@ struct BrowserFolderRow: View {
                         Button("Delete Folder", role: .destructive) { store.deleteFolder(folder.id) }
                     }
                 }
-                if folder.isExpanded {
+                if folder.isExpanded && inheritedKeptTabID == nil {
                     if folder.kind == .github {
                         githubItems
                     } else {
                         BrowserSidebarList(
                             store: store, placement: folder.placement ?? .saved, parentID: folder.id, depth: depth + 1)
                     }
+                } else if let keptTabID {
+                    BrowserSidebarList(
+                        store: store, placement: folder.placement ?? .saved,
+                        parentID: folder.id, depth: depth + 1, keeping: keptTabID)
                 }
             }
-            .padding(folder.isExpanded ? 4 : 0)
+            .padding(showsRows ? 4 : 0)
             .leanInteractiveSurface(
                 isSelected: store.selectedFolders.contains(folder.id) && !store.selectionCovers(folder.parentID),
                 isHovering: false, cornerRadius: max(0, 20 - CGFloat(depth) * 4),
                 selectionEmphasis: store.sidebarKeyboardSelection && store.selectedFolders.contains(folder.id)
             )
             .background(
-                LeanBrandTheme.line.opacity(folder.isExpanded ? 0.22 : 0),
+                LeanBrandTheme.line.opacity(showsRows ? 0.22 : 0),
                 in: RoundedRectangle(cornerRadius: max(0, 20 - CGFloat(depth) * 4))
             )
             .modifier(

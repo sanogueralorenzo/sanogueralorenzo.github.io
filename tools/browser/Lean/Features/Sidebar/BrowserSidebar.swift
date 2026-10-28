@@ -55,6 +55,7 @@ struct BrowserSidebar: View {
             }
         }
         .font(.system(size: 13))
+        .background { BrowserSidebarFolderReconciler(store: store) }
         .focusEffectDisabled()
         .animation(LeanMotion.collection.unlessReducingMotion(reduceMotion), value: store.activeSpace.orderedSidebarIDs)
         .frame(width: store.sidebarWidth)
@@ -76,15 +77,22 @@ struct BrowserSidebar: View {
 
     private var tabRows: some View {
         VStack(spacing: 2) {
-            BrowserSidebarList(store: store, placement: .saved)
-            if store.isDragging { dropTarget("Saved Tabs", placement: .saved) }
-            if store.activeSpace.tabs.contains(where: { $0.placement == .current })
-                || store.activeSpace.folders.contains(where: { $0.parentID == nil && $0.placement == .current })
-            {
-                currentDivider
-            }
-            BrowserSidebarList(store: store, placement: .current)
-            if store.isDragging { dropTarget("Current Tabs", placement: .current) }
+            VStack(spacing: 2) { BrowserSidebarList(store: store, placement: .saved) }
+                .modifier(BrowserDropArea(store: store, placement: .saved))
+            currentDivider
+                .frame(
+                    height: store.sidebarReorder.showsCurrentDivider(in: store)
+                        ? SidebarGeometry.currentDividerHeight : 0
+                )
+                .clipped().allowsHitTesting(store.sidebarReorder.showsCurrentDivider(in: store))
+                .accessibilityHidden(!store.sidebarReorder.showsCurrentDivider(in: store))
+                .onGeometryChange(for: CGRect.self) {
+                    $0.frame(in: .global)
+                } action: {
+                    store.sidebarReorder.registerDivider($0)
+                }
+            VStack(spacing: 2) { BrowserSidebarList(store: store, placement: .current) }
+                .modifier(BrowserDropArea(store: store, placement: .current))
             newTab
         }
         .padding(.horizontal, 16)
@@ -93,26 +101,24 @@ struct BrowserSidebar: View {
         .frame(maxWidth: .infinity, alignment: .top)
     }
 
-    @ViewBuilder
     private var pinnedTabs: some View {
-        if !pins.isEmpty || store.owner.sidebarLift != nil {
+        let projection = store.sidebarReorder.pinnedLayout(in: store.activeSpace, width: store.sidebarWidth - 32)
+        return
             BrowserPinnedTabSlotLayout(
-                projection: store.sidebarReorder.pinnedLayout(
-                    in: store.activeSpace, width: store.sidebarWidth - 32)
+                projection: projection
             ) {
                 ForEach(pins) { BrowserSidebarItem(tab: $0, store: store, pinned: true) }
                 RoundedRectangle(cornerRadius: 20).fill(.primary.opacity(0.035))
-                    .opacity(store.sidebarReorder.target?.placement == .pinned ? 1 : 0)
+                    .opacity(store.sidebarReorder.target?.isPinned == true ? 1 : 0)
                     .allowsHitTesting(false).accessibilityHidden(true)
             }
+            .padding(.top, projection.height > 0 ? SidebarGeometry.pinnedTopInset : 0)
+            .padding(.bottom, projection.height > 0 ? SidebarGeometry.pinnedBottomInset : 0)
             .modifier(BrowserDropArea(store: store, placement: .pinned))
             .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 12)
             .animation(LeanMotion.dragSource.unlessReducingMotion(reduceMotion), value: store.sidebarReorder.target)
             .animation(
                 LeanMotion.dragSource.unlessReducingMotion(reduceMotion), value: store.owner.sidebarLift?.rootIDs)
-        }
     }
 
     private var currentDivider: some View {
@@ -132,7 +138,7 @@ struct BrowserSidebar: View {
                 .buttonStyle(LeanChromeButtonStyle(controlSize: nil, cornerRadius: 14))
                 .accessibilityLabel("Archive Current Tabs")
             }
-        }.frame(height: 28)
+        }.frame(height: SidebarGeometry.currentDividerHeight)
     }
 
     private var newTab: some View {
@@ -181,16 +187,6 @@ struct BrowserSidebar: View {
                     $0.sidebarWidth = Double(SidebarGeometry.clampedWidth(store.sidebarWidth + delta))
                 }
             }
-    }
-
-    private func dropTarget(_ title: String, placement: BrowserTab.Placement) -> some View {
-        Text(title).font(.caption).foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity).frame(height: 32)
-            .overlay {
-                RoundedRectangle(cornerRadius: 16).strokeBorder(
-                    LeanBrandTheme.line, style: StrokeStyle(lineWidth: 1, dash: [3]))
-            }
-            .modifier(BrowserDropArea(store: store, placement: placement))
     }
 
     private var pins: [BrowserTab] { store.activeSpace.pinnedTabs }
