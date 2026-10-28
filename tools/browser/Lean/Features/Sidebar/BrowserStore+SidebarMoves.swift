@@ -67,7 +67,11 @@ extension BrowserStore {
                     destinationSpace.folders.first { $0.id == id }.map { $0.placement ?? .saved }
                 }
             let hasLiveFolder = current.folders.contains { folders.contains($0.id) && $0.kind == .github }
-            guard folders.isEmpty || location != .pinned,
+            guard
+                targetParent.flatMap({ id in destinationSpace.folders.first { $0.id == id } }).map({
+                    ($0.placement ?? .saved) == location
+                }) ?? true,
+                folders.isEmpty || location != .pinned,
                 !hasLiveFolder
                     || (!destinationSpace.isPrivate && location != .current
                         && !destinationSpace.folders.contains { $0.kind == .github && !folders.contains($0.id) }),
