@@ -67,6 +67,11 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
         store.owner.sidebarLandingPreview = nil
         store.owner.sidebarDrag = payload
         store.owner.sidebarDragSource = self
+        if payload.kind == .space {
+            for context in store.owner.contexts.values where !context.isClosed {
+                context.sidebarReorder.beginSpace(payload.spaceID, in: context)
+            }
+        }
         if let space = store.session.spaces.first(where: { $0.id == payload.spaceID }),
             let lift = store.sidebarReorder.makeLift(payload, in: space)
         {
@@ -124,7 +129,13 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
         if let owner {
             let token = UUID()
             owner.sidebarLandingToken = token
-            owner.sidebarLandingIDs = owner.sidebarLift?.rootIDs ?? []
+            if let lift = owner.sidebarLift {
+                owner.sidebarLandingIDs = lift.rootIDs
+            } else if let payload = owner.sidebarDrag, payload.kind == .space {
+                owner.sidebarLandingIDs = [payload.spaceID]
+            } else {
+                owner.sidebarLandingIDs = []
+            }
             let landing = owner.contexts.values.compactMap { $0.sidebarReorder.landingFrame(in: $0) }.first
             owner.sidebarDrag = nil
             owner.sidebarDragSource = nil

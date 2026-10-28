@@ -39,6 +39,8 @@ final class BrowserSidebarReorderState {
     @ObservationIgnored private var restingRows: [UUID: Row] = [:]
     @ObservationIgnored private var restingZones: [UUID: Zone] = [:]
     @ObservationIgnored private var scrollViewport: CGRect?
+    @ObservationIgnored private(set) var spaceViewport = CGRect.zero
+    private(set) var spaceLayout: BrowserSpaceReorderLayout?
     private(set) var lift: Lift?
     private(set) var target: Target?
     private(set) var layout = BrowserSidebarReorderLayout()
@@ -73,6 +75,20 @@ final class BrowserSidebarReorderState {
     func updateScrollViewport(_ frame: CGRect?, in store: BrowserStore) {
         scrollViewport = frame
         if lift != nil { move(to: NSEvent.mouseLocation, in: store) }
+    }
+
+    func updateSpaceViewport(_ frame: CGRect) {
+        spaceViewport = frame
+        if let pointer = spaceLayout?.pointer { spaceLayout?.update(at: pointer, viewport: frame) }
+    }
+
+    func beginSpace(_ source: UUID, in store: BrowserStore) {
+        let frames = zones.values.filter(\.isSpace).reduce(into: [UUID: CGRect]()) { $0[$1.spaceID] = $1.frame }
+        spaceLayout = BrowserSpaceReorderLayout(sourceID: source, ids: store.session.spaces.map(\.id), frames: frames)
+    }
+
+    func spaceContentMoved(by delta: CGFloat) {
+        spaceLayout?.contentMoved(by: delta, viewport: spaceViewport)
     }
 
     func makeLift(_ payload: BrowserDragPayload, in space: BrowserSpace) -> Lift? {
@@ -110,6 +126,7 @@ final class BrowserSidebarReorderState {
     }
 
     func finish() {
+        spaceLayout = nil
         lift = nil
         target = nil
         layout = BrowserSidebarReorderLayout()
@@ -137,6 +154,17 @@ final class BrowserSidebarReorderState {
     /// Like Crest, hit testing uses projected resting measurements rather than
     /// feeding animated measurements back into the insertion calculation.
     func move(to screenPoint: NSPoint, in store: BrowserStore) {
+        if store.owner.sidebarDrag?.kind == .space {
+            guard let source = store.owner.sidebarDrag?.spaceID else { return }
+            if spaceLayout == nil { beginSpace(source, in: store) }
+            if let window = store.window, let content = window.contentView, window.frame.contains(screenPoint) {
+                let point = content.convert(window.convertPoint(fromScreen: screenPoint), from: nil)
+                spaceLayout?.update(at: point, viewport: spaceViewport)
+            } else {
+                spaceLayout?.update(at: CGPoint(x: -1_000_000, y: -1_000_000), viewport: spaceViewport)
+            }
+            return
+        }
         guard lift != nil, let window = store.window, let content = window.contentView,
             window.frame.contains(screenPoint)
         else {
@@ -217,6 +245,11 @@ final class BrowserSidebarReorderState {
     }
 
     func landingFrame(in store: BrowserStore) -> CGRect? {
+        if let spaceLayout, spaceLayout.destination != nil, let id = spaceLayout.targetID,
+            let frame = spaceLayout.frames[id], let window = store.window, let content = window.contentView
+        {
+            return window.convertToScreen(content.convert(frame, to: nil))
+        }
         guard let target, let window = store.window, let content = window.contentView else { return nil }
         let frame: CGRect
         if target.placement == .pinned, let grid = pinGrid(in: target.spaceID) {

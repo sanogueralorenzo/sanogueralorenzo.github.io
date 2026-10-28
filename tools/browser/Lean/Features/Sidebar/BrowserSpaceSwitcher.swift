@@ -4,6 +4,7 @@ struct BrowserSpaceSwitcher: View {
     let store: BrowserStore
     let edit: (BrowserSpace?) -> Void
     @State private var firstVisible = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var spaces: [BrowserSpace] { store.session.spaces }
     private var width: CGFloat { min(max(CGFloat(spaces.count) * 28 + 4, 56), 100) }
     private var overflows: Bool { CGFloat(spaces.count) * 28 + 4 > width }
@@ -30,6 +31,15 @@ struct BrowserSpaceSwitcher: View {
                             .accessibilityAddTraits(store.activeSpace.id == space.id ? .isSelected : [])
                             .help(space.name)
                             .contextMenu {
+                                if let index = spaces.firstIndex(where: { $0.id == space.id }) {
+                                    Button("Move Left", systemImage: "arrow.left") {
+                                        store.moveSpace(space.id, by: -1)
+                                    }.disabled(index == 0)
+                                    Button("Move Right", systemImage: "arrow.right") {
+                                        store.moveSpace(space.id, by: 1)
+                                    }.disabled(index == spaces.count - 1)
+                                    Divider()
+                                }
                                 Button("New Space") { edit(nil) }
                                 Button("Edit Space") { edit(space) }
                                 Button("Delete Space", role: .destructive) { store.deleteSpace(space.id) }
@@ -40,11 +50,36 @@ struct BrowserSpaceSwitcher: View {
                                     store: store, payload: { store.dragPayload(space: space.id) }, title: space.name)
                             )
                             .modifier(BrowserDropArea(store: store, spaceID: space.id))
+                            .opacity(
+                                store.sidebarReorder.spaceLayout?.sourceID == space.id
+                                    || store.owner.sidebarLandingIDs.contains(space.id) ? 0 : 1
+                            )
+                            .offset(x: store.sidebarReorder.spaceLayout?.offset(for: space.id) ?? 0)
+                            .animation(
+                                LeanMotion.dragSource.unlessReducingMotion(reduceMotion),
+                                value: store.sidebarReorder.spaceLayout?.targetID
+                            )
+                            .accessibilityHint("Select this Space, or drag to reorder")
                             .id(space.id)
                         }
-                    }.padding(2).frame(minWidth: overflows ? 0 : width, alignment: .center)
+                    }
+                    .padding(2).frame(minWidth: overflows ? 0 : width, alignment: .center)
+                    .background {
+                        BrowserSpacePickerAutoscroll(
+                            viewport: store.sidebarReorder.spaceViewport,
+                            pointer: store.sidebarReorder.spaceLayout?.pointer
+                        ) { delta in
+                            store.sidebarReorder.spaceContentMoved(by: delta)
+                        }
+                    }
                 }
                 .scrollIndicators(.never).scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+                .onGeometryChange(for: CGRect.self) {
+                    $0.frame(in: .global)
+                } action: {
+                    store.sidebarReorder.updateSpaceViewport($0)
+                }
+                .onDisappear { store.sidebarReorder.updateSpaceViewport(.zero) }
                 .onScrollGeometryChange(for: Int.self) { geometry in
                     Int(max(0, geometry.contentOffset.x) / 28)
                 } action: { _, index in
@@ -53,6 +88,7 @@ struct BrowserSpaceSwitcher: View {
                 if overflows { scrollButton(forward: true, reader: reader) }
             }
             .frame(width: width, height: 24)
+            .modifier(BrowserDropArea(store: store, spaceID: store.activeSpace.id, isSpaceRail: true))
             .background(LeanColor.hover, in: Capsule())
             .overlay { Capsule().strokeBorder(.primary.opacity(0.12), lineWidth: 0.5).allowsHitTesting(false) }
             .contextMenu { Button("New Space") { edit(nil) } }

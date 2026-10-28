@@ -11,21 +11,29 @@ final class BrowserSidebarDragPreview {
         let title: String
         let count: Int
         let symbol: String
+        let spaceColor: Int?
+        let spaceHeight: CGFloat
         var pinned: Bool
         var width: CGFloat
         var landing = false
         var opacity = 1.0
         var pointer = CGPoint.zero
-        init(tabs: [BrowserTab], title: String, count: Int, symbol: String, pinned: Bool, width: CGFloat) {
+        init(
+            tabs: [BrowserTab], title: String, count: Int, symbol: String, spaceColor: Int?, spaceHeight: CGFloat,
+            pinned: Bool, width: CGFloat
+        ) {
             self.tabs = tabs
             self.title = title
             self.count = count
             self.symbol = symbol
+            self.spaceColor = spaceColor
+            self.spaceHeight = spaceHeight
             self.pinned = pinned
             self.width = width
         }
         var height: CGFloat {
-            pinned ? SidebarGeometry.rowHeight : CGFloat(max(1, tabs.count)) * SidebarGeometry.rowHeight
+            if spaceColor != nil { return spaceHeight }
+            return pinned ? SidebarGeometry.rowHeight : CGFloat(max(1, tabs.count)) * SidebarGeometry.rowHeight
         }
     }
 
@@ -49,6 +57,7 @@ final class BrowserSidebarDragPreview {
         presentation = Presentation(
             tabs: Array(tabs.prefix(4)), title: title, count: payload.ids.count + payload.folderIDs.count,
             symbol: payload.kind == .space ? "circle.fill" : "folder.fill",
+            spaceColor: payload.kind == .space ? space?.color : nil, spaceHeight: frame.height,
             pinned: pinned, width: sourceWidth)
         anchor = CGPoint(
             x: min(1, max(0, grab.x / max(1, frame.width))), y: min(1, max(0, grab.y / max(1, frame.height))))
@@ -143,7 +152,10 @@ final class BrowserSidebarDragPreview {
         let reduceMotion: Bool
         var body: some View {
             VStack(spacing: 0) {
-                if presentation.tabs.isEmpty {
+                if let color = presentation.spaceColor {
+                    Circle().fill(Color.space(color)).frame(width: 12, height: 12)
+                        .frame(width: presentation.width, height: presentation.height)
+                } else if presentation.tabs.isEmpty {
                     row(nil, title: presentation.title)
                 } else {
                     ForEach(presentation.tabs) { tab in row(tab, title: tab.customTitle ?? tab.title) }
@@ -158,7 +170,7 @@ final class BrowserSidebarDragPreview {
                 }
             }
             .shadow(color: .black.opacity(0.24), radius: 10, y: 5)
-            .scaleEffect(presentation.landing ? 1 : 1.04, anchor: .topLeading)
+            .scaleEffect(presentation.landing ? 1 : presentation.spaceColor == nil ? 1.04 : 1.08, anchor: .topLeading)
             .opacity(presentation.opacity)
             .animation(LeanMotion.dragPreview.unlessReducingMotion(reduceMotion), value: presentation.pinned)
             .animation(LeanMotion.dragPreview.unlessReducingMotion(reduceMotion), value: presentation.width)

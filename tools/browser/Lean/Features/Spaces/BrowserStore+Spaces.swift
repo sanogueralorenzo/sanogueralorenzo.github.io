@@ -2,6 +2,27 @@ import Foundation
 import WebKit
 
 extension BrowserStore {
+    @discardableResult
+    func moveSpace(_ id: UUID, by delta: Int) -> Bool {
+        guard let index = session.spaces.firstIndex(where: { $0.id == id }),
+            session.spaces.indices.contains(index + delta)
+        else { return false }
+        return moveSpace(id, relativeTo: session.spaces[index + delta].id, after: delta > 0)
+    }
+
+    @discardableResult
+    func moveSpace(_ id: UUID, relativeTo destination: UUID, after: Bool = false) -> Bool {
+        guard !isClosed, id != destination,
+            let index = session.spaces.firstIndex(where: { $0.id == id }),
+            session.spaces.contains(where: { $0.id == destination })
+        else { return false }
+        let moving = session.spaces.remove(at: index)
+        let target = session.spaces.firstIndex { $0.id == destination }!
+        session.spaces.insert(moving, at: target + (after ? 1 : 0))
+        changed()
+        return true
+    }
+
     func saveSpace(id: UUID?, name: String, color: Int, isPrivate: Bool = false) {
         guard !isClosed else { return }
         let title = name.trimmingCharacters(in: .whitespacesAndNewlines)

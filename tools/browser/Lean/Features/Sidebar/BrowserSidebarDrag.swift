@@ -122,14 +122,7 @@ extension BrowserStore {
             session.spaces.contains(where: { $0.id == spaceID })
         else { return false }
         if payload.kind == .space {
-            guard payload.spaceID != spaceID,
-                let index = session.spaces.firstIndex(where: { $0.id == payload.spaceID })
-            else { return false }
-            let moving = session.spaces.remove(at: index)
-            let target = session.spaces.firstIndex { $0.id == spaceID } ?? session.spaces.count
-            session.spaces.insert(moving, at: min(session.spaces.count, target + (afterSpace ? 1 : 0)))
-            changed()
-            return true
+            return moveSpace(payload.spaceID, relativeTo: spaceID, after: afterSpace)
         }
         let destinationSpace = session.spaces[spaceIndex(spaceID)]
         let beforeFolder = before.flatMap { id in destinationSpace.folders.first { $0.id == id } }
@@ -180,6 +173,7 @@ struct BrowserDropArea: ViewModifier {
     var spaceID: UUID?
     var placement: BrowserTab.Placement?
     var allowsAfter = true
+    var isSpaceRail = false
     @State private var targeted = false
     @State private var insertAfter = false
     @State private var size = CGSize.zero
@@ -201,6 +195,7 @@ struct BrowserDropArea: ViewModifier {
         .onGeometryChange(for: CGRect.self) {
             $0.frame(in: .global)
         } action: { frame in
+            guard !isSpaceRail else { return }
             store.sidebarReorder.register(
                 .init(
                     id: zoneID, frame: frame, before: before, folder: folder, placement: placement,
@@ -222,7 +217,7 @@ struct BrowserDropArea: ViewModifier {
         }
         .overlay {
             Group {
-                if targeted && store.owner.sidebarLift == nil {
+                if targeted && store.owner.sidebarLift == nil && store.owner.sidebarDrag?.kind != .space {
                     if before != nil {
                         Rectangle().fill(LeanBrandTheme.textDisplay)
                             .frame(width: pinned ? 2 : nil, height: pinned ? nil : 2)
@@ -282,6 +277,10 @@ private struct BrowserSidebarDropDelegate: DropDelegate {
     }
     func dropExited(info: DropInfo) { targeted = false }
     func dropUpdated(info: DropInfo) -> DropProposal? {
+        if onSpace, store.owner.sidebarDrag?.kind == .space {
+            store.sidebarReorder.move(to: NSEvent.mouseLocation, in: store)
+            return DropProposal(operation: store.sidebarReorder.spaceLayout?.destination == nil ? .cancel : .move)
+        }
         if store.owner.sidebarLift != nil, !onSpace {
             store.sidebarReorder.move(to: NSEvent.mouseLocation, in: store)
             return DropProposal(operation: store.sidebarReorder.target == nil ? .cancel : .move)
@@ -291,6 +290,14 @@ private struct BrowserSidebarDropDelegate: DropDelegate {
     }
     func performDrop(info: DropInfo) -> Bool {
         targeted = false
+        if onSpace, store.owner.sidebarDrag?.kind == .space {
+            guard let destination = store.sidebarReorder.spaceLayout?.destination else { return false }
+            return withAnimation(LeanMotion.collection.unlessReducingMotion(reduceMotion)) {
+                store.acceptDrop(
+                    info.itemProviders(for: [BrowserDragPayload.type]), spaceID: destination.id,
+                    afterSpace: destination.after)
+            }
+        }
         if store.owner.sidebarLift != nil, !onSpace {
             guard let target = store.sidebarReorder.target, store.canPreviewSidebarDrop(target) else { return false }
             return withAnimation(LeanMotion.collection.unlessReducingMotion(reduceMotion)) {
