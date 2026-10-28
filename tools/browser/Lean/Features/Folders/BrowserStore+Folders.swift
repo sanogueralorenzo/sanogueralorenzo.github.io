@@ -3,43 +3,15 @@ import Foundation
 extension BrowserStore {
     @discardableResult
     func addFolder(parentID: UUID? = nil, github: Bool = false, in spaceID: UUID? = nil) -> UUID? {
-        guard !isClosed, let index = session.spaces.firstIndex(where: { $0.id == (spaceID ?? activeSpace.id) }) else {
+        guard !isClosed else { return nil }
+        do {
+            let id = try owner.addFolder(parentID: parentID, github: github, in: spaceID ?? activeSpace.id)
+            if !github { editingFolderID = id }
+            return id
+        } catch {
+            showNotice(error.localizedDescription)
             return nil
         }
-        let space = session.spaces[index]
-        if github {
-            guard !space.isPrivate else {
-                showNotice("Live folders aren’t available in private Spaces.")
-                return nil
-            }
-            if let existing = space.folders.first(where: { $0.kind == .github }) { return existing.id }
-        }
-        if let parentID, !space.folders.contains(where: { $0.id == parentID && $0.kind == .regular }) {
-            showNotice("The destination folder is no longer available.")
-            return nil
-        }
-        var folder = BrowserFolder()
-        folder.parentID = parentID
-        folder.placement = parentID.flatMap { id in space.folders.first { $0.id == id }?.placement }
-        if github {
-            guard folder.placement == nil || folder.placement == .saved else {
-                showNotice("Live folders belong in Saved Tabs.")
-                return nil
-            }
-            folder.kind = .github
-            folder.title = "GitHub"
-        }
-        var candidate = session
-        candidate.spaces[index].folders.append(folder)
-        if github { candidate.spaces[index].githubDismissed = false }
-        guard (try? candidate.validate()) != nil else {
-            showNotice("The folder count or nesting limit has been reached.")
-            return nil
-        }
-        session = candidate
-        if !github { editingFolderID = folder.id }
-        changed()
-        return folder.id
     }
 
     func updateFolder(_ id: UUID, change: (inout BrowserFolder) -> Void) {
@@ -73,4 +45,52 @@ extension BrowserStore {
                 kind: .folder, spaceID: activeSpace.id, ids: [], folderIDs: [id], activeTabID: selectedTab?.id),
             to: activeSpace.id, parentID: parentID, placement: placement, before: before)
     }
+}
+
+extension BrowserSessionOwner {
+    @discardableResult
+    func addFolder(parentID: UUID? = nil, github: Bool = false, in spaceID: UUID) throws -> UUID {
+        guard let index = session.spaces.firstIndex(where: { $0.id == spaceID }) else {
+            throw BrowserFolderFailure.space
+        }
+        let space = session.spaces[index]
+        if github {
+            guard !space.isPrivate else {
+                throw BrowserFolderFailure.privateSpace
+            }
+            if let existing = space.folders.first(where: { $0.kind == .github }) { return existing.id }
+        }
+        if let parentID, !space.folders.contains(where: { $0.id == parentID && $0.kind == .regular }) {
+            throw BrowserFolderFailure.parent
+        }
+        var folder = BrowserFolder()
+        folder.parentID = parentID
+        folder.placement = parentID.flatMap { id in space.folders.first { $0.id == id }?.placement }
+        if github {
+            guard folder.placement == nil || folder.placement == .saved else {
+                throw BrowserFolderFailure.placement
+            }
+            folder.kind = .github
+            folder.title = "GitHub"
+        }
+        var candidate = session
+        candidate.spaces[index].folders.append(folder)
+        if github { candidate.spaces[index].githubDismissed = false }
+        guard (try? candidate.validate()) != nil else {
+            throw BrowserFolderFailure.limit
+        }
+        session = candidate
+        changed()
+        return folder.id
+    }
+}
+
+private enum BrowserFolderFailure: String, LocalizedError {
+    case space = "The Space is no longer available."
+    case parent = "The destination folder is no longer available."
+    case privateSpace = "Live folders aren’t available in private Spaces."
+    case placement = "Live folders belong in Saved Tabs."
+    case limit = "The folder count or nesting limit has been reached."
+
+    var errorDescription: String? { rawValue }
 }
