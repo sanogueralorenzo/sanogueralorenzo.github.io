@@ -51,15 +51,13 @@ final class BrowserSystemNowPlayingCoordinator {
         driver.publish(nil)
     }
 
-    /// macOS represents one browser session at a time; which one is the core's
-    /// `media.arbitrate` rule. Multiple page sessions stay authoritative in the
-    /// shared store and sidebar. Without an answer the current owner keeps Now
-    /// Playing while it is still playing or paused, and nothing takes over.
+    /// macOS represents one browser session at a time. At the arbitration
+    /// limit, keep the current owner while it is still playing or paused.
     private func publishSelection(
         from sessions: [BrowserMediaSessionSnapshot]
     ) {
         let next: BrowserMediaSessionSnapshot?
-        if let arbitration = MediaSessionOrder.arbitration(of: sessions) {
+        if let arbitration = BrowserMediaSessionOrdering.arbitration(of: sessions) {
             next = arbitration.nowPlaying
         } else {
             next = selectedSession.flatMap { selected in

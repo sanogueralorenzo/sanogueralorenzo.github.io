@@ -121,7 +121,7 @@ final class BrowserMediaSessionStore {
         }
     }
 
-    /// Published sessions in the core's display order.
+    /// Published sessions in first-published display order.
     private(set) var sessions: [BrowserMediaSessionSnapshot] = []
 
     @ObservationIgnored private var snapshotsByID: [BrowserMediaSessionID: BrowserMediaSessionSnapshot] = [:]
@@ -139,52 +139,52 @@ final class BrowserMediaSessionStore {
     @ObservationIgnored private var dismissedIDs: Set<BrowserMediaSessionID> = []
     private(set) var sidebarSessions: [BrowserMediaSessionSnapshot] = []
 
-    /// Applies one page report. Which reports count, what they do to the
-    /// session, the ordinal it is shown by, the remembered-identity window and
-    /// when a hidden card returns are the core's `media.session_event` rule;
-    /// the store keeps endpoints, owners, metadata and artwork. A report the
-    /// core does not accept, or cannot answer for, changes nothing.
+    /// Accept sequenced reports only from live documents. Muted cards remain
+    /// controllable; starting playback restores a card the person dismissed.
     func receive(
         _ event: BrowserMediaSessionPageEvent,
         owner: BrowserTabRuntimeAssignment,
         fallbackTitle: String?,
         endpoint: any BrowserMediaSessionCommandEndpoint
     ) {
-        let id = BrowserMediaSessionID(
-            tabID: owner.tabID,
-            documentIdentifier: event.documentIdentifier
-        )
-        guard let decision = decision(for: event, id: id) else { return }
-        recordSequence(event.sequence, for: id, evictingOldest: decision.evictOldest)
+        let id = BrowserMediaSessionID(tabID: owner.tabID, documentIdentifier: event.documentIdentifier)
+        guard !retiredIDs.contains(id), event.sequence > (lastSequenceByID[id] ?? 0) else { return }
+        let retained = lastSequenceByID.count + (lastSequenceByID[id] == nil ? 1 : 0)
+        recordSequence(event.sequence, for: id, evictingOldest: max(0, retained - 512))
         endpointsByID[id] = WeakEndpoint(endpoint)
         ownersByID[id] = owner
-        decision.disposition.settle(
-            BrowserMediaSessionReport(
-                id: id, event: event, owner: owner, fallbackTitle: fallbackTitle, decision: decision),
-            on: self
-        )
+        if event.isInvalidated {
+            retire(id)
+        } else if !event.hasActiveSession
+            || !(event.availableActions.contains(.play) || event.availableActions.contains(.pause)
+                || (event.isMuted && snapshotsByID[id] != nil))
+        {
+            snapshotsByID[id] = nil
+        } else {
+            publish(event, id: id, owner: owner, fallbackTitle: fallbackTitle)
+        }
+        publishIfChanged()
     }
 
-    /// The core's decision for one report against what the store remembers
-    /// of its session. Nil when the report is stale, from a retired document,
-    /// or the core cannot answer; the store then keeps its state exactly as it
-    /// is. Only ordering, lifecycle and control facts cross.
-    private func decision(
-        for event: BrowserMediaSessionPageEvent, id: BrowserMediaSessionID
-    ) -> MediaSessionEventDecision? {
-        let question = MediaSessionReport(
-            event: MediaSessionEvent(
-                sequence: event.sequence, isInvalidated: event.isInvalidated, hasActiveSession: event.hasActiveSession,
-                playback: event.playbackState.core, isMuted: event.isMuted,
-                actions: Array(event.availableActions)),
-            identity: MediaSessionIdentity(
-                isRetired: retiredIDs.contains(id), lastSequence: lastSequenceByID[id], ordinal: ordinalByID[id],
-                isDismissed: dismissedIDs.contains(id), previousPlayback: snapshotsByID[id]?.playbackState.core),
-            retainedIdentities: lastSequenceByID.count, nextOrdinal: nextOrdinal)
-        guard let decision = try? CrestCore.answer(question), decision.accepted, decision.evictOldest >= 0 else {
-            return nil
+    private func publish(
+        _ event: BrowserMediaSessionPageEvent, id: BrowserMediaSessionID,
+        owner: BrowserTabRuntimeAssignment, fallbackTitle: String?
+    ) {
+        let ordinal = ordinalByID[id] ?? nextOrdinal
+        if ordinalByID[id] == nil { nextOrdinal &+= 1 }
+        if snapshotsByID[id]?.playbackState != .playing, event.playbackState == .playing {
+            dismissedIDs.remove(id)
         }
-        return decision
+        // A new document supersedes all earlier media documents in this tab.
+        let superseded = ownersByID.keys.filter { $0.tabID == owner.tabID && $0 != id }
+        for previousID in superseded { retire(previousID) }
+        ordinalByID[id] = ordinal
+        snapshotsByID[id] = BrowserMediaSessionSnapshot(
+            id: id, owner: owner, ownerTitle: Self.boundedFallbackTitle(fallbackTitle),
+            title: event.title, artist: event.artist, album: event.album, artworkData: event.artworkData,
+            playbackState: event.playbackState, isAudible: event.isAudible, isMuted: event.isMuted,
+            availableActions: event.availableActions, orderingOrdinal: ordinal
+        )
     }
 
     func invalidate(
@@ -237,7 +237,7 @@ final class BrowserMediaSessionStore {
     }
 
     /// The session the tab's page publishes, or nil while it publishes none.
-    /// The core keeps one session per tab, and hiding its card does not hide
+    /// The store keeps one session per tab, and hiding its card does not hide
     /// it. Reading it observes the published sessions.
     func session(of owner: BrowserTabRuntimeAssignment) -> BrowserMediaSessionSnapshot? {
         sessions.first { $0.owner == owner }
@@ -299,13 +299,12 @@ final class BrowserMediaSessionStore {
         sequenceOrder.removeFirst(overflow)
     }
 
-    /// The order is the core's `media.arbitrate` rule. Without an answer the
-    /// published order stands: surviving sessions keep their places and new
+    /// At the arbitration limit, surviving sessions keep their places and new
     /// ones follow in the order they arrived.
     private func publishIfChanged() {
         let current = Array(snapshotsByID.values)
         let next =
-            MediaSessionOrder.arbitration(of: current)?.order
+            BrowserMediaSessionOrdering.arbitration(of: current)?.order
             ?? {
                 let placed = sessions.compactMap { snapshotsByID[$0.id] }
                 let placedIDs = Set(placed.map(\.id))
@@ -354,51 +353,5 @@ extension BrowserMediaSessionStore {
             action,
             documentIdentifier: session.id.documentIdentifier
         )
-    }
-}
-
-extension BrowserMediaSessionStore: BrowserMediaSessionDispositionPerformer {
-    func retireSession(_ report: BrowserMediaSessionReport) {
-        retire(report.id)
-        publishIfChanged()
-    }
-
-    func clearSession(_ report: BrowserMediaSessionReport) {
-        snapshotsByID[report.id] = nil
-        publishIfChanged()
-    }
-
-    func publishSession(_ report: BrowserMediaSessionReport) {
-        let id = report.id
-        let event = report.event
-        let decision = report.decision
-        if decision.supersedesTabSiblings {
-            let superseded = ownersByID.keys.filter {
-                $0.tabID == report.owner.tabID && $0 != id
-            }
-            for supersededID in superseded { retire(supersededID) }
-        }
-
-        guard let ordinal = decision.ordinal else { return }
-        ordinalByID[id] = ordinal
-        nextOrdinal = decision.nextOrdinal
-        if decision.clearsDismissal {
-            dismissedIDs.remove(id)
-        }
-        snapshotsByID[id] = BrowserMediaSessionSnapshot(
-            id: id,
-            owner: report.owner,
-            ownerTitle: Self.boundedFallbackTitle(report.fallbackTitle),
-            title: event.title,
-            artist: event.artist,
-            album: event.album,
-            artworkData: event.artworkData,
-            playbackState: event.playbackState,
-            isAudible: event.isAudible,
-            isMuted: event.isMuted,
-            availableActions: event.availableActions,
-            orderingOrdinal: ordinal
-        )
-        publishIfChanged()
     }
 }

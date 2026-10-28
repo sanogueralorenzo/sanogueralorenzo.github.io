@@ -3439,12 +3439,6 @@
       "checksSpelling": false
     }
   },
-  "launch.plan": {
-    "requiresIsolation": false,
-    "usesEphemeralProfileStorage": false,
-    "presentsInstalledApplicationUI": true,
-    "startupBehavior": "showStartPage"
-  },
   "space.reorder": {
     "session": {
       "defaultSpaceID": {

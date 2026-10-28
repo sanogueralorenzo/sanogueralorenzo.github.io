@@ -13,6 +13,7 @@ Requires Apple silicon, macOS 26.1+, Xcode, XcodeGen, and the .NET SDK pinned in
 Scripts/run-local.sh --build-only
 ```
 
+Add `--release` for an optimized build.
 Omit `--build-only` to launch an isolated review profile. The local build has its
 own bundle identifier and keeps its data under `LeanNext`, separately from Crest.
 Never run fixtures against a personal profile.

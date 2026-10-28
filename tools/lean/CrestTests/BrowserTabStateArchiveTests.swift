@@ -5,30 +5,21 @@ import XCTest
 
 final class BrowserTabStateArchiveTests: XCTestCase {
 
-    func testEngineStateKeepsChromiumAcrossVersionsButRejectsOtherEnginesAndWebKitBuilds() throws {
-        let payload = Data("opaque engine history".utf8)
-        let chromium = try XCTUnwrap(
-            BrowserEngineInteractionState(
-                engine: .chromium, version: "1", payload: payload
-            ).encoded())
-        let webkit = try XCTUnwrap(
-            BrowserEngineInteractionState(
-                engine: .webKit, version: "os-1", payload: payload
-            ).encoded())
-
-        XCTAssertEqual(BrowserEngineInteractionState.payload(chromium, engine: .chromium, version: "1"), payload)
-        XCTAssertEqual(
-            BrowserEngineInteractionState.payload(chromium, engine: .chromium, version: "2"), payload,
-            "Chromium reads back history another version of it saved, so an engine update keeps it.")
-        XCTAssertEqual(BrowserEngineInteractionState.payload(webkit, engine: .webKit, version: "os-1"), payload)
-        XCTAssertNil(BrowserEngineInteractionState.payload(webkit, engine: .webKit, version: "os-2"))
-        XCTAssertNil(BrowserEngineInteractionState.payload(chromium, engine: .webKit, version: "1"))
-        XCTAssertNil(BrowserEngineInteractionState.payload(webkit, engine: .chromium, version: "os-1"))
-        XCTAssertNil(BrowserEngineInteractionState.payload(chromium.dropLast(), engine: .chromium, version: "1"))
-        XCTAssertNil(BrowserEngineInteractionState.payload(chromium.dropLast(), engine: .webKit, version: "1"))
-        XCTAssertEqual(BrowserEngineInteractionState.payload(payload, engine: .webKit, version: "os-1"), payload)
-        XCTAssertNil(BrowserEngineInteractionState.payload(payload, engine: .chromium, version: "1"))
-        XCTAssertNil(BrowserEngineInteractionState(engine: .chromium, version: "1", payload: Data()).encoded())
+    func testWebKitStateOnlyRestoresOnTheOSBuildThatWroteIt() throws {
+        let state = Data("opaque WebKit history".utf8)
+        let old = try XCTUnwrap(
+            BrowserTabStateEnvelope.decode(
+                BrowserTabStateEnvelope(
+                    interactionState: state, url: nil, history: Data("history".utf8), osBuild: "other OS"
+                ).encoded()))
+        XCTAssertTrue(old.isReadable)
+        XCTAssertFalse(old.isRestorable)
+        XCTAssertEqual(old.history, Data("history".utf8))
+        let current = try XCTUnwrap(
+            BrowserTabStateEnvelope.decode(
+                BrowserTabStateEnvelope(interactionState: state, url: nil).encoded()))
+        XCTAssertTrue(current.isRestorable)
+        XCTAssertEqual(current.interactionState, state)
     }
 
     func testTheCoresHistoryTravelsWithTheEngineStateAndEarlierFramesStillRestore() throws {

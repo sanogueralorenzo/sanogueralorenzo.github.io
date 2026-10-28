@@ -86,9 +86,7 @@ public sealed class StoredFormatTests {
                     RestoresTabs: true));
                 request["windowId"] = issuer.ToString();
             }
-            if (RecordedIntents.LaunchIsolation(request) is { } plan) {
-                Compare(name, RecordedIntents.Encode(new StandaloneAnswers().Query(plan)));
-            } else if (RecordedIntents.Typed(request, workspace, window, authority.Current) is { } intents) {
+            if (RecordedIntents.Typed(request, workspace, window, authority.Current) is { } intents) {
                 clock.Now = RecordedIntents.Time(request);
                 ids.Supply(RecordedIntents.Identities(request));
                 RecordedIntents.Send(app, engine, request, intents, window);

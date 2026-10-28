@@ -179,10 +179,7 @@ public sealed partial class BrowserContractsTests {
                 request["windowId"] = window.ToString();
             }
             IReadOnlyList<Change> changes;
-            if (RecordedIntents.LaunchIsolation(request) is { } plan) {
-                new StandaloneAnswers().Query(plan);
-                changes = app.Drain();
-            } else if (RecordedIntents.Typed(request, workspace, window, authority.Current) is { } intents) {
+            if (RecordedIntents.Typed(request, workspace, window, authority.Current) is { } intents) {
                 clock.Now = RecordedIntents.Time(request);
                 ids.Supply(RecordedIntents.Identities(request));
                 changes = RecordedIntents.Send(app, engine, request, intents, window);

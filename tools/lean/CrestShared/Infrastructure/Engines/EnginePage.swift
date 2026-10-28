@@ -14,11 +14,6 @@ final class EnginePage: BrowserFindExecuting {
     /// The core's page this one is.
     let id: UUID
     let pages: any EnginePages
-    /// The engine the page's saved history belongs to, which a restore must
-    /// match, and the version it is tagged with, which a restore must also
-    /// match on an engine that reads back only its own version's history.
-    private let historyFamily: BrowserEngineImplementation.Family
-    private let historyVersion: @MainActor () -> String?
     /// The panels the engine's inspector starts on when asked to.
     private let inspectorPanels: Set<InspectorPanel>
     /// What waits for the engine: the latest find's count, and each capture
@@ -36,17 +31,9 @@ final class EnginePage: BrowserFindExecuting {
 
     // MARK: - Initializers
 
-    /// The direct path to page `id` over `pages`, whose saved history belongs
-    /// to `historyFamily` at the version `historyVersion` names, and whose
-    /// inspector starts on `inspectorPanels`.
-    init(
-        id: UUID, pages: any EnginePages, historyFamily: BrowserEngineImplementation.Family,
-        historyVersion: @escaping @MainActor () -> String?, inspectorPanels: Set<InspectorPanel>
-    ) {
+    init(id: UUID, pages: any EnginePages, inspectorPanels: Set<InspectorPanel>) {
         self.id = id
         self.pages = pages
-        self.historyFamily = historyFamily
-        self.historyVersion = historyVersion
         self.inspectorPanels = inspectorPanels
         pages.attach(self)
     }
@@ -90,23 +77,18 @@ final class EnginePage: BrowserFindExecuting {
 
     // MARK: - Actions - History
 
-    /// The page's history as the engine keeps it, to restore later on the same
-    /// engine; nil when it has none, as before its engine starts.
+    /// Opaque WebKit history. The tab archive frames it with its URL and OS build.
     func savedHistory() -> Data? {
-        guard pages.isReady, let version = historyVersion(),
-            let state = pages.request(SaveInteractionState(pageID: id)).state
+        guard pages.isReady, let state = pages.request(SaveInteractionState(pageID: id)).state,
+            !state.isEmpty
         else { return nil }
-        return BrowserEngineInteractionState(engine: historyFamily, version: version, payload: state).encoded()
+        return state
     }
 
-    /// Restores history `savedHistory()` kept, in place of the page's first
-    /// load of `url`; false when it belongs to another engine, or to another
-    /// version of one that reads back only its own, or the engine refused it.
+    /// Restore state that the tab archive already checked against the URL and OS build.
     func restoreHistory(_ saved: Data, expecting url: URL) -> Bool {
-        guard let version = historyVersion(),
-            let payload = BrowserEngineInteractionState.payload(saved, engine: historyFamily, version: version)
-        else { return false }
-        return pages.request(RestoreInteractionState(pageID: id, state: payload, expectedURL: url.absoluteString))
+        guard !saved.isEmpty else { return false }
+        return pages.request(RestoreInteractionState(pageID: id, state: saved, expectedURL: url.absoluteString))
     }
 
     // MARK: - Actions - Find

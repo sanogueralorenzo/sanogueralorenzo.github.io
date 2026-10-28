@@ -608,30 +608,6 @@
       }
     },
     {
-      "name": "launch.plan",
-      "commit": false,
-      "request": {
-        "version": 1,
-        "operation": "launch.plan",
-        "platform": "desktop",
-        "hasActiveLaunchGate": false,
-        "environment": {
-          "testRuntime": false,
-          "previewRuntime": false,
-          "isolatedSession": false,
-          "namedProfile": false,
-          "isolatedCloudSync": false,
-          "resetSession": false,
-          "showcase": false,
-          "onboardingWelcome": false,
-          "desktopSetup": false,
-          "mobileSetup": false,
-          "performanceHarness": false,
-          "updateTestFeed": false
-        }
-      }
-    },
-    {
       "name": "space.reorder",
       "request": {
         "version": 1,

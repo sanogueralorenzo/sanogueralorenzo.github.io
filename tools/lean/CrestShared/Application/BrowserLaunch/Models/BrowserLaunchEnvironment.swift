@@ -17,14 +17,17 @@ struct BrowserLaunchEnvironment: Equatable, Sendable {
     let isolatedSoftwareUpdateFeedURL: URL?
     let isXCTestRuntime: Bool
     let isSwiftUIPreviewRuntime: Bool
-    /// Whether this launch stays out of the installed profile. The core decides
-    /// from the flags above.
-    private(set) var requiresIsolation = true
+    /// Every test, preview, fixture and review stays out of the installed profile.
+    var requiresIsolation: Bool {
+        isXCTestRuntime || isSwiftUIPreviewRuntime || explicitlyRequiresIsolation
+            || requestsIsolatedCloudSync || resetsSession || presentsShowcaseSession
+            || performanceBaseURLString != nil || isolatedSoftwareUpdateFeedURL != nil
+    }
     /// Keeps page and extension web storage in the same privacy class: both
     /// forget, unless a named isolated profile persists both.
-    private(set) var usesEphemeralProfileStorage = true
+    var usesEphemeralProfileStorage: Bool { requiresIsolation && persistentIsolationID == nil }
     /// False only under the test runtime.
-    private(set) var presentsInstalledApplicationUI = false
+    var presentsInstalledApplicationUI: Bool { !isXCTestRuntime }
 
     init(
         values: [String: String],
@@ -60,14 +63,6 @@ struct BrowserLaunchEnvironment: Equatable, Sendable {
         )
         self.isXCTestRuntime = isXCTestRuntime
         self.isSwiftUIPreviewRuntime = isSwiftUIPreviewRuntime
-        // Isolation is decided before any core exists, so the core answers it
-        // without an app.
-        let plan =
-            (try? CrestCore.answer(LaunchIsolation(environment: coreEnvironment)))
-            ?? LaunchDecision.unavailable
-        requiresIsolation = plan.requiresIsolation
-        usesEphemeralProfileStorage = plan.usesEphemeralProfileStorage
-        presentsInstalledApplicationUI = plan.presentsInstalledApplicationUI
     }
 
     static func isolatedDefaultsSuiteName(isolationID: String) -> String {

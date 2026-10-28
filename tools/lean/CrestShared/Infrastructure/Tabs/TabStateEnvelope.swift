@@ -1,17 +1,8 @@
 import Dispatch
 import Foundation
 
-/// Frames one page's saved history with the little Crest knows about it.
-///
-/// The history is opaque. An engine's tagged history carries its own version
-/// check, but untagged history predates tagging and is always WebKit's, which
-/// WebKit only promises to read back on its own build, so the frame records the
-/// OS build that produced it. An untagged blob stamped by anything else is
-/// discarded rather than handed to WebKit. The frame also records the URL the
-/// page was showing, which is what lets a restore be declined — before the
-/// engine is touched at all — when the tab has since been pointed somewhere else.
-/// Since version 2 it also carries the page's back and forward history as the
-/// core keeps it across engines, opaque here; version 1 frames carry none.
+/// Frames opaque WebKit history with the URL and OS build that produced it.
+/// The separate browser history remains readable even when WebKit state expires.
 struct BrowserTabStateEnvelope: Equatable, Sendable {
     /// Crest's own framing version, bumped when this layout changes. It is not
     /// WebKit's: the OS build covers that.
@@ -53,19 +44,14 @@ struct BrowserTabStateEnvelope: Equatable, Sendable {
         Self.readableFormatVersions.contains(formatVersion)
     }
 
-    /// True when this build of Crest may hand the payload to its engine: its
-    /// engine's tag decides, or an untagged payload is from this OS build.
-    /// Everything else, and a frame that carries only history, is treated as
-    /// absent state.
+    /// WebKit only restores opaque state produced by this OS build.
     var isRestorable: Bool {
-        isReadable && !interactionState.isEmpty
-            && (BrowserEngineInteractionState.isTagged(interactionState) || osBuild == Self.currentOSBuild)
+        isReadable && !interactionState.isEmpty && osBuild == Self.currentOSBuild
     }
 
     func encoded() -> Data {
         let osBuildBytes = Data(osBuild.utf8)
         let urlBytes = Data((url?.absoluteString ?? "").utf8)
-        // Version 1 frames carry no history.
         let carriesHistory = formatVersion >= 2
         let historyBytes = carriesHistory ? history ?? Data() : Data()
         var encoded = Data(
@@ -92,7 +78,6 @@ struct BrowserTabStateEnvelope: Equatable, Sendable {
         else {
             return nil
         }
-        // Version 1 frames carry no history; later ones count its bytes.
         let carriesHistory = formatVersion >= 2
         let historyByteCount = carriesHistory ? readUInt32(data, at: headerByteCount).map(Int.init) : 0
         guard let historyByteCount else { return nil }

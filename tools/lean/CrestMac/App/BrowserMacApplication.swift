@@ -46,7 +46,6 @@ final class BrowserMacApplication {
     /// windows open without taking focus.
     let launchesInBackground: Bool
     /// The launch flags as the core reads them.
-    let launchEnvironment: LaunchEnvironment
     /// The view an engine anchors its popups to behind Site Controls.
     let siteControlAnchor: BrowserSiteControlAnchor?
 
@@ -219,7 +218,6 @@ final class BrowserMacApplication {
             return await downloadDialogs.approveDownload(asked, spaceName: spaceName, dismissal: dismissal)
         }
         self.systemNowPlaying = systemNowPlaying
-        self.launchEnvironment = launchEnvironment.coreEnvironment
         memoryPressure =
             usesIsolatedLaunch
             ? nil : BrowserMemoryPressureMonitor(core: core) { [pagePoolRegistry] in pagePoolRegistry.livePools }

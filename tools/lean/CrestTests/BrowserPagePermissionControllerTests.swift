@@ -53,7 +53,7 @@ private final class RecordingEnginePages: EnginePages {
 
     /// A page over this path.
     func page() -> EnginePage {
-        EnginePage(id: UUID(), pages: self, historyFamily: .chromium, historyVersion: { nil }, inspectorPanels: [])
+        EnginePage(id: UUID(), pages: self, inspectorPanels: [])
     }
 
     func attach(_ page: EnginePage) {}

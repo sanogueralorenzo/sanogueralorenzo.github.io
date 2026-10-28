@@ -1,5 +1,12 @@
 import Foundation
 
+enum MediaSessionAction: Int, CaseIterable, Sendable {
+    case play
+    case pause
+    case previousTrack
+    case nextTrack
+}
+
 enum BrowserMediaSessionPlaybackState: String, Encodable, Equatable, Sendable {
     case none
     case paused

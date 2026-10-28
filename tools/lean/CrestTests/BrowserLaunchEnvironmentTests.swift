@@ -152,14 +152,14 @@ final class BrowserLaunchEnvironmentTests: XCTestCase {
         }
     }
 
-    /// Each fixture input reaches the core's isolation rule through the
-    /// environment's own parsing. The rule itself is the core's.
+    /// Every fixture input isolates the actual launch data graph.
     func testEveryFixtureLaunchFlagUsesAnIsolatedDataGraph() {
         let fixtures: [[String: String]] = [
             ["CREST_ISOLATED_SESSION": "1"],
             ["CREST_RESET_SESSION": "1"],
             ["CREST_SHOWCASE_SESSION": "1"],
             ["CREST_ISOLATED_CLOUD_SYNC_ID": "review"],
+            ["CREST_PERFORMANCE_BASE_URL": "http://127.0.0.1:8080/"],
             ["CREST_UPDATE_TEST_FEED_URL": "http://localhost:48151/appcast.xml"],
         ]
 
@@ -171,9 +171,15 @@ final class BrowserLaunchEnvironmentTests: XCTestCase {
         }
         let tests = BrowserLaunchEnvironment(values: [:], isXCTestRuntime: true)
         XCTAssertTrue(tests.requiresIsolation)
+        XCTAssertTrue(tests.usesEphemeralProfileStorage)
         XCTAssertFalse(tests.presentsInstalledApplicationUI)
+        let preview = BrowserLaunchEnvironment(values: [:], isXCTestRuntime: false, isSwiftUIPreviewRuntime: true)
+        XCTAssertTrue(preview.requiresIsolation)
+        XCTAssertTrue(preview.usesEphemeralProfileStorage)
+        XCTAssertTrue(preview.presentsInstalledApplicationUI)
         let installed = BrowserLaunchEnvironment(values: [:], isXCTestRuntime: false)
         XCTAssertFalse(installed.requiresIsolation)
+        XCTAssertFalse(installed.usesEphemeralProfileStorage)
         XCTAssertTrue(installed.presentsInstalledApplicationUI)
     }
 
@@ -181,6 +187,10 @@ final class BrowserLaunchEnvironmentTests: XCTestCase {
     /// persist the record of what is installed as well. An anonymous isolated
     /// launch keeps forgetting both.
     func testOnlyANamedIsolatedProfileKeepsPersistentProfileStorage() {
+        let nameAlone = BrowserLaunchEnvironment(
+            values: ["CREST_ISOLATED_PERSISTENCE_ID": "app-252-verification"], isXCTestRuntime: false)
+        XCTAssertFalse(nameAlone.requiresIsolation)
+        XCTAssertFalse(nameAlone.usesEphemeralProfileStorage)
         let named = BrowserLaunchEnvironment(
             values: [
                 "CREST_ISOLATED_SESSION": "1",

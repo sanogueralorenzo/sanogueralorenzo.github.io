@@ -14,7 +14,6 @@ browsing may continue without protection until it can be enabled again.
 The existing Space toggle controls the extension. Changing it reloads presented
 pages while preserving background documents until their next navigation.
 Deleting a profile unloads its extension and removes its extension data.
-Chromium continues to use its own extension support.
 
 Refresh the bundle with:
 

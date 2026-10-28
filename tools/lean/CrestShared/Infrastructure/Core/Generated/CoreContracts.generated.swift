@@ -176,7 +176,6 @@ enum Rejection: Equatable, Error, Sendable {
     case defaultEngineAlreadyRegistered(DefaultEngineAlreadyRegistered)
     case downloadLimitReached(DownloadLimitReached)
     case duplicateDownload(DuplicateDownload)
-    case duplicateMediaSession(DuplicateMediaSession)
     case duplicatePage(DuplicatePage)
     case engineAlreadyRegistered(EngineAlreadyRegistered)
     case engineLacksCapability(EngineLacksCapability)
@@ -196,7 +195,6 @@ enum Rejection: Equatable, Error, Sendable {
     case invalidFolderPlacement(InvalidFolderPlacement)
     case invalidImport(InvalidImport)
     case invalidLiveFolder(InvalidLiveFolder)
-    case invalidMediaSessionCount(InvalidMediaSessionCount)
     case invalidName(InvalidName)
     case invalidRetentionLifetime(InvalidRetentionLifetime)
     case invalidSession(InvalidSession)
@@ -211,7 +209,6 @@ enum Rejection: Equatable, Error, Sendable {
     case invalidTabContent(InvalidTabContent)
     case lastStartPage(LastStartPage)
     case legacyCloudStateUnreadable(LegacyCloudStateUnreadable)
-    case mediaSessionLimitReached(MediaSessionLimitReached)
     case noArchivedTabs(NoArchivedTabs)
     case noBrowserImport(NoBrowserImport)
     case noBrowsingDataCategory(NoBrowsingDataCategory)
@@ -1723,10 +1720,6 @@ struct DropTargets: Query, Equatable, Sendable {
 struct DuplicateDownload: Equatable, Sendable {
 }
 
-struct DuplicateMediaSession: Equatable, Sendable, Identifiable {
-    let id: String
-}
-
 struct DuplicatePage: Equatable, Sendable {
     let pageID: UUID
 }
@@ -2471,10 +2464,6 @@ struct InvalidLiveFolder: Equatable, Sendable {
     let spaceID: UUID
 }
 
-struct InvalidMediaSessionCount: Equatable, Sendable {
-    let count: Int
-}
-
 struct InvalidName: Equatable, Sendable {
     let limit: Int
 }
@@ -2552,42 +2541,6 @@ struct LanguagesMatching: Query, Equatable, Sendable {
 
 struct LastStartPage: Equatable, Sendable {
     let tabID: UUID
-}
-
-struct LaunchDecision: Equatable, Sendable {
-    let requiresIsolation: Bool
-    let usesEphemeralProfileStorage: Bool
-    let presentsInstalledApplicationUI: Bool
-}
-
-struct LaunchEnvironment: Equatable, Sendable {
-    static let installed = LaunchEnvironment(
-        isTestRuntime: false,
-        isPreviewRuntime: false,
-        requestsIsolatedSession: false,
-        hasNamedProfile: false,
-        requestsIsolatedCloudSync: false,
-        resetsSession: false,
-        presentsShowcase: false,
-        runsPerformanceHarness: false,
-        usesUpdateTestFeed: false
-    )
-
-    var isTestRuntime: Bool
-    var isPreviewRuntime: Bool
-    var requestsIsolatedSession: Bool
-    var hasNamedProfile: Bool
-    var requestsIsolatedCloudSync: Bool
-    var resetsSession: Bool
-    var presentsShowcase: Bool
-    var runsPerformanceHarness: Bool
-    var usesUpdateTestFeed: Bool
-}
-
-struct LaunchIsolation: Query, Equatable, Sendable {
-    typealias Answer = LaunchDecision
-
-    let environment: LaunchEnvironment
 }
 
 struct LaunchWindowPlan: Equatable, Sendable {
@@ -2681,66 +2634,6 @@ struct LocalDocumentFacts: Equatable, Sendable {
     var hasUser: Bool
     var hasPath: Bool
     var host: String?
-}
-
-struct MediaSessionArbitration: Equatable, Sendable {
-    let order: [Int]
-    let nowPlaying: Int?
-}
-
-struct MediaSessionEntry: Equatable, Sendable, Identifiable {
-    var id: String
-    var ordinal: UInt64
-    var playback: MediaPlaybackState
-    var isAudible: Bool
-}
-
-struct MediaSessionEvent: Equatable, Sendable {
-    var sequence: UInt64
-    var isInvalidated: Bool
-    var hasActiveSession: Bool
-    var playback: MediaPlaybackState
-    var isMuted: Bool
-    var actions: [MediaSessionAction]
-}
-
-struct MediaSessionEventDecision: Equatable, Sendable {
-    let accepted: Bool
-    let evictOldest: Int
-    let disposition: MediaSessionDisposition
-    let supersedesTabSiblings: Bool
-    let ordinal: UInt64?
-    let nextOrdinal: UInt64
-    let clearsDismissal: Bool
-}
-
-struct MediaSessionIdentity: Equatable, Sendable {
-    var isRetired: Bool
-    var lastSequence: UInt64?
-    var ordinal: UInt64?
-    var isDismissed: Bool
-    var previousPlayback: MediaPlaybackState?
-}
-
-struct MediaSessionLimitReached: Equatable, Sendable {
-    let maximum: Int
-}
-
-struct MediaSessionOrder: Query, Equatable, Sendable {
-    typealias Answer = MediaSessionArbitration
-
-    static let maximumSessions: Int = 64
-
-    let sessions: [MediaSessionEntry]
-}
-
-struct MediaSessionReport: Query, Equatable, Sendable {
-    typealias Answer = MediaSessionEventDecision
-
-    let event: MediaSessionEvent
-    let identity: MediaSessionIdentity
-    let retainedIdentities: Int
-    let nextOrdinal: UInt64
 }
 
 struct MergeCloudSnapshot: Intent, CloudSyncIntent, Equatable, Sendable {
@@ -4855,25 +4748,6 @@ enum JavaScriptDialogKind: Int, CaseIterable, Sendable {
     case confirm = 1
     case prompt = 2
     case beforeUnload = 3
-}
-
-enum MediaPlaybackState: Int, CaseIterable, Sendable {
-    case none = 0
-    case paused = 1
-    case playing = 2
-}
-
-enum MediaSessionAction: Int, CaseIterable, Sendable {
-    case play = 0
-    case pause = 1
-    case previousTrack = 2
-    case nextTrack = 3
-}
-
-enum MediaSessionDisposition: Int, CaseIterable, Sendable {
-    case retire = 0
-    case clear = 1
-    case publish = 2
 }
 
 struct PageMediaActivity: OptionSet, Sendable {

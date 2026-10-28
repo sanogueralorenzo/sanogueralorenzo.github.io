@@ -16,7 +16,7 @@ struct BrowserNowPlayingSidebar: View {
     // MARK: - Actions - Content
 
     var body: some View {
-        if let store, let session = MediaSessionOrder.arbitration(of: store.sidebarSessions)?.nowPlaying {
+        if let store, let session = BrowserMediaSessionOrdering.arbitration(of: store.sidebarSessions)?.nowPlaying {
             BrowserNowPlayingRow(
                 store: store, session: session, faviconData: ownerFaviconData(session.owner),
                 activate: activateMediaSession

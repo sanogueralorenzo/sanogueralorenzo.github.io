@@ -50,7 +50,7 @@ struct BrowserHostedNotificationPermissionResolution: BrowserHostedNotificationR
         // remember; the system's consent still decides what the page hears.
         let grants =
             await page.engineAdapter.webKitPage.ask(
-                PermissionQuestion(permission: .notifications, origin: origin, topLevelOrigin: origin)) ?? false
+                PermissionQuestion(permission: .notifications, origin: origin, topLevelOrigin: origin))
         guard isCurrent else { return }
         guard generation == page.sitePermissionRequests.generation else { return }
         guard grants else {

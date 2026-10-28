@@ -163,30 +163,6 @@ internal static class RecordedIntents {
         return changes;
     }
 
-    /// The query a recorded `launch.plan` read became, or null for any other
-    /// request. Whether setup held the launch back is the device's to say now,
-    /// from whether it completed setup, which `SetupCompleted` answers.
-    public static LaunchIsolation? LaunchIsolation(JsonObject request) {
-        if (request["operation"]!.GetValue<string>() != "launch.plan") return null;
-        var environment = request["environment"]!.AsObject();
-        bool Flag(string key) => environment[key]!.GetValue<bool>();
-        return new(new(Flag("testRuntime"),
-            Flag("previewRuntime"), Flag("isolatedSession"), Flag("namedProfile"), Flag("isolatedCloudSync"), Flag("resetSession"),
-            Flag("showcase"),
-            Flag("performanceHarness"), Flag("updateTestFeed")));
-    }
-
-    /// Whether the device a recorded `launch.plan` read asked about had
-    /// completed setup: it had unless setup held that launch back.
-    public static bool SetupCompleted(JsonObject request) => !request["hasActiveLaunchGate"]!.GetValue<bool>();
-
-    /// A launch plan in the spelling the recorded answers compare against.
-    public static JsonObject Encode(LaunchDecision plan) => new() {
-        ["requiresIsolation"] = plan.RequiresIsolation,
-        ["usesEphemeralProfileStorage"] = plan.UsesEphemeralProfileStorage,
-        ["presentsInstalledApplicationUI"] = plan.PresentsInstalledApplicationUI
-    };
-
     /// The Spaces a recorded reorder left, which moved the ones at `offsets`
     /// to before the one at `destination`, as a list's move does.
     private static IReadOnlyList<Guid> Moved(IReadOnlyList<Guid> spaces, IReadOnlyList<int> offsets, int destination) {

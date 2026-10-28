@@ -349,7 +349,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         pageEngine.load(request)
     }
 
-    /// The adapter's tagged, opaque history. Uncommitted pages return nil so
+    /// The page's opaque WebKit history. Uncommitted pages return nil so
     /// an empty renderer cannot overwrite a useful archive.
     var interactionState: Data? {
         guard pageEngine.registration.supports(.interactionState) else { return nil }

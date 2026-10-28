@@ -37,9 +37,8 @@ final class BrowserSoftwareUpdateTests: XCTestCase {
     }
 
     func testStableUpdatesKeepTheInstalledEngineComposition() {
-        XCTAssertNil(BrowserSoftwareUpdateFeed(for: .chromium).url)
         XCTAssertEqual(
-            BrowserSoftwareUpdateFeed(for: .webKit).url?.absoluteString,
+            BrowserSoftwareUpdateFeed.current.url?.absoluteString,
             "https://raw.githubusercontent.com/pauljoda/Crest/updates/appcast-webkit.xml")
     }
 
