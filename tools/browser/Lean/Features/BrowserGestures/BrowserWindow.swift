@@ -30,15 +30,10 @@ extension BrowserStore {
     }
 
     func handleSpaceScroll(_ event: NSEvent) -> NSEvent? {
-        guard event.window === window else { return event }
+        guard event.window === window, let sidebarSpaceViewport else { return event }
         let enabled = allowsPointerNavigation && utility == nil && session.spaces.count > 1
-        if !enabled { spaceScrollGesture.cancelCurrentGesture() }
-        let decision = spaceScrollGesture.consume(
-            event, isInside: enabled && sidebarContains(event, excludingTitlebar: true),
-            rightToLeft: window?.contentView?.userInterfaceLayoutDirection == .rightToLeft)
-        guard enabled else { return event }
-        if let step = decision.step { adjacentSpace(step) }
-        return decision.consumesEvent ? nil : event
+        return sidebarSpaceViewport.handleScroll(
+            event, isInside: sidebarContains(event, excludingTitlebar: true), enabled: enabled)
     }
 
     func handleUnhandledSwipe(_ event: NSEvent) -> Bool {

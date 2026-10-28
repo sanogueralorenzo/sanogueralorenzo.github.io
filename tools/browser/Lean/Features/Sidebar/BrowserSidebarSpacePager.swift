@@ -31,7 +31,7 @@ struct BrowserSidebarSpacePager: NSViewRepresentable {
         spaces = store.session.spaces
         selectedSpaceID = store.activeSpace.id
         step = store.sidebarSpaceStep
-        interactionLocked = store.owner.sidebarDrag.payload != nil
+        interactionLocked = store.isClosed || store.owner.sidebarDrag.payload != nil
     }
 
     func makeNSView(context: Context) -> BrowserSidebarSpaceViewport { BrowserSidebarSpaceViewport() }
@@ -64,12 +64,27 @@ private struct BrowserSidebarSpaceRoot: View {
 
 @MainActor
 final class BrowserSidebarSpaceViewport: NSView {
+    private struct Motion {
+        let origin: UUID
+        let initialOffset: CGFloat
+        var offset: CGFloat
+        var translation: CGFloat = 0
+        var direction: CGFloat = 0
+        var target: UUID?
+        var step = 0
+    }
     private var hosts: [UUID: NSHostingView<BrowserSidebarSpaceRoot>] = [:]
     private(set) var selectedSpaceID: UUID?
     private(set) var isMoving = false
     private var epoch = 0
     private var lastSize = CGSize.zero
     private weak var store: BrowserStore?
+    private var motion: Motion?
+    private var spaceIDs: [UUID] = []
+    private(set) var reduceMotion = false
+    private(set) var rightToLeft = false
+    private var interactionLocked = false
+    private lazy var gesture = BrowserSpaceSwipeGesture(viewport: self)
     override var isFlipped: Bool { true }
 
     init() {
@@ -80,27 +95,40 @@ final class BrowserSidebarSpaceViewport: NSView {
     }
     required init?(coder: NSCoder) { nil }
 
-    override func hitTest(_ point: NSPoint) -> NSView? { isMoving ? nil : super.hitTest(point) }
+    override func hitTest(_ point: NSPoint) -> NSView? { isMoving ? self : super.hitTest(point) }
 
     func update(
         store: BrowserStore, spaces: [BrowserSpace], selectedSpaceID id: UUID, step: Int?, interactionLocked: Bool,
         reduceMotion: Bool, layoutDirection: LayoutDirection
     ) {
+        if self.store !== store, self.store?.sidebarSpaceViewport === self { self.store?.sidebarSpaceViewport = nil }
         self.store = store
+        store.sidebarSpaceViewport = self
         let previous = selectedSpaceID
         let changed = previous != id
+        let ids = spaces.map(\.id)
+        let rtl = layoutDirection == .rightToLeft
+        if motion != nil && (changed || spaceIDs != ids || interactionLocked || reduceMotion || rightToLeft != rtl) {
+            gesture.cancelCurrentGesture()
+            stopAtPresentationPositions()
+        }
+        self.spaceIDs = ids
+        self.reduceMotion = reduceMotion
+        self.rightToLeft = rtl
+        self.interactionLocked = interactionLocked
         let valid = Set(spaces.map(\.id))
         for key in hosts.keys where !valid.contains(key) { hosts.removeValue(forKey: key)?.removeFromSuperview() }
+        if motion != nil { return }
         let canSlide =
             changed && previous != nil && previous.map(valid.contains) == true
             && !reduceMotion && !interactionLocked && step != nil
             && bounds.width > 0
         if changed || (isMoving && (reduceMotion || interactionLocked)) {
+            gesture.cancelCurrentGesture()
             stopAtPresentationPositions()
         }
         // Existing roots keep their native scroll view and local SwiftUI state.
         for space in spaces where hosts[space.id] != nil || space.id == id {
-            let root = BrowserSidebarSpaceRoot(store: store, spaceID: space.id)
             if let host = hosts[space.id] {
                 if canSlide, space.id == id, host.isHidden {
                     let direction: CGFloat = (step ?? 1) > 0 ? 1 : -1
@@ -108,16 +136,10 @@ final class BrowserSidebarSpaceViewport: NSView {
                         dx: direction * bounds.width * (layoutDirection == .leftToRight ? 1 : -1), dy: 0)
                 }
             } else {
-                let host = NSHostingView(rootView: root)
-                host.identifier = NSUserInterfaceItemIdentifier(space.id.uuidString)
-                host.sizingOptions = []
-                host.safeAreaRegions = []
-                host.wantsLayer = true
+                let host = prepareHost(space.id, store: store)
                 let direction: CGFloat = (step ?? 1) > 0 ? 1 : -1
                 host.frame = bounds.offsetBy(
                     dx: canSlide ? direction * bounds.width * (layoutDirection == .leftToRight ? 1 : -1) : 0, dy: 0)
-                hosts[space.id] = host
-                addSubview(host)
             }
         }
         selectedSpaceID = id
@@ -135,6 +157,94 @@ final class BrowserSidebarSpaceViewport: NSView {
         }
     }
 
+    private func prepareHost(_ id: UUID, store: BrowserStore) -> NSHostingView<BrowserSidebarSpaceRoot> {
+        if let host = hosts[id] { return host }
+        let host = NSHostingView(rootView: BrowserSidebarSpaceRoot(store: store, spaceID: id))
+        host.identifier = NSUserInterfaceItemIdentifier(id.uuidString)
+        host.sizingOptions = []
+        host.safeAreaRegions = []
+        host.wantsLayer = true
+        host.frame = bounds
+        hosts[id] = host
+        addSubview(host)
+        return host
+    }
+
+    func handleScroll(_ event: NSEvent, isInside: Bool, enabled: Bool) -> NSEvent? {
+        gesture.handle(event, isInside: isInside, enabled: enabled && !interactionLocked)
+    }
+
+    func beginInteractiveMotion() -> Int? {
+        guard let store, !store.isClosed, !interactionLocked, !reduceMotion,
+            window != nil, !isHiddenOrHasHiddenAncestor, bounds.width > 0, spaceIDs.count > 1
+        else { return nil }
+        stopAtPresentationPositions()
+        guard
+            let origin = hosts.filter({ !$0.value.isHidden }).min(by: {
+                abs($0.value.frame.minX - bounds.minX) < abs($1.value.frame.minX - bounds.minX)
+            })
+        else { return nil }
+        let offset = origin.value.frame.minX - bounds.minX
+        motion = Motion(origin: origin.key, initialOffset: offset, offset: offset)
+        isMoving = true
+        store.sidebarSpaceTransitioning = true
+        return epoch
+    }
+
+    func updateInteractiveMotion(deltaX: CGFloat, token: Int) -> Bool {
+        guard token == epoch, deltaX.isFinite, var current = motion, let store,
+            !store.isClosed, !interactionLocked, window != nil
+        else { return false }
+        if current.direction == 0, deltaX != 0 {
+            current.direction = deltaX < 0 ? -1 : 1
+            current.step = (deltaX < 0 ? 1 : -1) * (rightToLeft ? -1 : 1)
+            guard let index = spaceIDs.firstIndex(of: current.origin) else { return false }
+            current.target = spaceIDs[(index + current.step + spaceIDs.count) % spaceIDs.count]
+            _ = prepareHost(current.target!, store: store)
+        }
+        let available = max(0, bounds.width - current.initialOffset * current.direction)
+        let travel = min(available, max(0, (current.translation + deltaX) * current.direction))
+        current.translation = travel * current.direction
+        current.offset = current.initialOffset + current.translation
+        motion = current
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for (id, host) in hosts {
+            host.isHidden = id != current.origin && id != current.target
+            if id == current.origin { host.frame = bounds.offsetBy(dx: current.offset, dy: 0) }
+            if id == current.target {
+                host.frame = bounds.offsetBy(dx: current.offset - current.direction * bounds.width, dy: 0)
+            }
+        }
+        CATransaction.commit()
+        var required: Set<UUID> = [current.origin]
+        if let target = current.target { required.insert(target) }
+        if let selectedSpaceID { required.insert(selectedSpaceID) }
+        prune(retaining: required)
+        return true
+    }
+
+    func endInteractiveMotion(velocity: CGFloat, cancelled: Bool, token: Int) {
+        guard token == epoch, let current = motion else { return }
+        let travel = max(0, current.translation * current.direction)
+        let projection =
+            max(travel, current.offset * current.direction)
+            + (cancelled || travel == 0 || !velocity.isFinite ? 0 : velocity * current.direction * 0.15)
+        let completes = !cancelled && travel > 0 && projection >= bounds.width / 2
+        animate(
+            from: current.origin, to: completes ? current.target ?? current.origin : current.origin,
+            step: current.step, layoutDirection: rightToLeft ? .rightToLeft : .leftToRight,
+            commitSelection: true)
+    }
+
+    func cancelInteractiveMotion() {
+        guard motion != nil else { return }
+        stopAtPresentationPositions()
+        settle()
+    }
+
+    func stepSpace(_ step: Int) { store?.adjacentSpace(step) }
+
     private func stopAtPresentationPositions() {
         epoch += 1
         for host in hosts.values {
@@ -143,9 +253,13 @@ final class BrowserSidebarSpaceViewport: NSView {
             host.setFrameOrigin(origin)
         }
         isMoving = false
+        motion = nil
     }
 
-    private func animate(from origin: UUID, to destination: UUID, step: Int, layoutDirection: LayoutDirection) {
+    private func animate(
+        from origin: UUID, to destination: UUID, step: Int, layoutDirection: LayoutDirection,
+        commitSelection: Bool = false
+    ) {
         isMoving = true
         let token = epoch
         let direction: CGFloat = (step > 0 ? 1 : -1) * (layoutDirection == .leftToRight ? 1 : -1)
@@ -164,6 +278,12 @@ final class BrowserSidebarSpaceViewport: NSView {
         } completionHandler: { [weak self] in
             Task { @MainActor in
                 guard let self, self.epoch == token else { return }
+                self.motion = nil
+                if commitSelection, let store = self.store, !store.isClosed {
+                    self.selectedSpaceID = destination
+                    store.selectSpace(destination, step: step)
+                    self.selectedSpaceID = store.activeSpace.id
+                }
                 self.settle()
             }
         }
@@ -201,16 +321,19 @@ final class BrowserSidebarSpaceViewport: NSView {
         super.layout()
         guard lastSize != bounds.size else { return }
         lastSize = bounds.size
+        gesture.cancelCurrentGesture()
         stopAtPresentationPositions()
         for host in hosts.values { host.setFrameSize(bounds.size) }
         settle()
     }
 
     func disconnect() {
+        gesture.cancelCurrentGesture()
         stopAtPresentationPositions()
         for host in hosts.values { host.removeFromSuperview() }
         hosts.removeAll()
         store?.sidebarSpaceTransitioning = false
+        if store?.sidebarSpaceViewport === self { store?.sidebarSpaceViewport = nil }
         store = nil
     }
 }
