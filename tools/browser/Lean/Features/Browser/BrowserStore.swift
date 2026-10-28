@@ -274,6 +274,7 @@ final class BrowserStore {
     func unload(_ id: UUID) {
         pages[id]?.checkpointNativeState()
         pages.removeValue(forKey: id)?.invalidate()
+        owner.media?.refresh()
         runtimeRevision &+= 1
     }
 

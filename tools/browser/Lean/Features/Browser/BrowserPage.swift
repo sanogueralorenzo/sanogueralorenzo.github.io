@@ -158,11 +158,16 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     }
 
     func invalidate() {
+        guard !isRetired else { return }
         contentBlocker.controller.didCloseTab(self, windowIsClosing: false)
         isRetired = true
         blockingTask?.cancel()
         observations.removeAll()
+        // UI transitions and pending callbacks can retain a retired page.
+        // End playback now rather than waiting for its web view to deallocate.
+        webView.setAllMediaPlaybackSuspended(true, completionHandler: {})
         webView.stopLoading()
+        webView.removeFromSuperview()
         webView.navigationDelegate = nil
         webView.uiDelegate = nil
         pictureInPicture?.invalidate()
