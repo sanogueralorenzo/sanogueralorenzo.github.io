@@ -205,7 +205,8 @@ struct BrowserDropArea: ViewModifier {
                 .init(
                     id: zoneID, frame: frame, before: before, folder: folder, placement: placement,
                     spaceID: spaceID ?? store.activeSpace.id, allowsAfter: allowsAfter,
-                    isSpace: spaceID != nil && before == nil && folder == nil && placement == nil))
+                    isSpace: spaceID != nil && before == nil && folder == nil && placement == nil,
+                    isScrollable: spaceID == nil && placement != .pinned && !pinned))
         }
         .onDisappear { store.sidebarReorder.removeZone(zoneID) }
         .onGeometryChange(for: CGSize.self) {

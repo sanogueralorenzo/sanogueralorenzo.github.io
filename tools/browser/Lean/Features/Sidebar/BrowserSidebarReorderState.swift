@@ -19,6 +19,7 @@ final class BrowserSidebarReorderState {
         let spaceID: UUID
         let allowsAfter: Bool
         var isSpace = false
+        var isScrollable = false
     }
     struct Target: Equatable {
         let zoneID: UUID
@@ -37,6 +38,7 @@ final class BrowserSidebarReorderState {
     @ObservationIgnored private var zones: [UUID: Zone] = [:]
     @ObservationIgnored private var restingRows: [UUID: Row] = [:]
     @ObservationIgnored private var restingZones: [UUID: Zone] = [:]
+    @ObservationIgnored private var scrollViewport: CGRect?
     private(set) var lift: Lift?
     private(set) var target: Target?
     private(set) var layout = BrowserSidebarReorderLayout()
@@ -67,6 +69,11 @@ final class BrowserSidebarReorderState {
         if lift != nil, restingZones[zone.id] == nil { restingZones[zone.id] = zone }
     }
     func removeZone(_ id: UUID) { zones[id] = nil }
+
+    func updateScrollViewport(_ frame: CGRect?, in store: BrowserStore) {
+        scrollViewport = frame
+        if lift != nil { move(to: NSEvent.mouseLocation, in: store) }
+    }
 
     func makeLift(_ payload: BrowserDragPayload, in space: BrowserSpace) -> Lift? {
         guard payload.kind != .space else { return nil }
@@ -144,7 +151,7 @@ final class BrowserSidebarReorderState {
             {
                 return
             }
-            if let gap = layout.gap {
+            if let gap = layout.gap, scrollViewport?.contains(point) == true {
                 let top =
                     layout.projected(
                         CGRect(x: gap.frame.minX, y: gap.frame.minY, width: gap.frame.width, height: 0),
@@ -193,10 +200,11 @@ final class BrowserSidebarReorderState {
                 frame: row.frame.offsetBy(dx: 0, dy: delta))
         }
         restingZones = restingZones.mapValues { zone in
-            guard !zone.isSpace, zone.placement != .pinned else { return zone }
+            guard zone.isScrollable else { return zone }
             return Zone(
                 id: zone.id, frame: zone.frame.offsetBy(dx: 0, dy: delta), before: zone.before,
-                folder: zone.folder, placement: zone.placement, spaceID: zone.spaceID, allowsAfter: zone.allowsAfter)
+                folder: zone.folder, placement: zone.placement, spaceID: zone.spaceID, allowsAfter: zone.allowsAfter,
+                isScrollable: true)
         }
         if let lift {
             layout.removedFrames = lift.rootIDs.compactMap { id in
@@ -234,11 +242,15 @@ final class BrowserSidebarReorderState {
         {
             return pinnedLayout(in: store.activeSpace, width: grid.width).frame(for: id, in: grid) ?? .zero
         }
-        return layout.projected(
+        let frame = layout.projected(
             zone.frame, in: zone.spaceID,
             containsGap: zone.folder.map {
                 layout.gap?.containingFolders.contains($0) == true
             } ?? false)
+        // Crest clips projected rows to their scroll viewport; frozen frames
+        // may otherwise reach behind fixed Pins and toolbar controls.
+        guard zone.isScrollable else { return frame }
+        return scrollViewport.map { frame.intersection($0) } ?? .null
     }
 
     private func pinGrid(in spaceID: UUID) -> CGRect? {

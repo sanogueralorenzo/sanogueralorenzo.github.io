@@ -39,6 +39,12 @@ struct BrowserSidebar: View {
                         }
                     }
                     .scrollIndicators(.never)
+                    .onGeometryChange(for: CGRect.self) {
+                        $0.frame(in: .global)
+                    } action: {
+                        store.sidebarReorder.updateScrollViewport($0, in: store)
+                    }
+                    .onDisappear { store.sidebarReorder.updateScrollViewport(nil, in: store) }
                     .onScrollGeometryChange(for: CGFloat.self) {
                         $0.contentOffset.y
                     } action: { old, new in
