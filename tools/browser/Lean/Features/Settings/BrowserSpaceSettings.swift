@@ -52,7 +52,7 @@ struct BrowserSpaceSettings: View {
                 Text("Makes every site ask again in this Space")
             }
         } else {
-            ContentUnavailableView("Space removed", systemImage: "circle.dashed")
+            ContentUnavailableView("Space removed", systemImage: "rectangle.dashed")
         }
     }
 
@@ -66,16 +66,10 @@ struct BrowserSpaceSettings: View {
                         store.saveSpace(id: spaceID, name: $0, color: self.space?.color ?? 0)
                     }))
             LabeledContent("Space color") {
-                HStack(spacing: 8) {
-                    ForEach(0..<6) { index in
-                        Button {
-                            store.saveSpace(id: spaceID, name: self.space?.name ?? "Space", color: index)
-                        } label: {
-                            Circle().fill(Color.space(index)).frame(width: 22, height: 22).padding(3)
-                                .overlay { if space.color == index { Circle().stroke(.primary, lineWidth: 1) } }
-                        }.buttonStyle(.plain).accessibilityLabel(SpaceColors.names[index])
-                    }
-                }
+                BrowserSpaceColorPicker(
+                    selection: Binding(
+                        get: { self.space?.color ?? 0 },
+                        set: { store.saveSpace(id: spaceID, name: self.space?.name ?? "Space", color: $0) }))
             }
         }
         Section {

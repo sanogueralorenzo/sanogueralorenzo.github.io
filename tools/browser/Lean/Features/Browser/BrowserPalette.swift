@@ -6,6 +6,7 @@ import Foundation
     let title: String
     let subtitle: String
     let symbol: String
+    var spaceColor: Int? = nil
     let score: Double
     let perform: (BrowserStore) -> Void
 }
@@ -100,7 +101,8 @@ extension BrowserStore {
                 if let score = Self.matchScore(query, in: space.name), !query.isEmpty {
                     results.append(
                         .init(
-                            id: "space-\(space.id)", title: space.name, subtitle: "Switch Space", symbol: "circle.fill",
+                            id: "space-\(space.id)", title: space.name, subtitle: "Switch Space", symbol: "capsule.fill",
+                            spaceColor: space.color,
                             score: score + 10, perform: { $0.selectSpace(space.id) }))
                 }
                 for folder in space.folders {

@@ -20,7 +20,7 @@ struct BrowserSpaceSwitcher: View {
                                 guard !store.owner.sidebarDrag.suppressesActivation else { return }
                                 store.selectSpace(space.id)
                             } label: {
-                                BrowserSpacePill(isSelected: store.activeSpace.id == space.id)
+                                BrowserSpacePill(color: space.color, isSelected: store.activeSpace.id == space.id)
                                     .frame(width: 28, height: 20)
                                     .contentShape(Rectangle())
                             }
@@ -118,14 +118,5 @@ struct BrowserSpaceSwitcher: View {
         .buttonStyle(.plain)
         .accessibilityLabel(forward ? "Show Next Spaces" : "Show Previous Spaces")
         .disabled(forward ? firstVisible >= spaces.count - 2 : firstVisible == 0)
-    }
-}
-
-struct BrowserSpacePill: View {
-    let isSelected: Bool
-
-    var body: some View {
-        Capsule().fill(.primary.opacity(isSelected ? 1 : 0.35))
-            .frame(width: 18, height: 6)
     }
 }

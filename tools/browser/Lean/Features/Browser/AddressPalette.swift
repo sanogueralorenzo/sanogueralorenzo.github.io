@@ -35,7 +35,9 @@ struct AddressPalette: View {
                         Button {
                             perform(result)
                         } label: {
-                            row(title: result.title, subtitle: result.subtitle, symbol: result.symbol)
+                            row(
+                                title: result.title, subtitle: result.subtitle, symbol: result.symbol,
+                                spaceColor: result.spaceColor)
                         }
                         .buttonStyle(LeanChromeButtonStyle(controlSize: nil, cornerRadius: 12))
                         .background(
@@ -109,9 +111,15 @@ struct AddressPalette: View {
             store.pendingSplitSourceID = nil
         }
     }
-    private func row(title: String, subtitle: String, symbol: String) -> some View {
+    private func row(title: String, subtitle: String, symbol: String, spaceColor: Int? = nil) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: symbol).foregroundStyle(.secondary).frame(width: 22)
+            Group {
+                if let spaceColor {
+                    BrowserSpacePill(color: spaceColor)
+                } else {
+                    Image(systemName: symbol).foregroundStyle(.secondary)
+                }
+            }.frame(width: 22)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).lineLimit(1)
                 Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)

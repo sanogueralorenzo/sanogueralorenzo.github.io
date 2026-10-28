@@ -14,18 +14,7 @@ struct SpaceEditor: View {
             Text(space == nil ? "New Space" : "Edit Space").font(.title2.weight(.semibold))
             TextField("Name", text: $name).textFieldStyle(.roundedBorder).focused($focused)
                 .onSubmit(save)
-            HStack(spacing: 14) {
-                ForEach(0..<6) { index in
-                    Button {
-                        color = index
-                    } label: {
-                        Circle().fill(Color.space(index)).frame(width: 22, height: 22)
-                            .padding(4).overlay { if color == index { Circle().stroke(.primary, lineWidth: 1) } }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(SpaceColors.names[index])
-                }
-            }
+            BrowserSpaceColorPicker(selection: $color)
             if space == nil { Toggle("Private Space", isOn: $isPrivate) }
             HStack {
                 Spacer()

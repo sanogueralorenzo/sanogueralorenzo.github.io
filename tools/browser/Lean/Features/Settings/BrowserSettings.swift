@@ -25,7 +25,7 @@ enum BrowserSettingsSelection: Hashable {
         case .engines: "cpu"
         case .sync: "arrow.triangle.2.circlepath.icloud"
         case .privacy: "hand.raised"
-        case .space: "circle.fill"
+        case .space: "capsule.fill"
         case .agents: "sparkles"
         case .advanced: "switch.2"
         case .about: "info.circle"
@@ -117,7 +117,7 @@ struct BrowserSettings: View {
                         Label {
                             Text(space.name).lineLimit(1)
                         } icon: {
-                            Circle().fill(Color.space(space.color)).frame(width: 18, height: 18)
+                            BrowserSpacePill(color: space.color).frame(height: 18)
                         }
                         .tag(BrowserSettingsSelection.space(space.id))
                         .contextMenu {

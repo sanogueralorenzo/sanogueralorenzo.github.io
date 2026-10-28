@@ -24,6 +24,7 @@ final class BrowserSidebarDragPreview {
         let count: Int
         let isSpace: Bool
         let isSelectedSpace: Bool
+        let spaceColor: Int
         let spaceHeight: CGFloat
         let snapshot: NSImage?
         var cardHeight: CGFloat?
@@ -34,7 +35,7 @@ final class BrowserSidebarDragPreview {
         var pointer = CGPoint.zero
         init(
             rows: [Row], sourceHeight: CGFloat, tab: BrowserTab?, title: String, count: Int,
-            isSpace: Bool, isSelectedSpace: Bool, spaceHeight: CGFloat,
+            isSpace: Bool, isSelectedSpace: Bool, spaceColor: Int, spaceHeight: CGFloat,
             snapshot: NSImage?, pinned: Bool, width: CGFloat
         ) {
             self.rows = rows
@@ -44,6 +45,7 @@ final class BrowserSidebarDragPreview {
             self.count = count
             self.isSpace = isSpace
             self.isSelectedSpace = isSelectedSpace
+            self.spaceColor = spaceColor
             self.spaceHeight = spaceHeight
             self.snapshot = snapshot
             self.pinned = pinned
@@ -78,6 +80,7 @@ final class BrowserSidebarDragPreview {
             rows: rows, sourceHeight: frame.height, tab: tab, title: title,
             count: store.owner.sidebarDrag.lift?.rootIDs.count ?? 1,
             isSpace: payload.kind == .space, isSelectedSpace: payload.spaceID == store.activeSpace.id,
+            spaceColor: store.session.spaces.first { $0.id == payload.spaceID }?.color ?? 0,
             spaceHeight: frame.height,
             snapshot: tab.flatMap { store.owner.pages[$0.id]?.mirrorImage },
             pinned: pinned, width: sourceWidth)
@@ -188,7 +191,7 @@ final class BrowserSidebarDragPreview {
         var body: some View {
             ZStack(alignment: .topLeading) {
                 if presentation.isSpace {
-                    BrowserSpacePill(isSelected: presentation.isSelectedSpace)
+                    BrowserSpacePill(color: presentation.spaceColor, isSelected: presentation.isSelectedSpace)
                         .frame(width: presentation.width, height: presentation.height)
                 } else if presentation.rows.isEmpty {
                     row(nil, title: presentation.title)
