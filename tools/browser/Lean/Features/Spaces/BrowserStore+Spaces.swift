@@ -26,15 +26,19 @@ extension BrowserStore {
     }
 
     func deleteSpace(_ id: UUID, prepared: Bool = false) {
-        guard let space = session.spaces.first(where: { $0.id == id }),
+        guard !isClosed || prepared, let space = session.spaces.first(where: { $0.id == id }),
             space.isPrivate || session.spaces.filter({ !$0.isPrivate }).count > 1
         else { return }
         Task {
             if !prepared {
                 guard await prepareTabs(space.tabs.map(\.id)), await prepareToDeleteSpace(id) else { return }
             }
-            guard let current = session.spaces.first(where: { $0.id == id }),
-                Set(current.tabs.map(\.id)) == Set(space.tabs.map(\.id))
+            guard !isClosed || prepared, let current = session.spaces.first(where: { $0.id == id }),
+                current.isPrivate || session.spaces.filter({ !$0.isPrivate }).count > 1,
+                Set(current.tabs.map(\.id)) == Set(space.tabs.map(\.id)),
+                Set(current.folders.map(\.id)) == Set(space.folders.map(\.id)),
+                !activeDownloads.contains(where: { $0.spaceID == id }),
+                !prepared || !owner.contexts.values.contains(where: { !$0.isClosed && $0.activeSpace.id == id })
             else { return }
             for tab in space.tabs { unload(tab.id) }
             integrations.removeValue(forKey: id)?.invalidate()
@@ -43,7 +47,6 @@ extension BrowserStore {
             session.spaces.removeAll { $0.id == id }
             session.history.removeAll { $0.spaceID == id }
             session.archive.removeAll { $0.spaceID == id }
-            if !session.spaces.contains(where: { !$0.isPrivate }) { session.spaces.append(BrowserSpace()) }
             let fallback = session.spaces.first(where: { !$0.isPrivate })!.id
             for context in owner.contexts.values where context.windowState.spaceID == id {
                 context.windowState.spaceID = fallback

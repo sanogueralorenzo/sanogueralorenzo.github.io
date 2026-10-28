@@ -3,12 +3,12 @@ import WebKit
 
 extension BrowserPage {
     func checkpointNativeState() {
-        guard let owner, let (s, t) = owner.tabIndex(id) else { return }
+        guard let owner, owner.pages[id] === self, let (s, t) = owner.tabIndex(id) else { return }
+        owner.session.spaces[s].tabs[t].zoom = webView.pageZoom
         guard webView.backForwardList.currentItem != nil else { return }
         if let data = webView.interactionState as? Data, data.count <= 8 * 1_024 * 1_024 {
             owner.session.spaces[s].tabs[t].interactionState = data
         }
-        owner.session.spaces[s].tabs[t].zoom = webView.pageZoom
     }
 
     func restore(_ tab: BrowserTab) {
@@ -28,7 +28,7 @@ extension BrowserPage {
     }
 
     func captureDocumentState() async {
-        guard let owner, owner.tabIndex(id) != nil,
+        guard let owner, owner.pages[id] === self, owner.tabIndex(id) != nil,
             !isLoading, let expected = webView.url
         else { return }
         let generation = documentRevision
@@ -55,7 +55,7 @@ extension BrowserPage {
             json.utf8.count <= 1_024 * 1_024, generation == documentRevision, expected == webView.url,
             let data = json.data(using: .utf8),
             let state = try? JSONDecoder().decode(BrowserDocumentState.self, from: data),
-            let (s, t) = owner.tabIndex(id), owner.session.spaces[s].id == spaceID
+            owner.pages[id] === self, let (s, t) = owner.tabIndex(id), owner.session.spaces[s].id == spaceID
         else { return }
         if owner.session.spaces[s].tabs[t].documentState != state {
             owner.session.spaces[s].tabs[t].documentState = state

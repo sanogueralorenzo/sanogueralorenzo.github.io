@@ -89,12 +89,8 @@ extension BrowserStore {
     func clearCurrentTabs() { requestDeleteTabs(activeSpace.tabs.filter { $0.placement == .current }.map(\.id)) }
 
     func requestDeleteTabs(_ ids: [UUID]) {
-        Task {
-            // Ask every affected document before changing any organizational state.
-            guard await prepareTabs(ids) else { return }
-            for id in ids { deleteTab(id) }
-            selectedTabs.subtract(ids)
-        }
+        guard let first = ids.first, let (source, _) = tabIndex(first) else { return }
+        requestDeleteSidebarItems(ids, in: session.spaces[source].id)
     }
 
     func requestCloseSelected() {

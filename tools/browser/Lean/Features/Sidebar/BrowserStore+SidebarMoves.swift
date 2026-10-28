@@ -150,10 +150,6 @@ extension BrowserStore {
         if local { return commit() }
         Task {
             guard !isClosed, await prepareTabs(tabs) else { return }
-            for id in tabs {
-                await pages[id]?.captureDocumentState()
-                pages[id]?.checkpointNativeState()
-            }
             _ = commit()
         }
         return true

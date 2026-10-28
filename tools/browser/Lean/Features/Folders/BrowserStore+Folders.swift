@@ -52,19 +52,7 @@ extension BrowserStore {
     }
 
     func deleteFolder(_ id: UUID) {
-        let space = activeSpace
-        let ids = descendants(id, in: space)
-        let tabs = space.tabs.filter { $0.folderID.map { ids.contains($0) } ?? false }.map(\.id)
-        Task {
-            guard await prepareTabs(tabs) else { return }
-            guard let index = session.spaces.firstIndex(where: { $0.id == space.id }) else { return }
-            for id in tabs { deleteTab(id) }
-            if space.folders.contains(where: { ids.contains($0.id) && $0.kind == .github }) {
-                session.spaces[index].githubDismissed = true
-            }
-            session.spaces[index].folders.removeAll { ids.contains($0.id) }
-            changed()
-        }
+        requestDeleteSidebarItems([], folders: [id], in: activeSpace.id)
     }
 
     func descendants(_ id: UUID, in space: BrowserSpace) -> Set<UUID> {

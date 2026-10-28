@@ -131,19 +131,53 @@ extension BrowserStore {
     }
 
     func deleteSidebarSelection() {
-        let folders = selectionRootFolders
-        let tabs = selectedActionTabIDs
-        let spaceID = activeSpace.id
+        requestDeleteSidebarItems(selectedActionTabIDs, folders: selectionRootFolders, in: activeSpace.id)
+    }
+
+    func requestDeleteSidebarItems(_ tabIDs: [UUID], folders rootIDs: [UUID] = [], in spaceID: UUID) {
+        guard !isClosed, let source = session.spaces.first(where: { $0.id == spaceID }),
+            Set(tabIDs).isSubset(of: Set(source.tabs.map(\.id))),
+            Set(rootIDs).isSubset(of: Set(source.folders.map(\.id)))
+        else { return }
+        let requested = Set(tabIDs)
+        let nested = rootIDs.reduce(into: Set<UUID>()) { $0.formUnion(descendants($1, in: source)) }
+        let members = source.tabs.filter { requested.contains($0.id) || $0.folderID.map(nested.contains) == true }
+        let tabs = members.map(\.id)
+        let tabSet = Set(tabs)
+        guard !tabs.isEmpty || !nested.isEmpty else { return }
         Task {
-            guard await prepareTabs(tabs), activeSpace.id == spaceID else { return }
-            let nested = folders.reduce(into: Set<UUID>()) { $0.formUnion(descendants($1, in: activeSpace)) }
+            // A folder edited while its pages answer is a different deletion.
+            // Refuse the entire request rather than orphaning or taking new work.
+            guard await prepareTabs(tabs), let index = session.spaces.firstIndex(where: { $0.id == spaceID }) else {
+                return
+            }
+            let current = session.spaces[index]
+            let currentTabs = Dictionary(uniqueKeysWithValues: current.tabs.map { ($0.id, $0) })
+            guard Set(rootIDs).isSubset(of: Set(current.folders.map(\.id))),
+                rootIDs.reduce(into: Set<UUID>(), { $0.formUnion(descendants($1, in: current)) }) == nested,
+                Set(
+                    current.tabs.filter {
+                        requested.contains($0.id) || $0.folderID.map(nested.contains) == true
+                    }.map(\.id)) == tabSet,
+                members.allSatisfy({ original in
+                    currentTabs[original.id].map {
+                        $0.folderID == original.folderID && $0.placement == original.placement
+                    } == true
+                })
+            else { return }
             for id in tabs { deleteTab(id) }
-            let index = spaceIndex(spaceID)
             if session.spaces[index].folders.contains(where: { nested.contains($0.id) && $0.kind == .github }) {
                 session.spaces[index].githubDismissed = true
             }
             session.spaces[index].folders.removeAll { nested.contains($0.id) }
-            clearSidebarSelection()
+            if activeSpace.id == spaceID {
+                selectedTabs.subtract(tabSet)
+                selectedFolders.subtract(nested)
+                if selectionAnchor.map({ tabSet.contains($0) || nested.contains($0) }) == true {
+                    selectionAnchor = nil
+                    selectionRangeBase = nil
+                }
+            }
             changed()
         }
     }
