@@ -8,13 +8,11 @@ struct BrowserRoot: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                LeanBrandTheme.canvas
+                Color.black
                 if store.selectedTab?.isSettings == true {
                     BrowserSettings(store: store)
                 } else if !store.visiblePages.isEmpty {
                     splitContent
-                } else if !store.addressPresented {
-                    BrowserStartPage(store: store)
                 }
                 BrowserSidebarSurface(
                     store: store, cornerRadius: SidebarGeometry.radius(windowCornerRadius: windowCornerRadius),

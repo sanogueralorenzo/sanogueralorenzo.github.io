@@ -2,12 +2,10 @@ import SwiftUI
 
 struct AddressPalette: View {
     let store: BrowserStore
-    var standalone = false
     @State private var text: String
-    init(store: BrowserStore, standalone: Bool = false) {
+    init(store: BrowserStore) {
         self.store = store
-        self.standalone = standalone
-        _text = State(initialValue: standalone ? "" : store.addressText)
+        _text = State(initialValue: store.addressText)
     }
     @State private var suggestions: [String] = []
     @State private var selected = -1
@@ -17,20 +15,18 @@ struct AddressPalette: View {
         let enabled: Bool
         let isPrivate: Bool
     }
-    private var results: [BrowserPaletteResult] { standalone && text.isEmpty ? [] : store.paletteResults(text) }
+    private var results: [BrowserPaletteResult] { store.paletteResults(text) }
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                 BrowserAddressField(text: $text, submit: submit, cancel: store.dismissAddress, moveSelection: move)
                     .frame(height: 28)
-                if !standalone {
-                    Button {
-                        store.dismissAddress()
-                    } label: {
-                        Image(systemName: "xmark")
-                    }.buttonStyle(LeanChromeButtonStyle())
-                }
+                Button {
+                    store.dismissAddress()
+                } label: {
+                    Image(systemName: "xmark")
+                }.buttonStyle(LeanChromeButtonStyle())
             }.padding(18)
             if !results.isEmpty || !suggestions.isEmpty {
                 Divider()
@@ -60,10 +56,10 @@ struct AddressPalette: View {
                     }
                 }.padding(8)
             }
-        }.frame(width: standalone ? 720 : 580)
-            .background(LeanBrandTheme.surface, in: RoundedRectangle(cornerRadius: standalone ? 30 : 20))
+        }.frame(width: 580)
+            .background(LeanBrandTheme.surface, in: RoundedRectangle(cornerRadius: 20))
             .overlay {
-                RoundedRectangle(cornerRadius: standalone ? 30 : 20).stroke(LeanBrandTheme.line, lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: 20).stroke(LeanBrandTheme.line, lineWidth: 0.5)
             }
 
             .onChange(of: text) { selected = -1 }

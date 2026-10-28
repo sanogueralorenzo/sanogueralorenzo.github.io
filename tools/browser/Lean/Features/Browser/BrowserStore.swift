@@ -120,7 +120,7 @@ final class BrowserStore {
     }
     var showsSidebar: Bool {
         sidebarRevealed || sidebarEditorPresented || isResizingSidebar || isDragging
-            || editingTabID != nil || editingFolderID != nil || activeSpace.tabs.isEmpty
+            || editingTabID != nil || editingFolderID != nil || selectedTab == nil
     }
 
     // MARK: - Initializers

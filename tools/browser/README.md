@@ -23,7 +23,8 @@ Passkeys require an Apple-authorized browser signing profile and
 
 ## Browsing
 
-Reveal the sidebar within 16 points of the left edge; empty Spaces keep it visible.
+Without a selected tab, the screen is black and the sidebar stays visible.
+Otherwise, reveal the sidebar within 16 points of the left edge.
 Drag its right edge to resize it. Settings includes default page zoom, per-Space
 content blocking with bundled uBlock Origin Lite in Complete mode, EasyList Spanish,
 and data retention.
