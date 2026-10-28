@@ -42,7 +42,7 @@ struct BrowserTabRow: View {
                 if selected { BrowserShortcutHint(text: "⌘W") }
                 if showsAction {
                     Button {
-                        guard !store.owner.suppressesSidebarActivation else { return }
+                        guard !store.owner.sidebarDrag.suppressesActivation else { return }
                         if tab.placement == .current {
                             store.requestDeleteTabs([tab.id])
                         } else if let url = tab.savedURL, away {

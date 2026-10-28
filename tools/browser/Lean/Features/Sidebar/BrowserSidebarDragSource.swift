@@ -41,7 +41,7 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
     func begin(store: BrowserStore, payload: BrowserDragPayload, title: String, url: URL?) {
-        guard window != nil, store.owner.sidebarDrag == nil,
+        guard window != nil, store.owner.sidebarDrag.payload == nil,
             let event = NSApp.currentEvent, event.type == .leftMouseDragged, event.window === window
         else { return }
         let item = NSPasteboardItem()
@@ -59,29 +59,10 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
         dragging.setDraggingFrame(bounds, contents: transparent)
         owner = store.owner
         exportsURL = url != nil
-        store.owner.sidebarLandingToken = nil
-        store.owner.sidebarLandingIDs = []
-        store.owner.sidebarLandingPreview?.cancel()
-        store.owner.sidebarLandingPreview = nil
-        store.owner.sidebarDrag = payload
-        store.owner.sidebarDropCommitted = false
-        store.owner.sidebarDragSource = self
-        if payload.kind == .space {
-            for context in store.owner.contexts.values where !context.isClosed {
-                context.sidebarReorder.beginSpace(payload.spaceID, in: context)
-            }
-        }
-        if let space = store.session.spaces.first(where: { $0.id == payload.spaceID }),
-            let lift = store.sidebarReorder.makeLift(payload, in: space)
-        {
-            store.owner.sidebarLift = lift
-            for context in store.owner.contexts.values where !context.isClosed {
-                context.sidebarReorder.begin(lift, in: context)
-            }
-        }
+        guard store.owner.sidebarDrag.begin(payload, from: self, in: store) else { return }
         if let window {
             let frame: CGRect
-            if let id = store.owner.sidebarLift?.anchorID, let measured = store.sidebarReorder.frame(of: id),
+            if let id = store.owner.sidebarDrag.lift?.anchorID, let measured = store.sidebarReorder.frame(of: id),
                 let content = window.contentView
             {
                 frame = window.convertToScreen(content.convert(measured, to: nil))
@@ -107,7 +88,7 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
         }
         var destination: BrowserStore?
         for context in contexts {
-            if context.sidebarReorder.lift == nil, let lift = owner.sidebarLift {
+            if context.sidebarReorder.lift == nil, let lift = owner.sidebarDrag.lift {
                 context.sidebarReorder.begin(lift, in: context)
             }
             let local = context.window.map { $0.convertPoint(fromScreen: screenPoint) } ?? .zero
@@ -147,42 +128,7 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
     }
 
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
-        // AppKit can deliver the source button's release after the drop.
-        // Crest suppresses activation for the same quarter-second handoff.
-        owner?.sidebarActivationSuppressedUntil = Date().addingTimeInterval(0.25)
-        if let owner {
-            let token = UUID()
-            owner.sidebarLandingToken = token
-            if let lift = owner.sidebarLift {
-                owner.sidebarLandingIDs = lift.rootIDs.union(owner.sidebarDrag?.ids ?? [])
-            } else if let payload = owner.sidebarDrag, payload.kind == .space {
-                owner.sidebarLandingIDs = [payload.spaceID]
-            } else {
-                owner.sidebarLandingIDs = []
-            }
-            let landing = owner.contexts.values.compactMap { $0.sidebarReorder.landingFrame(in: $0) }.first
-            owner.sidebarDrag = nil
-            owner.sidebarDragSource = nil
-            owner.sidebarLift = nil
-            withAnimation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : LeanMotion.dragSource) {
-                for context in owner.contexts.values {
-                    context.isDragging = false
-                    context.sidebarReorder.finish()
-                }
-            }
-            if let preview {
-                owner.sidebarLandingPreview = preview
-                preview.finish(accepted: !operation.isEmpty, landing: landing) {
-                    guard owner.sidebarLandingToken == token else { return }
-                    owner.sidebarLandingIDs = []
-                    owner.sidebarLandingToken = nil
-                    owner.sidebarLandingPreview = nil
-                }
-            } else {
-                owner.sidebarLandingIDs = []
-                owner.sidebarLandingToken = nil
-            }
-        }
+        if let owner { owner.sidebarDrag.finish(accepted: !operation.isEmpty, preview: preview, in: owner) }
         preview = nil
         owner = nil
         exportsURL = false

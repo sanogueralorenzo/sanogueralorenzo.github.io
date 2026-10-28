@@ -73,13 +73,13 @@ extension BrowserStore {
     func clickTab(
         _ id: UUID, modifiers: NSEvent.ModifierFlags = NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags
     ) {
-        guard !owner.suppressesSidebarActivation else { return }
+        guard !owner.sidebarDrag.suppressesActivation else { return }
         clickSidebarItem(id, modifiers: modifiers)
     }
     func clickFolder(
         _ id: UUID, modifiers: NSEvent.ModifierFlags = NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags
     ) {
-        guard !owner.suppressesSidebarActivation else { return }
+        guard !owner.sidebarDrag.suppressesActivation else { return }
         if modifiers.contains(.command) || modifiers.contains(.shift) {
             clickSidebarItem(id, modifiers: modifiers)
         } else {

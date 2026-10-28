@@ -63,8 +63,8 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     @ObservationIgnored weak var owner: BrowserStore?
     @ObservationIgnored private var observations: [NSKeyValueObservation] = []
     @ObservationIgnored private var blockingTask: Task<Void, Never>?
-    @ObservationIgnored private var isRetired = false
-    @ObservationIgnored private var readingMedia = false
+    @ObservationIgnored private(set) var isRetired = false
+    @ObservationIgnored var refreshingPageState = false
     @ObservationIgnored private var loadGeneration = UUID()
 
     // MARK: - Initializers
@@ -215,7 +215,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         }
         Task { [weak self] in
             await self?.captureFavicon()
-            await self?.readMediaState()
+            await self?.refreshPageState()
             self?.captureMirror()
         }
     }
@@ -454,80 +454,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         alert.beginSheetModal(for: window, completionHandler: completion)
     }
 
-    // MARK: - Actions - Media and icons
-
-    func readMediaState() async {
-        guard !isRetired, !readingMedia else { return }
-        readingMedia = true
-        defer { readingMedia = false }
-        let script = #"""
-            const media = [...document.querySelectorAll('video,audio')].some(e => !e.paused && !e.ended);
-            const dirty = [...document.querySelectorAll('input,textarea,select,[contenteditable=true]')].some(e =>
-              (!e.isContentEditable && (e.type === 'checkbox' || e.type === 'radio' ? e.checked !== e.defaultChecked :
-              e.tagName === 'SELECT' ? [...e.options].some(o => o.selected !== o.defaultSelected) : e.value !== e.defaultValue)));
-            const e = document.querySelector('video,audio');
-            return {playing:media, hasMedia:!!e, muted:e?.muted || false, dirty, title:navigator.mediaSession?.metadata?.title || document.title,
-              artist:navigator.mediaSession?.metadata?.artist || '', duration: Number.isFinite(e?.duration) ? e.duration : 0,
-              elapsed:Number.isFinite(e?.currentTime) ? e.currentTime : 0};
-            """#
-        let revision = documentRevision
-        guard
-            var value = try? await webView.callAsyncJavaScript(
-                script, arguments: [:], in: nil, contentWorld: .defaultClient)
-                as? [String: Any], !isRetired
-        else { return }
-        var dirty = value["dirty"] as? Bool != false
-        mediaFrame = nil
-        if value["playing"] as? Bool != true {
-            for frame in Array(siteController?.frames.values ?? [:].values).filter({ !$0.isMainFrame }).prefix(32) {
-                guard
-                    let child = try? await webView.callAsyncJavaScript(
-                        script, arguments: [:], in: frame, contentWorld: .defaultClient) as? [String: Any],
-                    revision == documentRevision
-                else { continue }
-                dirty = dirty || child["dirty"] as? Bool != false
-                if child["playing"] as? Bool == true
-                    || (value["hasMedia"] as? Bool != true && child["hasMedia"] as? Bool == true)
-                {
-                    value = child
-                    mediaFrame = frame
-                    if child["playing"] as? Bool == true { break }
-                }
-            }
-        }
-        guard revision == documentRevision else { return }
-        let native = await withCheckedContinuation { continuation in
-            webView.requestMediaPlaybackState { continuation.resume(returning: $0) }
-        }
-        guard revision == documentRevision, !isRetired else { return }
-        isPlaying =
-            value["playing"] as? Bool == true
-            || (native == .playing && value["hasMedia"] as? Bool != true)
-        documentHasEdits = dirty
-        hasUnsavedEdits = documentHasEdits || frameEdits.values.contains(true)
-        let nextTitle = value["title"] as? String ?? title
-        if mediaTitle != nextTitle { nowPlayingHidden = false }
-        mediaTitle = nextTitle
-        hasMedia = isPlaying || value["hasMedia"] as? Bool == true
-        mediaIsMuted = value["muted"] as? Bool == true
-        let actions =
-            try? await webView.callAsyncJavaScript(
-                "return [...(globalThis.__leanMediaActions || new Map())].filter(([key,value]) => typeof value === 'function').map(([key]) => key)",
-                arguments: [:], in: mediaFrame, contentWorld: .page) as? [String]
-        guard revision == documentRevision, !isRetired else { return }
-        mediaActions = Set(actions ?? [])
-        if hasMedia { mediaActions.formUnion(["play", "pause"]) }
-        mediaArtist = value["artist"] as? String ?? ""
-        mediaDuration = value["duration"] as? Double ?? 0
-        mediaElapsed = value["elapsed"] as? Double ?? 0
-    }
-
-    func toggleMedia() {
-        performMediaAction(isPlaying ? "pause" : "play")
-        Task { await readMediaState() }
-    }
-
-    func beginPictureInPicture() { pictureInPicture?.leaveTab() }
+    // MARK: - Actions - Page images
 
     func captureMirror() {
         guard isSharedAcrossWindows, webView.bounds.width > 0 else { return }

@@ -24,7 +24,9 @@ final class BrowserSidebarDropDestinationView: NSView {
     required init?(coder: NSCoder) { nil }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        guard store?.owner.sidebarDrag != nil, bounds.contains(convert(point, from: superview)) else { return nil }
+        guard store?.owner.sidebarDrag.payload != nil, bounds.contains(convert(point, from: superview)) else {
+            return nil
+        }
         return self
     }
 
@@ -51,12 +53,12 @@ final class BrowserSidebarDropDestinationView: NSView {
     }
 
     private func resolve(_ sender: NSDraggingInfo) -> NSDragOperation {
-        guard let store, !store.isClosed, !store.owner.sidebarDropCommitted,
-            store.owner.sidebarDrag != nil, let window
+        guard let store, !store.isClosed, !store.owner.sidebarDrag.committed,
+            store.owner.sidebarDrag.payload != nil, let window
         else { return [] }
         let point = window.convertPoint(toScreen: sender.draggingLocation)
         store.sidebarReorder.move(to: point, in: store)
-        store.owner.sidebarDragSource?.updatePreview(to: point, in: store)
+        store.owner.sidebarDrag.source?.updatePreview(to: point, in: store)
         return store.canCommitSidebarDrop ? .move : []
     }
 }

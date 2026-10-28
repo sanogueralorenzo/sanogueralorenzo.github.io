@@ -118,7 +118,7 @@ struct BrowserSidebar: View {
             .padding(.horizontal, 16)
             .animation(LeanMotion.dragSource.unlessReducingMotion(reduceMotion), value: store.sidebarReorder.target)
             .animation(
-                LeanMotion.dragSource.unlessReducingMotion(reduceMotion), value: store.owner.sidebarLift?.rootIDs)
+                LeanMotion.dragSource.unlessReducingMotion(reduceMotion), value: store.owner.sidebarDrag.lift?.rootIDs)
     }
 
     private var currentDivider: some View {

@@ -118,7 +118,7 @@ final class BrowserSiteController: NSObject, WKScriptMessageHandler, @preconcurr
                 page.frameEdits[id] = dirty
                 frames[id] = message.frameInfo
             }
-            page.hasUnsavedEdits = page.documentHasEdits || page.frameEdits.values.contains(true)
+            page.updateEditProtection()
             return
         }
         guard let page, message.webView === page.webView, let origin = Self.origin(message.frameInfo.securityOrigin),

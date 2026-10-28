@@ -1,6 +1,29 @@
 import WebKit
 
 extension BrowserPage {
+    func updateMediaState(_ value: [String: Any], native: WKMediaPlaybackState, revision: Int) async {
+        isPlaying =
+            value["playing"] as? Bool == true
+            || (native == .playing && value["hasMedia"] as? Bool != true)
+        let nextTitle = value["title"] as? String ?? title
+        if mediaTitle != nextTitle { nowPlayingHidden = false }
+        mediaTitle = nextTitle
+        hasMedia = isPlaying || value["hasMedia"] as? Bool == true
+        mediaIsMuted = value["muted"] as? Bool == true
+        let actions =
+            try? await webView.callAsyncJavaScript(
+                "return [...(globalThis.__leanMediaActions || new Map())].filter(([key,value]) => typeof value === 'function').map(([key]) => key)",
+                arguments: [:], in: mediaFrame, contentWorld: .page) as? [String]
+        guard revision == documentRevision, !isRetired else { return }
+        mediaActions = Set(actions ?? [])
+        if hasMedia { mediaActions.formUnion(["play", "pause"]) }
+        mediaArtist = value["artist"] as? String ?? ""
+        mediaDuration = value["duration"] as? Double ?? 0
+        mediaElapsed = value["elapsed"] as? Double ?? 0
+    }
+
+    func beginPictureInPicture() { pictureInPicture?.leaveTab() }
+
     static let mediaActionScript = #"""
         (() => {
           if(!navigator.mediaSession || globalThis.__leanMediaActions) return;
@@ -25,7 +48,7 @@ extension BrowserPage {
             _ = try? await webView.callAsyncJavaScript(
                 script, arguments: ["action": action, "time": time ?? 0],
                 in: mediaFrame, contentWorld: .page)
-            await readMediaState()
+            await refreshPageState()
             owner?.owner.media?.refresh()
         }
     }

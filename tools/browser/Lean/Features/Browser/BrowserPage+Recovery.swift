@@ -2,6 +2,10 @@ import AppKit
 import WebKit
 
 extension BrowserPage {
+    func updateEditProtection() {
+        hasUnsavedEdits = documentHasEdits || frameEdits.values.contains(true)
+    }
+
     func checkpointNativeState() {
         guard let owner, owner.pages[id] === self, let (s, t) = owner.tabIndex(id) else { return }
         owner.session.spaces[s].tabs[t].zoom = webView.pageZoom
@@ -91,7 +95,7 @@ extension BrowserPage {
         automaticClose = automatically
         let selector = NSSelectorFromString("_tryClose")
         if !webView.responds(to: selector) {
-            await readMediaState()
+            await refreshPageState()
             guard !automatically else { return false }
             if hasUnsavedEdits {
                 let alert = NSAlert()

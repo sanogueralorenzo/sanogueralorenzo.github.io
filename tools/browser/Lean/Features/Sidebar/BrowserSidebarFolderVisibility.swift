@@ -69,10 +69,10 @@ struct BrowserSidebarFolderReconciler: View {
     var body: some View {
         Color.clear.allowsHitTesting(false).accessibilityHidden(true)
             .onChange(of: snapshot, initial: true) { _, _ in reconcile() }
-            .onChange(of: store.owner.sidebarDrag != nil) { _, dragging in if !dragging { reconcile() } }
+            .onChange(of: store.owner.sidebarDrag.payload != nil) { _, dragging in if !dragging { reconcile() } }
     }
     private func reconcile() {
-        guard store.owner.sidebarDrag == nil else { return }
+        guard store.owner.sidebarDrag.payload == nil else { return }
         store.sidebarFolders.prune(keeping: Set(store.session.spaces.flatMap { $0.folders.map(\.id) }))
         store.sidebarFolders.reconcile(
             space: store.activeSpace, selected: store.selectedTab?.id,

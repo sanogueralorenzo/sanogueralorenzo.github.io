@@ -19,17 +19,7 @@ final class BrowserSessionOwner {
     var lastRetentionSweep = Date.distantPast
     var storageError: String?
     var activeWindowID: UUID?
-    var sidebarDrag: BrowserDragPayload?
-    var sidebarDropCommitted = false
-    var sidebarLift: BrowserSidebarReorderState.Lift?
-    var sidebarLandingIDs: Set<UUID> = []
-    var sidebarLandingToken: UUID?
-    @ObservationIgnored var sidebarLandingPreview: BrowserSidebarDragPreview?
-    var sidebarActivationSuppressedUntil = Date.distantPast
-    var suppressesSidebarActivation: Bool {
-        sidebarDrag != nil || Date() < sidebarActivationSuppressedUntil
-    }
-    @ObservationIgnored var sidebarDragSource: BrowserSidebarDragSourceView?
+    let sidebarDrag = BrowserSidebarDragSession()
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var maintenance: Task<Void, Never>?
     @ObservationIgnored private var pageMaintenance: [UUID: Task<Void, Never>] = [:]
@@ -60,7 +50,7 @@ final class BrowserSessionOwner {
                     pageMaintenance[page.id] = Task { [weak self, weak page] in
                         guard let self, let page else { return }
                         defer { pageMaintenance[page.id] = nil }
-                        await page.readMediaState()
+                        await page.refreshPageState()
                         await page.captureDocumentState()
                         if !visiblePageIDs.contains(page.id), !page.isProtectedFromUnloading,
                             Date().timeIntervalSince(page.lastSelected) >= 300,

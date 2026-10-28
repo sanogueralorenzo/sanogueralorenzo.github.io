@@ -12,7 +12,7 @@ struct BrowserSidebarReorderItem: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var state: BrowserSidebarReorderState { store.sidebarReorder }
-    private var hidden: Bool { state.hides(id) || store.owner.sidebarLandingIDs.contains(id) }
+    private var hidden: Bool { state.hides(id) || store.owner.sidebarDrag.landingIDs.contains(id) }
     private var lifted: Bool { state.hides(id) && placement != .pinned }
 
     func body(content: Content) -> some View {
@@ -34,7 +34,8 @@ struct BrowserSidebarReorderItem: ViewModifier {
                 .opacity(hidden ? 0 : 1)
                 .animation(nil, value: state.hides(id))
                 .animation(
-                    reduceMotion ? nil : .easeOut(duration: 0.10), value: store.owner.sidebarLandingIDs.contains(id)
+                    reduceMotion ? nil : .easeOut(duration: 0.10),
+                    value: store.owner.sidebarDrag.landingIDs.contains(id)
                 )
                 .frame(height: lifted ? 0 : nil, alignment: .top)
             BrowserSidebarReorderGap(height: state.layout.bottomSpace(for: id))

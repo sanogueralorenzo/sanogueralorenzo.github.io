@@ -77,7 +77,7 @@ final class BrowserSidebarDragPreview {
         sourceWidth = pinned || payload.kind == .space ? frame.width : store.sidebarWidth - 32
         presentation = Presentation(
             rows: rows, sourceHeight: frame.height, tab: tab, title: title,
-            count: store.owner.sidebarLift?.rootIDs.count ?? 1,
+            count: store.owner.sidebarDrag.lift?.rootIDs.count ?? 1,
             symbol: payload.kind == .space ? "circle.fill" : "folder.fill",
             spaceColor: payload.kind == .space ? space?.color : nil, spaceHeight: frame.height,
             snapshot: tab.flatMap { store.owner.pages[$0.id]?.mirrorImage },

@@ -43,7 +43,7 @@ struct BrowserSidebarItem: View {
                 }
             }.frame(width: 23, height: 16)
             Button {
-                guard !store.owner.suppressesSidebarActivation else { return }
+                guard !store.owner.sidebarDrag.suppressesActivation else { return }
                 store.selectTab(split.tabIDs.contains(store.selectedTab?.id ?? UUID()) ? store.selectedTab!.id : tab.id)
             } label: {
                 Text(

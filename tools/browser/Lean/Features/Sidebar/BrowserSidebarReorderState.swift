@@ -139,7 +139,7 @@ final class BrowserSidebarReorderState {
     }
 
     func splitProjection(in store: BrowserStore) -> BrowserSplitDropLayout? {
-        guard case .split(let index) = target?.kind, let payload = store.owner.sidebarDrag,
+        guard case .split(let index) = target?.kind, let payload = store.owner.sidebarDrag.payload,
             store.canDropSidebarTabsIntoSplit(payload), let shown = store.selectedTab?.id
         else { return nil }
         return BrowserSplitDropLayout(
@@ -273,8 +273,8 @@ final class BrowserSidebarReorderState {
     /// Like Crest, hit testing uses projected resting measurements rather than
     /// feeding animated measurements back into the insertion calculation.
     func move(to screenPoint: NSPoint, in store: BrowserStore) {
-        if store.owner.sidebarDrag?.kind == .space {
-            guard let source = store.owner.sidebarDrag?.spaceID else { return }
+        if store.owner.sidebarDrag.payload?.kind == .space {
+            guard let source = store.owner.sidebarDrag.payload?.spaceID else { return }
             if spaceLayout == nil { beginSpace(source, in: store) }
             if let window = store.window, let content = window.contentView, window.frame.contains(screenPoint) {
                 let point = content.convert(window.convertPoint(fromScreen: screenPoint), from: nil)
@@ -356,7 +356,9 @@ final class BrowserSidebarReorderState {
             let before = zone.before.flatMap {
                 store.sidebarInsertionTarget(
                     $0, after: after,
-                    excluding: Set((store.owner.sidebarDrag?.ids ?? []) + (store.owner.sidebarDrag?.folderIDs ?? [])))
+                    excluding: Set(
+                        (store.owner.sidebarDrag.payload?.ids ?? [])
+                            + (store.owner.sidebarDrag.payload?.folderIDs ?? [])))
             }
             let kind: Target.Kind =
                 zone.isNesting && zone.folder != nil
@@ -372,7 +374,7 @@ final class BrowserSidebarReorderState {
             && point.x <= store.sidebarWidth + SidebarGeometry.inset * 2 + SidebarGeometry.hoverMargin
         if !onSidebar, let geometry = contentGeometry, geometry.spaceID == store.activeSpace.id,
             geometry.shown == store.selectedTab?.id, geometry.bounds.contains(point),
-            let payload = store.owner.sidebarDrag, store.canDropSidebarTabsIntoSplit(payload)
+            let payload = store.owner.sidebarDrag.payload, store.canDropSidebarTabsIntoSplit(payload)
         {
             if case .split = target?.kind, geometry.gap?.contains(point) == true { return }
             let members = Set(store.activeSplit?.tabIDs ?? store.selectedTab.map { [$0.id] } ?? [])
@@ -498,7 +500,7 @@ final class BrowserSidebarReorderState {
 
     private func installSourceGap(in store: BrowserStore) {
         guard let lift, lift.spaceID == store.activeSpace.id, let id = lift.anchorID,
-            let row = restingRows[id], let payload = store.owner.sidebarDrag
+            let row = restingRows[id], let payload = store.owner.sidebarDrag.payload
         else { return }
         let space = store.activeSpace
         let anchor = space.splits.first { $0.id == id }?.tabIDs.first ?? id
@@ -552,7 +554,7 @@ final class BrowserSidebarReorderState {
 
 extension BrowserStore {
     func canPreviewSidebarDrop(_ target: BrowserSidebarReorderState.Target) -> Bool {
-        guard !isClosed, let payload = owner.sidebarDrag, payload.kind != .space,
+        guard !isClosed, let payload = owner.sidebarDrag.payload, payload.kind != .space,
             let source = session.spaces.first(where: { $0.id == payload.spaceID }),
             let destination = session.spaces.first(where: { $0.id == target.spaceID })
         else { return false }

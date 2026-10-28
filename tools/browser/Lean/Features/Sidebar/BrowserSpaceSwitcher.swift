@@ -17,7 +17,7 @@ struct BrowserSpaceSwitcher: View {
                     HStack(spacing: 0) {
                         ForEach(spaces) { space in
                             Button {
-                                guard !store.owner.suppressesSidebarActivation else { return }
+                                guard !store.owner.sidebarDrag.suppressesActivation else { return }
                                 store.selectSpace(space.id)
                             } label: {
                                 Circle().fill(Color.space(space.color)).frame(width: 12, height: 12)
@@ -52,7 +52,7 @@ struct BrowserSpaceSwitcher: View {
                             .modifier(BrowserDropArea(store: store, spaceID: space.id))
                             .opacity(
                                 store.sidebarReorder.spaceLayout?.sourceID == space.id
-                                    || store.owner.sidebarLandingIDs.contains(space.id) ? 0 : 1
+                                    || store.owner.sidebarDrag.landingIDs.contains(space.id) ? 0 : 1
                             )
                             .offset(x: store.sidebarReorder.spaceLayout?.offset(for: space.id) ?? 0)
                             .animation(
