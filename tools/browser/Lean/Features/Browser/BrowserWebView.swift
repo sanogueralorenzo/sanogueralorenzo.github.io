@@ -23,6 +23,7 @@ struct BrowserWebView: NSViewRepresentable {
     }
     required init?(coder: NSCoder) { nil }
     func update(page: BrowserPage, store: BrowserStore) {
+        guard !page.isRetired else { return }
         self.page = page
         self.store = store
         if page.hostingWindowID == nil || page.hostingWindowID == store.id || window?.isKeyWindow == true {

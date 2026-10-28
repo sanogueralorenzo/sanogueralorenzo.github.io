@@ -16,19 +16,10 @@ extension BrowserPage {
     }
 
     func restore(_ tab: BrowserTab) {
+        guard !isRetired else { return }
         restoreState = tab.documentState
         webView.pageZoom = tab.zoom
-        Task { [weak self] in
-            guard let self else { return }
-            await waitForContentBlocking()
-            if let state = tab.interactionState {
-                webView.interactionState = state
-                if let item = webView.backForwardList.currentItem, BrowserURLs.same(item.url, tab.url) {
-                    return
-                }
-            }
-            if let url = tab.url { load(url) }
-        }
+        if let url = tab.url { load(url, restoring: tab.interactionState) }
     }
 
     func captureDocumentState() async {

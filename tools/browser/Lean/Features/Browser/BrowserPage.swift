@@ -63,9 +63,10 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     @ObservationIgnored weak var owner: BrowserStore?
     @ObservationIgnored private var observations: [NSKeyValueObservation] = []
     @ObservationIgnored private var blockingTask: Task<Void, Never>?
+    @ObservationIgnored private var navigationTask: Task<Void, Never>?
+    @ObservationIgnored private var pendingNavigation: (@MainActor (BrowserPage) -> Void)?
     @ObservationIgnored private(set) var isRetired = false
     @ObservationIgnored var refreshingPageState = false
-    @ObservationIgnored private var loadGeneration = UUID()
 
     // MARK: - Initializers
 
@@ -123,16 +124,18 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
 
     // MARK: - Actions - Browsing
 
-    func load(_ url: URL) {
+    func load(_ url: URL, restoring interactionState: Data? = nil) {
+        guard !isRetired else { return }
         failure = nil
         pendingNavigationURL = url
         self.url = url
         owner?.pageChanged(self)
-        let generation = UUID()
-        loadGeneration = generation
-        Task { [weak self] in
-            await self?.blockingTask?.value
-            guard let self, !isRetired, loadGeneration == generation else { return }
+        afterContentBlocking { page in
+            let webView = page.webView
+            if let interactionState {
+                webView.interactionState = interactionState
+                if let item = webView.backForwardList.currentItem, BrowserURLs.same(item.url, url) { return }
+            }
             if url.isFileURL {
                 webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
             } else {
@@ -141,18 +144,34 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         }
     }
 
-    func waitForContentBlocking() async { await blockingTask?.value }
+    func reloadAfterContentBlocking() {
+        afterContentBlocking(pendingNavigation ?? { $0.webView.reload() })
+    }
+
+    private func afterContentBlocking(_ action: @escaping @MainActor (BrowserPage) -> Void) {
+        guard !isRetired else { return }
+        navigationTask?.cancel()
+        pendingNavigation = action
+        let blocking = blockingTask
+        navigationTask = Task { [weak self] in
+            await blocking?.value
+            guard !Task.isCancelled, let self, !isRetired else { return }
+            pendingNavigation = nil
+            navigationTask = nil
+            action(self)
+        }
+    }
 
     func applyContentBlocking() {
+        guard !isRetired else { return }
         blockingTask?.cancel()
         let enabled = owner?.spacePreferences(spaceID).blocksContent == true
-        blockingTask = Task { [weak self] in
-            guard let self else { return }
+        blockingTask = Task { [weak self, contentBlocker] in
             do {
                 try await contentBlocker.setEnabled(enabled)
             } catch {
                 guard !Task.isCancelled else { return }
-                owner?.showNotice("Content blocking could not load: " + error.localizedDescription)
+                self?.owner?.showNotice("Content blocking could not load: " + error.localizedDescription)
             }
         }
     }
@@ -161,7 +180,12 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         guard !isRetired else { return }
         contentBlocker.controller.didCloseTab(self, windowIsClosing: false)
         isRetired = true
+        navigationTask?.cancel()
+        navigationTask = nil
+        pendingNavigation = nil
         blockingTask?.cancel()
+        blockingTask = nil
+        webView.evaluateJavaScript("globalThis.__leanFaviconFetch?.abort()", in: nil, in: .defaultClient) { _ in }
         observations.removeAll()
         // UI transitions and pending callbacks can retain a retired page.
         // End playback now rather than waiting for its web view to deallocate.
@@ -219,10 +243,10 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
             await self?.refreshReaderAvailability()
         }
         Task { [weak self] in
-            await self?.captureFavicon()
             await self?.refreshPageState()
             self?.captureMirror()
         }
+        captureFavicon()
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
@@ -466,28 +490,40 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         webView.takeSnapshot(with: nil) { [weak self] image, _ in self?.mirrorImage = image }
     }
 
-    private func captureFavicon() async {
+    private func captureFavicon() {
+        guard !isRetired else { return }
         let script = #"""
             const link = document.querySelector('link[rel~="icon"]');
             const url = new URL(link?.href || '/favicon.ico', location.href);
             if(!['https:', 'http:'].includes(url.protocol)) return null;
-            const response = await fetch(url, {credentials:'same-origin'});
-            if(!response.ok) return null;
-            const blob = await response.blob();
-            if(blob.size > 32768) return null;
-            return await new Promise(resolve => { const reader = new FileReader();
-              reader.onload = () => resolve(reader.result); reader.readAsDataURL(blob); });
+            globalThis.__leanFaviconFetch?.abort();
+            const controller = new AbortController();
+            globalThis.__leanFaviconFetch = controller;
+            const timeout = setTimeout(() => controller.abort(), 12000);
+            try {
+              const response = await fetch(url, {credentials:'same-origin', signal:controller.signal});
+              if(!response.ok) return null;
+              const blob = await response.blob();
+              if(blob.size > 32768) return null;
+              return await new Promise(resolve => { const reader = new FileReader();
+                reader.onload = () => resolve(reader.result); reader.onerror = () => resolve(null);
+                reader.readAsDataURL(blob); });
+            } catch { return null; }
+            finally {
+              clearTimeout(timeout);
+              if(globalThis.__leanFaviconFetch === controller) delete globalThis.__leanFaviconFetch;
+            }
             """#
         let document = documentRevision
-        guard
-            let dataURL = try? await webView.callAsyncJavaScript(
-                script, arguments: [:], in: nil, contentWorld: .defaultClient)
-                as? String, !isRetired, document == documentRevision,
-            let comma = dataURL.firstIndex(of: ","),
-            let data = Data(base64Encoded: String(dataURL[dataURL.index(after: comma)...])),
-            NSImage(data: data) != nil
-        else { return }
-        favicon = data
-        owner?.pageChanged(self)
+        webView.callAsyncJavaScript(script, arguments: [:], in: nil, in: .defaultClient) { [weak self] result in
+            guard let self, !isRetired, document == documentRevision,
+                case .success(let value) = result, let dataURL = value as? String,
+                let comma = dataURL.firstIndex(of: ","),
+                let data = Data(base64Encoded: String(dataURL[dataURL.index(after: comma)...])),
+                NSImage(data: data) != nil
+            else { return }
+            favicon = data
+            owner?.pageChanged(self)
+        }
     }
 }
