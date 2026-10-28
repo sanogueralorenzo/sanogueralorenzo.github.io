@@ -16,6 +16,7 @@ struct BrowserSpaceSwitcher: View {
                     HStack(spacing: 0) {
                         ForEach(spaces) { space in
                             Button {
+                                guard !store.owner.suppressesSidebarActivation else { return }
                                 store.selectSpace(space.id)
                             } label: {
                                 Circle().fill(Color.space(space.color)).frame(width: 12, height: 12)

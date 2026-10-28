@@ -17,23 +17,27 @@ struct BrowserSidebarSurface: View {
             .compositingGroup()
             .shadow(
                 color: .black.opacity(reduceTransparency || !store.showsSidebar ? 0 : 0.3),
-                radius: 28, x: 8, y: 8)
+                radius: 28, x: 8, y: 8
+            )
             .padding(SidebarGeometry.inset)
             .frame(width: regionWidth)
+            .background {
+                if store.showsSidebar { BrowserWindowTitleBarSurface().accessibilityHidden(true) }
+            }
+            .contentShape(.interaction, Rectangle())
             .overlay {
                 if store.showsSidebar {
                     BrowserSidebarHoverTracker(isRevealedByPointer: store.sidebarRevealed) { inside in
                         store.sidebarRevealed = inside
                     }
                     .padding(SidebarGeometry.inset - SidebarGeometry.hoverMargin)
-                    .allowsHitTesting(false)
                     .accessibilityHidden(true)
                 }
             }
             .offset(x: store.showsSidebar ? 0 : -regionWidth)
             .allowsHitTesting(store.showsSidebar)
             .accessibilityHidden(!store.showsSidebar)
-            .animation(reduceMotion ? nil : .smooth(duration: 0.24), value: store.showsSidebar)
+            .animation(LeanMotion.chrome.unlessReducingMotion(reduceMotion), value: store.showsSidebar)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }

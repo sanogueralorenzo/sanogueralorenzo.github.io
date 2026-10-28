@@ -23,6 +23,9 @@ struct BrowserSidebarItem: View {
                     Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: max(0, 20 - CGFloat(depth) * 4))
                 )
                 .contextMenu { splitActions(split) }
+                .modifier(
+                    BrowserSidebarReorderItem(
+                        store: store, id: split.id, placement: tab.placement, folderID: tab.folderID))
             }
         } else {
             BrowserTabRow(tab: tab, store: store, pinned: pinned, depth: depth)
@@ -40,6 +43,7 @@ struct BrowserSidebarItem: View {
                 }
             }.frame(width: 23, height: 16)
             Button {
+                guard !store.owner.suppressesSidebarActivation else { return }
                 store.selectTab(split.tabIDs.contains(store.selectedTab?.id ?? UUID()) ? store.selectedTab!.id : tab.id)
             } label: {
                 Text(

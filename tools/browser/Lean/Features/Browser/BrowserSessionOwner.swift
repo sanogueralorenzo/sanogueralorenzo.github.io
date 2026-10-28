@@ -20,6 +20,14 @@ final class BrowserSessionOwner {
     var storageError: String?
     var activeWindowID: UUID?
     var sidebarDrag: BrowserDragPayload?
+    var sidebarLift: BrowserSidebarReorderState.Lift?
+    var sidebarLandingIDs: Set<UUID> = []
+    var sidebarLandingToken: UUID?
+    @ObservationIgnored var sidebarLandingPreview: BrowserSidebarDragPreview?
+    var sidebarActivationSuppressedUntil = Date.distantPast
+    var suppressesSidebarActivation: Bool {
+        sidebarDrag != nil || Date() < sidebarActivationSuppressedUntil
+    }
     @ObservationIgnored var sidebarDragSource: BrowserSidebarDragSourceView?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var maintenance: Task<Void, Never>?

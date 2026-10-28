@@ -183,6 +183,7 @@ struct BrowserDropArea: ViewModifier {
     @State private var targeted = false
     @State private var insertAfter = false
     @State private var size = CGSize.zero
+    @State private var zoneID = UUID()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var pinned: Bool {
@@ -197,6 +198,16 @@ struct BrowserDropArea: ViewModifier {
                 targeted: $targeted, insertAfter: $insertAfter, size: size, allowsAfter: allowsAfter,
                 reduceMotion: reduceMotion)
         )
+        .onGeometryChange(for: CGRect.self) {
+            $0.frame(in: .global)
+        } action: { frame in
+            store.sidebarReorder.register(
+                .init(
+                    id: zoneID, frame: frame, before: before, folder: folder, placement: placement,
+                    spaceID: spaceID ?? store.activeSpace.id, allowsAfter: allowsAfter,
+                    isSpace: spaceID != nil && before == nil && folder == nil && placement == nil))
+        }
+        .onDisappear { store.sidebarReorder.removeZone(zoneID) }
         .onGeometryChange(for: CGSize.self) {
             $0.size
         } action: {
@@ -210,7 +221,7 @@ struct BrowserDropArea: ViewModifier {
         }
         .overlay {
             Group {
-                if targeted {
+                if targeted && store.owner.sidebarLift == nil {
                     if before != nil {
                         Rectangle().fill(LeanBrandTheme.textDisplay)
                             .frame(width: pinned ? 2 : nil, height: pinned ? nil : 2)
@@ -226,6 +237,18 @@ struct BrowserDropArea: ViewModifier {
             .allowsHitTesting(false)
             .accessibilityHidden(true)
         }
+        .padding(.bottom, emptyGap)
+        .overlay(alignment: .bottom) { BrowserSidebarReorderGap(height: emptyGap) }
+        .animation(LeanMotion.dragSource.unlessReducingMotion(reduceMotion), value: emptyGap)
+    }
+
+    private var emptyGap: CGFloat {
+        guard before == nil, spaceID == nil else { return 0 }
+        let placement =
+            placement ?? folder.flatMap { id in store.activeSpace.folders.first { $0.id == id }?.placement } ?? .current
+        return store.sidebarReorder.layout.emptySpace(
+            in: .init(
+                spaceID: store.activeSpace.id, placement: placement, folderID: folder))
     }
 }
 
@@ -252,17 +275,30 @@ private struct BrowserSidebarDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
+        if store.owner.sidebarLift != nil { store.sidebarReorder.move(to: NSEvent.mouseLocation, in: store) }
         insertAfter = after(info)
         targeted = true
     }
     func dropExited(info: DropInfo) { targeted = false }
     func dropUpdated(info: DropInfo) -> DropProposal? {
+        if store.owner.sidebarLift != nil, !onSpace {
+            store.sidebarReorder.move(to: NSEvent.mouseLocation, in: store)
+            return DropProposal(operation: store.sidebarReorder.target == nil ? .cancel : .move)
+        }
         insertAfter = after(info)
         return DropProposal(operation: store.owner.sidebarDrag == nil ? .copy : .move)
     }
     func performDrop(info: DropInfo) -> Bool {
         targeted = false
-        return withAnimation(reduceMotion ? nil : .smooth(duration: 0.24)) {
+        if store.owner.sidebarLift != nil, !onSpace {
+            guard let target = store.sidebarReorder.target, store.canPreviewSidebarDrop(target) else { return false }
+            return withAnimation(LeanMotion.collection.unlessReducingMotion(reduceMotion)) {
+                store.acceptDrop(
+                    info.itemProviders(for: [BrowserDragPayload.type, UTType.url.identifier]),
+                    before: target.before, folder: target.folder, spaceID: target.spaceID, placement: target.placement)
+            }
+        }
+        return withAnimation(LeanMotion.collection.unlessReducingMotion(reduceMotion)) {
             store.acceptDrop(
                 info.itemProviders(for: [BrowserDragPayload.type, UTType.url.identifier]),
                 before: before.flatMap {

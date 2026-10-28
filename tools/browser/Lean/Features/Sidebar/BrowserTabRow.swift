@@ -42,6 +42,7 @@ struct BrowserTabRow: View {
                 if selected { BrowserShortcutHint(text: "⌘W") }
                 if showsAction {
                     Button {
+                        guard !store.owner.suppressesSidebarActivation else { return }
                         if tab.placement == .current {
                             store.requestDeleteTabs([tab.id])
                         } else if let url = tab.savedURL, away {
@@ -90,6 +91,10 @@ struct BrowserTabRow: View {
                 isEnabled: store.editingTabID != tab.id)
         )
         .modifier(BrowserDropArea(store: store, before: tab.id))
+        .modifier(
+            BrowserSidebarReorderItem(
+                store: store, id: tab.id, placement: tab.placement, folderID: tab.folderID,
+                parentItemID: store.activeSpace.splits.first { $0.tabIDs.contains(tab.id) }?.id))
     }
 
     private var showsAction: Bool {

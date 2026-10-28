@@ -9,6 +9,7 @@ struct BrowserSidebar: View {
     @State private var resizeStart: CGFloat?
     @State private var listHovered = false
     @State private var listHeight: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
@@ -38,12 +39,18 @@ struct BrowserSidebar: View {
                         }
                     }
                     .scrollIndicators(.never)
+                    .onScrollGeometryChange(for: CGFloat.self) {
+                        $0.contentOffset.y
+                    } action: { old, new in
+                        store.sidebarReorder.scroll(by: old - new, in: store)
+                    }
                     .onHover { listHovered = $0 }
                 }
             }
         }
         .font(.system(size: 13))
         .focusEffectDisabled()
+        .animation(LeanMotion.collection.unlessReducingMotion(reduceMotion), value: store.activeSpace.orderedSidebarIDs)
         .frame(width: store.sidebarWidth)
         .background(LeanBrandTheme.surface, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
@@ -82,18 +89,23 @@ struct BrowserSidebar: View {
 
     @ViewBuilder
     private var pinnedTabs: some View {
-        if store.isDragging && pins.isEmpty {
-            dropTarget("Pinned Tabs", placement: .pinned).padding(.horizontal, 16)
-        }
-        if !pins.isEmpty {
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: min(2, pins.count)), spacing: 8
+        if !pins.isEmpty || store.owner.sidebarLift != nil {
+            BrowserPinnedTabSlotLayout(
+                projection: store.sidebarReorder.pinnedLayout(
+                    in: store.activeSpace, width: store.sidebarWidth - 32)
             ) {
                 ForEach(pins) { BrowserSidebarItem(tab: $0, store: store, pinned: true) }
+                RoundedRectangle(cornerRadius: 20).fill(.primary.opacity(0.035))
+                    .opacity(store.sidebarReorder.target?.placement == .pinned ? 1 : 0)
+                    .allowsHitTesting(false).accessibilityHidden(true)
             }
+            .modifier(BrowserDropArea(store: store, placement: .pinned))
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 12)
+            .animation(LeanMotion.dragSource.unlessReducingMotion(reduceMotion), value: store.sidebarReorder.target)
+            .animation(
+                LeanMotion.dragSource.unlessReducingMotion(reduceMotion), value: store.owner.sidebarLift?.rootIDs)
         }
     }
 

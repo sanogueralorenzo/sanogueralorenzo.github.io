@@ -20,6 +20,7 @@ final class BrowserStore {
     var selectionRangeBase: Set<UUID>?
     var sidebarKeyboardSelection = false
     var isDragging = false
+    let sidebarReorder = BrowserSidebarReorderState()
     var recentSwitcherPresented = false
     var recentSwitcherIndex = 0
     var session: BrowserSession {

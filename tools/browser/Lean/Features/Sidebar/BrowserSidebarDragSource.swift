@@ -33,7 +33,11 @@ private struct BrowserSidebarDragSourceHost: NSViewRepresentable {
 @MainActor
 final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
     private weak var owner: BrowserSessionOwner?
+    private weak var sourceStore: BrowserStore?
     private var exportsURL = false
+    private var preview: BrowserSidebarDragPreview?
+
+    override var isFlipped: Bool { true }
 
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
@@ -50,37 +54,61 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
             if url.isFileURL { item.setString(url.absoluteString, forType: .fileURL) }
         }
         let dragging = NSDraggingItem(pasteboardWriter: item)
-        let count = payload.ids.count + payload.folderIDs.count
-        let space = store.session.spaces.first { $0.id == payload.spaceID }
-        let folder = payload.ids.isEmpty ? space?.folders.first { payload.folderIDs.contains($0.id) } : nil
-        let tab = space?.tabs.first { payload.ids.contains($0.id) }
-        let preview = HStack(spacing: 8) {
-            if let tab {
-                TabIcon(tab: tab)
-            } else {
-                Image(systemName: folder != nil ? "folder.fill" : "circle.fill")
-            }
-            Text(folder?.title ?? title).lineLimit(1)
-            if count > 1 { Text("\(count)").foregroundStyle(.secondary) }
-        }
-        .font(.system(size: 13))
-        .padding(.horizontal, 12)
-        .frame(width: max(80, bounds.width), height: max(28, bounds.height), alignment: .leading)
-        .background(LeanBrandTheme.surface, in: RoundedRectangle(cornerRadius: 20))
-        .environment(
-            \.colorScheme,
-            window?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .dark : .light)
-        let renderer = ImageRenderer(content: preview)
-        renderer.scale = window?.backingScaleFactor ?? 2
-        guard let image = renderer.nsImage else { return }
-        dragging.setDraggingFrame(bounds, contents: image)
+        // The inert child panel owns the one visible preview, including over
+        // WebKit and outside the list's scroll clip.
+        let transparent = NSImage(size: NSSize(width: 1, height: 1), flipped: false) { _ in true }
+        dragging.setDraggingFrame(bounds, contents: transparent)
         owner = store.owner
+        sourceStore = store
         exportsURL = url != nil
+        store.owner.sidebarLandingToken = nil
+        store.owner.sidebarLandingIDs = []
+        store.owner.sidebarLandingPreview?.cancel()
+        store.owner.sidebarLandingPreview = nil
         store.owner.sidebarDrag = payload
         store.owner.sidebarDragSource = self
+        if let space = store.session.spaces.first(where: { $0.id == payload.spaceID }),
+            let lift = store.sidebarReorder.makeLift(payload, in: space)
+        {
+            store.owner.sidebarLift = lift
+            for context in store.owner.contexts.values where !context.isClosed {
+                context.sidebarReorder.begin(lift, in: context)
+            }
+        }
+        if let window {
+            let frame = window.convertToScreen(convert(bounds, to: nil))
+            preview = BrowserSidebarDragPreview(
+                store: store, payload: payload, title: title, frame: frame,
+                grab: convert(event.locationInWindow, from: nil))
+            preview?.move(to: NSEvent.mouseLocation, target: nil, frame: nil)
+        }
         store.isDragging = true
         let session = beginDraggingSession(with: [dragging], event: event, source: self)
-        session.animatesToStartingPositionsOnCancelOrFail = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        session.animatesToStartingPositionsOnCancelOrFail = false
+    }
+
+    func draggingSession(_ session: NSDraggingSession, movedTo screenPoint: NSPoint) {
+        guard let owner else { return }
+        let contexts = owner.contexts.values.filter { !$0.isClosed }
+        let window = NSApp.orderedWindows.first { window in
+            window.frame.contains(screenPoint) && contexts.contains { $0.window === window }
+        }
+        var destination: BrowserStore?
+        for context in contexts {
+            if context.sidebarReorder.lift == nil, let lift = owner.sidebarLift {
+                context.sidebarReorder.begin(lift, in: context)
+            }
+            context.isDragging = context === sourceStore || context.window === window
+            if context.window === window {
+                context.sidebarReorder.move(to: screenPoint, in: context)
+                destination = context
+            } else {
+                context.sidebarReorder.move(to: NSPoint(x: -1_000_000, y: -1_000_000), in: context)
+            }
+        }
+        preview?.move(
+            to: screenPoint, target: destination?.sidebarReorder.target,
+            frame: destination.flatMap { $0.sidebarReorder.landingFrame(in: $0) })
     }
 
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext)
@@ -90,11 +118,38 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
     }
 
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
-        owner?.sidebarDrag = nil
-        owner?.sidebarDragSource = nil
+        // AppKit can deliver the source button's release after the drop.
+        // Crest suppresses activation for the same quarter-second handoff.
+        owner?.sidebarActivationSuppressedUntil = Date().addingTimeInterval(0.25)
         if let owner {
-            for context in owner.contexts.values { context.isDragging = false }
+            let token = UUID()
+            owner.sidebarLandingToken = token
+            owner.sidebarLandingIDs = owner.sidebarLift?.rootIDs ?? []
+            let landing = owner.contexts.values.compactMap { $0.sidebarReorder.landingFrame(in: $0) }.first
+            owner.sidebarDrag = nil
+            owner.sidebarDragSource = nil
+            owner.sidebarLift = nil
+            withAnimation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : LeanMotion.dragSource) {
+                for context in owner.contexts.values {
+                    context.isDragging = false
+                    context.sidebarReorder.finish()
+                }
+            }
+            if let preview {
+                owner.sidebarLandingPreview = preview
+                preview.finish(accepted: !operation.isEmpty, landing: landing) {
+                    guard owner.sidebarLandingToken == token else { return }
+                    owner.sidebarLandingIDs = []
+                    owner.sidebarLandingToken = nil
+                    owner.sidebarLandingPreview = nil
+                }
+            } else {
+                owner.sidebarLandingIDs = []
+                owner.sidebarLandingToken = nil
+            }
         }
+        preview = nil
+        sourceStore = nil
         owner = nil
         exportsURL = false
     }

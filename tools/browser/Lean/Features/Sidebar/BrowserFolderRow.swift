@@ -110,7 +110,11 @@ struct BrowserFolderRow: View {
             )
             .background(
                 LeanBrandTheme.line.opacity(folder.isExpanded ? 0.22 : 0),
-                in: RoundedRectangle(cornerRadius: max(0, 20 - CGFloat(depth) * 4)))
+                in: RoundedRectangle(cornerRadius: max(0, 20 - CGFloat(depth) * 4))
+            )
+            .modifier(
+                BrowserSidebarReorderItem(
+                    store: store, id: folder.id, placement: folder.placement ?? .saved, folderID: folder.parentID))
         }
     }
 
