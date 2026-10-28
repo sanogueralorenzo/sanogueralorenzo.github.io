@@ -58,6 +58,9 @@ struct BrowserNativeSplit: NSViewRepresentable {
         for page in pages {
             let view = panes[page.id] ?? NSHostingView(rootView: BrowserPageContent(page: page, store: store))
             view.sizingOptions = []
+            // BrowserRoot owns the frameless window's safe areas. A nested
+            // hosting view must not add the titlebar inset again.
+            view.safeAreaRegions = []
             view.rootView = BrowserPageContent(page: page, store: store)
             panes[page.id] = view
         }
@@ -83,6 +86,7 @@ struct BrowserNativeSplit: NSViewRepresentable {
                         rootView: BrowserSplitDropCard(
                             tab: store.activeSpace.tabs.first { $0.id == id }))
                 placeholder.sizingOptions = []
+                placeholder.safeAreaRegions = []
                 placeholders[id] = placeholder
                 view = placeholder
             } else if let pane = panes[id] {
