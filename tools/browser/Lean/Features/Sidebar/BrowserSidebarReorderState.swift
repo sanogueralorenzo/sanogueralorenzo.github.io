@@ -12,7 +12,7 @@ final class BrowserSidebarReorderState {
     }
     struct Zone: Equatable {
         let id: UUID
-        let frame: CGRect
+        var frame: CGRect
         let before: UUID?
         let folder: UUID?
         let placement: BrowserTab.Placement?
@@ -20,6 +20,7 @@ final class BrowserSidebarReorderState {
         let allowsAfter: Bool
         var isSpace = false
         var isScrollable = false
+        var isNesting = false
     }
     struct Target: Equatable {
         let zoneID: UUID
@@ -137,6 +138,11 @@ final class BrowserSidebarReorderState {
     func frame(of id: UUID) -> CGRect? { restingRows[id]?.frame ?? rows[id]?.row.frame }
     func hides(_ id: UUID) -> Bool { lift?.rootIDs.contains(id) == true }
 
+    func isTargetedFolder(_ id: UUID) -> Bool {
+        guard let target, target.folder == id else { return false }
+        return restingZones[target.zoneID]?.isNesting == true
+    }
+
     func pinnedLayout(in space: BrowserSpace, width: CGFloat) -> BrowserPinnedTabReorderLayout {
         let ids = space.pinnedTabs.map(\.id)
         var lifted = lift?.spaceID == space.id ? lift?.rootIDs ?? [] : []
@@ -194,29 +200,31 @@ final class BrowserSidebarReorderState {
         let candidates = restingZones.values.filter { zone in
             guard !zone.isSpace, zone.spaceID == store.activeSpace.id else { return false }
             return projected(zone, in: store).contains(point)
-        }.sorted { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height }
-        guard let zone = candidates.first else {
-            setTarget(nil, in: store)
+        }.sorted {
+            if $0.isNesting != $1.isNesting { return $0.isNesting }
+            return $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height
+        }
+        for zone in candidates {
+            let frame = projected(zone, in: store)
+            let tab = store.activeSpace.tabs.first { $0.id == zone.before }
+            let folder = store.activeSpace.folders.first { $0.id == zone.before }
+            let destinationFolder = store.activeSpace.folders.first { $0.id == zone.folder }
+            let placement =
+                zone.placement ?? tab?.placement ?? folder?.placement ?? destinationFolder?.placement ?? .saved
+            let parent = zone.folder ?? tab?.folderID ?? folder?.parentID
+            let after = zone.allowsAfter && (placement == .pinned ? point.x > frame.midX : point.y > frame.midY)
+            let before = zone.before.flatMap {
+                store.sidebarInsertionTarget(
+                    $0, after: after,
+                    excluding: Set((store.owner.sidebarDrag?.ids ?? []) + (store.owner.sidebarDrag?.folderIDs ?? [])))
+            }
+            let next = Target(
+                zoneID: zone.id, before: before, folder: parent, placement: placement, spaceID: zone.spaceID)
+            guard store.canPreviewSidebarDrop(next) else { continue }
+            setTarget(next, in: store)
             return
         }
-        let frame = projected(zone, in: store)
-        let tab = store.activeSpace.tabs.first { $0.id == zone.before }
-        let folder = store.activeSpace.folders.first { $0.id == zone.before }
-        let destinationFolder = store.activeSpace.folders.first { $0.id == zone.folder }
-        let placement = zone.placement ?? tab?.placement ?? folder?.placement ?? destinationFolder?.placement ?? .saved
-        let parent = zone.folder ?? tab?.folderID ?? folder?.parentID
-        let after = zone.allowsAfter && (placement == .pinned ? point.x > frame.midX : point.y > frame.midY)
-        let before = zone.before.flatMap {
-            store.sidebarInsertionTarget(
-                $0, after: after,
-                excluding: Set((store.owner.sidebarDrag?.ids ?? []) + (store.owner.sidebarDrag?.folderIDs ?? [])))
-        }
-        let next = Target(zoneID: zone.id, before: before, folder: parent, placement: placement, spaceID: zone.spaceID)
-        guard store.canPreviewSidebarDrop(next) else {
-            setTarget(nil, in: store)
-            return
-        }
-        setTarget(next, in: store)
+        setTarget(nil, in: store)
     }
 
     func scroll(by delta: CGFloat, in store: BrowserStore) {
@@ -229,10 +237,9 @@ final class BrowserSidebarReorderState {
         }
         restingZones = restingZones.mapValues { zone in
             guard zone.isScrollable else { return zone }
-            return Zone(
-                id: zone.id, frame: zone.frame.offsetBy(dx: 0, dy: delta), before: zone.before,
-                folder: zone.folder, placement: zone.placement, spaceID: zone.spaceID, allowsAfter: zone.allowsAfter,
-                isScrollable: true)
+            var next = zone
+            next.frame = zone.frame.offsetBy(dx: 0, dy: delta)
+            return next
         }
         if let lift {
             layout.removedFrames = lift.rootIDs.compactMap { id in
@@ -275,11 +282,12 @@ final class BrowserSidebarReorderState {
         {
             return pinnedLayout(in: store.activeSpace, width: grid.width).frame(for: id, in: grid) ?? .zero
         }
-        let frame = layout.projected(
+        var frame = layout.projected(
             zone.frame, in: zone.spaceID,
             containsGap: zone.folder.map {
-                layout.gap?.containingFolders.contains($0) == true
+                !zone.isNesting && layout.gap?.containingFolders.contains($0) == true
             } ?? false)
+        if zone.isNesting { frame = frame.insetBy(dx: 0, dy: frame.height / 4) }
         // Crest clips projected rows to their scroll viewport; frozen frames
         // may otherwise reach behind fixed Pins and toolbar controls.
         guard zone.isScrollable else { return frame }

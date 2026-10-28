@@ -176,8 +176,10 @@ struct BrowserDropArea: ViewModifier {
     var isSpaceRail = false
     @State private var targeted = false
     @State private var insertAfter = false
+    @State private var nesting = true
     @State private var size = CGSize.zero
     @State private var zoneID = UUID()
+    @State private var besideZoneID = UUID()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var pinned: Bool {
@@ -189,7 +191,7 @@ struct BrowserDropArea: ViewModifier {
             of: [BrowserDragPayload.type, UTType.url.identifier],
             delegate: BrowserSidebarDropDelegate(
                 store: store, before: before, folder: folder, spaceID: spaceID, placement: placement,
-                targeted: $targeted, insertAfter: $insertAfter, size: size, allowsAfter: allowsAfter,
+                targeted: $targeted, insertAfter: $insertAfter, nesting: $nesting, size: size, allowsAfter: allowsAfter,
                 reduceMotion: reduceMotion)
         )
         .onGeometryChange(for: CGRect.self) {
@@ -201,9 +203,22 @@ struct BrowserDropArea: ViewModifier {
                     id: zoneID, frame: frame, before: before, folder: folder, placement: placement,
                     spaceID: spaceID ?? store.activeSpace.id, allowsAfter: allowsAfter,
                     isSpace: spaceID != nil && before == nil && folder == nil && placement == nil,
-                    isScrollable: spaceID == nil && placement != .pinned && !pinned))
+                    isScrollable: spaceID == nil && placement != .pinned && !pinned,
+                    isNesting: folder != nil && before == nil))
+            if let folder, before == nil,
+                let header = store.activeSpace.folders.first(where: { $0.id == folder })
+            {
+                store.sidebarReorder.register(
+                    .init(
+                        id: besideZoneID, frame: frame, before: folder, folder: nil,
+                        placement: header.placement ?? .saved, spaceID: store.activeSpace.id,
+                        allowsAfter: true, isScrollable: true))
+            }
         }
-        .onDisappear { store.sidebarReorder.removeZone(zoneID) }
+        .onDisappear {
+            store.sidebarReorder.removeZone(zoneID)
+            store.sidebarReorder.removeZone(besideZoneID)
+        }
         .onGeometryChange(for: CGSize.self) {
             $0.size
         } action: {
@@ -213,12 +228,13 @@ struct BrowserDropArea: ViewModifier {
             if !active {
                 targeted = false
                 insertAfter = false
+                nesting = true
             }
         }
         .overlay {
             Group {
                 if targeted && store.owner.sidebarLift == nil && store.owner.sidebarDrag?.kind != .space {
-                    if before != nil {
+                    if before != nil || (folder != nil && !nesting) {
                         Rectangle().fill(LeanBrandTheme.textDisplay)
                             .frame(width: pinned ? 2 : nil, height: pinned ? nil : 2)
                             .frame(
@@ -256,6 +272,7 @@ private struct BrowserSidebarDropDelegate: DropDelegate {
     let placement: BrowserTab.Placement?
     @Binding var targeted: Bool
     @Binding var insertAfter: Bool
+    @Binding var nesting: Bool
     let size: CGSize
     let allowsAfter: Bool
     let reduceMotion: Bool
@@ -270,9 +287,14 @@ private struct BrowserSidebarDropDelegate: DropDelegate {
                 ? info.location.x > size.width / 2 : info.location.y > size.height / 2)
     }
 
+    private func nests(_ info: DropInfo) -> Bool {
+        folder == nil || (size.height / 4..<size.height * 3 / 4).contains(info.location.y)
+    }
+
     func dropEntered(info: DropInfo) {
         if store.owner.sidebarLift != nil { store.sidebarReorder.move(to: NSEvent.mouseLocation, in: store) }
         insertAfter = after(info)
+        nesting = nests(info)
         targeted = true
     }
     func dropExited(info: DropInfo) { targeted = false }
@@ -286,6 +308,7 @@ private struct BrowserSidebarDropDelegate: DropDelegate {
             return DropProposal(operation: store.sidebarReorder.target == nil ? .cancel : .move)
         }
         insertAfter = after(info)
+        nesting = nests(info)
         return DropProposal(operation: store.owner.sidebarDrag == nil ? .copy : .move)
     }
     func performDrop(info: DropInfo) -> Bool {
@@ -306,17 +329,22 @@ private struct BrowserSidebarDropDelegate: DropDelegate {
                     before: target.before, folder: target.folder, spaceID: target.spaceID, placement: target.placement)
             }
         }
+        let header = folder.flatMap { id in store.activeSpace.folders.first { $0.id == id } }
+        let nesting = nests(info)
+        let anchor = before ?? (nesting ? nil : header?.id)
+        let parent = nesting ? folder ?? targetTab?.folderID ?? targetFolder?.parentID : header?.parentID
         return withAnimation(LeanMotion.collection.unlessReducingMotion(reduceMotion)) {
             store.acceptDrop(
                 info.itemProviders(for: [BrowserDragPayload.type, UTType.url.identifier]),
-                before: before.flatMap {
+                before: anchor.flatMap {
                     store.sidebarInsertionTarget(
                         $0, after: after(info), in: spaceID,
                         excluding: Set(
                             (store.owner.sidebarDrag?.ids ?? []) + (store.owner.sidebarDrag?.folderIDs ?? [])))
                 },
-                folder: folder ?? targetTab?.folderID ?? targetFolder?.parentID, spaceID: spaceID,
-                placement: placement ?? targetTab?.placement ?? targetFolder.map { $0.placement ?? .saved },
+                folder: parent, spaceID: spaceID,
+                placement: placement ?? targetTab?.placement ?? targetFolder.map { $0.placement ?? .saved }
+                    ?? header.map { $0.placement ?? .saved },
                 afterSpace: onSpace && after(info))
         }
     }

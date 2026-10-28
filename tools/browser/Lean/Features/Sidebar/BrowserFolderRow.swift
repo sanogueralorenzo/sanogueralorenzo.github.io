@@ -52,12 +52,8 @@ struct BrowserFolderRow: View {
                         isEnabled: store.editingFolderID != folder.id)
                 )
                 .modifier(BrowserDropArea(store: store, folder: folder.id))
-                .overlay(alignment: .top) {
-                    Color.clear.frame(height: 5).contentShape(Rectangle())
-                        .modifier(
-                            BrowserDropArea(
-                                store: store, before: folder.id, placement: folder.placement ?? .saved,
-                                allowsAfter: false))
+                .overlay {
+                    BrowserFolderDropHighlight(state: store.sidebarReorder, id: folder.id)
                 }
                 .contextMenu {
                     if store.selectedFolders.contains(folder.id) {
@@ -138,6 +134,23 @@ struct BrowserFolderRow: View {
         }.font(.caption).frame(maxWidth: .infinity, alignment: .leading)
     }
 
+}
+
+/// Crest keeps nesting feedback in its own view so targeting a folder does
+/// not redraw all of that folder's expanded contents.
+private struct BrowserFolderDropHighlight: View {
+    let state: BrowserSidebarReorderState
+    let id: UUID
+
+    var body: some View {
+        if state.isTargetedFolder(id) {
+            let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+            let color = LeanBrandTheme.canvas.opacity(0.72)
+            shape.fill(color.opacity(0.14))
+                .overlay { shape.strokeBorder(color, lineWidth: 1.5) }
+                .allowsHitTesting(false).accessibilityHidden(true)
+        }
+    }
 }
 
 private struct GitHubFolderMenu: View {

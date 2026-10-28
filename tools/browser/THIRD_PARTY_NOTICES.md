@@ -2,8 +2,8 @@
 
 Lean derives from Paul Davis's [Crest](https://github.com/pauljoda/Crest),
 licensed under the [Mozilla Public License 2.0](LICENSE).
-The sidebar's projected reorder layout, pinned slots, floating drag-preview host,
-activation handoff and motion roles adapt the matching Crest components.
+The sidebar's projected reorder layout, pinned slots, folder nesting bands and feedback,
+floating drag-preview host, activation handoff and motion roles adapt the matching Crest components.
 Space-picker displacement and native edge scrolling also adapt Crest's implementations.
 
 The GitHub live folder adapts response formats and selectors from
