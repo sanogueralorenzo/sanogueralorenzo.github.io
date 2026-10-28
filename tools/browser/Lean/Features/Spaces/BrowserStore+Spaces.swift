@@ -68,9 +68,13 @@ extension BrowserStore {
             session.archive.removeAll { $0.spaceID == id }
             session.downloads.removeAll { $0.spaceID == id }
             let fallback = session.spaces.first(where: { !$0.isPrivate })!.id
-            for context in owner.contexts.values where context.windowState.spaceID == id {
-                context.windowState.spaceID = fallback
-                context.resumePages()
+            for context in owner.contexts.values {
+                context.sidebarScrollOffsets[id] = nil
+                if context.windowState.spaceID == id {
+                    context.sidebarSpaceStep = nil
+                    context.windowState.spaceID = fallback
+                    context.resumePages()
+                }
             }
             for i in session.windows.indices {
                 session.windows[i].tabsBySpace[id] = nil
@@ -107,7 +111,7 @@ extension BrowserStore {
 
     func adjacentSpace(_ delta: Int) {
         guard let index = session.spaces.firstIndex(where: { $0.id == activeSpace.id }) else { return }
-        selectSpace(session.spaces[(index + delta + session.spaces.count) % session.spaces.count].id)
+        selectSpace(session.spaces[(index + delta + session.spaces.count) % session.spaces.count].id, step: delta)
     }
 }
 

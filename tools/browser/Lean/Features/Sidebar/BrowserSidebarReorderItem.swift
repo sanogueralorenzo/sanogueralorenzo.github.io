@@ -10,6 +10,7 @@ struct BrowserSidebarReorderItem: ViewModifier {
     var parentItemID: UUID?
     @State private var identity = UUID()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.sidebarSpaceID) private var presentedSpaceID
 
     private var state: BrowserSidebarReorderState { store.sidebarReorder }
     private var hidden: Bool { state.hides(id) || store.owner.sidebarDrag.landingIDs.contains(id) }
@@ -27,7 +28,9 @@ struct BrowserSidebarReorderItem: ViewModifier {
                     state.register(
                         .init(
                             id: id,
-                            section: .init(spaceID: store.activeSpace.id, placement: placement, folderID: folderID),
+                            section: .init(
+                                spaceID: presentedSpaceID ?? store.activeSpace.id, placement: placement,
+                                folderID: folderID),
                             parentItemID: parentItemID ?? folderID, frame: frame), owner: identity)
                 }
                 .onDisappear { state.removeRow(id, owner: identity) }

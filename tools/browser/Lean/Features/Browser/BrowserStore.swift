@@ -22,6 +22,9 @@ final class BrowserStore {
     var isDragging = false
     let sidebarReorder = BrowserSidebarReorderState()
     let sidebarFolders = BrowserSidebarFolderVisibility()
+    var sidebarSpaceStep: Int?
+    var sidebarSpaceTransitioning = false
+    @ObservationIgnored var sidebarScrollOffsets: [UUID: CGFloat] = [:]
     var recentSwitcherPresented = false
     var recentSwitcherIndex = 0
     var session: BrowserSession {
@@ -165,6 +168,7 @@ final class BrowserStore {
         guard let (space, _) = tabIndex(id) else { return }
         let previousPages = visiblePages
         let previousPage = activePage
+        prepareSidebarSpaceChange(session.spaces[space].id)
         windowState.spaceID = session.spaces[space].id
         if !session.spaces[space].isPrivate { session.selectedSpaceID = session.spaces[space].id }
         setSelectedTab(id, in: session.spaces[space].id)
@@ -183,8 +187,9 @@ final class BrowserStore {
         changed()
     }
 
-    func selectSpace(_ id: UUID) {
+    func selectSpace(_ id: UUID, step: Int? = nil) {
         guard session.spaces.contains(where: { $0.id == id }), id != activeSpace.id else { return }
+        prepareSidebarSpaceChange(id, step: step)
         let previous = visiblePages
         windowState.spaceID = id
         if !activeSpace.isPrivate { session.selectedSpaceID = id }
@@ -201,6 +206,17 @@ final class BrowserStore {
             page.beginPictureInPicture()
         }
         changed()
+    }
+
+    private func prepareSidebarSpaceChange(_ id: UUID, step: Int? = nil) {
+        guard id != activeSpace.id,
+            let origin = session.spaces.firstIndex(where: { $0.id == activeSpace.id }),
+            let destination = session.spaces.firstIndex(where: { $0.id == id })
+        else { return }
+        sidebarSpaceStep = step ?? (abs(destination - origin) == 1 ? destination - origin : nil)
+        sidebarSpaceTransitioning =
+            sidebarSpaceStep != nil && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            && owner.sidebarDrag.payload == nil
     }
 
     private func loadSelection() {

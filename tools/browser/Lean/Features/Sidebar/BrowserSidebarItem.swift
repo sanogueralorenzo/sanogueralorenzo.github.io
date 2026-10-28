@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct BrowserSidebarItem: View {
+    @Environment(\.sidebarSpaceID) private var presentedSpaceID
+    private var space: BrowserSpace { store.sidebarSpace(presentedSpaceID) }
     let tab: BrowserTab
     let store: BrowserStore
     var pinned = false
@@ -8,12 +10,12 @@ struct BrowserSidebarItem: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        if let split = store.activeSpace.splits.first(where: { $0.tabIDs.contains(tab.id) }) {
+        if let split = space.splits.first(where: { $0.tabIDs.contains(tab.id) }) {
             if split.tabIDs.first == tab.id {
                 VStack(spacing: 0) {
                     splitHeader(split)
                     ForEach(split.tabIDs, id: \.self) { id in
-                        if let member = store.activeSpace.tabs.first(where: { $0.id == id }) {
+                        if let member = space.tabs.first(where: { $0.id == id }) {
                             BrowserTabRow(tab: member, store: store, pinned: pinned, depth: depth + 1)
                                 .padding(.vertical, 1)
                         }
@@ -39,7 +41,7 @@ struct BrowserSidebarItem: View {
         HStack(spacing: 7) {
             ZStack {
                 ForEach(Array(split.tabIDs.prefix(3).enumerated()), id: \.element) { index, id in
-                    if let member = store.activeSpace.tabs.first(where: { $0.id == id }) {
+                    if let member = space.tabs.first(where: { $0.id == id }) {
                         TabIcon(tab: member).scaleEffect(0.65).background(LeanBrandTheme.surface, in: Circle())
                             .rotationEffect(.degrees(Double(index - 1) * 3.5)).offset(x: CGFloat(index - 1) * 4)
                     }
@@ -51,7 +53,7 @@ struct BrowserSidebarItem: View {
             } label: {
                 Text(
                     split.tabIDs.compactMap { id in
-                        store.activeSpace.tabs.first { $0.id == id }.map { $0.customTitle ?? $0.title }
+                        space.tabs.first { $0.id == id }.map { $0.customTitle ?? $0.title }
                     }.joined(separator: " / ")
                 )
                 .font(.caption.weight(.semibold)).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)

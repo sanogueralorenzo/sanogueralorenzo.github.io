@@ -7,9 +7,6 @@ struct BrowserSidebar: View {
     @State private var showsSpaceEditor = false
 
     @State private var resizeStart: CGFloat?
-    @State private var listHovered = false
-    @State private var listHeight: CGFloat = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,39 +22,12 @@ struct BrowserSidebar: View {
             if let utility = store.utility {
                 BrowserUtilityList(utility: utility, store: store).padding(.horizontal, 16)
             } else {
-                pinnedTabs
-                GeometryReader { viewport in
-                    ScrollView {
-                        VStack(spacing: 0) {
-                            tabRows.onGeometryChange(for: CGFloat.self) {
-                                $0.size.height
-                            } action: {
-                                listHeight = $0
-                            }
-                            BrowserSidebarBackground(store: store)
-                                .frame(height: max(0, viewport.size.height - listHeight))
-                        }
-                    }
-                    .scrollIndicators(.never)
-                    .onGeometryChange(for: CGRect.self) {
-                        $0.frame(in: .global)
-                    } action: {
-                        store.sidebarReorder.updateScrollViewport($0, in: store)
-                    }
-                    .onDisappear { store.sidebarReorder.updateScrollViewport(nil, in: store) }
-                    .onScrollGeometryChange(for: CGFloat.self) {
-                        $0.contentOffset.y
-                    } action: { old, new in
-                        store.sidebarReorder.scroll(by: old - new, in: store)
-                    }
-                    .onHover { listHovered = $0 }
-                }
+                BrowserSidebarSpacePager(store: store)
             }
         }
         .font(.system(size: 13))
         .background { BrowserSidebarFolderReconciler(store: store) }
         .focusEffectDisabled()
-        .animation(LeanMotion.collection.unlessReducingMotion(reduceMotion), value: store.activeSpace.orderedSidebarIDs)
         .frame(width: store.sidebarWidth)
         .background(LeanBrandTheme.surface, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
@@ -73,92 +43,6 @@ struct BrowserSidebar: View {
             content: {
                 SpaceEditor(space: editingSpace, store: store) { showsSpaceEditor = false }
             })
-    }
-
-    private var tabRows: some View {
-        VStack(spacing: 2) {
-            VStack(spacing: 2) { BrowserSidebarList(store: store, placement: .saved) }
-                .modifier(BrowserDropArea(store: store, placement: .saved))
-            currentDivider
-                .frame(
-                    height: store.sidebarReorder.showsCurrentDivider(in: store)
-                        ? SidebarGeometry.currentDividerHeight : 0
-                )
-                .clipped().allowsHitTesting(store.sidebarReorder.showsCurrentDivider(in: store))
-                .accessibilityHidden(!store.sidebarReorder.showsCurrentDivider(in: store))
-                .onGeometryChange(for: CGRect.self) {
-                    $0.frame(in: .global)
-                } action: {
-                    store.sidebarReorder.registerDivider($0)
-                }
-            VStack(spacing: 2) { BrowserSidebarList(store: store, placement: .current) }
-                .modifier(BrowserDropArea(store: store, placement: .current))
-            newTab
-        }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 8)
-        .padding(.top, 8)
-        .frame(maxWidth: .infinity, alignment: .top)
-    }
-
-    private var pinnedTabs: some View {
-        let projection = store.sidebarReorder.pinnedLayout(in: store.activeSpace, width: store.sidebarWidth - 32)
-        return
-            BrowserPinnedTabSlotLayout(
-                projection: projection
-            ) {
-                ForEach(pins) { BrowserSidebarItem(tab: $0, store: store, pinned: true) }
-                RoundedRectangle(cornerRadius: 20).fill(.primary.opacity(0.035))
-                    .opacity(store.sidebarReorder.target?.isPinned == true ? 1 : 0)
-                    .allowsHitTesting(false).accessibilityHidden(true)
-            }
-            .padding(.top, projection.height > 0 ? SidebarGeometry.pinnedTopInset : 0)
-            .padding(.bottom, projection.height > 0 ? SidebarGeometry.pinnedBottomInset : 0)
-            .modifier(BrowserDropArea(store: store, placement: .pinned))
-            .padding(.horizontal, 16)
-            .animation(LeanMotion.collection.unlessReducingMotion(reduceMotion), value: pins.map(\.id))
-            .animation(LeanMotion.dragSource.unlessReducingMotion(reduceMotion), value: store.sidebarReorder.target)
-            .animation(
-                LeanMotion.dragSource.unlessReducingMotion(reduceMotion), value: store.owner.sidebarDrag.lift?.rootIDs)
-    }
-
-    private var currentDivider: some View {
-        HStack(spacing: 8) {
-            Rectangle().fill(LeanBrandTheme.line).frame(height: 0.5)
-            if listHovered {
-                Button {
-                    store.clearCurrentTabs()
-                } label: {
-                    HStack(spacing: 4) {
-                        Text("Clear")
-                        BrowserShortcutHint(text: "⇧⌘K")
-                        Image(systemName: "archivebox")
-                    }.padding(.horizontal, 8).frame(height: 28)
-                }
-                .font(.caption.weight(.medium)).foregroundStyle(.secondary)
-                .buttonStyle(LeanChromeButtonStyle(controlSize: nil, cornerRadius: 14))
-                .accessibilityLabel("Archive Current Tabs")
-            }
-        }.frame(height: SidebarGeometry.currentDividerHeight)
-    }
-
-    private var newTab: some View {
-        Button {
-            store.presentAddress(newTab: true)
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "plus").font(.system(size: 17)).frame(width: 28)
-                Text("New Tab")
-                Spacer(minLength: 0)
-                BrowserShortcutHint(text: "⌘T")
-            }
-            .padding(.horizontal, 9)
-            .frame(height: SidebarGeometry.rowHeight)
-            .contentShape(Rectangle())
-        }
-        .foregroundStyle(.secondary)
-        .buttonStyle(LeanChromeButtonStyle(controlSize: nil, cornerRadius: 20))
-        .accessibilityIdentifier("new-tab")
     }
 
     private var resizeHandle: some View {
@@ -190,7 +74,6 @@ struct BrowserSidebar: View {
             }
     }
 
-    private var pins: [BrowserTab] { store.activeSpace.pinnedTabs }
     private var navigation: some View {
         HStack(alignment: .top, spacing: 0) {
             navigationButton("chevron.left", hint: "⌘[", enabled: store.activePage?.canGoBack == true) {

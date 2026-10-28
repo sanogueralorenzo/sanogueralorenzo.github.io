@@ -1,18 +1,20 @@
 import SwiftUI
 
 struct BrowserFolderRow: View {
+    @Environment(\.sidebarSpaceID) private var presentedSpaceID
+    private var space: BrowserSpace { store.sidebarSpace(presentedSpaceID) }
     let folder: BrowserFolder
     let store: BrowserStore
     let depth: Int
     var inheritedKeptTabID: UUID?
     @State private var hovering = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private var service: GitHubFolder { store.integration(for: store.activeSpace.id) }
+    private var service: GitHubFolder { store.integration(for: space.id) }
     private var keptTabID: UUID? { inheritedKeptTabID ?? store.sidebarFolders.state(for: folder.id).keptTabID }
     private var showsRows: Bool { folder.isExpanded || keptTabID != nil }
 
     var body: some View {
-        if folder.kind == .regular || !store.activeSpace.isPrivate {
+        if folder.kind == .regular || !space.isPrivate {
             VStack(spacing: 2) {
                 HStack(spacing: 8) {
                     if store.editingFolderID == folder.id {
@@ -83,9 +85,9 @@ struct BrowserFolderRow: View {
                             Button("Top Level") { store.moveFolderLocally(folder.id, into: nil) }.disabled(
                                 folder.parentID == nil)
                             ForEach(
-                                store.activeSpace.folders.filter {
+                                space.folders.filter {
                                     $0.kind == .regular
-                                        && !store.descendants(folder.id, in: store.activeSpace).contains($0.id)
+                                        && !store.descendants(folder.id, in: space).contains($0.id)
                                 }
                             ) { target in
                                 Button(target.title) { store.moveFolderLocally(folder.id, into: target.id) }.disabled(
@@ -133,7 +135,7 @@ struct BrowserFolderRow: View {
     }
 
     private var githubItems: some View {
-        let tabs = store.activeSpace.tabs.filter { $0.folderID == folder.id }
+        let tabs = space.tabs.filter { $0.folderID == folder.id }
         return VStack(spacing: 2) {
             if tabs.isEmpty {
                 if service.isLoading {
@@ -160,11 +162,13 @@ struct BrowserFolderRow: View {
 }
 
 private struct GitHubFolderMenu: View {
+    @Environment(\.sidebarSpaceID) private var presentedSpaceID
+    private var space: BrowserSpace { store.sidebarSpace(presentedSpaceID) }
     let folder: BrowserFolder
     let store: BrowserStore
 
     var body: some View {
-        let service = store.integration(for: store.activeSpace.id)
+        let service = store.integration(for: space.id)
         Text(
             !service.isSignedIn
                 ? "Not signed in to GitHub"
@@ -181,13 +185,13 @@ private struct GitHubFolderMenu: View {
                     minutes)
             }
         }
-        Button("Refresh") { store.integration(for: store.activeSpace.id).requestRefresh() }
+        Button("Refresh") { store.integration(for: space.id).requestRefresh() }
         Toggle("Created by Me", isOn: option(\.authorMe))
         Toggle("Assigned to Me", isOn: option(\.assignedMe))
         Toggle("Review Requests", isOn: option(\.reviewRequested))
         Toggle("Include Draft Pull Requests", isOn: option(\.includeDrafts))
         Menu("Repositories") {
-            ForEach(store.integration(for: store.activeSpace.id).repositories, id: \.self) { repository in
+            ForEach(store.integration(for: space.id).repositories, id: \.self) { repository in
                 Toggle(
                     repository,
                     isOn: Binding(
@@ -201,7 +205,7 @@ private struct GitHubFolderMenu: View {
                                 value.githubOptions.excludedRepositories.removeAll { $0 == repository }
                                 if !included { value.githubOptions.excludedRepositories.append(repository) }
                             }
-                            store.integration(for: store.activeSpace.id).requestRefresh()
+                            store.integration(for: space.id).requestRefresh()
                         }))
             }
         }
@@ -212,7 +216,7 @@ private struct GitHubFolderMenu: View {
             get: { folder.githubOptions[keyPath: keyPath] },
             set: { value in
                 store.updateFolder(folder.id) { $0.githubOptions[keyPath: keyPath] = value }
-                store.integration(for: store.activeSpace.id).requestRefresh()
+                store.integration(for: space.id).requestRefresh()
             })
     }
 }

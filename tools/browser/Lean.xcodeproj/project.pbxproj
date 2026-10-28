@@ -64,6 +64,7 @@
 		60A2876F6CB99F2C6868EE01 /* LeanMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93FD13D37764B55C1B984D32 /* LeanMain.swift */; };
 		60D7FF608B2963FFEEF6328C /* BrowserContentBlocking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C611A60CEBB8C39EA7D2ED8 /* BrowserContentBlocking.swift */; };
 		620F540349FC4E67DD2E77B8 /* CoreLocation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8DDB4D61AB790985DA741913 /* CoreLocation.framework */; };
+		63883A887E3D7295741CD381 /* BrowserSidebarSpacePager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76CCB80F61017C5C327B3250 /* BrowserSidebarSpacePager.swift */; };
 		6483B80801D15167A7CD2225 /* Animation+ReducedMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AFCD6A663DD13747DEFF50 /* Animation+ReducedMotion.swift */; };
 		6583676555FCBECF27FF9647 /* BrowserDataPortability.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5AC4A949B084839167C7E21 /* BrowserDataPortability.swift */; };
 		6860F9E3C27A36EDC2A671C7 /* BrowserImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40DCBEBDACDC617820F9AA7A /* BrowserImportView.swift */; };
@@ -137,6 +138,7 @@
 		DCDD05283F389850F2276173 /* GitHubLiveFolderOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A27B4D06EECBF0DB1A2A16D /* GitHubLiveFolderOptions.swift */; };
 		DFC7DDB8975887069B418322 /* BrowserUtilityList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09B16076193616CEB281F69D /* BrowserUtilityList.swift */; };
 		E11F9813A4B3C14323727888 /* BrowserSidebarDragSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E2862D1EB47A1B8B864BF27 /* BrowserSidebarDragSession.swift */; };
+		E31299B92D2F0D9AC684428B /* BrowserSidebarSpacePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84ABB34DC93F341403189949 /* BrowserSidebarSpacePage.swift */; };
 		E428CE66C4B7B832B3CE7481 /* GitHubLiveFolderOptions+Queries.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A728B55D82212F93011502 /* GitHubLiveFolderOptions+Queries.swift */; };
 		E42B10E0EFC77C5F41ED4B1D /* LeanInteractiveSurfaceModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8549801AD6F12C5D71254280 /* LeanInteractiveSurfaceModifier.swift */; };
 		E5AF0E38DF17C42CB3C056BA /* BrowserPageZoom.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9784501028E8FBB3266A05A4 /* BrowserPageZoom.swift */; };
@@ -226,6 +228,7 @@
 		7173D7CEBEA85F6BFE956D24 /* LeanColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeanColor.swift; sourceTree = "<group>"; };
 		757BAE2C87C013E32F07AAD3 /* BrowserGitHubPullRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserGitHubPullRequest.swift; sourceTree = "<group>"; };
 		760A533FEDB075DE7EA693D0 /* libcompression.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libcompression.tbd; path = usr/lib/libcompression.tbd; sourceTree = SDKROOT; };
+		76CCB80F61017C5C327B3250 /* BrowserSidebarSpacePager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSidebarSpacePager.swift; sourceTree = "<group>"; };
 		7878417C520E220DE6DA2463 /* BrowserTabRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserTabRow.swift; sourceTree = "<group>"; };
 		78A1E98ECAE7672A7200FA4A /* BrowserStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserStore.swift; sourceTree = "<group>"; };
 		78A298C18A277CFA63034D2E /* BrowserSidebarDragPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSidebarDragPreview.swift; sourceTree = "<group>"; };
@@ -236,6 +239,7 @@
 		7D22B264A13F91CF27397DFE /* BrowserWebKitDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserWebKitDefaults.swift; sourceTree = "<group>"; };
 		7D3B4958FD3959F1FBA29F7D /* BrowserCollapsedSidebarHoverTrackingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserCollapsedSidebarHoverTrackingView.swift; sourceTree = "<group>"; };
 		82D844C89FE7A3CBD8A0887A /* LICENSE */ = {isa = PBXFileReference; path = LICENSE; sourceTree = "<group>"; };
+		84ABB34DC93F341403189949 /* BrowserSidebarSpacePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSidebarSpacePage.swift; sourceTree = "<group>"; };
 		8549801AD6F12C5D71254280 /* LeanInteractiveSurfaceModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeanInteractiveSurfaceModifier.swift; sourceTree = "<group>"; };
 		85C2CD21D1F91D5237A11C2E /* BrowserTranslationJavaScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserTranslationJavaScript.swift; sourceTree = "<group>"; };
 		85D6B9F08C3F95CEC7326233 /* BrowserStartPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserStartPage.swift; sourceTree = "<group>"; };
@@ -483,6 +487,8 @@
 				D5D5A8D363EE6F98F7E487FC /* BrowserSidebarReorderLayout.swift */,
 				FDCBD6913188036C829F932D /* BrowserSidebarReorderState.swift */,
 				792060A50162739CB7D4313A /* BrowserSidebarSelection.swift */,
+				84ABB34DC93F341403189949 /* BrowserSidebarSpacePage.swift */,
+				76CCB80F61017C5C327B3250 /* BrowserSidebarSpacePager.swift */,
 				4F7B121DEC17F03B5D22CADF /* BrowserSidebarSurface.swift */,
 				A55A05F2B76C55A6D06914C2 /* BrowserSpacePickerAutoscroll.swift */,
 				3F8E5504AF9AB1111A0BCF54 /* BrowserSpaceReorderLayout.swift */,
@@ -953,6 +959,8 @@
 				4DEE722AFB58BE65FEEBF099 /* BrowserSidebarReorderLayout.swift in Sources */,
 				FEC4A894549E2B4AF6AD7B8B /* BrowserSidebarReorderState.swift in Sources */,
 				EF9FABA5079BF5A6C3CB213C /* BrowserSidebarSelection.swift in Sources */,
+				E31299B92D2F0D9AC684428B /* BrowserSidebarSpacePage.swift in Sources */,
+				63883A887E3D7295741CD381 /* BrowserSidebarSpacePager.swift in Sources */,
 				011E136FF5759591C15834E1 /* BrowserSidebarSurface.swift in Sources */,
 				EDA3360707C79DADBCFD7B13 /* BrowserSiteController.swift in Sources */,
 				6BFBAF848FD6762A56AC17C5 /* BrowserSiteScripts.swift in Sources */,

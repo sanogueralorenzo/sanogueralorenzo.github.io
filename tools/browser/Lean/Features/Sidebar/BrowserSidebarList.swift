@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct BrowserSidebarList: View {
+    @Environment(\.sidebarSpaceID) private var presentedSpaceID
+    private var space: BrowserSpace { store.sidebarSpace(presentedSpaceID) }
     let store: BrowserStore
     let placement: BrowserTab.Placement
     var parentID: UUID?
@@ -9,7 +11,7 @@ struct BrowserSidebarList: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let entries = store.activeSpace.sidebarEntries(parentID: parentID, placement: placement, keeping: keeping)
+        let entries = space.sidebarEntries(parentID: parentID, placement: placement, keeping: keeping)
         VStack(spacing: 2) {
             ForEach(entries) { entry in
                 switch entry.kind {

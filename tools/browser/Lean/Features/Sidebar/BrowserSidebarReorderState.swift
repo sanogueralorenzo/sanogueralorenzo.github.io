@@ -105,11 +105,12 @@ final class BrowserSidebarReorderState {
 
     func registerDivider(_ frame: CGRect) { dividerFrame = frame }
 
-    func showsCurrentDivider(in store: BrowserStore) -> Bool {
+    func showsCurrentDivider(in store: BrowserStore, space: BrowserSpace? = nil) -> Bool {
+        let space = space ?? store.activeSpace
         if case .split = target?.kind { return true }
         if case .insert(let section, _) = target?.kind, section.placement == .current { return true }
-        return store.activeSpace.tabs.contains { $0.placement == .current }
-            || store.activeSpace.folders.contains { $0.parentID == nil && $0.placement == .current }
+        return space.tabs.contains { $0.placement == .current }
+            || space.folders.contains { $0.parentID == nil && $0.placement == .current }
     }
 
     func updateSpaceViewport(_ frame: CGRect) {

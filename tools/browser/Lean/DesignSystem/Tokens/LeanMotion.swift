@@ -8,4 +8,6 @@ enum LeanMotion {
     static var dragSource: Animation { .snappy(duration: 0.20) }
     static var dragPreview: Animation { .smooth(duration: 0.18) }
     static var disclosure: Animation { .snappy(duration: 0.20) }
+    static var spaceSwitch: Animation { .timingCurve(0.27, 1, 0.18, 1, duration: 0.32) }
+    static var scrollAlignment: Animation { .snappy(duration: 0.24, extraBounce: 0) }
 }

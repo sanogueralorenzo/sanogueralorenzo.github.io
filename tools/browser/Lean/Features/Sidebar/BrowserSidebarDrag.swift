@@ -200,6 +200,7 @@ extension BrowserStore {
 }
 
 struct BrowserDropArea: ViewModifier {
+    @Environment(\.sidebarSpaceID) private var presentedSpaceID
     let store: BrowserStore
     var before: UUID?
     var folder: UUID?
@@ -216,7 +217,9 @@ struct BrowserDropArea: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var pinned: Bool {
-        before.map { id in store.activeSpace.tabs.contains { $0.id == id && $0.placement == .pinned } } ?? false
+        before.map { id in
+            (store.sidebarSpace(presentedSpaceID)).tabs.contains { $0.id == id && $0.placement == .pinned }
+        } ?? false
     }
 
     func body(content: Content) -> some View {
@@ -234,23 +237,24 @@ struct BrowserDropArea: ViewModifier {
             store.sidebarReorder.register(
                 .init(
                     id: zoneID, frame: frame, before: before, folder: folder, placement: placement,
-                    spaceID: spaceID ?? store.activeSpace.id, allowsAfter: allowsAfter,
+                    spaceID: spaceID ?? presentedSpaceID ?? store.activeSpace.id, allowsAfter: allowsAfter,
                     isSpace: spaceID != nil && before == nil && folder == nil && placement == nil,
                     isScrollable: spaceID == nil && placement != .pinned && !pinned,
                     isNesting: folder != nil && before == nil))
             if let folder, before == nil,
-                let header = store.activeSpace.folders.first(where: { $0.id == folder })
+                let header = (store.sidebarSpace(presentedSpaceID)).folders.first(where: { $0.id == folder })
             {
                 store.sidebarReorder.register(
                     .init(
                         id: besideZoneID, frame: frame, before: folder, folder: nil,
-                        placement: header.placement ?? .saved, spaceID: store.activeSpace.id,
+                        placement: header.placement ?? .saved, spaceID: presentedSpaceID ?? store.activeSpace.id,
                         allowsAfter: true, isScrollable: true))
             } else if let before, !pinned {
                 store.sidebarReorder.register(
                     .init(
                         id: besideZoneID, frame: frame, before: before, folder: nil,
-                        placement: .current, spaceID: spaceID ?? store.activeSpace.id, allowsAfter: false,
+                        placement: .current, spaceID: spaceID ?? presentedSpaceID ?? store.activeSpace.id,
+                        allowsAfter: false,
                         isScrollable: true, isNesting: true, createsFolder: true))
             }
         }

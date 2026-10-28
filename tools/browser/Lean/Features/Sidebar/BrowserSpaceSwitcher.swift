@@ -4,6 +4,7 @@ struct BrowserSpaceSwitcher: View {
     let store: BrowserStore
     let edit: (BrowserSpace?) -> Void
     @State private var firstVisible = 0
+    @Namespace private var selection
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var spaces: [BrowserSpace] { store.session.spaces }
     private var width: CGFloat { min(max(CGFloat(spaces.count) * 28 + 4, 56), 100) }
@@ -23,7 +24,10 @@ struct BrowserSpaceSwitcher: View {
                                 Circle().fill(Color.space(space.color)).frame(width: 12, height: 12)
                                     .frame(width: 28, height: 20)
                                     .background {
-                                        if store.activeSpace.id == space.id { Capsule().fill(.primary.opacity(0.12)) }
+                                        if store.activeSpace.id == space.id {
+                                            Capsule().fill(.primary.opacity(0.12))
+                                                .matchedGeometryEffect(id: "selection", in: selection)
+                                        }
                                     }
                             }
                             .buttonStyle(.plain)
@@ -47,7 +51,8 @@ struct BrowserSpaceSwitcher: View {
                             }
                             .modifier(
                                 BrowserSidebarDragSource(
-                                    store: store, payload: { store.dragPayload(space: space.id) }, title: space.name)
+                                    store: store, payload: { store.dragPayload(space: space.id) }, title: space.name,
+                                    isEnabled: !store.sidebarSpaceTransitioning)
                             )
                             .modifier(BrowserDropArea(store: store, spaceID: space.id))
                             .opacity(
@@ -63,6 +68,11 @@ struct BrowserSpaceSwitcher: View {
                             .id(space.id)
                         }
                     }
+                    .animation(
+                        store.sidebarSpaceStep != nil && store.owner.sidebarDrag.payload == nil
+                            ? LeanMotion.spaceSwitch.unlessReducingMotion(reduceMotion) : nil,
+                        value: store.activeSpace.id
+                    )
                     .padding(2).frame(minWidth: overflows ? 0 : width, alignment: .center)
                     .background {
                         BrowserSpacePickerAutoscroll(
@@ -92,14 +102,23 @@ struct BrowserSpaceSwitcher: View {
             .background(LeanColor.hover, in: Capsule())
             .overlay { Capsule().strokeBorder(.primary.opacity(0.12), lineWidth: 0.5).allowsHitTesting(false) }
             .contextMenu { Button("New Space") { edit(nil) } }
-            .onChange(of: store.activeSpace.id) { _, id in reader.scrollTo(id, anchor: .center) }
+            .onChange(of: store.activeSpace.id) { _, id in
+                withAnimation(
+                    store.sidebarSpaceStep != nil && store.owner.sidebarDrag.payload == nil
+                        ? LeanMotion.spaceSwitch.unlessReducingMotion(reduceMotion) : nil
+                ) {
+                    reader.scrollTo(id, anchor: .center)
+                }
+            }
         }
     }
 
     private func scrollButton(forward: Bool, reader: ScrollViewProxy) -> some View {
         Button {
             firstVisible = min(max(firstVisible + (forward ? 1 : -1), 0), max(0, spaces.count - 2))
-            reader.scrollTo(spaces[firstVisible].id, anchor: .leading)
+            withAnimation(LeanMotion.scrollAlignment.unlessReducingMotion(reduceMotion)) {
+                reader.scrollTo(spaces[firstVisible].id, anchor: .leading)
+            }
         } label: {
             Image(systemName: forward ? "chevron.right" : "chevron.left")
                 .font(.system(size: 9, weight: .semibold)).frame(width: 14, height: 24)

@@ -1,12 +1,14 @@
 import SwiftUI
 
 struct BrowserTabRow: View {
+    @Environment(\.sidebarSpaceID) private var presentedSpaceID
+    private var space: BrowserSpace { store.sidebarSpace(presentedSpaceID) }
     let tab: BrowserTab
     let store: BrowserStore
     var pinned = false
     var depth = 0
     @State private var hovering = false
-    private var selected: Bool { store.selectedTab?.id == tab.id }
+    private var selected: Bool { store.sidebarSelectedTabID(in: space) == tab.id }
     private var away: Bool { tab.savedURL != nil && !BrowserURLs.same(tab.url, tab.savedURL) }
     private var title: String { tab.customTitle ?? tab.title }
 
@@ -23,7 +25,7 @@ struct BrowserTabRow: View {
                     store.clickTab(tab.id)
                 } label: {
                     HStack(spacing: 9) {
-                        if store.activeSpace.folders.contains(where: { $0.id == tab.folderID && $0.kind == .github }) {
+                        if space.folders.contains(where: { $0.id == tab.folderID && $0.kind == .github }) {
                             Circle().fill(.green).frame(width: 6, height: 6).frame(width: 20, height: 20)
                         } else {
                             TabIcon(tab: tab).frame(width: 28, height: 20)
@@ -95,7 +97,7 @@ struct BrowserTabRow: View {
         .modifier(
             BrowserSidebarReorderItem(
                 store: store, id: tab.id, placement: tab.placement, folderID: tab.folderID,
-                parentItemID: store.activeSpace.splits.first { $0.tabIDs.contains(tab.id) }?.id)
+                parentItemID: space.splits.first { $0.tabIDs.contains(tab.id) }?.id)
         )
         .transition(.opacity)
     }
@@ -133,7 +135,7 @@ struct BrowserTabRow: View {
             }.disabled(store.selectedTab?.id == tab.id || store.selectedTab?.isSettings != false)
             Menu("Split With") {
                 Button("New Tab") { store.beginSplit(with: tab.id) }
-                ForEach(store.activeSpace.tabs.filter { $0.id != tab.id && !$0.isSettings }) { other in
+                ForEach(space.tabs.filter { $0.id != tab.id && !$0.isSettings }) { other in
                     Button(other.customTitle ?? other.title) { store.split(tab.id, with: other.id) }
                 }
             }
@@ -143,11 +145,11 @@ struct BrowserTabRow: View {
                         store.createSidebarFolder(
                             containing: BrowserDragPayload(
                                 kind: .tabs,
-                                spaceID: store.activeSpace.id, ids: store.actionTabs(tab.id),
+                                spaceID: space.id, ids: store.actionTabs(tab.id),
                                 activeTabID: store.selectedTab?.id),
                             placement: .current)
                     }
-                    ForEach(store.activeSpace.folders.filter { $0.placement == .current && $0.kind == .regular }) {
+                    ForEach(space.folders.filter { $0.placement == .current && $0.kind == .regular }) {
                         folder in
                         Button(folder.title) {
                             store.placeTabs(store.actionTabs(tab.id), as: .current, folderID: folder.id)
@@ -160,13 +162,12 @@ struct BrowserTabRow: View {
             }
             Menu("Save in Folder") {
                 Button("Saved Tabs") { store.placeTabs(store.actionTabs(tab.id), as: .saved) }
-                ForEach(store.activeSpace.folders.filter { $0.kind == .regular && ($0.placement ?? .saved) == .saved })
-                { folder in
+                ForEach(space.folders.filter { $0.kind == .regular && ($0.placement ?? .saved) == .saved }) { folder in
                     Button(folder.title) { store.placeTabs(store.actionTabs(tab.id), as: .saved, folderID: folder.id) }
                 }
             }
         }
-        if let split = store.activeSpace.splits.first(where: { $0.tabIDs.contains(tab.id) }),
+        if let split = space.splits.first(where: { $0.tabIDs.contains(tab.id) }),
             let index = split.tabIDs.firstIndex(of: tab.id)
         {
             Button("Move Left", systemImage: "arrow.left") {
@@ -183,7 +184,7 @@ struct BrowserTabRow: View {
             }
         }
         Menu("Move to Space") {
-            ForEach(store.session.spaces.filter { $0.id != store.activeSpace.id }) { space in
+            ForEach(store.session.spaces.filter { $0.id != space.id }) { space in
                 Button(space.name) { store.moveTabs(store.actionTabs(tab.id), to: space.id) }
             }
         }
