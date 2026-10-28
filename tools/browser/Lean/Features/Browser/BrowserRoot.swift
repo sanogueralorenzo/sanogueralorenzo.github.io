@@ -3,6 +3,7 @@ import SwiftUI
 struct BrowserRoot: View {
     let store: BrowserStore
     @State private var windowCornerRadius: CGFloat?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geometry in
@@ -25,7 +26,9 @@ struct BrowserRoot: View {
                         .overlay {
                             BrowserCollapsedSidebarHoverTracker { inside in
                                 guard inside, store.window?.isKeyWindow == true else { return }
-                                store.sidebarRevealed = true
+                                withAnimation(LeanMotion.floatingPane.unlessReducingMotion(reduceMotion)) {
+                                    store.sidebarRevealed = true
+                                }
                             }
                         }
                         .allowsHitTesting(false)
@@ -44,6 +47,7 @@ struct BrowserRoot: View {
                         .allowsHitTesting(false)
                 }
             }
+            .animation(LeanMotion.floatingPane.unlessReducingMotion(reduceMotion), value: store.showsSidebar)
             .background(BrowserNativeWindowControlsBridge(isVisible: store.showsSidebar))
             .overlay { BrowserSidebarDropDestination(store: store).accessibilityHidden(true) }
         }

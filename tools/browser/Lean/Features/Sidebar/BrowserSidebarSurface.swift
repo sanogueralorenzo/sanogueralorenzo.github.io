@@ -12,7 +12,6 @@ struct BrowserSidebarSurface: View {
 
     var body: some View {
         BrowserSidebar(store: store, cornerRadius: cornerRadius)
-            .animation(nil, value: store.showsSidebar)
             .frame(height: max(0, height - SidebarGeometry.inset * 2))
             .compositingGroup()
             .shadow(
@@ -28,7 +27,9 @@ struct BrowserSidebarSurface: View {
             .overlay {
                 if store.showsSidebar {
                     BrowserSidebarHoverTracker(isRevealedByPointer: store.sidebarRevealed) { inside in
-                        store.sidebarRevealed = inside
+                        withAnimation(LeanMotion.floatingPane.unlessReducingMotion(reduceMotion)) {
+                            store.sidebarRevealed = inside
+                        }
                     }
                     .padding(SidebarGeometry.inset - SidebarGeometry.hoverMargin)
                     .accessibilityHidden(true)
@@ -37,7 +38,6 @@ struct BrowserSidebarSurface: View {
             .offset(x: store.showsSidebar ? 0 : -regionWidth)
             .allowsHitTesting(store.showsSidebar)
             .accessibilityHidden(!store.showsSidebar)
-            .animation(LeanMotion.chrome.unlessReducingMotion(reduceMotion), value: store.showsSidebar)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
