@@ -2,17 +2,7 @@ import AppKit
 
 extension BrowserStore {
     func handleSidebarPointer(_ event: NSEvent) {
-        guard let window = event.window else { return }
-        if event.type == .swipe {
-            if event.deltaY != 0 {
-                adjacentSpace(event.deltaY > 0 ? -1 : 1)
-            } else if event.deltaX > 0 {
-                activePage?.webView.goBack()
-            } else if event.deltaX < 0 {
-                activePage?.webView.goForward()
-            }
-            return
-        }
+        guard !isClosed, let window = event.window, window === self.window else { return }
         let point = event.locationInWindow
         let onSidebar = showsSidebar && point.x < sidebarWidth + SidebarGeometry.inset
         if event.type == .leftMouseDown, !onSidebar, !addressPresented {

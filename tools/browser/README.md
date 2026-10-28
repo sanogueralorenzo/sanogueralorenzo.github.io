@@ -31,6 +31,7 @@ and data retention.
 Use ⌘L for addresses and commands, ⌘T for a new tab, ⌃Tab for recent tabs,
 and ⌥⌘←/→ to switch Spaces. On saved tabs, ⌘W returns to the saved address,
 then sleeps the page and selects another loaded tab.
+Swipe horizontally over a page for back/forward history, or over the sidebar to switch Spaces.
 With no selected tab, ⌘W keeps the window open; ⇧⌘W closes the window.
 Background pages unload after five idle minutes, protecting media and unsaved edits.
 

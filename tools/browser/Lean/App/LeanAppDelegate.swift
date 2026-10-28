@@ -35,12 +35,15 @@ final class LeanAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, 
             if previous.isEmpty { createWindow() } else { for state in previous { createWindow(restoring: state) } }
             owner.startMaintenance()
             pointerMonitor = NSEvent.addLocalMonitorForEvents(matching: [
-                .mouseMoved, .leftMouseDown, .swipe,
+                .mouseMoved, .leftMouseDown, .scrollWheel,
             ]) { [weak self] event in
-                MainActor.assumeIsolated {
-                    if let window = event.window { self?.context(for: window)?.handleSidebarPointer(event) }
+                let consumed = MainActor.assumeIsolated {
+                    guard let window = event.window, let context = self?.context(for: window) else { return false }
+                    if event.type == .scrollWheel { return context.handleSpaceScroll(event) == nil }
+                    context.handleSidebarPointer(event)
+                    return false
                 }
-                return event
+                return consumed ? nil : event
             }
             keyboardMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) {
                 [weak self] event in
@@ -61,12 +64,13 @@ final class LeanAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, 
     func createWindow(restoring state: BrowserWindowState? = nil) {
         guard let owner else { return }
         let store = owner.makeStore(restoring: state)
-        let window = NSWindow(
+        let window = BrowserWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1440, height: 900),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered,
             defer: false)
         windows[store.id] = window
         store.window = window
+        window.store = store
         window.title = "Lean"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true

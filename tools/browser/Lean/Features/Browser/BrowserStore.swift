@@ -19,6 +19,7 @@ final class BrowserStore {
     var selectionFocusedID: UUID?
     var selectionRangeBase: Set<UUID>?
     var sidebarKeyboardSelection = false
+    @ObservationIgnored var spaceScrollGesture = BrowserSpaceScrollGesture()
     var isDragging = false
     let sidebarReorder = BrowserSidebarReorderState()
     let sidebarFolders = BrowserSidebarFolderVisibility()
