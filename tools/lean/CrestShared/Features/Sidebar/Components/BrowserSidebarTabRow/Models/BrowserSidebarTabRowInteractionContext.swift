@@ -1,0 +1,20 @@
+import SwiftUI
+
+/// The live half of a sidebar tab row: the state it keeps between events and
+/// the actions its parts trigger.
+///
+/// Kept apart from `BrowserSidebarTabRowConfiguration` so the row's pieces can
+/// take the bindings they need without any of them owning the state.
+struct BrowserSidebarTabRowInteractionContext {
+    let isHovering: Binding<Bool>
+    let isRenaming: Bool
+    let draftTitle: Binding<String>
+    let isTitleFocused: FocusState<Bool>.Binding
+    let activate: () -> Void
+    let beginRenaming: () -> Void
+    let commitTitle: () -> Void
+    let cancelTitleEditing: () -> Void
+    /// Isolated because the platform seam that delivers an auxiliary click
+    /// hands it straight to a main-actor gesture recognizer.
+    let dismissFromAuxiliaryClick: @MainActor () -> Void
+}

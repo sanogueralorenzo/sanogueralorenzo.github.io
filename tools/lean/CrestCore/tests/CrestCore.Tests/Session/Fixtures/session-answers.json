@@ -1,0 +1,5711 @@
+{
+  "tab.open": {
+    "space": {
+      "browsingPreferences": {
+        "contentBlockingPolicy": "off",
+        "searchSuggestionsEnabled": true,
+        "searchProvider": "google",
+        "customSearchProviders": [
+          {
+            "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+            "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+            "name": "Docs",
+            "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+          },
+          {
+            "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+            "name": "Wiki",
+            "searchURLTemplate": "https://wiki.example/find?q=%s"
+          }
+        ],
+        "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+        "dataRetention": {
+          "archive": "thirtyDays",
+          "history": "ninetyDays",
+          "downloads": "oneWeek"
+        },
+        "currentTabCleanupPolicy": "after7Days"
+      },
+      "name": "Everything",
+      "id": {
+        "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+      },
+      "profile": {
+        "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+      },
+      "splitGroups": [
+        {
+          "iconModifiedAt": 780123473.789,
+          "tintModifiedAt": 780123474.789,
+          "id": {
+            "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "customIconSymbol": "crest.emoji:🧪",
+          "tint": {
+            "green": 0.3,
+            "red": 0.2,
+            "blue": 0.4,
+            "alpha": 0.9
+          },
+          "customTitle": "Research",
+          "titleModifiedAt": 780123472.789
+        }
+      ],
+      "tabs": [
+        {
+          "lastActivatedAt": 780123457.7891234,
+          "faviconURL": "https://pinned.example/favicon.ico",
+          "symbol": "pin.fill",
+          "title": "Pinned page",
+          "placement": "pinned",
+          "savedURL": "https://pinned.example/",
+          "id": {
+            "rawValue": "853D3F20-BB2C-45F0-98BD-CCC71C646370"
+          },
+          "storedIconMode": "pulled",
+          "positionModifiedAt": 780123458.789,
+          "titleModifiedAt": 780123459.789,
+          "iconAccent": {
+            "green": 0.5,
+            "red": 0.25,
+            "blue": 0.75
+          },
+          "customTitle": "Mail",
+          "url": "https://pinned.example/inbox?view=all#top",
+          "folderID": null,
+          "splitGroupID": null
+        },
+        {
+          "id": {
+            "rawValue": "4615461C-BA47-4054-B5CF-3DCAF3362D8C"
+          },
+          "symbol": "gearshape",
+          "title": "Settings",
+          "placement": "saved",
+          "nativeContent": {
+            "kind": "settings",
+            "resourceID": "36D804C1-3F34-4E98-BC70-04CED016E1DE"
+          },
+          "storedIconMode": "automatic",
+          "folderID": {
+            "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "lastActivatedAt": 780123463.7891234,
+          "positionModifiedAt": 780123464.789,
+          "url": null,
+          "savedURL": null,
+          "customTitle": null,
+          "titleModifiedAt": null,
+          "splitGroupID": null
+        },
+        {
+          "lastActivatedAt": 780123460.7891234,
+          "faviconURL": "https://news.example/icon.png",
+          "symbol": "crest.emoji:🌊",
+          "title": "Saved article",
+          "placement": "saved",
+          "savedURL": "https://news.example/article",
+          "id": {
+            "rawValue": "B61250D4-3D4E-4DD6-8871-0BB326669142"
+          },
+          "storedIconMode": "emoji",
+          "positionModifiedAt": 780123461.789,
+          "titleModifiedAt": 780123462.789,
+          "iconAccent": {
+            "green": 0,
+            "red": 1,
+            "blue": 0
+          },
+          "folderID": {
+            "rawValue": "103A72E0-C616-41BC-A248-CA740907813F"
+          },
+          "customTitle": "Reading",
+          "url": "https://news.example/article/42",
+          "splitGroupID": null
+        },
+        {
+          "symbol": "globe",
+          "id": {
+            "rawValue": "428CAA9C-9A7A-4386-B120-F6096032C167"
+          },
+          "title": "Left",
+          "url": "https://left.example/",
+          "placement": "current",
+          "folderID": {
+            "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "lastActivatedAt": 780123465.7891234,
+          "iconAccent": {
+            "green": 0.5,
+            "red": 0.25,
+            "blue": 0.75
+          },
+          "positionModifiedAt": 780123466.789,
+          "splitGroupID": {
+            "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "faviconURL": "https://left.example/f.ico",
+          "savedURL": null,
+          "customTitle": null,
+          "titleModifiedAt": null
+        },
+        {
+          "symbol": "globe",
+          "id": {
+            "rawValue": "942AC076-B0D8-454B-9EEB-3791E6113F77"
+          },
+          "title": "Right",
+          "placement": "current",
+          "folderID": {
+            "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "url": "https://right.example/page",
+          "lastActivatedAt": 780123467.7891234,
+          "positionModifiedAt": 780123468.789,
+          "customTitle": "Right side",
+          "splitGroupID": {
+            "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "titleModifiedAt": 780123469.789,
+          "savedURL": null
+        },
+        {
+          "id": {
+            "rawValue": "11111111-1111-4111-8111-111111111111"
+          },
+          "title": "Opened",
+          "url": "https://opened.example/",
+          "symbol": "globe",
+          "placement": "current",
+          "lastActivatedAt": 800000000.5,
+          "folderID": null,
+          "savedURL": null,
+          "customTitle": null,
+          "positionModifiedAt": null,
+          "titleModifiedAt": null,
+          "splitGroupID": null
+        },
+        {
+          "placement": "current",
+          "title": "Start Page",
+          "id": {
+            "rawValue": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          "lastActivatedAt": 780123470.7891234,
+          "symbol": "flag.fill",
+          "url": null,
+          "folderID": null,
+          "savedURL": null,
+          "customTitle": null,
+          "positionModifiedAt": null,
+          "titleModifiedAt": null,
+          "splitGroupID": null
+        }
+      ],
+      "folders": [
+        {
+          "location": "saved",
+          "title": "Reading",
+          "id": {
+            "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "isCollapsed": false,
+          "color": {
+            "green": 0.4,
+            "red": 0.2,
+            "blue": 0.6,
+            "alpha": 0.5
+          },
+          "parentID": null,
+          "collapseModifiedAt": null,
+          "orderAnchorTabID": null
+        },
+        {
+          "location": "saved",
+          "id": {
+            "rawValue": "103A72E0-C616-41BC-A248-CA740907813F"
+          },
+          "isCollapsed": true,
+          "color": {
+            "green": 0.48,
+            "red": 0.43,
+            "blue": 0.54,
+            "alpha": 1
+          },
+          "parentID": {
+            "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "title": "Later",
+          "collapseModifiedAt": 780123471.7891234,
+          "orderAnchorTabID": null
+        },
+        {
+          "location": "current",
+          "title": "Split work",
+          "id": {
+            "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "isCollapsed": false,
+          "color": {
+            "green": 0.48,
+            "red": 0.43,
+            "blue": 0.54,
+            "alpha": 1
+          },
+          "parentID": null,
+          "collapseModifiedAt": null,
+          "orderAnchorTabID": null
+        },
+        {
+          "isCollapsed": false,
+          "location": "current",
+          "id": {
+            "rawValue": "72ACEC3C-6348-4403-89C3-76E1901AA666"
+          },
+          "orderAnchorTabID": {
+            "rawValue": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          "color": {
+            "green": 0.5,
+            "red": 0.5,
+            "blue": 0.5,
+            "alpha": 1
+          },
+          "title": "Empty",
+          "parentID": null,
+          "collapseModifiedAt": null
+        }
+      ],
+      "history": [],
+      "archivedTabs": []
+    },
+    "tabId": "11111111-1111-4111-8111-111111111111",
+    "copies": [],
+    "changed": true,
+    "favicon": null
+  },
+  "tab.close": {
+    "space": {
+      "browsingPreferences": {
+        "contentBlockingPolicy": "off",
+        "searchSuggestionsEnabled": true,
+        "searchProvider": "google",
+        "customSearchProviders": [
+          {
+            "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+            "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+            "name": "Docs",
+            "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+          },
+          {
+            "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+            "name": "Wiki",
+            "searchURLTemplate": "https://wiki.example/find?q=%s"
+          }
+        ],
+        "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+        "dataRetention": {
+          "archive": "thirtyDays",
+          "history": "ninetyDays",
+          "downloads": "oneWeek"
+        },
+        "currentTabCleanupPolicy": "after7Days"
+      },
+      "name": "Everything",
+      "id": {
+        "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+      },
+      "profile": {
+        "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+      },
+      "splitGroups": [
+        {
+          "iconModifiedAt": 780123473.789,
+          "tintModifiedAt": 780123474.789,
+          "id": {
+            "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "customIconSymbol": "crest.emoji:🧪",
+          "tint": {
+            "green": 0.3,
+            "red": 0.2,
+            "blue": 0.4,
+            "alpha": 0.9
+          },
+          "customTitle": "Research",
+          "titleModifiedAt": 780123472.789
+        }
+      ],
+      "tabs": [
+        {
+          "lastActivatedAt": 780123457.7891234,
+          "faviconURL": "https://pinned.example/favicon.ico",
+          "symbol": "pin.fill",
+          "title": "Pinned page",
+          "placement": "pinned",
+          "savedURL": "https://pinned.example/",
+          "id": {
+            "rawValue": "853D3F20-BB2C-45F0-98BD-CCC71C646370"
+          },
+          "storedIconMode": "pulled",
+          "positionModifiedAt": 780123458.789,
+          "titleModifiedAt": 780123459.789,
+          "iconAccent": {
+            "green": 0.5,
+            "red": 0.25,
+            "blue": 0.75
+          },
+          "customTitle": "Mail",
+          "url": "https://pinned.example/inbox?view=all#top",
+          "folderID": null,
+          "splitGroupID": null
+        },
+        {
+          "id": {
+            "rawValue": "4615461C-BA47-4054-B5CF-3DCAF3362D8C"
+          },
+          "symbol": "gearshape",
+          "title": "Settings",
+          "placement": "saved",
+          "nativeContent": {
+            "kind": "settings",
+            "resourceID": "36D804C1-3F34-4E98-BC70-04CED016E1DE"
+          },
+          "storedIconMode": "automatic",
+          "folderID": {
+            "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "lastActivatedAt": 780123463.7891234,
+          "positionModifiedAt": 780123464.789,
+          "url": null,
+          "savedURL": null,
+          "customTitle": null,
+          "titleModifiedAt": null,
+          "splitGroupID": null
+        },
+        {
+          "lastActivatedAt": 780123460.7891234,
+          "faviconURL": "https://news.example/icon.png",
+          "symbol": "crest.emoji:🌊",
+          "title": "Saved article",
+          "placement": "saved",
+          "savedURL": "https://news.example/article",
+          "id": {
+            "rawValue": "B61250D4-3D4E-4DD6-8871-0BB326669142"
+          },
+          "storedIconMode": "emoji",
+          "positionModifiedAt": 780123461.789,
+          "titleModifiedAt": 780123462.789,
+          "iconAccent": {
+            "green": 0,
+            "red": 1,
+            "blue": 0
+          },
+          "folderID": {
+            "rawValue": "103A72E0-C616-41BC-A248-CA740907813F"
+          },
+          "customTitle": "Reading",
+          "url": "https://news.example/article/42",
+          "splitGroupID": null
+        },
+        {
+          "symbol": "globe",
+          "id": {
+            "rawValue": "428CAA9C-9A7A-4386-B120-F6096032C167"
+          },
+          "title": "Left",
+          "url": "https://left.example/",
+          "placement": "current",
+          "folderID": {
+            "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "lastActivatedAt": 780123465.7891234,
+          "iconAccent": {
+            "green": 0.5,
+            "red": 0.25,
+            "blue": 0.75
+          },
+          "positionModifiedAt": 780123466.789,
+          "splitGroupID": {
+            "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "faviconURL": "https://left.example/f.ico",
+          "savedURL": null,
+          "customTitle": null,
+          "titleModifiedAt": null
+        },
+        {
+          "symbol": "globe",
+          "id": {
+            "rawValue": "942AC076-B0D8-454B-9EEB-3791E6113F77"
+          },
+          "title": "Right",
+          "placement": "current",
+          "folderID": {
+            "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "url": "https://right.example/page",
+          "lastActivatedAt": 780123467.7891234,
+          "positionModifiedAt": 780123468.789,
+          "customTitle": "Right side",
+          "splitGroupID": {
+            "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "titleModifiedAt": 780123469.789,
+          "savedURL": null
+        },
+        {
+          "placement": "current",
+          "title": "Start Page",
+          "id": {
+            "rawValue": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          "lastActivatedAt": 780123470.7891234,
+          "symbol": "flag.fill",
+          "url": null,
+          "folderID": null,
+          "savedURL": null,
+          "customTitle": null,
+          "positionModifiedAt": null,
+          "titleModifiedAt": null,
+          "splitGroupID": null
+        }
+      ],
+      "folders": [
+        {
+          "location": "saved",
+          "title": "Reading",
+          "id": {
+            "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "isCollapsed": false,
+          "color": {
+            "green": 0.4,
+            "red": 0.2,
+            "blue": 0.6,
+            "alpha": 0.5
+          },
+          "parentID": null,
+          "collapseModifiedAt": null,
+          "orderAnchorTabID": null
+        },
+        {
+          "location": "saved",
+          "id": {
+            "rawValue": "103A72E0-C616-41BC-A248-CA740907813F"
+          },
+          "isCollapsed": true,
+          "color": {
+            "green": 0.48,
+            "red": 0.43,
+            "blue": 0.54,
+            "alpha": 1
+          },
+          "parentID": {
+            "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "title": "Later",
+          "collapseModifiedAt": 780123471.7891234,
+          "orderAnchorTabID": null
+        },
+        {
+          "location": "current",
+          "title": "Split work",
+          "id": {
+            "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "isCollapsed": false,
+          "color": {
+            "green": 0.48,
+            "red": 0.43,
+            "blue": 0.54,
+            "alpha": 1
+          },
+          "parentID": null,
+          "collapseModifiedAt": null,
+          "orderAnchorTabID": null
+        },
+        {
+          "isCollapsed": false,
+          "location": "current",
+          "id": {
+            "rawValue": "72ACEC3C-6348-4403-89C3-76E1901AA666"
+          },
+          "orderAnchorTabID": {
+            "rawValue": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          "color": {
+            "green": 0.5,
+            "red": 0.5,
+            "blue": 0.5,
+            "alpha": 1
+          },
+          "title": "Empty",
+          "parentID": null,
+          "collapseModifiedAt": null
+        }
+      ],
+      "history": [],
+      "archivedTabs": [
+        {
+          "tab": {
+            "id": {
+              "rawValue": "11111111-1111-4111-8111-111111111111"
+            },
+            "title": "Opened",
+            "url": "https://opened.example/",
+            "symbol": "globe",
+            "placement": "current",
+            "lastActivatedAt": 800000000.5,
+            "folderID": null,
+            "savedURL": null,
+            "customTitle": null,
+            "positionModifiedAt": null,
+            "titleModifiedAt": null,
+            "splitGroupID": null
+          },
+          "archivedAt": 800000001,
+          "reason": "closed"
+        }
+      ]
+    },
+    "tabId": null,
+    "copies": [],
+    "changed": true,
+    "favicon": null
+  },
+  "folder.create": {
+    "space": {
+      "browsingPreferences": {
+        "contentBlockingPolicy": "off",
+        "searchSuggestionsEnabled": true,
+        "searchProvider": "google",
+        "customSearchProviders": [
+          {
+            "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+            "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+            "name": "Docs",
+            "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+          },
+          {
+            "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+            "name": "Wiki",
+            "searchURLTemplate": "https://wiki.example/find?q=%s"
+          }
+        ],
+        "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+        "dataRetention": {
+          "archive": "thirtyDays",
+          "history": "ninetyDays",
+          "downloads": "oneWeek"
+        },
+        "currentTabCleanupPolicy": "after7Days"
+      },
+      "name": "Everything",
+      "id": {
+        "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+      },
+      "profile": {
+        "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+      },
+      "splitGroups": [
+        {
+          "iconModifiedAt": 780123473.789,
+          "tintModifiedAt": 780123474.789,
+          "id": {
+            "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "customIconSymbol": "crest.emoji:🧪",
+          "tint": {
+            "green": 0.3,
+            "red": 0.2,
+            "blue": 0.4,
+            "alpha": 0.9
+          },
+          "customTitle": "Research",
+          "titleModifiedAt": 780123472.789
+        }
+      ],
+      "tabs": [
+        {
+          "lastActivatedAt": 780123457.7891234,
+          "faviconURL": "https://pinned.example/favicon.ico",
+          "symbol": "pin.fill",
+          "title": "Pinned page",
+          "placement": "pinned",
+          "savedURL": "https://pinned.example/",
+          "id": {
+            "rawValue": "853D3F20-BB2C-45F0-98BD-CCC71C646370"
+          },
+          "storedIconMode": "pulled",
+          "positionModifiedAt": 780123458.789,
+          "titleModifiedAt": 780123459.789,
+          "iconAccent": {
+            "green": 0.5,
+            "red": 0.25,
+            "blue": 0.75
+          },
+          "customTitle": "Mail",
+          "url": "https://pinned.example/inbox?view=all#top",
+          "folderID": null,
+          "splitGroupID": null
+        },
+        {
+          "id": {
+            "rawValue": "4615461C-BA47-4054-B5CF-3DCAF3362D8C"
+          },
+          "symbol": "gearshape",
+          "title": "Settings",
+          "placement": "saved",
+          "nativeContent": {
+            "kind": "settings",
+            "resourceID": "36D804C1-3F34-4E98-BC70-04CED016E1DE"
+          },
+          "storedIconMode": "automatic",
+          "folderID": {
+            "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "lastActivatedAt": 780123463.7891234,
+          "positionModifiedAt": 780123464.789,
+          "url": null,
+          "savedURL": null,
+          "customTitle": null,
+          "titleModifiedAt": null,
+          "splitGroupID": null
+        },
+        {
+          "lastActivatedAt": 780123460.7891234,
+          "faviconURL": "https://news.example/icon.png",
+          "symbol": "crest.emoji:🌊",
+          "title": "Saved article",
+          "placement": "saved",
+          "savedURL": "https://news.example/article",
+          "id": {
+            "rawValue": "B61250D4-3D4E-4DD6-8871-0BB326669142"
+          },
+          "storedIconMode": "emoji",
+          "positionModifiedAt": 780123461.789,
+          "titleModifiedAt": 780123462.789,
+          "iconAccent": {
+            "green": 0,
+            "red": 1,
+            "blue": 0
+          },
+          "folderID": {
+            "rawValue": "103A72E0-C616-41BC-A248-CA740907813F"
+          },
+          "customTitle": "Reading",
+          "url": "https://news.example/article/42",
+          "splitGroupID": null
+        },
+        {
+          "symbol": "globe",
+          "id": {
+            "rawValue": "428CAA9C-9A7A-4386-B120-F6096032C167"
+          },
+          "title": "Left",
+          "url": "https://left.example/",
+          "placement": "current",
+          "folderID": {
+            "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "lastActivatedAt": 780123465.7891234,
+          "iconAccent": {
+            "green": 0.5,
+            "red": 0.25,
+            "blue": 0.75
+          },
+          "positionModifiedAt": 780123466.789,
+          "splitGroupID": {
+            "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "faviconURL": "https://left.example/f.ico",
+          "savedURL": null,
+          "customTitle": null,
+          "titleModifiedAt": null
+        },
+        {
+          "symbol": "globe",
+          "id": {
+            "rawValue": "942AC076-B0D8-454B-9EEB-3791E6113F77"
+          },
+          "title": "Right",
+          "placement": "current",
+          "folderID": {
+            "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "url": "https://right.example/page",
+          "lastActivatedAt": 780123467.7891234,
+          "positionModifiedAt": 780123468.789,
+          "customTitle": "Right side",
+          "splitGroupID": {
+            "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "titleModifiedAt": 780123469.789,
+          "savedURL": null
+        },
+        {
+          "placement": "current",
+          "title": "Start Page",
+          "id": {
+            "rawValue": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          "lastActivatedAt": 780123470.7891234,
+          "symbol": "flag.fill",
+          "url": null,
+          "folderID": {
+            "rawValue": "22222222-2222-4222-8222-222222222222"
+          },
+          "savedURL": null,
+          "customTitle": null,
+          "positionModifiedAt": 800000002,
+          "titleModifiedAt": null,
+          "splitGroupID": null
+        }
+      ],
+      "folders": [
+        {
+          "location": "saved",
+          "title": "Reading",
+          "id": {
+            "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "isCollapsed": false,
+          "color": {
+            "green": 0.4,
+            "red": 0.2,
+            "blue": 0.6,
+            "alpha": 0.5
+          },
+          "parentID": null,
+          "collapseModifiedAt": null,
+          "orderAnchorTabID": null
+        },
+        {
+          "location": "saved",
+          "id": {
+            "rawValue": "103A72E0-C616-41BC-A248-CA740907813F"
+          },
+          "isCollapsed": true,
+          "color": {
+            "green": 0.48,
+            "red": 0.43,
+            "blue": 0.54,
+            "alpha": 1
+          },
+          "parentID": {
+            "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "title": "Later",
+          "collapseModifiedAt": 780123471.7891234,
+          "orderAnchorTabID": null
+        },
+        {
+          "location": "current",
+          "title": "Split work",
+          "id": {
+            "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "isCollapsed": false,
+          "color": {
+            "green": 0.48,
+            "red": 0.43,
+            "blue": 0.54,
+            "alpha": 1
+          },
+          "parentID": null,
+          "collapseModifiedAt": null,
+          "orderAnchorTabID": null
+        },
+        {
+          "isCollapsed": false,
+          "location": "current",
+          "id": {
+            "rawValue": "72ACEC3C-6348-4403-89C3-76E1901AA666"
+          },
+          "orderAnchorTabID": null,
+          "color": {
+            "green": 0.5,
+            "red": 0.5,
+            "blue": 0.5,
+            "alpha": 1
+          },
+          "title": "Empty",
+          "parentID": null,
+          "collapseModifiedAt": null
+        },
+        {
+          "color": {
+            "red": 0.43,
+            "green": 0.48,
+            "blue": 0.54,
+            "alpha": 1
+          },
+          "id": {
+            "rawValue": "22222222-2222-4222-8222-222222222222"
+          },
+          "title": "New Folder",
+          "location": "current",
+          "parentID": null,
+          "isCollapsed": false,
+          "collapseModifiedAt": null,
+          "orderAnchorTabID": null
+        }
+      ],
+      "history": [],
+      "archivedTabs": []
+    },
+    "tabId": null,
+    "copies": [],
+    "changed": true,
+    "favicon": null
+  },
+  "split.join": {
+    "space": {
+      "browsingPreferences": {
+        "contentBlockingPolicy": "off",
+        "searchSuggestionsEnabled": true,
+        "searchProvider": "google",
+        "customSearchProviders": [
+          {
+            "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+            "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+            "name": "Docs",
+            "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+          },
+          {
+            "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+            "name": "Wiki",
+            "searchURLTemplate": "https://wiki.example/find?q=%s"
+          }
+        ],
+        "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+        "dataRetention": {
+          "archive": "thirtyDays",
+          "history": "ninetyDays",
+          "downloads": "oneWeek"
+        },
+        "currentTabCleanupPolicy": "after7Days"
+      },
+      "name": "Everything",
+      "id": {
+        "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+      },
+      "profile": {
+        "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+      },
+      "splitGroups": [
+        {
+          "iconModifiedAt": 780123473.789,
+          "tintModifiedAt": 780123474.789,
+          "id": {
+            "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "customIconSymbol": "crest.emoji:🧪",
+          "tint": {
+            "green": 0.3,
+            "red": 0.2,
+            "blue": 0.4,
+            "alpha": 0.9
+          },
+          "customTitle": "Research",
+          "titleModifiedAt": 780123472.789
+        }
+      ],
+      "tabs": [
+        {
+          "lastActivatedAt": 780123457.7891234,
+          "faviconURL": "https://pinned.example/favicon.ico",
+          "symbol": "pin.fill",
+          "title": "Pinned page",
+          "placement": "pinned",
+          "savedURL": "https://pinned.example/",
+          "id": {
+            "rawValue": "853D3F20-BB2C-45F0-98BD-CCC71C646370"
+          },
+          "storedIconMode": "pulled",
+          "positionModifiedAt": 780123458.789,
+          "titleModifiedAt": 780123459.789,
+          "iconAccent": {
+            "green": 0.5,
+            "red": 0.25,
+            "blue": 0.75
+          },
+          "customTitle": "Mail",
+          "url": "https://pinned.example/inbox?view=all#top",
+          "folderID": null,
+          "splitGroupID": null
+        },
+        {
+          "id": {
+            "rawValue": "4615461C-BA47-4054-B5CF-3DCAF3362D8C"
+          },
+          "symbol": "gearshape",
+          "title": "Settings",
+          "placement": "saved",
+          "nativeContent": {
+            "kind": "settings",
+            "resourceID": "36D804C1-3F34-4E98-BC70-04CED016E1DE"
+          },
+          "storedIconMode": "automatic",
+          "folderID": {
+            "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "lastActivatedAt": 780123463.7891234,
+          "positionModifiedAt": 780123464.789,
+          "url": null,
+          "savedURL": null,
+          "customTitle": null,
+          "titleModifiedAt": null,
+          "splitGroupID": null
+        },
+        {
+          "lastActivatedAt": 780123460.7891234,
+          "faviconURL": "https://news.example/icon.png",
+          "symbol": "crest.emoji:🌊",
+          "title": "Saved article",
+          "placement": "saved",
+          "savedURL": "https://news.example/article",
+          "id": {
+            "rawValue": "B61250D4-3D4E-4DD6-8871-0BB326669142"
+          },
+          "storedIconMode": "emoji",
+          "positionModifiedAt": 780123461.789,
+          "titleModifiedAt": 780123462.789,
+          "iconAccent": {
+            "green": 0,
+            "red": 1,
+            "blue": 0
+          },
+          "folderID": {
+            "rawValue": "103A72E0-C616-41BC-A248-CA740907813F"
+          },
+          "customTitle": "Reading",
+          "url": "https://news.example/article/42",
+          "splitGroupID": null
+        },
+        {
+          "symbol": "globe",
+          "id": {
+            "rawValue": "428CAA9C-9A7A-4386-B120-F6096032C167"
+          },
+          "title": "Left",
+          "url": "https://left.example/",
+          "placement": "current",
+          "folderID": {
+            "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "lastActivatedAt": 780123465.7891234,
+          "iconAccent": {
+            "green": 0.5,
+            "red": 0.25,
+            "blue": 0.75
+          },
+          "positionModifiedAt": 800000003,
+          "splitGroupID": {
+            "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "faviconURL": "https://left.example/f.ico",
+          "savedURL": null,
+          "customTitle": null,
+          "titleModifiedAt": null
+        },
+        {
+          "symbol": "globe",
+          "id": {
+            "rawValue": "942AC076-B0D8-454B-9EEB-3791E6113F77"
+          },
+          "title": "Right",
+          "placement": "current",
+          "folderID": {
+            "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "url": "https://right.example/page",
+          "lastActivatedAt": 780123467.7891234,
+          "positionModifiedAt": 800000003,
+          "customTitle": "Right side",
+          "splitGroupID": {
+            "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "titleModifiedAt": 780123469.789,
+          "savedURL": null
+        },
+        {
+          "lastActivatedAt": 800000003,
+          "faviconURL": "https://pinned.example/favicon.ico",
+          "symbol": "pin.fill",
+          "title": "Pinned observed",
+          "placement": "current",
+          "savedURL": null,
+          "id": {
+            "rawValue": "33333333-3333-4333-8333-333333333333"
+          },
+          "storedIconMode": "pulled",
+          "positionModifiedAt": 800000003,
+          "titleModifiedAt": 800000003,
+          "iconAccent": {
+            "green": 0.5,
+            "red": 0.25,
+            "blue": 0.75
+          },
+          "customTitle": "Mail",
+          "url": "https://pinned.example/observed",
+          "folderID": {
+            "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "splitGroupID": {
+            "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          }
+        },
+        {
+          "placement": "current",
+          "title": "Start Page",
+          "id": {
+            "rawValue": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          "lastActivatedAt": 780123470.7891234,
+          "symbol": "flag.fill",
+          "url": null,
+          "folderID": {
+            "rawValue": "22222222-2222-4222-8222-222222222222"
+          },
+          "savedURL": null,
+          "customTitle": null,
+          "positionModifiedAt": 800000002,
+          "titleModifiedAt": null,
+          "splitGroupID": null
+        }
+      ],
+      "folders": [
+        {
+          "location": "saved",
+          "title": "Reading",
+          "id": {
+            "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "isCollapsed": false,
+          "color": {
+            "green": 0.4,
+            "red": 0.2,
+            "blue": 0.6,
+            "alpha": 0.5
+          },
+          "parentID": null,
+          "collapseModifiedAt": null,
+          "orderAnchorTabID": null
+        },
+        {
+          "location": "saved",
+          "id": {
+            "rawValue": "103A72E0-C616-41BC-A248-CA740907813F"
+          },
+          "isCollapsed": true,
+          "color": {
+            "green": 0.48,
+            "red": 0.43,
+            "blue": 0.54,
+            "alpha": 1
+          },
+          "parentID": {
+            "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "title": "Later",
+          "collapseModifiedAt": 780123471.7891234,
+          "orderAnchorTabID": null
+        },
+        {
+          "location": "current",
+          "title": "Split work",
+          "id": {
+            "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "isCollapsed": false,
+          "color": {
+            "green": 0.48,
+            "red": 0.43,
+            "blue": 0.54,
+            "alpha": 1
+          },
+          "parentID": null,
+          "collapseModifiedAt": null,
+          "orderAnchorTabID": {
+            "rawValue": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          }
+        },
+        {
+          "isCollapsed": false,
+          "location": "current",
+          "id": {
+            "rawValue": "72ACEC3C-6348-4403-89C3-76E1901AA666"
+          },
+          "orderAnchorTabID": null,
+          "color": {
+            "green": 0.5,
+            "red": 0.5,
+            "blue": 0.5,
+            "alpha": 1
+          },
+          "title": "Empty",
+          "parentID": null,
+          "collapseModifiedAt": null
+        },
+        {
+          "color": {
+            "red": 0.43,
+            "green": 0.48,
+            "blue": 0.54,
+            "alpha": 1
+          },
+          "id": {
+            "rawValue": "22222222-2222-4222-8222-222222222222"
+          },
+          "title": "New Folder",
+          "location": "current",
+          "parentID": null,
+          "isCollapsed": false,
+          "collapseModifiedAt": null,
+          "orderAnchorTabID": null
+        }
+      ],
+      "history": [],
+      "archivedTabs": []
+    },
+    "tabId": null,
+    "copies": [
+      {
+        "source": "853d3f20-bb2c-45f0-98bd-ccc71c646370",
+        "copy": "33333333-3333-4333-8333-333333333333"
+      }
+    ],
+    "changed": true,
+    "favicon": null
+  },
+  "split.title": {
+    "changes": [
+      {
+        "spaceId": "6c1d5447-4e3d-46a7-9b60-e3b95d6c7848",
+        "profileId": "5966a1c3-b0b5-4bf9-a355-36857a8cc6a2",
+        "splitGroups": [
+          {
+            "iconModifiedAt": 780123473.789,
+            "tintModifiedAt": 780123474.789,
+            "id": {
+              "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+            },
+            "customIconSymbol": "crest.emoji:🧪",
+            "tint": {
+              "green": 0.3,
+              "red": 0.2,
+              "blue": 0.4,
+              "alpha": 0.9
+            },
+            "customTitle": "Renamed split",
+            "titleModifiedAt": 800000004
+          }
+        ]
+      }
+    ]
+  },
+  "split.tint": {
+    "changes": [
+      {
+        "spaceId": "6c1d5447-4e3d-46a7-9b60-e3b95d6c7848",
+        "profileId": "5966a1c3-b0b5-4bf9-a355-36857a8cc6a2",
+        "splitGroups": [
+          {
+            "iconModifiedAt": 780123473.789,
+            "tintModifiedAt": 800000004.25,
+            "id": {
+              "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+            },
+            "customIconSymbol": "crest.emoji:🧪",
+            "tint": {
+              "red": 0.1,
+              "green": 0.2,
+              "blue": 0.3,
+              "alpha": 1
+            },
+            "customTitle": "Renamed split",
+            "titleModifiedAt": 800000004
+          }
+        ]
+      }
+    ]
+  },
+  "history.visit": {
+    "changes": [
+      {
+        "spaceId": "6c1d5447-4e3d-46a7-9b60-e3b95d6c7848",
+        "profileId": "5966a1c3-b0b5-4bf9-a355-36857a8cc6a2",
+        "removedHistory": [],
+        "historyEntry": {
+          "firstVisitedAt": 780123256.7891234,
+          "title": "Article again",
+          "lastVisitedAt": 800000005,
+          "id": "721DD82B-3B7E-4A83-B256-3DDDD37B7E0F",
+          "visitCount": 8,
+          "url": "https://news.example/article/42"
+        }
+      }
+    ]
+  },
+  "archive.restore": {
+    "changes": [
+      {
+        "spaceId": "6c1d5447-4e3d-46a7-9b60-e3b95d6c7848",
+        "profileId": "5966a1c3-b0b5-4bf9-a355-36857a8cc6a2",
+        "removedArchiveIndices": [
+          0
+        ],
+        "tabEdit": {
+          "space": {
+            "browsingPreferences": {
+              "contentBlockingPolicy": "off",
+              "searchSuggestionsEnabled": true,
+              "searchProvider": "google",
+              "customSearchProviders": [
+                {
+                  "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+                  "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+                  "name": "Docs",
+                  "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+                },
+                {
+                  "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+                  "name": "Wiki",
+                  "searchURLTemplate": "https://wiki.example/find?q=%s"
+                }
+              ],
+              "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+              "dataRetention": {
+                "archive": "thirtyDays",
+                "history": "ninetyDays",
+                "downloads": "oneWeek"
+              },
+              "currentTabCleanupPolicy": "after7Days"
+            },
+            "name": "Everything",
+            "id": {
+              "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+            },
+            "profile": {
+              "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+            },
+            "splitGroups": [
+              {
+                "iconModifiedAt": 780123473.789,
+                "tintModifiedAt": 800000004.25,
+                "id": {
+                  "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+                },
+                "customIconSymbol": "crest.emoji:🧪",
+                "tint": {
+                  "red": 0.1,
+                  "green": 0.2,
+                  "blue": 0.3,
+                  "alpha": 1
+                },
+                "customTitle": "Renamed split",
+                "titleModifiedAt": 800000004
+              }
+            ],
+            "tabs": [
+              {
+                "lastActivatedAt": 780123457.7891234,
+                "faviconURL": "https://pinned.example/favicon.ico",
+                "symbol": "pin.fill",
+                "title": "Pinned page",
+                "placement": "pinned",
+                "savedURL": "https://pinned.example/",
+                "id": {
+                  "rawValue": "853D3F20-BB2C-45F0-98BD-CCC71C646370"
+                },
+                "storedIconMode": "pulled",
+                "positionModifiedAt": 780123458.789,
+                "titleModifiedAt": 780123459.789,
+                "iconAccent": {
+                  "green": 0.5,
+                  "red": 0.25,
+                  "blue": 0.75
+                },
+                "customTitle": "Mail",
+                "url": "https://pinned.example/inbox?view=all#top",
+                "folderID": null,
+                "splitGroupID": null
+              },
+              {
+                "id": {
+                  "rawValue": "4615461C-BA47-4054-B5CF-3DCAF3362D8C"
+                },
+                "symbol": "gearshape",
+                "title": "Settings",
+                "placement": "saved",
+                "nativeContent": {
+                  "kind": "settings",
+                  "resourceID": "36D804C1-3F34-4E98-BC70-04CED016E1DE"
+                },
+                "storedIconMode": "automatic",
+                "folderID": {
+                  "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+                },
+                "lastActivatedAt": 780123463.7891234,
+                "positionModifiedAt": 780123464.789,
+                "url": null,
+                "savedURL": null,
+                "customTitle": null,
+                "titleModifiedAt": null,
+                "splitGroupID": null
+              },
+              {
+                "lastActivatedAt": 780123460.7891234,
+                "faviconURL": "https://news.example/icon.png",
+                "symbol": "crest.emoji:🌊",
+                "title": "Saved article",
+                "placement": "saved",
+                "savedURL": "https://news.example/article",
+                "id": {
+                  "rawValue": "B61250D4-3D4E-4DD6-8871-0BB326669142"
+                },
+                "storedIconMode": "emoji",
+                "positionModifiedAt": 780123461.789,
+                "titleModifiedAt": 780123462.789,
+                "iconAccent": {
+                  "green": 0,
+                  "red": 1,
+                  "blue": 0
+                },
+                "folderID": {
+                  "rawValue": "103A72E0-C616-41BC-A248-CA740907813F"
+                },
+                "customTitle": "Reading",
+                "url": "https://news.example/article/42",
+                "splitGroupID": null
+              },
+              {
+                "lastActivatedAt": 800000006,
+                "faviconURL": "https://archive.example/favicon.ico",
+                "symbol": "globe",
+                "title": "closed",
+                "placement": "current",
+                "id": {
+                  "rawValue": "FDA1DB22-5EEE-4001-B553-5208F01B5C65"
+                },
+                "storedIconMode": "pulled",
+                "positionModifiedAt": 800000006,
+                "titleModifiedAt": 780123478.789,
+                "iconAccent": {
+                  "green": 0.5,
+                  "red": 0.25,
+                  "blue": 0.75
+                },
+                "customTitle": "CLOSED",
+                "url": "https://archive.example/closed",
+                "folderID": null,
+                "savedURL": null,
+                "splitGroupID": null
+              },
+              {
+                "symbol": "globe",
+                "id": {
+                  "rawValue": "428CAA9C-9A7A-4386-B120-F6096032C167"
+                },
+                "title": "Left",
+                "url": "https://left.example/",
+                "placement": "current",
+                "folderID": {
+                  "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+                },
+                "lastActivatedAt": 780123465.7891234,
+                "iconAccent": {
+                  "green": 0.5,
+                  "red": 0.25,
+                  "blue": 0.75
+                },
+                "positionModifiedAt": 800000003,
+                "splitGroupID": {
+                  "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+                },
+                "faviconURL": "https://left.example/f.ico",
+                "savedURL": null,
+                "customTitle": null,
+                "titleModifiedAt": null
+              },
+              {
+                "symbol": "globe",
+                "id": {
+                  "rawValue": "942AC076-B0D8-454B-9EEB-3791E6113F77"
+                },
+                "title": "Right",
+                "placement": "current",
+                "folderID": {
+                  "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+                },
+                "url": "https://right.example/page",
+                "lastActivatedAt": 780123467.7891234,
+                "positionModifiedAt": 800000003,
+                "customTitle": "Right side",
+                "splitGroupID": {
+                  "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+                },
+                "titleModifiedAt": 780123469.789,
+                "savedURL": null
+              },
+              {
+                "lastActivatedAt": 800000003,
+                "faviconURL": "https://pinned.example/favicon.ico",
+                "symbol": "pin.fill",
+                "title": "Pinned observed",
+                "placement": "current",
+                "savedURL": null,
+                "id": {
+                  "rawValue": "33333333-3333-4333-8333-333333333333"
+                },
+                "storedIconMode": "pulled",
+                "positionModifiedAt": 800000003,
+                "titleModifiedAt": 800000003,
+                "iconAccent": {
+                  "green": 0.5,
+                  "red": 0.25,
+                  "blue": 0.75
+                },
+                "customTitle": "Mail",
+                "url": "https://pinned.example/observed",
+                "folderID": {
+                  "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+                },
+                "splitGroupID": {
+                  "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+                }
+              },
+              {
+                "placement": "current",
+                "title": "Start Page",
+                "id": {
+                  "rawValue": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+                },
+                "lastActivatedAt": 780123470.7891234,
+                "symbol": "flag.fill",
+                "url": null,
+                "folderID": {
+                  "rawValue": "22222222-2222-4222-8222-222222222222"
+                },
+                "savedURL": null,
+                "customTitle": null,
+                "positionModifiedAt": 800000002,
+                "titleModifiedAt": null,
+                "splitGroupID": null
+              }
+            ],
+            "folders": [
+              {
+                "location": "saved",
+                "title": "Reading",
+                "id": {
+                  "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+                },
+                "isCollapsed": false,
+                "color": {
+                  "green": 0.4,
+                  "red": 0.2,
+                  "blue": 0.6,
+                  "alpha": 0.5
+                },
+                "parentID": null,
+                "collapseModifiedAt": null,
+                "orderAnchorTabID": null
+              },
+              {
+                "location": "saved",
+                "id": {
+                  "rawValue": "103A72E0-C616-41BC-A248-CA740907813F"
+                },
+                "isCollapsed": true,
+                "color": {
+                  "green": 0.48,
+                  "red": 0.43,
+                  "blue": 0.54,
+                  "alpha": 1
+                },
+                "parentID": {
+                  "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+                },
+                "title": "Later",
+                "collapseModifiedAt": 780123471.7891234,
+                "orderAnchorTabID": null
+              },
+              {
+                "location": "current",
+                "title": "Split work",
+                "id": {
+                  "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+                },
+                "isCollapsed": false,
+                "color": {
+                  "green": 0.48,
+                  "red": 0.43,
+                  "blue": 0.54,
+                  "alpha": 1
+                },
+                "parentID": null,
+                "collapseModifiedAt": null,
+                "orderAnchorTabID": {
+                  "rawValue": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+                }
+              },
+              {
+                "isCollapsed": false,
+                "location": "current",
+                "id": {
+                  "rawValue": "72ACEC3C-6348-4403-89C3-76E1901AA666"
+                },
+                "orderAnchorTabID": null,
+                "color": {
+                  "green": 0.5,
+                  "red": 0.5,
+                  "blue": 0.5,
+                  "alpha": 1
+                },
+                "title": "Empty",
+                "parentID": null,
+                "collapseModifiedAt": null
+              },
+              {
+                "color": {
+                  "red": 0.43,
+                  "green": 0.48,
+                  "blue": 0.54,
+                  "alpha": 1
+                },
+                "id": {
+                  "rawValue": "22222222-2222-4222-8222-222222222222"
+                },
+                "title": "New Folder",
+                "location": "current",
+                "parentID": null,
+                "isCollapsed": false,
+                "collapseModifiedAt": null,
+                "orderAnchorTabID": null
+              }
+            ],
+            "history": [],
+            "archivedTabs": []
+          },
+          "tabId": "fda1db22-5eee-4001-b553-5208f01b5c65",
+          "copies": [],
+          "changed": true,
+          "favicon": null
+        }
+      }
+    ]
+  },
+  "tab.transfer": {
+    "source": {
+      "browsingPreferences": {
+        "contentBlockingPolicy": "off",
+        "searchSuggestionsEnabled": true,
+        "searchProvider": "google",
+        "customSearchProviders": [
+          {
+            "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+            "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+            "name": "Docs",
+            "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+          },
+          {
+            "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+            "name": "Wiki",
+            "searchURLTemplate": "https://wiki.example/find?q=%s"
+          }
+        ],
+        "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+        "dataRetention": {
+          "archive": "thirtyDays",
+          "history": "ninetyDays",
+          "downloads": "oneWeek"
+        },
+        "currentTabCleanupPolicy": "after7Days"
+      },
+      "name": "Everything",
+      "id": {
+        "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+      },
+      "profile": {
+        "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+      },
+      "splitGroups": [
+        {
+          "iconModifiedAt": 780123473.789,
+          "tintModifiedAt": 800000004.25,
+          "id": {
+            "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "customIconSymbol": "crest.emoji:🧪",
+          "tint": {
+            "red": 0.1,
+            "green": 0.2,
+            "blue": 0.3,
+            "alpha": 1
+          },
+          "customTitle": "Renamed split",
+          "titleModifiedAt": 800000004
+        }
+      ],
+      "tabs": [
+        {
+          "lastActivatedAt": 780123457.7891234,
+          "faviconURL": "https://pinned.example/favicon.ico",
+          "symbol": "pin.fill",
+          "title": "Pinned page",
+          "placement": "pinned",
+          "savedURL": "https://pinned.example/",
+          "id": {
+            "rawValue": "853D3F20-BB2C-45F0-98BD-CCC71C646370"
+          },
+          "storedIconMode": "pulled",
+          "positionModifiedAt": 780123458.789,
+          "titleModifiedAt": 780123459.789,
+          "iconAccent": {
+            "green": 0.5,
+            "red": 0.25,
+            "blue": 0.75
+          },
+          "customTitle": "Mail",
+          "url": "https://pinned.example/inbox?view=all#top",
+          "folderID": null,
+          "splitGroupID": null
+        },
+        {
+          "id": {
+            "rawValue": "4615461C-BA47-4054-B5CF-3DCAF3362D8C"
+          },
+          "symbol": "gearshape",
+          "title": "Settings",
+          "placement": "saved",
+          "nativeContent": {
+            "kind": "settings",
+            "resourceID": "36D804C1-3F34-4E98-BC70-04CED016E1DE"
+          },
+          "storedIconMode": "automatic",
+          "folderID": {
+            "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "lastActivatedAt": 780123463.7891234,
+          "positionModifiedAt": 780123464.789,
+          "url": null,
+          "savedURL": null,
+          "customTitle": null,
+          "titleModifiedAt": null,
+          "splitGroupID": null
+        },
+        {
+          "lastActivatedAt": 800000006,
+          "faviconURL": "https://archive.example/favicon.ico",
+          "symbol": "globe",
+          "title": "closed",
+          "placement": "current",
+          "id": {
+            "rawValue": "FDA1DB22-5EEE-4001-B553-5208F01B5C65"
+          },
+          "storedIconMode": "pulled",
+          "positionModifiedAt": 800000006,
+          "titleModifiedAt": 780123478.789,
+          "iconAccent": {
+            "green": 0.5,
+            "red": 0.25,
+            "blue": 0.75
+          },
+          "customTitle": "CLOSED",
+          "url": "https://archive.example/closed",
+          "folderID": null,
+          "savedURL": null,
+          "splitGroupID": null
+        },
+        {
+          "symbol": "globe",
+          "id": {
+            "rawValue": "428CAA9C-9A7A-4386-B120-F6096032C167"
+          },
+          "title": "Left",
+          "url": "https://left.example/",
+          "placement": "current",
+          "folderID": {
+            "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "lastActivatedAt": 780123465.7891234,
+          "iconAccent": {
+            "green": 0.5,
+            "red": 0.25,
+            "blue": 0.75
+          },
+          "positionModifiedAt": 800000003,
+          "splitGroupID": {
+            "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "faviconURL": "https://left.example/f.ico",
+          "savedURL": null,
+          "customTitle": null,
+          "titleModifiedAt": null
+        },
+        {
+          "symbol": "globe",
+          "id": {
+            "rawValue": "942AC076-B0D8-454B-9EEB-3791E6113F77"
+          },
+          "title": "Right",
+          "placement": "current",
+          "folderID": {
+            "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "url": "https://right.example/page",
+          "lastActivatedAt": 780123467.7891234,
+          "positionModifiedAt": 800000003,
+          "customTitle": "Right side",
+          "splitGroupID": {
+            "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          },
+          "titleModifiedAt": 780123469.789,
+          "savedURL": null
+        },
+        {
+          "lastActivatedAt": 800000003,
+          "faviconURL": "https://pinned.example/favicon.ico",
+          "symbol": "pin.fill",
+          "title": "Pinned observed",
+          "placement": "current",
+          "savedURL": null,
+          "id": {
+            "rawValue": "33333333-3333-4333-8333-333333333333"
+          },
+          "storedIconMode": "pulled",
+          "positionModifiedAt": 800000003,
+          "titleModifiedAt": 800000003,
+          "iconAccent": {
+            "green": 0.5,
+            "red": 0.25,
+            "blue": 0.75
+          },
+          "customTitle": "Mail",
+          "url": "https://pinned.example/observed",
+          "folderID": {
+            "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "splitGroupID": {
+            "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+          }
+        },
+        {
+          "placement": "current",
+          "title": "Start Page",
+          "id": {
+            "rawValue": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          },
+          "lastActivatedAt": 780123470.7891234,
+          "symbol": "flag.fill",
+          "url": null,
+          "folderID": {
+            "rawValue": "22222222-2222-4222-8222-222222222222"
+          },
+          "savedURL": null,
+          "customTitle": null,
+          "positionModifiedAt": 800000002,
+          "titleModifiedAt": null,
+          "splitGroupID": null
+        }
+      ],
+      "folders": [
+        {
+          "location": "saved",
+          "title": "Reading",
+          "id": {
+            "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "isCollapsed": false,
+          "color": {
+            "green": 0.4,
+            "red": 0.2,
+            "blue": 0.6,
+            "alpha": 0.5
+          },
+          "parentID": null,
+          "collapseModifiedAt": null,
+          "orderAnchorTabID": null
+        },
+        {
+          "location": "saved",
+          "id": {
+            "rawValue": "103A72E0-C616-41BC-A248-CA740907813F"
+          },
+          "isCollapsed": true,
+          "color": {
+            "green": 0.48,
+            "red": 0.43,
+            "blue": 0.54,
+            "alpha": 1
+          },
+          "parentID": {
+            "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+          },
+          "title": "Later",
+          "collapseModifiedAt": 780123471.7891234,
+          "orderAnchorTabID": null
+        },
+        {
+          "location": "current",
+          "title": "Split work",
+          "id": {
+            "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+          },
+          "isCollapsed": false,
+          "color": {
+            "green": 0.48,
+            "red": 0.43,
+            "blue": 0.54,
+            "alpha": 1
+          },
+          "parentID": null,
+          "collapseModifiedAt": null,
+          "orderAnchorTabID": {
+            "rawValue": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+          }
+        },
+        {
+          "isCollapsed": false,
+          "location": "current",
+          "id": {
+            "rawValue": "72ACEC3C-6348-4403-89C3-76E1901AA666"
+          },
+          "orderAnchorTabID": null,
+          "color": {
+            "green": 0.5,
+            "red": 0.5,
+            "blue": 0.5,
+            "alpha": 1
+          },
+          "title": "Empty",
+          "parentID": null,
+          "collapseModifiedAt": null
+        },
+        {
+          "color": {
+            "red": 0.43,
+            "green": 0.48,
+            "blue": 0.54,
+            "alpha": 1
+          },
+          "id": {
+            "rawValue": "22222222-2222-4222-8222-222222222222"
+          },
+          "title": "New Folder",
+          "location": "current",
+          "parentID": null,
+          "isCollapsed": false,
+          "collapseModifiedAt": null,
+          "orderAnchorTabID": null
+        }
+      ],
+      "history": [],
+      "archivedTabs": []
+    },
+    "destination": {
+      "browsingPreferences": {
+        "contentBlockingPolicy": "balanced",
+        "searchSuggestionsEnabled": false,
+        "searchProvider": "duckDuckGo",
+        "customSearchProviders": [],
+        "selectedSearchProviderID": "duckDuckGo",
+        "dataRetention": {
+          "archive": "forever",
+          "history": "forever",
+          "downloads": "forever"
+        },
+        "currentTabCleanupPolicy": "never"
+      },
+      "name": "Plain",
+      "id": {
+        "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+      },
+      "profile": {
+        "id": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB"
+      },
+      "splitGroups": [],
+      "tabs": [
+        {
+          "lastActivatedAt": 780123460.7891234,
+          "faviconURL": "https://news.example/icon.png",
+          "symbol": "crest.emoji:🌊",
+          "title": "Saved article",
+          "placement": "saved",
+          "savedURL": "https://news.example/article",
+          "id": {
+            "rawValue": "B61250D4-3D4E-4DD6-8871-0BB326669142"
+          },
+          "storedIconMode": "emoji",
+          "positionModifiedAt": 800000007,
+          "titleModifiedAt": 780123462.789,
+          "iconAccent": {
+            "green": 0,
+            "red": 1,
+            "blue": 0
+          },
+          "folderID": null,
+          "customTitle": "Reading",
+          "url": "https://news.example/article/42",
+          "splitGroupID": null
+        },
+        {
+          "symbol": "globe",
+          "id": {
+            "rawValue": "6DF2F570-7E1A-4426-B422-23609823B142"
+          },
+          "title": "Plain",
+          "placement": "current",
+          "lastActivatedAt": 780123556.7891234,
+          "url": "https://plain.example/",
+          "folderID": null,
+          "savedURL": null,
+          "customTitle": null,
+          "positionModifiedAt": null,
+          "titleModifiedAt": null,
+          "splitGroupID": null
+        }
+      ],
+      "folders": [],
+      "history": [],
+      "archivedTabs": []
+    }
+  },
+  "space.identity": {
+    "session": {
+      "defaultSpaceID": {
+        "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+      },
+      "disposableSeedMarker": "027A55FA-1FCB-48D5-B850-6525D2B18BB9",
+      "appPreferences": {
+        "offersTranslation": false,
+        "startupBehavior": "lastActiveTab",
+        "automaticallyEntersPictureInPicture": false,
+        "checksSpelling": true
+      },
+      "spaceDeletions": [
+        {
+          "profileID": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7",
+          "operationID": "F8EB2C81-9F63-4F58-B067-2AABD659EC7E",
+          "spaceID": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          }
+        }
+      ],
+      "spaces": [
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "off",
+            "searchSuggestionsEnabled": true,
+            "searchProvider": "google",
+            "customSearchProviders": [
+              {
+                "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+                "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+                "name": "Docs",
+                "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+              },
+              {
+                "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+                "name": "Wiki",
+                "searchURLTemplate": "https://wiki.example/find?q=%s"
+              }
+            ],
+            "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+            "dataRetention": {
+              "archive": "thirtyDays",
+              "history": "ninetyDays",
+              "downloads": "oneWeek"
+            },
+            "currentTabCleanupPolicy": "after7Days"
+          },
+          "name": "Everything",
+          "id": {
+            "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+          },
+          "profile": {
+            "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+          },
+          "splitGroups": [
+            {
+              "iconModifiedAt": 780123473.789,
+              "tintModifiedAt": 800000004.25,
+              "id": {
+                "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+              },
+              "customIconSymbol": "crest.emoji:🧪",
+              "tint": {
+                "red": 0.1,
+                "green": 0.2,
+                "blue": 0.3,
+                "alpha": 1
+              },
+              "customTitle": "Renamed split",
+              "titleModifiedAt": 800000004
+            }
+          ],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "duckDuckGo",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "duckDuckGo",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "never"
+          },
+          "name": "Renamed",
+          "id": {
+            "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+          },
+          "profile": {
+            "id": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "google",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "google",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "after12Hours"
+          },
+          "name": "Leaving",
+          "id": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          },
+          "profile": {
+            "id": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        }
+      ]
+    }
+  },
+  "space.browsing_preferences": {
+    "session": {
+      "defaultSpaceID": {
+        "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+      },
+      "disposableSeedMarker": "027A55FA-1FCB-48D5-B850-6525D2B18BB9",
+      "appPreferences": {
+        "offersTranslation": false,
+        "startupBehavior": "lastActiveTab",
+        "automaticallyEntersPictureInPicture": false,
+        "checksSpelling": true
+      },
+      "spaceDeletions": [
+        {
+          "profileID": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7",
+          "operationID": "F8EB2C81-9F63-4F58-B067-2AABD659EC7E",
+          "spaceID": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          }
+        }
+      ],
+      "spaces": [
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "off",
+            "searchSuggestionsEnabled": true,
+            "searchProvider": "google",
+            "customSearchProviders": [
+              {
+                "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+                "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+                "name": "Docs",
+                "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+              },
+              {
+                "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+                "name": "Wiki",
+                "searchURLTemplate": "https://wiki.example/find?q=%s"
+              }
+            ],
+            "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+            "dataRetention": {
+              "archive": "thirtyDays",
+              "history": "ninetyDays",
+              "downloads": "oneWeek"
+            },
+            "currentTabCleanupPolicy": "after7Days"
+          },
+          "name": "Everything",
+          "id": {
+            "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+          },
+          "profile": {
+            "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+          },
+          "splitGroups": [
+            {
+              "iconModifiedAt": 780123473.789,
+              "tintModifiedAt": 800000004.25,
+              "id": {
+                "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+              },
+              "customIconSymbol": "crest.emoji:🧪",
+              "tint": {
+                "red": 0.1,
+                "green": 0.2,
+                "blue": 0.3,
+                "alpha": 1
+              },
+              "customTitle": "Renamed split",
+              "titleModifiedAt": 800000004
+            }
+          ],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "searchProvider": "bing",
+            "selectedSearchProviderID": "bing",
+            "customSearchProviders": [],
+            "searchSuggestionsEnabled": true,
+            "currentTabCleanupPolicy": "after24Hours",
+            "contentBlockingPolicy": "balanced",
+            "dataRetention": {
+              "history": "oneYear",
+              "archive": "oneDay",
+              "downloads": "forever"
+            }
+          },
+          "name": "Renamed",
+          "id": {
+            "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+          },
+          "profile": {
+            "id": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "google",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "google",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "after12Hours"
+          },
+          "name": "Leaving",
+          "id": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          },
+          "profile": {
+            "id": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        }
+      ]
+    }
+  },
+  "space.credential_preferences": {
+    "session": {
+      "defaultSpaceID": {
+        "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+      },
+      "disposableSeedMarker": "027A55FA-1FCB-48D5-B850-6525D2B18BB9",
+      "appPreferences": {
+        "offersTranslation": false,
+        "startupBehavior": "lastActiveTab",
+        "automaticallyEntersPictureInPicture": false,
+        "checksSpelling": true
+      },
+      "spaceDeletions": [
+        {
+          "profileID": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7",
+          "operationID": "F8EB2C81-9F63-4F58-B067-2AABD659EC7E",
+          "spaceID": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          }
+        }
+      ],
+      "spaces": [
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "off",
+            "searchSuggestionsEnabled": true,
+            "searchProvider": "google",
+            "customSearchProviders": [
+              {
+                "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+                "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+                "name": "Docs",
+                "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+              },
+              {
+                "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+                "name": "Wiki",
+                "searchURLTemplate": "https://wiki.example/find?q=%s"
+              }
+            ],
+            "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+            "dataRetention": {
+              "archive": "thirtyDays",
+              "history": "ninetyDays",
+              "downloads": "oneWeek"
+            },
+            "currentTabCleanupPolicy": "after7Days"
+          },
+          "name": "Everything",
+          "id": {
+            "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+          },
+          "profile": {
+            "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+          },
+          "splitGroups": [
+            {
+              "iconModifiedAt": 780123473.789,
+              "tintModifiedAt": 800000004.25,
+              "id": {
+                "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+              },
+              "customIconSymbol": "crest.emoji:🧪",
+              "tint": {
+                "red": 0.1,
+                "green": 0.2,
+                "blue": 0.3,
+                "alpha": 1
+              },
+              "customTitle": "Renamed split",
+              "titleModifiedAt": 800000004
+            }
+          ],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "searchProvider": "bing",
+            "selectedSearchProviderID": "bing",
+            "customSearchProviders": [],
+            "searchSuggestionsEnabled": true,
+            "currentTabCleanupPolicy": "after24Hours",
+            "contentBlockingPolicy": "balanced",
+            "dataRetention": {
+              "history": "oneYear",
+              "archive": "oneDay",
+              "downloads": "forever"
+            }
+          },
+          "name": "Renamed",
+          "id": {
+            "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+          },
+          "profile": {
+            "id": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "google",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "google",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "after12Hours"
+          },
+          "name": "Leaving",
+          "id": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          },
+          "profile": {
+            "id": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        }
+      ]
+    }
+  },
+  "space.access": {
+    "session": {
+      "defaultSpaceID": {
+        "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+      },
+      "disposableSeedMarker": "027A55FA-1FCB-48D5-B850-6525D2B18BB9",
+      "appPreferences": {
+        "offersTranslation": false,
+        "startupBehavior": "lastActiveTab",
+        "automaticallyEntersPictureInPicture": false,
+        "checksSpelling": true
+      },
+      "spaceDeletions": [
+        {
+          "profileID": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7",
+          "operationID": "F8EB2C81-9F63-4F58-B067-2AABD659EC7E",
+          "spaceID": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          }
+        }
+      ],
+      "spaces": [
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "off",
+            "searchSuggestionsEnabled": true,
+            "searchProvider": "google",
+            "customSearchProviders": [
+              {
+                "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+                "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+                "name": "Docs",
+                "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+              },
+              {
+                "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+                "name": "Wiki",
+                "searchURLTemplate": "https://wiki.example/find?q=%s"
+              }
+            ],
+            "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+            "dataRetention": {
+              "archive": "thirtyDays",
+              "history": "ninetyDays",
+              "downloads": "oneWeek"
+            },
+            "currentTabCleanupPolicy": "after7Days"
+          },
+          "name": "Everything",
+          "id": {
+            "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+          },
+          "profile": {
+            "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+          },
+          "splitGroups": [
+            {
+              "iconModifiedAt": 780123473.789,
+              "tintModifiedAt": 800000004.25,
+              "id": {
+                "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+              },
+              "customIconSymbol": "crest.emoji:🧪",
+              "tint": {
+                "red": 0.1,
+                "green": 0.2,
+                "blue": 0.3,
+                "alpha": 1
+              },
+              "customTitle": "Renamed split",
+              "titleModifiedAt": 800000004
+            }
+          ],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "searchProvider": "bing",
+            "selectedSearchProviderID": "bing",
+            "customSearchProviders": [],
+            "searchSuggestionsEnabled": true,
+            "currentTabCleanupPolicy": "after24Hours",
+            "contentBlockingPolicy": "balanced",
+            "dataRetention": {
+              "history": "oneYear",
+              "archive": "oneDay",
+              "downloads": "forever"
+            }
+          },
+          "name": "Renamed",
+          "id": {
+            "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+          },
+          "profile": {
+            "id": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "google",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "google",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "after12Hours"
+          },
+          "name": "Leaving",
+          "id": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          },
+          "profile": {
+            "id": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        }
+      ]
+    }
+  },
+  "space.default": {
+    "session": {
+      "defaultSpaceID": {
+        "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+      },
+      "disposableSeedMarker": "027A55FA-1FCB-48D5-B850-6525D2B18BB9",
+      "appPreferences": {
+        "offersTranslation": false,
+        "startupBehavior": "lastActiveTab",
+        "automaticallyEntersPictureInPicture": false,
+        "checksSpelling": true
+      },
+      "spaceDeletions": [
+        {
+          "profileID": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7",
+          "operationID": "F8EB2C81-9F63-4F58-B067-2AABD659EC7E",
+          "spaceID": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          }
+        }
+      ],
+      "spaces": [
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "off",
+            "searchSuggestionsEnabled": true,
+            "searchProvider": "google",
+            "customSearchProviders": [
+              {
+                "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+                "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+                "name": "Docs",
+                "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+              },
+              {
+                "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+                "name": "Wiki",
+                "searchURLTemplate": "https://wiki.example/find?q=%s"
+              }
+            ],
+            "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+            "dataRetention": {
+              "archive": "thirtyDays",
+              "history": "ninetyDays",
+              "downloads": "oneWeek"
+            },
+            "currentTabCleanupPolicy": "after7Days"
+          },
+          "name": "Everything",
+          "id": {
+            "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+          },
+          "profile": {
+            "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+          },
+          "splitGroups": [
+            {
+              "iconModifiedAt": 780123473.789,
+              "tintModifiedAt": 800000004.25,
+              "id": {
+                "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+              },
+              "customIconSymbol": "crest.emoji:🧪",
+              "tint": {
+                "red": 0.1,
+                "green": 0.2,
+                "blue": 0.3,
+                "alpha": 1
+              },
+              "customTitle": "Renamed split",
+              "titleModifiedAt": 800000004
+            }
+          ],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "searchProvider": "bing",
+            "selectedSearchProviderID": "bing",
+            "customSearchProviders": [],
+            "searchSuggestionsEnabled": true,
+            "currentTabCleanupPolicy": "after24Hours",
+            "contentBlockingPolicy": "balanced",
+            "dataRetention": {
+              "history": "oneYear",
+              "archive": "oneDay",
+              "downloads": "forever"
+            }
+          },
+          "name": "Renamed",
+          "id": {
+            "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+          },
+          "profile": {
+            "id": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "google",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "google",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "after12Hours"
+          },
+          "name": "Leaving",
+          "id": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          },
+          "profile": {
+            "id": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        }
+      ]
+    }
+  },
+  "records.sweep": {
+    "changes": [
+      {
+        "spaceId": "6c1d5447-4e3d-46a7-9b60-e3b95d6c7848",
+        "profileId": "5966a1c3-b0b5-4bf9-a355-36857a8cc6a2",
+        "tabEdit": {
+          "space": {
+            "browsingPreferences": {
+              "contentBlockingPolicy": "off",
+              "searchSuggestionsEnabled": true,
+              "searchProvider": "google",
+              "customSearchProviders": [
+                {
+                  "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+                  "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+                  "name": "Docs",
+                  "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+                },
+                {
+                  "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+                  "name": "Wiki",
+                  "searchURLTemplate": "https://wiki.example/find?q=%s"
+                }
+              ],
+              "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+              "dataRetention": {
+                "archive": "thirtyDays",
+                "history": "ninetyDays",
+                "downloads": "oneWeek"
+              },
+              "currentTabCleanupPolicy": "after7Days"
+            },
+            "name": "Everything",
+            "id": {
+              "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+            },
+            "profile": {
+              "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+            },
+            "splitGroups": [
+              {
+                "iconModifiedAt": 780123473.789,
+                "tintModifiedAt": 800000004.25,
+                "id": {
+                  "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+                },
+                "customIconSymbol": "crest.emoji:🧪",
+                "tint": {
+                  "red": 0.1,
+                  "green": 0.2,
+                  "blue": 0.3,
+                  "alpha": 1
+                },
+                "customTitle": "Renamed split",
+                "titleModifiedAt": 800000004
+              }
+            ],
+            "tabs": [
+              {
+                "lastActivatedAt": 780123457.7891234,
+                "faviconURL": "https://pinned.example/favicon.ico",
+                "symbol": "pin.fill",
+                "title": "Pinned page",
+                "placement": "pinned",
+                "savedURL": "https://pinned.example/",
+                "id": {
+                  "rawValue": "853D3F20-BB2C-45F0-98BD-CCC71C646370"
+                },
+                "storedIconMode": "pulled",
+                "positionModifiedAt": 780123458.789,
+                "titleModifiedAt": 780123459.789,
+                "iconAccent": {
+                  "green": 0.5,
+                  "red": 0.25,
+                  "blue": 0.75
+                },
+                "customTitle": "Mail",
+                "url": "https://pinned.example/inbox?view=all#top",
+                "folderID": null,
+                "splitGroupID": null
+              },
+              {
+                "id": {
+                  "rawValue": "4615461C-BA47-4054-B5CF-3DCAF3362D8C"
+                },
+                "symbol": "gearshape",
+                "title": "Settings",
+                "placement": "saved",
+                "nativeContent": {
+                  "kind": "settings",
+                  "resourceID": "36D804C1-3F34-4E98-BC70-04CED016E1DE"
+                },
+                "storedIconMode": "automatic",
+                "folderID": {
+                  "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+                },
+                "lastActivatedAt": 780123463.7891234,
+                "positionModifiedAt": 780123464.789,
+                "url": null,
+                "savedURL": null,
+                "customTitle": null,
+                "titleModifiedAt": null,
+                "splitGroupID": null
+              },
+              {
+                "lastActivatedAt": 800000006,
+                "faviconURL": "https://archive.example/favicon.ico",
+                "symbol": "globe",
+                "title": "closed",
+                "placement": "current",
+                "id": {
+                  "rawValue": "FDA1DB22-5EEE-4001-B553-5208F01B5C65"
+                },
+                "storedIconMode": "pulled",
+                "positionModifiedAt": 800000006,
+                "titleModifiedAt": 780123478.789,
+                "iconAccent": {
+                  "green": 0.5,
+                  "red": 0.25,
+                  "blue": 0.75
+                },
+                "customTitle": "CLOSED",
+                "url": "https://archive.example/closed",
+                "folderID": null,
+                "savedURL": null,
+                "splitGroupID": null
+              },
+              {
+                "lastActivatedAt": 800000003,
+                "faviconURL": "https://pinned.example/favicon.ico",
+                "symbol": "pin.fill",
+                "title": "Pinned observed",
+                "placement": "current",
+                "savedURL": null,
+                "id": {
+                  "rawValue": "33333333-3333-4333-8333-333333333333"
+                },
+                "storedIconMode": "pulled",
+                "positionModifiedAt": 800000003,
+                "titleModifiedAt": 800000003,
+                "iconAccent": {
+                  "green": 0.5,
+                  "red": 0.25,
+                  "blue": 0.75
+                },
+                "customTitle": "Mail",
+                "url": "https://pinned.example/observed",
+                "folderID": {
+                  "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+                },
+                "splitGroupID": {
+                  "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+                }
+              },
+              {
+                "placement": "current",
+                "title": "Start Page",
+                "id": {
+                  "rawValue": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+                },
+                "lastActivatedAt": 780123470.7891234,
+                "symbol": "flag.fill",
+                "url": null,
+                "folderID": {
+                  "rawValue": "22222222-2222-4222-8222-222222222222"
+                },
+                "savedURL": null,
+                "customTitle": null,
+                "positionModifiedAt": 800000002,
+                "titleModifiedAt": null,
+                "splitGroupID": null
+              }
+            ],
+            "folders": [
+              {
+                "location": "saved",
+                "title": "Reading",
+                "id": {
+                  "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+                },
+                "isCollapsed": false,
+                "color": {
+                  "green": 0.4,
+                  "red": 0.2,
+                  "blue": 0.6,
+                  "alpha": 0.5
+                },
+                "parentID": null,
+                "collapseModifiedAt": null,
+                "orderAnchorTabID": null
+              },
+              {
+                "location": "saved",
+                "id": {
+                  "rawValue": "103A72E0-C616-41BC-A248-CA740907813F"
+                },
+                "isCollapsed": true,
+                "color": {
+                  "green": 0.48,
+                  "red": 0.43,
+                  "blue": 0.54,
+                  "alpha": 1
+                },
+                "parentID": {
+                  "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+                },
+                "title": "Later",
+                "collapseModifiedAt": 780123471.7891234,
+                "orderAnchorTabID": null
+              },
+              {
+                "location": "current",
+                "title": "Split work",
+                "id": {
+                  "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+                },
+                "isCollapsed": false,
+                "color": {
+                  "green": 0.48,
+                  "red": 0.43,
+                  "blue": 0.54,
+                  "alpha": 1
+                },
+                "parentID": null,
+                "collapseModifiedAt": null,
+                "orderAnchorTabID": {
+                  "rawValue": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+                }
+              },
+              {
+                "isCollapsed": false,
+                "location": "current",
+                "id": {
+                  "rawValue": "72ACEC3C-6348-4403-89C3-76E1901AA666"
+                },
+                "orderAnchorTabID": null,
+                "color": {
+                  "green": 0.5,
+                  "red": 0.5,
+                  "blue": 0.5,
+                  "alpha": 1
+                },
+                "title": "Empty",
+                "parentID": null,
+                "collapseModifiedAt": null
+              },
+              {
+                "color": {
+                  "red": 0.43,
+                  "green": 0.48,
+                  "blue": 0.54,
+                  "alpha": 1
+                },
+                "id": {
+                  "rawValue": "22222222-2222-4222-8222-222222222222"
+                },
+                "title": "New Folder",
+                "location": "current",
+                "parentID": null,
+                "isCollapsed": false,
+                "collapseModifiedAt": null,
+                "orderAnchorTabID": null
+              }
+            ],
+            "history": [],
+            "archivedTabs": [
+              {
+                "tab": {
+                  "symbol": "globe",
+                  "id": {
+                    "rawValue": "428CAA9C-9A7A-4386-B120-F6096032C167"
+                  },
+                  "title": "Left",
+                  "url": "https://left.example/",
+                  "placement": "current",
+                  "folderID": {
+                    "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+                  },
+                  "lastActivatedAt": 780123465.7891234,
+                  "iconAccent": {
+                    "green": 0.5,
+                    "red": 0.25,
+                    "blue": 0.75
+                  },
+                  "positionModifiedAt": 800000003,
+                  "splitGroupID": null,
+                  "faviconURL": "https://left.example/f.ico",
+                  "savedURL": null,
+                  "customTitle": null,
+                  "titleModifiedAt": null
+                },
+                "archivedAt": 800000100,
+                "reason": "autoCleanup"
+              },
+              {
+                "tab": {
+                  "symbol": "globe",
+                  "id": {
+                    "rawValue": "942AC076-B0D8-454B-9EEB-3791E6113F77"
+                  },
+                  "title": "Right",
+                  "placement": "current",
+                  "folderID": {
+                    "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+                  },
+                  "url": "https://right.example/page",
+                  "lastActivatedAt": 780123467.7891234,
+                  "positionModifiedAt": 800000003,
+                  "customTitle": "Right side",
+                  "splitGroupID": null,
+                  "titleModifiedAt": 780123469.789,
+                  "savedURL": null
+                },
+                "archivedAt": 800000100,
+                "reason": "autoCleanup"
+              }
+            ]
+          },
+          "tabId": null,
+          "copies": [],
+          "changed": true,
+          "favicon": null
+        },
+        "removedHistory": [
+          "c75426b1-c343-4227-9157-76059184ed63"
+        ],
+        "removedArchiveIndices": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      }
+    ]
+  },
+  "preferences.set": {
+    "preferences": {
+      "offersTranslation": false,
+      "startupBehavior": "lastActiveTab",
+      "automaticallyEntersPictureInPicture": false,
+      "checksSpelling": false
+    }
+  },
+  "space.search_provider.upsert": {
+    "session": {
+      "defaultSpaceID": {
+        "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+      },
+      "disposableSeedMarker": "027A55FA-1FCB-48D5-B850-6525D2B18BB9",
+      "appPreferences": {
+        "offersTranslation": false,
+        "startupBehavior": "lastActiveTab",
+        "automaticallyEntersPictureInPicture": false,
+        "checksSpelling": false
+      },
+      "spaceDeletions": [
+        {
+          "profileID": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7",
+          "operationID": "F8EB2C81-9F63-4F58-B067-2AABD659EC7E",
+          "spaceID": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          }
+        }
+      ],
+      "spaces": [
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "off",
+            "searchSuggestionsEnabled": true,
+            "searchProvider": "google",
+            "customSearchProviders": [
+              {
+                "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+                "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+                "name": "Docs",
+                "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+              },
+              {
+                "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+                "name": "Wiki",
+                "searchURLTemplate": "https://wiki.example/find?q=%s"
+              }
+            ],
+            "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+            "dataRetention": {
+              "archive": "thirtyDays",
+              "history": "ninetyDays",
+              "downloads": "oneWeek"
+            },
+            "currentTabCleanupPolicy": "after7Days"
+          },
+          "name": "Everything",
+          "id": {
+            "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+          },
+          "profile": {
+            "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+          },
+          "splitGroups": [
+            {
+              "iconModifiedAt": 780123473.789,
+              "tintModifiedAt": 800000004.25,
+              "id": {
+                "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+              },
+              "customIconSymbol": "crest.emoji:🧪",
+              "tint": {
+                "red": 0.1,
+                "green": 0.2,
+                "blue": 0.3,
+                "alpha": 1
+              },
+              "customTitle": "Renamed split",
+              "titleModifiedAt": 800000004
+            }
+          ],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "searchProvider": "google",
+            "selectedSearchProviderID": "custom:44444444-4444-4444-8444-444444444444",
+            "customSearchProviders": [
+              {
+                "id": "44444444-4444-4444-8444-444444444444",
+                "name": "Kagi",
+                "searchURLTemplate": "https://kagi.com/search?q=%s"
+              }
+            ],
+            "searchSuggestionsEnabled": true,
+            "currentTabCleanupPolicy": "after24Hours",
+            "contentBlockingPolicy": "balanced",
+            "dataRetention": {
+              "history": "oneYear",
+              "archive": "oneDay",
+              "downloads": "forever"
+            }
+          },
+          "name": "Renamed",
+          "id": {
+            "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+          },
+          "profile": {
+            "id": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "google",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "google",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "after12Hours"
+          },
+          "name": "Leaving",
+          "id": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          },
+          "profile": {
+            "id": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        }
+      ]
+    }
+  },
+  "space.search_provider.upsert.second": {
+    "session": {
+      "defaultSpaceID": {
+        "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+      },
+      "disposableSeedMarker": "027A55FA-1FCB-48D5-B850-6525D2B18BB9",
+      "appPreferences": {
+        "offersTranslation": false,
+        "startupBehavior": "lastActiveTab",
+        "automaticallyEntersPictureInPicture": false,
+        "checksSpelling": false
+      },
+      "spaceDeletions": [
+        {
+          "profileID": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7",
+          "operationID": "F8EB2C81-9F63-4F58-B067-2AABD659EC7E",
+          "spaceID": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          }
+        }
+      ],
+      "spaces": [
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "off",
+            "searchSuggestionsEnabled": true,
+            "searchProvider": "google",
+            "customSearchProviders": [
+              {
+                "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+                "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+                "name": "Docs",
+                "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+              },
+              {
+                "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+                "name": "Wiki",
+                "searchURLTemplate": "https://wiki.example/find?q=%s"
+              }
+            ],
+            "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+            "dataRetention": {
+              "archive": "thirtyDays",
+              "history": "ninetyDays",
+              "downloads": "oneWeek"
+            },
+            "currentTabCleanupPolicy": "after7Days"
+          },
+          "name": "Everything",
+          "id": {
+            "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+          },
+          "profile": {
+            "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+          },
+          "splitGroups": [
+            {
+              "iconModifiedAt": 780123473.789,
+              "tintModifiedAt": 800000004.25,
+              "id": {
+                "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+              },
+              "customIconSymbol": "crest.emoji:🧪",
+              "tint": {
+                "red": 0.1,
+                "green": 0.2,
+                "blue": 0.3,
+                "alpha": 1
+              },
+              "customTitle": "Renamed split",
+              "titleModifiedAt": 800000004
+            }
+          ],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "searchProvider": "google",
+            "selectedSearchProviderID": "custom:44444444-4444-4444-8444-444444444444",
+            "customSearchProviders": [
+              {
+                "id": "44444444-4444-4444-8444-444444444444",
+                "name": "Kagi",
+                "searchURLTemplate": "https://kagi.com/search?q=%s"
+              },
+              {
+                "id": "45454545-4545-4545-8545-454545454545",
+                "name": "Example",
+                "searchURLTemplate": "https://example.com/?q={searchTerms}",
+                "suggestionURLTemplate": "https://example.com/suggest?q={searchTerms}"
+              }
+            ],
+            "searchSuggestionsEnabled": true,
+            "currentTabCleanupPolicy": "after24Hours",
+            "contentBlockingPolicy": "balanced",
+            "dataRetention": {
+              "history": "oneYear",
+              "archive": "oneDay",
+              "downloads": "forever"
+            }
+          },
+          "name": "Renamed",
+          "id": {
+            "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+          },
+          "profile": {
+            "id": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "google",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "google",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "after12Hours"
+          },
+          "name": "Leaving",
+          "id": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          },
+          "profile": {
+            "id": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        }
+      ]
+    }
+  },
+  "space.search_provider.remove": {
+    "session": {
+      "defaultSpaceID": {
+        "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+      },
+      "disposableSeedMarker": "027A55FA-1FCB-48D5-B850-6525D2B18BB9",
+      "appPreferences": {
+        "offersTranslation": false,
+        "startupBehavior": "lastActiveTab",
+        "automaticallyEntersPictureInPicture": false,
+        "checksSpelling": false
+      },
+      "spaceDeletions": [
+        {
+          "profileID": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7",
+          "operationID": "F8EB2C81-9F63-4F58-B067-2AABD659EC7E",
+          "spaceID": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          }
+        }
+      ],
+      "spaces": [
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "off",
+            "searchSuggestionsEnabled": true,
+            "searchProvider": "google",
+            "customSearchProviders": [
+              {
+                "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+                "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+                "name": "Docs",
+                "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+              },
+              {
+                "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+                "name": "Wiki",
+                "searchURLTemplate": "https://wiki.example/find?q=%s"
+              }
+            ],
+            "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+            "dataRetention": {
+              "archive": "thirtyDays",
+              "history": "ninetyDays",
+              "downloads": "oneWeek"
+            },
+            "currentTabCleanupPolicy": "after7Days"
+          },
+          "name": "Everything",
+          "id": {
+            "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+          },
+          "profile": {
+            "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+          },
+          "splitGroups": [
+            {
+              "iconModifiedAt": 780123473.789,
+              "tintModifiedAt": 800000004.25,
+              "id": {
+                "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+              },
+              "customIconSymbol": "crest.emoji:🧪",
+              "tint": {
+                "red": 0.1,
+                "green": 0.2,
+                "blue": 0.3,
+                "alpha": 1
+              },
+              "customTitle": "Renamed split",
+              "titleModifiedAt": 800000004
+            }
+          ],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "searchProvider": "google",
+            "selectedSearchProviderID": "google",
+            "customSearchProviders": [
+              {
+                "id": "45454545-4545-4545-8545-454545454545",
+                "name": "Example",
+                "searchURLTemplate": "https://example.com/?q={searchTerms}",
+                "suggestionURLTemplate": "https://example.com/suggest?q={searchTerms}"
+              }
+            ],
+            "searchSuggestionsEnabled": true,
+            "currentTabCleanupPolicy": "after24Hours",
+            "contentBlockingPolicy": "balanced",
+            "dataRetention": {
+              "history": "oneYear",
+              "archive": "oneDay",
+              "downloads": "forever"
+            }
+          },
+          "name": "Renamed",
+          "id": {
+            "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+          },
+          "profile": {
+            "id": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "google",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "google",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "after12Hours"
+          },
+          "name": "Leaving",
+          "id": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          },
+          "profile": {
+            "id": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        }
+      ]
+    }
+  },
+  "preferences.set.startup": {
+    "preferences": {
+      "offersTranslation": false,
+      "startupBehavior": "showStartPage",
+      "automaticallyEntersPictureInPicture": false,
+      "checksSpelling": false
+    }
+  },
+  "preferences.import": {
+    "preferences": {
+      "offersTranslation": false,
+      "startupBehavior": "showStartPage",
+      "automaticallyEntersPictureInPicture": false,
+      "checksSpelling": false
+    }
+  },
+  "launch.plan": {
+    "requiresIsolation": false,
+    "usesEphemeralProfileStorage": false,
+    "presentsInstalledApplicationUI": true,
+    "startupBehavior": "showStartPage"
+  },
+  "space.reorder": {
+    "session": {
+      "defaultSpaceID": {
+        "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+      },
+      "disposableSeedMarker": "027A55FA-1FCB-48D5-B850-6525D2B18BB9",
+      "appPreferences": {
+        "offersTranslation": false,
+        "startupBehavior": "showStartPage",
+        "automaticallyEntersPictureInPicture": false,
+        "checksSpelling": false
+      },
+      "spaceDeletions": [
+        {
+          "profileID": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7",
+          "operationID": "F8EB2C81-9F63-4F58-B067-2AABD659EC7E",
+          "spaceID": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          }
+        }
+      ],
+      "spaces": [
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "google",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "google",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "after12Hours"
+          },
+          "name": "Leaving",
+          "id": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          },
+          "profile": {
+            "id": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "off",
+            "searchSuggestionsEnabled": true,
+            "searchProvider": "google",
+            "customSearchProviders": [
+              {
+                "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+                "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+                "name": "Docs",
+                "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+              },
+              {
+                "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+                "name": "Wiki",
+                "searchURLTemplate": "https://wiki.example/find?q=%s"
+              }
+            ],
+            "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+            "dataRetention": {
+              "archive": "thirtyDays",
+              "history": "ninetyDays",
+              "downloads": "oneWeek"
+            },
+            "currentTabCleanupPolicy": "after7Days"
+          },
+          "name": "Everything",
+          "id": {
+            "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+          },
+          "profile": {
+            "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+          },
+          "splitGroups": [
+            {
+              "iconModifiedAt": 780123473.789,
+              "tintModifiedAt": 800000004.25,
+              "id": {
+                "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+              },
+              "customIconSymbol": "crest.emoji:🧪",
+              "tint": {
+                "red": 0.1,
+                "green": 0.2,
+                "blue": 0.3,
+                "alpha": 1
+              },
+              "customTitle": "Renamed split",
+              "titleModifiedAt": 800000004
+            }
+          ],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "searchProvider": "google",
+            "selectedSearchProviderID": "google",
+            "customSearchProviders": [
+              {
+                "id": "45454545-4545-4545-8545-454545454545",
+                "name": "Example",
+                "searchURLTemplate": "https://example.com/?q={searchTerms}",
+                "suggestionURLTemplate": "https://example.com/suggest?q={searchTerms}"
+              }
+            ],
+            "searchSuggestionsEnabled": true,
+            "currentTabCleanupPolicy": "after24Hours",
+            "contentBlockingPolicy": "balanced",
+            "dataRetention": {
+              "history": "oneYear",
+              "archive": "oneDay",
+              "downloads": "forever"
+            }
+          },
+          "name": "Renamed",
+          "id": {
+            "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+          },
+          "profile": {
+            "id": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        }
+      ]
+    }
+  },
+  "space.create": {
+    "session": {
+      "defaultSpaceID": {
+        "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+      },
+      "disposableSeedMarker": "027A55FA-1FCB-48D5-B850-6525D2B18BB9",
+      "appPreferences": {
+        "offersTranslation": false,
+        "startupBehavior": "showStartPage",
+        "automaticallyEntersPictureInPicture": false,
+        "checksSpelling": false
+      },
+      "spaceDeletions": [
+        {
+          "profileID": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7",
+          "operationID": "F8EB2C81-9F63-4F58-B067-2AABD659EC7E",
+          "spaceID": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          }
+        }
+      ],
+      "spaces": [
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "google",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "google",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "after12Hours"
+          },
+          "name": "Leaving",
+          "id": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          },
+          "profile": {
+            "id": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "off",
+            "searchSuggestionsEnabled": true,
+            "searchProvider": "google",
+            "customSearchProviders": [
+              {
+                "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+                "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+                "name": "Docs",
+                "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+              },
+              {
+                "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+                "name": "Wiki",
+                "searchURLTemplate": "https://wiki.example/find?q=%s"
+              }
+            ],
+            "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+            "dataRetention": {
+              "archive": "thirtyDays",
+              "history": "ninetyDays",
+              "downloads": "oneWeek"
+            },
+            "currentTabCleanupPolicy": "after7Days"
+          },
+          "name": "Everything",
+          "id": {
+            "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+          },
+          "profile": {
+            "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+          },
+          "splitGroups": [
+            {
+              "iconModifiedAt": 780123473.789,
+              "tintModifiedAt": 800000004.25,
+              "id": {
+                "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+              },
+              "customIconSymbol": "crest.emoji:🧪",
+              "tint": {
+                "red": 0.1,
+                "green": 0.2,
+                "blue": 0.3,
+                "alpha": 1
+              },
+              "customTitle": "Renamed split",
+              "titleModifiedAt": 800000004
+            }
+          ],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "searchProvider": "google",
+            "selectedSearchProviderID": "google",
+            "customSearchProviders": [
+              {
+                "id": "45454545-4545-4545-8545-454545454545",
+                "name": "Example",
+                "searchURLTemplate": "https://example.com/?q={searchTerms}",
+                "suggestionURLTemplate": "https://example.com/suggest?q={searchTerms}"
+              }
+            ],
+            "searchSuggestionsEnabled": true,
+            "currentTabCleanupPolicy": "after24Hours",
+            "contentBlockingPolicy": "balanced",
+            "dataRetention": {
+              "history": "oneYear",
+              "archive": "oneDay",
+              "downloads": "forever"
+            }
+          },
+          "name": "Renamed",
+          "id": {
+            "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+          },
+          "profile": {
+            "id": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "duckDuckGo",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "duckDuckGo",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "never"
+          },
+          "name": "Space 4",
+          "id": {
+            "rawValue": "66666666-6666-4666-8666-666666666666"
+          },
+          "profile": {
+            "id": "67676767-6767-4767-8767-676767676767"
+          },
+          "splitGroups": [],
+          "tabs": [
+            {
+              "id": {
+                "rawValue": "68686868-6868-4868-8868-686868686868"
+              },
+              "title": "Start Page",
+              "symbol": "house",
+              "placement": "current",
+              "lastActivatedAt": 800000110
+            }
+          ],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        }
+      ]
+    }
+  },
+  "space.deletion.begin": {
+    "session": {
+      "defaultSpaceID": {
+        "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+      },
+      "disposableSeedMarker": "027A55FA-1FCB-48D5-B850-6525D2B18BB9",
+      "appPreferences": {
+        "offersTranslation": false,
+        "startupBehavior": "showStartPage",
+        "automaticallyEntersPictureInPicture": false,
+        "checksSpelling": false
+      },
+      "spaceDeletions": [
+        {
+          "profileID": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7",
+          "operationID": "F8EB2C81-9F63-4F58-B067-2AABD659EC7E",
+          "spaceID": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          }
+        },
+        {
+          "spaceID": {
+            "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+          },
+          "profileID": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB",
+          "operationID": "55555555-5555-4555-8555-555555555555"
+        }
+      ],
+      "spaces": [
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "google",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "google",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "after12Hours"
+          },
+          "name": "Leaving",
+          "id": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          },
+          "profile": {
+            "id": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "off",
+            "searchSuggestionsEnabled": true,
+            "searchProvider": "google",
+            "customSearchProviders": [
+              {
+                "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+                "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+                "name": "Docs",
+                "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+              },
+              {
+                "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+                "name": "Wiki",
+                "searchURLTemplate": "https://wiki.example/find?q=%s"
+              }
+            ],
+            "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+            "dataRetention": {
+              "archive": "thirtyDays",
+              "history": "ninetyDays",
+              "downloads": "oneWeek"
+            },
+            "currentTabCleanupPolicy": "after7Days"
+          },
+          "name": "Everything",
+          "id": {
+            "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+          },
+          "profile": {
+            "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+          },
+          "splitGroups": [
+            {
+              "iconModifiedAt": 780123473.789,
+              "tintModifiedAt": 800000004.25,
+              "id": {
+                "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+              },
+              "customIconSymbol": "crest.emoji:🧪",
+              "tint": {
+                "red": 0.1,
+                "green": 0.2,
+                "blue": 0.3,
+                "alpha": 1
+              },
+              "customTitle": "Renamed split",
+              "titleModifiedAt": 800000004
+            }
+          ],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "searchProvider": "google",
+            "selectedSearchProviderID": "google",
+            "customSearchProviders": [
+              {
+                "id": "45454545-4545-4545-8545-454545454545",
+                "name": "Example",
+                "searchURLTemplate": "https://example.com/?q={searchTerms}",
+                "suggestionURLTemplate": "https://example.com/suggest?q={searchTerms}"
+              }
+            ],
+            "searchSuggestionsEnabled": true,
+            "currentTabCleanupPolicy": "after24Hours",
+            "contentBlockingPolicy": "balanced",
+            "dataRetention": {
+              "history": "oneYear",
+              "archive": "oneDay",
+              "downloads": "forever"
+            }
+          },
+          "name": "Renamed",
+          "id": {
+            "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+          },
+          "profile": {
+            "id": "EF488B84-5E8C-40BA-8A63-808A89DDD3DB"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "duckDuckGo",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "duckDuckGo",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "never"
+          },
+          "name": "Space 4",
+          "id": {
+            "rawValue": "66666666-6666-4666-8666-666666666666"
+          },
+          "profile": {
+            "id": "67676767-6767-4767-8767-676767676767"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        }
+      ]
+    }
+  },
+  "space.remove": {
+    "session": {
+      "defaultSpaceID": {
+        "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+      },
+      "disposableSeedMarker": "027A55FA-1FCB-48D5-B850-6525D2B18BB9",
+      "appPreferences": {
+        "offersTranslation": false,
+        "startupBehavior": "showStartPage",
+        "automaticallyEntersPictureInPicture": false,
+        "checksSpelling": false
+      },
+      "spaceDeletions": [
+        {
+          "profileID": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7",
+          "operationID": "F8EB2C81-9F63-4F58-B067-2AABD659EC7E",
+          "spaceID": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          }
+        }
+      ],
+      "spaces": [
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "google",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "google",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "after12Hours"
+          },
+          "name": "Leaving",
+          "id": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          },
+          "profile": {
+            "id": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "off",
+            "searchSuggestionsEnabled": true,
+            "searchProvider": "google",
+            "customSearchProviders": [
+              {
+                "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+                "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+                "name": "Docs",
+                "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+              },
+              {
+                "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+                "name": "Wiki",
+                "searchURLTemplate": "https://wiki.example/find?q=%s"
+              }
+            ],
+            "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+            "dataRetention": {
+              "archive": "thirtyDays",
+              "history": "ninetyDays",
+              "downloads": "oneWeek"
+            },
+            "currentTabCleanupPolicy": "after7Days"
+          },
+          "name": "Everything",
+          "id": {
+            "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+          },
+          "profile": {
+            "id": "5966A1C3-B0B5-4BF9-A355-36857A8CC6A2"
+          },
+          "splitGroups": [
+            {
+              "iconModifiedAt": 780123473.789,
+              "tintModifiedAt": 800000004.25,
+              "id": {
+                "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+              },
+              "customIconSymbol": "crest.emoji:🧪",
+              "tint": {
+                "red": 0.1,
+                "green": 0.2,
+                "blue": 0.3,
+                "alpha": 1
+              },
+              "customTitle": "Renamed split",
+              "titleModifiedAt": 800000004
+            }
+          ],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "duckDuckGo",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "duckDuckGo",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "never"
+          },
+          "name": "Space 4",
+          "id": {
+            "rawValue": "66666666-6666-4666-8666-666666666666"
+          },
+          "profile": {
+            "id": "67676767-6767-4767-8767-676767676767"
+          },
+          "splitGroups": [],
+          "tabs": [],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        }
+      ]
+    }
+  },
+  "workspace.import": {
+    "session": {
+      "defaultSpaceID": {
+        "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+      },
+      "disposableSeedMarker": "027A55FA-1FCB-48D5-B850-6525D2B18BB9",
+      "appPreferences": {
+        "offersTranslation": false,
+        "startupBehavior": "showStartPage",
+        "automaticallyEntersPictureInPicture": false,
+        "checksSpelling": false
+      },
+      "spaceDeletions": [
+        {
+          "profileID": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7",
+          "operationID": "F8EB2C81-9F63-4F58-B067-2AABD659EC7E",
+          "spaceID": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          }
+        }
+      ],
+      "spaces": [
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "google",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "google",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "after12Hours"
+          },
+          "name": "Leaving",
+          "id": {
+            "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+          },
+          "profile": {
+            "id": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7"
+          },
+          "splitGroups": [],
+          "tabs": [
+            {
+              "placement": "current",
+              "title": "Start Page",
+              "id": {
+                "rawValue": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+              },
+              "lastActivatedAt": 780123656.7891234,
+              "symbol": "flag.fill"
+            }
+          ],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "off",
+            "searchSuggestionsEnabled": true,
+            "searchProvider": "google",
+            "customSearchProviders": [
+              {
+                "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+                "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+                "name": "Docs",
+                "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+              },
+              {
+                "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+                "name": "Wiki",
+                "searchURLTemplate": "https://wiki.example/find?q=%s"
+              }
+            ],
+            "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+            "dataRetention": {
+              "archive": "thirtyDays",
+              "history": "ninetyDays",
+              "downloads": "oneWeek"
+            },
+            "currentTabCleanupPolicy": "after7Days"
+          },
+          "name": "Everything",
+          "id": {
+            "rawValue": "6c1d5447-4e3d-46a7-9b60-e3b95d6c7848"
+          },
+          "profile": {
+            "id": "5966a1c3-b0b5-4bf9-a355-36857a8cc6a2"
+          },
+          "splitGroups": [
+            {
+              "iconModifiedAt": 780123473.789,
+              "tintModifiedAt": 800000004.25,
+              "id": {
+                "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+              },
+              "customIconSymbol": "crest.emoji:🧪",
+              "tint": {
+                "red": 0.1,
+                "green": 0.2,
+                "blue": 0.3,
+                "alpha": 1
+              },
+              "customTitle": "Renamed split",
+              "titleModifiedAt": 800000004
+            }
+          ],
+          "tabs": [
+            {
+              "lastActivatedAt": 780123457.7891234,
+              "faviconURL": "https://pinned.example/favicon.ico",
+              "symbol": "pin.fill",
+              "title": "Pinned page",
+              "placement": "pinned",
+              "savedURL": "https://pinned.example/",
+              "id": {
+                "rawValue": "853d3f20-bb2c-45f0-98bd-ccc71c646370"
+              },
+              "storedIconMode": "pulled",
+              "positionModifiedAt": 780123458.789,
+              "titleModifiedAt": 780123459.789,
+              "iconAccent": {
+                "green": 0.5,
+                "red": 0.25,
+                "blue": 0.75
+              },
+              "customTitle": "Mail",
+              "url": "https://pinned.example/inbox?view=all#top",
+              "splitGroupID": null
+            },
+            {
+              "id": {
+                "rawValue": "4615461c-ba47-4054-b5cf-3dcaf3362d8c"
+              },
+              "symbol": "gearshape",
+              "title": "Settings",
+              "placement": "saved",
+              "nativeContent": {
+                "kind": "settings",
+                "resourceID": "36D804C1-3F34-4E98-BC70-04CED016E1DE"
+              },
+              "storedIconMode": "automatic",
+              "folderID": {
+                "rawValue": "6f515cfc-fe0a-44e6-8284-b1140dd9976c"
+              },
+              "lastActivatedAt": 780123463.7891234,
+              "positionModifiedAt": 780123464.789,
+              "customTitle": null,
+              "titleModifiedAt": null,
+              "splitGroupID": null
+            },
+            {
+              "lastActivatedAt": 800000006,
+              "faviconURL": "https://archive.example/favicon.ico",
+              "symbol": "globe",
+              "title": "closed",
+              "placement": "current",
+              "id": {
+                "rawValue": "fda1db22-5eee-4001-b553-5208f01b5c65"
+              },
+              "storedIconMode": "pulled",
+              "positionModifiedAt": 800000006,
+              "titleModifiedAt": 780123478.789,
+              "iconAccent": {
+                "green": 0.5,
+                "red": 0.25,
+                "blue": 0.75
+              },
+              "customTitle": "CLOSED",
+              "url": "https://archive.example/closed",
+              "splitGroupID": null
+            },
+            {
+              "lastActivatedAt": 800000003,
+              "faviconURL": "https://pinned.example/favicon.ico",
+              "symbol": "pin.fill",
+              "title": "Pinned observed",
+              "placement": "current",
+              "id": {
+                "rawValue": "33333333-3333-4333-8333-333333333333"
+              },
+              "storedIconMode": "pulled",
+              "positionModifiedAt": 800000003,
+              "titleModifiedAt": 800000003,
+              "iconAccent": {
+                "green": 0.5,
+                "red": 0.25,
+                "blue": 0.75
+              },
+              "customTitle": "Mail",
+              "url": "https://pinned.example/observed",
+              "folderID": {
+                "rawValue": "95812e93-f38a-45cc-b9f0-4ff591fea03b"
+              },
+              "splitGroupID": {
+                "rawValue": "ab0407dd-d08e-4d54-abd4-6d3540efe004"
+              }
+            },
+            {
+              "placement": "current",
+              "title": "Start Page",
+              "id": {
+                "rawValue": "056f15c0-13ce-4ed0-b9fe-dd4a9d05a56d"
+              },
+              "lastActivatedAt": 780123470.7891234,
+              "symbol": "flag.fill",
+              "url": null,
+              "folderID": {
+                "rawValue": "22222222-2222-4222-8222-222222222222"
+              },
+              "customTitle": null,
+              "positionModifiedAt": 800000002,
+              "titleModifiedAt": null,
+              "splitGroupID": null
+            }
+          ],
+          "folders": [
+            {
+              "location": "saved",
+              "title": "Reading",
+              "id": {
+                "rawValue": "6f515cfc-fe0a-44e6-8284-b1140dd9976c"
+              },
+              "isCollapsed": false,
+              "color": {
+                "green": 0.4,
+                "red": 0.2,
+                "blue": 0.6,
+                "alpha": 0.5
+              },
+              "parentID": null,
+              "collapseModifiedAt": null,
+              "orderAnchorTabID": null
+            },
+            {
+              "location": "saved",
+              "id": {
+                "rawValue": "103a72e0-c616-41bc-a248-ca740907813f"
+              },
+              "isCollapsed": true,
+              "color": {
+                "green": 0.48,
+                "red": 0.43,
+                "blue": 0.54,
+                "alpha": 1
+              },
+              "parentID": {
+                "rawValue": "6f515cfc-fe0a-44e6-8284-b1140dd9976c"
+              },
+              "title": "Later",
+              "collapseModifiedAt": 780123471.7891234,
+              "orderAnchorTabID": null
+            },
+            {
+              "location": "current",
+              "title": "Split work",
+              "id": {
+                "rawValue": "95812e93-f38a-45cc-b9f0-4ff591fea03b"
+              },
+              "isCollapsed": false,
+              "color": {
+                "green": 0.48,
+                "red": 0.43,
+                "blue": 0.54,
+                "alpha": 1
+              },
+              "parentID": null,
+              "collapseModifiedAt": null,
+              "orderAnchorTabID": {
+                "rawValue": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+              }
+            },
+            {
+              "isCollapsed": false,
+              "location": "current",
+              "id": {
+                "rawValue": "72acec3c-6348-4403-89c3-76e1901aa666"
+              },
+              "orderAnchorTabID": null,
+              "color": {
+                "green": 0.5,
+                "red": 0.5,
+                "blue": 0.5,
+                "alpha": 1
+              },
+              "title": "Empty",
+              "parentID": null,
+              "collapseModifiedAt": null
+            },
+            {
+              "color": {
+                "red": 0.43,
+                "green": 0.48,
+                "blue": 0.54,
+                "alpha": 1
+              },
+              "id": {
+                "rawValue": "22222222-2222-4222-8222-222222222222"
+              },
+              "title": "New Folder",
+              "location": "current",
+              "parentID": null,
+              "isCollapsed": false,
+              "collapseModifiedAt": null,
+              "orderAnchorTabID": null
+            }
+          ],
+          "history": [
+            {
+              "firstVisitedAt": 780123256.7891234,
+              "title": "Article again",
+              "lastVisitedAt": 800000005,
+              "id": "721dd82b-3b7e-4a83-b256-3dddd37b7e0f",
+              "visitCount": 8,
+              "url": "https://news.example/article/42"
+            }
+          ],
+          "archivedTabs": [
+            {
+              "tab": {
+                "id": {
+                  "rawValue": "11111111-1111-4111-8111-111111111111"
+                },
+                "title": "Opened",
+                "url": "https://opened.example/",
+                "symbol": "globe",
+                "placement": "current",
+                "lastActivatedAt": 800000000.5,
+                "customTitle": null,
+                "positionModifiedAt": null,
+                "titleModifiedAt": null
+              },
+              "archivedAt": 800000001,
+              "reason": "closed"
+            },
+            {
+              "tab": {
+                "symbol": "globe",
+                "id": {
+                  "rawValue": "428caa9c-9a7a-4386-b120-f6096032c167"
+                },
+                "title": "Left",
+                "url": "https://left.example/",
+                "placement": "current",
+                "lastActivatedAt": 780123465.7891234,
+                "iconAccent": {
+                  "green": 0.5,
+                  "red": 0.25,
+                  "blue": 0.75
+                },
+                "positionModifiedAt": 800000003,
+                "faviconURL": "https://left.example/f.ico",
+                "customTitle": null,
+                "titleModifiedAt": null
+              },
+              "archivedAt": 800000100,
+              "reason": "autoCleanup"
+            },
+            {
+              "tab": {
+                "symbol": "globe",
+                "id": {
+                  "rawValue": "942ac076-b0d8-454b-9eeb-3791e6113f77"
+                },
+                "title": "Right",
+                "placement": "current",
+                "url": "https://right.example/page",
+                "lastActivatedAt": 780123467.7891234,
+                "positionModifiedAt": 800000003,
+                "customTitle": "Right side",
+                "titleModifiedAt": 780123469.789
+              },
+              "archivedAt": 800000100,
+              "reason": "autoCleanup"
+            }
+          ]
+        },
+        {
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "duckDuckGo",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "duckDuckGo",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "never"
+          },
+          "name": "Space 4",
+          "id": {
+            "rawValue": "66666666-6666-4666-8666-666666666666"
+          },
+          "profile": {
+            "id": "67676767-6767-4767-8767-676767676767"
+          },
+          "splitGroups": [],
+          "tabs": [
+            {
+              "id": {
+                "rawValue": "68686868-6868-4868-8868-686868686868"
+              },
+              "title": "Start Page",
+              "symbol": "flag.fill",
+              "placement": "current",
+              "lastActivatedAt": 800000110,
+              "customTitle": null,
+              "splitGroupID": null
+            }
+          ],
+          "folders": [],
+          "history": [],
+          "archivedTabs": []
+        },
+        {
+          "history": [
+            {
+              "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+              "url": "https://imported.example/",
+              "title": "Imported",
+              "firstVisitedAt": 790000000.25,
+              "lastVisitedAt": 790000001.5,
+              "visitCount": 2
+            }
+          ],
+          "browsingPreferences": {
+            "contentBlockingPolicy": "balanced",
+            "searchSuggestionsEnabled": false,
+            "searchProvider": "duckDuckGo",
+            "customSearchProviders": [],
+            "selectedSearchProviderID": "duckDuckGo",
+            "dataRetention": {
+              "archive": "forever",
+              "history": "forever",
+              "downloads": "forever"
+            },
+            "currentTabCleanupPolicy": "never"
+          },
+          "name": "Imported",
+          "folders": [],
+          "tabs": [
+            {
+              "symbol": "globe",
+              "id": {
+                "rawValue": "99999999-9999-4999-8999-999999999999"
+              },
+              "title": "Plain",
+              "placement": "current",
+              "lastActivatedAt": 780123556.7891234,
+              "url": "https://plain.example/",
+              "customTitle": null,
+              "splitGroupID": null
+            }
+          ],
+          "id": {
+            "rawValue": "77777777-7777-4777-8777-777777777777"
+          },
+          "profile": {
+            "id": "88888888-8888-4888-8888-888888888888"
+          },
+          "archivedTabs": [],
+          "splitGroups": []
+        }
+      ]
+    },
+    "assets": [
+      {
+        "spaceIndex": 0,
+        "tabIndex": 0,
+        "section": "tabs",
+        "sourceIndex": 0,
+        "sourceSpaceIndex": 0,
+        "sourceTabIndex": 0
+      },
+      {
+        "spaceIndex": 1,
+        "tabIndex": 0,
+        "section": "tabs",
+        "sourceIndex": 0,
+        "sourceSpaceIndex": 1,
+        "sourceTabIndex": 0
+      },
+      {
+        "spaceIndex": 1,
+        "tabIndex": 1,
+        "section": "tabs",
+        "sourceIndex": 0,
+        "sourceSpaceIndex": 1,
+        "sourceTabIndex": 1
+      },
+      {
+        "spaceIndex": 1,
+        "tabIndex": 2,
+        "section": "tabs",
+        "sourceIndex": 0,
+        "sourceSpaceIndex": 1,
+        "sourceTabIndex": 2
+      },
+      {
+        "spaceIndex": 1,
+        "tabIndex": 3,
+        "section": "tabs",
+        "sourceIndex": 0,
+        "sourceSpaceIndex": 1,
+        "sourceTabIndex": 3
+      },
+      {
+        "spaceIndex": 1,
+        "tabIndex": 4,
+        "section": "tabs",
+        "sourceIndex": 0,
+        "sourceSpaceIndex": 1,
+        "sourceTabIndex": 4
+      },
+      {
+        "spaceIndex": 1,
+        "tabIndex": 0,
+        "section": "archivedTabs",
+        "sourceIndex": 0,
+        "sourceSpaceIndex": 1,
+        "sourceTabIndex": 0
+      },
+      {
+        "spaceIndex": 1,
+        "tabIndex": 1,
+        "section": "archivedTabs",
+        "sourceIndex": 0,
+        "sourceSpaceIndex": 1,
+        "sourceTabIndex": 1
+      },
+      {
+        "spaceIndex": 1,
+        "tabIndex": 2,
+        "section": "archivedTabs",
+        "sourceIndex": 0,
+        "sourceSpaceIndex": 1,
+        "sourceTabIndex": 2
+      },
+      {
+        "spaceIndex": 2,
+        "tabIndex": 0,
+        "section": "tabs",
+        "sourceIndex": 0,
+        "sourceSpaceIndex": 2,
+        "sourceTabIndex": 0
+      },
+      {
+        "spaceIndex": 3,
+        "tabIndex": 0,
+        "section": "tabs",
+        "sourceIndex": 1,
+        "sourceSpaceIndex": 0,
+        "sourceTabIndex": 0
+      }
+    ]
+  },
+  "checkpoint.core": {
+    "defaultSpaceID": {
+      "rawValue": "6C1D5447-4E3D-46A7-9B60-E3B95D6C7848"
+    },
+    "disposableSeedMarker": "027A55FA-1FCB-48D5-B850-6525D2B18BB9",
+    "appPreferences": {
+      "offersTranslation": false,
+      "startupBehavior": "showStartPage",
+      "automaticallyEntersPictureInPicture": false,
+      "checksSpelling": false
+    },
+    "spaceDeletions": [
+      {
+        "profileID": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7",
+        "operationID": "F8EB2C81-9F63-4F58-B067-2AABD659EC7E",
+        "spaceID": {
+          "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+        }
+      }
+    ],
+    "spaces": [
+      {
+        "browsingPreferences": {
+          "contentBlockingPolicy": "balanced",
+          "searchSuggestionsEnabled": false,
+          "searchProvider": "google",
+          "customSearchProviders": [],
+          "selectedSearchProviderID": "google",
+          "dataRetention": {
+            "archive": "forever",
+            "history": "forever",
+            "downloads": "forever"
+          },
+          "currentTabCleanupPolicy": "after12Hours"
+        },
+        "name": "Leaving",
+        "id": {
+          "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+        },
+        "profile": {
+          "id": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7"
+        },
+        "splitGroups": [],
+        "tabs": [
+          {
+            "placement": "current",
+            "title": "Start Page",
+            "id": {
+              "rawValue": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+            },
+            "lastActivatedAt": 780123656.7891234,
+            "symbol": "flag.fill"
+          }
+        ],
+        "folders": [],
+        "history": [],
+        "archivedTabs": []
+      },
+      {
+        "browsingPreferences": {
+          "contentBlockingPolicy": "off",
+          "searchSuggestionsEnabled": true,
+          "searchProvider": "google",
+          "customSearchProviders": [
+            {
+              "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+              "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+              "name": "Docs",
+              "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+            },
+            {
+              "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+              "name": "Wiki",
+              "searchURLTemplate": "https://wiki.example/find?q=%s"
+            }
+          ],
+          "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+          "dataRetention": {
+            "archive": "thirtyDays",
+            "history": "ninetyDays",
+            "downloads": "oneWeek"
+          },
+          "currentTabCleanupPolicy": "after7Days"
+        },
+        "name": "Everything",
+        "id": {
+          "rawValue": "6c1d5447-4e3d-46a7-9b60-e3b95d6c7848"
+        },
+        "profile": {
+          "id": "5966a1c3-b0b5-4bf9-a355-36857a8cc6a2"
+        },
+        "splitGroups": [
+          {
+            "iconModifiedAt": 780123473.789,
+            "tintModifiedAt": 800000004.25,
+            "id": {
+              "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+            },
+            "customIconSymbol": "crest.emoji:🧪",
+            "tint": {
+              "red": 0.1,
+              "green": 0.2,
+              "blue": 0.3,
+              "alpha": 1
+            },
+            "customTitle": "Renamed split",
+            "titleModifiedAt": 800000004
+          }
+        ],
+        "tabs": [
+          {
+            "lastActivatedAt": 780123457.7891234,
+            "faviconURL": "https://pinned.example/favicon.ico",
+            "symbol": "pin.fill",
+            "title": "Pinned page",
+            "placement": "pinned",
+            "savedURL": "https://pinned.example/",
+            "id": {
+              "rawValue": "853d3f20-bb2c-45f0-98bd-ccc71c646370"
+            },
+            "storedIconMode": "pulled",
+            "positionModifiedAt": 780123458.789,
+            "titleModifiedAt": 780123459.789,
+            "iconAccent": {
+              "green": 0.5,
+              "red": 0.25,
+              "blue": 0.75
+            },
+            "customTitle": "Mail",
+            "url": "https://pinned.example/inbox?view=all#top",
+            "splitGroupID": null
+          },
+          {
+            "id": {
+              "rawValue": "4615461c-ba47-4054-b5cf-3dcaf3362d8c"
+            },
+            "symbol": "gearshape",
+            "title": "Settings",
+            "placement": "saved",
+            "nativeContent": {
+              "kind": "settings",
+              "resourceID": "36D804C1-3F34-4E98-BC70-04CED016E1DE"
+            },
+            "storedIconMode": "automatic",
+            "folderID": {
+              "rawValue": "6f515cfc-fe0a-44e6-8284-b1140dd9976c"
+            },
+            "lastActivatedAt": 780123463.7891234,
+            "positionModifiedAt": 780123464.789,
+            "customTitle": null,
+            "titleModifiedAt": null,
+            "splitGroupID": null
+          },
+          {
+            "lastActivatedAt": 800000006,
+            "faviconURL": "https://archive.example/favicon.ico",
+            "symbol": "globe",
+            "title": "closed",
+            "placement": "current",
+            "id": {
+              "rawValue": "fda1db22-5eee-4001-b553-5208f01b5c65"
+            },
+            "storedIconMode": "pulled",
+            "positionModifiedAt": 800000006,
+            "titleModifiedAt": 780123478.789,
+            "iconAccent": {
+              "green": 0.5,
+              "red": 0.25,
+              "blue": 0.75
+            },
+            "customTitle": "CLOSED",
+            "url": "https://archive.example/closed",
+            "splitGroupID": null
+          },
+          {
+            "id": {
+              "rawValue": "428CAA9C-9A7A-4386-B120-F6096032C167"
+            },
+            "title": "Left",
+            "url": "https://left.example/",
+            "symbol": "globe",
+            "faviconURL": "https://left.example/f.ico",
+            "iconAccent": {
+              "red": 0.25,
+              "green": 0.5,
+              "blue": 0.75
+            },
+            "placement": "current",
+            "folderID": {
+              "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+            },
+            "splitGroupID": {
+              "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+            },
+            "lastActivatedAt": 780123465.7891234,
+            "positionModifiedAt": 800000003
+          },
+          {
+            "id": {
+              "rawValue": "942AC076-B0D8-454B-9EEB-3791E6113F77"
+            },
+            "title": "Right",
+            "url": "https://right.example/page",
+            "symbol": "globe",
+            "placement": "current",
+            "folderID": {
+              "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+            },
+            "splitGroupID": {
+              "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+            },
+            "lastActivatedAt": 780123467.7891234,
+            "positionModifiedAt": 800000003,
+            "customTitle": "Right side",
+            "titleModifiedAt": 780123469.789
+          },
+          {
+            "lastActivatedAt": 800000003,
+            "faviconURL": "https://pinned.example/favicon.ico",
+            "symbol": "pin.fill",
+            "title": "Pinned observed",
+            "placement": "current",
+            "id": {
+              "rawValue": "33333333-3333-4333-8333-333333333333"
+            },
+            "storedIconMode": "pulled",
+            "positionModifiedAt": 800000003,
+            "titleModifiedAt": 800000003,
+            "iconAccent": {
+              "green": 0.5,
+              "red": 0.25,
+              "blue": 0.75
+            },
+            "customTitle": "Mail",
+            "url": "https://pinned.example/observed",
+            "folderID": {
+              "rawValue": "95812e93-f38a-45cc-b9f0-4ff591fea03b"
+            },
+            "splitGroupID": {
+              "rawValue": "ab0407dd-d08e-4d54-abd4-6d3540efe004"
+            }
+          },
+          {
+            "placement": "current",
+            "title": "Start Page",
+            "id": {
+              "rawValue": "056f15c0-13ce-4ed0-b9fe-dd4a9d05a56d"
+            },
+            "lastActivatedAt": 780123470.7891234,
+            "symbol": "flag.fill",
+            "url": null,
+            "folderID": {
+              "rawValue": "22222222-2222-4222-8222-222222222222"
+            },
+            "customTitle": null,
+            "positionModifiedAt": 800000002,
+            "titleModifiedAt": null,
+            "splitGroupID": null
+          }
+        ],
+        "folders": [
+          {
+            "location": "saved",
+            "title": "Reading",
+            "id": {
+              "rawValue": "6f515cfc-fe0a-44e6-8284-b1140dd9976c"
+            },
+            "isCollapsed": false,
+            "color": {
+              "green": 0.4,
+              "red": 0.2,
+              "blue": 0.6,
+              "alpha": 0.5
+            },
+            "parentID": null,
+            "collapseModifiedAt": null,
+            "orderAnchorTabID": null
+          },
+          {
+            "location": "saved",
+            "id": {
+              "rawValue": "103a72e0-c616-41bc-a248-ca740907813f"
+            },
+            "isCollapsed": true,
+            "color": {
+              "green": 0.48,
+              "red": 0.43,
+              "blue": 0.54,
+              "alpha": 1
+            },
+            "parentID": {
+              "rawValue": "6f515cfc-fe0a-44e6-8284-b1140dd9976c"
+            },
+            "title": "Later",
+            "collapseModifiedAt": 780123471.7891234,
+            "orderAnchorTabID": null
+          },
+          {
+            "location": "current",
+            "title": "Split work",
+            "id": {
+              "rawValue": "95812e93-f38a-45cc-b9f0-4ff591fea03b"
+            },
+            "isCollapsed": false,
+            "color": {
+              "green": 0.48,
+              "red": 0.43,
+              "blue": 0.54,
+              "alpha": 1
+            },
+            "parentID": null,
+            "collapseModifiedAt": null,
+            "orderAnchorTabID": {
+              "rawValue": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+            }
+          },
+          {
+            "isCollapsed": false,
+            "location": "current",
+            "id": {
+              "rawValue": "72acec3c-6348-4403-89c3-76e1901aa666"
+            },
+            "orderAnchorTabID": null,
+            "color": {
+              "green": 0.5,
+              "red": 0.5,
+              "blue": 0.5,
+              "alpha": 1
+            },
+            "title": "Empty",
+            "parentID": null,
+            "collapseModifiedAt": null
+          },
+          {
+            "color": {
+              "red": 0.43,
+              "green": 0.48,
+              "blue": 0.54,
+              "alpha": 1
+            },
+            "id": {
+              "rawValue": "22222222-2222-4222-8222-222222222222"
+            },
+            "title": "New Folder",
+            "location": "current",
+            "parentID": null,
+            "isCollapsed": false,
+            "collapseModifiedAt": null,
+            "orderAnchorTabID": null
+          }
+        ],
+        "history": [],
+        "archivedTabs": [
+          {
+            "tab": {
+              "id": {
+                "rawValue": "11111111-1111-4111-8111-111111111111"
+              },
+              "title": "Opened",
+              "url": "https://opened.example/",
+              "symbol": "globe",
+              "placement": "current",
+              "lastActivatedAt": 800000000.5,
+              "customTitle": null,
+              "positionModifiedAt": null,
+              "titleModifiedAt": null
+            },
+            "archivedAt": 800000001,
+            "reason": "closed"
+          }
+        ]
+      },
+      {
+        "browsingPreferences": {
+          "contentBlockingPolicy": "balanced",
+          "searchSuggestionsEnabled": false,
+          "searchProvider": "duckDuckGo",
+          "customSearchProviders": [],
+          "selectedSearchProviderID": "duckDuckGo",
+          "dataRetention": {
+            "archive": "forever",
+            "history": "forever",
+            "downloads": "forever"
+          },
+          "currentTabCleanupPolicy": "never"
+        },
+        "name": "Space 4",
+        "id": {
+          "rawValue": "66666666-6666-4666-8666-666666666666"
+        },
+        "profile": {
+          "id": "67676767-6767-4767-8767-676767676767"
+        },
+        "splitGroups": [],
+        "tabs": [
+          {
+            "id": {
+              "rawValue": "68686868-6868-4868-8868-686868686868"
+            },
+            "title": "Start Page",
+            "symbol": "flag.fill",
+            "placement": "current",
+            "lastActivatedAt": 800000110,
+            "customTitle": null,
+            "splitGroupID": null
+          }
+        ],
+        "folders": [],
+        "history": [],
+        "archivedTabs": []
+      },
+      {
+        "browsingPreferences": {
+          "contentBlockingPolicy": "balanced",
+          "searchSuggestionsEnabled": false,
+          "searchProvider": "duckDuckGo",
+          "customSearchProviders": [],
+          "selectedSearchProviderID": "duckDuckGo",
+          "dataRetention": {
+            "archive": "forever",
+            "history": "forever",
+            "downloads": "forever"
+          },
+          "currentTabCleanupPolicy": "never"
+        },
+        "name": "Imported",
+        "id": {
+          "rawValue": "77777777-7777-4777-8777-777777777777"
+        },
+        "profile": {
+          "id": "88888888-8888-4888-8888-888888888888"
+        },
+        "splitGroups": [],
+        "tabs": [
+          {
+            "symbol": "globe",
+            "id": {
+              "rawValue": "99999999-9999-4999-8999-999999999999"
+            },
+            "title": "Plain",
+            "placement": "current",
+            "lastActivatedAt": 780123556.7891234,
+            "url": "https://plain.example/",
+            "customTitle": null,
+            "splitGroupID": null
+          }
+        ],
+        "folders": [],
+        "history": [],
+        "archivedTabs": []
+      }
+    ]
+  },
+  "checkpoint.history.48E39E6E-DE6E-4B5E-8AFD-D704C5D64035": [],
+  "checkpoint.history.6c1d5447-4e3d-46a7-9b60-e3b95d6c7848": [
+    {
+      "firstVisitedAt": 780123256.7891234,
+      "title": "Article again",
+      "lastVisitedAt": 800000005,
+      "id": "721dd82b-3b7e-4a83-b256-3dddd37b7e0f",
+      "visitCount": 8,
+      "url": "https://news.example/article/42"
+    }
+  ],
+  "checkpoint.history.66666666-6666-4666-8666-666666666666": [],
+  "checkpoint.history.77777777-7777-4777-8777-777777777777": [
+    {
+      "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "url": "https://imported.example/",
+      "title": "Imported",
+      "firstVisitedAt": 790000000.25,
+      "lastVisitedAt": 790000001.5,
+      "visitCount": 2
+    }
+  ],
+  "session.repair": {
+    "value": {
+      "session": {
+        "defaultSpaceID": {
+          "rawValue": "A5EB05E2-BE9A-420C-AD16-B1F728C63844"
+        },
+        "spaces": [
+          {
+            "history": [
+              {
+                "firstVisitedAt": 780123256.7891234,
+                "title": "Article",
+                "lastVisitedAt": 780123356.7891234,
+                "id": "721DD82B-3B7E-4A83-B256-3DDDD37B7E0F",
+                "visitCount": 7,
+                "url": "https://news.example/article/42"
+              },
+              {
+                "firstVisitedAt": 780123366.7891234,
+                "title": "Left",
+                "lastVisitedAt": 780123376.7891234,
+                "id": "C75426B1-C343-4227-9157-76059184ED63",
+                "visitCount": 1,
+                "url": "https://left.example/"
+              }
+            ],
+            "browsingPreferences": {
+              "contentBlockingPolicy": "off",
+              "searchSuggestionsEnabled": true,
+              "searchProvider": "google",
+              "customSearchProviders": [
+                {
+                  "suggestionURLTemplate": "https://docs.example/suggest?q={searchTerms}",
+                  "id": "75CCF5F2-52D5-4CD4-BC2F-2B6C2D435DB4",
+                  "name": "Docs",
+                  "searchURLTemplate": "https://docs.example/search?q={searchTerms}"
+                },
+                {
+                  "id": "DCE7ADB7-CAD9-4DE6-952E-57B580B0296B",
+                  "name": "Wiki",
+                  "searchURLTemplate": "https://wiki.example/find?q=%s"
+                }
+              ],
+              "selectedSearchProviderID": "custom:75ccf5f2-52d5-4cd4-bc2f-2b6c2d435db4",
+              "dataRetention": {
+                "archive": "thirtyDays",
+                "history": "ninetyDays",
+                "downloads": "oneWeek"
+              },
+              "currentTabCleanupPolicy": "after7Days"
+            },
+            "name": "Everything",
+            "folders": [
+              {
+                "location": "saved",
+                "title": "Reading",
+                "id": {
+                  "rawValue": "6f515cfc-fe0a-44e6-8284-b1140dd9976c"
+                },
+                "isCollapsed": false,
+                "color": {
+                  "green": 0.4,
+                  "red": 0.2,
+                  "blue": 0.6,
+                  "alpha": 0.5
+                },
+                "parentID": null
+              },
+              {
+                "location": "saved",
+                "id": {
+                  "rawValue": "103a72e0-c616-41bc-a248-ca740907813f"
+                },
+                "isCollapsed": true,
+                "color": {
+                  "green": 0.48,
+                  "red": 0.43,
+                  "blue": 0.54,
+                  "alpha": 1
+                },
+                "parentID": {
+                  "rawValue": "6f515cfc-fe0a-44e6-8284-b1140dd9976c"
+                },
+                "title": "Later",
+                "collapseModifiedAt": 780123471.7891234
+              },
+              {
+                "location": "current",
+                "title": "Split work",
+                "id": {
+                  "rawValue": "95812e93-f38a-45cc-b9f0-4ff591fea03b"
+                },
+                "isCollapsed": false,
+                "color": {
+                  "green": 0.48,
+                  "red": 0.43,
+                  "blue": 0.54,
+                  "alpha": 1
+                },
+                "parentID": null
+              },
+              {
+                "isCollapsed": false,
+                "location": "current",
+                "id": {
+                  "rawValue": "72acec3c-6348-4403-89c3-76e1901aa666"
+                },
+                "orderAnchorTabID": {
+                  "rawValue": "056F15C0-13CE-4ED0-B9FE-DD4A9D05A56D"
+                },
+                "color": {
+                  "green": 0.5,
+                  "red": 0.5,
+                  "blue": 0.5,
+                  "alpha": 1
+                },
+                "title": "Empty",
+                "parentID": null
+              }
+            ],
+            "tabs": [
+              {
+                "lastActivatedAt": 780123457.7891234,
+                "faviconURL": "https://pinned.example/favicon.ico",
+                "symbol": "pin.fill",
+                "title": "Pinned page",
+                "placement": "pinned",
+                "savedURL": "https://pinned.example/",
+                "id": {
+                  "rawValue": "853d3f20-bb2c-45f0-98bd-ccc71c646370"
+                },
+                "storedIconMode": "pulled",
+                "positionModifiedAt": 780123458.789,
+                "titleModifiedAt": 780123459.789,
+                "iconAccent": {
+                  "green": 0.5,
+                  "red": 0.25,
+                  "blue": 0.75
+                },
+                "customTitle": "Mail",
+                "url": "https://pinned.example/inbox?view=all#top",
+                "splitGroupID": null
+              },
+              {
+                "id": {
+                  "rawValue": "4615461c-ba47-4054-b5cf-3dcaf3362d8c"
+                },
+                "symbol": "gearshape",
+                "title": "Settings",
+                "placement": "saved",
+                "nativeContent": {
+                  "kind": "settings",
+                  "resourceID": "36D804C1-3F34-4E98-BC70-04CED016E1DE"
+                },
+                "storedIconMode": "automatic",
+                "folderID": {
+                  "rawValue": "6F515CFC-FE0A-44E6-8284-B1140DD9976C"
+                },
+                "lastActivatedAt": 780123463.7891234,
+                "positionModifiedAt": 780123464.789,
+                "customTitle": null,
+                "splitGroupID": null
+              },
+              {
+                "lastActivatedAt": 780123460.7891234,
+                "faviconURL": "https://news.example/icon.png",
+                "symbol": "crest.emoji:🌊",
+                "title": "Saved article",
+                "placement": "saved",
+                "savedURL": "https://news.example/article",
+                "id": {
+                  "rawValue": "b61250d4-3d4e-4dd6-8871-0bb326669142"
+                },
+                "storedIconMode": "emoji",
+                "positionModifiedAt": 780123461.789,
+                "titleModifiedAt": 780123462.789,
+                "iconAccent": {
+                  "green": 0,
+                  "red": 1,
+                  "blue": 0
+                },
+                "folderID": {
+                  "rawValue": "103A72E0-C616-41BC-A248-CA740907813F"
+                },
+                "customTitle": "Reading",
+                "url": "https://news.example/article/42",
+                "splitGroupID": null
+              },
+              {
+                "symbol": "globe",
+                "id": {
+                  "rawValue": "428caa9c-9a7a-4386-b120-f6096032c167"
+                },
+                "title": "Left",
+                "url": "https://left.example/",
+                "placement": "current",
+                "folderID": {
+                  "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+                },
+                "lastActivatedAt": 780123465.7891234,
+                "iconAccent": {
+                  "green": 0.5,
+                  "red": 0.25,
+                  "blue": 0.75
+                },
+                "positionModifiedAt": 780123466.789,
+                "splitGroupID": {
+                  "rawValue": "ab0407dd-d08e-4d54-abd4-6d3540efe004"
+                },
+                "faviconURL": "https://left.example/f.ico",
+                "customTitle": null
+              },
+              {
+                "symbol": "globe",
+                "id": {
+                  "rawValue": "942ac076-b0d8-454b-9eeb-3791e6113f77"
+                },
+                "title": "Right",
+                "placement": "current",
+                "folderID": {
+                  "rawValue": "95812E93-F38A-45CC-B9F0-4FF591FEA03B"
+                },
+                "url": "https://right.example/page",
+                "lastActivatedAt": 780123467.7891234,
+                "positionModifiedAt": 780123468.789,
+                "customTitle": "Right side",
+                "splitGroupID": {
+                  "rawValue": "ab0407dd-d08e-4d54-abd4-6d3540efe004"
+                },
+                "titleModifiedAt": 780123469.789
+              },
+              {
+                "placement": "current",
+                "title": "Start Page",
+                "id": {
+                  "rawValue": "056f15c0-13ce-4ed0-b9fe-dd4a9d05a56d"
+                },
+                "lastActivatedAt": 780123470.7891234,
+                "symbol": "flag.fill",
+                "customTitle": null,
+                "splitGroupID": null
+              }
+            ],
+            "id": {
+              "rawValue": "6c1d5447-4e3d-46a7-9b60-e3b95d6c7848"
+            },
+            "profile": {
+              "id": "5966a1c3-b0b5-4bf9-a355-36857a8cc6a2"
+            },
+            "archivedTabs": [
+              {
+                "reason": "closed",
+                "tab": {
+                  "lastActivatedAt": 780123476.7891234,
+                  "faviconURL": "https://archive.example/favicon.ico",
+                  "symbol": "globe",
+                  "title": "closed",
+                  "placement": "current",
+                  "id": {
+                    "rawValue": "fda1db22-5eee-4001-b553-5208f01b5c65"
+                  },
+                  "storedIconMode": "pulled",
+                  "positionModifiedAt": 780123477.789,
+                  "titleModifiedAt": 780123478.789,
+                  "iconAccent": {
+                    "green": 0.5,
+                    "red": 0.25,
+                    "blue": 0.75
+                  },
+                  "customTitle": "CLOSED",
+                  "url": "https://archive.example/closed"
+                },
+                "archivedAt": 780123479.7891234
+              },
+              {
+                "reason": "closed",
+                "tab": {
+                  "lastActivatedAt": 780123486.7891234,
+                  "faviconURL": "https://archive.example/favicon.ico",
+                  "symbol": "globe",
+                  "title": "deleted",
+                  "placement": "current",
+                  "id": {
+                    "rawValue": "3842b407-6ebd-4cce-a5fa-b628fb3d1db5"
+                  },
+                  "storedIconMode": "pulled",
+                  "positionModifiedAt": 780123487.789,
+                  "titleModifiedAt": 780123488.789,
+                  "iconAccent": {
+                    "green": 0.5,
+                    "red": 0.25,
+                    "blue": 0.75
+                  },
+                  "customTitle": "DELETED",
+                  "url": "https://archive.example/deleted"
+                },
+                "archivedAt": 780123489.7891234,
+                "deletionOrigin": "local"
+              },
+              {
+                "reason": "synced",
+                "tab": {
+                  "lastActivatedAt": 780123496.7891234,
+                  "faviconURL": "https://archive.example/favicon.ico",
+                  "symbol": "globe",
+                  "title": "remote",
+                  "placement": "current",
+                  "id": {
+                    "rawValue": "ecfd18ec-d81a-4b92-9ecb-8c65b0349016"
+                  },
+                  "storedIconMode": "pulled",
+                  "positionModifiedAt": 780123497.789,
+                  "titleModifiedAt": 780123498.789,
+                  "iconAccent": {
+                    "green": 0.5,
+                    "red": 0.25,
+                    "blue": 0.75
+                  },
+                  "customTitle": "REMOTE",
+                  "url": "https://archive.example/remote"
+                },
+                "archivedAt": 780123499.7891234,
+                "deletionOrigin": "remote"
+              },
+              {
+                "reason": "autoCleanup",
+                "tab": {
+                  "lastActivatedAt": 780123506.7891234,
+                  "faviconURL": "https://archive.example/favicon.ico",
+                  "symbol": "globe",
+                  "title": "cleanup",
+                  "placement": "current",
+                  "id": {
+                    "rawValue": "3d80c1cf-9748-4a3d-a03e-7ba4efdd2bfb"
+                  },
+                  "storedIconMode": "pulled",
+                  "positionModifiedAt": 780123507.789,
+                  "titleModifiedAt": 780123508.789,
+                  "iconAccent": {
+                    "green": 0.5,
+                    "red": 0.25,
+                    "blue": 0.75
+                  },
+                  "customTitle": "CLEANUP",
+                  "url": "https://archive.example/cleanup"
+                },
+                "archivedAt": 780123509.7891234
+              },
+              {
+                "reason": "closed",
+                "tab": {
+                  "lastActivatedAt": 780123516.7891234,
+                  "faviconURL": "https://archive.example/favicon.ico",
+                  "symbol": "globe",
+                  "title": "quick",
+                  "placement": "current",
+                  "id": {
+                    "rawValue": "66e8e391-d7de-43ac-ba3d-af4bb8dee03f"
+                  },
+                  "storedIconMode": "pulled",
+                  "positionModifiedAt": 780123517.789,
+                  "titleModifiedAt": 780123518.789,
+                  "iconAccent": {
+                    "green": 0.5,
+                    "red": 0.25,
+                    "blue": 0.75
+                  },
+                  "customTitle": "QUICK",
+                  "url": "https://archive.example/quick"
+                },
+                "archivedAt": 780123519.7891234
+              },
+              {
+                "reason": "synced",
+                "tab": {
+                  "lastActivatedAt": 780123526.7891234,
+                  "faviconURL": "https://archive.example/favicon.ico",
+                  "symbol": "globe",
+                  "title": "synced",
+                  "placement": "current",
+                  "id": {
+                    "rawValue": "920e573f-7eed-4976-819f-2356876e5093"
+                  },
+                  "storedIconMode": "pulled",
+                  "positionModifiedAt": 780123527.789,
+                  "titleModifiedAt": 780123528.789,
+                  "iconAccent": {
+                    "green": 0.5,
+                    "red": 0.25,
+                    "blue": 0.75
+                  },
+                  "customTitle": "SYNCED",
+                  "url": "https://archive.example/synced"
+                },
+                "archivedAt": 780123529.7891234
+              }
+            ],
+            "splitGroups": [
+              {
+                "iconModifiedAt": 780123473.789,
+                "tintModifiedAt": 780123474.789,
+                "id": {
+                  "rawValue": "AB0407DD-D08E-4D54-ABD4-6D3540EFE004"
+                },
+                "customIconSymbol": "crest.emoji:🧪",
+                "tint": {
+                  "green": 0.3,
+                  "red": 0.2,
+                  "blue": 0.4,
+                  "alpha": 0.9
+                },
+                "customTitle": "Research",
+                "titleModifiedAt": 780123472.789
+              }
+            ]
+          },
+          {
+            "history": [],
+            "browsingPreferences": {
+              "contentBlockingPolicy": "balanced",
+              "searchSuggestionsEnabled": false,
+              "searchProvider": "duckDuckGo",
+              "customSearchProviders": [],
+              "selectedSearchProviderID": "duckDuckGo",
+              "dataRetention": {
+                "archive": "forever",
+                "history": "forever",
+                "downloads": "forever"
+              },
+              "currentTabCleanupPolicy": "never"
+            },
+            "name": "Plain",
+            "folders": [],
+            "tabs": [
+              {
+                "symbol": "globe",
+                "id": {
+                  "rawValue": "6df2f570-7e1a-4426-b422-23609823b142"
+                },
+                "title": "Plain",
+                "placement": "current",
+                "lastActivatedAt": 780123556.7891234,
+                "url": "https://plain.example/",
+                "customTitle": null,
+                "splitGroupID": null
+              }
+            ],
+            "id": {
+              "rawValue": "a5eb05e2-be9a-420c-ad16-b1f728c63844"
+            },
+            "profile": {
+              "id": "ef488b84-5e8c-40ba-8a63-808a89ddd3db"
+            },
+            "archivedTabs": [],
+            "splitGroups": []
+          },
+          {
+            "history": [],
+            "browsingPreferences": {
+              "contentBlockingPolicy": "balanced",
+              "searchSuggestionsEnabled": false,
+              "searchProvider": "google",
+              "customSearchProviders": [],
+              "selectedSearchProviderID": "google",
+              "dataRetention": {
+                "archive": "forever",
+                "history": "forever",
+                "downloads": "forever"
+              },
+              "currentTabCleanupPolicy": "after12Hours"
+            },
+            "name": "Leaving",
+            "folders": [],
+            "tabs": [
+              {
+                "placement": "current",
+                "title": "Start Page",
+                "id": {
+                  "rawValue": "0EDA1CE7-3356-438C-A9F7-A667FA1C4904"
+                },
+                "lastActivatedAt": 780123656.7891234,
+                "symbol": "flag.fill"
+              }
+            ],
+            "id": {
+              "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+            },
+            "profile": {
+              "id": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7"
+            },
+            "archivedTabs": [],
+            "splitGroups": []
+          }
+        ],
+        "disposableSeedMarker": "027A55FA-1FCB-48D5-B850-6525D2B18BB9",
+        "appPreferences": {
+          "offersTranslation": false,
+          "startupBehavior": "lastActiveTab",
+          "automaticallyEntersPictureInPicture": false,
+          "checksSpelling": true
+        },
+        "spaceDeletions": [
+          {
+            "profileID": "DAFD68A1-648A-4A7B-A8F2-74E7526ECBE7",
+            "operationID": "F8EB2C81-9F63-4F58-B067-2AABD659EC7E",
+            "spaceID": {
+              "rawValue": "48E39E6E-DE6E-4B5E-8AFD-D704C5D64035"
+            }
+          }
+        ]
+      },
+      "assets": [
+        {
+          "spaceIndex": 0,
+          "tabIndex": 0,
+          "sourceSpaceID": {
+            "rawValue": "6c1d5447-4e3d-46a7-9b60-e3b95d6c7848"
+          },
+          "sourceTabID": {
+            "rawValue": "853d3f20-bb2c-45f0-98bd-ccc71c646370"
+          }
+        },
+        {
+          "spaceIndex": 0,
+          "tabIndex": 1,
+          "sourceSpaceID": {
+            "rawValue": "6c1d5447-4e3d-46a7-9b60-e3b95d6c7848"
+          },
+          "sourceTabID": {
+            "rawValue": "4615461c-ba47-4054-b5cf-3dcaf3362d8c"
+          }
+        },
+        {
+          "spaceIndex": 0,
+          "tabIndex": 2,
+          "sourceSpaceID": {
+            "rawValue": "6c1d5447-4e3d-46a7-9b60-e3b95d6c7848"
+          },
+          "sourceTabID": {
+            "rawValue": "b61250d4-3d4e-4dd6-8871-0bb326669142"
+          }
+        },
+        {
+          "spaceIndex": 0,
+          "tabIndex": 3,
+          "sourceSpaceID": {
+            "rawValue": "6c1d5447-4e3d-46a7-9b60-e3b95d6c7848"
+          },
+          "sourceTabID": {
+            "rawValue": "428caa9c-9a7a-4386-b120-f6096032c167"
+          }
+        },
+        {
+          "spaceIndex": 0,
+          "tabIndex": 4,
+          "sourceSpaceID": {
+            "rawValue": "6c1d5447-4e3d-46a7-9b60-e3b95d6c7848"
+          },
+          "sourceTabID": {
+            "rawValue": "942ac076-b0d8-454b-9eeb-3791e6113f77"
+          }
+        },
+        {
+          "spaceIndex": 0,
+          "tabIndex": 5,
+          "sourceSpaceID": {
+            "rawValue": "6c1d5447-4e3d-46a7-9b60-e3b95d6c7848"
+          },
+          "sourceTabID": {
+            "rawValue": "056f15c0-13ce-4ed0-b9fe-dd4a9d05a56d"
+          }
+        },
+        {
+          "spaceIndex": 1,
+          "tabIndex": 0,
+          "sourceSpaceID": {
+            "rawValue": "a5eb05e2-be9a-420c-ad16-b1f728c63844"
+          },
+          "sourceTabID": {
+            "rawValue": "6df2f570-7e1a-4426-b422-23609823b142"
+          }
+        },
+        {
+          "spaceIndex": 2,
+          "tabIndex": 0,
+          "sourceSpaceID": {
+            "rawValue": "48e39e6e-de6e-4b5e-8afd-d704c5d64035"
+          },
+          "sourceTabID": {
+            "rawValue": "0eda1ce7-3356-438c-a9f7-a667fa1c4904"
+          }
+        }
+      ]
+    }
+  }
+}

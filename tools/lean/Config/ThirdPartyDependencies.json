@@ -1,0 +1,76 @@
+{
+  "runtimeDependencies": [
+    {
+      "identity": "sparkle",
+      "name": "Sparkle",
+      "version": "2.9.5",
+      "license": "MIT",
+      "notice": "ThirdParty/Sparkle-LICENSE.txt"
+    }
+  ],
+  "bundledData": [
+    {
+      "identity": "unicode-emoji-test",
+      "name": "Unicode Emoji Test Data",
+      "version": "17.0",
+      "license": "Unicode License v3",
+      "notice": "ThirdParty/Unicode-LICENSE.txt",
+      "source": "https://www.unicode.org/Public/17.0.0/emoji/emoji-test.txt"
+    },
+    {
+      "identity": "game-icons-heraldry",
+      "name": "Game-icons.net Heraldic Artwork",
+      "version": "2026-09-11",
+      "license": "CC BY 3.0",
+      "notice": "CrestShared/Resources/HeraldicArtworkCredits.txt",
+      "source": "https://github.com/game-icons/icons"
+    },
+    {
+      "identity": "sf-symbol-names",
+      "name": "SFSafeSymbols Name Catalog",
+      "version": "cb2e670a213ff42ae08528ee2c401bfb1d799675",
+      "license": "MIT",
+      "notice": "CrestShared/Resources/SFSymbolCatalog-LICENSE.txt",
+      "source": "https://raw.githubusercontent.com/SFSafeSymbols/SFSafeSymbols/cb2e670a213ff42ae08528ee2c401bfb1d799675/SymbolsGenerator/Sources/SymbolsGenerator/Resources/symbol_names.txt"
+    }
+  ],
+  "bundledComponents": [
+    {
+      "identity": "dotnet-runtime",
+      "name": ".NET runtime (Native AOT)",
+      "version": "10.0.5",
+      "license": "MIT, with bundled third-party notices",
+      "notice": "ThirdParty/DotNet-LICENSE.txt",
+      "source": "https://github.com/dotnet/runtime",
+      "usedBy": "Crest's core on every platform"
+    },
+    {
+      "identity": "ublock-origin-lite",
+      "name": "uBlock Origin Lite",
+      "version": "2026.1026.1812",
+      "license": "GPL-3.0-or-later, with bundled filter-list and third-party notices",
+      "notice": "CrestShared/Resources/uBlockOriginLite-LICENSE.txt",
+      "source": "https://github.com/uBlockOrigin/uBOL-home",
+      "usedBy": "WebKit content blocking; modified source and dependency notices are preserved in CrestShared/Resources/uBlockOriginLite.zip"
+    }
+  ],
+  "developmentTools": {
+    "Periphery": "MIT",
+    "XcodeGen": "MIT"
+  },
+  "workflowActionRepositories": {},
+  "helpCenterDirectDependencies": {
+    "@docusaurus/core": "MIT",
+    "@docusaurus/preset-classic": "MIT",
+    "@mdx-js/react": "MIT",
+    "clsx": "MIT",
+    "prism-react-renderer": "MIT",
+    "react": "MIT",
+    "react-dom": "MIT"
+  },
+  "knownNpmLicenseMetadataExceptions": {
+    "eval": "MIT",
+    "format": "MIT",
+    "require-like": "MIT"
+  }
+}

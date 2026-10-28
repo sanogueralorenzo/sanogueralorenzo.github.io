@@ -1,0 +1,9 @@
+{"selectedWindow":2,"windows":[
+  {"title":"First","selected":2,"tabs":[
+    {"index":1,"entries":[{"url":"https://one.example/","title":"One"}],"lastAccessed":1700000000000},
+    {"index":2,"entries":[{"url":"https://old.example/","title":"Old"},{"url":"https://two.example/","title":"Two"}],"pinned":true,"lastAccessed":1700000100000},
+    {"index":9,"entries":[{"url":"https://clamped.example/","title":"Clamped"}]}
+  ]},
+  {"title":"Selected","selected":1,"tabs":[{"index":1,"entries":[{"url":"https://selected.example/","title":"Selected Tab"}]}]},
+  {"title":"Unsupported"}
+]}

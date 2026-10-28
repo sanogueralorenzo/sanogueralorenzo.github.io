@@ -1,0 +1,40 @@
+import SwiftUI
+
+/// Touch keeps the capsule appearance, using the same progress-driven buttons
+/// and clear overflow controls as the compact desktop lane.
+struct BrowserSpaceSwitcherScrollingSegments: View {
+    // MARK: - Variables
+
+    let spaces: [BrowserSpaceIdentity]
+    let selectedSpaceID: UUID
+    let reorderState: BrowserSidebarReorderState
+    let metrics: BrowserSpacePickerMetrics
+    let selectSpace: (UUID) -> Void
+    var commands: (BrowserSpaceIdentity) -> [CrestSpaceChipCommand] = { _ in [] }
+
+    // MARK: - Actions - Drawing
+
+    var body: some View {
+        GeometryReader { geometry in
+            let scale = BrowserSpaceIconSizing.scale(
+                spaceCount: spaces.count, style: .touch, width: geometry.size.width)
+            let style = CrestSpaceIconPickerStyle.touch.scaled(by: scale)
+            let allocation = BrowserSpaceSwitcherCompactAllocation(
+                pickerViewportWidth: geometry.size.width,
+                pickerContentWidth: style.contentWidth(spaceCount: spaces.count),
+                overflowButtonWidth: style.overflowButtonWidth)
+            BrowserSpaceSwitcherCompactPicker(
+                spaces: spaces, selectedSpaceID: selectedSpaceID,
+                reorderState: reorderState, metrics: metrics.scaled(by: scale), selectSpace: selectSpace,
+                commands: commands,
+                allocation: allocation, style: style)
+        }
+        .frame(
+            height: CrestSpaceIconPickerStyle.touch.scaled(
+                by: 1
+            ).height
+        )
+        .padding(.horizontal, BrowserSpaceSwitcherLayout.scrollingTrackHorizontalInset)
+        .padding(.top, BrowserSpaceSwitcherLayout.scrollingTrackTopInset)
+    }
+}

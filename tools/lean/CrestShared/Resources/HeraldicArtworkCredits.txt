@@ -1,0 +1,39 @@
+Heraldic artwork used in Crest Studio
+
+All images licensed under Creative Commons Attribution 3.0:
+https://creativecommons.org/licenses/by/3.0/
+
+Changes: removed the background; artwork is rendered as a scalable, recolorable template.
+
+Dragon (dragon-spiral) by Lorc: https://game-icons.net/1x1/lorc/dragon-spiral.html
+Direwolf (direwolf) by Lorc: https://game-icons.net/1x1/lorc/direwolf.html
+Lion (lion) by Lorc: https://game-icons.net/1x1/lorc/lion.html
+Stag (stag-head) by Lorc: https://game-icons.net/1x1/lorc/stag-head.html
+Raven (raven) by Lorc: https://game-icons.net/1x1/lorc/raven.html
+Griffin (griffin-symbol) by Delapouite: https://game-icons.net/1x1/delapouite/griffin-symbol.html
+Eagle (eagle-emblem) by Lorc: https://game-icons.net/1x1/lorc/eagle-emblem.html
+Bear (bear-head) by Delapouite: https://game-icons.net/1x1/delapouite/bear-head.html
+Boar (boar) by Caro-Asercion: https://game-icons.net/1x1/caro-asercion/boar.html
+Fox (fox-head) by Lorc: https://game-icons.net/1x1/lorc/fox-head.html
+Horse (horse-head) by Delapouite: https://game-icons.net/1x1/delapouite/horse-head.html
+Unicorn (unicorn) by Delapouite: https://game-icons.net/1x1/delapouite/unicorn.html
+Wyvern (wyvern) by Lorc: https://game-icons.net/1x1/lorc/wyvern.html
+Hydra (hydra) by Lorc: https://game-icons.net/1x1/lorc/hydra.html
+Serpent (snake-spiral) by Delapouite: https://game-icons.net/1x1/delapouite/snake-spiral.html
+Kraken (octopus) by Lorc: https://game-icons.net/1x1/lorc/octopus.html
+Seahorse (seahorse) by Delapouite: https://game-icons.net/1x1/delapouite/seahorse.html
+Scorpion (scorpion) by Lorc: https://game-icons.net/1x1/lorc/scorpion.html
+Bat (batwing-emblem) by Lorc: https://game-icons.net/1x1/lorc/batwing-emblem.html
+Falcon (falcon-moon) by Delapouite: https://game-icons.net/1x1/delapouite/falcon-moon.html
+Rose (rose) by Lorc: https://game-icons.net/1x1/lorc/rose.html
+Fleur-de-lis (fleur-de-lys) by Delapouite: https://game-icons.net/1x1/delapouite/fleur-de-lys.html
+Pine (pine-tree) by Lorc: https://game-icons.net/1x1/lorc/pine-tree.html
+Willow (willow-tree) by Caro-Asercion: https://game-icons.net/1x1/caro-asercion/willow-tree.html
+Crossed Swords (crossed-swords) by Lorc: https://game-icons.net/1x1/lorc/crossed-swords.html
+Crossed Axes (crossed-axes) by Lorc: https://game-icons.net/1x1/lorc/crossed-axes.html
+Sword (broadsword) by Lorc: https://game-icons.net/1x1/lorc/broadsword.html
+Trident (trident) by Lorc: https://game-icons.net/1x1/lorc/trident.html
+Anchor (anchor) by Lorc: https://game-icons.net/1x1/lorc/anchor.html
+Castle (castle) by Lorc: https://game-icons.net/1x1/lorc/castle.html
+Scales (scales) by Lorc: https://game-icons.net/1x1/lorc/scales.html
+Dragon Head (dragon-head) by Lorc: https://game-icons.net/1x1/lorc/dragon-head.html

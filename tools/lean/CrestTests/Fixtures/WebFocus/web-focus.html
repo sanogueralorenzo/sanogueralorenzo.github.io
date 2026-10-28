@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Web focus restoration fixture</title>
+</head>
+<body>
+  <label>
+    Input
+    <input id="input" value="alpha bravo charlie delta">
+  </label>
+  <label>
+    Textarea
+    <textarea id="textarea">echo foxtrot golf hotel</textarea>
+  </label>
+  <div id="editor" contenteditable="true">india juliet kilo lima</div>
+  <label>
+    Password boundary
+    <input id="password" type="password" autocomplete="off">
+  </label>
+  <output id="focus-state" aria-live="polite"></output>
+  <script>
+    const state = document.getElementById("focus-state");
+
+    function selectionDescription(element) {
+      if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+        return `${element.selectionStart}:${element.selectionEnd}`;
+      }
+      if (!element?.isContentEditable) return "none";
+      const selection = document.getSelection();
+      if (!selection || selection.rangeCount === 0) return "none";
+      const range = selection.getRangeAt(0);
+      const prefix = range.cloneRange();
+      prefix.selectNodeContents(element);
+      prefix.setEnd(range.startContainer, range.startOffset);
+      return `${prefix.toString().length}:${prefix.toString().length + range.toString().length}`;
+    }
+
+    function report() {
+      const active = document.activeElement;
+      const description = [
+        `active=${active?.id || active?.tagName?.toLowerCase() || "none"}`,
+        `selection=${selectionDescription(active)}`,
+        `documentFocus=${document.hasFocus()}`,
+        `visibility=${document.visibilityState}`,
+      ].join(" ");
+      state.textContent = description;
+      document.title = description;
+    }
+
+    for (const event of ["focus", "blur", "focusin", "focusout", "selectionchange", "visibilitychange"]) {
+      document.addEventListener(event, () => requestAnimationFrame(report), true);
+    }
+    window.addEventListener("focus", report);
+    window.addEventListener("blur", report);
+    report();
+  </script>
+</body>
+</html>

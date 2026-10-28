@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crest Physical Offline Fixture</title>
+  <style>
+    :root { color-scheme: light dark; font-family: ui-sans-serif, system-ui, sans-serif; }
+    body { margin: 0; padding: 24px; background: #0c1020; color: #eef1ff; }
+    main { max-width: 560px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 22px; }
+    p { color: #aeb7d5; }
+    button { min-height: 44px; padding: 10px 14px; border: 1px solid #ffffff24; border-radius: 12px; background: #293355; color: inherit; font: inherit; }
+    button:disabled { opacity: 0.55; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Crest Physical Offline Fixture</h1>
+    <p id="status" role="status">Preparing persistent offline cache…</p>
+    <button id="disconnect" aria-label="Crest Fixture Disconnect Origin" disabled>
+      Disconnect Fixture Origin
+    </button>
+  </main>
+  <script>
+    const status = document.querySelector('#status');
+    const disconnect = document.querySelector('#disconnect');
+    const offlineReloadKey = 'crest-physical-offline-reload';
+
+    async function waitForController() {
+      if (navigator.serviceWorker.controller) return;
+      await Promise.race([
+        new Promise(resolve => navigator.serviceWorker.addEventListener(
+          'controllerchange', resolve, { once: true }
+        )),
+        new Promise((_, reject) => setTimeout(
+          () => reject(new Error('controller timeout')), 5000
+        ))
+      ]);
+    }
+
+    async function prepare() {
+      if (sessionStorage.getItem(offlineReloadKey) === 'pending') {
+        sessionStorage.removeItem(offlineReloadKey);
+        status.textContent = "Loaded from Crest's offline cache";
+        disconnect.hidden = true;
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.register('service-worker.js');
+      await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((_, reject) => setTimeout(
+          () => reject(new Error('service worker timeout')), 5000
+        ))
+      ]);
+      await waitForController();
+      if (!navigator.serviceWorker.controller || !registration) {
+        throw new Error('service worker did not control the fixture');
+      }
+      status.textContent = 'Offline fixture ready';
+      disconnect.disabled = false;
+    }
+
+    disconnect.onclick = async () => {
+      disconnect.disabled = true;
+      status.textContent = 'Disconnecting fixture origin…';
+      sessionStorage.setItem(offlineReloadKey, 'pending');
+      try {
+        const response = await fetch('/__crest_network_stop__', {
+          cache: 'no-store'
+        });
+        if (!response.ok) throw new Error(`stop returned ${response.status}`);
+        await new Promise(resolve => setTimeout(resolve, 600));
+        location.reload();
+      } catch (error) {
+        sessionStorage.removeItem(offlineReloadKey);
+        status.textContent = `Offline fixture error: ${error.message}`;
+        disconnect.disabled = false;
+      }
+    };
+
+    prepare().catch(error => {
+      status.textContent = `Offline fixture error: ${error.message}`;
+    });
+  </script>
+</body>
+</html>

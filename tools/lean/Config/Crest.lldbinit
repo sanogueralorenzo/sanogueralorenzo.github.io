@@ -1,0 +1,7 @@
+# Debugger settings for every Crest app scheme.
+#
+# The core's .NET runtime pauses its threads for garbage collection with
+# SIGUSR1 and handles the signal itself. The debugger passes it on without
+# stopping; a stop there holds the whole app, and a debug server Xcode leaves
+# behind keeps it held after Xcode detaches.
+process handle SIGUSR1 --notify false --pass true --stop false
