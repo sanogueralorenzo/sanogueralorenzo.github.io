@@ -81,7 +81,7 @@ struct BrowserSidebarBatchMenu: View {
         Button("Deselect All") { store.clearSidebarSelection() }
     }
     private func fileInNewFolder(_ placement: BrowserTab.Placement) {
-        let id = store.addFolder()
+        guard let id = store.addFolder() else { return }
         store.updateFolder(id) { $0.placement = placement }
         store.fileSidebarSelection(as: placement, folderID: id)
     }

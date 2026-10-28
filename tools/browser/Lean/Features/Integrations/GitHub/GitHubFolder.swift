@@ -84,8 +84,7 @@ final class GitHubFolder: NSObject, WKHTTPCookieStoreObserver {
         }
         guard let space = store.session.spaces.first(where: { $0.id == spaceID }) else { return }
         var folder = space.folders.first { $0.kind == .github }
-        if folder == nil, !space.githubDismissed {
-            let id = store.addFolder(github: true, in: spaceID)
+        if folder == nil, !space.githubDismissed, let id = store.addFolder(github: true, in: spaceID) {
             folder = store.session.spaces.first { $0.id == self.spaceID }?.folders.first { $0.id == id }
         }
         guard let folder else { return }

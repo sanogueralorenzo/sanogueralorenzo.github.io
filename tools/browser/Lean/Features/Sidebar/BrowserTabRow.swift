@@ -132,7 +132,7 @@ struct BrowserTabRow: View {
             if tab.placement == .current {
                 Menu("Add to Current Tabs Folder", systemImage: "folder.badge.plus") {
                     Button("New Folder") {
-                        let id = store.addFolder()
+                        guard let id = store.addFolder() else { return }
                         store.updateFolder(id) { $0.placement = .current }
                         store.placeTabs(store.actionTabs(tab.id), as: .current, folderID: id)
                     }

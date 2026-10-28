@@ -244,7 +244,7 @@ struct BrowserSidebar: View {
             Button("New Folder", systemImage: "folder.badge.plus") { store.addFolder() }
             Menu("Live Folder") {
                 Button("GitHub") {
-                    store.addFolder(github: true)
+                    guard store.addFolder(github: true) != nil else { return }
                     store.integration(for: store.activeSpace.id).requestRefresh()
                 }
             }

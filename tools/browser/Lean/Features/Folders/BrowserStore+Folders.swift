@@ -2,18 +2,41 @@ import Foundation
 
 extension BrowserStore {
     @discardableResult
-    func addFolder(parentID: UUID? = nil, github: Bool = false, in spaceID: UUID? = nil) -> UUID {
-        let index = spaceIndex(spaceID ?? activeSpace.id)
+    func addFolder(parentID: UUID? = nil, github: Bool = false, in spaceID: UUID? = nil) -> UUID? {
+        guard !isClosed, let index = session.spaces.firstIndex(where: { $0.id == (spaceID ?? activeSpace.id) }) else {
+            return nil
+        }
+        let space = session.spaces[index]
+        if github {
+            guard !space.isPrivate else {
+                showNotice("Live folders aren’t available in private Spaces.")
+                return nil
+            }
+            if let existing = space.folders.first(where: { $0.kind == .github }) { return existing.id }
+        }
+        if let parentID, !space.folders.contains(where: { $0.id == parentID && $0.kind == .regular }) {
+            showNotice("The destination folder is no longer available.")
+            return nil
+        }
         var folder = BrowserFolder()
         folder.parentID = parentID
-        folder.placement = parentID.flatMap { id in session.spaces[index].folders.first { $0.id == id }?.placement }
+        folder.placement = parentID.flatMap { id in space.folders.first { $0.id == id }?.placement }
         if github {
-            if let existing = session.spaces[index].folders.first(where: { $0.kind == .github }) { return existing.id }
+            guard folder.placement == nil || folder.placement == .saved else {
+                showNotice("Live folders belong in Saved Tabs.")
+                return nil
+            }
             folder.kind = .github
             folder.title = "GitHub"
-            session.spaces[index].githubDismissed = false
         }
-        session.spaces[index].folders.append(folder)
+        var candidate = session
+        candidate.spaces[index].folders.append(folder)
+        if github { candidate.spaces[index].githubDismissed = false }
+        guard (try? candidate.validate()) != nil else {
+            showNotice("The folder count or nesting limit has been reached.")
+            return nil
+        }
+        session = candidate
         if !github { editingFolderID = folder.id }
         changed()
         return folder.id

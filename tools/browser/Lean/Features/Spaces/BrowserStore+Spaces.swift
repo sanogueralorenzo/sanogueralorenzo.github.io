@@ -3,11 +3,17 @@ import WebKit
 
 extension BrowserStore {
     func saveSpace(id: UUID?, name: String, color: Int, isPrivate: Bool = false) {
+        guard !isClosed else { return }
         let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let id, let index = session.spaces.firstIndex(where: { $0.id == id }) {
+        if let id {
+            guard let index = session.spaces.firstIndex(where: { $0.id == id }) else { return }
             session.spaces[index].name = title.isEmpty ? "Space" : String(title.prefix(256))
             session.spaces[index].color = color
         } else {
+            guard session.spaces.count < 64 else {
+                showNotice("You can have up to 64 Spaces. Delete a Space before adding another.")
+                return
+            }
             var space = BrowserSpace()
             space.name = title.isEmpty ? "Space" : String(title.prefix(256))
             space.color = color
@@ -66,6 +72,11 @@ extension BrowserStore {
     }
 
     func savePrivateSpace(name: String = "Private", color: Int = 4) {
+        guard !isClosed else { return }
+        guard session.spaces.count < 64 else {
+            showNotice("You can have up to 64 Spaces. Delete a Space before adding another.")
+            return
+        }
         var space = BrowserSpace()
         space.name = name
         space.color = color
