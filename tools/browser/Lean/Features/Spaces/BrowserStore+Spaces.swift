@@ -39,7 +39,7 @@ extension BrowserStore {
                 current.isPrivate || session.spaces.filter({ !$0.isPrivate }).count > 1,
                 Set(current.tabs.map(\.id)) == Set(space.tabs.map(\.id)),
                 Set(current.folders.map(\.id)) == Set(space.folders.map(\.id)),
-                !activeDownloads.contains(where: { $0.spaceID == id }),
+                owner.activeDownloadRequests(in: id).isEmpty,
                 !prepared || !owner.contexts.values.contains(where: { !$0.isClosed && $0.activeSpace.id == id })
             else { return }
             for tab in space.tabs { unload(tab.id) }
@@ -49,6 +49,7 @@ extension BrowserStore {
             session.spaces.removeAll { $0.id == id }
             session.history.removeAll { $0.spaceID == id }
             session.archive.removeAll { $0.spaceID == id }
+            session.downloads.removeAll { $0.spaceID == id }
             let fallback = session.spaces.first(where: { !$0.isPrivate })!.id
             for context in owner.contexts.values where context.windowState.spaceID == id {
                 context.windowState.spaceID = fallback

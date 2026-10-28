@@ -13,6 +13,7 @@ final class BrowserSessionOwner {
     var contentBlockers: [UUID: BrowserContentBlocking] = [:]
     var integrations: [UUID: GitHubFolder] = [:]
     var downloads: [ObjectIdentifier: BrowserDownload] = [:]
+    var pendingDownloads: [UUID: BrowserPendingDownload] = [:]
     var contexts: [UUID: BrowserStore] = [:]
     var runtimeRevision = 0
     var lastRetentionSweep = Date.distantPast
@@ -31,7 +32,7 @@ final class BrowserSessionOwner {
         session = try persistence.load()
         sweepExpiredRecords()
         session.selectedSpaceID = session.selectedSpaceID ?? session.spaces[0].id
-        for i in session.downloads.indices where session.downloads[i].status == .running {
+        for i in session.downloads.indices where [.running, .choosing].contains(session.downloads[i].status) {
             session.downloads[i].status = session.downloads[i].resumeData == nil ? .failed : .paused
             session.downloads[i].error = "The previous download was interrupted."
         }
@@ -125,18 +126,24 @@ final class BrowserSessionOwner {
                 && check.isCurrent(in: self)
         }
         guard await check.prepare(in: self), isCurrent() else { return false }
-        let jobs = Array(downloads.values).filter { $0.isActive }
-        if !jobs.isEmpty {
+        let requests = activeDownloadRequests()
+        if !requests.isEmpty {
+            let starting = !pendingDownloads.isEmpty
             let alert = NSAlert()
             alert.messageText = "Downloads are still running"
             alert.informativeText =
-                "Pause resumable downloads before quitting? Private downloads and downloads that cannot resume will need to restart."
+                starting
+                ? "Pause active downloads and cancel starting requests before quitting? Starting requests will need to restart."
+                : "Pause resumable downloads before quitting? Private downloads and downloads that cannot resume will need to restart."
             alert.addButton(withTitle: "Keep Browsing")
-            alert.addButton(withTitle: "Pause Downloads and Quit")
+            alert.addButton(withTitle: starting ? "Stop Downloads and Quit" : "Pause Downloads and Quit")
             guard await BrowserDialogs.ask(alert) == .alertSecondButtonReturn, isCurrent(),
-                Set(downloads.values.filter(\.isActive).map(\.id)).isSubset(of: Set(jobs.map(\.id)))
+                downloadRequestsMatch(requests)
             else { return false }
-            for job in jobs {
+            for id in requests.keys {
+                guard isCurrent(), downloadRequestsMatch(requests) else { return false }
+                if pendingDownloads[id] != nil { cancelPendingDownload(id) }
+                guard let job = downloads.values.first(where: { $0.id == id && $0.isActive }) else { continue }
                 if session.spaces.first(where: { $0.id == job.spaceID })?.isPrivate == true {
                     job.cancel()
                 } else {
@@ -144,7 +151,7 @@ final class BrowserSessionOwner {
                 }
             }
         }
-        guard isCurrent(), !downloads.values.contains(where: \.isActive) else { return false }
+        guard isCurrent(), activeDownloadRequests().isEmpty else { return false }
         guard flush() else {
             let alert = NSAlert()
             alert.messageText = "The session could not be saved"
@@ -152,7 +159,7 @@ final class BrowserSessionOwner {
             alert.addButton(withTitle: "Keep Browsing")
             alert.addButton(withTitle: "Quit Without Saving")
             return await BrowserDialogs.ask(alert) == .alertSecondButtonReturn && isCurrent()
-                && !downloads.values.contains(where: \.isActive)
+                && activeDownloadRequests().isEmpty
         }
         return true
     }

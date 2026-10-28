@@ -57,18 +57,18 @@ extension BrowserStore {
         guard await check.prepare(in: owner), isCurrent() else { return false }
         if removesSpace {
             guard await prepareToDeleteSpace(spaceID), isCurrent(),
-                !activeDownloads.contains(where: { $0.spaceID == spaceID })
+                owner.activeDownloadRequests(in: spaceID).isEmpty
             else { return false }
         }
-        if isLastWindow() && !activeDownloads.isEmpty {
-            let jobs = Set(activeDownloads.map(\.id))
+        if isLastWindow() && !owner.activeDownloadRequests().isEmpty {
+            let requests = owner.activeDownloadRequests()
             let alert = NSAlert()
             alert.messageText = "Downloads are still running"
             alert.informativeText = "They will continue while Lean is open."
             alert.addButton(withTitle: "Keep Window Open")
             alert.addButton(withTitle: "Close Window")
             guard await BrowserDialogs.ask(alert, in: window) == .alertSecondButtonReturn,
-                Set(activeDownloads.map(\.id)).isSubset(of: jobs)
+                owner.downloadRequestsMatch(requests)
             else { return false }
         }
         guard isCurrent() else { return false }

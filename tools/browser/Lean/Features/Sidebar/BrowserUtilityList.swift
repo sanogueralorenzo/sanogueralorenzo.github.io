@@ -61,17 +61,23 @@ struct BrowserUtilityList: View {
                                 if download.status == .running && download.expected > 0 {
                                     ProgressView(value: Double(download.received), total: Double(download.expected))
                                 }
-                                Text(download.error ?? download.status.rawValue.capitalized).font(.caption)
+                                Text(
+                                    download.error
+                                        ?? (download.status == .choosing
+                                            ? "Starting" : download.status.rawValue.capitalized)
+                                ).font(.caption)
                                     .foregroundStyle(.secondary)
                                 HStack {
-                                    if download.status == .running {
+                                    if download.status == .choosing {
+                                        Button("Cancel") { store.cancelDownload(download.id) }
+                                    } else if download.status == .running {
                                         Button("Pause") {
                                             if let job = store.activeDownloads.first(where: { $0.id == download.id }) {
                                                 Task { await job.pause() }
                                             }
                                         }
                                         Button("Cancel") {
-                                            store.activeDownloads.first(where: { $0.id == download.id })?.cancel()
+                                            store.cancelDownload(download.id)
                                         }
                                     } else if download.resumeData != nil {
                                         Button("Resume") { store.resumeDownload(download) }

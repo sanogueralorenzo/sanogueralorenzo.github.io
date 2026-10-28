@@ -6,6 +6,7 @@ import WebKit
 @MainActor @Observable
 final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
     let id: UUID
+    let requestID: UUID
     let download: WKDownload
     let spaceID: UUID
     var name = "Download"
@@ -15,9 +16,12 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
     @ObservationIgnored private var progressObservation: NSKeyValueObservation?
     @ObservationIgnored private var scope: URL?
     @ObservationIgnored private var workingURL: URL?
+    @ObservationIgnored private var pauseTask: Task<Void, Never>?
 
-    init(download: WKDownload, store: BrowserStore, spaceID: UUID, restoring id: UUID? = nil) {
+    init(download: WKDownload, store: BrowserStore, spaceID: UUID, restoring id: UUID? = nil, requestID: UUID = UUID())
+    {
         self.id = id ?? UUID()
+        self.requestID = requestID
         self.download = download
         self.store = store
         self.spaceID = spaceID
@@ -201,6 +205,7 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
     }
 
     func downloadDidFinish(_ download: WKDownload) {
+        guard isActive else { return }
         guard let store, let record = store.session.downloads.first(where: { $0.id == id }),
             let destination = record.destination
         else {
@@ -227,6 +232,7 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
     }
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
+        guard isActive, pauseTask == nil else { return }
         update {
             $0.resumeData = resumeData
             $0.status = resumeData == nil ? .failed : .paused
@@ -237,20 +243,31 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
 
     func pause() async {
         guard isActive else { return }
-        let data: Data? = await withCheckedContinuation { continuation in
-            download.cancel { continuation.resume(returning: $0) }
+        if let pauseTask {
+            await pauseTask.value
+            return
         }
-        update {
-            $0.resumeData = data
-            $0.status = data == nil ? .failed : .paused
-            $0.error = data == nil ? "This server did not provide resumable data." : nil
+        let task = Task { [self] in
+            let data: Data? = await withCheckedContinuation { continuation in
+                download.cancel { continuation.resume(returning: $0) }
+            }
+            guard isActive else { return }
+            update {
+                $0.resumeData = data
+                $0.status = data == nil ? .failed : .paused
+                $0.error = data == nil ? "This server did not provide resumable data." : nil
+            }
+            release()
         }
-        release()
+        pauseTask = task
+        await task.value
+        pauseTask = nil
     }
 
     func cancel() {
-        download.cancel { _ in }
+        guard isActive else { return }
         finish(.cancelled)
+        download.cancel { _ in }
         if let workingURL { try? FileManager.default.removeItem(at: workingURL) }
     }
 
@@ -275,7 +292,9 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
     }
 
     private func update(_ apply: (inout BrowserDownloadRecord) -> Void) {
-        guard let store, let index = store.session.downloads.firstIndex(where: { $0.id == id }) else { return }
+        guard isActive, let store, let index = store.session.downloads.firstIndex(where: { $0.id == id }) else {
+            return
+        }
         apply(&store.session.downloads[index])
         store.changed()
     }
