@@ -27,6 +27,8 @@ struct BrowserSidebarSurface: View {
             .overlay {
                 if store.showsSidebar {
                     BrowserSidebarHoverTracker(isRevealedByPointer: store.sidebarRevealed) { inside in
+                        // A tracker still sliding out cannot start another reveal.
+                        guard !inside || store.showsSidebar else { return }
                         withAnimation(LeanMotion.floatingPane.unlessReducingMotion(reduceMotion)) {
                             store.sidebarRevealed = inside
                         }
