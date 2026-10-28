@@ -73,7 +73,7 @@ extension BrowserStore {
                 if context.windowState.spaceID == id {
                     context.sidebarSpaceStep = nil
                     context.windowState.spaceID = fallback
-                    context.resumePages()
+                    if !context.isClosed { context.resumePages() }
                 }
             }
             for i in session.windows.indices {

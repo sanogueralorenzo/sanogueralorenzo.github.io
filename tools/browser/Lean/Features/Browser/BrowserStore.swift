@@ -235,6 +235,7 @@ final class BrowserStore {
 
     @discardableResult
     func loadPage(_ id: UUID) -> BrowserPage? {
+        guard !isClosed else { return nil }
         if let page = pages[id] { return page }
         guard let (s, t) = tabIndex(id) else { return nil }
         let tab = session.spaces[s].tabs[t]

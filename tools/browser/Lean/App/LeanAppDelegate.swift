@@ -149,16 +149,8 @@ final class LeanAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, 
 
     func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow, let context = context(for: window) else { return }
-        context.isClosed = true
-        context.windowState.isOpen = false
-        for page in context.visiblePages where page.hostingWindowID == context.id { page.hostingWindowID = nil }
         windows[context.id] = nil
-        if context.activeSpace.isPrivate
-            && !owner!.contexts.values.contains(where: { !$0.isClosed && $0.activeSpace.id == context.activeSpace.id })
-        {
-            context.deleteSpace(context.activeSpace.id, prepared: true)
-        }
-        context.changed()
+        context.closeWindow()
     }
 
     func windowDidBecomeKey(_ notification: Notification) {

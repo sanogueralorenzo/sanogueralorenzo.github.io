@@ -47,7 +47,8 @@ extension BrowserStore {
                 }
         }
         let removesSpace = removesPrivateSpace()
-        let ids = removesSpace ? activeSpace.tabs.map(\.id) : visiblePages.map(\.id)
+        // Shared pages survive the window; the last private window ends its Space.
+        let ids = removesSpace ? activeSpace.tabs.map(\.id) : []
         let check = BrowserPageCloseCheck(ids, owner: owner)
         func isCurrent() -> Bool {
             !isClosed && activeSpace.id == spaceID && Set(visiblePages.map(\.id)) == visible
@@ -77,6 +78,27 @@ extension BrowserStore {
             return false
         }
         return true
+    }
+
+    func closeWindow() {
+        guard !isClosed else { return }
+        isClosed = true
+        windowState.isOpen = false
+        let remaining = owner.contexts.values.filter { !$0.isClosed }
+        if owner.activeWindowID == id { owner.activeWindowID = remaining.first?.id }
+        for page in pages.values where page.hostingWindowID == id || page.owner === self {
+            let presenter = remaining.first { $0.visiblePages.contains(where: { $0.id == page.id }) }
+            if page.hostingWindowID == id {
+                page.webView.removeFromSuperview()
+                page.hostingWindowID = presenter?.id
+            }
+            if page.owner === self { page.owner = presenter ?? remaining.first ?? self }
+        }
+        runtimeRevision &+= 1
+        if activeSpace.isPrivate && !remaining.contains(where: { $0.activeSpace.id == activeSpace.id }) {
+            deleteSpace(activeSpace.id, prepared: true)
+        }
+        changed()
     }
 
 }
