@@ -289,17 +289,22 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     }
 
     func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
-        pendingNavigationURL = nil
-        failure = nil
-        synchronize()
-        owner?.beginDownload(download, spaceID: spaceID)
+        receiveDownload(download)
     }
 
     func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+        receiveDownload(download)
+    }
+
+    private func receiveDownload(_ download: WKDownload) {
         pendingNavigationURL = nil
         failure = nil
         synchronize()
-        owner?.beginDownload(download, spaceID: spaceID)
+        guard let owner else {
+            download.cancel { _ in }
+            return
+        }
+        owner.beginDownload(download, spaceID: spaceID)
     }
 
     func webView(

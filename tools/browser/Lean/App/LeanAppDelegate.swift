@@ -137,29 +137,7 @@ final class LeanAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, 
         guard preparingCloses.insert(context.id).inserted else { return false }
         Task {
             defer { preparingCloses.remove(context.id) }
-            for page in context.visiblePages {
-                guard await page.prepareToClose() else { return }
-                await page.captureDocumentState()
-            }
-            if context.activeSpace.isPrivate,
-                !owner!.contexts.values.contains(where: {
-                    !$0.isClosed && $0.id != context.id && $0.activeSpace.id == context.activeSpace.id
-                })
-            {
-                guard await context.prepareToDeleteSpace(context.activeSpace.id) else { return }
-            }
-            if windows.count == 1 && !context.activeDownloads.isEmpty {
-                let alert = NSAlert()
-                alert.messageText = "Downloads are still running"
-                alert.informativeText = "They will continue while Lean is open."
-                alert.addButton(withTitle: "Keep Window Open")
-                alert.addButton(withTitle: "Close Window")
-                guard await BrowserDialogs.ask(alert, in: sender) == .alertSecondButtonReturn else { return }
-            }
-            guard context.flush() else {
-                context.showNotice("The session could not be saved.")
-                return
-            }
+            guard await context.canCloseWindow(isLastWindow: { self.windows.count == 1 }) else { return }
             approvedCloses.insert(context.id)
             sender.performClose(nil)
         }

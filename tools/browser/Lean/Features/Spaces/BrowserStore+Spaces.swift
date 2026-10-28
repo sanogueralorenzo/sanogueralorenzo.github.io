@@ -29,11 +29,13 @@ extension BrowserStore {
         guard !isClosed || prepared, let space = session.spaces.first(where: { $0.id == id }),
             space.isPrivate || session.spaces.filter({ !$0.isPrivate }).count > 1
         else { return }
+        let check = BrowserPageCloseCheck(space.tabs.map(\.id), owner: owner)
         Task {
             if !prepared {
                 guard await prepareTabs(space.tabs.map(\.id)), await prepareToDeleteSpace(id) else { return }
             }
             guard !isClosed || prepared, let current = session.spaces.first(where: { $0.id == id }),
+                check.isCurrent(in: owner),
                 current.isPrivate || session.spaces.filter({ !$0.isPrivate }).count > 1,
                 Set(current.tabs.map(\.id)) == Set(space.tabs.map(\.id)),
                 Set(current.folders.map(\.id)) == Set(space.folders.map(\.id)),

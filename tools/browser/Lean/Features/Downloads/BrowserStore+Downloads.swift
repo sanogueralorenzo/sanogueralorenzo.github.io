@@ -25,8 +25,11 @@ extension BrowserStore {
         BrowserWebKitDefaults.apply(to: config.preferences)
         let view = WKWebView(frame: .zero, configuration: config)
         view.resumeDownload(fromResumeData: data) { [weak self, view] download in
-            self?.beginDownload(download, spaceID: record.spaceID, restoring: record.id)
-            self?.downloads[ObjectIdentifier(download)]?.downloadView = view
+            guard let self else {
+                download.cancel { _ in }
+                return
+            }
+            beginDownload(download, spaceID: record.spaceID, restoring: record.id)?.downloadView = view
         }
     }
 
@@ -45,8 +48,11 @@ extension BrowserStore {
             session.downloads[i].expected = 0
         }
         view.startDownload(using: URLRequest(url: url)) { [weak self, view] download in
-            self?.beginDownload(download, spaceID: record.spaceID, restoring: record.id)
-            self?.downloads[ObjectIdentifier(download)]?.downloadView = view
+            guard let self else {
+                download.cancel { _ in }
+                return
+            }
+            beginDownload(download, spaceID: record.spaceID, restoring: record.id)?.downloadView = view
         }
     }
 
@@ -88,9 +94,17 @@ extension BrowserStore {
         if access { scoped.stopAccessingSecurityScopedResource() }
     }
 
-    func beginDownload(_ download: WKDownload, spaceID: UUID? = nil, restoring id: UUID? = nil) {
-        let job = BrowserDownload(download: download, store: self, spaceID: spaceID ?? activeSpace.id, restoring: id)
+    @discardableResult
+    func beginDownload(_ download: WKDownload, spaceID: UUID? = nil, restoring id: UUID? = nil) -> BrowserDownload? {
+        let spaceID = spaceID ?? activeSpace.id
+        guard session.spaces.contains(where: { $0.id == spaceID }) else {
+            download.cancel { _ in }
+            return nil
+        }
+        if let job = downloads[ObjectIdentifier(download)] { return job }
+        let job = BrowserDownload(download: download, store: self, spaceID: spaceID, restoring: id)
         downloads[ObjectIdentifier(download)] = job
         runtimeRevision &+= 1
+        return job
     }
 }

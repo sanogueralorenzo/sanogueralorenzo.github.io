@@ -117,10 +117,14 @@ final class BrowserSessionOwner {
     }
 
     func canCloseAll() async -> Bool {
-        for page in Array(pages.values) {
-            guard await page.prepareToClose() else { return false }
-            await page.captureDocumentState()
+        let loaded = Set(pages.keys)
+        let tabs = Set(session.spaces.flatMap { $0.tabs.map(\.id) })
+        let check = BrowserPageCloseCheck(Array(loaded), owner: self)
+        func isCurrent() -> Bool {
+            Set(pages.keys) == loaded && Set(session.spaces.flatMap { $0.tabs.map(\.id) }) == tabs
+                && check.isCurrent(in: self)
         }
+        guard await check.prepare(in: self), isCurrent() else { return false }
         let jobs = Array(downloads.values).filter { $0.isActive }
         if !jobs.isEmpty {
             let alert = NSAlert()
@@ -129,7 +133,9 @@ final class BrowserSessionOwner {
                 "Pause resumable downloads before quitting? Private downloads and downloads that cannot resume will need to restart."
             alert.addButton(withTitle: "Keep Browsing")
             alert.addButton(withTitle: "Pause Downloads and Quit")
-            guard await BrowserDialogs.ask(alert) == .alertSecondButtonReturn else { return false }
+            guard await BrowserDialogs.ask(alert) == .alertSecondButtonReturn, isCurrent(),
+                Set(downloads.values.filter(\.isActive).map(\.id)).isSubset(of: Set(jobs.map(\.id)))
+            else { return false }
             for job in jobs {
                 if session.spaces.first(where: { $0.id == job.spaceID })?.isPrivate == true {
                     job.cancel()
@@ -138,13 +144,15 @@ final class BrowserSessionOwner {
                 }
             }
         }
+        guard isCurrent(), !downloads.values.contains(where: \.isActive) else { return false }
         guard flush() else {
             let alert = NSAlert()
             alert.messageText = "The session could not be saved"
             alert.informativeText = storageError ?? "The previous saved session is intact."
             alert.addButton(withTitle: "Keep Browsing")
             alert.addButton(withTitle: "Quit Without Saving")
-            return await BrowserDialogs.ask(alert) == .alertSecondButtonReturn
+            return await BrowserDialogs.ask(alert) == .alertSecondButtonReturn && isCurrent()
+                && !downloads.values.contains(where: \.isActive)
         }
         return true
     }
