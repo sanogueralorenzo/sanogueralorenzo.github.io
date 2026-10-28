@@ -52,9 +52,7 @@ struct BrowserSidebarBatchMenu: View {
                 }
             }
             Button("Combine in Split View", systemImage: "rectangle.split.2x1") {
-                let tabs = ids
-                guard let first = tabs.first else { return }
-                for id in tabs.dropFirst() { store.split(first, with: id) }
+                store.combineTabs(ids)
             }.disabled(
                 ids.count < 2 || ids.count > 4
                     || ids.contains { id in store.activeSpace.tabs.contains { $0.id == id && $0.isSettings } })

@@ -13,11 +13,26 @@ extension BrowserStore {
                 space.tabs.filter { ids.contains($0.id) }.map { ($0.id, space.id) }
             })
         guard spaces.count == ids.count, canCopyTabs(in: spaces) else { return }
+        let shown = selectedTab?.id
+        withCurrentTabState(ids) { [self] in
+            guard !showingCopy || selectedTab?.id == shown, canCopyTabs(in: spaces) else { return }
+            insertTabCopies(ids, showingCopy: showingCopy)
+        }
+    }
+
+    /// Capture before publishing a new page, so a late capture cannot overwrite
+    /// the copy's own edits. Sleeping tabs keep the operation synchronous.
+    func withCurrentTabState(_ ids: Set<UUID>, perform: @escaping @MainActor () -> Void) {
+        guard !isClosed, !ids.isEmpty else { return }
+        let spaces = Dictionary(
+            uniqueKeysWithValues: session.spaces.flatMap { space in
+                space.tabs.filter { ids.contains($0.id) }.map { ($0.id, space.id) }
+            })
+        guard spaces.count == ids.count else { return }
         let documents = pages.filter { ids.contains($0.key) }
         let revisions = documents.mapValues(\.documentRevision)
-        let shown = selectedTab?.id
         func isCurrent() -> Bool {
-            !isClosed && (!showingCopy || selectedTab?.id == shown)
+            !isClosed
                 && ids.allSatisfy { id in
                     guard let (s, _) = tabIndex(id), session.spaces[s].id == spaces[id] else { return false }
                     if let page = documents[id] {
@@ -27,9 +42,9 @@ extension BrowserStore {
                 }
         }
         func insert() {
-            guard isCurrent(), canCopyTabs(in: spaces) else { return }
+            guard isCurrent() else { return }
             for page in documents.values { page.checkpointNativeState() }
-            insertTabCopies(ids, showingCopy: showingCopy)
+            perform()
         }
         guard documents.values.contains(where: { $0.webView.url != nil }) else {
             insert()
@@ -57,13 +72,8 @@ extension BrowserStore {
             let source = spaces[index]
             let originals = Dictionary(uniqueKeysWithValues: source.tabs.map { ($0.id, $0) })
             let copies = source.sidebarItemIDs.compactMap { id -> (UUID, BrowserTab)? in
-                guard ids.contains(id), var tab = originals[id] else { return nil }
-                tab.id = UUID()
-                tab.placement = .current
-                tab.folderID = nil
-                tab.savedURL = nil
-                tab.lastUsed = Date()
-                return (id, tab)
+                guard ids.contains(id), let tab = originals[id] else { return nil }
+                return (id, tab.currentCopy())
             }
             guard !copies.isEmpty else { continue }
             let copiedIDs = copies.map { $0.1.id }
@@ -93,5 +103,17 @@ extension BrowserStore {
         session.spaces = spaces
         if let shownCopy { selectTab(shownCopy) }
         changed()
+    }
+}
+
+extension BrowserTab {
+    func currentCopy() -> BrowserTab {
+        var copy = self
+        copy.id = UUID()
+        copy.placement = .current
+        copy.folderID = nil
+        copy.savedURL = nil
+        copy.lastUsed = Date()
+        return copy
     }
 }

@@ -21,24 +21,49 @@ extension BrowserStore {
     }
 
     func split(_ source: UUID, with destination: UUID) {
-        guard source != destination, let (s, a) = tabIndex(source), let (other, b) = tabIndex(destination),
-            s == other, !session.spaces[s].tabs[a].isSettings, !session.spaces[s].tabs[b].isSettings,
-            !session.spaces[s].splits.contains(where: { $0.tabIDs.contains(source) && $0.tabIDs.contains(destination) })
+        joinTabs([destination], to: source)
+    }
+
+    func combineTabs(_ ids: [UUID]) {
+        let requested = Set(ids)
+        let ordered = activeSpace.sidebarItemIDs.filter(requested.contains)
+        guard ordered.count == requested.count, let target = ordered.first else { return }
+        joinTabs(ordered, to: target)
+    }
+
+    private func joinTabs(_ ids: [UUID], to target: UUID) {
+        guard !isClosed, let (s, _) = tabIndex(target) else { return }
+        let source = session.spaces[s]
+        guard let edit = source.joiningTabs(ids, to: target), canChangeTabCount(by: edit.copies.count, in: source.id)
         else { return }
-        let existing = session.spaces[s].splits.first { $0.tabIDs.contains(source) }
-        guard (existing?.tabIDs.count ?? 1) < 4 else { return }
-        detachFromSplits(destination)
-        if let existing, let index = session.spaces[s].splits.firstIndex(where: { $0.id == existing.id }) {
-            session.spaces[s].splits[index].tabIDs.append(destination)
-            let count = session.spaces[s].splits[index].tabIDs.count
-            session.spaces[s].splits[index].fractions = Array(repeating: 1 / Double(count), count: count)
-        } else {
-            session.spaces[s].splits.append(BrowserSplit(tabIDs: [source, destination]))
+        let affected = Set(ids).union(source.splits.first { $0.tabIDs.contains(target) }?.tabIDs ?? [target])
+        let groups = source.splits.filter { !Set($0.tabIDs).isDisjoint(with: affected) }
+        let originals = Dictionary(uniqueKeysWithValues: source.tabs.map { ($0.id, $0) })
+        let shown = selectedTab?.id
+        let spaceID = activeSpace.id
+        let commit: @MainActor () -> Void = { [self] in
+            guard !isClosed, activeSpace.id == spaceID, selectedTab?.id == shown,
+                let index = session.spaces.firstIndex(where: { $0.id == source.id })
+            else { return }
+            let current = session.spaces[index]
+            guard current.splits.filter({ !Set($0.tabIDs).isDisjoint(with: affected) }) == groups,
+                affected.allSatisfy({ id in
+                    current.tabs.contains {
+                        $0.id == id && $0.placement == originals[id]?.placement
+                            && $0.folderID == originals[id]?.folderID
+                    }
+                }),
+                let edit = current.joiningTabs(ids, to: target),
+                canChangeTabCount(by: edit.copies.count, in: source.id)
+            else { return }
+            var candidate = session
+            candidate.spaces[index] = edit.space
+            guard (try? candidate.validate()) != nil else { return }
+            session = candidate
+            selectTab(edit.shown)
+            changed()
         }
-        let placement = session.spaces[s].tabs[a].placement
-        let folder = session.spaces[s].tabs[a].folderID
-        placeTabs([source, destination], as: placement, folderID: folder)
-        selectTab(destination)
+        if edit.copies.isEmpty { commit() } else { withCurrentTabState(affected, perform: commit) }
     }
 
     func changeSplitDirection() {
@@ -115,5 +140,70 @@ extension BrowserStore {
             })
         var seen = Set<UUID>()
         return ids.flatMap { groups[$0] ?? [$0] }.filter { available.contains($0) && seen.insert($0).inserted }
+    }
+}
+
+extension BrowserSpace {
+    fileprivate func joiningTabs(_ ids: [UUID], to targetID: UUID) -> (
+        space: BrowserSpace, shown: UUID, copies: Set<UUID>
+    )? {
+        let byID = Dictionary(uniqueKeysWithValues: tabs.map { ($0.id, $0) })
+        guard let target = byID[targetID], !target.isSettings, ids.allSatisfy({ byID[$0]?.isSettings == false }) else {
+            return nil
+        }
+        let existing = splits.first { $0.tabIDs.contains(targetID) }
+        let targetIDs = existing?.tabIDs ?? [targetID]
+        var seen = Set(targetIDs)
+        let joining = ids.filter { seen.insert($0).inserted }
+        guard !joining.isEmpty, targetIDs.count + joining.count <= 4 else { return nil }
+        let copyTarget = target.placement != .current
+        var copied = Set<UUID>()
+        let members = (targetIDs + joining).compactMap { id -> BrowserTab? in
+            guard var tab = byID[id], !tab.isSettings else { return nil }
+            if targetIDs.contains(id) ? copyTarget : tab.placement != .current {
+                copied.insert(id)
+                tab = tab.currentCopy()
+            }
+            tab.placement = .current
+            tab.folderID = copyTarget ? nil : target.folderID
+            tab.savedURL = nil
+            return tab
+        }
+        guard members.count == targetIDs.count + joining.count, let shown = members.last?.id else { return nil }
+        let moving = Set(members.map(\.id))
+        let order = orderedSidebarIDs
+        var remaining = order.filter { !moving.contains($0) }
+        let destination: Int
+        if copyTarget {
+            let first = sidebarEntries(parentID: nil, placement: .current).first { !moving.contains($0.id) }?.id
+            destination = first.flatMap { remaining.firstIndex(of: $0) } ?? remaining.count
+        } else {
+            let start = order.firstIndex(of: targetIDs[0]) ?? order.count
+            destination = order.prefix(start).filter { !moving.contains($0) }.count
+        }
+        remaining.insert(contentsOf: members.map(\.id), at: destination)
+        var result = self
+        result.sidebarOrderIDs = remaining
+        result.tabs.removeAll { moving.contains($0.id) }
+        result.tabs.append(contentsOf: members)
+        result.splits = splits.compactMap { group in
+            if !copyTarget && group.id == existing?.id { return nil }
+            let kept = group.tabIDs.indices.filter { !moving.contains(group.tabIDs[$0]) }
+            guard kept.count >= 2 else { return nil }
+            if kept.count == group.tabIDs.count { return group }
+            var group = group
+            group.tabIDs = kept.map { group.tabIDs[$0] }
+            let fractions = kept.map { group.fractions[$0] }
+            let total = fractions.reduce(0, +)
+            group.fractions = fractions.map { $0 / total }
+            return group
+        }
+        var group = BrowserSplit(tabIDs: members.map(\.id))
+        if let existing {
+            if !copyTarget { group.id = existing.id }
+            group.direction = existing.direction
+        }
+        result.splits.append(group)
+        return (result, shown, copied)
     }
 }
