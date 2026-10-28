@@ -57,20 +57,23 @@ extension BrowserSpace {
             return nil
         }
     }
-}
 
-extension BrowserStore {
-    func reorderSidebarItems(_ ids: [UUID], in spaceID: UUID, before: UUID?) {
-        guard let index = session.spaces.firstIndex(where: { $0.id == spaceID }), !ids.contains(before ?? UUID()) else {
-            return
-        }
-        let all = session.spaces[index].orderedSidebarIDs
+    mutating func reorderSidebarItems(_ ids: [UUID], before: UUID?) {
+        guard !ids.contains(before ?? UUID()) else { return }
+        let all = orderedSidebarIDs
         let available = Set(all)
         var seen = Set<UUID>()
         let moving = ids.filter { available.contains($0) && seen.insert($0).inserted }
         var remaining = all.filter { !ids.contains($0) }
         let destination = before.flatMap { remaining.firstIndex(of: $0) } ?? remaining.count
         remaining.insert(contentsOf: moving, at: destination)
-        session.spaces[index].sidebarOrderIDs = remaining
+        sidebarOrderIDs = remaining
+    }
+}
+
+extension BrowserStore {
+    func reorderSidebarItems(_ ids: [UUID], in spaceID: UUID, before: UUID?) {
+        guard let index = session.spaces.firstIndex(where: { $0.id == spaceID }) else { return }
+        session.spaces[index].reorderSidebarItems(ids, before: before)
     }
 }

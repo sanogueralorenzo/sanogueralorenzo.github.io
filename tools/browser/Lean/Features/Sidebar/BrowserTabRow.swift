@@ -75,6 +75,7 @@ struct BrowserTabRow: View {
             customSelectedFill: pinned ? Color.primary.opacity(0.13) : nil,
             customRestingFill: pinned ? Color.primary.opacity(0.055) : nil
         )
+        .overlay { BrowserSidebarNestHighlight(state: store.sidebarReorder, target: .currentTab(tab.id)) }
         .overlay { BrowserTabAuxiliaryClick(store: store, tabID: tab.id).accessibilityHidden(true) }
         .onHover { hovering = $0 }
         .accessibilityElement(children: .contain).accessibilityLabel(title)
@@ -137,9 +138,12 @@ struct BrowserTabRow: View {
             if tab.placement == .current {
                 Menu("Add to Current Tabs Folder", systemImage: "folder.badge.plus") {
                     Button("New Folder") {
-                        guard let id = store.addFolder() else { return }
-                        store.updateFolder(id) { $0.placement = .current }
-                        store.placeTabs(store.actionTabs(tab.id), as: .current, folderID: id)
+                        store.createSidebarFolder(
+                            containing: BrowserDragPayload(
+                                kind: .tabs,
+                                spaceID: store.activeSpace.id, ids: store.actionTabs(tab.id),
+                                activeTabID: store.selectedTab?.id),
+                            placement: .current)
                     }
                     ForEach(store.activeSpace.folders.filter { $0.placement == .current && $0.kind == .regular }) {
                         folder in

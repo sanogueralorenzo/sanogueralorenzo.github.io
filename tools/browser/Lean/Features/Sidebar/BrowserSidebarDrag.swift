@@ -213,6 +213,12 @@ struct BrowserDropArea: ViewModifier {
                         id: besideZoneID, frame: frame, before: folder, folder: nil,
                         placement: header.placement ?? .saved, spaceID: store.activeSpace.id,
                         allowsAfter: true, isScrollable: true))
+            } else if let before, !pinned {
+                store.sidebarReorder.register(
+                    .init(
+                        id: besideZoneID, frame: frame, before: before, folder: nil,
+                        placement: .current, spaceID: spaceID ?? store.activeSpace.id, allowsAfter: false,
+                        isScrollable: true, isNesting: true, createsFolder: true))
             }
         }
         .onDisappear {
@@ -324,7 +330,10 @@ private struct BrowserSidebarDropDelegate: DropDelegate {
         if store.owner.sidebarLift != nil, !onSpace {
             guard let target = store.sidebarReorder.target, store.canPreviewSidebarDrop(target) else { return false }
             return withAnimation(LeanMotion.collection.unlessReducingMotion(reduceMotion)) {
-                store.acceptDrop(
+                if let id = target.aroundTabID, let payload = store.owner.sidebarDrag {
+                    return store.createSidebarFolder(containing: payload, placement: .current, around: id) != nil
+                }
+                return store.acceptDrop(
                     info.itemProviders(for: [BrowserDragPayload.type, UTType.url.identifier]),
                     before: target.before, folder: target.folder, spaceID: target.spaceID, placement: target.placement)
             }

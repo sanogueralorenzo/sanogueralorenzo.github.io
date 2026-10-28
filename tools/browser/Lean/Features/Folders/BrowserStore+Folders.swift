@@ -1,6 +1,51 @@
 import Foundation
 
 extension BrowserStore {
+    /// Crest creates the folder and files its items in one validated edit.
+    /// The around-tab form replaces that root row and keeps it first inside.
+    @discardableResult
+    func createSidebarFolder(
+        containing payload: BrowserDragPayload, placement: BrowserTab.Placement, around tabID: UUID? = nil
+    ) -> UUID? {
+        guard !isClosed, payload.spaceID == activeSpace.id, placement != .pinned else { return nil }
+        guard activeSpace.folders.count < 4096 else {
+            showNotice(BrowserFolderFailure.limit.localizedDescription)
+            return nil
+        }
+        if let tabID {
+            guard placement == .current, canCreateCurrentFolder(around: tabID, from: payload) else { return nil }
+        }
+        var folder = BrowserFolder()
+        folder.placement = placement
+        let selection = BrowserDragPayload(
+            kind: payload.kind, spaceID: payload.spaceID,
+            ids: (tabID.map { [$0] } ?? []) + payload.ids, folderIDs: payload.folderIDs,
+            activeTabID: payload.activeTabID)
+        guard
+            moveSidebarItems(
+                selection, to: payload.spaceID, parentID: folder.id, placement: placement,
+                creating: folder, around: tabID)
+        else {
+            showNotice("These items cannot be moved into a new folder.")
+            return nil
+        }
+        editingFolderID = folder.id
+        return folder.id
+    }
+
+    func canCreateCurrentFolder(around tabID: UUID, from payload: BrowserDragPayload) -> Bool {
+        guard !isClosed, payload.kind == .tabs, payload.folderIDs.isEmpty, !payload.ids.isEmpty,
+            !payload.ids.contains(tabID),
+            let space = session.spaces.first(where: { $0.id == payload.spaceID }), space.folders.count < 4096,
+            let target = space.tabs.first(where: { $0.id == tabID }), target.placement == .current,
+            target.folderID == nil, !target.isSettings, target.url != nil,
+            !space.splits.contains(where: { $0.tabIDs.contains(tabID) })
+        else { return false }
+        let ids = Set(payload.ids)
+        let tabs = space.tabs.filter { ids.contains($0.id) }
+        return tabs.count == ids.count && tabs.allSatisfy { !$0.isSettings }
+    }
+
     @discardableResult
     func addFolder(parentID: UUID? = nil, github: Bool = false, in spaceID: UUID? = nil) -> UUID? {
         guard !isClosed else { return nil }

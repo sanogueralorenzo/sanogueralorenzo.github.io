@@ -6,12 +6,20 @@ extension BrowserStore {
     @discardableResult
     func moveSidebarItems(
         _ payload: BrowserDragPayload, to destination: UUID, parentID: UUID? = nil,
-        placement: BrowserTab.Placement? = nil, before: UUID? = nil
+        placement: BrowserTab.Placement? = nil, before: UUID? = nil,
+        creating newFolder: BrowserFolder? = nil, around anchor: UUID? = nil
     ) -> Bool {
         guard let source = session.spaces.first(where: { $0.id == payload.spaceID }),
             let target = session.spaces.first(where: { $0.id == destination })
         else { return false }
         let local = payload.spaceID == destination
+        if let newFolder {
+            guard local, parentID == newFolder.id, newFolder.kind == .regular, newFolder.parentID == nil,
+                newFolder.placement == placement, placement != .pinned
+            else { return false }
+        } else if anchor != nil {
+            return false
+        }
         let targetTab = target.tabs.first { $0.id == before }
         let targetFolder = target.folders.first { $0.id == before }
         let targetParent = parentID ?? targetTab?.folderID ?? targetFolder?.parentID
@@ -39,7 +47,8 @@ extension BrowserStore {
                 let d = session.spaces.firstIndex(where: { $0.id == destination })
             else { return false }
             let current = session.spaces[s]
-            let destinationSpace = session.spaces[d]
+            var destinationSpace = session.spaces[d]
+            if let newFolder { destinationSpace.folders.append(newFolder) }
             // A folder or split edited while its documents were answering is a
             // different unit. Never publish half of it or move newly added pages
             // that did not answer the close safeguards.
@@ -96,9 +105,19 @@ extension BrowserStore {
             }
             let groups = current.splits.filter { Set($0.tabIDs).isSubset(of: tabSet) }
             var candidate = session
-            candidate.spaces[s].sidebarOrderIDs = current.orderedSidebarIDs.filter {
+            let oldOrder = current.orderedSidebarIDs
+            var remaining = oldOrder.filter {
                 !folders.contains($0) && !tabSet.contains($0)
             }
+            if let newFolder {
+                let index =
+                    anchor.flatMap { oldOrder.firstIndex(of: $0) }.map {
+                        oldOrder.prefix($0).filter { !folders.contains($0) && !tabSet.contains($0) }.count
+                    } ?? remaining.count
+                remaining.insert(newFolder.id, at: index)
+                candidate.spaces[d].folders.append(newFolder)
+            }
+            candidate.spaces[s].sidebarOrderIDs = remaining
             candidate.spaces[s].folders.removeAll { folders.contains($0.id) }
             candidate.spaces[s].tabs.removeAll { tabSet.contains($0.id) }
             if !local {
@@ -125,6 +144,8 @@ extension BrowserStore {
                 candidate.spaces[s].githubDismissed = true
                 candidate.spaces[d].githubDismissed = false
             }
+            let childOrder = anchor.map { first in [first] + order.filter { $0 != first } } ?? order
+            candidate.spaces[d].reorderSidebarItems(childOrder, before: before)
             guard (try? candidate.validate()) != nil else { return false }
             let previousPages = visiblePages
             let affected = owner.contexts.values.filter {
@@ -135,7 +156,6 @@ extension BrowserStore {
                 for id in tabs { unload(id) }
                 for context in affected { context.setSelectedTab(nil, in: payload.spaceID) }
             }
-            reorderSidebarItems(order, in: destination, before: before)
             if local {
                 let visible = owner.visiblePageIDs
                 for page in previousPages where !visible.contains(page.id) {

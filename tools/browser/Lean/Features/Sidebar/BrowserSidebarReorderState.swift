@@ -21,6 +21,7 @@ final class BrowserSidebarReorderState {
         var isSpace = false
         var isScrollable = false
         var isNesting = false
+        var createsFolder = false
     }
     struct Target: Equatable {
         let zoneID: UUID
@@ -28,6 +29,7 @@ final class BrowserSidebarReorderState {
         let folder: UUID?
         let placement: BrowserTab.Placement
         let spaceID: UUID
+        var aroundTabID: UUID?
     }
     struct Lift {
         let rootIDs: Set<UUID>
@@ -143,6 +145,8 @@ final class BrowserSidebarReorderState {
         return restingZones[target.zoneID]?.isNesting == true
     }
 
+    func isTargetedCurrentTab(_ id: UUID) -> Bool { target?.aroundTabID == id }
+
     func pinnedLayout(in space: BrowserSpace, width: CGFloat) -> BrowserPinnedTabReorderLayout {
         let ids = space.pinnedTabs.map(\.id)
         var lifted = lift?.spaceID == space.id ? lift?.rootIDs ?? [] : []
@@ -205,6 +209,14 @@ final class BrowserSidebarReorderState {
             return $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height
         }
         for zone in candidates {
+            if zone.createsFolder {
+                let next = Target(
+                    zoneID: zone.id, before: nil, folder: nil, placement: .current,
+                    spaceID: zone.spaceID, aroundTabID: zone.before)
+                guard store.canPreviewSidebarDrop(next) else { continue }
+                setTarget(next, in: store)
+                return
+            }
             let frame = projected(zone, in: store)
             let tab = store.activeSpace.tabs.first { $0.id == zone.before }
             let folder = store.activeSpace.folders.first { $0.id == zone.before }
@@ -258,6 +270,9 @@ final class BrowserSidebarReorderState {
             return window.convertToScreen(content.convert(frame, to: nil))
         }
         guard let target, let window = store.window, let content = window.contentView else { return nil }
+        if let id = target.aroundTabID, let row = restingRows[id] {
+            return window.convertToScreen(content.convert(layout.projected(row.frame, in: target.spaceID), to: nil))
+        }
         let frame: CGRect
         if target.placement == .pinned, let grid = pinGrid(in: target.spaceID) {
             frame = pinnedLayout(in: store.activeSpace, width: grid.width).frame(for: nil, in: grid) ?? grid
@@ -305,7 +320,7 @@ final class BrowserSidebarReorderState {
             target = value
             var next = layout
             next.gap = nil
-            if let value, value.placement != .pinned {
+            if let value, value.placement != .pinned, value.aroundTabID == nil {
                 let section = BrowserSidebarReorderLayout.Section(
                     spaceID: value.spaceID, placement: value.placement, folderID: value.folder)
                 let candidates = restingRows.values.filter { row in
@@ -346,6 +361,9 @@ extension BrowserStore {
             let source = session.spaces.first(where: { $0.id == payload.spaceID }),
             let destination = session.spaces.first(where: { $0.id == target.spaceID })
         else { return false }
+        if let id = target.aroundTabID {
+            return payload.spaceID == target.spaceID && canCreateCurrentFolder(around: id, from: payload)
+        }
         let folders = payload.folderIDs.reduce(into: Set<UUID>()) { $0.formUnion(descendants($1, in: source)) }
         let tabs = source.tabs.filter { payload.ids.contains($0.id) || $0.folderID.map(folders.contains) == true }
         let carriesLiveFolder = source.folders.contains { folders.contains($0.id) && $0.kind == .github }
