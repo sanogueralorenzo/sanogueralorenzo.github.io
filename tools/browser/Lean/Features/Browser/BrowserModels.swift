@@ -139,6 +139,7 @@ struct BrowserWindowState: Codable, Identifiable {
 }
 
 struct BrowserSession: Codable {
+    static let maximumSpaceCount = 64
     var format = 1
     var revision: UInt64 = 0
     var spaces = [BrowserSpace()]
@@ -170,7 +171,9 @@ struct BrowserSession: Codable {
     }
 
     func validate() throws {
-        guard format == 1, !spaces.isEmpty, spaces.count <= 64 else { throw CocoaError(.fileReadCorruptFile) }
+        guard format == 1, !spaces.isEmpty, spaces.count <= Self.maximumSpaceCount else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
         var identifiers = Set<UUID>()
         for space in spaces {
             guard identifiers.insert(space.id).inserted, space.tabs.count <= BrowserSpace.maximumTabCount,

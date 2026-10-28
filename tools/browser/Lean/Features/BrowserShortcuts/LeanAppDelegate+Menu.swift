@@ -115,12 +115,20 @@ extension LeanAppDelegate {
     @objc private func newWindow() { createWindow() }
     @objc private func newPrivateWindow() {
         guard let owner else { return }
-        var space = BrowserSpace()
-        space.name = "Private"
-        space.isPrivate = true
-        space.color = 4
-        owner.session.spaces.append(space)
-        createWindow(restoring: BrowserWindowState(spaceID: space.id))
+        do {
+            let id = try owner.addSpace(name: "Private", color: 4, isPrivate: true)
+            createWindow(restoring: BrowserWindowState(spaceID: id))
+        } catch {
+            if let store {
+                store.showNotice(error.localizedDescription)
+            } else {
+                let alert = NSAlert()
+                alert.messageText = "The private window could not be opened"
+                alert.informativeText = error.localizedDescription
+                alert.addButton(withTitle: "OK")
+                Task { _ = await BrowserDialogs.ask(alert, in: nil) }
+            }
+        }
     }
     @objc private func importData() { store?.importBrowserData() }
     @objc private func exportData() { store?.exportBrowserData() }

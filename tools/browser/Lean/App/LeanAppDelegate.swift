@@ -13,7 +13,8 @@ final class LeanAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, 
     private var keyboardMonitor: Any?
     var store: BrowserStore? {
         guard let owner else { return nil }
-        return owner.activeWindowID.flatMap { owner.contexts[$0] } ?? owner.contexts.values.first { !$0.isClosed }
+        if let id = owner.activeWindowID, let context = owner.contexts[id], !context.isClosed { return context }
+        return owner.contexts.values.first { !$0.isClosed }
     }
     var window: NSWindow? { store.flatMap { windows[$0.id] } }
 

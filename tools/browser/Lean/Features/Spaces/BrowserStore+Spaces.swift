@@ -9,20 +9,16 @@ extension BrowserStore {
             guard let index = session.spaces.firstIndex(where: { $0.id == id }) else { return }
             session.spaces[index].name = title.isEmpty ? "Space" : String(title.prefix(256))
             session.spaces[index].color = color
+            changed()
         } else {
-            guard session.spaces.count < 64 else {
-                showNotice("You can have up to 64 Spaces. Delete a Space before adding another.")
-                return
+            do {
+                let id = try owner.addSpace(name: title, color: color, isPrivate: isPrivate)
+                selectSpace(id)
+                _ = integration(for: id)
+            } catch {
+                showNotice(error.localizedDescription)
             }
-            var space = BrowserSpace()
-            space.name = title.isEmpty ? "Space" : String(title.prefix(256))
-            space.color = color
-            space.isPrivate = isPrivate
-            session.spaces.append(space)
-            selectSpace(space.id)
-            _ = integration(for: space.id)
         }
-        changed()
     }
 
     func deleteSpace(_ id: UUID, prepared: Bool = false) {
@@ -79,22 +75,38 @@ extension BrowserStore {
 
     func savePrivateSpace(name: String = "Private", color: Int = 4) {
         guard !isClosed else { return }
-        guard session.spaces.count < 64 else {
-            showNotice("You can have up to 64 Spaces. Delete a Space before adding another.")
-            return
+        do {
+            let id = try owner.addSpace(name: name, color: color, isPrivate: true)
+            selectSpace(id)
+            _ = integration(for: id)
+        } catch {
+            showNotice(error.localizedDescription)
         }
-        var space = BrowserSpace()
-        space.name = name
-        space.color = color
-        space.isPrivate = true
-        session.spaces.append(space)
-        selectSpace(space.id)
-        _ = integration(for: space.id)
-        changed()
     }
 
     func adjacentSpace(_ delta: Int) {
         guard let index = session.spaces.firstIndex(where: { $0.id == activeSpace.id }) else { return }
         selectSpace(session.spaces[(index + delta + session.spaces.count) % session.spaces.count].id)
+    }
+}
+
+extension BrowserSessionOwner {
+    func addSpace(name: String, color: Int, isPrivate: Bool = false) throws -> UUID {
+        guard session.spaces.count < BrowserSession.maximumSpaceCount else { throw BrowserSpaceFailure.limit }
+        let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        var space = BrowserSpace()
+        space.name = title.isEmpty ? "Space" : String(title.prefix(256))
+        space.color = color
+        space.isPrivate = isPrivate
+        session.spaces.append(space)
+        changed()
+        return space.id
+    }
+}
+
+private enum BrowserSpaceFailure: LocalizedError {
+    case limit
+    var errorDescription: String? {
+        "You can have up to \(BrowserSession.maximumSpaceCount) Spaces. Delete a Space before adding another."
     }
 }
