@@ -95,11 +95,11 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
             let edge =
                 context.showsSidebar
                 ? context.sidebarWidth + SidebarGeometry.inset * 2 + SidebarGeometry.hoverMargin
-                : SidebarGeometry.hoverMargin
+                : SidebarGeometry.revealWidth
             context.isDragging = context.window === window && local.x <= edge
             if !context.isDragging {
                 context.sidebarRevealed = false
-            } else if local.x <= SidebarGeometry.hoverMargin {
+            } else if local.x <= SidebarGeometry.revealWidth {
                 context.sidebarRevealed = true
             }
             if context.window === window {

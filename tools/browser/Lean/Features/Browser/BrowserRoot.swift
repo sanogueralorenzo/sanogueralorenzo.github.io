@@ -21,7 +21,7 @@ struct BrowserRoot: View {
                     height: geometry.size.height)
                 if !store.showsSidebar {
                     Color.clear
-                        .frame(width: SidebarGeometry.hoverMargin)
+                        .frame(width: SidebarGeometry.revealWidth)
                         .frame(maxHeight: .infinity)
                         .overlay {
                             BrowserCollapsedSidebarHoverTracker { inside in
