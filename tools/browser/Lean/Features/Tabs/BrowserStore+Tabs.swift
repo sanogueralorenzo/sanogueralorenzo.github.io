@@ -3,7 +3,20 @@ import WebKit
 
 extension BrowserStore {
     @discardableResult
-    func open(_ url: URL, placement: BrowserTab.Placement = .current, folderID: UUID? = nil) -> UUID {
+    func open(_ url: URL, placement: BrowserTab.Placement = .current, folderID: UUID? = nil) -> UUID? {
+        guard !isClosed, canChangeTabCount(by: 1, in: activeSpace.id) else { return nil }
+        let folderID = placement == .pinned ? nil : folderID
+        if let folderID,
+            !activeSpace.folders.contains(where: {
+                $0.id == folderID && $0.kind == .regular && ($0.placement ?? .saved) == placement
+            })
+        {
+            showNotice("The destination folder is no longer available.")
+            return nil
+        }
+        guard ["http", "https", "file", "about", "data", "blob"].contains(url.scheme?.lowercased() ?? "") else {
+            return nil
+        }
         var tab = BrowserTab()
         tab.zoom = preferences.defaultPageZoom ?? 1
         tab.url = url
@@ -25,7 +38,7 @@ extension BrowserStore {
     }
 
     func openPopup(configuration: WKWebViewConfiguration, url: URL?, spaceID: UUID) -> WKWebView? {
-        guard session.spaces.contains(where: { $0.id == spaceID }) else { return nil }
+        guard !isClosed, canChangeTabCount(by: 1, in: spaceID) else { return nil }
         var tab = BrowserTab()
         guard
             url.map({ ["http", "https", "file", "about", "data", "blob", "javascript"].contains($0.scheme ?? "") })
@@ -143,11 +156,17 @@ extension BrowserStore {
     }
 
     func duplicateTabs(_ ids: [UUID]) {
-        let destinations: [(UUID, UUID?)] = ids.compactMap { id in
+        guard !isClosed, !ids.isEmpty else { return }
+        var seen = Set<UUID>()
+        let ids = ids.filter { seen.insert($0).inserted }
+        let destinations: [(id: UUID, before: UUID?, spaceID: UUID)] = ids.compactMap { id in
             guard let (s, _) = tabIndex(id) else { return nil }
-            return (id, sidebarInsertionTarget(id, after: true, in: session.spaces[s].id))
+            return (id, sidebarInsertionTarget(id, after: true, in: session.spaces[s].id), session.spaces[s].id)
         }
-        for (id, before) in destinations {
+        guard destinations.count == ids.count else { return }
+        let counts = Dictionary(grouping: destinations, by: { $0.spaceID }).mapValues(\.count)
+        guard counts.allSatisfy({ canChangeTabCount(by: $0.value, in: $0.key) }) else { return }
+        for (id, before, _) in destinations {
             guard let (s, t) = tabIndex(id) else { continue }
             var tab = session.spaces[s].tabs[t]
             tab.id = UUID()
@@ -156,6 +175,17 @@ extension BrowserStore {
             selectTab(tab.id)
         }
         changed()
+    }
+
+    func canChangeTabCount(by delta: Int, in spaceID: UUID) -> Bool {
+        guard let space = session.spaces.first(where: { $0.id == spaceID }) else { return false }
+        guard delta >= -space.tabs.count, delta <= BrowserSpace.maximumTabCount - space.tabs.count else {
+            showNotice(
+                "This Space can hold up to \(BrowserSpace.maximumTabCount.formatted()) tabs. Delete tabs before adding more."
+            )
+            return false
+        }
+        return true
     }
 
     func moveTabs(

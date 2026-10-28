@@ -122,7 +122,7 @@ struct BrowserChromiumSession {
                 if let id = pickle.integer(), let title = pickle.text(limit: 4096) { titles[id] = title }
             default: break
             }
-            guard tabs.count <= 20_000 else { throw CocoaError(.fileReadTooLarge) }
+            guard tabs.count <= BrowserSpace.maximumTabCount else { throw CocoaError(.fileReadTooLarge) }
         }
         let windows = Set(tabs.values.compactMap(\.window)).subtracting(closedWindows).sorted { a, b in
             a == active ? true : b == active ? false : a < b

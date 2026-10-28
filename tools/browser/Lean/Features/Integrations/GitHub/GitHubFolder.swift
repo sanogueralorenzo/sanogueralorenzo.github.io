@@ -102,7 +102,11 @@ final class GitHubFolder: NSObject, WKHTTPCookieStoreObserver {
                 let latest = store.session.spaces.first(where: { $0.id == spaceID }),
                 latest.folders.contains(where: { $0.id == folder.id && $0.githubOptions == folder.githubOptions })
             else { return }
-            await store.reconcileGitHub(result, folderID: folder.id, in: spaceID, options: folder.githubOptions)
+            guard await store.reconcileGitHub(result, folderID: folder.id, in: spaceID, options: folder.githubOptions)
+            else {
+                error = "Couldn’t update the GitHub folder."
+                return
+            }
             items = result
             repositories = Array(Set(result.map(\.repository) + folder.githubOptions.excludedRepositories)).sorted()
             lastFetched = Date()

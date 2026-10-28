@@ -26,7 +26,9 @@ extension BrowserStore {
         panel.canChooseFiles = true
         guard let window else { return }
         panel.beginSheetModal(for: window) { result in
-            guard result == .OK else { return }
+            guard result == .OK, !self.isClosed,
+                self.canChangeTabCount(by: panel.urls.count, in: self.activeSpace.id)
+            else { return }
             for url in panel.urls { self.open(url) }
         }
     }

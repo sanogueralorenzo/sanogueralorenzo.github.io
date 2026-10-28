@@ -66,7 +66,7 @@ struct BrowserImportReader {
         _ value: Any?, title: String, placement: BrowserTab.Placement, parent: UUID?, space: inout BrowserSpace
     ) throws {
         guard let url = address(value) else { return }
-        guard space.tabs.count < 20_000 else { throw CocoaError(.fileReadTooLarge) }
+        guard space.tabs.count < BrowserSpace.maximumTabCount else { throw CocoaError(.fileReadTooLarge) }
         var tab = BrowserTab()
         tab.title = String((title.isEmpty ? url.host ?? "Tab" : title).prefix(2048))
         tab.url = url

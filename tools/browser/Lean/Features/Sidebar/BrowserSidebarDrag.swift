@@ -87,6 +87,7 @@ extension BrowserStore {
         // A foreign process cannot move this session's items by supplying IDs.
         if provider.hasItemConformingToTypeIdentifier(BrowserDragPayload.type) { return false }
         if provider.canLoadObject(ofClass: NSURL.self) {
+            guard canChangeTabCount(by: 1, in: destination) else { return false }
             provider.loadObject(ofClass: NSURL.self) { [weak self] value, _ in
                 guard let url = value as? URL, ["http", "https"].contains(url.scheme ?? "") else { return }
                 Task { @MainActor in
@@ -95,13 +96,16 @@ extension BrowserStore {
                         before.map({ space.orderedSidebarIDs.contains($0) }) ?? true,
                         dropFolder.map({ id in space.folders.contains { $0.id == id && $0.kind == .regular } }) ?? true
                     else { return }
+                    guard self.canChangeTabCount(by: 1, in: destination) else { return }
                     self.selectSpace(destination)
                     let target = before.flatMap { id in self.activeSpace.tabs.first { $0.id == id } }
-                    let id = self.open(
-                        url,
-                        placement: placement ?? target?.placement ?? dropFolder.flatMap { id in
-                            self.activeSpace.folders.first { $0.id == id }?.placement ?? .saved
-                        } ?? .current, folderID: dropFolder)
+                    guard
+                        let id = self.open(
+                            url,
+                            placement: placement ?? target?.placement ?? dropFolder.flatMap { id in
+                                self.activeSpace.folders.first { $0.id == id }?.placement ?? .saved
+                            } ?? .current, folderID: dropFolder)
+                    else { return }
                     self.reorderSidebarItems([id], in: destination, before: before)
                     self.changed()
                 }

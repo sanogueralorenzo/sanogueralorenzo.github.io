@@ -41,6 +41,7 @@ struct BrowserFolder: Codable, Identifiable, Equatable {
 }
 
 struct BrowserSpace: Codable, Identifiable, Equatable {
+    static let maximumTabCount = 20_000
     var id = UUID()
     var name = "Personal"
     var color = 0
@@ -172,7 +173,8 @@ struct BrowserSession: Codable {
         guard format == 1, !spaces.isEmpty, spaces.count <= 64 else { throw CocoaError(.fileReadCorruptFile) }
         var identifiers = Set<UUID>()
         for space in spaces {
-            guard identifiers.insert(space.id).inserted, space.tabs.count <= 20_000, space.folders.count <= 4096,
+            guard identifiers.insert(space.id).inserted, space.tabs.count <= BrowserSpace.maximumTabCount,
+                space.folders.count <= 4096,
                 space.name.utf8.count <= 4096
             else {
                 throw CocoaError(.fileReadCorruptFile)

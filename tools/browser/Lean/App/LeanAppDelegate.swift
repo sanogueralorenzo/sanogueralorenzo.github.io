@@ -103,8 +103,10 @@ final class LeanAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, 
 
     func application(_ application: NSApplication, open urls: [URL]) {
         if store == nil { createWindow() }
-        for url in urls where ["http", "https", "file"].contains(url.scheme ?? "") { store?.open(url) }
         window?.makeKeyAndOrderFront(nil)
+        let urls = urls.filter { ["http", "https", "file"].contains($0.scheme ?? "") }
+        guard let store, store.canChangeTabCount(by: urls.count, in: store.activeSpace.id) else { return }
+        for url in urls { store.open(url) }
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

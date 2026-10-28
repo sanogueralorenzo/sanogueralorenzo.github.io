@@ -2,12 +2,20 @@ import Foundation
 
 extension BrowserStore {
     func restore(_ entry: BrowserArchiveEntry) {
+        guard !isClosed, let entry = session.archive.first(where: { $0.id == entry.id }) else { return }
         let spaceID = session.spaces.contains(where: { $0.id == entry.spaceID }) ? entry.spaceID : activeSpace.id
+        guard canChangeTabCount(by: 1, in: spaceID) else { return }
         var tab = entry.tab
         tab.id = UUID()
         tab.folderID = nil
-        session.spaces[spaceIndex(spaceID)].tabs.append(tab)
-        session.archive.removeAll { $0.id == entry.id }
+        var candidate = session
+        candidate.spaces[spaceIndex(spaceID)].tabs.append(tab)
+        candidate.archive.removeAll { $0.id == entry.id }
+        guard (try? candidate.validate()) != nil else {
+            showNotice("This tab couldn’t be restored. Its archived copy has been kept.")
+            return
+        }
+        session = candidate
         selectTab(tab.id)
     }
 
