@@ -23,7 +23,7 @@ Passkeys require an Apple-authorized browser signing profile and
 
 ## Browsing
 
-Without a selected tab, the screen is black and the sidebar stays visible.
+Without a selected tab, the screen follows the theme background and the sidebar stays visible.
 Otherwise, reveal the sidebar within 16 points of the left edge.
 Drag its right edge to resize it. Settings includes default page zoom, per-Space
 content blocking with bundled uBlock Origin Lite in Complete mode, EasyList Spanish,
@@ -31,6 +31,7 @@ and data retention.
 Use ⌘L for addresses and commands, ⌘T for a new tab, ⌃Tab for recent tabs,
 and ⌥⌘←/→ to switch Spaces. On saved tabs, ⌘W returns to the saved address,
 then sleeps the page and selects another loaded tab.
+With no selected tab, ⌘W keeps the window open; ⇧⌘W closes the window.
 Background pages unload after five idle minutes, protecting media and unsaved edits.
 
 Session checkpoints live in `~/Library/Application Support/Lean/SwiftSession`.

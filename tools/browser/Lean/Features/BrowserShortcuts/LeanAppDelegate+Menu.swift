@@ -141,10 +141,8 @@ extension LeanAppDelegate {
     @objc private func closeTab() {
         if store?.addressPresented == true {
             store?.dismissAddress()
-        } else if store?.selectedTab != nil {
-            store?.closeSelectedTab()
         } else {
-            window?.performClose(nil)
+            store?.closeSelectedTab()
         }
     }
     @objc private func back() { store?.activePage?.webView.goBack() }

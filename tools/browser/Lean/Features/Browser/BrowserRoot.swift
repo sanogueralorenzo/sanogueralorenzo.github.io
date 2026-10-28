@@ -8,7 +8,7 @@ struct BrowserRoot: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.black
+                LeanBrandTheme.canvas
                 if store.selectedTab?.isSettings == true {
                     BrowserSettings(store: store)
                 } else if !store.visiblePages.isEmpty {
