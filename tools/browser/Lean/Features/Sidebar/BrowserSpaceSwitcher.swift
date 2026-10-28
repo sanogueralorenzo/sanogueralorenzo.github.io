@@ -4,7 +4,6 @@ struct BrowserSpaceSwitcher: View {
     let store: BrowserStore
     let edit: (BrowserSpace?) -> Void
     @State private var firstVisible = 0
-    @Namespace private var selection
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var spaces: [BrowserSpace] { store.session.spaces }
     private var width: CGFloat { min(max(CGFloat(spaces.count) * 28 + 4, 56), 100) }
@@ -21,14 +20,9 @@ struct BrowserSpaceSwitcher: View {
                                 guard !store.owner.sidebarDrag.suppressesActivation else { return }
                                 store.selectSpace(space.id)
                             } label: {
-                                Circle().fill(Color.space(space.color)).frame(width: 12, height: 12)
+                                BrowserSpacePill(isSelected: store.activeSpace.id == space.id)
                                     .frame(width: 28, height: 20)
-                                    .background {
-                                        if store.activeSpace.id == space.id {
-                                            Capsule().fill(.primary.opacity(0.12))
-                                                .matchedGeometryEffect(id: "selection", in: selection)
-                                        }
-                                    }
+                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(space.name)
@@ -99,8 +93,6 @@ struct BrowserSpaceSwitcher: View {
             }
             .frame(width: width, height: 24)
             .modifier(BrowserDropArea(store: store, spaceID: store.activeSpace.id, isSpaceRail: true))
-            .background(LeanColor.hover, in: Capsule())
-            .overlay { Capsule().strokeBorder(.primary.opacity(0.12), lineWidth: 0.5).allowsHitTesting(false) }
             .contextMenu { Button("New Space") { edit(nil) } }
             .onChange(of: store.activeSpace.id) { _, id in
                 withAnimation(
@@ -126,5 +118,14 @@ struct BrowserSpaceSwitcher: View {
         .buttonStyle(.plain)
         .accessibilityLabel(forward ? "Show Next Spaces" : "Show Previous Spaces")
         .disabled(forward ? firstVisible >= spaces.count - 2 : firstVisible == 0)
+    }
+}
+
+struct BrowserSpacePill: View {
+    let isSelected: Bool
+
+    var body: some View {
+        Capsule().fill(.primary.opacity(isSelected ? 1 : 0.35))
+            .frame(width: 18, height: 6)
     }
 }

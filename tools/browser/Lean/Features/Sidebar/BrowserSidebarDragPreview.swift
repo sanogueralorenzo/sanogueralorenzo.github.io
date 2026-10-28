@@ -22,8 +22,8 @@ final class BrowserSidebarDragPreview {
         let tab: BrowserTab?
         let title: String
         let count: Int
-        let symbol: String
-        let spaceColor: Int?
+        let isSpace: Bool
+        let isSelectedSpace: Bool
         let spaceHeight: CGFloat
         let snapshot: NSImage?
         var cardHeight: CGFloat?
@@ -33,8 +33,8 @@ final class BrowserSidebarDragPreview {
         var opacity = 1.0
         var pointer = CGPoint.zero
         init(
-            rows: [Row], sourceHeight: CGFloat, tab: BrowserTab?, title: String, count: Int, symbol: String,
-            spaceColor: Int?, spaceHeight: CGFloat,
+            rows: [Row], sourceHeight: CGFloat, tab: BrowserTab?, title: String, count: Int,
+            isSpace: Bool, isSelectedSpace: Bool, spaceHeight: CGFloat,
             snapshot: NSImage?, pinned: Bool, width: CGFloat
         ) {
             self.rows = rows
@@ -42,15 +42,15 @@ final class BrowserSidebarDragPreview {
             self.tab = tab
             self.title = title
             self.count = count
-            self.symbol = symbol
-            self.spaceColor = spaceColor
+            self.isSpace = isSpace
+            self.isSelectedSpace = isSelectedSpace
             self.spaceHeight = spaceHeight
             self.snapshot = snapshot
             self.pinned = pinned
             self.width = width
         }
         var height: CGFloat {
-            if spaceColor != nil { return spaceHeight }
+            if isSpace { return spaceHeight }
             if let cardHeight { return cardHeight }
             return pinned ? SidebarGeometry.rowHeight : sourceHeight
         }
@@ -68,7 +68,6 @@ final class BrowserSidebarDragPreview {
     private var completion: Task<Void, Never>?
 
     init(store: BrowserStore, payload: BrowserDragPayload, title: String, frame: CGRect, grab: CGPoint) {
-        let space = store.session.spaces.first { $0.id == payload.spaceID }
         let rows = store.sidebarReorder.previewRows(in: store)
         let tab: BrowserTab?
         if rows.count == 1, case .tab(let value) = rows[0].content { tab = value } else { tab = nil }
@@ -78,8 +77,8 @@ final class BrowserSidebarDragPreview {
         presentation = Presentation(
             rows: rows, sourceHeight: frame.height, tab: tab, title: title,
             count: store.owner.sidebarDrag.lift?.rootIDs.count ?? 1,
-            symbol: payload.kind == .space ? "circle.fill" : "folder.fill",
-            spaceColor: payload.kind == .space ? space?.color : nil, spaceHeight: frame.height,
+            isSpace: payload.kind == .space, isSelectedSpace: payload.spaceID == store.activeSpace.id,
+            spaceHeight: frame.height,
             snapshot: tab.flatMap { store.owner.pages[$0.id]?.mirrorImage },
             pinned: pinned, width: sourceWidth)
         anchor = CGPoint(
@@ -131,7 +130,7 @@ final class BrowserSidebarDragPreview {
             x: point.x - presentation.width * anchor.x,
             y: point.y - presentation.height * (1 - anchor.y),
             width: presentation.width, height: presentation.height)
-        let scale: CGFloat = presentation.spaceColor == nil ? 1.04 : 1.08
+        let scale: CGFloat = presentation.isSpace ? 1.08 : 1.04
         let drawing = CGRect(
             x: body.minX, y: body.maxY - body.height * scale,
             width: body.width * scale, height: body.height * scale
@@ -188,8 +187,8 @@ final class BrowserSidebarDragPreview {
         let reduceMotion: Bool
         var body: some View {
             ZStack(alignment: .topLeading) {
-                if let color = presentation.spaceColor {
-                    Circle().fill(Color.space(color)).frame(width: 12, height: 12)
+                if presentation.isSpace {
+                    BrowserSpacePill(isSelected: presentation.isSelectedSpace)
                         .frame(width: presentation.width, height: presentation.height)
                 } else if presentation.rows.isEmpty {
                     row(nil, title: presentation.title)
@@ -214,7 +213,8 @@ final class BrowserSidebarDragPreview {
                 }
             }
             .background(
-                LeanBrandTheme.surface, in: RoundedRectangle(cornerRadius: presentation.cardHeight == nil ? 20 : 13)
+                LeanBrandTheme.surface.opacity(presentation.isSpace ? 0 : 1),
+                in: RoundedRectangle(cornerRadius: presentation.cardHeight == nil ? 20 : 13)
             )
             .clipShape(RoundedRectangle(cornerRadius: presentation.cardHeight == nil ? 20 : 13))
             .overlay(alignment: .topTrailing) {
@@ -224,7 +224,7 @@ final class BrowserSidebarDragPreview {
                 }
             }
             .shadow(color: .black.opacity(0.24), radius: 10, y: 5)
-            .scaleEffect(presentation.landing ? 1 : presentation.spaceColor == nil ? 1.04 : 1.08, anchor: .topLeading)
+            .scaleEffect(presentation.landing ? 1 : presentation.isSpace ? 1.08 : 1.04, anchor: .topLeading)
             .opacity(presentation.opacity)
             .animation(LeanMotion.dragPreview.unlessReducingMotion(reduceMotion), value: presentation.pinned)
             .animation(LeanMotion.dragPreview.unlessReducingMotion(reduceMotion), value: presentation.width)
@@ -260,7 +260,7 @@ final class BrowserSidebarDragPreview {
                 if let tab {
                     TabIcon(tab: tab).frame(width: 28, height: 20)
                 } else {
-                    Image(systemName: presentation.symbol).frame(width: 28, height: 20)
+                    Image(systemName: "folder.fill").frame(width: 28, height: 20)
                 }
                 if !presentation.pinned {
                     Text(title).lineLimit(1)
