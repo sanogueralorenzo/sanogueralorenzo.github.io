@@ -14,7 +14,7 @@ namespace CrestCore.Native;
 public static class ContractCodec {
     /// <summary>SHA-256 of the canonical contract schema.</summary>
     public static ReadOnlySpan<byte> Fingerprint => [
-        0x48, 0x6a, 0x33, 0xad, 0x08, 0x03, 0x52, 0x59, 0x2a, 0x0b, 0xab, 0x9a, 0xe5, 0x90, 0xbf, 0xa9, 0x5b, 0x34, 0x00, 0x80, 0x29, 0x67, 0x9f, 0xc2, 0xc0, 0x30, 0x56, 0xad, 0xe6, 0x5c, 0xe1, 0x01
+        0x0c, 0x72, 0x7b, 0xde, 0xb8, 0x82, 0x36, 0x1b, 0x4d, 0xe8, 0xe5, 0x33, 0xfd, 0x36, 0x3e, 0x38, 0x35, 0x8d, 0x16, 0x37, 0x13, 0x8f, 0xc3, 0x02, 0x08, 0x26, 0x54, 0xd4, 0x8f, 0xc4, 0x2c, 0xd8
     ];
 
     public static Intent ReadIntent(WireReader reader) {
@@ -1232,24 +1232,20 @@ public static class ContractCodec {
             case 14: return ReadFindChromiumBrowsers(reader);
             case 15: return ReadFindImportData(reader);
             case 16: return ReadFirstInstallSession(reader);
-            case 17: return ReadHistoryAddresses(reader);
-            case 18: return ReadImportPreview(reader);
-            case 19: return ReadLanguagesMatching(reader);
-            case 20: return ReadLaunchWindows(reader);
-            case 21: return ReadPasskeyAccess(reader);
-            case 22: return ReadPendingSave(reader);
-            case 23: return ReadPendingUploads(reader);
-            case 24: return ReadReadArchive(reader);
-            case 25: return ReadReadImport(reader);
-            case 26: return ReadRecentTabs(reader);
-            case 27: return ReadRecordsToUpload(reader);
-            case 28: return ReadResolveAddress(reader);
-            case 29: return ReadSamePage(reader);
-            case 30: return ReadSelectionPreview(reader);
-            case 31: return ReadSelectionSearch(reader);
-            case 32: return ReadSplitJoinCandidate(reader);
-            case 33: return ReadSwipeNeighbors(reader);
-            case 34: return ReadWindowToReopen(reader);
+            case 17: return ReadImportPreview(reader);
+            case 18: return ReadLanguagesMatching(reader);
+            case 19: return ReadLaunchWindows(reader);
+            case 20: return ReadPasskeyAccess(reader);
+            case 21: return ReadPendingSave(reader);
+            case 22: return ReadPendingUploads(reader);
+            case 23: return ReadReadArchive(reader);
+            case 24: return ReadReadImport(reader);
+            case 25: return ReadRecentTabs(reader);
+            case 26: return ReadRecordsToUpload(reader);
+            case 27: return ReadSelectionPreview(reader);
+            case 28: return ReadSplitJoinCandidate(reader);
+            case 29: return ReadSwipeNeighbors(reader);
+            case 30: return ReadWindowToReopen(reader);
             default: throw new WireFormatException($"Unknown Query tag {tag}.");
         }
     }
@@ -1326,76 +1322,60 @@ public static class ContractCodec {
                 writer.WriteTag(16);
                 WriteFirstInstallSession(writer, member);
                 break;
-            case HistoryAddresses member:
-                writer.WriteTag(17);
-                WriteHistoryAddresses(writer, member);
-                break;
             case ImportPreview member:
-                writer.WriteTag(18);
+                writer.WriteTag(17);
                 WriteImportPreview(writer, member);
                 break;
             case LanguagesMatching member:
-                writer.WriteTag(19);
+                writer.WriteTag(18);
                 WriteLanguagesMatching(writer, member);
                 break;
             case LaunchWindows member:
-                writer.WriteTag(20);
+                writer.WriteTag(19);
                 WriteLaunchWindows(writer, member);
                 break;
             case PasskeyAccess member:
-                writer.WriteTag(21);
+                writer.WriteTag(20);
                 WritePasskeyAccess(writer, member);
                 break;
             case PendingSave member:
-                writer.WriteTag(22);
+                writer.WriteTag(21);
                 WritePendingSave(writer, member);
                 break;
             case PendingUploads member:
-                writer.WriteTag(23);
+                writer.WriteTag(22);
                 WritePendingUploads(writer, member);
                 break;
             case ReadArchive member:
-                writer.WriteTag(24);
+                writer.WriteTag(23);
                 WriteReadArchive(writer, member);
                 break;
             case ReadImport member:
-                writer.WriteTag(25);
+                writer.WriteTag(24);
                 WriteReadImport(writer, member);
                 break;
             case RecentTabs member:
-                writer.WriteTag(26);
+                writer.WriteTag(25);
                 WriteRecentTabs(writer, member);
                 break;
             case RecordsToUpload member:
-                writer.WriteTag(27);
+                writer.WriteTag(26);
                 WriteRecordsToUpload(writer, member);
                 break;
-            case ResolveAddress member:
-                writer.WriteTag(28);
-                WriteResolveAddress(writer, member);
-                break;
-            case SamePage member:
-                writer.WriteTag(29);
-                WriteSamePage(writer, member);
-                break;
             case SelectionPreview member:
-                writer.WriteTag(30);
+                writer.WriteTag(27);
                 WriteSelectionPreview(writer, member);
                 break;
-            case SelectionSearch member:
-                writer.WriteTag(31);
-                WriteSelectionSearch(writer, member);
-                break;
             case SplitJoinCandidate member:
-                writer.WriteTag(32);
+                writer.WriteTag(28);
                 WriteSplitJoinCandidate(writer, member);
                 break;
             case SwipeNeighbors member:
-                writer.WriteTag(33);
+                writer.WriteTag(29);
                 WriteSwipeNeighbors(writer, member);
                 break;
             case WindowToReopen member:
-                writer.WriteTag(34);
+                writer.WriteTag(30);
                 WriteWindowToReopen(writer, member);
                 break;
             default: throw new ArgumentOutOfRangeException(nameof(value), value.GetType().Name, "Not a contract Query.");
@@ -1432,7 +1412,7 @@ public static class ContractCodec {
     /// <summary>The most bytes one encoded query with this tag may take.</summary>
     public static int MaximumQueryBytes(int tag) => tag switch {
         2 => 67108864,
-        18 => 67108864,
+        17 => 67108864,
         _ => 16777216
     };
 
@@ -1511,77 +1491,61 @@ public static class ContractCodec {
                 var answer16 = answers.Query(question);
                 WriteSessionState(writer, answer16);
                 break;
-            case HistoryAddresses question:
-                var answer17 = answers.Query(question);
-                WriteHistoryAddressList(writer, answer17);
-                break;
             case ImportPreview question:
-                var answer18 = answers.Query(question);
-                WriteImportedWorkspace(writer, answer18);
+                var answer17 = answers.Query(question);
+                WriteImportedWorkspace(writer, answer17);
                 break;
             case LanguagesMatching question:
-                var answer19 = answers.Query(question);
-                WriteLanguageMatches(writer, answer19);
+                var answer18 = answers.Query(question);
+                WriteLanguageMatches(writer, answer18);
                 break;
             case LaunchWindows question:
-                var answer20 = answers.Query(question);
-                WriteLaunchWindowPlan(writer, answer20);
+                var answer19 = answers.Query(question);
+                WriteLaunchWindowPlan(writer, answer19);
                 break;
             case PasskeyAccess question:
-                var answer21 = answers.Query(question);
-                WritePasskeyAccessVerdict(writer, answer21);
+                var answer20 = answers.Query(question);
+                WritePasskeyAccessVerdict(writer, answer20);
                 break;
             case PendingSave question:
-                var answer22 = answers.Query(question);
-                WritePendingSaveRevision(writer, answer22);
+                var answer21 = answers.Query(question);
+                WritePendingSaveRevision(writer, answer21);
                 break;
             case PendingUploads question:
-                var answer23 = answers.Query(question);
-                WritePendingUploadList(writer, answer23);
+                var answer22 = answers.Query(question);
+                WritePendingUploadList(writer, answer22);
                 break;
             case ReadArchive question:
+                var answer23 = answers.Query(question);
+                WriteImportedSpaces(writer, answer23);
+                break;
+            case ReadImport question:
                 var answer24 = answers.Query(question);
                 WriteImportedSpaces(writer, answer24);
                 break;
-            case ReadImport question:
-                var answer25 = answers.Query(question);
-                WriteImportedSpaces(writer, answer25);
-                break;
             case RecentTabs question:
-                var answer26 = answers.Query(question);
-                WriteRecentTabList(writer, answer26);
+                var answer25 = answers.Query(question);
+                WriteRecentTabList(writer, answer25);
                 break;
             case RecordsToUpload question:
-                var answer27 = answers.Query(question);
-                WriteUploadBatch(writer, answer27);
-                break;
-            case ResolveAddress question:
-                var answer28 = answers.Query(question);
-                WriteResolvedAddress(writer, answer28);
-                break;
-            case SamePage question:
-                var answer29 = answers.Query(question);
-                WritePageMatch(writer, answer29);
+                var answer26 = answers.Query(question);
+                WriteUploadBatch(writer, answer26);
                 break;
             case SelectionPreview question:
-                var answer30 = answers.Query(question);
-                WriteSelectedTabs(writer, answer30);
-                break;
-            case SelectionSearch question:
-                var answer31 = answers.Query(question);
-                WriteSelectionSearchAnswer(writer, answer31);
+                var answer27 = answers.Query(question);
+                WriteSelectedTabs(writer, answer27);
                 break;
             case SplitJoinCandidate question:
-                var answer32 = answers.Query(question);
-                WriteSplitJoinCandidateTab(writer, answer32);
+                var answer28 = answers.Query(question);
+                WriteSplitJoinCandidateTab(writer, answer28);
                 break;
             case SwipeNeighbors question:
-                var answer33 = answers.Query(question);
-                WriteSwipeNeighborTabs(writer, answer33);
+                var answer29 = answers.Query(question);
+                WriteSwipeNeighborTabs(writer, answer29);
                 break;
             case WindowToReopen question:
-                var answer34 = answers.Query(question);
-                WriteReopenedWindow(writer, answer34);
+                var answer30 = answers.Query(question);
+                WriteReopenedWindow(writer, answer30);
                 break;
             default: throw new ArgumentOutOfRangeException(nameof(query), query.GetType().Name, "Not a contract Query.");
         }
@@ -3752,41 +3716,6 @@ public static class ContractCodec {
         WriteLiveFolderRefreshInterval(writer, value.Interval);
     }
 
-    public static HistoryAddressList ReadHistoryAddressList(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new HistoryAddressList(
-            reader.ReadList(() => reader.ReadPresence() ? (string?)reader.ReadString() : null));
-    }
-
-    public static void WriteHistoryAddressList(WireWriter writer, HistoryAddressList value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        writer.WriteCount(value.Normalized.Count);
-        foreach (var itemNormalized in value.Normalized) {
-            if (itemNormalized is { } presentNormalizedItem) {
-                writer.WritePresence(true);
-                writer.WriteString(presentNormalizedItem);
-            } else {
-                writer.WritePresence(false);
-            }
-        }
-    }
-
-    public static HistoryAddresses ReadHistoryAddresses(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new HistoryAddresses(
-            reader.ReadList(() => reader.ReadString()));
-    }
-
-    public static void WriteHistoryAddresses(WireWriter writer, HistoryAddresses value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        writer.WriteCount(value.Addresses.Count);
-        foreach (var itemAddresses in value.Addresses) {
-            writer.WriteString(itemAddresses);
-        }
-    }
-
     public static HistoryChanged ReadHistoryChanged(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new HistoryChanged(
@@ -4689,7 +4618,7 @@ public static class ContractCodec {
         writer.WriteGuid(value.WorkspaceId);
         writer.WriteGuid(value.SpaceId);
         writer.WriteGuid(value.TabId);
-        writer.WriteString(value.Input);
+        writer.WriteString(value.Url);
     }
 
     public static NavigationRecorded ReadNavigationRecorded(WireReader reader) {
@@ -5014,18 +4943,6 @@ public static class ContractCodec {
         foreach (var itemRecords in value.Records) {
             WriteSyncRecord(writer, itemRecords);
         }
-    }
-
-    public static PageMatch ReadPageMatch(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new PageMatch(
-            reader.ReadBool());
-    }
-
-    public static void WritePageMatch(WireWriter writer, PageMatch value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        writer.WriteBool(value.IsSamePage);
     }
 
     public static PasskeyAccess ReadPasskeyAccess(WireReader reader) {
@@ -5652,56 +5569,6 @@ public static class ContractCodec {
         }
     }
 
-    public static ResolveAddress ReadResolveAddress(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new ResolveAddress(
-            reader.ReadPresence() ? (Guid?)reader.ReadGuid() : null,
-            reader.ReadPresence() ? (Guid?)reader.ReadGuid() : null,
-            reader.ReadString());
-    }
-
-    public static void WriteResolveAddress(WireWriter writer, ResolveAddress value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        if (value.WorkspaceId is { } presentWorkspaceId) {
-            writer.WritePresence(true);
-            writer.WriteGuid(presentWorkspaceId);
-        } else {
-            writer.WritePresence(false);
-        }
-        if (value.SpaceId is { } presentSpaceId) {
-            writer.WritePresence(true);
-            writer.WriteGuid(presentSpaceId);
-        } else {
-            writer.WritePresence(false);
-        }
-        writer.WriteString(value.Input);
-    }
-
-    public static ResolvedAddress ReadResolvedAddress(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new ResolvedAddress(
-            reader.ReadPresence() ? (string?)reader.ReadString() : null,
-            reader.ReadPresence() ? (string?)reader.ReadString() : null);
-    }
-
-    public static void WriteResolvedAddress(WireWriter writer, ResolvedAddress value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        if (value.Url is { } presentUrl) {
-            writer.WritePresence(true);
-            writer.WriteString(presentUrl);
-        } else {
-            writer.WritePresence(false);
-        }
-        if (value.SearchQuery is { } presentSearchQuery) {
-            writer.WritePresence(true);
-            writer.WriteString(presentSearchQuery);
-        } else {
-            writer.WritePresence(false);
-        }
-    }
-
     public static RestartCloudSyncAfterAccountChange ReadRestartCloudSyncAfterAccountChange(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new RestartCloudSyncAfterAccountChange();
@@ -5820,20 +5687,6 @@ public static class ContractCodec {
         foreach (var itemPlacements in value.Placements) {
             WriteTabPlacementChoice(writer, itemPlacements);
         }
-    }
-
-    public static SamePage ReadSamePage(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new SamePage(
-            reader.ReadString(),
-            reader.ReadString());
-    }
-
-    public static void WriteSamePage(WireWriter writer, SamePage value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        writer.WriteString(value.First);
-        writer.WriteString(value.Second);
     }
 
     public static SaveCloudEngineState ReadSaveCloudEngineState(WireReader reader) {
@@ -5983,41 +5836,6 @@ public static class ContractCodec {
         foreach (var itemFolderIds in value.FolderIds) {
             writer.WriteGuid(itemFolderIds);
         }
-    }
-
-    public static SelectionSearch ReadSelectionSearch(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new SelectionSearch(
-            reader.ReadGuid(),
-            reader.ReadGuid(),
-            reader.ReadString());
-    }
-
-    public static void WriteSelectionSearch(WireWriter writer, SelectionSearch value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        writer.WriteGuid(value.WorkspaceId);
-        writer.WriteGuid(value.SpaceId);
-        writer.WriteString(value.Text);
-    }
-
-    public static SelectionSearchAnswer ReadSelectionSearchAnswer(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new SelectionSearchAnswer(
-            reader.ReadPresence() ? (string?)reader.ReadString() : null,
-            reader.ReadString());
-    }
-
-    public static void WriteSelectionSearchAnswer(WireWriter writer, SelectionSearchAnswer value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        if (value.Url is { } presentUrl) {
-            writer.WritePresence(true);
-            writer.WriteString(presentUrl);
-        } else {
-            writer.WritePresence(false);
-        }
-        writer.WriteString(value.EngineTitle);
     }
 
     public static SendPermission ReadSendPermission(WireReader reader) {

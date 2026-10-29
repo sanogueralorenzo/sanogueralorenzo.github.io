@@ -21,8 +21,8 @@ extension CrestCore {
         let deleting = Set(workspace.spaceDeletions.map(\.spaceID))
         let available = workspace.spaces.models.filter { !deleting.contains($0.id) }
         let space = available.first { $0.id == window.shownSpaceID }
-        let preferences = state.workspaces.values.first { $0.kind.keepsAppPreferences }?.appPreferences ?? .default
-        let resolution = try? query(ResolveAddress(workspaceID: workspace.id, spaceID: nil, input: question.text))
+        let preferences = state.appPreferences
+        let resolution = BrowserAddress.resolve(question.text, provider: preferences.searchProvider)
         return NativePalette(
             space: space.map {
                 PaletteSpaceSnapshot(folders: $0.folders.values, tabs: $0.tabs.values, history: $0.history.entries)

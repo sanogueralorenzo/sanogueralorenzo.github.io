@@ -242,7 +242,7 @@ public sealed unsafe class ContractCodecTests {
         Assert.NotEqual(schema.Fingerprint, extended.Fingerprint);
         foreach (var name in new[] { "EngineRegistration", "EngineCommand", "EngineEvent", "EngineQuestion", "PageState", "PageSnapshot",
             "SiteOrigin", "SitePermission", "SitePermissionDecision", "PagePresentation", "BlockedPopupTransition",
-            "ChallengeHandling", "AuthenticationSource", "SchemeHandling", "SecureOriginCheck", "NotificationPermissionRequest", "ExternalLocalDocument", "AgentIdentity", "AgentPreferences", "AgentSessionState", "AgentReach", "AgentActivityKind" })
+            "ChallengeHandling", "AuthenticationSource", "SchemeHandling", "SecureOriginCheck", "NotificationPermissionRequest", "ExternalLocalDocument", "AgentIdentity", "AgentPreferences", "AgentSessionState", "AgentReach", "AgentActivityKind", "ResolveAddress", "ResolvedAddress", "SelectionSearch", "SelectionSearchAnswer", "HistoryAddresses", "HistoryAddressList", "SamePage", "PageMatch" })
             Assert.DoesNotMatch(@"\b" + name + @"\b", schema.Canonical);
         Assert.DoesNotContain("EngineFingerprint", CSharpCodecEmitter.Emit(schema), StringComparison.Ordinal);
         Assert.DoesNotContain("CREST_ENGINE_", CHeaderEmitter.Emit(schema), StringComparison.Ordinal);

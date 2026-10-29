@@ -1106,16 +1106,6 @@ struct GitHubLiveFolderOptions: Equatable, Sendable {
     var interval: LiveFolderRefreshInterval
 }
 
-struct HistoryAddressList: Equatable, Sendable {
-    let normalized: [String?]
-}
-
-struct HistoryAddresses: Query, Equatable, Sendable {
-    typealias Answer = HistoryAddressList
-
-    let addresses: [String]
-}
-
 struct HistoryChanged: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -1407,7 +1397,7 @@ struct NavigateTab: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
     let tabID: UUID
-    let input: String
+    let url: String
 }
 
 struct NavigationRecorded: CoreChange, Equatable, Sendable {
@@ -1516,10 +1506,6 @@ struct OpenWorkspace: Intent, WorkspaceIntent, Equatable, Sendable {
 
 struct OverwriteCloud: Intent, CloudSyncIntent, Equatable, Sendable {
     let records: [SyncRecord]
-}
-
-struct PageMatch: Equatable, Sendable {
-    let isSamePage: Bool
 }
 
 struct PasskeyAccess: Query, Equatable, Sendable {
@@ -1754,19 +1740,6 @@ struct ResizeSplitColumns: Intent, WindowIntent, Equatable, Sendable {
     let shares: [Double]
 }
 
-struct ResolveAddress: Query, Equatable, Sendable {
-    typealias Answer = ResolvedAddress
-
-    let workspaceID: UUID?
-    let spaceID: UUID?
-    let input: String
-}
-
-struct ResolvedAddress: Equatable, Sendable {
-    let url: String?
-    let searchQuery: String?
-}
-
 struct RestartCloudSyncAfterAccountChange: Intent, CloudSyncControlIntent, Equatable, Sendable {
 }
 
@@ -1816,13 +1789,6 @@ struct ReviewedImportSpace: Equatable, Sendable {
             placements: placements
         )
     }
-}
-
-struct SamePage: Query, Equatable, Sendable {
-    typealias Answer = PageMatch
-
-    let first: String
-    let second: String
 }
 
 struct SaveCloudEngineState: Intent, CloudTransportIntent, Equatable, Sendable {
@@ -1879,19 +1845,6 @@ struct SelectionPreview: Query, Equatable, Sendable {
     let spaceID: UUID
     let tabIDs: [UUID]
     let folderIDs: [UUID]
-}
-
-struct SelectionSearch: Query, Equatable, Sendable {
-    typealias Answer = SelectionSearchAnswer
-
-    let workspaceID: UUID
-    let spaceID: UUID
-    let text: String
-}
-
-struct SelectionSearchAnswer: Equatable, Sendable {
-    let url: String?
-    let engineTitle: String
 }
 
 struct SendPermission: Equatable, Sendable {

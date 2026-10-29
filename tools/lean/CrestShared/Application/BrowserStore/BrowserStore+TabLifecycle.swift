@@ -228,10 +228,13 @@ extension BrowserStore {
     /// the input was blank, or a rule refused it.
     @discardableResult
     func navigateSelectedTab(to input: String) -> Bool {
-        guard let space = shownSpace, let tab = shownTab, !tab.surface.showsPage else { return false }
+        core.drain()
+        guard let space = shownSpace, let tab = shownTab, !tab.surface.showsPage,
+            let url = BrowserAddress.loading(input, provider: core.state.appPreferences.searchProvider)
+        else { return false }
         return family.send(
             NavigateTab(
-                workspaceID: family.workspaceID, spaceID: space.id, tabID: tab.id, input: input),
+                workspaceID: family.workspaceID, spaceID: space.id, tabID: tab.id, url: url),
             from: self, failure: "Core navigation failed")
     }
 

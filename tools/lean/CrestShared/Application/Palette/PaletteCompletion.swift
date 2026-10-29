@@ -176,28 +176,14 @@ extension NativePalette {
         return space.history.prefix(1_500).first { same($0.url) }?.url
     }
 
-    func search(_ text: String) -> String { render(provider.searchTemplate, text) }
-    private func render(_ template: String, _ text: String) -> String {
-        let unreserved = CharacterSet(
-            charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")
-        return template.replacingOccurrences(
-            of: "%s", with: text.addingPercentEncoding(withAllowedCharacters: unreserved)!)
-    }
+    func search(_ text: String) -> String { provider.search(text) }
     func searching(_ text: String, _ address: String) -> PaletteRow {
         .make(.search, "Search \(provider.title)", text, address: address, provider: provider)
     }
     func suggestionAddress(_ text: String) -> String? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed.utf16.count <= 256, !isPrivate, space != nil, suggests else { return nil }
-        let template: String
-        switch provider {
-        case .google: template = "https://www.google.com/complete/search?client=chrome&q=%s"
-        case .duckDuckGo: template = "https://duckduckgo.com/ac/?q=%s&type=list"
-        case .bing: template = "https://www.bing.com/osjson.aspx?query=%s"
-        case .brave: template = "https://search.brave.com/api/suggest?q=%s"
-        default: return nil
-        }
-        return render(template, text)
+        return provider.suggest(text)
     }
     func suggestions(_ text: String, remote: [String], shown: [PaletteRow]) -> [PaletteRow] {
         guard suggests, !isPrivate else { return [] }

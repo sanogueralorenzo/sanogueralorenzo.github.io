@@ -9,18 +9,6 @@ namespace CrestCore.Tests;
 
 public sealed partial class BrowserContractsTests {
     [Fact]
-    public void SearchIsGlobalForEverySpaceAndPrivateWorkspace() {
-        using var app = new CrestApp();
-        var normal = Assert.Single(app.Send(new OpenWorkspace(WorkspaceKind.Persistent, TestWorkspaces.Seed(SavedSession().Document["session"]!))).OfType<WorkspaceOpened>());
-        var secret = Assert.Single(app.Send(new OpenWorkspace(WorkspaceKind.Private, Seed: null)).OfType<WorkspaceOpened>());
-        string Engine(WorkspaceOpened workspace) => app.Workspace(workspace.WorkspaceId).Searches(workspace.Session.Spaces[0].Id).Name;
-        Assert.Equal("google", Engine(normal));
-        Assert.Equal("google", Engine(secret));
-        var stored = StoredSessionCodec.Encode(app.Workspace(normal.WorkspaceId).Current);
-        Assert.DoesNotContain("searchProvider", stored.ToJsonString(), StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
     public void NewBrowsingPreferencesSweepTheSpaceUnderTheirRetention() {
         var session = SavedSession().Document["session"]!;
         session["spaces"]![0]!["history"] = new JsonArray(new JsonObject {

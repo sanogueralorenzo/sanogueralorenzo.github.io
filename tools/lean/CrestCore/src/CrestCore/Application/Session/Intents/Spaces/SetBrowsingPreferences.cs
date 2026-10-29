@@ -24,8 +24,10 @@ public sealed record SetBrowsingPreferences(Guid WorkspaceId, Guid SpaceId,
         if (before.DataRetention == preferences.DataRetention)
             return new(turn.Basis.Replacing(configured), SyncStaging.Edit);
         var swept = workspace.Expired(configured, turn.Now);
+        bool unchanged = configured.Tabs.SequenceEqual(swept.Tabs) && configured.History.SequenceEqual(swept.History)
+            && configured.ArchivedTabs.SequenceEqual(swept.ArchivedTabs);
         return new(turn.Basis.Replacing(swept),
-            workspace.SameRecords(configured, swept) ? SyncStaging.Edit : SyncStaging.Expiry);
+            unchanged ? SyncStaging.Edit : SyncStaging.Expiry);
     }
 
     #endregion

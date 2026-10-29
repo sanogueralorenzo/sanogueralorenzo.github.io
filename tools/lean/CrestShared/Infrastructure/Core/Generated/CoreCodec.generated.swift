@@ -7,7 +7,7 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0x48, 0x6a, 0x33, 0xad, 0x08, 0x03, 0x52, 0x59, 0x2a, 0x0b, 0xab, 0x9a, 0xe5, 0x90, 0xbf, 0xa9, 0x5b, 0x34, 0x00, 0x80, 0x29, 0x67, 0x9f, 0xc2, 0xc0, 0x30, 0x56, 0xad, 0xe6, 0x5c, 0xe1, 0x01
+        0x0c, 0x72, 0x7b, 0xde, 0xb8, 0x82, 0x36, 0x1b, 0x4d, 0xe8, 0xe5, 0x33, 0xfd, 0x36, 0x3e, 0x38, 0x35, 0x8d, 0x16, 0x37, 0x13, 0x8f, 0xc3, 0x02, 0x08, 0x26, 0x54, 0xd4, 0x8f, 0xc4, 0x2c, 0xd8
     ]
 
     static func decodeIntent(from reader: inout WireReader) throws(WireError) -> any Intent {
@@ -152,24 +152,20 @@ enum CoreCodec {
         case 14: return try FindChromiumBrowsers(from: &reader)
         case 15: return try FindImportData(from: &reader)
         case 16: return try FirstInstallSession(from: &reader)
-        case 17: return try HistoryAddresses(from: &reader)
-        case 18: return try ImportPreview(from: &reader)
-        case 19: return try LanguagesMatching(from: &reader)
-        case 20: return try LaunchWindows(from: &reader)
-        case 21: return try PasskeyAccess(from: &reader)
-        case 22: return try PendingSave(from: &reader)
-        case 23: return try PendingUploads(from: &reader)
-        case 24: return try ReadArchive(from: &reader)
-        case 25: return try ReadImport(from: &reader)
-        case 26: return try RecentTabs(from: &reader)
-        case 27: return try RecordsToUpload(from: &reader)
-        case 28: return try ResolveAddress(from: &reader)
-        case 29: return try SamePage(from: &reader)
-        case 30: return try SelectionPreview(from: &reader)
-        case 31: return try SelectionSearch(from: &reader)
-        case 32: return try SplitJoinCandidate(from: &reader)
-        case 33: return try SwipeNeighbors(from: &reader)
-        case 34: return try WindowToReopen(from: &reader)
+        case 17: return try ImportPreview(from: &reader)
+        case 18: return try LanguagesMatching(from: &reader)
+        case 19: return try LaunchWindows(from: &reader)
+        case 20: return try PasskeyAccess(from: &reader)
+        case 21: return try PendingSave(from: &reader)
+        case 22: return try PendingUploads(from: &reader)
+        case 23: return try ReadArchive(from: &reader)
+        case 24: return try ReadImport(from: &reader)
+        case 25: return try RecentTabs(from: &reader)
+        case 26: return try RecordsToUpload(from: &reader)
+        case 27: return try SelectionPreview(from: &reader)
+        case 28: return try SplitJoinCandidate(from: &reader)
+        case 29: return try SwipeNeighbors(from: &reader)
+        case 30: return try WindowToReopen(from: &reader)
         default: throw WireError.malformed("Unknown Query tag \(tag)")
         }
     }
@@ -3654,67 +3650,6 @@ extension GitHubLiveFolderOptions {
     }
 }
 
-extension HistoryAddressList {
-    init(from reader: inout WireReader) throws(WireError) {
-        let normalizedCount = try reader.readCount()
-        var normalized: [String?] = []
-        normalized.reserveCapacity(normalizedCount)
-        for _ in 0..<normalizedCount {
-            let normalizedElement: String?
-            if try reader.readPresence() {
-                let normalizedElementValue = try reader.readString()
-                normalizedElement = normalizedElementValue
-            } else {
-                normalizedElement = nil
-            }
-            normalized.append(normalizedElement)
-        }
-        self.init(normalized: normalized)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeCount(normalized.count)
-        for element0 in normalized {
-            if let present1 = element0 {
-                writer.writePresence(true)
-                writer.writeString(present1)
-            } else {
-                writer.writePresence(false)
-            }
-        }
-    }
-}
-
-extension HistoryAddresses {
-    init(from reader: inout WireReader) throws(WireError) {
-        let addressesCount = try reader.readCount()
-        var addresses: [String] = []
-        addresses.reserveCapacity(addressesCount)
-        for _ in 0..<addressesCount {
-            let addressesElement = try reader.readString()
-            addresses.append(addressesElement)
-        }
-        self.init(addresses: addresses)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeCount(addresses.count)
-        for element0 in addresses {
-            writer.writeString(element0)
-        }
-    }
-
-    func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(17)
-        encode(into: &writer)
-    }
-
-    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> HistoryAddressList {
-        let answer = try HistoryAddressList(from: &reader)
-        return answer
-    }
-}
-
 extension HistoryChanged {
     init(from reader: inout WireReader) throws(WireError) {
         let workspaceID = try reader.readUUID()
@@ -3893,7 +3828,7 @@ extension ImportPreview {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(18)
+        writer.writeTag(17)
         encode(into: &writer)
     }
 
@@ -4358,7 +4293,7 @@ extension LanguagesMatching {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(19)
+        writer.writeTag(18)
         encode(into: &writer)
     }
 
@@ -4410,7 +4345,7 @@ extension LaunchWindows {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(20)
+        writer.writeTag(19)
         encode(into: &writer)
     }
 
@@ -4896,15 +4831,15 @@ extension NavigateTab {
         let workspaceID = try reader.readUUID()
         let spaceID = try reader.readUUID()
         let tabID = try reader.readUUID()
-        let input = try reader.readString()
-        self.init(workspaceID: workspaceID, spaceID: spaceID, tabID: tabID, input: input)
+        let url = try reader.readString()
+        self.init(workspaceID: workspaceID, spaceID: spaceID, tabID: tabID, url: url)
     }
 
     func encode(into writer: inout WireWriter) {
         writer.writeUUID(workspaceID)
         writer.writeUUID(spaceID)
         writer.writeUUID(tabID)
-        writer.writeString(input)
+        writer.writeString(url)
     }
 
     func encodeIntent(into writer: inout WireWriter) {
@@ -5328,17 +5263,6 @@ extension OverwriteCloud {
     }
 }
 
-extension PageMatch {
-    init(from reader: inout WireReader) throws(WireError) {
-        let isSamePage = try reader.readBool()
-        self.init(isSamePage: isSamePage)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeBool(isSamePage)
-    }
-}
-
 extension PasskeyAccess {
     init(from reader: inout WireReader) throws(WireError) {
         let hasManagedCapability = try reader.readBool()
@@ -5354,7 +5278,7 @@ extension PasskeyAccess {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(21)
+        writer.writeTag(20)
         encode(into: &writer)
     }
 
@@ -5384,7 +5308,7 @@ extension PendingSave {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(22)
+        writer.writeTag(21)
         encode(into: &writer)
     }
 
@@ -5445,7 +5369,7 @@ extension PendingUploads {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(23)
+        writer.writeTag(22)
         encode(into: &writer)
     }
 
@@ -5537,7 +5461,7 @@ extension ReadArchive {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(24)
+        writer.writeTag(23)
         encode(into: &writer)
     }
 
@@ -5569,7 +5493,7 @@ extension ReadImport {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(25)
+        writer.writeTag(24)
         encode(into: &writer)
     }
 
@@ -5632,7 +5556,7 @@ extension RecentTabs {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(26)
+        writer.writeTag(25)
         encode(into: &writer)
     }
 
@@ -5834,7 +5758,7 @@ extension RecordsToUpload {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(27)
+        writer.writeTag(26)
         encode(into: &writer)
     }
 
@@ -6204,88 +6128,6 @@ extension ResizeSplitColumns {
     }
 }
 
-extension ResolveAddress {
-    init(from reader: inout WireReader) throws(WireError) {
-        let workspaceID: UUID?
-        if try reader.readPresence() {
-            let workspaceIDValue = try reader.readUUID()
-            workspaceID = workspaceIDValue
-        } else {
-            workspaceID = nil
-        }
-        let spaceID: UUID?
-        if try reader.readPresence() {
-            let spaceIDValue = try reader.readUUID()
-            spaceID = spaceIDValue
-        } else {
-            spaceID = nil
-        }
-        let input = try reader.readString()
-        self.init(workspaceID: workspaceID, spaceID: spaceID, input: input)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        if let present0 = workspaceID {
-            writer.writePresence(true)
-            writer.writeUUID(present0)
-        } else {
-            writer.writePresence(false)
-        }
-        if let present0 = spaceID {
-            writer.writePresence(true)
-            writer.writeUUID(present0)
-        } else {
-            writer.writePresence(false)
-        }
-        writer.writeString(input)
-    }
-
-    func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(28)
-        encode(into: &writer)
-    }
-
-    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> ResolvedAddress {
-        let answer = try ResolvedAddress(from: &reader)
-        return answer
-    }
-}
-
-extension ResolvedAddress {
-    init(from reader: inout WireReader) throws(WireError) {
-        let url: String?
-        if try reader.readPresence() {
-            let urlValue = try reader.readString()
-            url = urlValue
-        } else {
-            url = nil
-        }
-        let searchQuery: String?
-        if try reader.readPresence() {
-            let searchQueryValue = try reader.readString()
-            searchQuery = searchQueryValue
-        } else {
-            searchQuery = nil
-        }
-        self.init(url: url, searchQuery: searchQuery)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        if let present0 = url {
-            writer.writePresence(true)
-            writer.writeString(present0)
-        } else {
-            writer.writePresence(false)
-        }
-        if let present0 = searchQuery {
-            writer.writePresence(true)
-            writer.writeString(present0)
-        } else {
-            writer.writePresence(false)
-        }
-    }
-}
-
 extension RestartCloudSyncAfterAccountChange {
     init(from reader: inout WireReader) throws(WireError) {
         self.init()
@@ -6453,29 +6295,6 @@ extension ReviewedImportSpace.Seed {
         for element0 in placements {
             element0.encode(into: &writer)
         }
-    }
-}
-
-extension SamePage {
-    init(from reader: inout WireReader) throws(WireError) {
-        let first = try reader.readString()
-        let second = try reader.readString()
-        self.init(first: first, second: second)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeString(first)
-        writer.writeString(second)
-    }
-
-    func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(29)
-        encode(into: &writer)
-    }
-
-    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> PageMatch {
-        let answer = try PageMatch(from: &reader)
-        return answer
     }
 }
 
@@ -6666,62 +6485,13 @@ extension SelectionPreview {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(30)
+        writer.writeTag(27)
         encode(into: &writer)
     }
 
     static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> SelectedTabs {
         let answer = try SelectedTabs(from: &reader)
         return answer
-    }
-}
-
-extension SelectionSearch {
-    init(from reader: inout WireReader) throws(WireError) {
-        let workspaceID = try reader.readUUID()
-        let spaceID = try reader.readUUID()
-        let text = try reader.readString()
-        self.init(workspaceID: workspaceID, spaceID: spaceID, text: text)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(workspaceID)
-        writer.writeUUID(spaceID)
-        writer.writeString(text)
-    }
-
-    func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(31)
-        encode(into: &writer)
-    }
-
-    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> SelectionSearchAnswer {
-        let answer = try SelectionSearchAnswer(from: &reader)
-        return answer
-    }
-}
-
-extension SelectionSearchAnswer {
-    init(from reader: inout WireReader) throws(WireError) {
-        let url: String?
-        if try reader.readPresence() {
-            let urlValue = try reader.readString()
-            url = urlValue
-        } else {
-            url = nil
-        }
-        let engineTitle = try reader.readString()
-        self.init(url: url, engineTitle: engineTitle)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        if let present0 = url {
-            writer.writePresence(true)
-            writer.writeString(present0)
-        } else {
-            writer.writePresence(false)
-        }
-        writer.writeString(engineTitle)
     }
 }
 
@@ -7828,7 +7598,7 @@ extension SplitJoinCandidate {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(32)
+        writer.writeTag(28)
         encode(into: &writer)
     }
 
@@ -8110,7 +7880,7 @@ extension SwipeNeighbors {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(33)
+        writer.writeTag(29)
         encode(into: &writer)
     }
 
@@ -9277,7 +9047,7 @@ extension WindowToReopen {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(34)
+        writer.writeTag(30)
         encode(into: &writer)
     }
 

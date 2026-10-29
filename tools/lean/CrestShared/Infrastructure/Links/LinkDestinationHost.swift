@@ -35,12 +35,15 @@ struct BrowserLinkDestinationHost {
         for text: String,
         from source: BrowserTabRuntimeAssignment
     ) -> BrowserSelectionSearchDestination? {
-        guard canOpenLink(from: source), let browser,
-            let search = try? browser.core.query(
-                SelectionSearch(workspaceID: browser.family.workspaceID, spaceID: source.spaceID, text: text)),
-            let url = search.url.flatMap(URL.init(string:))
-        else { return nil }
-        return BrowserSelectionSearchDestination(url: url, engineTitle: search.engineTitle, source: source)
+        guard let browser else { return nil }
+        browser.core.drain()
+        guard canOpenLink(from: source) else { return nil }
+        let text = BrowserAddress.trimmed(text)
+        let provider = browser.core.state.appPreferences.searchProvider
+        guard !text.isEmpty, let url = URL(string: provider.search(text)), ExternalWebLink.accepts(url) else {
+            return nil
+        }
+        return BrowserSelectionSearchDestination(url: url, engineTitle: provider.title, source: source)
     }
 
     @discardableResult

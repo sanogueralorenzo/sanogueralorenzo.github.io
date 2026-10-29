@@ -15,9 +15,7 @@ enum BrowserWebAddress {
         return withoutWww(host) + port + path + (parts.percentEncodedQuery.map { "?" + $0 } ?? "")
     }
     static func normalized(_ spelling: String?) -> String? {
-        guard let spelling, let scheme = URL(string: spelling)?.scheme?.lowercased(),
-            scheme == "http" || scheme == "https"
-        else { return nil }
+        guard let spelling, BrowserAddress.webURL(BrowserAddress.trimmed(spelling)) != nil else { return nil }
         return String(spelling.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)[0])
     }
     static func withoutWww(_ host: String) -> String { host.hasPrefix("www.") ? String(host.dropFirst(4)) : host }

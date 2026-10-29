@@ -15,10 +15,7 @@ enum PageAddress {
         Data(key(first).utf8) == Data(key(second).utf8)
     }
     private static func key(_ spelling: String) -> String {
-        guard let url = URL(string: spelling.trimmingCharacters(in: .whitespacesAndNewlines)),
-            ["http", "https"].contains(url.scheme?.lowercased()), url.host?.isEmpty == false,
-            url.port.map({ (0...65535).contains($0) }) ?? true
-        else { return spelling }
+        guard BrowserAddress.webURL(BrowserAddress.trimmed(spelling)) != nil else { return spelling }
         return String(spelling.prefix { $0 != "#" })
     }
 }

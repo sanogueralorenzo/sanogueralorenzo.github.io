@@ -7,6 +7,7 @@ extension WorkspaceOpened {
             state.favicons.place(session.spaces.flatMap(CoreState.tabIDs), in: workspaceID)
             workspace.apply(self)
         } else {
+            state.workspaceOrder.append(workspaceID)
             state.favicons.place(session.spaces.flatMap(CoreState.tabIDs), in: workspaceID)
             state.publish(WorkspaceModel(self), forKey: workspaceID, into: \.workspacesStorage, as: \.workspaces)
         }

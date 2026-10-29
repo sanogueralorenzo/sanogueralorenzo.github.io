@@ -281,15 +281,14 @@ final class NativePages {
         let page = try known(id)
         guard page.phase.holdsEnginePage else { throw Failure.notLoadable(id) }
         _ = try hosting(page.workspaceID, page.spaceID)
-        let value = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = BrowserAddress.trimmed(input)
         let url: String
-        if value == "about:blank" || value.hasPrefix("about:blank#") {
-            url = value
-        } else if held, let address = PageAddress.held(value) {
+        if held, let address = PageAddress.held(value) {
             url = address
         } else {
-            let resolution = try core.query(ResolveAddress(workspaceID: page.workspaceID, spaceID: nil, input: input))
-            guard let address = resolution.url else { throw Failure.unsupportedAddress(input) }
+            guard let address = BrowserAddress.loading(input, provider: core.state.appPreferences.searchProvider) else {
+                throw Failure.unsupportedAddress(input)
+            }
             url = address
         }
         update(page, into: &changes) { page.load(url) }

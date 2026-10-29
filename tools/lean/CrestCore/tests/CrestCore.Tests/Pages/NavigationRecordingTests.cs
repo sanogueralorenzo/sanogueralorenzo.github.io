@@ -62,8 +62,8 @@ public sealed partial class BrowserContractsTests {
         var endless = new string('a', 4097);
         Assert.Equal(new UnsupportedAddress(endless), Refusal(app, new NavigateTab(workspace, fixture.Space, fixture.Tab, endless)));
 
-        // A host the person typed becomes its address.
-        Assert.IsType<TabsChanged>(Assert.Single(app.Send(new NavigateTab(workspace, fixture.Space, fixture.Tab, " example.org "))));
+        // A resolved address gives the native tab a page.
+        Assert.IsType<TabsChanged>(Assert.Single(app.Send(new NavigateTab(workspace, fixture.Space, fixture.Tab, "https://example.org"))));
         Assert.Null(FirstTab(authority).NativeContent);
         Assert.Equal(("https://example.org", "example.org"), (FirstTab(authority).Url, FirstTab(authority).Title));
 

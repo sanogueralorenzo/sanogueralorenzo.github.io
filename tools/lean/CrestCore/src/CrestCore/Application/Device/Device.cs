@@ -54,7 +54,6 @@ internal sealed partial class Device {
     internal HashSet<DeviceAdoption> Adopted => adopted;
     private Guid? persistentWorkspace;
     internal Guid? PersistentWorkspace => persistentWorkspace;
-    internal SearchProvider SearchProvider => Persistent()?.Authority.Current.AppPreferences?.SearchProvider ?? AppPreferences.Default.SearchProvider;
     private long lastUse;
     internal long LastUse { get => lastUse; set => lastUse = value; }
 

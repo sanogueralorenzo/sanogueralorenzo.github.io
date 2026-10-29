@@ -2,10 +2,14 @@
 
 The C# `CrestCore` currently owns browser session state and the rules that edit
 it: Spaces, tabs, folders, splits and window selection,
-import readers and atomic session imports, address resolution,
+import readers and atomic session imports,
 persistence and sync records. `CoreState`
 is the observable Swift read model. Views do not independently persist or
 mutate copies of the session.
+
+Typed addresses, local-document paths, search URL encoding, selected-text
+searches and page-address comparisons run in Swift. The session edit receives
+an already resolved URL when a native tab becomes a page.
 
 Native WebKit objects own renderer state and platform services. `NativePages`
 owns logical page lifecycle, document identity, crash recovery, residency,

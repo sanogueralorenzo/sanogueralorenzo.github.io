@@ -20,6 +20,14 @@ final class CoreState {
     /// changes only when a workspace joins or leaves.
     var workspaces: [UUID: WorkspaceModel] { observed(\.workspacesStorage, as: \.workspaces) }
     @ObservationIgnored var workspacesStorage: [UUID: WorkspaceModel] = [:]
+    @ObservationIgnored var workspaceOrder: [UUID] = []
+    /// The stored workspace, or the first in-memory owner of app preferences.
+    var persistentWorkspace: WorkspaceModel? {
+        let attached = workspaces
+        let ordered = workspaceOrder.compactMap { attached[$0] }
+        return ordered.first { $0.keepsFile } ?? ordered.first { $0.kind.keepsAppPreferences }
+    }
+    var appPreferences: AppPreferences { persistentWorkspace?.appPreferences ?? .default }
     /// The images tabs wear, which the platform keeps and the core never sees.
     let favicons = FaviconAssets()
     /// This run's download records, newest first.

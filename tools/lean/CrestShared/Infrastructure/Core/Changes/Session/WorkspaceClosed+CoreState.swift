@@ -3,6 +3,7 @@ import Foundation
 extension WorkspaceClosed {
     @MainActor func apply(to state: CoreState) {
         if let workspace = state.workspacesStorage[workspaceID] {
+            state.workspaceOrder.removeAll { $0 == workspaceID }
             state.favicons.detach(workspace.tabIDs)
             state.publish(nil, forKey: workspaceID, into: \.workspacesStorage, as: \.workspaces)
         }

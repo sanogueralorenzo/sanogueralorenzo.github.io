@@ -13,7 +13,7 @@ struct BrowserPageFaviconFetched: BrowserPageEngineEvent {
     func apply(to page: BrowserPage) {
         if let source {
             guard let url = page.pageEngine.currentURL,
-                SamePage.restoresArchivedState(archivedURL: source, tabURL: url)
+                PageAddress.restoresArchivedState(archivedURL: source, tabURL: url)
             else { return }
         }
         page.faviconData = data

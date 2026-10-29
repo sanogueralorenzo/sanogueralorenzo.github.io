@@ -62,6 +62,32 @@ final class NativePagesTests: XCTestCase {
             show(page, url: url, title: title)
         }
     }
+    func testTypedLoadsUseNativeResolutionWhileAcceptedAddressesKeepTheirScheme() throws {
+        let c = try Context()
+        defer { c.browser.family.close() }
+        let page = try c.open(c.tab())
+        var preferences = AppPreferences.default
+        preferences.searchProvider = .bing
+        try c.core.send(SetAppPreferences(workspaceID: c.browser.family.workspaceID, preferences: preferences))
+        for (input, expected) in [
+            ("localhost:3000", "http://localhost:3000"),
+            (" a & b ", "https://www.bing.com/search?q=a%20%26%20b"),
+            ("about:blank#one", "about:blank#one"),
+            ("\u{200b}about:blank", "https://www.bing.com/search?q=%E2%80%8Babout%3Ablank"),
+        ] {
+            c.commands.removeAll()
+            try c.core.send(Navigate(pageID: page.id, input: input))
+            guard case .loadPage(let load) = c.commands.last else { return XCTFail("Missing load for \(input)") }
+            XCTAssertEqual(load.url, expected)
+        }
+        let accepted = "data:text/html," + String(repeating: "a", count: 4097)
+        try c.core.send(LoadAddress(pageID: page.id, url: accepted))
+        guard case .loadPage(let load) = c.commands.last else { return XCTFail("Missing accepted address load") }
+        XCTAssertEqual(load.url, accepted)
+        c.commands.removeAll()
+        XCTAssertThrowsError(try c.core.send(Navigate(pageID: page.id, input: " ")))
+        XCTAssertTrue(c.commands.isEmpty)
+    }
     func testOpeningAndMovingRefuseStaleScopesProfilesAndDuplicateOwnership() throws {
         let c = try Context()
         let tab = try c.tab()

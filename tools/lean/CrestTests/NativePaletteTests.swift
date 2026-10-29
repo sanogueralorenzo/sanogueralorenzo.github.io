@@ -67,9 +67,7 @@ final class NativePaletteTests: XCTestCase {
                 XCTAssertEqual(row.provider, provider)
                 XCTAssertEqual(
                     row.address,
-                    try core.query(
-                        ResolveAddress(workspaceID: target.family.workspaceID, spaceID: nil, input: "crest & browser")
-                    ).url)
+                    BrowserAddress.resolve("crest & browser", provider: provider).url)
                 XCTAssertEqual(answer.suggestionAddress != nil, !target.isPrivateBrowsing)
                 XCTAssertEqual(answer.groups.contains { $0.section == .searchSuggestions }, !target.isPrivateBrowsing)
             }
@@ -149,7 +147,7 @@ final class NativePaletteTests: XCTestCase {
             space: makeSpace(), shownTabID: id(11), isPrivate: false,
             spaces: [PaletteSpaceChoice(id: id(3), name: "Side Projects")], now: now,
             provider: .google, suggests: true,
-            resolution: try? CrestCore.answer(ResolveAddress(workspaceID: nil, spaceID: nil, input: text)))
+            resolution: BrowserAddress.resolve(text))
     }
     private func makeSpace() -> PaletteSpaceSnapshot {
         func folder(_ value: Int, _ title: String, _ parent: Int? = nil) -> FolderState {

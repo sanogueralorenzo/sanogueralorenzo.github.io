@@ -7,7 +7,6 @@ final class NativeAgents {
     private let storage: AgentSQLite?
     private let now: () -> Date
     private var connections = AgentConnections()
-    private var workspaceOrder: [UUID] = []
     init(core: CrestCore, now: @escaping () -> Date = Date.init) throws {
         self.core = core
         self.now = now
@@ -80,17 +79,7 @@ final class NativeAgents {
         core.state.updateAgents(preferences: next, sessions: connections.all)
     }
     /// Session edits have already committed; pruning runs before UI observers.
-    func reconcile(_ changes: [any CoreChange] = []) {
-        for change in changes {
-            if let wire = change as? Change {
-                switch wire {
-                case .workspaceOpened(let opened):
-                    if !workspaceOrder.contains(opened.workspaceID) { workspaceOrder.append(opened.workspaceID) }
-                case .workspaceClosed(let closed): workspaceOrder.removeAll { $0 == closed.workspaceID }
-                default: break
-                }
-            }
-        }
+    func reconcile() {
         prune(using: core.state.agentPreferences)
         core.state.updateAgents(preferences: core.state.agentPreferences, sessions: connections.all)
     }
@@ -125,8 +114,7 @@ final class NativeAgents {
             })
     }
     private var persistent: WorkspaceModel? {
-        let ordered = workspaceOrder.compactMap { core.state.workspaces[$0] }
-        return ordered.first { $0.keepsFile } ?? ordered.first { $0.kind.keepsAppPreferences }
+        core.state.persistentWorkspace
     }
     private func isDeleting(_ space: UUID) -> Bool {
         persistent?.spaceDeletions.contains { $0.spaceID == space } == true

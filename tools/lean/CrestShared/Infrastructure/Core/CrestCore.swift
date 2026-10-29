@@ -283,9 +283,8 @@ final class CrestCore {
         }
     }
 
-    /// Answers, without a core, a query that reads no state: `SamePage`,
-    /// `LanguagesMatching`, `TranslationChoice`, or `ResolveAddress` without a
-    /// workspace. Any other query is a build bug, since only a core answers it.
+    /// Answers a query that reads no state, such as `LanguagesMatching`.
+    /// A query that requires a workspace is a build bug here.
     nonisolated static func answer<Question: Query>(_ query: Question) throws(Rejection) -> Question.Answer {
         var writer = WireWriter()
         query.encodeQuery(into: &writer)
@@ -339,7 +338,7 @@ final class CrestCore {
         pages.flushCommands()
         var batch = CoreChangeBatch()
         for change in applied { change.apply(to: self, in: &batch) }
-        agents?.reconcile(applied)
+        agents?.reconcile()
         pages.reconcile(in: &batch)
         pages.flushCommands()
         state.finishBatch()
