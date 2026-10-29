@@ -4,7 +4,6 @@ import SwiftUI
 struct BrowserWindowControlsPresentation: @MainActor AnimatableModifier {
     let showsSidebar: Bool
     private var sidebarReveal: CGFloat
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(showsSidebar: Bool) {
         self.showsSidebar = showsSidebar
@@ -17,20 +16,24 @@ struct BrowserWindowControlsPresentation: @MainActor AnimatableModifier {
     }
 
     func body(content: Content) -> some View {
-        content.background(BrowserNativeWindowControlsBridge(
-            isVisible: showsSidebar && sidebarReveal >= 1,
-            animatesReveal: !reduceMotion))
+        content.background(BrowserNativeWindowControlsBridge(opacity: controlsOpacity))
+    }
+
+    private var controlsOpacity: CGFloat {
+        guard showsSidebar else { return 0 }
+        // Finish the fade with the visible slide, before the spring's settling tail.
+        let fadeStart: CGFloat = 0.90
+        let fadeEnd: CGFloat = 0.98
+        return min(1, max(0, (sidebarReveal - fadeStart) / (fadeEnd - fadeStart)))
     }
 }
 
 struct BrowserNativeWindowControlsBridge: NSViewRepresentable {
-    let isVisible: Bool
-    let animatesReveal: Bool
+    let opacity: CGFloat
 
     func makeNSView(context: Context) -> BrowserNativeWindowControlsHostView {
         let view = BrowserNativeWindowControlsHostView()
-        view.animatesReveal = animatesReveal
-        view.isVisible = isVisible
+        view.controlsOpacity = opacity
         return view
     }
 
@@ -38,8 +41,7 @@ struct BrowserNativeWindowControlsBridge: NSViewRepresentable {
         _ nsView: BrowserNativeWindowControlsHostView,
         context: Context
     ) {
-        nsView.animatesReveal = animatesReveal
-        nsView.isVisible = isVisible
+        nsView.controlsOpacity = opacity
         nsView.applyBrowserChrome()
     }
 

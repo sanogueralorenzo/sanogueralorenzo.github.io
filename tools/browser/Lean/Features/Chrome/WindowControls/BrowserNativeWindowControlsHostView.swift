@@ -42,8 +42,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
     private var controlLayout: BrowserWindowControlLayout?
     private var enteringFullScreen = false
     private var windowObservers: [NSObjectProtocol] = []
-    var isVisible = true
-    var animatesReveal = true
+    var controlsOpacity: CGFloat = 1
     /// Whether the window shows the system's standard title bar: while it is
     /// fullscreen and its title bar is revealed, and not once it starts to
     /// leave.
@@ -93,19 +92,15 @@ final class BrowserNativeWindowControlsHostView: NSView {
             controlLayout = BrowserWindowControlLayout(window: window)
         }
         let shouldShowWindowControls = window.styleMask.showsWindowControls(
-            sidebarPresentationShowsControls: isVisible)
+            sidebarPresentationShowsControls: controlsOpacity > 0)
+        let opacity = window.styleMask.contains(.fullScreen) ? 1 : controlsOpacity
         for type in Self.buttonTypes {
             guard let button = window.standardWindowButton(type) else { continue }
-            let shouldHide = !shouldShowWindowControls
-            guard button.isHidden != shouldHide else { continue }
-            let fadesIn = !shouldHide && animatesReveal && !window.styleMask.contains(.fullScreen)
-            button.alphaValue = fadesIn ? 0 : 1
-            button.isHidden = shouldHide
-            if fadesIn {
-                NSAnimationContext.runAnimationGroup { context in
-                    context.duration = 0.08
-                    button.animator().alphaValue = 1
-                }
+            if button.alphaValue != opacity {
+                button.alphaValue = opacity
+            }
+            if button.isHidden == shouldShowWindowControls {
+                button.isHidden = !shouldShowWindowControls
             }
         }
     }
