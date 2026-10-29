@@ -7,11 +7,11 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0x91, 0x0f, 0xce, 0xb3, 0x3c, 0xf9, 0x34, 0xd0, 0x64, 0xdb, 0x2d, 0x9a, 0x94, 0x9f, 0xf4, 0xb6, 0xc2, 0x03, 0x25, 0x77, 0x48, 0xf7, 0xce, 0xdd, 0xfb, 0x3d, 0x68, 0xf5, 0x49, 0x70, 0xd9, 0x94
+        0xda, 0xa2, 0x15, 0x84, 0xa4, 0xdc, 0x06, 0x33, 0xc8, 0xd6, 0x0a, 0x43, 0xb2, 0xf9, 0xe3, 0x93, 0x37, 0xb0, 0xa4, 0x8a, 0x7d, 0x81, 0x8e, 0xc4, 0xc9, 0xd7, 0xc0, 0x69, 0x6b, 0x9d, 0x88, 0x3e
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
-        0x2d, 0x0d, 0x0f, 0xb8, 0x88, 0xa6, 0x2b, 0xb2, 0x77, 0x38, 0xaf, 0xf5, 0x26, 0xdf, 0xd6, 0x5e, 0xc9, 0xd2, 0xc2, 0x54, 0x6c, 0x5a, 0xf2, 0xf3, 0x91, 0xa7, 0x20, 0x9b, 0xcf, 0xc9, 0x1f, 0xc8
+        0xa0, 0xef, 0xe5, 0x1b, 0x00, 0x6a, 0xa0, 0xf6, 0xaa, 0x54, 0x45, 0xa4, 0xca, 0xc3, 0xbb, 0x74, 0x95, 0x16, 0x4e, 0x64, 0x8f, 0x41, 0x54, 0x4c, 0xdf, 0x1d, 0x42, 0x9c, 0x08, 0x4e, 0x05, 0xda
     ]
 
     static func decodeIntent(from reader: inout WireReader) throws(WireError) -> any Intent {
@@ -24,153 +24,149 @@ enum CoreCodec {
         case 4: return try AdoptWindowRecords(from: &reader)
         case 5: return try AllowAgentSpace(from: &reader)
         case 6: return try AllowAgentWindows(from: &reader)
-        case 7: return try AnswerAuthentication(from: &reader)
-        case 8: return try AnswerExtensionInstall(from: &reader)
-        case 9: return try AnswerPermission(from: &reader)
-        case 10: return try AnswerQuitWithDownloads(from: &reader)
-        case 11: return try AnswerScriptDialog(from: &reader)
-        case 12: return try ApproveAgent(from: &reader)
-        case 13: return try BeginAgentSession(from: &reader)
-        case 14: return try BeginCloudMerge(from: &reader)
-        case 15: return try BeginDeletingSpace(from: &reader)
-        case 16: return try BorrowSpace(from: &reader)
-        case 17: return try ChooseCloudCopy(from: &reader)
-        case 18: return try ClaimAgentTab(from: &reader)
-        case 19: return try ClearCurrentTabs(from: &reader)
-        case 20: return try ClearHistory(from: &reader)
-        case 21: return try CloseTab(from: &reader)
-        case 22: return try CloseTabs(from: &reader)
-        case 23: return try CloseWindow(from: &reader)
-        case 24: return try CloseWorkspace(from: &reader)
-        case 25: return try CloudAccountChecked(from: &reader)
-        case 26: return try CloudContentCompared(from: &reader)
-        case 27: return try CloudContentTaken(from: &reader)
-        case 28: return try CloudCopyApplied(from: &reader)
-        case 29: return try CloudEntitlementChecked(from: &reader)
-        case 30: return try CloudSeedReplaced(from: &reader)
-        case 31: return try CloudStepFailed(from: &reader)
-        case 32: return try CloudTransportPulled(from: &reader)
-        case 33: return try CloudTransportReported(from: &reader)
-        case 34: return try CloudTransportStarted(from: &reader)
-        case 35: return try CloudTransportSynced(from: &reader)
-        case 36: return try CollapseFolder(from: &reader)
-        case 37: return try ConfigureCloudSync(from: &reader)
-        case 38: return try CreateFolder(from: &reader)
-        case 39: return try CreateSpace(from: &reader)
-        case 40: return try DecideSitePermission(from: &reader)
-        case 41: return try DeleteBrowsingData(from: &reader)
-        case 42: return try DeleteFolder(from: &reader)
-        case 43: return try DeleteProfileData(from: &reader)
-        case 44: return try DeleteSiteData(from: &reader)
-        case 45: return try DeleteTab(from: &reader)
-        case 46: return try DeleteTabs(from: &reader)
-        case 47: return try DiscardStagedLink(from: &reader)
-        case 48: return try DismissShownTab(from: &reader)
-        case 49: return try DissolveSplit(from: &reader)
-        case 50: return try DropAroundTab(from: &reader)
-        case 51: return try DropIntoList(from: &reader)
-        case 52: return try DropIntoSplit(from: &reader)
-        case 53: return try DropOnSpace(from: &reader)
-        case 54: return try DuplicateTab(from: &reader)
-        case 55: return try DuplicateTabs(from: &reader)
-        case 56: return try EnableGitHubLiveFolder(from: &reader)
-        case 57: return try EndAgentSession(from: &reader)
-        case 58: return try FileTabs(from: &reader)
-        case 59: return try FinishCloudMerge(from: &reader)
-        case 60: return try FinishDeletingSpace(from: &reader)
-        case 61: return try FolderTabs(from: &reader)
-        case 62: return try FolderTabsAround(from: &reader)
-        case 63: return try ForgetAgent(from: &reader)
-        case 64: return try ForgetCloudZone(from: &reader)
-        case 65: return try IdentifyAgent(from: &reader)
-        case 66: return try ImportReviewedSpaces(from: &reader)
-        case 67: return try ImportSpaces(from: &reader)
-        case 68: return try JoinSplit(from: &reader)
-        case 69: return try LeavePageFailure(from: &reader)
-        case 70: return try LeaveSplit(from: &reader)
-        case 71: return try LoadAddress(from: &reader)
-        case 72: return try MergeCloudSnapshot(from: &reader)
-        case 73: return try MergeSyncRecords(from: &reader)
-        case 74: return try MoveFolder(from: &reader)
-        case 75: return try MovePage(from: &reader)
-        case 76: return try MoveSplitMember(from: &reader)
-        case 77: return try MoveTab(from: &reader)
-        case 78: return try MoveTabToSpace(from: &reader)
-        case 79: return try MoveTabToWindow(from: &reader)
-        case 80: return try MoveTabsToSpace(from: &reader)
-        case 81: return try Navigate(from: &reader)
-        case 82: return try NavigateTab(from: &reader)
-        case 83: return try NoteAgentActivity(from: &reader)
-        case 84: return try NotifyCloudLocalChanges(from: &reader)
-        case 85: return try ObserveCloudAccountAvailability(from: &reader)
-        case 86: return try ObserveCloudAccountChange(from: &reader)
-        case 87: return try OpenAddress(from: &reader)
-        case 88: return try OpenCloudTransport(from: &reader)
-        case 89: return try OpenLinkInSplit(from: &reader)
-        case 90: return try OpenPage(from: &reader)
-        case 91: return try OpenTab(from: &reader)
-        case 92: return try OpenWindow(from: &reader)
-        case 93: return try OpenWorkspace(from: &reader)
-        case 94: return try OverwriteCloud(from: &reader)
-        case 95: return try PrepareToClosePages(from: &reader)
-        case 96: return try PrepareToCloseWindows(from: &reader)
-        case 97: return try PrepareToQuit(from: &reader)
-        case 98: return try ReadWebsiteData(from: &reader)
-        case 99: return try RecordCloudFields(from: &reader)
-        case 100: return try RefreshLiveFolder(from: &reader)
-        case 101: return try ReleasePage(from: &reader)
-        case 102: return try RememberWindowsForLaunch(from: &reader)
-        case 103: return try RemoveHistoryAddress(from: &reader)
-        case 104: return try RenameFolder(from: &reader)
-        case 105: return try RenameTab(from: &reader)
-        case 106: return try ReopenClosedTab(from: &reader)
-        case 107: return try ReorderSpaces(from: &reader)
-        case 108: return try ReplaceSeedWithCloudRecords(from: &reader)
-        case 109: return try ReplaceWithCloudRecords(from: &reader)
-        case 110: return try ReportMemoryPressure(from: &reader)
-        case 111: return try RequestCloudPull(from: &reader)
-        case 112: return try RequestCloudSync(from: &reader)
-        case 113: return try ResetCloudTransport(from: &reader)
-        case 114: return try ResetPrivateBrowsing(from: &reader)
-        case 115: return try ResetSitePermission(from: &reader)
-        case 116: return try ResetSpacePermissions(from: &reader)
-        case 117: return try ResizeSplitColumns(from: &reader)
-        case 118: return try RestartCloudSyncAfterAccountChange(from: &reader)
-        case 119: return try RestoreArchivedTab(from: &reader)
-        case 120: return try RestoreTabHistory(from: &reader)
-        case 121: return try RetryCloudSync(from: &reader)
-        case 122: return try ReturnToSavedAddress(from: &reader)
-        case 123: return try SaveCloudEngineState(from: &reader)
-        case 124: return try SeparateSplits(from: &reader)
-        case 125: return try SetAgentScripts(from: &reader)
-        case 126: return try SetAgents(from: &reader)
-        case 127: return try SetAppPreferences(from: &reader)
-        case 128: return try SetBrowsingPreferences(from: &reader)
-        case 129: return try SetCloudSyncEnabled(from: &reader)
-        case 130: return try SetDownloadActivity(from: &reader)
-        case 131: return try SetFolderColor(from: &reader)
-        case 132: return try SetGitHubLiveFolderOptions(from: &reader)
-        case 133: return try SetSpaceColor(from: &reader)
-        case 134: return try SetSpaceIdentity(from: &reader)
-        case 135: return try SettleCloudOverwrite(from: &reader)
-        case 136: return try ShowAdjacentSpace(from: &reader)
-        case 137: return try ShowAdjacentTab(from: &reader)
-        case 138: return try ShowHistoryEntry(from: &reader)
-        case 139: return try ShowLeastRecentTab(from: &reader)
-        case 140: return try ShowMostRecentTab(from: &reader)
-        case 141: return try ShowSpace(from: &reader)
-        case 142: return try ShowStartPage(from: &reader)
-        case 143: return try ShowTab(from: &reader)
-        case 144: return try SplitTabs(from: &reader)
-        case 145: return try StageLink(from: &reader)
-        case 146: return try StartCloudSync(from: &reader)
-        case 147: return try StepHistory(from: &reader)
-        case 148: return try StepSplitMember(from: &reader)
-        case 149: return try StopAgentTab(from: &reader)
-        case 150: return try StopAllAgents(from: &reader)
-        case 151: return try SweepExpiredRecords(from: &reader)
-        case 152: return try TogglePin(from: &reader)
-        case 153: return try UnloadIdlePage(from: &reader)
+        case 7: return try AnswerQuitWithDownloads(from: &reader)
+        case 8: return try ApproveAgent(from: &reader)
+        case 9: return try BeginAgentSession(from: &reader)
+        case 10: return try BeginCloudMerge(from: &reader)
+        case 11: return try BeginDeletingSpace(from: &reader)
+        case 12: return try BorrowSpace(from: &reader)
+        case 13: return try ChooseCloudCopy(from: &reader)
+        case 14: return try ClaimAgentTab(from: &reader)
+        case 15: return try ClearCurrentTabs(from: &reader)
+        case 16: return try ClearHistory(from: &reader)
+        case 17: return try CloseTab(from: &reader)
+        case 18: return try CloseTabs(from: &reader)
+        case 19: return try CloseWindow(from: &reader)
+        case 20: return try CloseWorkspace(from: &reader)
+        case 21: return try CloudAccountChecked(from: &reader)
+        case 22: return try CloudContentCompared(from: &reader)
+        case 23: return try CloudContentTaken(from: &reader)
+        case 24: return try CloudCopyApplied(from: &reader)
+        case 25: return try CloudEntitlementChecked(from: &reader)
+        case 26: return try CloudSeedReplaced(from: &reader)
+        case 27: return try CloudStepFailed(from: &reader)
+        case 28: return try CloudTransportPulled(from: &reader)
+        case 29: return try CloudTransportReported(from: &reader)
+        case 30: return try CloudTransportStarted(from: &reader)
+        case 31: return try CloudTransportSynced(from: &reader)
+        case 32: return try CollapseFolder(from: &reader)
+        case 33: return try ConfigureCloudSync(from: &reader)
+        case 34: return try CreateFolder(from: &reader)
+        case 35: return try CreateSpace(from: &reader)
+        case 36: return try DecideSitePermission(from: &reader)
+        case 37: return try DeleteBrowsingData(from: &reader)
+        case 38: return try DeleteFolder(from: &reader)
+        case 39: return try DeleteProfileData(from: &reader)
+        case 40: return try DeleteSiteData(from: &reader)
+        case 41: return try DeleteTab(from: &reader)
+        case 42: return try DeleteTabs(from: &reader)
+        case 43: return try DiscardStagedLink(from: &reader)
+        case 44: return try DismissShownTab(from: &reader)
+        case 45: return try DissolveSplit(from: &reader)
+        case 46: return try DropAroundTab(from: &reader)
+        case 47: return try DropIntoList(from: &reader)
+        case 48: return try DropIntoSplit(from: &reader)
+        case 49: return try DropOnSpace(from: &reader)
+        case 50: return try DuplicateTab(from: &reader)
+        case 51: return try DuplicateTabs(from: &reader)
+        case 52: return try EnableGitHubLiveFolder(from: &reader)
+        case 53: return try EndAgentSession(from: &reader)
+        case 54: return try FileTabs(from: &reader)
+        case 55: return try FinishCloudMerge(from: &reader)
+        case 56: return try FinishDeletingSpace(from: &reader)
+        case 57: return try FolderTabs(from: &reader)
+        case 58: return try FolderTabsAround(from: &reader)
+        case 59: return try ForgetAgent(from: &reader)
+        case 60: return try ForgetCloudZone(from: &reader)
+        case 61: return try IdentifyAgent(from: &reader)
+        case 62: return try ImportReviewedSpaces(from: &reader)
+        case 63: return try ImportSpaces(from: &reader)
+        case 64: return try JoinSplit(from: &reader)
+        case 65: return try LeavePageFailure(from: &reader)
+        case 66: return try LeaveSplit(from: &reader)
+        case 67: return try LoadAddress(from: &reader)
+        case 68: return try MergeCloudSnapshot(from: &reader)
+        case 69: return try MergeSyncRecords(from: &reader)
+        case 70: return try MoveFolder(from: &reader)
+        case 71: return try MovePage(from: &reader)
+        case 72: return try MoveSplitMember(from: &reader)
+        case 73: return try MoveTab(from: &reader)
+        case 74: return try MoveTabToSpace(from: &reader)
+        case 75: return try MoveTabToWindow(from: &reader)
+        case 76: return try MoveTabsToSpace(from: &reader)
+        case 77: return try Navigate(from: &reader)
+        case 78: return try NavigateTab(from: &reader)
+        case 79: return try NoteAgentActivity(from: &reader)
+        case 80: return try NotifyCloudLocalChanges(from: &reader)
+        case 81: return try ObserveCloudAccountAvailability(from: &reader)
+        case 82: return try ObserveCloudAccountChange(from: &reader)
+        case 83: return try OpenAddress(from: &reader)
+        case 84: return try OpenCloudTransport(from: &reader)
+        case 85: return try OpenLinkInSplit(from: &reader)
+        case 86: return try OpenPage(from: &reader)
+        case 87: return try OpenTab(from: &reader)
+        case 88: return try OpenWindow(from: &reader)
+        case 89: return try OpenWorkspace(from: &reader)
+        case 90: return try OverwriteCloud(from: &reader)
+        case 91: return try PrepareToClosePages(from: &reader)
+        case 92: return try PrepareToCloseWindows(from: &reader)
+        case 93: return try PrepareToQuit(from: &reader)
+        case 94: return try ReadWebsiteData(from: &reader)
+        case 95: return try RecordCloudFields(from: &reader)
+        case 96: return try RefreshLiveFolder(from: &reader)
+        case 97: return try ReleasePage(from: &reader)
+        case 98: return try RememberWindowsForLaunch(from: &reader)
+        case 99: return try RemoveHistoryAddress(from: &reader)
+        case 100: return try RenameFolder(from: &reader)
+        case 101: return try RenameTab(from: &reader)
+        case 102: return try ReopenClosedTab(from: &reader)
+        case 103: return try ReorderSpaces(from: &reader)
+        case 104: return try ReplaceSeedWithCloudRecords(from: &reader)
+        case 105: return try ReplaceWithCloudRecords(from: &reader)
+        case 106: return try ReportMemoryPressure(from: &reader)
+        case 107: return try RequestCloudPull(from: &reader)
+        case 108: return try RequestCloudSync(from: &reader)
+        case 109: return try ResetCloudTransport(from: &reader)
+        case 110: return try ResetPrivateBrowsing(from: &reader)
+        case 111: return try ResetSitePermission(from: &reader)
+        case 112: return try ResetSpacePermissions(from: &reader)
+        case 113: return try ResizeSplitColumns(from: &reader)
+        case 114: return try RestartCloudSyncAfterAccountChange(from: &reader)
+        case 115: return try RestoreArchivedTab(from: &reader)
+        case 116: return try RestoreTabHistory(from: &reader)
+        case 117: return try RetryCloudSync(from: &reader)
+        case 118: return try ReturnToSavedAddress(from: &reader)
+        case 119: return try SaveCloudEngineState(from: &reader)
+        case 120: return try SeparateSplits(from: &reader)
+        case 121: return try SetAgentScripts(from: &reader)
+        case 122: return try SetAgents(from: &reader)
+        case 123: return try SetAppPreferences(from: &reader)
+        case 124: return try SetBrowsingPreferences(from: &reader)
+        case 125: return try SetCloudSyncEnabled(from: &reader)
+        case 126: return try SetDownloadActivity(from: &reader)
+        case 127: return try SetFolderColor(from: &reader)
+        case 128: return try SetGitHubLiveFolderOptions(from: &reader)
+        case 129: return try SetSpaceColor(from: &reader)
+        case 130: return try SetSpaceIdentity(from: &reader)
+        case 131: return try SettleCloudOverwrite(from: &reader)
+        case 132: return try ShowAdjacentSpace(from: &reader)
+        case 133: return try ShowAdjacentTab(from: &reader)
+        case 134: return try ShowHistoryEntry(from: &reader)
+        case 135: return try ShowLeastRecentTab(from: &reader)
+        case 136: return try ShowMostRecentTab(from: &reader)
+        case 137: return try ShowSpace(from: &reader)
+        case 138: return try ShowStartPage(from: &reader)
+        case 139: return try ShowTab(from: &reader)
+        case 140: return try SplitTabs(from: &reader)
+        case 141: return try StageLink(from: &reader)
+        case 142: return try StartCloudSync(from: &reader)
+        case 143: return try StepHistory(from: &reader)
+        case 144: return try StepSplitMember(from: &reader)
+        case 145: return try StopAgentTab(from: &reader)
+        case 146: return try StopAllAgents(from: &reader)
+        case 147: return try SweepExpiredRecords(from: &reader)
+        case 148: return try TogglePin(from: &reader)
+        case 149: return try UnloadIdlePage(from: &reader)
         default: throw WireError.malformed("Unknown Intent tag \(tag)")
         }
     }
@@ -240,30 +236,25 @@ enum CoreCodec {
     static func decodeEngineEvent(from reader: inout WireReader) throws(WireError) -> any EngineEvent {
         let tag = try reader.readTag()
         switch tag {
-        case 0: return try AuthenticationChallenged(from: &reader)
-        case 1: return try BeforeUnloadAnswered(from: &reader)
-        case 2: return try DataErased(from: &reader)
-        case 3: return try ExtensionInstallRequested(from: &reader)
-        case 4: return try NavigationCommitted(from: &reader)
-        case 5: return try NavigationFailed(from: &reader)
-        case 6: return try NavigationFinished(from: &reader)
-        case 7: return try NavigationStarted(from: &reader)
-        case 8: return try PageCloseRequested(from: &reader)
-        case 9: return try PageClosed(from: &reader)
-        case 10: return try PageCrashed(from: &reader)
-        case 11: return try PageCreated(from: &reader)
-        case 12: return try PageCreationFailed(from: &reader)
-        case 13: return try PageGroupChanged(from: &reader)
-        case 14: return try PageHistoryReported(from: &reader)
-        case 15: return try PageIconChanged(from: &reader)
-        case 16: return try PageOffered(from: &reader)
-        case 17: return try PageStateChanged(from: &reader)
-        case 18: return try PermissionRequested(from: &reader)
-        case 19: return try PictureInPictureReturned(from: &reader)
-        case 20: return try PromptWithdrawn(from: &reader)
-        case 21: return try ScriptDialogOpened(from: &reader)
-        case 22: return try SiteDataRead(from: &reader)
-        case 23: return try StagedLinkUnavailable(from: &reader)
+        case 0: return try BeforeUnloadAnswered(from: &reader)
+        case 1: return try DataErased(from: &reader)
+        case 2: return try NavigationCommitted(from: &reader)
+        case 3: return try NavigationFailed(from: &reader)
+        case 4: return try NavigationFinished(from: &reader)
+        case 5: return try NavigationStarted(from: &reader)
+        case 6: return try PageCloseRequested(from: &reader)
+        case 7: return try PageClosed(from: &reader)
+        case 8: return try PageCrashed(from: &reader)
+        case 9: return try PageCreated(from: &reader)
+        case 10: return try PageCreationFailed(from: &reader)
+        case 11: return try PageGroupChanged(from: &reader)
+        case 12: return try PageHistoryReported(from: &reader)
+        case 13: return try PageIconChanged(from: &reader)
+        case 14: return try PageOffered(from: &reader)
+        case 15: return try PageStateChanged(from: &reader)
+        case 16: return try PictureInPictureReturned(from: &reader)
+        case 17: return try SiteDataRead(from: &reader)
+        case 18: return try StagedLinkUnavailable(from: &reader)
         default: throw WireError.malformed("Unknown EngineEvent tag \(tag)")
         }
     }
@@ -279,8 +270,8 @@ enum CoreCodec {
     static func decodeImportWorkspace(from reader: inout WireReader) throws(WireError) -> any ImportWorkspace {
         let tag = try reader.readTag()
         switch tag {
-        case 66: return try ImportReviewedSpaces(from: &reader)
-        case 67: return try ImportSpaces(from: &reader)
+        case 62: return try ImportReviewedSpaces(from: &reader)
+        case 63: return try ImportSpaces(from: &reader)
         default: throw WireError.malformed("Intent tag \(tag) is not a ImportWorkspace")
         }
     }
@@ -294,50 +285,46 @@ extension Change {
         case 1: self = .agentSessionsChanged(try AgentSessionsChanged(from: &reader))
         case 2: self = .appPreferencesChanged(try AppPreferencesChanged(from: &reader))
         case 3: self = .archiveChanged(try ArchiveChanged(from: &reader))
-        case 4: self = .authenticationAsked(try AuthenticationAsked(from: &reader))
-        case 5: self = .closeReady(try CloseReady(from: &reader))
-        case 6: self = .cloudMergeBegan(try CloudMergeBegan(from: &reader))
-        case 7: self = .cloudSyncAdvanced(try CloudSyncAdvanced(from: &reader))
-        case 8: self = .cloudTransportChanged(try CloudTransportChanged(from: &reader))
-        case 9: self = .dataDeleted(try DataDeleted(from: &reader))
-        case 10: self = .enginesChanged(try EnginesChanged(from: &reader))
-        case 11: self = .extensionInstallAsked(try ExtensionInstallAsked(from: &reader))
-        case 12: self = .foldersChanged(try FoldersChanged(from: &reader))
-        case 13: self = .historyChanged(try HistoryChanged(from: &reader))
-        case 14: self = .navigationRecorded(try NavigationRecorded(from: &reader))
-        case 15: self = .offeredPageAdopted(try OfferedPageAdopted(from: &reader))
-        case 16: self = .pageChanged(try PageChanged(from: &reader))
-        case 17: self = .pageOpened(try PageOpened(from: &reader))
-        case 18: self = .pageRemoved(try PageRemoved(from: &reader))
-        case 19: self = .pageUnloaded(try PageUnloaded(from: &reader))
-        case 20: self = .permissionAsked(try PermissionAsked(from: &reader))
-        case 21: self = .promptSettled(try PromptSettled(from: &reader))
-        case 22: self = .quitWithDownloadsAsked(try QuitWithDownloadsAsked(from: &reader))
-        case 23: self = .saved(try Saved(from: &reader))
-        case 24: self = .scriptDialogAsked(try ScriptDialogAsked(from: &reader))
-        case 25: self = .sessionAdopted(try SessionAdopted(from: &reader))
-        case 26: self = .sidebarChanged(try SidebarChanged(from: &reader))
-        case 27: self = .sitePermissionsChanged(try SitePermissionsChanged(from: &reader))
-        case 28: self = .spaceSettingsChanged(try SpaceSettingsChanged(from: &reader))
-        case 29: self = .spacesChanged(try SpacesChanged(from: &reader))
-        case 30: self = .storageFailed(try StorageFailed(from: &reader))
-        case 31: self = .syncJournalChanged(try SyncJournalChanged(from: &reader))
-        case 32: self = .syncRecordsSkipped(try SyncRecordsSkipped(from: &reader))
-        case 33: self = .syncStagingFailed(try SyncStagingFailed(from: &reader))
-        case 34: self = .tabCopied(try TabCopied(from: &reader))
-        case 35: self = .tabFaviconAssigned(try TabFaviconAssigned(from: &reader))
-        case 36: self = .tabPagePutAway(try TabPagePutAway(from: &reader))
-        case 37: self = .tabsChanged(try TabsChanged(from: &reader))
-        case 38: self = .tabsImported(try TabsImported(from: &reader))
-        case 39: self = .transientPageClosed(try TransientPageClosed(from: &reader))
-        case 40: self = .websiteDataRead(try WebsiteDataRead(from: &reader))
-        case 41: self = .windowBroughtForward(try WindowBroughtForward(from: &reader))
-        case 42: self = .windowChanged(try WindowChanged(from: &reader))
-        case 43: self = .windowClosed(try WindowClosed(from: &reader))
-        case 44: self = .windowRecordsAdopted(try WindowRecordsAdopted(from: &reader))
-        case 45: self = .workspaceChanged(try WorkspaceChanged(from: &reader))
-        case 46: self = .workspaceClosed(try WorkspaceClosed(from: &reader))
-        case 47: self = .workspaceOpened(try WorkspaceOpened(from: &reader))
+        case 4: self = .closeReady(try CloseReady(from: &reader))
+        case 5: self = .cloudMergeBegan(try CloudMergeBegan(from: &reader))
+        case 6: self = .cloudSyncAdvanced(try CloudSyncAdvanced(from: &reader))
+        case 7: self = .cloudTransportChanged(try CloudTransportChanged(from: &reader))
+        case 8: self = .dataDeleted(try DataDeleted(from: &reader))
+        case 9: self = .enginesChanged(try EnginesChanged(from: &reader))
+        case 10: self = .foldersChanged(try FoldersChanged(from: &reader))
+        case 11: self = .historyChanged(try HistoryChanged(from: &reader))
+        case 12: self = .navigationRecorded(try NavigationRecorded(from: &reader))
+        case 13: self = .offeredPageAdopted(try OfferedPageAdopted(from: &reader))
+        case 14: self = .pageChanged(try PageChanged(from: &reader))
+        case 15: self = .pageOpened(try PageOpened(from: &reader))
+        case 16: self = .pageRemoved(try PageRemoved(from: &reader))
+        case 17: self = .pageUnloaded(try PageUnloaded(from: &reader))
+        case 18: self = .promptSettled(try PromptSettled(from: &reader))
+        case 19: self = .quitWithDownloadsAsked(try QuitWithDownloadsAsked(from: &reader))
+        case 20: self = .saved(try Saved(from: &reader))
+        case 21: self = .sessionAdopted(try SessionAdopted(from: &reader))
+        case 22: self = .sidebarChanged(try SidebarChanged(from: &reader))
+        case 23: self = .sitePermissionsChanged(try SitePermissionsChanged(from: &reader))
+        case 24: self = .spaceSettingsChanged(try SpaceSettingsChanged(from: &reader))
+        case 25: self = .spacesChanged(try SpacesChanged(from: &reader))
+        case 26: self = .storageFailed(try StorageFailed(from: &reader))
+        case 27: self = .syncJournalChanged(try SyncJournalChanged(from: &reader))
+        case 28: self = .syncRecordsSkipped(try SyncRecordsSkipped(from: &reader))
+        case 29: self = .syncStagingFailed(try SyncStagingFailed(from: &reader))
+        case 30: self = .tabCopied(try TabCopied(from: &reader))
+        case 31: self = .tabFaviconAssigned(try TabFaviconAssigned(from: &reader))
+        case 32: self = .tabPagePutAway(try TabPagePutAway(from: &reader))
+        case 33: self = .tabsChanged(try TabsChanged(from: &reader))
+        case 34: self = .tabsImported(try TabsImported(from: &reader))
+        case 35: self = .transientPageClosed(try TransientPageClosed(from: &reader))
+        case 36: self = .websiteDataRead(try WebsiteDataRead(from: &reader))
+        case 37: self = .windowBroughtForward(try WindowBroughtForward(from: &reader))
+        case 38: self = .windowChanged(try WindowChanged(from: &reader))
+        case 39: self = .windowClosed(try WindowClosed(from: &reader))
+        case 40: self = .windowRecordsAdopted(try WindowRecordsAdopted(from: &reader))
+        case 41: self = .workspaceChanged(try WorkspaceChanged(from: &reader))
+        case 42: self = .workspaceClosed(try WorkspaceClosed(from: &reader))
+        case 43: self = .workspaceOpened(try WorkspaceOpened(from: &reader))
         default: throw WireError.malformed("Unknown Change tag \(tag)")
         }
     }
@@ -356,137 +343,125 @@ extension Change {
         case .archiveChanged(let value):
             writer.writeTag(3)
             value.encode(into: &writer)
-        case .authenticationAsked(let value):
+        case .closeReady(let value):
             writer.writeTag(4)
             value.encode(into: &writer)
-        case .closeReady(let value):
+        case .cloudMergeBegan(let value):
             writer.writeTag(5)
             value.encode(into: &writer)
-        case .cloudMergeBegan(let value):
+        case .cloudSyncAdvanced(let value):
             writer.writeTag(6)
             value.encode(into: &writer)
-        case .cloudSyncAdvanced(let value):
+        case .cloudTransportChanged(let value):
             writer.writeTag(7)
             value.encode(into: &writer)
-        case .cloudTransportChanged(let value):
+        case .dataDeleted(let value):
             writer.writeTag(8)
             value.encode(into: &writer)
-        case .dataDeleted(let value):
+        case .enginesChanged(let value):
             writer.writeTag(9)
             value.encode(into: &writer)
-        case .enginesChanged(let value):
+        case .foldersChanged(let value):
             writer.writeTag(10)
             value.encode(into: &writer)
-        case .extensionInstallAsked(let value):
+        case .historyChanged(let value):
             writer.writeTag(11)
             value.encode(into: &writer)
-        case .foldersChanged(let value):
+        case .navigationRecorded(let value):
             writer.writeTag(12)
             value.encode(into: &writer)
-        case .historyChanged(let value):
+        case .offeredPageAdopted(let value):
             writer.writeTag(13)
             value.encode(into: &writer)
-        case .navigationRecorded(let value):
+        case .pageChanged(let value):
             writer.writeTag(14)
             value.encode(into: &writer)
-        case .offeredPageAdopted(let value):
+        case .pageOpened(let value):
             writer.writeTag(15)
             value.encode(into: &writer)
-        case .pageChanged(let value):
+        case .pageRemoved(let value):
             writer.writeTag(16)
             value.encode(into: &writer)
-        case .pageOpened(let value):
+        case .pageUnloaded(let value):
             writer.writeTag(17)
             value.encode(into: &writer)
-        case .pageRemoved(let value):
+        case .promptSettled(let value):
             writer.writeTag(18)
             value.encode(into: &writer)
-        case .pageUnloaded(let value):
+        case .quitWithDownloadsAsked(let value):
             writer.writeTag(19)
             value.encode(into: &writer)
-        case .permissionAsked(let value):
+        case .saved(let value):
             writer.writeTag(20)
             value.encode(into: &writer)
-        case .promptSettled(let value):
+        case .sessionAdopted(let value):
             writer.writeTag(21)
             value.encode(into: &writer)
-        case .quitWithDownloadsAsked(let value):
+        case .sidebarChanged(let value):
             writer.writeTag(22)
             value.encode(into: &writer)
-        case .saved(let value):
+        case .sitePermissionsChanged(let value):
             writer.writeTag(23)
             value.encode(into: &writer)
-        case .scriptDialogAsked(let value):
+        case .spaceSettingsChanged(let value):
             writer.writeTag(24)
             value.encode(into: &writer)
-        case .sessionAdopted(let value):
+        case .spacesChanged(let value):
             writer.writeTag(25)
             value.encode(into: &writer)
-        case .sidebarChanged(let value):
+        case .storageFailed(let value):
             writer.writeTag(26)
             value.encode(into: &writer)
-        case .sitePermissionsChanged(let value):
+        case .syncJournalChanged(let value):
             writer.writeTag(27)
             value.encode(into: &writer)
-        case .spaceSettingsChanged(let value):
+        case .syncRecordsSkipped(let value):
             writer.writeTag(28)
             value.encode(into: &writer)
-        case .spacesChanged(let value):
+        case .syncStagingFailed(let value):
             writer.writeTag(29)
             value.encode(into: &writer)
-        case .storageFailed(let value):
+        case .tabCopied(let value):
             writer.writeTag(30)
             value.encode(into: &writer)
-        case .syncJournalChanged(let value):
+        case .tabFaviconAssigned(let value):
             writer.writeTag(31)
             value.encode(into: &writer)
-        case .syncRecordsSkipped(let value):
+        case .tabPagePutAway(let value):
             writer.writeTag(32)
             value.encode(into: &writer)
-        case .syncStagingFailed(let value):
+        case .tabsChanged(let value):
             writer.writeTag(33)
             value.encode(into: &writer)
-        case .tabCopied(let value):
+        case .tabsImported(let value):
             writer.writeTag(34)
             value.encode(into: &writer)
-        case .tabFaviconAssigned(let value):
+        case .transientPageClosed(let value):
             writer.writeTag(35)
             value.encode(into: &writer)
-        case .tabPagePutAway(let value):
+        case .websiteDataRead(let value):
             writer.writeTag(36)
             value.encode(into: &writer)
-        case .tabsChanged(let value):
+        case .windowBroughtForward(let value):
             writer.writeTag(37)
             value.encode(into: &writer)
-        case .tabsImported(let value):
+        case .windowChanged(let value):
             writer.writeTag(38)
             value.encode(into: &writer)
-        case .transientPageClosed(let value):
+        case .windowClosed(let value):
             writer.writeTag(39)
             value.encode(into: &writer)
-        case .websiteDataRead(let value):
+        case .windowRecordsAdopted(let value):
             writer.writeTag(40)
             value.encode(into: &writer)
-        case .windowBroughtForward(let value):
+        case .workspaceChanged(let value):
             writer.writeTag(41)
             value.encode(into: &writer)
-        case .windowChanged(let value):
+        case .workspaceClosed(let value):
             writer.writeTag(42)
             value.encode(into: &writer)
-        case .windowClosed(let value):
-            writer.writeTag(43)
-            value.encode(into: &writer)
-        case .windowRecordsAdopted(let value):
-            writer.writeTag(44)
-            value.encode(into: &writer)
-        case .workspaceChanged(let value):
-            writer.writeTag(45)
-            value.encode(into: &writer)
-        case .workspaceClosed(let value):
-            writer.writeTag(46)
-            value.encode(into: &writer)
         case .workspaceOpened(let value):
-            writer.writeTag(47)
+            writer.writeTag(43)
             value.encode(into: &writer)
         }
     }
@@ -564,54 +539,53 @@ extension Rejection {
         case 65: self = .pinsOneTabAtATime(try PinsOneTabAtATime(from: &reader))
         case 66: self = .privateWorkspaceBoundary(try PrivateWorkspaceBoundary(from: &reader))
         case 67: self = .profileInUse(try ProfileInUse(from: &reader))
-        case 68: self = .promptAnswerMismatch(try PromptAnswerMismatch(from: &reader))
-        case 69: self = .recoveryCheckpointUnusable(try RecoveryCheckpointUnusable(from: &reader))
-        case 70: self = .saveFailed(try SaveFailed(from: &reader))
-        case 71: self = .selectionChanged(try SelectionChanged(from: &reader))
-        case 72: self = .selectionHoldsFolders(try SelectionHoldsFolders(from: &reader))
-        case 73: self = .sessionEncrypted(try SessionEncrypted(from: &reader))
-        case 74: self = .sessionHasNoTabs(try SessionHasNoTabs(from: &reader))
-        case 75: self = .sessionOverLimits(try SessionOverLimits(from: &reader))
-        case 76: self = .sessionTooLarge(try SessionTooLarge(from: &reader))
-        case 77: self = .sessionUnrecognized(try SessionUnrecognized(from: &reader))
-        case 78: self = .sitePermissionLimitReached(try SitePermissionLimitReached(from: &reader))
-        case 79: self = .spaceAlreadyExists(try SpaceAlreadyExists(from: &reader))
-        case 80: self = .spaceBeingDeleted(try SpaceBeingDeleted(from: &reader))
-        case 81: self = .spaceDataNotErased(try SpaceDataNotErased(from: &reader))
-        case 82: self = .spaceDeletionUnderway(try SpaceDeletionUnderway(from: &reader))
-        case 83: self = .spaceLimitReached(try SpaceLimitReached(from: &reader))
-        case 84: self = .spaceProfileChanged(try SpaceProfileChanged(from: &reader))
-        case 85: self = .splitBoundary(try SplitBoundary(from: &reader))
-        case 86: self = .splitLimitReached(try SplitLimitReached(from: &reader))
-        case 87: self = .splitNeedsTwoTabs(try SplitNeedsTwoTabs(from: &reader))
-        case 88: self = .stagedLinkElsewhere(try StagedLinkElsewhere(from: &reader))
-        case 89: self = .startPageNotCopied(try StartPageNotCopied(from: &reader))
-        case 90: self = .storageFromNewerApp(try StorageFromNewerApp(from: &reader))
-        case 91: self = .storageRestoreInterrupted(try StorageRestoreInterrupted(from: &reader))
-        case 92: self = .storageUnreadable(try StorageUnreadable(from: &reader))
-        case 93: self = .storedSessionClosed(try StoredSessionClosed(from: &reader))
-        case 94: self = .syncStagingRefused(try SyncStagingRefused(from: &reader))
-        case 95: self = .tabAlreadyExists(try TabAlreadyExists(from: &reader))
-        case 96: self = .tabAlreadyHasPage(try TabAlreadyHasPage(from: &reader))
-        case 97: self = .tabLimitReached(try TabLimitReached(from: &reader))
-        case 98: self = .unknownAgentSession(try UnknownAgentSession(from: &reader))
-        case 99: self = .unknownArchivedTab(try UnknownArchivedTab(from: &reader))
-        case 100: self = .unknownCloudMerge(try UnknownCloudMerge(from: &reader))
-        case 101: self = .unknownFolder(try UnknownFolder(from: &reader))
-        case 102: self = .unknownPage(try UnknownPage(from: &reader))
-        case 103: self = .unknownPrompt(try UnknownPrompt(from: &reader))
-        case 104: self = .unknownSpace(try UnknownSpace(from: &reader))
-        case 105: self = .unknownSplitGroup(try UnknownSplitGroup(from: &reader))
-        case 106: self = .unknownTab(try UnknownTab(from: &reader))
-        case 107: self = .unknownWorkspace(try UnknownWorkspace(from: &reader))
-        case 108: self = .unrelatedWorkspaces(try UnrelatedWorkspaces(from: &reader))
-        case 109: self = .unsavedWorkspace(try UnsavedWorkspace(from: &reader))
-        case 110: self = .unsupportedAddress(try UnsupportedAddress(from: &reader))
-        case 111: self = .unsupportedArchiveVersion(try UnsupportedArchiveVersion(from: &reader))
-        case 112: self = .webPagesOnly(try WebPagesOnly(from: &reader))
-        case 113: self = .windowNotOpen(try WindowNotOpen(from: &reader))
-        case 114: self = .workspaceBusy(try WorkspaceBusy(from: &reader))
-        case 115: self = .wrongDeletionOperation(try WrongDeletionOperation(from: &reader))
+        case 68: self = .recoveryCheckpointUnusable(try RecoveryCheckpointUnusable(from: &reader))
+        case 69: self = .saveFailed(try SaveFailed(from: &reader))
+        case 70: self = .selectionChanged(try SelectionChanged(from: &reader))
+        case 71: self = .selectionHoldsFolders(try SelectionHoldsFolders(from: &reader))
+        case 72: self = .sessionEncrypted(try SessionEncrypted(from: &reader))
+        case 73: self = .sessionHasNoTabs(try SessionHasNoTabs(from: &reader))
+        case 74: self = .sessionOverLimits(try SessionOverLimits(from: &reader))
+        case 75: self = .sessionTooLarge(try SessionTooLarge(from: &reader))
+        case 76: self = .sessionUnrecognized(try SessionUnrecognized(from: &reader))
+        case 77: self = .sitePermissionLimitReached(try SitePermissionLimitReached(from: &reader))
+        case 78: self = .spaceAlreadyExists(try SpaceAlreadyExists(from: &reader))
+        case 79: self = .spaceBeingDeleted(try SpaceBeingDeleted(from: &reader))
+        case 80: self = .spaceDataNotErased(try SpaceDataNotErased(from: &reader))
+        case 81: self = .spaceDeletionUnderway(try SpaceDeletionUnderway(from: &reader))
+        case 82: self = .spaceLimitReached(try SpaceLimitReached(from: &reader))
+        case 83: self = .spaceProfileChanged(try SpaceProfileChanged(from: &reader))
+        case 84: self = .splitBoundary(try SplitBoundary(from: &reader))
+        case 85: self = .splitLimitReached(try SplitLimitReached(from: &reader))
+        case 86: self = .splitNeedsTwoTabs(try SplitNeedsTwoTabs(from: &reader))
+        case 87: self = .stagedLinkElsewhere(try StagedLinkElsewhere(from: &reader))
+        case 88: self = .startPageNotCopied(try StartPageNotCopied(from: &reader))
+        case 89: self = .storageFromNewerApp(try StorageFromNewerApp(from: &reader))
+        case 90: self = .storageRestoreInterrupted(try StorageRestoreInterrupted(from: &reader))
+        case 91: self = .storageUnreadable(try StorageUnreadable(from: &reader))
+        case 92: self = .storedSessionClosed(try StoredSessionClosed(from: &reader))
+        case 93: self = .syncStagingRefused(try SyncStagingRefused(from: &reader))
+        case 94: self = .tabAlreadyExists(try TabAlreadyExists(from: &reader))
+        case 95: self = .tabAlreadyHasPage(try TabAlreadyHasPage(from: &reader))
+        case 96: self = .tabLimitReached(try TabLimitReached(from: &reader))
+        case 97: self = .unknownAgentSession(try UnknownAgentSession(from: &reader))
+        case 98: self = .unknownArchivedTab(try UnknownArchivedTab(from: &reader))
+        case 99: self = .unknownCloudMerge(try UnknownCloudMerge(from: &reader))
+        case 100: self = .unknownFolder(try UnknownFolder(from: &reader))
+        case 101: self = .unknownPage(try UnknownPage(from: &reader))
+        case 102: self = .unknownPrompt(try UnknownPrompt(from: &reader))
+        case 103: self = .unknownSpace(try UnknownSpace(from: &reader))
+        case 104: self = .unknownSplitGroup(try UnknownSplitGroup(from: &reader))
+        case 105: self = .unknownTab(try UnknownTab(from: &reader))
+        case 106: self = .unknownWorkspace(try UnknownWorkspace(from: &reader))
+        case 107: self = .unrelatedWorkspaces(try UnrelatedWorkspaces(from: &reader))
+        case 108: self = .unsavedWorkspace(try UnsavedWorkspace(from: &reader))
+        case 109: self = .unsupportedAddress(try UnsupportedAddress(from: &reader))
+        case 110: self = .unsupportedArchiveVersion(try UnsupportedArchiveVersion(from: &reader))
+        case 111: self = .webPagesOnly(try WebPagesOnly(from: &reader))
+        case 112: self = .windowNotOpen(try WindowNotOpen(from: &reader))
+        case 113: self = .workspaceBusy(try WorkspaceBusy(from: &reader))
+        case 114: self = .wrongDeletionOperation(try WrongDeletionOperation(from: &reader))
         default: throw WireError.malformed("Unknown Rejection tag \(tag)")
         }
     }
@@ -822,149 +796,146 @@ extension Rejection {
         case .profileInUse(let value):
             writer.writeTag(67)
             value.encode(into: &writer)
-        case .promptAnswerMismatch(let value):
+        case .recoveryCheckpointUnusable(let value):
             writer.writeTag(68)
             value.encode(into: &writer)
-        case .recoveryCheckpointUnusable(let value):
+        case .saveFailed(let value):
             writer.writeTag(69)
             value.encode(into: &writer)
-        case .saveFailed(let value):
+        case .selectionChanged(let value):
             writer.writeTag(70)
             value.encode(into: &writer)
-        case .selectionChanged(let value):
+        case .selectionHoldsFolders(let value):
             writer.writeTag(71)
             value.encode(into: &writer)
-        case .selectionHoldsFolders(let value):
+        case .sessionEncrypted(let value):
             writer.writeTag(72)
             value.encode(into: &writer)
-        case .sessionEncrypted(let value):
+        case .sessionHasNoTabs(let value):
             writer.writeTag(73)
             value.encode(into: &writer)
-        case .sessionHasNoTabs(let value):
+        case .sessionOverLimits(let value):
             writer.writeTag(74)
             value.encode(into: &writer)
-        case .sessionOverLimits(let value):
+        case .sessionTooLarge(let value):
             writer.writeTag(75)
             value.encode(into: &writer)
-        case .sessionTooLarge(let value):
+        case .sessionUnrecognized(let value):
             writer.writeTag(76)
             value.encode(into: &writer)
-        case .sessionUnrecognized(let value):
+        case .sitePermissionLimitReached(let value):
             writer.writeTag(77)
             value.encode(into: &writer)
-        case .sitePermissionLimitReached(let value):
+        case .spaceAlreadyExists(let value):
             writer.writeTag(78)
             value.encode(into: &writer)
-        case .spaceAlreadyExists(let value):
+        case .spaceBeingDeleted(let value):
             writer.writeTag(79)
             value.encode(into: &writer)
-        case .spaceBeingDeleted(let value):
+        case .spaceDataNotErased(let value):
             writer.writeTag(80)
             value.encode(into: &writer)
-        case .spaceDataNotErased(let value):
+        case .spaceDeletionUnderway(let value):
             writer.writeTag(81)
             value.encode(into: &writer)
-        case .spaceDeletionUnderway(let value):
+        case .spaceLimitReached(let value):
             writer.writeTag(82)
             value.encode(into: &writer)
-        case .spaceLimitReached(let value):
+        case .spaceProfileChanged(let value):
             writer.writeTag(83)
             value.encode(into: &writer)
-        case .spaceProfileChanged(let value):
+        case .splitBoundary(let value):
             writer.writeTag(84)
             value.encode(into: &writer)
-        case .splitBoundary(let value):
+        case .splitLimitReached(let value):
             writer.writeTag(85)
             value.encode(into: &writer)
-        case .splitLimitReached(let value):
+        case .splitNeedsTwoTabs(let value):
             writer.writeTag(86)
             value.encode(into: &writer)
-        case .splitNeedsTwoTabs(let value):
+        case .stagedLinkElsewhere(let value):
             writer.writeTag(87)
             value.encode(into: &writer)
-        case .stagedLinkElsewhere(let value):
+        case .startPageNotCopied(let value):
             writer.writeTag(88)
             value.encode(into: &writer)
-        case .startPageNotCopied(let value):
+        case .storageFromNewerApp(let value):
             writer.writeTag(89)
             value.encode(into: &writer)
-        case .storageFromNewerApp(let value):
+        case .storageRestoreInterrupted(let value):
             writer.writeTag(90)
             value.encode(into: &writer)
-        case .storageRestoreInterrupted(let value):
+        case .storageUnreadable(let value):
             writer.writeTag(91)
             value.encode(into: &writer)
-        case .storageUnreadable(let value):
+        case .storedSessionClosed(let value):
             writer.writeTag(92)
             value.encode(into: &writer)
-        case .storedSessionClosed(let value):
+        case .syncStagingRefused(let value):
             writer.writeTag(93)
             value.encode(into: &writer)
-        case .syncStagingRefused(let value):
+        case .tabAlreadyExists(let value):
             writer.writeTag(94)
             value.encode(into: &writer)
-        case .tabAlreadyExists(let value):
+        case .tabAlreadyHasPage(let value):
             writer.writeTag(95)
             value.encode(into: &writer)
-        case .tabAlreadyHasPage(let value):
+        case .tabLimitReached(let value):
             writer.writeTag(96)
             value.encode(into: &writer)
-        case .tabLimitReached(let value):
+        case .unknownAgentSession(let value):
             writer.writeTag(97)
             value.encode(into: &writer)
-        case .unknownAgentSession(let value):
+        case .unknownArchivedTab(let value):
             writer.writeTag(98)
             value.encode(into: &writer)
-        case .unknownArchivedTab(let value):
+        case .unknownCloudMerge(let value):
             writer.writeTag(99)
             value.encode(into: &writer)
-        case .unknownCloudMerge(let value):
+        case .unknownFolder(let value):
             writer.writeTag(100)
             value.encode(into: &writer)
-        case .unknownFolder(let value):
+        case .unknownPage(let value):
             writer.writeTag(101)
             value.encode(into: &writer)
-        case .unknownPage(let value):
+        case .unknownPrompt(let value):
             writer.writeTag(102)
             value.encode(into: &writer)
-        case .unknownPrompt(let value):
+        case .unknownSpace(let value):
             writer.writeTag(103)
             value.encode(into: &writer)
-        case .unknownSpace(let value):
+        case .unknownSplitGroup(let value):
             writer.writeTag(104)
             value.encode(into: &writer)
-        case .unknownSplitGroup(let value):
+        case .unknownTab(let value):
             writer.writeTag(105)
             value.encode(into: &writer)
-        case .unknownTab(let value):
+        case .unknownWorkspace(let value):
             writer.writeTag(106)
             value.encode(into: &writer)
-        case .unknownWorkspace(let value):
+        case .unrelatedWorkspaces(let value):
             writer.writeTag(107)
             value.encode(into: &writer)
-        case .unrelatedWorkspaces(let value):
+        case .unsavedWorkspace(let value):
             writer.writeTag(108)
             value.encode(into: &writer)
-        case .unsavedWorkspace(let value):
+        case .unsupportedAddress(let value):
             writer.writeTag(109)
             value.encode(into: &writer)
-        case .unsupportedAddress(let value):
+        case .unsupportedArchiveVersion(let value):
             writer.writeTag(110)
             value.encode(into: &writer)
-        case .unsupportedArchiveVersion(let value):
+        case .webPagesOnly(let value):
             writer.writeTag(111)
             value.encode(into: &writer)
-        case .webPagesOnly(let value):
+        case .windowNotOpen(let value):
             writer.writeTag(112)
             value.encode(into: &writer)
-        case .windowNotOpen(let value):
+        case .workspaceBusy(let value):
             writer.writeTag(113)
             value.encode(into: &writer)
-        case .workspaceBusy(let value):
-            writer.writeTag(114)
-            value.encode(into: &writer)
         case .wrongDeletionOperation(let value):
-            writer.writeTag(115)
+            writer.writeTag(114)
             value.encode(into: &writer)
         }
     }
@@ -989,11 +960,7 @@ extension EngineCommand {
         case 12: self = .readSiteData(try ReadSiteData(from: &reader))
         case 13: self = .recoverPage(try RecoverPage(from: &reader))
         case 14: self = .rejectOfferedPage(try RejectOfferedPage(from: &reader))
-        case 15: self = .settleAuthentication(try SettleAuthentication(from: &reader))
-        case 16: self = .settleExtensionInstall(try SettleExtensionInstall(from: &reader))
-        case 17: self = .settlePermission(try SettlePermission(from: &reader))
-        case 18: self = .settleScriptDialog(try SettleScriptDialog(from: &reader))
-        case 19: self = .stageNavigation(try StageNavigation(from: &reader))
+        case 15: self = .stageNavigation(try StageNavigation(from: &reader))
         default: throw WireError.malformed("Unknown EngineCommand tag \(tag)")
         }
     }
@@ -1045,20 +1012,8 @@ extension EngineCommand {
         case .rejectOfferedPage(let value):
             writer.writeTag(14)
             value.encode(into: &writer)
-        case .settleAuthentication(let value):
-            writer.writeTag(15)
-            value.encode(into: &writer)
-        case .settleExtensionInstall(let value):
-            writer.writeTag(16)
-            value.encode(into: &writer)
-        case .settlePermission(let value):
-            writer.writeTag(17)
-            value.encode(into: &writer)
-        case .settleScriptDialog(let value):
-            writer.writeTag(18)
-            value.encode(into: &writer)
         case .stageNavigation(let value):
-            writer.writeTag(19)
+            writer.writeTag(15)
             value.encode(into: &writer)
         }
     }
@@ -1656,75 +1611,6 @@ extension AlreadyInSplit {
     }
 }
 
-extension AnswerAuthentication {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        let credential: AuthenticationCredential?
-        if try reader.readPresence() {
-            let credentialValue = try AuthenticationCredential(from: &reader)
-            credential = credentialValue
-        } else {
-            credential = nil
-        }
-        self.init(promptID: promptID, credential: credential)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-        if let present0 = credential {
-            writer.writePresence(true)
-            present0.encode(into: &writer)
-        } else {
-            writer.writePresence(false)
-        }
-    }
-
-    func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(7)
-        encode(into: &writer)
-    }
-}
-
-extension AnswerExtensionInstall {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        let accepted = try reader.readBool()
-        let withholdsSiteAccess = try reader.readBool()
-        self.init(promptID: promptID, accepted: accepted, withholdsSiteAccess: withholdsSiteAccess)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-        writer.writeBool(accepted)
-        writer.writeBool(withholdsSiteAccess)
-    }
-
-    func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(8)
-        encode(into: &writer)
-    }
-}
-
-extension AnswerPermission {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        let grants = try reader.readBool()
-        let remembers = try reader.readBool()
-        self.init(promptID: promptID, grants: grants, remembers: remembers)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-        writer.writeBool(grants)
-        writer.writeBool(remembers)
-    }
-
-    func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(9)
-        encode(into: &writer)
-    }
-}
-
 extension AnswerQuitWithDownloads {
     init(from reader: inout WireReader) throws(WireError) {
         let promptID = try reader.readUUID()
@@ -1738,38 +1624,7 @@ extension AnswerQuitWithDownloads {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(10)
-        encode(into: &writer)
-    }
-}
-
-extension AnswerScriptDialog {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        let accepted = try reader.readBool()
-        let text: String?
-        if try reader.readPresence() {
-            let textValue = try reader.readString()
-            text = textValue
-        } else {
-            text = nil
-        }
-        self.init(promptID: promptID, accepted: accepted, text: text)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-        writer.writeBool(accepted)
-        if let present0 = text {
-            writer.writePresence(true)
-            writer.writeString(present0)
-        } else {
-            writer.writePresence(false)
-        }
-    }
-
-    func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(11)
+        writer.writeTag(7)
         encode(into: &writer)
     }
 }
@@ -1883,7 +1738,7 @@ extension ApproveAgent {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(12)
+        writer.writeTag(8)
         encode(into: &writer)
     }
 }
@@ -2027,88 +1882,6 @@ extension ArchivedTabState.Seed {
     }
 }
 
-extension AuthenticationAsked {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        let pageID = try reader.readUUID()
-        let question = try AuthenticationQuestion(from: &reader)
-        self.init(promptID: promptID, pageID: pageID, question: question)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-        writer.writeUUID(pageID)
-        question.encode(into: &writer)
-    }
-}
-
-extension AuthenticationChallenged {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        let pageID = try reader.readUUID()
-        let question = try AuthenticationQuestion(from: &reader)
-        self.init(promptID: promptID, pageID: pageID, question: question)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-        writer.writeUUID(pageID)
-        question.encode(into: &writer)
-    }
-
-    func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(0)
-        encode(into: &writer)
-    }
-}
-
-extension AuthenticationCredential {
-    init(from reader: inout WireReader) throws(WireError) {
-        let username = try reader.readString()
-        let password = try reader.readString()
-        self.init(username: username, password: password)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeString(username)
-        writer.writeString(password)
-    }
-}
-
-extension AuthenticationQuestion {
-    init(from reader: inout WireReader) throws(WireError) {
-        let url = try reader.readString()
-        let host = try reader.readString()
-        let port = try reader.readInt()
-        let realm: String?
-        if try reader.readPresence() {
-            let realmValue = try reader.readString()
-            realm = realmValue
-        } else {
-            realm = nil
-        }
-        let scheme = try AuthenticationScheme(from: &reader)
-        let isProxy = try reader.readBool()
-        let previousFailures = try reader.readInt()
-        self.init(url: url, host: host, port: port, realm: realm, scheme: scheme, isProxy: isProxy, previousFailures: previousFailures)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeString(url)
-        writer.writeString(host)
-        writer.writeInt(port)
-        if let present0 = realm {
-            writer.writePresence(true)
-            writer.writeString(present0)
-        } else {
-            writer.writePresence(false)
-        }
-        scheme.encode(into: &writer)
-        writer.writeBool(isProxy)
-        writer.writeInt(previousFailures)
-    }
-}
-
 extension AuthenticationSource {
     init(from reader: inout WireReader) throws(WireError) {
         let host = try reader.readString()
@@ -2180,7 +1953,7 @@ extension BeforeUnloadAnswered {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(1)
+        writer.writeTag(0)
         encode(into: &writer)
     }
 }
@@ -2200,7 +1973,7 @@ extension BeginAgentSession {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(13)
+        writer.writeTag(9)
         encode(into: &writer)
     }
 }
@@ -2214,7 +1987,7 @@ extension BeginCloudMerge {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(14)
+        writer.writeTag(10)
         encode(into: &writer)
     }
 }
@@ -2236,7 +2009,7 @@ extension BeginDeletingSpace {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(15)
+        writer.writeTag(11)
         encode(into: &writer)
     }
 }
@@ -2413,7 +2186,7 @@ extension BorrowSpace {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(16)
+        writer.writeTag(12)
         encode(into: &writer)
     }
 }
@@ -2704,7 +2477,7 @@ extension ChooseCloudCopy {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(17)
+        writer.writeTag(13)
         encode(into: &writer)
     }
 }
@@ -2722,7 +2495,7 @@ extension ClaimAgentTab {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(18)
+        writer.writeTag(14)
         encode(into: &writer)
     }
 }
@@ -2742,7 +2515,7 @@ extension ClearCurrentTabs {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(19)
+        writer.writeTag(15)
         encode(into: &writer)
     }
 }
@@ -2773,7 +2546,7 @@ extension ClearHistory {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(20)
+        writer.writeTag(16)
         encode(into: &writer)
     }
 }
@@ -2832,7 +2605,7 @@ extension CloseTab {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(21)
+        writer.writeTag(17)
         encode(into: &writer)
     }
 }
@@ -2854,7 +2627,7 @@ extension CloseTabs {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(22)
+        writer.writeTag(18)
         encode(into: &writer)
     }
 }
@@ -2870,7 +2643,7 @@ extension CloseWindow {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(23)
+        writer.writeTag(19)
         encode(into: &writer)
     }
 }
@@ -2886,7 +2659,7 @@ extension CloseWorkspace {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(24)
+        writer.writeTag(20)
         encode(into: &writer)
     }
 }
@@ -2904,7 +2677,7 @@ extension CloudAccountChecked {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(25)
+        writer.writeTag(21)
         encode(into: &writer)
     }
 }
@@ -2954,7 +2727,7 @@ extension CloudContentCompared {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(26)
+        writer.writeTag(22)
         encode(into: &writer)
     }
 }
@@ -2989,7 +2762,7 @@ extension CloudContentTaken {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(27)
+        writer.writeTag(23)
         encode(into: &writer)
     }
 }
@@ -3009,7 +2782,7 @@ extension CloudCopyApplied {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(28)
+        writer.writeTag(24)
         encode(into: &writer)
     }
 }
@@ -3027,7 +2800,7 @@ extension CloudEntitlementChecked {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(29)
+        writer.writeTag(25)
         encode(into: &writer)
     }
 }
@@ -3132,7 +2905,7 @@ extension CloudSeedReplaced {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(30)
+        writer.writeTag(26)
         encode(into: &writer)
     }
 }
@@ -3165,7 +2938,7 @@ extension CloudStepFailed {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(31)
+        writer.writeTag(27)
         encode(into: &writer)
     }
 }
@@ -3374,7 +3147,7 @@ extension CloudTransportPulled {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(32)
+        writer.writeTag(28)
         encode(into: &writer)
     }
 }
@@ -3409,7 +3182,7 @@ extension CloudTransportReported {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(33)
+        writer.writeTag(29)
         encode(into: &writer)
     }
 }
@@ -3425,7 +3198,7 @@ extension CloudTransportStarted {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(34)
+        writer.writeTag(30)
         encode(into: &writer)
     }
 }
@@ -3473,7 +3246,7 @@ extension CloudTransportSynced {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(35)
+        writer.writeTag(31)
         encode(into: &writer)
     }
 }
@@ -3495,7 +3268,7 @@ extension CollapseFolder {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(36)
+        writer.writeTag(32)
         encode(into: &writer)
     }
 }
@@ -3513,7 +3286,7 @@ extension ConfigureCloudSync {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(37)
+        writer.writeTag(33)
         encode(into: &writer)
     }
 }
@@ -3587,7 +3360,7 @@ extension CreateFolder {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(38)
+        writer.writeTag(34)
         encode(into: &writer)
     }
 }
@@ -3637,7 +3410,7 @@ extension CreateSpace {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(39)
+        writer.writeTag(35)
         encode(into: &writer)
     }
 }
@@ -3679,7 +3452,7 @@ extension DataErased {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(2)
+        writer.writeTag(1)
         encode(into: &writer)
     }
 }
@@ -3729,7 +3502,7 @@ extension DecideSitePermission {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(40)
+        writer.writeTag(36)
         encode(into: &writer)
     }
 }
@@ -3762,7 +3535,7 @@ extension DeleteBrowsingData {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(41)
+        writer.writeTag(37)
         encode(into: &writer)
     }
 }
@@ -3782,7 +3555,7 @@ extension DeleteFolder {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(42)
+        writer.writeTag(38)
         encode(into: &writer)
     }
 }
@@ -3802,7 +3575,7 @@ extension DeleteProfileData {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(43)
+        writer.writeTag(39)
         encode(into: &writer)
     }
 }
@@ -3844,7 +3617,7 @@ extension DeleteSiteData {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(44)
+        writer.writeTag(40)
         encode(into: &writer)
     }
 }
@@ -3866,7 +3639,7 @@ extension DeleteTab {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(45)
+        writer.writeTag(41)
         encode(into: &writer)
     }
 }
@@ -3888,7 +3661,7 @@ extension DeleteTabs {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(46)
+        writer.writeTag(42)
         encode(into: &writer)
     }
 }
@@ -3927,7 +3700,7 @@ extension DiscardStagedLink {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(47)
+        writer.writeTag(43)
         encode(into: &writer)
     }
 }
@@ -3947,7 +3720,7 @@ extension DismissShownTab {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(48)
+        writer.writeTag(44)
         encode(into: &writer)
     }
 }
@@ -3967,7 +3740,7 @@ extension DissolveSplit {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(49)
+        writer.writeTag(45)
         encode(into: &writer)
     }
 }
@@ -4097,7 +3870,7 @@ extension DropAroundTab {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(50)
+        writer.writeTag(46)
         encode(into: &writer)
     }
 }
@@ -4160,7 +3933,7 @@ extension DropIntoList {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(51)
+        writer.writeTag(47)
         encode(into: &writer)
     }
 }
@@ -4197,7 +3970,7 @@ extension DropIntoSplit {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(52)
+        writer.writeTag(48)
         encode(into: &writer)
     }
 }
@@ -4223,7 +3996,7 @@ extension DropOnSpace {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(53)
+        writer.writeTag(49)
         encode(into: &writer)
     }
 }
@@ -4377,7 +4150,7 @@ extension DuplicateTab {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(54)
+        writer.writeTag(50)
         encode(into: &writer)
     }
 }
@@ -4399,7 +4172,7 @@ extension DuplicateTabs {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(55)
+        writer.writeTag(51)
         encode(into: &writer)
     }
 }
@@ -4421,7 +4194,7 @@ extension EnableGitHubLiveFolder {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(56)
+        writer.writeTag(52)
         encode(into: &writer)
     }
 }
@@ -4437,7 +4210,7 @@ extension EndAgentSession {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(57)
+        writer.writeTag(53)
         encode(into: &writer)
     }
 }
@@ -4750,86 +4523,6 @@ extension ExportedDocument {
     }
 }
 
-extension ExtensionInstallAsked {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        let windowID = try reader.readUUID()
-        let question = try ExtensionInstallQuestion(from: &reader)
-        self.init(promptID: promptID, windowID: windowID, question: question)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-        writer.writeUUID(windowID)
-        question.encode(into: &writer)
-    }
-}
-
-extension ExtensionInstallQuestion {
-    init(from reader: inout WireReader) throws(WireError) {
-        let extensionID = try reader.readString()
-        let name = try reader.readString()
-        let version = try reader.readString()
-        let summary = try reader.readString()
-        let permissionsCount = try reader.readCount()
-        var permissions: [String] = []
-        permissions.reserveCapacity(permissionsCount)
-        for _ in 0..<permissionsCount {
-            let permissionsElement = try reader.readString()
-            permissions.append(permissionsElement)
-        }
-        let icon: Data?
-        if try reader.readPresence() {
-            let iconValue = try reader.readData()
-            icon = iconValue
-        } else {
-            icon = nil
-        }
-        let canWithholdSiteAccess = try reader.readBool()
-        let withholdsSiteAccess = try reader.readBool()
-        self.init(extensionID: extensionID, name: name, version: version, summary: summary, permissions: permissions, icon: icon, canWithholdSiteAccess: canWithholdSiteAccess, withholdsSiteAccess: withholdsSiteAccess)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeString(extensionID)
-        writer.writeString(name)
-        writer.writeString(version)
-        writer.writeString(summary)
-        writer.writeCount(permissions.count)
-        for element0 in permissions {
-            writer.writeString(element0)
-        }
-        if let present0 = icon {
-            writer.writePresence(true)
-            writer.writeData(present0)
-        } else {
-            writer.writePresence(false)
-        }
-        writer.writeBool(canWithholdSiteAccess)
-        writer.writeBool(withholdsSiteAccess)
-    }
-}
-
-extension ExtensionInstallRequested {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        let windowID = try reader.readUUID()
-        let question = try ExtensionInstallQuestion(from: &reader)
-        self.init(promptID: promptID, windowID: windowID, question: question)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-        writer.writeUUID(windowID)
-        question.encode(into: &writer)
-    }
-
-    func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(3)
-        encode(into: &writer)
-    }
-}
-
 extension ExternalAddressVerdict {
     init(from reader: inout WireReader) throws(WireError) {
         let accepted = try reader.readBool()
@@ -5041,7 +4734,7 @@ extension FileTabs {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(58)
+        writer.writeTag(54)
         encode(into: &writer)
     }
 }
@@ -5131,7 +4824,7 @@ extension FinishCloudMerge {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(59)
+        writer.writeTag(55)
         encode(into: &writer)
     }
 }
@@ -5153,7 +4846,7 @@ extension FinishDeletingSpace {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(60)
+        writer.writeTag(56)
         encode(into: &writer)
     }
 }
@@ -5447,7 +5140,7 @@ extension FolderTabs {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(61)
+        writer.writeTag(57)
         encode(into: &writer)
     }
 }
@@ -5484,7 +5177,7 @@ extension FolderTabsAround {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(62)
+        writer.writeTag(58)
         encode(into: &writer)
     }
 }
@@ -5557,7 +5250,7 @@ extension ForgetAgent {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(63)
+        writer.writeTag(59)
         encode(into: &writer)
     }
 }
@@ -5573,7 +5266,7 @@ extension ForgetCloudZone {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(64)
+        writer.writeTag(60)
         encode(into: &writer)
     }
 }
@@ -5844,7 +5537,7 @@ extension IdentifyAgent {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(65)
+        writer.writeTag(61)
         encode(into: &writer)
     }
 }
@@ -6089,7 +5782,7 @@ extension ImportReviewedSpaces {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(66)
+        writer.writeTag(62)
         encode(into: &writer)
     }
 }
@@ -6155,7 +5848,7 @@ extension ImportSpaces {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(67)
+        writer.writeTag(63)
         encode(into: &writer)
     }
 }
@@ -6461,7 +6154,7 @@ extension JoinSplit {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(68)
+        writer.writeTag(64)
         encode(into: &writer)
     }
 }
@@ -6581,7 +6274,7 @@ extension LeavePageFailure {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(69)
+        writer.writeTag(65)
         encode(into: &writer)
     }
 }
@@ -6601,7 +6294,7 @@ extension LeaveSplit {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(70)
+        writer.writeTag(66)
         encode(into: &writer)
     }
 }
@@ -6826,7 +6519,7 @@ extension LoadAddress {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(71)
+        writer.writeTag(67)
         encode(into: &writer)
     }
 }
@@ -6905,7 +6598,7 @@ extension MergeCloudSnapshot {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(72)
+        writer.writeTag(68)
         encode(into: &writer)
     }
 }
@@ -6930,7 +6623,7 @@ extension MergeSyncRecords {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(73)
+        writer.writeTag(69)
         encode(into: &writer)
     }
 }
@@ -7002,7 +6695,7 @@ extension MoveFolder {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(74)
+        writer.writeTag(70)
         encode(into: &writer)
     }
 }
@@ -7037,7 +6730,7 @@ extension MovePage {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(75)
+        writer.writeTag(71)
         encode(into: &writer)
     }
 }
@@ -7059,7 +6752,7 @@ extension MoveSplitMember {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(76)
+        writer.writeTag(72)
         encode(into: &writer)
     }
 }
@@ -7109,7 +6802,7 @@ extension MoveTab {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(77)
+        writer.writeTag(73)
         encode(into: &writer)
     }
 }
@@ -7174,7 +6867,7 @@ extension MoveTabToSpace {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(78)
+        writer.writeTag(74)
         encode(into: &writer)
     }
 }
@@ -7198,7 +6891,7 @@ extension MoveTabToWindow {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(79)
+        writer.writeTag(75)
         encode(into: &writer)
     }
 }
@@ -7224,7 +6917,7 @@ extension MoveTabsToSpace {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(80)
+        writer.writeTag(76)
         encode(into: &writer)
     }
 }
@@ -7266,7 +6959,7 @@ extension Navigate {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(81)
+        writer.writeTag(77)
         encode(into: &writer)
     }
 }
@@ -7288,7 +6981,7 @@ extension NavigateTab {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(82)
+        writer.writeTag(78)
         encode(into: &writer)
     }
 }
@@ -7308,7 +7001,7 @@ extension NavigationCommitted {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(4)
+        writer.writeTag(2)
         encode(into: &writer)
     }
 }
@@ -7326,7 +7019,7 @@ extension NavigationFailed {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(5)
+        writer.writeTag(3)
         encode(into: &writer)
     }
 }
@@ -7346,7 +7039,7 @@ extension NavigationFinished {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(6)
+        writer.writeTag(4)
         encode(into: &writer)
     }
 }
@@ -7396,7 +7089,7 @@ extension NavigationStarted {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(7)
+        writer.writeTag(5)
         encode(into: &writer)
     }
 }
@@ -7509,7 +7202,7 @@ extension NoteAgentActivity {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(83)
+        writer.writeTag(79)
         encode(into: &writer)
     }
 }
@@ -7591,7 +7284,7 @@ extension NotifyCloudLocalChanges {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(84)
+        writer.writeTag(80)
         encode(into: &writer)
     }
 }
@@ -7605,7 +7298,7 @@ extension ObserveCloudAccountAvailability {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(85)
+        writer.writeTag(81)
         encode(into: &writer)
     }
 }
@@ -7621,7 +7314,7 @@ extension ObserveCloudAccountChange {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(86)
+        writer.writeTag(82)
         encode(into: &writer)
     }
 }
@@ -7666,7 +7359,7 @@ extension OpenAddress {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(87)
+        writer.writeTag(83)
         encode(into: &writer)
     }
 }
@@ -7695,7 +7388,7 @@ extension OpenCloudTransport {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(88)
+        writer.writeTag(84)
         encode(into: &writer)
     }
 }
@@ -7723,7 +7416,7 @@ extension OpenLinkInSplit {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(89)
+        writer.writeTag(85)
         encode(into: &writer)
     }
 }
@@ -7784,7 +7477,7 @@ extension OpenPage {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(90)
+        writer.writeTag(86)
         encode(into: &writer)
     }
 }
@@ -7825,7 +7518,7 @@ extension OpenTab {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(91)
+        writer.writeTag(87)
         encode(into: &writer)
     }
 }
@@ -7884,7 +7577,7 @@ extension OpenWindow {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(92)
+        writer.writeTag(88)
         encode(into: &writer)
     }
 }
@@ -7913,7 +7606,7 @@ extension OpenWorkspace {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(93)
+        writer.writeTag(89)
         encode(into: &writer)
     }
 }
@@ -7970,7 +7663,7 @@ extension OverwriteCloud {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(94)
+        writer.writeTag(90)
         encode(into: &writer)
     }
 }
@@ -7997,7 +7690,7 @@ extension PageCloseRequested {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(8)
+        writer.writeTag(6)
         encode(into: &writer)
     }
 }
@@ -8026,7 +7719,7 @@ extension PageClosed {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(9)
+        writer.writeTag(7)
         encode(into: &writer)
     }
 }
@@ -8046,7 +7739,7 @@ extension PageCrashed {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(10)
+        writer.writeTag(8)
         encode(into: &writer)
     }
 }
@@ -8062,7 +7755,7 @@ extension PageCreated {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(11)
+        writer.writeTag(9)
         encode(into: &writer)
     }
 }
@@ -8078,7 +7771,7 @@ extension PageCreationFailed {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(12)
+        writer.writeTag(10)
         encode(into: &writer)
     }
 }
@@ -8143,7 +7836,7 @@ extension PageGroupChanged {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(13)
+        writer.writeTag(11)
         encode(into: &writer)
     }
 }
@@ -8261,7 +7954,7 @@ extension PageHistoryReported {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(14)
+        writer.writeTag(12)
         encode(into: &writer)
     }
 }
@@ -8292,7 +7985,7 @@ extension PageIconChanged {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(15)
+        writer.writeTag(13)
         encode(into: &writer)
     }
 }
@@ -8448,7 +8141,7 @@ extension PageOffered {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(16)
+        writer.writeTag(14)
         encode(into: &writer)
     }
 }
@@ -8600,7 +8293,7 @@ extension PageStateChanged {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(17)
+        writer.writeTag(15)
         encode(into: &writer)
     }
 }
@@ -8736,56 +8429,6 @@ extension PendingUploads {
     }
 }
 
-extension PermissionAsked {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        let pageID = try reader.readUUID()
-        let question = try PermissionQuestion(from: &reader)
-        self.init(promptID: promptID, pageID: pageID, question: question)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-        writer.writeUUID(pageID)
-        question.encode(into: &writer)
-    }
-}
-
-extension PermissionQuestion {
-    init(from reader: inout WireReader) throws(WireError) {
-        let permission = try SitePermission(from: &reader)
-        let origin = try SiteOrigin(from: &reader)
-        let topLevelOrigin = try SiteOrigin(from: &reader)
-        self.init(permission: permission, origin: origin, topLevelOrigin: topLevelOrigin)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        permission.encode(into: &writer)
-        origin.encode(into: &writer)
-        topLevelOrigin.encode(into: &writer)
-    }
-}
-
-extension PermissionRequested {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        let pageID = try reader.readUUID()
-        let question = try PermissionQuestion(from: &reader)
-        self.init(promptID: promptID, pageID: pageID, question: question)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-        writer.writeUUID(pageID)
-        question.encode(into: &writer)
-    }
-
-    func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(18)
-        encode(into: &writer)
-    }
-}
-
 extension PersistentWorkspaceRequired {
     init(from reader: inout WireReader) throws(WireError) {
         let workspaceID = try reader.readUUID()
@@ -8808,7 +8451,7 @@ extension PictureInPictureReturned {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(19)
+        writer.writeTag(16)
         encode(into: &writer)
     }
 }
@@ -8873,7 +8516,7 @@ extension PrepareToClosePages {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(95)
+        writer.writeTag(91)
         encode(into: &writer)
     }
 }
@@ -8900,7 +8543,7 @@ extension PrepareToCloseWindows {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(96)
+        writer.writeTag(92)
         encode(into: &writer)
     }
 }
@@ -8916,7 +8559,7 @@ extension PrepareToQuit {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(97)
+        writer.writeTag(93)
         encode(into: &writer)
     }
 }
@@ -9008,17 +8651,6 @@ extension ProfileNotificationDisplayCheck {
     }
 }
 
-extension PromptAnswerMismatch {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        self.init(promptID: promptID)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-    }
-}
-
 extension PromptSettled {
     init(from reader: inout WireReader) throws(WireError) {
         let promptID = try reader.readUUID()
@@ -9027,22 +8659,6 @@ extension PromptSettled {
 
     func encode(into writer: inout WireWriter) {
         writer.writeUUID(promptID)
-    }
-}
-
-extension PromptWithdrawn {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        self.init(promptID: promptID)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-    }
-
-    func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(20)
-        encode(into: &writer)
     }
 }
 
@@ -9157,7 +8773,7 @@ extension ReadWebsiteData {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(98)
+        writer.writeTag(94)
         encode(into: &writer)
     }
 }
@@ -9256,7 +8872,7 @@ extension RecordCloudFields {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(99)
+        writer.writeTag(95)
         encode(into: &writer)
     }
 }
@@ -9356,7 +8972,7 @@ extension RefreshLiveFolder {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(100)
+        writer.writeTag(96)
         encode(into: &writer)
     }
 }
@@ -9385,7 +9001,7 @@ extension ReleasePage {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(101)
+        writer.writeTag(97)
         encode(into: &writer)
     }
 }
@@ -9410,7 +9026,7 @@ extension RememberWindowsForLaunch {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(102)
+        writer.writeTag(98)
         encode(into: &writer)
     }
 }
@@ -9430,7 +9046,7 @@ extension RemoveHistoryAddress {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(103)
+        writer.writeTag(99)
         encode(into: &writer)
     }
 }
@@ -9452,7 +9068,7 @@ extension RenameFolder {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(104)
+        writer.writeTag(100)
         encode(into: &writer)
     }
 }
@@ -9485,7 +9101,7 @@ extension RenameTab {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(105)
+        writer.writeTag(101)
         encode(into: &writer)
     }
 }
@@ -9505,7 +9121,7 @@ extension ReopenClosedTab {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(106)
+        writer.writeTag(102)
         encode(into: &writer)
     }
 }
@@ -9545,7 +9161,7 @@ extension ReorderSpaces {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(107)
+        writer.writeTag(103)
         encode(into: &writer)
     }
 }
@@ -9570,7 +9186,7 @@ extension ReplaceSeedWithCloudRecords {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(108)
+        writer.writeTag(104)
         encode(into: &writer)
     }
 }
@@ -9595,7 +9211,7 @@ extension ReplaceWithCloudRecords {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(109)
+        writer.writeTag(105)
         encode(into: &writer)
     }
 }
@@ -9611,7 +9227,7 @@ extension ReportMemoryPressure {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(110)
+        writer.writeTag(106)
         encode(into: &writer)
     }
 }
@@ -9625,7 +9241,7 @@ extension RequestCloudPull {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(111)
+        writer.writeTag(107)
         encode(into: &writer)
     }
 }
@@ -9639,7 +9255,7 @@ extension RequestCloudSync {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(112)
+        writer.writeTag(108)
         encode(into: &writer)
     }
 }
@@ -9655,7 +9271,7 @@ extension ResetCloudTransport {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(113)
+        writer.writeTag(109)
         encode(into: &writer)
     }
 }
@@ -9673,7 +9289,7 @@ extension ResetPrivateBrowsing {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(114)
+        writer.writeTag(110)
         encode(into: &writer)
     }
 }
@@ -9689,7 +9305,7 @@ extension ResetSitePermission {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(115)
+        writer.writeTag(111)
         encode(into: &writer)
     }
 }
@@ -9705,7 +9321,7 @@ extension ResetSpacePermissions {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(116)
+        writer.writeTag(112)
         encode(into: &writer)
     }
 }
@@ -9734,7 +9350,7 @@ extension ResizeSplitColumns {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(117)
+        writer.writeTag(113)
         encode(into: &writer)
     }
 }
@@ -9830,7 +9446,7 @@ extension RestartCloudSyncAfterAccountChange {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(118)
+        writer.writeTag(114)
         encode(into: &writer)
     }
 }
@@ -9852,7 +9468,7 @@ extension RestoreArchivedTab {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(119)
+        writer.writeTag(115)
         encode(into: &writer)
     }
 }
@@ -9874,7 +9490,7 @@ extension RestoreTabHistory {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(120)
+        writer.writeTag(116)
         encode(into: &writer)
     }
 }
@@ -9888,7 +9504,7 @@ extension RetryCloudSync {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(121)
+        writer.writeTag(117)
         encode(into: &writer)
     }
 }
@@ -9908,7 +9524,7 @@ extension ReturnToSavedAddress {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(122)
+        writer.writeTag(118)
         encode(into: &writer)
     }
 }
@@ -10047,7 +9663,7 @@ extension SaveCloudEngineState {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(123)
+        writer.writeTag(119)
         encode(into: &writer)
     }
 }
@@ -10127,58 +9743,6 @@ extension SchemeHandling {
     static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> SchemeHandled {
         let answer = try SchemeHandled(from: &reader)
         return answer
-    }
-}
-
-extension ScriptDialogAsked {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        let pageID = try reader.readUUID()
-        let question = try ScriptDialogQuestion(from: &reader)
-        self.init(promptID: promptID, pageID: pageID, question: question)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-        writer.writeUUID(pageID)
-        question.encode(into: &writer)
-    }
-}
-
-extension ScriptDialogOpened {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        let pageID = try reader.readUUID()
-        let question = try ScriptDialogQuestion(from: &reader)
-        self.init(promptID: promptID, pageID: pageID, question: question)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-        writer.writeUUID(pageID)
-        question.encode(into: &writer)
-    }
-
-    func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(21)
-        encode(into: &writer)
-    }
-}
-
-extension ScriptDialogQuestion {
-    init(from reader: inout WireReader) throws(WireError) {
-        let kind = try JavaScriptDialogKind(from: &reader)
-        let message = try reader.readString()
-        let defaultText = try reader.readString()
-        let sourceURL = try reader.readString()
-        self.init(kind: kind, message: message, defaultText: defaultText, sourceURL: sourceURL)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        kind.encode(into: &writer)
-        writer.writeString(message)
-        writer.writeString(defaultText)
-        writer.writeString(sourceURL)
     }
 }
 
@@ -10461,7 +10025,7 @@ extension SeparateSplits {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(124)
+        writer.writeTag(120)
         encode(into: &writer)
     }
 }
@@ -10656,7 +10220,7 @@ extension SetAgentScripts {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(125)
+        writer.writeTag(121)
         encode(into: &writer)
     }
 }
@@ -10672,7 +10236,7 @@ extension SetAgents {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(126)
+        writer.writeTag(122)
         encode(into: &writer)
     }
 }
@@ -10690,7 +10254,7 @@ extension SetAppPreferences {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(127)
+        writer.writeTag(123)
         encode(into: &writer)
     }
 }
@@ -10712,7 +10276,7 @@ extension SetBrowsingPreferences {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(128)
+        writer.writeTag(124)
         encode(into: &writer)
     }
 }
@@ -10728,7 +10292,7 @@ extension SetCloudSyncEnabled {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(129)
+        writer.writeTag(125)
         encode(into: &writer)
     }
 }
@@ -10744,7 +10308,7 @@ extension SetDownloadActivity {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(130)
+        writer.writeTag(126)
         encode(into: &writer)
     }
 }
@@ -10766,7 +10330,7 @@ extension SetFolderColor {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(131)
+        writer.writeTag(127)
         encode(into: &writer)
     }
 }
@@ -10790,7 +10354,7 @@ extension SetGitHubLiveFolderOptions {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(132)
+        writer.writeTag(128)
         encode(into: &writer)
     }
 }
@@ -10810,7 +10374,7 @@ extension SetSpaceColor {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(133)
+        writer.writeTag(129)
         encode(into: &writer)
     }
 }
@@ -10830,32 +10394,8 @@ extension SetSpaceIdentity {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(134)
+        writer.writeTag(130)
         encode(into: &writer)
-    }
-}
-
-extension SettleAuthentication {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        let credential: AuthenticationCredential?
-        if try reader.readPresence() {
-            let credentialValue = try AuthenticationCredential(from: &reader)
-            credential = credentialValue
-        } else {
-            credential = nil
-        }
-        self.init(promptID: promptID, credential: credential)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-        if let present0 = credential {
-            writer.writePresence(true)
-            present0.encode(into: &writer)
-        } else {
-            writer.writePresence(false)
-        }
     }
 }
 
@@ -10868,64 +10408,8 @@ extension SettleCloudOverwrite {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(135)
+        writer.writeTag(131)
         encode(into: &writer)
-    }
-}
-
-extension SettleExtensionInstall {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        let accepted = try reader.readBool()
-        let withholdsSiteAccess = try reader.readBool()
-        self.init(promptID: promptID, accepted: accepted, withholdsSiteAccess: withholdsSiteAccess)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-        writer.writeBool(accepted)
-        writer.writeBool(withholdsSiteAccess)
-    }
-}
-
-extension SettlePermission {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        let grants = try reader.readBool()
-        let remembers = try reader.readBool()
-        self.init(promptID: promptID, grants: grants, remembers: remembers)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-        writer.writeBool(grants)
-        writer.writeBool(remembers)
-    }
-}
-
-extension SettleScriptDialog {
-    init(from reader: inout WireReader) throws(WireError) {
-        let promptID = try reader.readUUID()
-        let accepted = try reader.readBool()
-        let text: String?
-        if try reader.readPresence() {
-            let textValue = try reader.readString()
-            text = textValue
-        } else {
-            text = nil
-        }
-        self.init(promptID: promptID, accepted: accepted, text: text)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(promptID)
-        writer.writeBool(accepted)
-        if let present0 = text {
-            writer.writePresence(true)
-            writer.writeString(present0)
-        } else {
-            writer.writePresence(false)
-        }
     }
 }
 
@@ -10942,7 +10426,7 @@ extension ShowAdjacentSpace {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(136)
+        writer.writeTag(132)
         encode(into: &writer)
     }
 }
@@ -10960,7 +10444,7 @@ extension ShowAdjacentTab {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(137)
+        writer.writeTag(133)
         encode(into: &writer)
     }
 }
@@ -10978,7 +10462,7 @@ extension ShowHistoryEntry {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(138)
+        writer.writeTag(134)
         encode(into: &writer)
     }
 }
@@ -10994,7 +10478,7 @@ extension ShowLeastRecentTab {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(139)
+        writer.writeTag(135)
         encode(into: &writer)
     }
 }
@@ -11010,7 +10494,7 @@ extension ShowMostRecentTab {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(140)
+        writer.writeTag(136)
         encode(into: &writer)
     }
 }
@@ -11028,7 +10512,7 @@ extension ShowSpace {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(141)
+        writer.writeTag(137)
         encode(into: &writer)
     }
 }
@@ -11052,7 +10536,7 @@ extension ShowStartPage {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(142)
+        writer.writeTag(138)
         encode(into: &writer)
     }
 }
@@ -11083,7 +10567,7 @@ extension ShowTab {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(143)
+        writer.writeTag(139)
         encode(into: &writer)
     }
 }
@@ -11300,7 +10784,7 @@ extension SiteDataRead {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(22)
+        writer.writeTag(17)
         encode(into: &writer)
     }
 }
@@ -12009,7 +11493,7 @@ extension SplitTabs {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(144)
+        writer.writeTag(140)
         encode(into: &writer)
     }
 }
@@ -12031,7 +11515,7 @@ extension StageLink {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(145)
+        writer.writeTag(141)
         encode(into: &writer)
     }
 }
@@ -12075,7 +11559,7 @@ extension StagedLinkUnavailable {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(23)
+        writer.writeTag(18)
         encode(into: &writer)
     }
 }
@@ -12089,7 +11573,7 @@ extension StartCloudSync {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(146)
+        writer.writeTag(142)
         encode(into: &writer)
     }
 }
@@ -12118,7 +11602,7 @@ extension StepHistory {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(147)
+        writer.writeTag(143)
         encode(into: &writer)
     }
 }
@@ -12140,7 +11624,7 @@ extension StepSplitMember {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(148)
+        writer.writeTag(144)
         encode(into: &writer)
     }
 }
@@ -12156,7 +11640,7 @@ extension StopAgentTab {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(149)
+        writer.writeTag(145)
         encode(into: &writer)
     }
 }
@@ -12170,7 +11654,7 @@ extension StopAllAgents {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(150)
+        writer.writeTag(146)
         encode(into: &writer)
     }
 }
@@ -12257,7 +11741,7 @@ extension SweepExpiredRecords {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(151)
+        writer.writeTag(147)
         encode(into: &writer)
     }
 }
@@ -13112,7 +12596,7 @@ extension TogglePin {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(152)
+        writer.writeTag(148)
         encode(into: &writer)
     }
 }
@@ -13255,7 +12739,7 @@ extension UnloadIdlePage {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(153)
+        writer.writeTag(149)
         encode(into: &writer)
     }
 }
@@ -13648,20 +13132,6 @@ extension AuthenticationHandling {
     }
 }
 
-extension AuthenticationScheme {
-    init(from reader: inout WireReader) throws(WireError) {
-        let rawValue = try reader.readEnum()
-        guard let value = AuthenticationScheme(rawValue: rawValue) else {
-            throw WireError.malformed("Unknown AuthenticationScheme \(rawValue)")
-        }
-        self = value
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeEnum(rawValue)
-    }
-}
-
 extension ImportFlaw {
     init(from reader: inout WireReader) throws(WireError) {
         let rawValue = try reader.readEnum()
@@ -13681,20 +13151,6 @@ extension ImportSpaceHeaderStyle {
         let rawValue = try reader.readEnum()
         guard let value = ImportSpaceHeaderStyle(rawValue: rawValue) else {
             throw WireError.malformed("Unknown ImportSpaceHeaderStyle \(rawValue)")
-        }
-        self = value
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeEnum(rawValue)
-    }
-}
-
-extension JavaScriptDialogKind {
-    init(from reader: inout WireReader) throws(WireError) {
-        let rawValue = try reader.readEnum()
-        guard let value = JavaScriptDialogKind(rawValue: rawValue) else {
-            throw WireError.malformed("Unknown JavaScriptDialogKind \(rawValue)")
         }
         self = value
     }

@@ -81,7 +81,6 @@ public sealed partial class CrestApp {
     /// Reconcile groups and retire questions after a page report.
     internal void AfterPageReport(ChangeFeed changes) {
         pages.ReconcileGroups(Issue);
-        prompts.Prune(changes);
         closePreparations.Prune(changes, Issue);
     }
 

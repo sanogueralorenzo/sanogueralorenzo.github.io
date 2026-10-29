@@ -46,6 +46,7 @@ final class CrestCore {
     /// Observable browser state, shared with the native feature stores.
     let state = CoreState()
     @ObservationIgnored private(set) lazy var downloads = BrowserNativeDownloads(core: self)
+    @ObservationIgnored private(set) lazy var prompts = NativeBrowserPrompts(core: self)
     @ObservationIgnored private(set) lazy var browserImport = NativeBrowserImport(core: self)
     /// The engines this core hosts pages on, which the composition registers.
     @ObservationIgnored private(set) lazy var engines = Engines(core: self)
@@ -353,6 +354,7 @@ final class CrestCore {
         var batch = CoreChangeBatch()
         for change in changes { change.apply(to: self, in: &batch) }
         state.finishBatch()
+        prompts.prune()
         // Profile notifications have no live page to withdraw them when a
         // Space locks, disappears, or changes its permission choices.
         if batch.notificationAccessChanged {

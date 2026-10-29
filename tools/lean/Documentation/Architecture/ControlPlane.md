@@ -31,3 +31,8 @@ and available Spaces directly. Link gestures still carry native modifier bits.
 The import queue and review run in Swift. `ImportReviewedSpaces` carries only
 explicit source/selection/destination choices for an atomic session edit;
 readers and session import validation still run in the core.
+
+Page prompt reports, questions and answers have no wire codecs. Native WebKit
+pending callbacks and `NativeBrowserPrompts` handle them directly; remembered
+permission decisions still use the existing device ledger. Quit confirmation
+remains part of the core close preparation.

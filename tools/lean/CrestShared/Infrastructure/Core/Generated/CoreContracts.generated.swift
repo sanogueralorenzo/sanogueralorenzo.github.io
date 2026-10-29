@@ -56,12 +56,6 @@ protocol PageEvent: EngineEvent {}
 /// The members of `Intent` that derive from the core's `PageIntent`.
 protocol PageIntent: Intent {}
 
-/// The members of `EngineEvent` that derive from the core's `PromptEvent`.
-protocol PromptEvent: EngineEvent {}
-
-/// The members of `Intent` that derive from the core's `PromptIntent`.
-protocol PromptIntent: Intent {}
-
 /// The members of `Intent` that derive from the core's `SessionIntent`.
 protocol SessionIntent: Intent {}
 
@@ -83,14 +77,12 @@ enum Change: Equatable, Sendable {
     case agentSessionsChanged(AgentSessionsChanged)
     case appPreferencesChanged(AppPreferencesChanged)
     case archiveChanged(ArchiveChanged)
-    case authenticationAsked(AuthenticationAsked)
     case closeReady(CloseReady)
     case cloudMergeBegan(CloudMergeBegan)
     case cloudSyncAdvanced(CloudSyncAdvanced)
     case cloudTransportChanged(CloudTransportChanged)
     case dataDeleted(DataDeleted)
     case enginesChanged(EnginesChanged)
-    case extensionInstallAsked(ExtensionInstallAsked)
     case foldersChanged(FoldersChanged)
     case historyChanged(HistoryChanged)
     case navigationRecorded(NavigationRecorded)
@@ -99,11 +91,9 @@ enum Change: Equatable, Sendable {
     case pageOpened(PageOpened)
     case pageRemoved(PageRemoved)
     case pageUnloaded(PageUnloaded)
-    case permissionAsked(PermissionAsked)
     case promptSettled(PromptSettled)
     case quitWithDownloadsAsked(QuitWithDownloadsAsked)
     case saved(Saved)
-    case scriptDialogAsked(ScriptDialogAsked)
     case sessionAdopted(SessionAdopted)
     case sidebarChanged(SidebarChanged)
     case sitePermissionsChanged(SitePermissionsChanged)
@@ -199,7 +189,6 @@ enum Rejection: Equatable, Error, Sendable {
     case pinsOneTabAtATime(PinsOneTabAtATime)
     case privateWorkspaceBoundary(PrivateWorkspaceBoundary)
     case profileInUse(ProfileInUse)
-    case promptAnswerMismatch(PromptAnswerMismatch)
     case recoveryCheckpointUnusable(RecoveryCheckpointUnusable)
     case saveFailed(SaveFailed)
     case selectionChanged(SelectionChanged)
@@ -324,10 +313,6 @@ enum EngineCommand: Equatable, Sendable {
     case readSiteData(ReadSiteData)
     case recoverPage(RecoverPage)
     case rejectOfferedPage(RejectOfferedPage)
-    case settleAuthentication(SettleAuthentication)
-    case settleExtensionInstall(SettleExtensionInstall)
-    case settlePermission(SettlePermission)
-    case settleScriptDialog(SettleScriptDialog)
     case stageNavigation(StageNavigation)
 }
 
@@ -339,14 +324,12 @@ extension Change {
         case .agentSessionsChanged(let change): change.apply(to: state)
         case .appPreferencesChanged(let change): change.apply(to: state)
         case .archiveChanged(let change): change.apply(to: state)
-        case .authenticationAsked(let change): change.apply(to: state)
         case .closeReady(let change): change.apply(to: state)
         case .cloudMergeBegan(let change): change.apply(to: state)
         case .cloudSyncAdvanced(let change): change.apply(to: state)
         case .cloudTransportChanged(let change): change.apply(to: state)
         case .dataDeleted(let change): change.apply(to: state)
         case .enginesChanged(let change): change.apply(to: state)
-        case .extensionInstallAsked(let change): change.apply(to: state)
         case .foldersChanged(let change): change.apply(to: state)
         case .historyChanged(let change): change.apply(to: state)
         case .navigationRecorded(let change): change.apply(to: state)
@@ -355,11 +338,9 @@ extension Change {
         case .pageOpened(let change): change.apply(to: state)
         case .pageRemoved(let change): change.apply(to: state)
         case .pageUnloaded(let change): change.apply(to: state)
-        case .permissionAsked(let change): change.apply(to: state)
         case .promptSettled(let change): change.apply(to: state)
         case .quitWithDownloadsAsked(let change): change.apply(to: state)
         case .saved(let change): change.apply(to: state)
-        case .scriptDialogAsked(let change): change.apply(to: state)
         case .sessionAdopted(let change): change.apply(to: state)
         case .sidebarChanged(let change): change.apply(to: state)
         case .sitePermissionsChanged(let change): change.apply(to: state)
@@ -394,14 +375,12 @@ extension Change {
         case .agentSessionsChanged(let change): change.apply(to: core, in: &batch)
         case .appPreferencesChanged(let change): change.apply(to: core, in: &batch)
         case .archiveChanged(let change): change.apply(to: core, in: &batch)
-        case .authenticationAsked(let change): change.apply(to: core, in: &batch)
         case .closeReady(let change): change.apply(to: core, in: &batch)
         case .cloudMergeBegan(let change): change.apply(to: core, in: &batch)
         case .cloudSyncAdvanced(let change): change.apply(to: core, in: &batch)
         case .cloudTransportChanged(let change): change.apply(to: core, in: &batch)
         case .dataDeleted(let change): change.apply(to: core, in: &batch)
         case .enginesChanged(let change): change.apply(to: core, in: &batch)
-        case .extensionInstallAsked(let change): change.apply(to: core, in: &batch)
         case .foldersChanged(let change): change.apply(to: core, in: &batch)
         case .historyChanged(let change): change.apply(to: core, in: &batch)
         case .navigationRecorded(let change): change.apply(to: core, in: &batch)
@@ -410,11 +389,9 @@ extension Change {
         case .pageOpened(let change): change.apply(to: core, in: &batch)
         case .pageRemoved(let change): change.apply(to: core, in: &batch)
         case .pageUnloaded(let change): change.apply(to: core, in: &batch)
-        case .permissionAsked(let change): change.apply(to: core, in: &batch)
         case .promptSettled(let change): change.apply(to: core, in: &batch)
         case .quitWithDownloadsAsked(let change): change.apply(to: core, in: &batch)
         case .saved(let change): change.apply(to: core, in: &batch)
-        case .scriptDialogAsked(let change): change.apply(to: core, in: &batch)
         case .sessionAdopted(let change): change.apply(to: core, in: &batch)
         case .sidebarChanged(let change): change.apply(to: core, in: &batch)
         case .sitePermissionsChanged(let change): change.apply(to: core, in: &batch)
@@ -449,14 +426,12 @@ extension Change {
         case .agentSessionsChanged(let change): change.note(in: &receipts)
         case .appPreferencesChanged(let change): change.note(in: &receipts)
         case .archiveChanged(let change): change.note(in: &receipts)
-        case .authenticationAsked(let change): change.note(in: &receipts)
         case .closeReady(let change): change.note(in: &receipts)
         case .cloudMergeBegan(let change): change.note(in: &receipts)
         case .cloudSyncAdvanced(let change): change.note(in: &receipts)
         case .cloudTransportChanged(let change): change.note(in: &receipts)
         case .dataDeleted(let change): change.note(in: &receipts)
         case .enginesChanged(let change): change.note(in: &receipts)
-        case .extensionInstallAsked(let change): change.note(in: &receipts)
         case .foldersChanged(let change): change.note(in: &receipts)
         case .historyChanged(let change): change.note(in: &receipts)
         case .navigationRecorded(let change): change.note(in: &receipts)
@@ -465,11 +440,9 @@ extension Change {
         case .pageOpened(let change): change.note(in: &receipts)
         case .pageRemoved(let change): change.note(in: &receipts)
         case .pageUnloaded(let change): change.note(in: &receipts)
-        case .permissionAsked(let change): change.note(in: &receipts)
         case .promptSettled(let change): change.note(in: &receipts)
         case .quitWithDownloadsAsked(let change): change.note(in: &receipts)
         case .saved(let change): change.note(in: &receipts)
-        case .scriptDialogAsked(let change): change.note(in: &receipts)
         case .sessionAdopted(let change): change.note(in: &receipts)
         case .sidebarChanged(let change): change.note(in: &receipts)
         case .sitePermissionsChanged(let change): change.note(in: &receipts)
@@ -672,32 +645,9 @@ struct AlreadyInSplit: Equatable, Sendable {
     let tabID: UUID
 }
 
-struct AnswerAuthentication: Intent, PromptIntent, Equatable, Sendable {
-    let promptID: UUID
-    let credential: AuthenticationCredential?
-}
-
-struct AnswerExtensionInstall: Intent, PromptIntent, Equatable, Sendable {
-    let promptID: UUID
-    let accepted: Bool
-    let withholdsSiteAccess: Bool
-}
-
-struct AnswerPermission: Intent, PromptIntent, Equatable, Sendable {
-    let promptID: UUID
-    let grants: Bool
-    let remembers: Bool
-}
-
-struct AnswerQuitWithDownloads: Intent, PromptIntent, Equatable, Sendable {
+struct AnswerQuitWithDownloads: Intent, Equatable, Sendable {
     let promptID: UUID
     let quits: Bool
-}
-
-struct AnswerScriptDialog: Intent, PromptIntent, Equatable, Sendable {
-    let promptID: UUID
-    let accepted: Bool
-    let text: String?
 }
 
 struct AppConfiguration: Equatable, Sendable {
@@ -779,33 +729,6 @@ struct ArchivedTabState: Equatable, Sendable {
     var seed: Seed {
         Seed(tab: tab.seed, archivedAt: archivedAt, reason: reason)
     }
-}
-
-struct AuthenticationAsked: CoreChange, Equatable, Sendable {
-    let promptID: UUID
-    let pageID: UUID
-    let question: AuthenticationQuestion
-}
-
-struct AuthenticationChallenged: EngineEvent, PromptEvent, Equatable, Sendable {
-    let promptID: UUID
-    let pageID: UUID
-    let question: AuthenticationQuestion
-}
-
-struct AuthenticationCredential: Equatable, Sendable {
-    var username: String
-    var password: String
-}
-
-struct AuthenticationQuestion: Equatable, Sendable {
-    var url: String
-    var host: String
-    var port: Int
-    var realm: String?
-    var scheme: AuthenticationScheme
-    var isProxy: Bool
-    var previousFailures: Int
 }
 
 struct AuthenticationSource: Query, Equatable, Sendable {
@@ -1553,29 +1476,6 @@ struct ExportWorkspace: Query, Equatable, Sendable {
 struct ExportedDocument: Equatable, Sendable {
     let contents: Data
     let format: ExportFormat
-}
-
-struct ExtensionInstallAsked: CoreChange, Equatable, Sendable {
-    let promptID: UUID
-    let windowID: UUID
-    let question: ExtensionInstallQuestion
-}
-
-struct ExtensionInstallQuestion: Equatable, Sendable {
-    var extensionID: String
-    var name: String
-    var version: String
-    var summary: String
-    var permissions: [String]
-    var icon: Data?
-    var canWithholdSiteAccess: Bool
-    var withholdsSiteAccess: Bool
-}
-
-struct ExtensionInstallRequested: EngineEvent, PromptEvent, Equatable, Sendable {
-    let promptID: UUID
-    let windowID: UUID
-    let question: ExtensionInstallQuestion
 }
 
 struct ExternalAddressVerdict: Equatable, Sendable {
@@ -2602,24 +2502,6 @@ struct PendingUploads: Query, Equatable, Sendable {
 
 }
 
-struct PermissionAsked: CoreChange, Equatable, Sendable {
-    let promptID: UUID
-    let pageID: UUID
-    let question: PermissionQuestion
-}
-
-struct PermissionQuestion: Equatable, Sendable {
-    var permission: SitePermission
-    var origin: SiteOrigin
-    var topLevelOrigin: SiteOrigin
-}
-
-struct PermissionRequested: EngineEvent, PromptEvent, Equatable, Sendable {
-    let promptID: UUID
-    let pageID: UUID
-    let question: PermissionQuestion
-}
-
 struct PersistentWorkspaceRequired: Equatable, Sendable {
     let workspaceID: UUID
 
@@ -2702,15 +2584,7 @@ struct ProfileNotificationDisplayCheck: Query, Equatable, Sendable {
     let source: ProfileNotificationSource
 }
 
-struct PromptAnswerMismatch: Equatable, Sendable {
-    let promptID: UUID
-}
-
 struct PromptSettled: CoreChange, Equatable, Sendable {
-    let promptID: UUID
-}
-
-struct PromptWithdrawn: EngineEvent, PromptEvent, Equatable, Sendable {
     let promptID: UUID
 }
 
@@ -2989,25 +2863,6 @@ struct SchemeHandling: Query, Equatable, Sendable {
     let appInitiated: Bool
 }
 
-struct ScriptDialogAsked: CoreChange, Equatable, Sendable {
-    let promptID: UUID
-    let pageID: UUID
-    let question: ScriptDialogQuestion
-}
-
-struct ScriptDialogOpened: EngineEvent, PromptEvent, Equatable, Sendable {
-    let promptID: UUID
-    let pageID: UUID
-    let question: ScriptDialogQuestion
-}
-
-struct ScriptDialogQuestion: Equatable, Sendable {
-    var kind: JavaScriptDialogKind
-    var message: String
-    var defaultText: String
-    var sourceURL: String
-}
-
 struct SecureOriginCheck: Query, Equatable, Sendable {
     typealias Answer = SecureOriginVerdict
 
@@ -3197,30 +3052,7 @@ struct SetSpaceIdentity: Intent, SessionIntent, Equatable, Sendable {
     let name: String
 }
 
-struct SettleAuthentication: Equatable, Sendable {
-    let promptID: UUID
-    let credential: AuthenticationCredential?
-}
-
 struct SettleCloudOverwrite: Intent, CloudTransportIntent, Equatable, Sendable {
-}
-
-struct SettleExtensionInstall: Equatable, Sendable {
-    let promptID: UUID
-    let accepted: Bool
-    let withholdsSiteAccess: Bool
-}
-
-struct SettlePermission: Equatable, Sendable {
-    let promptID: UUID
-    let grants: Bool
-    let remembers: Bool
-}
-
-struct SettleScriptDialog: Equatable, Sendable {
-    let promptID: UUID
-    let accepted: Bool
-    let text: String?
 }
 
 struct ShowAdjacentSpace: Intent, WindowIntent, Equatable, Sendable {
@@ -4005,11 +3837,6 @@ enum AuthenticationHandling: Int, CaseIterable, Sendable {
     case cancel = 2
 }
 
-enum AuthenticationScheme: Int, CaseIterable, Sendable {
-    case basic = 0
-    case digest = 1
-}
-
 enum ImportFlaw: Int, CaseIterable, Sendable {
     case unreadable = 0
     case malformedSplit = 1
@@ -4019,13 +3846,6 @@ enum ImportFlaw: Int, CaseIterable, Sendable {
 enum ImportSpaceHeaderStyle: Int, CaseIterable, Sendable {
     case identity = 0
     case sectionLabel = 1
-}
-
-enum JavaScriptDialogKind: Int, CaseIterable, Sendable {
-    case alert = 0
-    case confirm = 1
-    case prompt = 2
-    case beforeUnload = 3
 }
 
 struct PageMediaActivity: OptionSet, Sendable {

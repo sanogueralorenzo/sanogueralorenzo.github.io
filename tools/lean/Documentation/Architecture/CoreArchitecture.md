@@ -2,7 +2,7 @@
 
 The C# `CrestCore` currently owns browser session state and the rules that edit
 it: Spaces, tabs, folders, splits, window selection, page lifecycle,
-permissions, import readers and atomic session imports, address resolution,
+remembered permission records, import readers and atomic session imports, address resolution,
 persistence and sync records. `CoreState`
 is the observable Swift read model. Views do not independently persist or
 mutate copies of the session.
@@ -27,3 +27,8 @@ state; command availability is derived from the existing observed models.
 The import queue, review choices, duplicate/overflow analysis and extension
 selection belong to `NativeBrowserImport`. Preview and commit carry the same
 explicit choices to the session’s atomic import; the core retains no UI review.
+
+Pending page prompts are native and process-local. `NativeBrowserPrompts`
+settles questions once, retires questions when pages close, and sends answers
+directly to WebKit. Credentials have no core contract or persistence path.
+The permission ledger remains in the core until its storage owner moves.

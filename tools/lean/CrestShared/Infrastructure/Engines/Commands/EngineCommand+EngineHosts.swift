@@ -10,8 +10,6 @@ extension EngineCommand {
         case .checkBeforeUnload, .dropStagedLink, .eraseBrowsingData,
             .eraseProfileData, .eraseSiteData, .exitPictureInPicture, .goToHistoryEntry, .groupPages, .loadPage,
             .readSiteData, .recoverPage, .rejectOfferedPage,
-            .settleAuthentication,
-            .settleExtensionInstall, .settlePermission, .settleScriptDialog,
             .stageNavigation:
             // These act on a page the engine already hosts, or on none.
             break

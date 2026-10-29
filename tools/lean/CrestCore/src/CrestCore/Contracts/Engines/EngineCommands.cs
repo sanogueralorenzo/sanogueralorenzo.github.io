@@ -97,23 +97,6 @@ public sealed record StageNavigation(Guid PageId, Guid StagedLinkId, string Url)
 /// that asks nothing.
 public sealed record CheckBeforeUnload(Guid PageId) : EngineCommand;
 
-/// Answers a server's request with `Credential`, or cancels it with none.
-public sealed record SettleAuthentication(Guid PromptId, AuthenticationCredential? Credential) : EngineCommand;
-
-/// Installs the extension the prompt asked about, with its site access
-/// withheld when asked, or cancels the install.
-public sealed record SettleExtensionInstall(Guid PromptId, bool Accepted, bool WithholdsSiteAccess) : EngineCommand;
-
-/// Answers a permission request: whether it `Grants` it, and whether the
-/// answer holds for the site's later requests or this one alone. For a
-/// capability the system asks about itself, a grant lets the request go on to
-/// the system's question.
-public sealed record SettlePermission(Guid PromptId, bool Grants, bool Remembers) : EngineCommand;
-
-/// Closes a script dialog as the person answered it, or declined when no one
-/// could.
-public sealed record SettleScriptDialog(Guid PromptId, bool Accepted, string? Text) : EngineCommand;
-
 #endregion
 
 

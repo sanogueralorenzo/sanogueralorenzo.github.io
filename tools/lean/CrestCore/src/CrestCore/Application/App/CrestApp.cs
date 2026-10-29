@@ -27,8 +27,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     private readonly Device device;
     /// The pages this device hosts, and the engines that host them.
     private readonly Pages pages;
-    /// The questions the pages and engines ask the person.
-    private readonly Prompts prompts;
     /// Close and quit preparations, which ask each page whether it may go.
     private readonly ClosePreparations closePreparations;
     /// Erasing what every engine keeps for a profile.
@@ -49,7 +47,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     // messages reach.
     internal Device Device => device;
     internal Pages Pages => pages;
-    internal Prompts Prompts => prompts;
     internal ClosePreparations ClosePreparations => closePreparations;
     internal DataDeletions DataDeletions => dataDeletions;
     internal SiteDataReads SiteDataReads => siteDataReads;
@@ -84,7 +81,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         if (configuration.StorageDirectory is not { } directory) {
             device = new(configuration.Platform, storage: null, DeviceRecords.Empty, Announce, RequestTurn, CloseBorrower, clock);
             pages = new(device, engines, clock, ids);
-            prompts = new(device, pages);
 
             closePreparations = new(device, pages, () => nativeDownloadCount, dataDeletions, ids);
             cloudTransport = new(storage: null, device);
@@ -94,7 +90,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         storage = SessionStorage.Open(directory, Announce, out var loaded);
         device = new(configuration.Platform, storage, storage.Device, Announce, RequestTurn, CloseBorrower, clock);
         pages = new(device, engines, clock, ids);
-        prompts = new(device, pages);
 
         closePreparations = new(device, pages, () => nativeDownloadCount, dataDeletions, ids);
         cloudTransport = new(storage, device);
@@ -133,8 +128,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     /// published. Afterwards each engine tab group follows the folder that
     /// shows it, the pages windows show are stamped, and one shown
     /// again or of a Space this process may not show ends its Picture in
-    /// Picture; closed tabs let go of what they kept, and what a page that
-    /// went had asked no longer waits. The engine commands the turn caused
+    /// Picture; closed tabs let go of what they kept. The engine commands the turn caused
     /// are delivered once the lock is released.
     internal IReadOnlyList<Change> Turn(Action<ChangeFeed> apply) {
         IReadOnlyList<Change> published;
@@ -146,8 +140,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
             pages.ReconcileGroups(Issue);
             pages.Stamp(clock.Now, Issue);
             pages.PruneRestoreStates();
-            // What a page that went had asked no longer waits.
-            prompts.Prune(changes);
             closePreparations.Prune(changes, Issue);
             // Agents let go of the tabs they may no longer use.
             device.PruneAgents(changes);

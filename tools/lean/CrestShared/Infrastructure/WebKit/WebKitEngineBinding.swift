@@ -404,10 +404,8 @@ final class WebKitEngineBinding {
 
     /// Declines what page `pageID` still asks, which closes with it.
     func declinePrompts(of pageID: UUID) {
-        for (promptID, prompt) in prompts where prompt.pageID == pageID {
-            prompts[promptID] = nil
-            prompt.decline()
-        }
+        let ids = prompts.filter { $0.value.pageID == pageID }.map(\.key)
+        for id in ids { withdraw(id) }
     }
 }
 
@@ -427,7 +425,7 @@ extension WebKitEngineBinding: CorePromptHost {
         present(asked.promptID, on: asked.pageID) { $0.ask(asked, dismissal: $1) }
     }
 
-    /// The Chromium engine reviews extension installs; WebKit has none.
+    /// WebKit extension installation has no page prompt.
     func ask(_ asked: ExtensionInstallAsked) {}
 
     /// The download prompts choose where a download goes.

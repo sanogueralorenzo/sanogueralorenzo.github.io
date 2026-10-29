@@ -177,6 +177,11 @@ final class Engines {
         report(event, icon: icon)
     }
 
+    /// Native questions stay with WebKit and never cross the core wire.
+    func report(_ event: some PromptEvent, from binding: WebKitEngineBinding) {
+        core.prompts.report(event, from: binding)
+    }
+
     /// Reports what happened to `pageID` through the engine that hosts it; a
     /// page no engine was asked to create reports nothing.
     func report(_ event: some EngineEvent, for pageID: UUID, icon: Data? = nil) {

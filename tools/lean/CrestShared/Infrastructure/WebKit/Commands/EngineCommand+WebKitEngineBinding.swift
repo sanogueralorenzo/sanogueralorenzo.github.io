@@ -22,10 +22,6 @@ extension EngineCommand {
         case .readSiteData(let command): command.perform(on: binding)
         case .recoverPage(let command): command.perform(on: binding)
         case .rejectOfferedPage(let command): command.perform(on: binding)
-        case .settleAuthentication(let command): command.perform(on: binding)
-        case .settleExtensionInstall(let command): command.perform(on: binding)
-        case .settlePermission(let command): command.perform(on: binding)
-        case .settleScriptDialog(let command): command.perform(on: binding)
         case .stageNavigation(let command): command.perform(on: binding)
         }
     }
