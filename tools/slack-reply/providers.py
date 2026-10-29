@@ -43,6 +43,8 @@ class CodexProvider:
     def __init__(self, workspace, state_dir):
         self.workspace = workspace
         self.state_dir = state_dir
+        self.model = os.environ.get("CODEX_MODEL", "").strip()
+        self.effort = os.environ.get("CODEX_REASONING_EFFORT", "").strip()
 
     def run(self, prompt, session_id):
         with tempfile.NamedTemporaryFile(dir=self.state_dir, prefix="answer-", delete=False) as output:
@@ -51,6 +53,10 @@ class CodexProvider:
             common = [
                 "--json", "-o", str(answer_path), "--skip-git-repo-check",
             ]
+            if self.model:
+                common.extend(["--model", self.model])
+            if self.effort:
+                common.extend(["--config", f"model_reasoning_effort={json.dumps(self.effort)}"])
             if session_id:
                 command = ["codex", "exec", "resume", *common, session_id, "-"]
             else:

@@ -31,6 +31,9 @@ class ProviderTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name)
+        provider_env = patch.dict(os.environ, {}, clear=True)
+        provider_env.start()
+        self.addCleanup(provider_env.stop)
 
     def test_missing_cli_is_rejected(self):
         with patch.object(providers.shutil, "which", return_value=None):
@@ -79,6 +82,23 @@ class ProviderTests(unittest.TestCase):
         with patch.object(providers, "execute", side_effect=fake_execute):
             with self.assertRaisesRegex(RuntimeError, "different session"):
                 providers.CodexProvider(self.path, self.path).run("prompt", "session-1")
+
+    def test_codex_env_overrides_apply_to_new_and_resumed_sessions(self):
+        def fake_execute(command, prompt, workspace):
+            Path(command[command.index("-o") + 1]).write_text("answer")
+            self.assertEqual(command[command.index("--model") + 1], "test-model")
+            self.assertEqual(command[command.index("--config") + 1],
+                             'model_reasoning_effort="high"')
+            return completed('{"type":"thread.started","thread_id":"session-1"}\n')
+
+        with patch.dict(os.environ, {"CODEX_MODEL": "test-model",
+                                    "CODEX_REASONING_EFFORT": "high"}):
+            with patch.object(providers, "execute", side_effect=fake_execute):
+                provider = providers.CodexProvider(self.path, self.path)
+                for session_id in [None, "session-1"]:
+                    with self.subTest(session_id=session_id):
+                        self.assertEqual(provider.run("prompt", session_id),
+                                         ("session-1", "answer"))
 
     def test_claude_json_result_and_resume_use_same_contract(self):
         payload = json.dumps({"type": "result", "is_error": False,

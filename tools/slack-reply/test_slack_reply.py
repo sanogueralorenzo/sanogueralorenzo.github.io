@@ -1,5 +1,3 @@
-import contextlib
-import io
 import os
 import sqlite3
 import tempfile
@@ -45,6 +43,9 @@ class SlackReplyTests(unittest.TestCase):
         self.addCleanup(self.state.db.close)
         self.client = FakeClient()
         self.runner = Mock()
+        provider_env = patch.dict(os.environ, {"SLACK_REPLY_PROVIDER": "codex"})
+        provider_env.start()
+        self.addCleanup(provider_env.stop)
 
     def handle(self, message):
         reply.handle(message, "T123", USER, self.client, self.state, self.path, self.path)
@@ -126,7 +127,7 @@ class SlackReplyTests(unittest.TestCase):
 
     def test_provider_change_applies_to_new_threads_but_pins_existing_sessions(self):
         self.state.save_session("T123", "C123", ROOT, "codex", "codex-session")
-        self.state.set_provider("pi")
+        os.environ["SLACK_REPLY_PROVIDER"] = "pi"
         self.client.pages = [{"messages": [event(ts=ROOT), event(ts=FIRST, thread_ts=ROOT)],
                               "response_metadata": {}}]
         self.runner.run.side_effect = [("codex-session", "old answer"),
@@ -139,14 +140,13 @@ class SlackReplyTests(unittest.TestCase):
         self.assertEqual(self.state.session("T123", "C123", SECOND),
                          ("pi", "pi-session"))
 
-    def test_session_and_preference_survive_restart_in_private_state(self):
+    def test_session_survives_restart_in_private_state(self):
         self.state.save_session("T123", "C123", ROOT, "pi", "session-1")
-        self.state.set_provider("pi")
+        os.environ["SLACK_REPLY_PROVIDER"] = "pi"
         restarted = reply.State(self.path / "state")
         self.addCleanup(restarted.db.close)
         self.assertEqual(restarted.session("T123", "C123", ROOT),
                          ("pi", "session-1"))
-        self.assertEqual(restarted.provider(), "pi")
         self.assertEqual((self.path / "state").stat().st_mode & 0o777, 0o700)
         self.assertEqual((self.path / "state" / "sessions.sqlite3").stat().st_mode & 0o777, 0o600)
 
@@ -165,23 +165,22 @@ class SlackReplyTests(unittest.TestCase):
         self.assertEqual(migrated.session("T123", "C123", ROOT),
                          ("codex", "old-session"))
 
-    def test_provider_command_rejects_missing_cli_without_changing_preference(self):
-        with patch.dict(os.environ, {"SLACK_REPLY_STATE_DIR": str(self.path / "state")}):
-            with patch.object(reply, "require_available",
-                              side_effect=RuntimeError("pi CLI is not installed")):
-                with self.assertRaisesRegex(RuntimeError, "not installed"):
-                    reply.main(["provider", "pi"])
-        self.assertEqual(self.state.provider(), "codex")
+    def test_removed_provider_command_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "configure provider and model in .env"):
+            reply.main(["provider", "pi"])
 
-    def test_provider_command_saves_available_cli_without_slack_credentials(self):
-        with patch.dict(os.environ, {"SLACK_REPLY_STATE_DIR": str(self.path / "state")},
-                        clear=True):
-            with patch.object(reply, "require_available"):
-                output = io.StringIO()
-                with contextlib.redirect_stdout(output):
-                    reply.main(["provider", "pi"])
-        self.assertEqual(self.state.provider(), "pi")
-        self.assertEqual(output.getvalue(), "pi\n")
+    def test_missing_provider_fails_before_slack_setup(self):
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaisesRegex(ValueError, "SLACK_REPLY_PROVIDER"):
+                reply.main([])
+
+    def test_configured_provider_is_validated_before_slack_setup(self):
+        with patch.dict(os.environ, {"SLACK_REPLY_PROVIDER": "pi"}, clear=True):
+            with patch.object(reply, "require_available",
+                              side_effect=RuntimeError("pi CLI is not installed")) as available:
+                with self.assertRaisesRegex(RuntimeError, "pi CLI is not installed"):
+                    reply.main([])
+        available.assert_called_once_with("pi")
 
 
 if __name__ == "__main__":

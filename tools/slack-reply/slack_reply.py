@@ -49,9 +49,6 @@ class State:
                 session_id TEXT NOT NULL,
                 PRIMARY KEY (team, channel, thread_ts)
             );
-            CREATE TABLE IF NOT EXISTS settings (
-                name TEXT PRIMARY KEY, value TEXT NOT NULL
-            );
             CREATE TABLE IF NOT EXISTS posted (
                 team TEXT NOT NULL, channel TEXT NOT NULL, ts TEXT NOT NULL,
                 PRIMARY KEY (team, channel, ts)
@@ -84,17 +81,6 @@ class State:
             "INSERT OR REPLACE INTO sessions (team, channel, thread_ts, provider, session_id) "
             "VALUES (?, ?, ?, ?, ?)",
             (team, channel, thread_ts, provider, session_id),
-        )
-        self.db.commit()
-
-    def provider(self):
-        row = self.db.execute("SELECT value FROM settings WHERE name='provider'").fetchone()
-        return row[0] if row else "codex"
-
-    def set_provider(self, name):
-        self.db.execute(
-            "INSERT OR REPLACE INTO settings (name, value) VALUES ('provider', ?)",
-            (name,),
         )
         self.db.commit()
 
@@ -164,7 +150,7 @@ def handle(event, team, user_id, client, state, workspace, state_dir):
     thread_ts = event.get("thread_ts") or ts
     is_reply = thread_ts != ts
     saved = state.session(team, channel, thread_ts) if is_reply else None
-    provider_name, session_id = saved if saved else (state.provider(), None)
+    provider_name, session_id = saved if saved else (required("SLACK_REPLY_PROVIDER"), None)
     messages = thread_messages(client, event) if is_reply else None
     prompt = prompt_for(event, messages, state, team)
     provider = provider_for(provider_name, workspace, state_dir)
@@ -179,21 +165,11 @@ def handle(event, team, user_id, client, state, workspace, state_dir):
 
 def main(argv=None):
     args = sys.argv[1:] if argv is None else argv
-    state_dir = Path(os.environ.get("SLACK_REPLY_STATE_DIR", "~/.local/state/slack-reply")).expanduser()
-    if args and args[0] == "provider":
-        if len(args) > 2:
-            raise ValueError("Usage: ./run.sh provider [codex|claude|pi]")
-        state = State(state_dir)
-        try:
-            if len(args) == 2:
-                require_available(args[1])
-                state.set_provider(args[1])
-            print(state.provider())
-        finally:
-            state.db.close()
-        return
     if args:
-        raise ValueError("Usage: ./run.sh [provider [codex|claude|pi]]")
+        raise ValueError("Usage: ./run.sh (configure provider and model in .env)")
+    state_dir = Path(os.environ.get("SLACK_REPLY_STATE_DIR", "~/.local/state/slack-reply")).expanduser()
+    provider_name = required("SLACK_REPLY_PROVIDER")
+    require_available(provider_name)
     from slack_sdk import WebClient
     from slack_sdk.socket_mode import SocketModeClient
     from slack_sdk.socket_mode.response import SocketModeResponse
@@ -208,7 +184,7 @@ def main(argv=None):
     if not app_token.startswith("xapp-") or not bot_token.startswith("xoxb-") or not user_token.startswith("xoxp-"):
         raise ValueError("Use an xapp app token, xoxb bot token, and xoxp authorized-user token")
     state = State(state_dir)
-    require_available(state.provider())
+    provider_for(provider_name, workspace, state_dir)
     bot_client = WebClient(token=bot_token)
     user_client = WebClient(token=user_token)
     bot_auth = bot_client.auth_test()
