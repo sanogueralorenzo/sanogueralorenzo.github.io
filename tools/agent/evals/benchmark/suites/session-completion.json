@@ -26,6 +26,7 @@
       "id": "live",
       "files": [
         "../../../prompts/base.md",
+        "../../../prompts/work.md",
         "../variants/completion/session-baseline.md"
       ]
     },
@@ -33,6 +34,7 @@
       "id": "completion",
       "files": [
         "../../../prompts/base.md",
+        "../../../prompts/work.md",
         "../variants/completion/session.md"
       ]
     }

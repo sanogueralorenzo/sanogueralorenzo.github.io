@@ -25,6 +25,7 @@
       "id": "live",
       "files": [
         "../../../prompts/base.md",
+        "../../../prompts/work.md",
         "../../../prompts/coordinator.md"
       ]
     },
@@ -39,6 +40,7 @@
       "id": "compact_role",
       "files": [
         "../../../prompts/base.md",
+        "../../../prompts/work.md",
         "../variants/roles/session-compact.md"
       ]
     }

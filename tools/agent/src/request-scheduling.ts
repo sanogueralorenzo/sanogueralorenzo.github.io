@@ -113,6 +113,7 @@ export function dispatchTask(getApp: () => Agent) {
             const finished = receipt?.status === "done" || receipt?.status === "unanswered";
             if (target.workTaskId !== undefined) source.waitForRunId = target.workTaskId;
             if (decision.action === "revise") {
+              source.dependsOn = [...(target.dependsOn || [])];
               for (const dependent of home.messages) if (dependent.dependsOn?.includes(decision.targetId)) {
                 const pending = await tx.submissionByRequest(record.conversationId as ConversationId, dependent.requestId || dependent.id);
                 if (pending?.status === "queued") dependent.dependsOn = dependent.dependsOn.map(id => id === decision.targetId ? source.id : id);

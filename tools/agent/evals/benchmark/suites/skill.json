@@ -24,6 +24,7 @@
       "id": "full",
       "files": [
         "../../../prompts/base.md",
+        "../../../prompts/work.md",
         "../../../prompts/coordinator.md",
         "../variants/skill/available.md"
       ],
@@ -35,6 +36,7 @@
       "id": "compact",
       "files": [
         "../../../prompts/base.md",
+        "../../../prompts/work.md",
         "../../../prompts/coordinator.md",
         "../variants/skill/available.md"
       ],
@@ -46,6 +48,7 @@
       "id": "minimal_control",
       "files": [
         "../../../prompts/base.md",
+        "../../../prompts/work.md",
         "../../../prompts/coordinator.md",
         "../variants/skill/available.md"
       ],
