@@ -152,7 +152,7 @@ final class BrowserCommandPaletteModel {
         self.openings = openings
         // The palette opens with its rows: the resting answer is quick to
         // rank, so it is asked for on the main thread.
-        if let answer = try? browser.core.query(question(for: initialQuery)) { show(answer, for: sequence) }
+        if let answer = browser.core.paletteNow(question(for: initialQuery)) { show(answer, for: sequence) }
     }
 
     // MARK: - Actions - Completion
@@ -180,7 +180,7 @@ final class BrowserCommandPaletteModel {
         applyCompletion(proposal.insertionText, proposal.insertionRange)
         // Return right after Tab must find the accepted address as the primary
         // action even before the off-main answer arrives.
-        if query == proposal.accepted, let answer = try? browser.core.query(question(for: query)) {
+        if query == proposal.accepted, let answer = browser.core.paletteNow(question(for: query)) {
             show(answer, for: sequence)
             selectedResultIndex = 0
         }
@@ -414,8 +414,8 @@ final class BrowserCommandPaletteModel {
             scope: activeScope, allowsCompletion: completionEditing.canPropose(for: text))
     }
 
-    /// The commands the core may rank for `text`. A palette without resting
-    /// commands offers none while the text is blank, which the core reads as
+    /// The commands the palette may rank for `text`. A palette without resting
+    /// commands offers none while the text is blank, which ranking reads as
     /// nothing typed.
     private func offeredCommands(for text: String) -> [PaletteCommand] {
         guard offersRestingCommands || !text.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
@@ -425,7 +425,7 @@ final class BrowserCommandPaletteModel {
     /// Refreshes visible rows and cancels any request for the previous provider.
     func refreshSearchProvider() { requestAnswer() }
 
-    /// Asks the core for the current query's answer off the main thread, then
+    /// Ranks the current query off the main thread, then
     /// for the search suggestions the answer allows, and shows each only while
     /// no later keystroke has asked again.
     private func requestAnswer() {
@@ -480,9 +480,9 @@ final class BrowserCommandPaletteModel {
         if asked == sequence, waitingKey != nil { runWaitingKey() }
     }
 
-    /// The core's answer, ranked on a background thread.
+    /// Native ranking from a snapshot of the current window.
     private nonisolated static func answer(_ question: PaletteSuggestions, from core: CrestCore) async -> PaletteAnswer?
     {
-        await Task.detached(priority: .userInitiated) { try? core.query(question) }.value
+        await core.palette(question)
     }
 }

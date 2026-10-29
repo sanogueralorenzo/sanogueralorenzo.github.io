@@ -19,3 +19,7 @@ web-link eligibility also run in Swift before a core is required.
 Download records, progress/risk queries and WebKit download callbacks run in
 Swift. `SetDownloadActivity` reports their live count to the remaining quit
 preparation; the C# core holds no download records or transfer identities.
+
+Palette matching, ranking, inline completion, scopes, calculation and suggestion
+filtering run in Swift from a window snapshot. Typed address resolution still
+uses the shared core navigation rule; palette rows have no wire codec.

@@ -14,13 +14,12 @@ public sealed class TabPlacement {
 
     // Saved is made before Pinned, which overflows to it; `All` keeps the sections' order.
     public static readonly TabPlacement Saved = new(name: "saved", title: "Saved", symbol: "bookmark.fill", rank: 1, fallbackRank: 2,
-        isDurable: true, holdsFolders: true, holdsSplits: true, capacity: null, paletteRow: PaletteRowKind.SavedTab);
+        isDurable: true, holdsFolders: true, holdsSplits: true, capacity: null);
     public static readonly TabPlacement Pinned = new(name: "pinned", title: "Pinned", symbol: "pin.fill", rank: 0, fallbackRank: 1,
         isDurable: true, holdsFolders: false, holdsSplits: false, capacity: PinnedCapacity,
-        paletteRow: PaletteRowKind.PinnedTab, overflowsTo: Saved, importedSymbol: "pin.fill", isGrid: true);
+        overflowsTo: Saved, importedSymbol: "pin.fill", isGrid: true);
     public static readonly TabPlacement Current = new(name: "current", title: "Open", symbol: "rectangle.stack.fill", rank: 2,
-        fallbackRank: 0, isDurable: false, holdsFolders: true, holdsSplits: true, capacity: null,
-        paletteRow: PaletteRowKind.Tab);
+        fallbackRank: 0, isDurable: false, holdsFolders: true, holdsSplits: true, capacity: null);
 
     public static IReadOnlyList<TabPlacement> All { get; } = [Pinned, Saved, Current];
 
@@ -69,15 +68,12 @@ public sealed class TabPlacement {
     /// rows, so ordering and dropping in it run across columns as well.
     public bool IsGrid { get; }
 
-    /// The row a palette search shows a tab of the section as.
-    public PaletteRowKind PaletteRow { get; }
-
     #endregion
 
     #region Constructors
 
     private TabPlacement(string name, string title, string symbol, int rank, int fallbackRank, bool isDurable, bool holdsFolders,
-        bool holdsSplits, int? capacity, PaletteRowKind paletteRow, TabPlacement? overflowsTo = null,
+        bool holdsSplits, int? capacity, TabPlacement? overflowsTo = null,
         string? importedSymbol = null, bool isGrid = false) {
         Name = name;
         Title = title;
@@ -88,7 +84,6 @@ public sealed class TabPlacement {
         HoldsFolders = holdsFolders;
         HoldsSplits = holdsSplits;
         Capacity = capacity;
-        PaletteRow = paletteRow;
         OverflowsTo = overflowsTo;
         ImportedSymbol = importedSymbol;
         IsGrid = isGrid;

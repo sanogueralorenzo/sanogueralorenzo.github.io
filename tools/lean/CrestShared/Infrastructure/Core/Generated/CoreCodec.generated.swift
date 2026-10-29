@@ -7,7 +7,7 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0xfc, 0xdc, 0xee, 0x21, 0x64, 0x76, 0x88, 0x14, 0x8a, 0xe6, 0xd4, 0xd2, 0xa4, 0xfd, 0xf7, 0xee, 0x03, 0x8c, 0x2a, 0x47, 0x86, 0xfd, 0xec, 0xda, 0xce, 0xe5, 0x56, 0x83, 0xee, 0xa3, 0x77, 0x26
+        0xd9, 0xe7, 0x39, 0x6b, 0x35, 0x3b, 0x5f, 0x8d, 0x43, 0xe5, 0x9e, 0x0b, 0x09, 0xa0, 0xec, 0xc3, 0x29, 0x1a, 0x70, 0x8c, 0x27, 0x8c, 0x75, 0xf6, 0x28, 0xec, 0x43, 0xf2, 0x99, 0x28, 0xcf, 0xf1
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
@@ -233,26 +233,25 @@ enum CoreCodec {
         case 35: return try NumberedSelections(from: &reader)
         case 36: return try OpenedWindowSelection(from: &reader)
         case 37: return try PageHistoryEntries(from: &reader)
-        case 38: return try PaletteSuggestions(from: &reader)
-        case 39: return try PasskeyAccess(from: &reader)
-        case 40: return try PendingSave(from: &reader)
-        case 41: return try PendingUploads(from: &reader)
-        case 42: return try PresentPage(from: &reader)
-        case 43: return try ProfileNotificationDisplayCheck(from: &reader)
-        case 44: return try ReadArchive(from: &reader)
-        case 45: return try ReadImport(from: &reader)
-        case 46: return try RecentTabs(from: &reader)
-        case 47: return try RecordsToUpload(from: &reader)
-        case 48: return try ResolveAddress(from: &reader)
-        case 49: return try SamePage(from: &reader)
-        case 50: return try SchemeHandling(from: &reader)
-        case 51: return try SecureOriginCheck(from: &reader)
-        case 52: return try SelectionPreview(from: &reader)
-        case 53: return try SelectionSearch(from: &reader)
-        case 54: return try SiteDecision(from: &reader)
-        case 55: return try SplitJoinCandidate(from: &reader)
-        case 56: return try SwipeNeighbors(from: &reader)
-        case 57: return try WindowToReopen(from: &reader)
+        case 38: return try PasskeyAccess(from: &reader)
+        case 39: return try PendingSave(from: &reader)
+        case 40: return try PendingUploads(from: &reader)
+        case 41: return try PresentPage(from: &reader)
+        case 42: return try ProfileNotificationDisplayCheck(from: &reader)
+        case 43: return try ReadArchive(from: &reader)
+        case 44: return try ReadImport(from: &reader)
+        case 45: return try RecentTabs(from: &reader)
+        case 46: return try RecordsToUpload(from: &reader)
+        case 47: return try ResolveAddress(from: &reader)
+        case 48: return try SamePage(from: &reader)
+        case 49: return try SchemeHandling(from: &reader)
+        case 50: return try SecureOriginCheck(from: &reader)
+        case 51: return try SelectionPreview(from: &reader)
+        case 52: return try SelectionSearch(from: &reader)
+        case 53: return try SiteDecision(from: &reader)
+        case 54: return try SplitJoinCandidate(from: &reader)
+        case 55: return try SwipeNeighbors(from: &reader)
+        case 56: return try WindowToReopen(from: &reader)
         default: throw WireError.malformed("Unknown Query tag \(tag)")
         }
     }
@@ -1126,21 +1125,6 @@ extension AcknowledgeUploads {
     func encodeIntent(into writer: inout WireWriter) {
         writer.writeTag(0)
         encode(into: &writer)
-    }
-}
-
-extension AddressCompletion {
-    init(from reader: inout WireReader) throws(WireError) {
-        let typed = try reader.readString()
-        let suffix = try reader.readString()
-        let accepted = try reader.readString()
-        self.init(typed: typed, suffix: suffix, accepted: accepted)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeString(typed)
-        writer.writeString(suffix)
-        writer.writeString(accepted)
     }
 }
 
@@ -9485,335 +9469,6 @@ extension PageUnloaded {
     }
 }
 
-extension PaletteAnswer {
-    init(from reader: inout WireReader) throws(WireError) {
-        let groupsCount = try reader.readCount()
-        var groups: [PaletteGroup] = []
-        groups.reserveCapacity(groupsCount)
-        for _ in 0..<groupsCount {
-            let groupsElement = try PaletteGroup(from: &reader)
-            groups.append(groupsElement)
-        }
-        let completion: AddressCompletion?
-        if try reader.readPresence() {
-            let completionValue = try AddressCompletion(from: &reader)
-            completion = completionValue
-        } else {
-            completion = nil
-        }
-        let suggestionAddress: String?
-        if try reader.readPresence() {
-            let suggestionAddressValue = try reader.readString()
-            suggestionAddress = suggestionAddressValue
-        } else {
-            suggestionAddress = nil
-        }
-        let offeredScope: PaletteScope?
-        if try reader.readPresence() {
-            let offeredScopeValue = try PaletteScope(from: &reader)
-            offeredScope = offeredScopeValue
-        } else {
-            offeredScope = nil
-        }
-        let entry: PaletteEntry?
-        if try reader.readPresence() {
-            let entryValue = try PaletteEntry(from: &reader)
-            entry = entryValue
-        } else {
-            entry = nil
-        }
-        self.init(groups: groups, completion: completion, suggestionAddress: suggestionAddress, offeredScope: offeredScope, entry: entry)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeCount(groups.count)
-        for element0 in groups {
-            element0.encode(into: &writer)
-        }
-        if let present0 = completion {
-            writer.writePresence(true)
-            present0.encode(into: &writer)
-        } else {
-            writer.writePresence(false)
-        }
-        if let present0 = suggestionAddress {
-            writer.writePresence(true)
-            writer.writeString(present0)
-        } else {
-            writer.writePresence(false)
-        }
-        if let present0 = offeredScope {
-            writer.writePresence(true)
-            present0.encode(into: &writer)
-        } else {
-            writer.writePresence(false)
-        }
-        if let present0 = entry {
-            writer.writePresence(true)
-            present0.encode(into: &writer)
-        } else {
-            writer.writePresence(false)
-        }
-    }
-}
-
-extension PaletteCommand {
-    init(from reader: inout WireReader) throws(WireError) {
-        let command = try ShortcutCommand(from: &reader)
-        let title = try reader.readString()
-        let sectionTitle = try reader.readString()
-        self.init(command: command, title: title, sectionTitle: sectionTitle)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        command.encode(into: &writer)
-        writer.writeString(title)
-        writer.writeString(sectionTitle)
-    }
-}
-
-extension PaletteEntry {
-    init(from reader: inout WireReader) throws(WireError) {
-        let scope = try PaletteScope(from: &reader)
-        let text = try reader.readString()
-        self.init(scope: scope, text: text)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        scope.encode(into: &writer)
-        writer.writeString(text)
-    }
-}
-
-extension PaletteGroup {
-    init(from reader: inout WireReader) throws(WireError) {
-        let section = try PaletteSection(from: &reader)
-        let rowsCount = try reader.readCount()
-        var rows: [PaletteRow] = []
-        rows.reserveCapacity(rowsCount)
-        for _ in 0..<rowsCount {
-            let rowsElement = try PaletteRow(from: &reader)
-            rows.append(rowsElement)
-        }
-        self.init(section: section, rows: rows)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        section.encode(into: &writer)
-        writer.writeCount(rows.count)
-        for element0 in rows {
-            element0.encode(into: &writer)
-        }
-    }
-}
-
-extension PaletteRow {
-    init(from reader: inout WireReader) throws(WireError) {
-        let kind = try PaletteRowKind(from: &reader)
-        let title = try reader.readString()
-        let subtitle = try reader.readString()
-        let symbol = try reader.readString()
-        let subjectID: UUID?
-        if try reader.readPresence() {
-            let subjectIDValue = try reader.readUUID()
-            subjectID = subjectIDValue
-        } else {
-            subjectID = nil
-        }
-        let tabID: UUID?
-        if try reader.readPresence() {
-            let tabIDValue = try reader.readUUID()
-            tabID = tabIDValue
-        } else {
-            tabID = nil
-        }
-        let address: String?
-        if try reader.readPresence() {
-            let addressValue = try reader.readString()
-            address = addressValue
-        } else {
-            address = nil
-        }
-        let command: ShortcutCommand?
-        if try reader.readPresence() {
-            let commandValue = try ShortcutCommand(from: &reader)
-            command = commandValue
-        } else {
-            command = nil
-        }
-        let provider: SearchProvider?
-        if try reader.readPresence() {
-            let providerValue = try SearchProvider(from: &reader)
-            provider = providerValue
-        } else {
-            provider = nil
-        }
-        let settingsPage: String?
-        if try reader.readPresence() {
-            let settingsPageValue = try reader.readString()
-            settingsPage = settingsPageValue
-        } else {
-            settingsPage = nil
-        }
-        let scope: PaletteScope?
-        if try reader.readPresence() {
-            let scopeValue = try PaletteScope(from: &reader)
-            scope = scopeValue
-        } else {
-            scope = nil
-        }
-        let reason: PaletteReason?
-        if try reader.readPresence() {
-            let reasonValue = try PaletteReason(from: &reader)
-            reason = reasonValue
-        } else {
-            reason = nil
-        }
-        self.init(kind: kind, title: title, subtitle: subtitle, symbol: symbol, subjectID: subjectID, tabID: tabID, address: address, command: command, provider: provider, settingsPage: settingsPage, scope: scope, reason: reason)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        kind.encode(into: &writer)
-        writer.writeString(title)
-        writer.writeString(subtitle)
-        writer.writeString(symbol)
-        if let present0 = subjectID {
-            writer.writePresence(true)
-            writer.writeUUID(present0)
-        } else {
-            writer.writePresence(false)
-        }
-        if let present0 = tabID {
-            writer.writePresence(true)
-            writer.writeUUID(present0)
-        } else {
-            writer.writePresence(false)
-        }
-        if let present0 = address {
-            writer.writePresence(true)
-            writer.writeString(present0)
-        } else {
-            writer.writePresence(false)
-        }
-        if let present0 = command {
-            writer.writePresence(true)
-            present0.encode(into: &writer)
-        } else {
-            writer.writePresence(false)
-        }
-        if let present0 = provider {
-            writer.writePresence(true)
-            present0.encode(into: &writer)
-        } else {
-            writer.writePresence(false)
-        }
-        if let present0 = settingsPage {
-            writer.writePresence(true)
-            writer.writeString(present0)
-        } else {
-            writer.writePresence(false)
-        }
-        if let present0 = scope {
-            writer.writePresence(true)
-            present0.encode(into: &writer)
-        } else {
-            writer.writePresence(false)
-        }
-        if let present0 = reason {
-            writer.writePresence(true)
-            present0.encode(into: &writer)
-        } else {
-            writer.writePresence(false)
-        }
-    }
-}
-
-extension PaletteSettingsPage {
-    init(from reader: inout WireReader) throws(WireError) {
-        let name = try reader.readString()
-        let title = try reader.readString()
-        let terms = try reader.readString()
-        self.init(name: name, title: title, terms: terms)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeString(name)
-        writer.writeString(title)
-        writer.writeString(terms)
-    }
-}
-
-extension PaletteSuggestions {
-    init(from reader: inout WireReader) throws(WireError) {
-        let windowID = try reader.readUUID()
-        let text = try reader.readString()
-        let commandsCount = try reader.readCount()
-        var commands: [PaletteCommand] = []
-        commands.reserveCapacity(commandsCount)
-        for _ in 0..<commandsCount {
-            let commandsElement = try PaletteCommand(from: &reader)
-            commands.append(commandsElement)
-        }
-        let settingsPagesCount = try reader.readCount()
-        var settingsPages: [PaletteSettingsPage] = []
-        settingsPages.reserveCapacity(settingsPagesCount)
-        for _ in 0..<settingsPagesCount {
-            let settingsPagesElement = try PaletteSettingsPage(from: &reader)
-            settingsPages.append(settingsPagesElement)
-        }
-        let remoteCount = try reader.readCount()
-        var remote: [String] = []
-        remote.reserveCapacity(remoteCount)
-        for _ in 0..<remoteCount {
-            let remoteElement = try reader.readString()
-            remote.append(remoteElement)
-        }
-        let scope: PaletteScope?
-        if try reader.readPresence() {
-            let scopeValue = try PaletteScope(from: &reader)
-            scope = scopeValue
-        } else {
-            scope = nil
-        }
-        let allowsCompletion = try reader.readBool()
-        self.init(windowID: windowID, text: text, commands: commands, settingsPages: settingsPages, remote: remote, scope: scope, allowsCompletion: allowsCompletion)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(windowID)
-        writer.writeString(text)
-        writer.writeCount(commands.count)
-        for element0 in commands {
-            element0.encode(into: &writer)
-        }
-        writer.writeCount(settingsPages.count)
-        for element0 in settingsPages {
-            element0.encode(into: &writer)
-        }
-        writer.writeCount(remote.count)
-        for element0 in remote {
-            writer.writeString(element0)
-        }
-        if let present0 = scope {
-            writer.writePresence(true)
-            present0.encode(into: &writer)
-        } else {
-            writer.writePresence(false)
-        }
-        writer.writeBool(allowsCompletion)
-    }
-
-    func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(38)
-        encode(into: &writer)
-    }
-
-    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> PaletteAnswer {
-        let answer = try PaletteAnswer(from: &reader)
-        return answer
-    }
-}
-
 extension PasskeyAccess {
     init(from reader: inout WireReader) throws(WireError) {
         let hasManagedCapability = try reader.readBool()
@@ -9829,7 +9484,7 @@ extension PasskeyAccess {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(39)
+        writer.writeTag(38)
         encode(into: &writer)
     }
 
@@ -9859,7 +9514,7 @@ extension PendingSave {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(40)
+        writer.writeTag(39)
         encode(into: &writer)
     }
 
@@ -9920,7 +9575,7 @@ extension PendingUploads {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(41)
+        writer.writeTag(40)
         encode(into: &writer)
     }
 
@@ -10165,7 +9820,7 @@ extension PresentPage {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(42)
+        writer.writeTag(41)
         encode(into: &writer)
     }
 
@@ -10212,7 +9867,7 @@ extension ProfileNotificationDisplayCheck {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(43)
+        writer.writeTag(42)
         encode(into: &writer)
     }
 
@@ -10286,7 +9941,7 @@ extension ReadArchive {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(44)
+        writer.writeTag(43)
         encode(into: &writer)
     }
 
@@ -10318,7 +9973,7 @@ extension ReadImport {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(45)
+        writer.writeTag(44)
         encode(into: &writer)
     }
 
@@ -10429,7 +10084,7 @@ extension RecentTabs {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(46)
+        writer.writeTag(45)
         encode(into: &writer)
     }
 
@@ -10495,7 +10150,7 @@ extension RecordsToUpload {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(47)
+        writer.writeTag(46)
         encode(into: &writer)
     }
 
@@ -10990,7 +10645,7 @@ extension ResolveAddress {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(48)
+        writer.writeTag(47)
         encode(into: &writer)
     }
 
@@ -11224,7 +10879,7 @@ extension SamePage {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(49)
+        writer.writeTag(48)
         encode(into: &writer)
     }
 
@@ -11318,7 +10973,7 @@ extension SchemeHandling {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(50)
+        writer.writeTag(49)
         encode(into: &writer)
     }
 
@@ -11391,7 +11046,7 @@ extension SecureOriginCheck {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(51)
+        writer.writeTag(50)
         encode(into: &writer)
     }
 
@@ -11561,7 +11216,7 @@ extension SelectionPreview {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(52)
+        writer.writeTag(51)
         encode(into: &writer)
     }
 
@@ -11586,7 +11241,7 @@ extension SelectionSearch {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(53)
+        writer.writeTag(52)
         encode(into: &writer)
     }
 
@@ -12620,7 +12275,7 @@ extension SiteDecision {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(54)
+        writer.writeTag(53)
         encode(into: &writer)
     }
 
@@ -13199,7 +12854,7 @@ extension SplitJoinCandidate {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(55)
+        writer.writeTag(54)
         encode(into: &writer)
     }
 
@@ -13611,7 +13266,7 @@ extension SwipeNeighbors {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(56)
+        writer.writeTag(55)
         encode(into: &writer)
     }
 
@@ -14882,7 +14537,7 @@ extension WindowToReopen {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(57)
+        writer.writeTag(56)
         encode(into: &writer)
     }
 
@@ -15679,76 +15334,6 @@ extension PageSecurity {
         let tag = try reader.readEnum()
         guard Self.all.indices.contains(tag) else {
             throw WireError.malformed("Unknown PageSecurity \(tag)")
-        }
-        self = Self.all[tag]
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeEnum(tag)
-    }
-}
-
-extension PaletteActivation {
-    init(from reader: inout WireReader) throws(WireError) {
-        let tag = try reader.readEnum()
-        guard Self.all.indices.contains(tag) else {
-            throw WireError.malformed("Unknown PaletteActivation \(tag)")
-        }
-        self = Self.all[tag]
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeEnum(tag)
-    }
-}
-
-extension PaletteReason {
-    init(from reader: inout WireReader) throws(WireError) {
-        let tag = try reader.readEnum()
-        guard Self.all.indices.contains(tag) else {
-            throw WireError.malformed("Unknown PaletteReason \(tag)")
-        }
-        self = Self.all[tag]
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeEnum(tag)
-    }
-}
-
-extension PaletteRowKind {
-    init(from reader: inout WireReader) throws(WireError) {
-        let tag = try reader.readEnum()
-        guard Self.all.indices.contains(tag) else {
-            throw WireError.malformed("Unknown PaletteRowKind \(tag)")
-        }
-        self = Self.all[tag]
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeEnum(tag)
-    }
-}
-
-extension PaletteScope {
-    init(from reader: inout WireReader) throws(WireError) {
-        let tag = try reader.readEnum()
-        guard Self.all.indices.contains(tag) else {
-            throw WireError.malformed("Unknown PaletteScope \(tag)")
-        }
-        self = Self.all[tag]
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeEnum(tag)
-    }
-}
-
-extension PaletteSection {
-    init(from reader: inout WireReader) throws(WireError) {
-        let tag = try reader.readEnum()
-        guard Self.all.indices.contains(tag) else {
-            throw WireError.malformed("Unknown PaletteSection \(tag)")
         }
         self = Self.all[tag]
     }

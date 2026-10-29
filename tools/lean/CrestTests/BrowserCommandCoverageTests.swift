@@ -7,8 +7,10 @@ import XCTest
 /// would quietly never be offered or never run.
 @MainActor
 final class BrowserCommandCoverageTests: XCTestCase {
-    func testEveryCommandTheCoreNamesRunsInTheMacShell() {
-        let missing = ShortcutCommand.all.filter { BrowserMacCommand.of($0) == nil }.map(\.name)
+    func testEveryDesktopCommandTheCoreNamesRunsInTheMacShell() {
+        // Toggle Sidebar controls the mobile split view; the Mac sidebar
+        // follows its hover presentation and has no such command.
+        let missing = ShortcutCommand.all.filter { $0 != .toggleSidebar && BrowserMacCommand.of($0) == nil }.map(\.name)
         XCTAssertEqual(missing, [])
     }
 

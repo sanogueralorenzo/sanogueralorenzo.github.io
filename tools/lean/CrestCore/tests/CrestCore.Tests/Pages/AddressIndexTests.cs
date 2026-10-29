@@ -30,13 +30,11 @@ public sealed class AddressIndexTests {
     }
 
     /// Whether `index` answers what an index made from scratch for the same
-    /// entries answers, for every address and completion candidate.
+    /// entries answers, for every address.
     private static void AssertMatchesAFreshIndex(IReadOnlyList<HistoryEntryState> history) {
         var derived = AddressIndex.Of(history);
         var fresh = AddressIndex.Of([.. history]);
         foreach (var url in history.Select(entry => entry.Url).Distinct()) Assert.Equal(fresh.Entry(url), derived.Entry(url));
-        Assert.Equal(fresh.Candidates().Select(candidate => (candidate.Url, candidate.Visits, candidate.Date)).OrderBy(value => value.Url),
-            derived.Candidates().Select(candidate => (candidate.Url, candidate.Visits, candidate.Date)).OrderBy(value => value.Url));
     }
 
     [Fact]
@@ -56,9 +54,6 @@ public sealed class AddressIndexTests {
             var next = HistoryEntryState.Visit(history, url, $"Page {page}", now, id, Limit)!;
             scanned = Scanned(scanned, url, $"Page {page}", now, id);
             Assert.True(scanned.SequenceEqual(next), $"Visit {visit} differs from a scan.");
-            // Completion candidates join the index just before the limit is
-            // reached, so derivation carries them past it.
-            if (history.Count == Limit - 20) _ = AddressIndex.Of(next).Candidates();
             if (visit % 50 == 0 || Math.Abs(next.Count - Limit) <= 2 || visit == visits - 1)
                 AssertMatchesAFreshIndex(next);
             history = next;

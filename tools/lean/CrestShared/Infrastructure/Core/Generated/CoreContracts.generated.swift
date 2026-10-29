@@ -519,12 +519,6 @@ struct AcknowledgeUploads: Intent, CloudSyncIntent, Equatable, Sendable {
     let records: [UploadedRecord]
 }
 
-struct AddressCompletion: Equatable, Sendable {
-    let typed: String
-    let suffix: String
-    let accepted: String
-}
-
 struct AdoptLegacySession: Intent, Equatable, Sendable {
     let installed: LegacySession
     let seed: SessionState.Seed?
@@ -2759,63 +2753,6 @@ struct PageUnloaded: CoreChange, Equatable, Sendable {
     let pageID: UUID
     let workspaceID: UUID
     let tabID: UUID
-}
-
-struct PaletteAnswer: Equatable, Sendable {
-    let groups: [PaletteGroup]
-    let completion: AddressCompletion?
-    let suggestionAddress: String?
-    let offeredScope: PaletteScope?
-    let entry: PaletteEntry?
-}
-
-struct PaletteCommand: Equatable, Sendable {
-    var command: ShortcutCommand
-    var title: String
-    var sectionTitle: String
-}
-
-struct PaletteEntry: Equatable, Sendable {
-    let scope: PaletteScope
-    let text: String
-}
-
-struct PaletteGroup: Equatable, Sendable {
-    let section: PaletteSection
-    let rows: [PaletteRow]
-}
-
-struct PaletteRow: Equatable, Sendable {
-    let kind: PaletteRowKind
-    let title: String
-    let subtitle: String
-    let symbol: String
-    let subjectID: UUID?
-    let tabID: UUID?
-    let address: String?
-    let command: ShortcutCommand?
-    let provider: SearchProvider?
-    let settingsPage: String?
-    let scope: PaletteScope?
-    let reason: PaletteReason?
-}
-
-struct PaletteSettingsPage: Equatable, Sendable {
-    var name: String
-    var title: String
-    var terms: String
-}
-
-struct PaletteSuggestions: Query, Equatable, Sendable {
-    typealias Answer = PaletteAnswer
-
-    let windowID: UUID
-    let text: String
-    let commands: [PaletteCommand]
-    let settingsPages: [PaletteSettingsPage]
-    let remote: [String]
-    let scope: PaletteScope?
-    let allowsCompletion: Bool
 }
 
 struct PasskeyAccess: Query, Equatable, Sendable {
@@ -7528,568 +7465,6 @@ struct PageSecurity: Hashable, Sendable {
     }
 }
 
-/// The members of the core's `PaletteActivation`. A member's wire tag is its index in `all`.
-struct PaletteActivation: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var closesPalette: Bool { facts.closesPalette }
-    var opensWhereKeysChoose: Bool { facts.opensWhereKeysChoose }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, closesPalette: Bool, opensWhereKeysChoose: Bool) {
-        self.tag = tag
-        facts = Facts(name: name, closesPalette: closesPalette, opensWhereKeysChoose: opensWhereKeysChoose)
-    }
-
-    static let switchesToTab = PaletteActivation(
-        tag: 0,
-        name: "switchesToTab",
-        closesPalette: true,
-        opensWhereKeysChoose: false
-    )
-    static let opensAddress = PaletteActivation(
-        tag: 1,
-        name: "opensAddress",
-        closesPalette: true,
-        opensWhereKeysChoose: true
-    )
-    static let searches = PaletteActivation(tag: 2, name: "searches", closesPalette: true, opensWhereKeysChoose: true)
-    static let runsCommand = PaletteActivation(
-        tag: 3,
-        name: "runsCommand",
-        closesPalette: true,
-        opensWhereKeysChoose: false
-    )
-    static let opensSettingsPage = PaletteActivation(
-        tag: 4,
-        name: "opensSettingsPage",
-        closesPalette: true,
-        opensWhereKeysChoose: false
-    )
-    static let showsSpace = PaletteActivation(
-        tag: 5,
-        name: "showsSpace",
-        closesPalette: true,
-        opensWhereKeysChoose: false
-    )
-    static let copiesAnswer = PaletteActivation(
-        tag: 6,
-        name: "copiesAnswer",
-        closesPalette: true,
-        opensWhereKeysChoose: false
-    )
-    static let entersScope = PaletteActivation(
-        tag: 7,
-        name: "entersScope",
-        closesPalette: false,
-        opensWhereKeysChoose: false
-    )
-
-    static let all: [PaletteActivation] = [
-        switchesToTab,
-        opensAddress,
-        searches,
-        runsCommand,
-        opensSettingsPage,
-        showsSpace,
-        copiesAnswer,
-        entersScope
-    ]
-
-    static func named(_ name: String?) -> PaletteActivation? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: PaletteActivation, rhs: PaletteActivation) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let closesPalette: Bool
-        let opensWhereKeysChoose: Bool
-
-        init(name: String, closesPalette: Bool, opensWhereKeysChoose: Bool) {
-            self.name = name
-            self.closesPalette = closesPalette
-            self.opensWhereKeysChoose = opensWhereKeysChoose
-        }
-    }
-}
-
-/// The members of the core's `PaletteReason`. A member's wire tag is its index in `all`.
-struct PaletteReason: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var text: LocalizedStringResource { facts.text }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, text: LocalizedStringResource) {
-        self.tag = tag
-        facts = Facts(name: name, text: text)
-    }
-
-    static let completion = PaletteReason(
-        tag: 0,
-        name: "completion",
-        text: LocalizedStringResource("Completes what you typed")
-    )
-    static let oftenVisited = PaletteReason(
-        tag: 1,
-        name: "oftenVisited",
-        text: LocalizedStringResource("Often visited")
-    )
-    static let recentlyUsed = PaletteReason(
-        tag: 2,
-        name: "recentlyUsed",
-        text: LocalizedStringResource("Recently used")
-    )
-    static let openTab = PaletteReason(tag: 3, name: "openTab", text: LocalizedStringResource("Already open"))
-    static let kept = PaletteReason(tag: 4, name: "kept", text: LocalizedStringResource("Pinned or saved"))
-    static let titleMatch = PaletteReason(
-        tag: 5,
-        name: "titleMatch",
-        text: LocalizedStringResource("Matches the title")
-    )
-    static let addressMatch = PaletteReason(
-        tag: 6,
-        name: "addressMatch",
-        text: LocalizedStringResource("Matches the address")
-    )
-
-    static let all: [PaletteReason] = [completion, oftenVisited, recentlyUsed, openTab, kept, titleMatch, addressMatch]
-
-    static func named(_ name: String?) -> PaletteReason? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: PaletteReason, rhs: PaletteReason) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let text: LocalizedStringResource
-
-        init(name: String, text: LocalizedStringResource) {
-            self.name = name
-            self.text = text
-        }
-    }
-}
-
-/// The members of the core's `PaletteRowKind`. A member's wire tag is its index in `all`.
-struct PaletteRowKind: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var symbol: String { facts.symbol }
-    var action: LocalizedStringResource? { facts.action }
-    var isPrimary: Bool { facts.isPrimary }
-    var activation: PaletteActivation { facts.activation }
-    var forgetsFromHistory: Bool { facts.forgetsFromHistory }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        name: String,
-        symbol: String,
-        action: LocalizedStringResource?,
-        isPrimary: Bool,
-        activation: PaletteActivation,
-        forgetsFromHistory: Bool
-    ) {
-        self.tag = tag
-        facts = Facts(
-            name: name,
-            symbol: symbol,
-            action: action,
-            isPrimary: isPrimary,
-            activation: activation,
-            forgetsFromHistory: forgetsFromHistory
-        )
-    }
-
-    static let openAddress = PaletteRowKind(
-        tag: 0,
-        name: "openAddress",
-        symbol: "globe",
-        action: nil,
-        isPrimary: true,
-        activation: PaletteActivation.opensAddress,
-        forgetsFromHistory: false
-    )
-    static let search = PaletteRowKind(
-        tag: 1,
-        name: "search",
-        symbol: "magnifyingglass",
-        action: nil,
-        isPrimary: true,
-        activation: PaletteActivation.searches,
-        forgetsFromHistory: false
-    )
-    static let searchSuggestion = PaletteRowKind(
-        tag: 2,
-        name: "searchSuggestion",
-        symbol: "magnifyingglass",
-        action: LocalizedStringResource("Search"),
-        isPrimary: false,
-        activation: PaletteActivation.searches,
-        forgetsFromHistory: false
-    )
-    static let tab = PaletteRowKind(
-        tag: 3,
-        name: "tab",
-        symbol: "globe",
-        action: LocalizedStringResource("Switch to Tab"),
-        isPrimary: false,
-        activation: PaletteActivation.switchesToTab,
-        forgetsFromHistory: false
-    )
-    static let pinnedTab = PaletteRowKind(
-        tag: 4,
-        name: "pinnedTab",
-        symbol: "pin.fill",
-        action: LocalizedStringResource("Switch to Tab"),
-        isPrimary: false,
-        activation: PaletteActivation.switchesToTab,
-        forgetsFromHistory: false
-    )
-    static let savedTab = PaletteRowKind(
-        tag: 5,
-        name: "savedTab",
-        symbol: "bookmark",
-        action: LocalizedStringResource("Switch to Tab"),
-        isPrimary: false,
-        activation: PaletteActivation.switchesToTab,
-        forgetsFromHistory: false
-    )
-    static let folder = PaletteRowKind(
-        tag: 6,
-        name: "folder",
-        symbol: "folder",
-        action: LocalizedStringResource("Open First Tab"),
-        isPrimary: false,
-        activation: PaletteActivation.switchesToTab,
-        forgetsFromHistory: false
-    )
-    static let command = PaletteRowKind(
-        tag: 7,
-        name: "command",
-        symbol: "command",
-        action: nil,
-        isPrimary: false,
-        activation: PaletteActivation.runsCommand,
-        forgetsFromHistory: false
-    )
-    static let history = PaletteRowKind(
-        tag: 8,
-        name: "history",
-        symbol: "clock",
-        action: LocalizedStringResource("Open"),
-        isPrimary: false,
-        activation: PaletteActivation.opensAddress,
-        forgetsFromHistory: true
-    )
-    static let space = PaletteRowKind(
-        tag: 9,
-        name: "space",
-        symbol: "square.stack",
-        action: LocalizedStringResource("Switch to Space"),
-        isPrimary: false,
-        activation: PaletteActivation.showsSpace,
-        forgetsFromHistory: false
-    )
-    static let settingsPage = PaletteRowKind(
-        tag: 10,
-        name: "settingsPage",
-        symbol: "gearshape",
-        action: LocalizedStringResource("Open Settings"),
-        isPrimary: false,
-        activation: PaletteActivation.opensSettingsPage,
-        forgetsFromHistory: false
-    )
-    static let calculation = PaletteRowKind(
-        tag: 11,
-        name: "calculation",
-        symbol: "equal",
-        action: LocalizedStringResource("Copy"),
-        isPrimary: true,
-        activation: PaletteActivation.copiesAnswer,
-        forgetsFromHistory: false
-    )
-    static let scope = PaletteRowKind(
-        tag: 12,
-        name: "scope",
-        symbol: "line.3.horizontal.decrease",
-        action: LocalizedStringResource("Search"),
-        isPrimary: false,
-        activation: PaletteActivation.entersScope,
-        forgetsFromHistory: false
-    )
-
-    static let all: [PaletteRowKind] = [
-        openAddress,
-        search,
-        searchSuggestion,
-        tab,
-        pinnedTab,
-        savedTab,
-        folder,
-        command,
-        history,
-        space,
-        settingsPage,
-        calculation,
-        scope
-    ]
-
-    static func named(_ name: String?) -> PaletteRowKind? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: PaletteRowKind, rhs: PaletteRowKind) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let symbol: String
-        let action: LocalizedStringResource?
-        let isPrimary: Bool
-        let activation: PaletteActivation
-        let forgetsFromHistory: Bool
-
-        init(
-            name: String,
-            symbol: String,
-            action: LocalizedStringResource?,
-            isPrimary: Bool,
-            activation: PaletteActivation,
-            forgetsFromHistory: Bool
-        ) {
-            self.name = name
-            self.symbol = symbol
-            self.action = action
-            self.isPrimary = isPrimary
-            self.activation = activation
-            self.forgetsFromHistory = forgetsFromHistory
-        }
-    }
-}
-
-/// The members of the core's `PaletteScope`. A member's wire tag is its index in `all`.
-struct PaletteScope: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var keyword: String { facts.keyword }
-    var title: LocalizedStringResource { facts.title }
-    var symbol: String { facts.symbol }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, keyword: String, title: LocalizedStringResource, symbol: String) {
-        self.tag = tag
-        facts = Facts(name: name, keyword: keyword, title: title, symbol: symbol)
-    }
-
-    static let tabs = PaletteScope(
-        tag: 0,
-        name: "tabs",
-        keyword: "@tabs",
-        title: LocalizedStringResource("Tabs"),
-        symbol: "square.on.square"
-    )
-    static let saved = PaletteScope(
-        tag: 1,
-        name: "saved",
-        keyword: "@saved",
-        title: LocalizedStringResource("Pinned & Saved"),
-        symbol: "pin"
-    )
-    static let history = PaletteScope(
-        tag: 2,
-        name: "history",
-        keyword: "@history",
-        title: LocalizedStringResource("History"),
-        symbol: "clock"
-    )
-    static let actions = PaletteScope(
-        tag: 3,
-        name: "actions",
-        keyword: "@actions",
-        title: LocalizedStringResource("Actions"),
-        symbol: "command"
-    )
-    static let spaces = PaletteScope(
-        tag: 4,
-        name: "spaces",
-        keyword: "@spaces",
-        title: LocalizedStringResource("Spaces"),
-        symbol: "square.stack"
-    )
-
-    static let all: [PaletteScope] = [tabs, saved, history, actions, spaces]
-
-    static func named(_ name: String?) -> PaletteScope? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: PaletteScope, rhs: PaletteScope) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let keyword: String
-        let title: LocalizedStringResource
-        let symbol: String
-
-        init(name: String, keyword: String, title: LocalizedStringResource, symbol: String) {
-            self.name = name
-            self.keyword = keyword
-            self.title = title
-            self.symbol = symbol
-        }
-    }
-}
-
-/// The members of the core's `PaletteSection`. A member's wire tag is its index in `all`.
-struct PaletteSection: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource? { facts.title }
-    var limit: Int { facts.limit }
-    var restingLimit: Int { facts.restingLimit }
-    var scopedLimit: Int { facts.scopedLimit }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        name: String,
-        title: LocalizedStringResource?,
-        limit: Int,
-        restingLimit: Int,
-        scopedLimit: Int
-    ) {
-        self.tag = tag
-        facts = Facts(name: name, title: title, limit: limit, restingLimit: restingLimit, scopedLimit: scopedLimit)
-    }
-
-    static let intent = PaletteSection(tag: 0, name: "intent", title: nil, limit: 2, restingLimit: 1, scopedLimit: 0)
-    static let searchSuggestions = PaletteSection(
-        tag: 1,
-        name: "searchSuggestions",
-        title: LocalizedStringResource("Search Suggestions"),
-        limit: 3,
-        restingLimit: 0,
-        scopedLimit: 0
-    )
-    static let recentTabs = PaletteSection(
-        tag: 2,
-        name: "recentTabs",
-        title: LocalizedStringResource("Recent Tabs"),
-        limit: 0,
-        restingLimit: 5,
-        scopedLimit: 0
-    )
-    static let tabs = PaletteSection(
-        tag: 3,
-        name: "tabs",
-        title: LocalizedStringResource("Tabs"),
-        limit: 8,
-        restingLimit: 0,
-        scopedLimit: 30
-    )
-    static let actions = PaletteSection(
-        tag: 4,
-        name: "actions",
-        title: LocalizedStringResource("Actions"),
-        limit: 3,
-        restingLimit: 3,
-        scopedLimit: 30
-    )
-    static let saved = PaletteSection(
-        tag: 5,
-        name: "saved",
-        title: LocalizedStringResource("Pinned & Saved"),
-        limit: 5,
-        restingLimit: 0,
-        scopedLimit: 30
-    )
-    static let history = PaletteSection(
-        tag: 6,
-        name: "history",
-        title: LocalizedStringResource("History"),
-        limit: 6,
-        restingLimit: 0,
-        scopedLimit: 30
-    )
-    static let topHit = PaletteSection(tag: 7, name: "topHit", title: nil, limit: 1, restingLimit: 0, scopedLimit: 0)
-    static let spaces = PaletteSection(
-        tag: 8,
-        name: "spaces",
-        title: LocalizedStringResource("Spaces"),
-        limit: 2,
-        restingLimit: 0,
-        scopedLimit: 30
-    )
-
-    static let all: [PaletteSection] = [
-        intent,
-        searchSuggestions,
-        recentTabs,
-        tabs,
-        actions,
-        saved,
-        history,
-        topHit,
-        spaces
-    ]
-
-    static func named(_ name: String?) -> PaletteSection? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: PaletteSection, rhs: PaletteSection) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource?
-        let limit: Int
-        let restingLimit: Int
-        let scopedLimit: Int
-
-        init(name: String, title: LocalizedStringResource?, limit: Int, restingLimit: Int, scopedLimit: Int) {
-            self.name = name
-            self.title = title
-            self.limit = limit
-            self.restingLimit = restingLimit
-            self.scopedLimit = scopedLimit
-        }
-    }
-}
-
 /// The members of the core's `PasskeyAccessStatus`. A member's wire tag is its index in `all`.
 struct PasskeyAccessStatus: Hashable, Sendable {
     let tag: Int
@@ -11993,7 +11368,6 @@ struct TabPlacement: Hashable, Sendable {
     var capacity: Int? { facts.capacity }
     var importedSymbol: String? { facts.importedSymbol }
     var isGrid: Bool { facts.isGrid }
-    var paletteRow: PaletteRowKind { facts.paletteRow }
     private let facts: Facts
 
     private init(
@@ -12008,8 +11382,7 @@ struct TabPlacement: Hashable, Sendable {
         holdsSplits: Bool,
         capacity: Int?,
         importedSymbol: String?,
-        isGrid: Bool,
-        paletteRow: PaletteRowKind
+        isGrid: Bool
     ) {
         self.tag = tag
         facts = Facts(
@@ -12023,8 +11396,7 @@ struct TabPlacement: Hashable, Sendable {
             holdsSplits: holdsSplits,
             capacity: capacity,
             importedSymbol: importedSymbol,
-            isGrid: isGrid,
-            paletteRow: paletteRow
+            isGrid: isGrid
         )
     }
 
@@ -12040,8 +11412,7 @@ struct TabPlacement: Hashable, Sendable {
         holdsSplits: false,
         capacity: 12,
         importedSymbol: "pin.fill",
-        isGrid: true,
-        paletteRow: PaletteRowKind.pinnedTab
+        isGrid: true
     )
     static let saved = TabPlacement(
         tag: 1,
@@ -12055,8 +11426,7 @@ struct TabPlacement: Hashable, Sendable {
         holdsSplits: true,
         capacity: nil,
         importedSymbol: nil,
-        isGrid: false,
-        paletteRow: PaletteRowKind.savedTab
+        isGrid: false
     )
     static let current = TabPlacement(
         tag: 2,
@@ -12070,8 +11440,7 @@ struct TabPlacement: Hashable, Sendable {
         holdsSplits: true,
         capacity: nil,
         importedSymbol: nil,
-        isGrid: false,
-        paletteRow: PaletteRowKind.tab
+        isGrid: false
     )
 
     static let all: [TabPlacement] = [pinned, saved, current]
@@ -12100,7 +11469,6 @@ struct TabPlacement: Hashable, Sendable {
         let capacity: Int?
         let importedSymbol: String?
         let isGrid: Bool
-        let paletteRow: PaletteRowKind
 
         init(
             name: String,
@@ -12113,8 +11481,7 @@ struct TabPlacement: Hashable, Sendable {
             holdsSplits: Bool,
             capacity: Int?,
             importedSymbol: String?,
-            isGrid: Bool,
-            paletteRow: PaletteRowKind
+            isGrid: Bool
         ) {
             self.name = name
             self.title = title
@@ -12127,7 +11494,6 @@ struct TabPlacement: Hashable, Sendable {
             self.capacity = capacity
             self.importedSymbol = importedSymbol
             self.isGrid = isGrid
-            self.paletteRow = paletteRow
         }
     }
 }

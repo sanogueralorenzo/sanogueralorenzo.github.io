@@ -18,3 +18,5 @@ dotnet test tests/CrestCore.Tests/CrestCore.Tests.csproj
 From the browser root, run `Scripts/control-plane/lint-dotnet.sh` for C# style
 and contract checks. Native page operations, launch isolation, media sessions and download records
 are owned by Swift. Closing consumes only the download ledger’s live count.
+Palette matching and ranking also run in Swift; typed address resolution still
+uses the shared navigation rule.
