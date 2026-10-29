@@ -47,6 +47,7 @@ final class CrestCore {
     let state = CoreState()
     @ObservationIgnored private(set) lazy var downloads = BrowserNativeDownloads(core: self)
     @ObservationIgnored private(set) var permissions: NativeSitePermissions!
+    @ObservationIgnored private(set) lazy var websiteData = NativeWebsiteData(core: self)
     @ObservationIgnored private(set) lazy var closing = NativeClosePreparation(core: self)
     @ObservationIgnored private(set) lazy var prompts = NativeBrowserPrompts(core: self)
     @ObservationIgnored private(set) lazy var browserImport = NativeBrowserImport(core: self)
@@ -96,10 +97,6 @@ final class CrestCore {
     /// Whether the app prepares to quit, or quits: a quit asked for that the
     /// core has not refused. No window closes on request meanwhile.
     var isQuitting: Bool { closing.isQuitting }
-    /// What waits for each data deletion to end, by its request.
-    @ObservationIgnored private var dataDeletionWaiters: [UUID: @MainActor (Bool) -> Void] = [:]
-    /// What waits for each website data reading to end, by its request.
-    @ObservationIgnored private var websiteDataWaiters: [UUID: @MainActor (WebsiteDataRead?) -> Void] = [:]
     #if DEBUG
         /// Hears each batch of changes once `state` has applied it, so a test
         /// can apply the same batch again.
@@ -164,6 +161,7 @@ final class CrestCore {
     /// `state`. An intent that does not apply to the current state returns none.
     @discardableResult
     func send(_ intent: some Intent) throws(Rejection) -> [Change] {
+        try websiteData.validate(intent)
         var writer = WireWriter()
         intent.encodeIntent(into: &writer)
         var reader = try call(crest_app_dispatch, writer, "send \(type(of: intent))")
@@ -189,31 +187,14 @@ final class CrestCore {
         }
     }
 
-    /// Erases what every registered engine keeps for a profile, as `request`
-    /// asks, and answers whether each of them erased all of it. A request the
-    /// core refuses erases nothing.
+    /// Erases WebKit data and answers only once the native operation finishes.
     func deleteData(_ request: some DataDeletionRequest) async -> Bool {
-        await withCheckedContinuation { continuation in
-            dataDeletionWaiters[request.requestID] = { continuation.resume(returning: $0) }
-            do {
-                try send(request)
-            } catch {
-                dataDeletionWaiters.removeValue(forKey: request.requestID)?(false)
-            }
-        }
+        await websiteData.delete(request)
     }
 
-    /// The sites that keep data in a profile on every registered engine, as
-    /// `request` asks, or nil when the core refuses it.
+    /// Lists WebKit's stored sites without creating an unused profile store.
     func readWebsiteData(_ request: ReadWebsiteData) async -> WebsiteDataRead? {
-        await withCheckedContinuation { continuation in
-            websiteDataWaiters[request.requestID] = { continuation.resume(returning: $0) }
-            do {
-                try send(request)
-            } catch {
-                websiteDataWaiters.removeValue(forKey: request.requestID)?(nil)
-            }
-        }
+        await websiteData.read(request)
     }
 
     // MARK: - Actions - Cloud sync
@@ -361,11 +342,6 @@ final class CrestCore {
         // Closing can release windows and send more intents, after every
         // observer has received the current batch.
         closing.prune()
-        // Last, because a deletion waiter may send another intent.
-        for deleted in batch.dataDeleted {
-            dataDeletionWaiters.removeValue(forKey: deleted.requestID)?(deleted.deleted)
-        }
-        for read in batch.websiteDataRead { websiteDataWaiters.removeValue(forKey: read.requestID)?(read) }
     }
 
     /// Calls `handler` with each site permission change once its batch is

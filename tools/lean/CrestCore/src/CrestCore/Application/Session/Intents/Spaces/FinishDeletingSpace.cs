@@ -33,14 +33,10 @@ public sealed record FinishDeletingSpace(Guid WorkspaceId, Guid WindowId, Guid S
 
     #region Actions - Routing
 
-    /// A Space's deletion finishes only once this run erased its profile's
-    /// data on every registered engine; a Space the session no longer holds is
-    /// the session's to refuse. A deleted Space leaves nothing in this device's
-    /// link or agent preferences.
+    /// The native erasure owner validates its proof before dispatch. Session
+    /// operation checks and persistence stay atomic here, including forgetting
+    /// a deleted Space in the device's agent preferences.
     internal override void Commit(CrestApp app, ChangeFeed changes) {
-        if (app.Device.Workspace(WorkspaceId).Current.Space(SpaceId) is { } space
-            && !app.DataDeletions.Erased(space.ProfileId))
-            throw new Rejected(new SpaceDataNotErased(space.Id));
         base.Commit(app, changes);
         app.Device.ForgetAgents(SpaceId, changes);
     }

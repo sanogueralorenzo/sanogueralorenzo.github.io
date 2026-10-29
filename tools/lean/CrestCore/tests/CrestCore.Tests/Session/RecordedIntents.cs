@@ -129,25 +129,15 @@ internal static class RecordedIntents {
             shown.Add(page);
         }
         foreach (var intent in intents) {
-            // The platform erases a Space's profile data before its deletion finishes.
-            if (intent is FinishDeletingSpace finishing
-                && app.Workspace(finishing.WorkspaceId).Current.Spaces.FirstOrDefault(space => space.Id == finishing.SpaceId) is { } space)
-                changes.AddRange(app.Send(new DeleteProfileData(Guid.NewGuid(), space.ProfileId, Ephemeral: false)));
             changes.AddRange(app.Send(intent));
         }
         foreach (var page in shown) changes.AddRange(app.Send(new ReleasePage(page, KeepsState: false)));
         return changes;
     }
 
-    /// An engine for recorded navigations' pages, which does what the core
-    /// asks and erases what it is asked to at once.
-    public static Engine PageEngine(CrestApp app) {
-        Engine? engine = null;
-        engine = app.RegisterEngine(new EngineRegistration(EngineCapability.Required), command => {
-            if (command is EraseProfileData erasing) app.Report(engine!, new DataErased(erasing.ErasureId, Erased: true));
-        });
-        return engine;
-    }
+    /// A registered engine for pages whose observations the recording supplies.
+    public static Engine PageEngine(CrestApp app) =>
+        app.RegisterEngine(new EngineRegistration(EngineCapability.Required), _ => { });
 
     /// Reports `navigation` from a page `engine` hosts in `window` for no tab,
     /// as a Quick Window's page does, and answers the changes the core

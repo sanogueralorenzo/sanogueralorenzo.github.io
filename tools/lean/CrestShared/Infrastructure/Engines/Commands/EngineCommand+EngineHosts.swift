@@ -7,9 +7,9 @@ extension EngineCommand {
         case .adoptOfferedPage(let command): hosts.insert(command.pageID)
         case .closePage(let command): hosts.remove(command.pageID)
         case .createPage(let command): hosts.insert(command.pageID)
-        case .dropStagedLink, .eraseBrowsingData,
-            .eraseProfileData, .eraseSiteData, .exitPictureInPicture, .goToHistoryEntry, .groupPages, .loadPage,
-            .readSiteData, .recoverPage, .rejectOfferedPage,
+        case .dropStagedLink,
+            .exitPictureInPicture, .goToHistoryEntry, .groupPages, .loadPage,
+            .recoverPage, .rejectOfferedPage,
             .stageNavigation:
             // These act on a page the engine already hosts, or on none.
             break

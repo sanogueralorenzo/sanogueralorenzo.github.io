@@ -336,9 +336,9 @@ final class BrowserPageHost {
     }
 
     /// Deletes what the host keeps of `space` before the Space goes: `release`
-    /// lets go of its pages and what the platform keeps besides, then every
-    /// engine erases its profile through `core`, `ephemeral` when this launch
-    /// keeps it in memory only. Throws when an engine could not erase it.
+    /// lets go of its pages and what the platform keeps besides, then WebKit
+    /// erases its profile through `core`, `ephemeral` when this launch
+    /// keeps it in memory only. Throws when WebKit could not erase it.
     func deleteData(
         for space: BrowserSpaceRuntimeAssignment, on core: CrestCore, ephemeral: Bool, release: () async -> Void
     ) async throws {
@@ -348,10 +348,9 @@ final class BrowserPageHost {
         await BrowserFaviconFallbackLoader.shared.removeAll(for: space.profileID)
         // Nothing may outlive the profile it describes.
         tabState.removeStates(profileID: space.profileID)
-        // Every engine erases the profile, started or not; the Space's
-        // deletion finishes only once each has.
+        // WebKit erases even an idle profile before its Space is removed.
         let erased = await core.deleteData(
-            DeleteProfileData(requestID: UUID(), profileID: space.profileID, ephemeral: ephemeral))
+            DeleteProfileData(profileID: space.profileID, ephemeral: ephemeral))
         guard erased else { throw BrowserSpaceDeletionError.dataNotErased }
     }
 

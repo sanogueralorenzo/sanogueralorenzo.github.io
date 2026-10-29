@@ -55,7 +55,7 @@ final class BrowserStoreWorkspaceTests: XCTestCase {
         XCTAssertEqual(try harness.stored().session, original)
     }
 
-    func testTemporaryWorkspaceFollowsItsSourceKeepingLocalOrganizationAndClosesOnAReplacedProfile() throws {
+    func testTemporaryWorkspaceFollowsItsSourceKeepingLocalOrganizationAndClosesOnAReplacedProfile() async throws {
         let source = BrowserStore(seed: .preview)
         let assignment = BrowserSpaceRuntimeAssignment(space: try XCTUnwrap(source.shownSpace))
         let temporary = try XCTUnwrap(source.makeTemporaryWindowStore(in: assignment))
@@ -72,7 +72,7 @@ final class BrowserStoreWorkspaceTests: XCTestCase {
         XCTAssertEqual(temporary.shownSpace?.pinnedTabs.map(\.id), [tabID])
         XCTAssertEqual(temporary.shownSpace?.folders.models.map(\.id), [folderID])
         // A replacement of the Space's profile, as only the cloud makes, closes it.
-        source.replaceProfileForTesting(of: assignment.spaceID)
+        await source.replaceProfileForTesting(of: assignment.spaceID)
         XCTAssertFalse(temporary.family.isOpen)
         XCTAssertTrue(temporary.spaceModels.isEmpty)
     }

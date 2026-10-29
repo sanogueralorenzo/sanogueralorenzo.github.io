@@ -26,9 +26,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     private readonly Device device;
     /// The pages this device hosts, and the engines that host them.
     private readonly Pages pages;
-    /// Erasing what every engine keeps for a profile.
-    private readonly DataDeletions dataDeletions;
-    private readonly SiteDataReads siteDataReads;
     /// The cloud transport's state on this device.
     private readonly CloudTransportStore cloudTransport;
     /// What iCloud sync does next on this device.
@@ -44,8 +41,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     // messages reach.
     internal Device Device => device;
     internal Pages Pages => pages;
-    internal DataDeletions DataDeletions => dataDeletions;
-    internal SiteDataReads SiteDataReads => siteDataReads;
     internal CloudTransportStore CloudTransport => cloudTransport;
     internal CloudSyncControl CloudSync => cloudSync;
     internal IClock Clock => clock;
@@ -72,8 +67,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         this.clock = clock;
         this.ids = ids;
         portability = new(configuration.ImportNames, clock, ids);
-        dataDeletions = new(engines, ids, clock);
-        siteDataReads = new(engines, ids);
         if (configuration.StorageDirectory is not { } directory) {
             device = new(configuration.Platform, storage: null, DeviceRecords.Empty, Announce, RequestTurn, CloseBorrower, clock);
             pages = new(device, engines, clock, ids);

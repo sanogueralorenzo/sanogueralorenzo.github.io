@@ -80,7 +80,7 @@ struct BrowserClearBrowsingDataSection: View {
         }
         let erased = await browser.core.deleteData(
             DeleteBrowsingData(
-                requestID: UUID(), profileID: space.profileID, ephemeral: browser.isPrivateBrowsing, range: range,
+                profileID: space.profileID, ephemeral: browser.isPrivateBrowsing, range: range,
                 categories: chosen))
         outcome = cleared && erased ? .cleared : .failed
         isClearing = false

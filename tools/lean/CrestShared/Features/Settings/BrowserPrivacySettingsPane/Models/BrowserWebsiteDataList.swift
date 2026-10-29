@@ -1,6 +1,6 @@
 import Foundation
 
-/// The sites that keep data in one Space's engines, as the core lists them,
+/// The sites that keep data in one Space’s WebKit profile,
 /// and removing them. Website data stays on this device: nothing here syncs.
 @MainActor
 @Observable
@@ -8,15 +8,15 @@ final class BrowserWebsiteDataList {
     // MARK: - Variables
 
     @ObservationIgnored private let core: CrestCore
-    /// The Space's profile, whose stores the engines list.
+    /// The Space’s profile, whose WebKit stores are listed.
     let profileID: UUID
     /// The profile keeps its data only in memory, as a private window's does.
     let ephemeral: Bool
     /// The sites, sorted by name, or nil until the first listing ends.
     private(set) var sites: [StoredSite]?
-    /// Every engine listed its own sites; one that could not may hide some.
+    /// The listing completed; an incomplete one may omit sites.
     private(set) var isComplete = true
-    /// The last removal left something an engine could not clear.
+    /// The last removal left something WebKit could not clear.
     private(set) var removalFailed = false
     /// A removal is under way.
     private(set) var isRemoving = false
@@ -31,10 +31,10 @@ final class BrowserWebsiteDataList {
 
     // MARK: - Actions - Listing
 
-    /// Asks every engine again which sites keep data.
+    /// Asks WebKit again which sites keep data.
     func read() async {
         let read = await core.readWebsiteData(
-            ReadWebsiteData(requestID: UUID(), profileID: profileID, ephemeral: ephemeral, host: nil))
+            ReadWebsiteData(profileID: profileID, ephemeral: ephemeral, host: nil))
         sites = read?.sites ?? sites ?? []
         isComplete = read?.complete ?? false
     }
@@ -54,16 +54,16 @@ final class BrowserWebsiteDataList {
         guard !sites.isEmpty else { return }
         await removing(
             DeleteSiteData(
-                requestID: UUID(), profileID: profileID, ephemeral: ephemeral, hosts: sites.map(\.site),
+                profileID: profileID, ephemeral: ephemeral, hosts: sites.map(\.site),
                 categories: BrowsingDataCategory.all.filter(\.clearsBySite)))
     }
 
-    /// Removes every site's data in the Space, a site no engine could list
+    /// Removes every site's data in the Space, a site WebKit could not list
     /// included, then lists the sites again.
     func removeAll() async {
         await removing(
             DeleteBrowsingData(
-                requestID: UUID(), profileID: profileID, ephemeral: ephemeral, range: .allTime,
+                profileID: profileID, ephemeral: ephemeral, range: .allTime,
                 categories: BrowsingDataCategory.all.filter(\.clearsBySite)))
     }
 

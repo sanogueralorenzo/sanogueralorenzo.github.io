@@ -15,8 +15,6 @@ struct CoreChangeBatch {
     var adoptedPages: [OfferedPageAdopted] = []
     var broughtForward: [WindowBroughtForward] = []
     var closedTransientPages: [TransientPageClosed] = []
-    var dataDeleted: [DataDeleted] = []
-    var websiteDataRead: [WebsiteDataRead] = []
     var notificationAccessChanged = false
 }
 

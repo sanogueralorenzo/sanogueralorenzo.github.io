@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class BrowserSidebarExactAssignmentTests: XCTestCase {
-    func testRetainedRowPresentationNeverAuthorizesAStaleSpace() throws {
+    func testRetainedRowPresentationNeverAuthorizesAStaleSpace() async throws {
         let context = makeContext()
         let lists = try XCTUnwrap(context.store.sidebarListContext(for: context.source.id))
         let tab = try XCTUnwrap(lists.space.tabs.model(context.sourceTab.id))
@@ -33,7 +33,7 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
         context.store.selectSpace(context.source.id)
         row.spacePresentation = SidebarSpacePresentation(space: lists.space)
         XCTAssertTrue(row.isCurrentAndAvailable)
-        replaceProfile(of: context.source, in: context.store)
+        await replaceProfile(of: context.source, in: context.store)
         XCTAssertFalse(row.isCurrentAndAvailable, "A cached render value cannot authorize a replaced profile")
 
         let destination = try XCTUnwrap(context.store.spaceModel(context.destination.id))
@@ -56,10 +56,10 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
             SidebarSpaceRole.permitsInteraction(isSelected: true, isAvailable: refreshed.isAvailableForDisplay))
     }
 
-    func testCapturedTabCloseRejectsAReplacementBrowsingProfile() throws {
+    func testCapturedTabCloseRejectsAReplacementBrowsingProfile() async throws {
         let context = makeContext()
         let assignment = BrowserSpaceRuntimeAssignment(space: context.source)
-        replaceProfile(of: context.source, in: context.store)
+        await replaceProfile(of: context.source, in: context.store)
 
         XCTAssertFalse(
             context.store.closeTab(
@@ -73,10 +73,10 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
         )
     }
 
-    func testCapturedTabRenameRejectsAReplacementBrowsingProfile() throws {
+    func testCapturedTabRenameRejectsAReplacementBrowsingProfile() async throws {
         let context = makeContext()
         let assignment = BrowserSpaceRuntimeAssignment(space: context.source)
-        replaceProfile(of: context.source, in: context.store)
+        await replaceProfile(of: context.source, in: context.store)
 
         XCTAssertFalse(
             context.store.setTabCustomTitle(
@@ -92,14 +92,14 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
         )
     }
 
-    func testLiveTabDropRejectsAReplacementDestinationProfile() throws {
+    func testLiveTabDropRejectsAReplacementDestinationProfile() async throws {
         let context = makeContext()
         let item = dragItem(for: context.sourceTab, in: context.source)
         let destinationAssignment = BrowserSpaceRuntimeAssignment(
             space: context.destination
         )
         context.store.selectSpace(context.destination.id)
-        replaceProfile(of: context.destination, in: context.store)
+        await replaceProfile(of: context.destination, in: context.store)
 
         XCTAssertFalse(
             context.store.moveTab(
@@ -207,7 +207,7 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
         )
     }
 
-    func testStaleFolderDragRejectsAReplacementBrowsingProfile() throws {
+    func testStaleFolderDragRejectsAReplacementBrowsingProfile() async throws {
         let context = makeContext()
         let assignment = BrowserSpaceRuntimeAssignment(space: context.source)
         let folderID = try XCTUnwrap(
@@ -221,7 +221,7 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
             spaceID: assignment.spaceID,
             profileID: assignment.profileID
         )
-        replaceProfile(of: context.source, in: context.store)
+        await replaceProfile(of: context.source, in: context.store)
 
         XCTAssertFalse(
             context.store.moveFolder(
@@ -384,8 +384,8 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
     private func replaceProfile(
         of space: SpaceState.Seed,
         in store: BrowserStore
-    ) {
-        store.replaceProfileForTesting(of: space.id, with: fixedUUID(7))
+    ) async {
+        await store.replaceProfileForTesting(of: space.id, with: fixedUUID(7))
     }
 
     private func fixedUUID(_ suffix: UInt8) -> UUID {

@@ -28,16 +28,16 @@ final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
         XCTAssertEqual(port.openedURLs.map(\.absoluteString), [context.history.url])
     }
 
-    func testCapturedUtilityActionsRejectSelectionAndProfileChanges() throws {
-        try assertActionsAreRejected { context in
+    func testCapturedUtilityActionsRejectSelectionAndProfileChanges() async throws {
+        try await assertActionsAreRejected { context in
             context.browser.selectSpace(context.destination.id)
         }
-        try assertActionsAreRejected { context in
-            self.replaceProfile(of: context.source, in: context.browser)
+        try await assertActionsAreRejected { context in
+            await self.replaceProfile(of: context.source, in: context.browser)
         }
     }
 
-    func testCapturedUtilityActionsRejectDeletingSpaces() throws {
+    func testCapturedUtilityActionsRejectDeletingSpaces() async throws {
         let deletingContext = makeContext()
         XCTAssertTrue(
             deletingContext.browser.family.beginDeletingSpace(
@@ -49,7 +49,7 @@ final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
                 deletingContext.source.id
             )
         }
-        try assertActionsAreRejected(context: deletingContext, mutation: { _ in })
+        try await assertActionsAreRejected(context: deletingContext, mutation: { _ in })
     }
 
     /// Each download action reaches the shell's port with the item the policy
@@ -86,7 +86,7 @@ final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
         XCTAssertEqual(port.clearedDownloads, [itemID])
     }
 
-    func testDownloadPolicyRequiresExactSelectedProfileOwnership() {
+    func testDownloadPolicyRequiresExactSelectedProfileOwnership() async {
         let context = makeContext()
         let assignment = BrowserSpaceRuntimeAssignment(space: context.source)
         let exactItem = downloadItem(profileID: assignment.profileID, id: Self.uuid(20))
@@ -147,7 +147,7 @@ final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
             profileID: replacementAssignment.profileID,
             id: Self.uuid(24)
         )
-        replaceProfile(
+        await replaceProfile(
             of: replacementContext.source,
             in: replacementContext.browser
         )
@@ -160,16 +160,16 @@ final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
 
     private func assertActionsAreRejected(
         context: Context? = nil,
-        mutation: (Context) -> Void,
+        mutation: @MainActor (Context) async -> Void,
         file: StaticString = #filePath,
         line: UInt = #line
-    ) throws {
+    ) async throws {
         let context = context ?? makeContext()
         let port = RecordedPlatformActions()
         let coordinator = makeCoordinator(context, port: port)
         let assignment = BrowserSpaceRuntimeAssignment(space: context.source)
         let entry = try XCTUnwrap(context.browser.spaceModel(context.source.id)?.history.entries.first)
-        mutation(context)
+        await mutation(context)
 
         coordinator.actions.restoreArchivedTab(context.archived.id, assignment)
         coordinator.actions.openHistoryEntry(entry, assignment)
@@ -263,8 +263,8 @@ final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
         )
     }
 
-    private func replaceProfile(of space: SpaceState.Seed, in browser: BrowserStore) {
-        browser.replaceProfileForTesting(of: space.id, with: Self.uuid(7))
+    private func replaceProfile(of space: SpaceState.Seed, in browser: BrowserStore) async {
+        await browser.replaceProfileForTesting(of: space.id, with: Self.uuid(7))
     }
 
     private func downloadItem(profileID: UUID, id: UUID) -> DownloadState {

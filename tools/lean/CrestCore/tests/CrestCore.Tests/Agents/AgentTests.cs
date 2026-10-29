@@ -164,7 +164,6 @@ public sealed partial class BrowserContractsTests {
         app.Send(new AllowAgentSpace(second, true));
         app.Send(new BeginDeletingSpace(workspace, Guid.NewGuid(), second, operation));
         Assert.DoesNotContain(app.Query(new AgentReach(agent)).Spaces, space => space.SpaceId == second);
-        app.Send(new DeleteProfileData(Guid.NewGuid(), ProfileId(session["spaces"]![1]!), Ephemeral: false));
         Assert.Equal([first], AgentPreferencesIn(app.Send(new FinishDeletingSpace(workspace, Guid.NewGuid(), second, operation))).SpaceIds);
 
         // Forgetting the agent disconnects it and forgets where it was

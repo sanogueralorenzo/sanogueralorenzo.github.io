@@ -4,7 +4,7 @@ import XCTest
 
 @MainActor
 final class BrowserSettingsPrivacyPolicyTests: XCTestCase {
-    func testLiveSpaceSelectionRejectsStaleSourcesAndUnavailableDestinationsWithoutMutation() {
+    func testLiveSpaceSelectionRejectsStaleSourcesAndUnavailableDestinationsWithoutMutation() async {
         for invalidation in SettingsSelectionInvalidation.allCases {
             var session = SessionState.Seed.preview
             let settings = TabState.Seed(title: "Settings", url: nil, nativeContent: .settings, placement: .current)
@@ -31,7 +31,7 @@ final class BrowserSettingsPrivacyPolicyTests: XCTestCase {
             case .replacedTabContent:
                 break
             case .replacedProfile:
-                browser.replaceProfileForTesting(of: source.id)
+                await browser.replaceProfileForTesting(of: source.id)
             case .unselectedSource:
                 browser.selectPresentedSpace(destination.id)
             case .deletingSource:
@@ -39,7 +39,7 @@ final class BrowserSettingsPrivacyPolicyTests: XCTestCase {
             case .deletingDestination:
                 _ = browser.family.beginDeletingSpace(destination.id)
             case .missingDestination:
-                browser.removeSpaceForTesting(destination.id)
+                await browser.removeSpaceForTesting(destination.id)
             }
             let before = browser.sessionSeed
             let revision = browser.sessionRevision

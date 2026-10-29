@@ -8,7 +8,6 @@ final class NativeClosePreparation {
         case preparationUnderway(UUID)
         case unknownPrompt(UUID)
         case spaceDeletionUnderway(SpaceDeletionUnderway)
-        case core(Rejection)
     }
     typealias Check = @MainActor (UUID, @escaping @MainActor (Bool) -> Void) -> Void
     private final class Preparation {
@@ -66,12 +65,8 @@ final class NativeClosePreparation {
         advance()
     }
     func allPagesForQuit() throws(Failure) -> [UUID] {
-        do {
-            let barriers = try core.query(QuitBarriers()).spaceIDs
-            if !barriers.isEmpty { throw Failure.spaceDeletionUnderway(SpaceDeletionUnderway(spaceIDs: barriers)) }
-        } catch let error as Failure { throw error } catch let error as Rejection { throw .core(error) } catch {
-            preconditionFailure("Unexpected quit-barrier failure: \(error)")
-        }
+        let barriers = core.websiteData.quitBarriers
+        if !barriers.isEmpty { throw .spaceDeletionUnderway(SpaceDeletionUnderway(spaceIDs: barriers)) }
         return core.state.pageOrder
     }
     func pagesForWindows(_ windows: [UUID]) -> [UUID] {

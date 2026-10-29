@@ -146,7 +146,7 @@ extension BrowserPageOwner {
     }
 
     /// Lets go of every page and download record the owner keeps for the
-    /// Space `space` names. Its website data goes when every engine erases
+    /// Space `space` names. Its website data goes when WebKit erases
     /// its profile.
     func releaseWindowRuntime(for space: BrowserSpaceRuntimeAssignment) async {
         guard host.spacesReleasingData.insert(space.spaceID).inserted else {
@@ -161,7 +161,7 @@ extension BrowserPageOwner {
     /// Lets go of everything a private workspace kept in the Spaces `spaces`
     /// names: its pages, download records, site permissions, certificate
     /// exceptions and fallback icons, and then, once the private window's
-    /// own teardown finished, the website data every engine keeps in memory
+    /// own teardown finished, the website data WebKit keeps in memory
     /// for their profiles, which no later private window ever uses again.
     func releasePrivateBrowsingData(in spaces: [BrowserSpaceRuntimeAssignment]) {
         host.closePrivateBrowsingSession()
@@ -177,7 +177,7 @@ extension BrowserPageOwner {
         let profileIDs = spaces.map(\.profileID)
         Task { @MainActor in
             for profileID in profileIDs {
-                _ = await core.deleteData(DeleteProfileData(requestID: UUID(), profileID: profileID, ephemeral: true))
+                _ = await core.deleteData(DeleteProfileData(profileID: profileID, ephemeral: true))
             }
         }
     }

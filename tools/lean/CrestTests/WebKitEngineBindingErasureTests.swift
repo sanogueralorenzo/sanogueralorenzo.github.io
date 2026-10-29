@@ -12,13 +12,13 @@ final class WebKitEngineBindingErasureTests: XCTestCase {
         let profileID = UUID()
 
         let deleted = await core.deleteData(
-            DeleteProfileData(requestID: UUID(), profileID: profileID, ephemeral: false))
+            DeleteProfileData(profileID: profileID, ephemeral: false))
         XCTAssertTrue(deleted)
         XCTAssertEqual(stores.erased.map(\.id), [profileID])
         XCTAssertEqual(stores.erased.map(\.ephemeral), [false])
 
         stores.fails = true
-        let failed = await core.deleteData(DeleteProfileData(requestID: UUID(), profileID: profileID, ephemeral: false))
+        let failed = await core.deleteData(DeleteProfileData(profileID: profileID, ephemeral: false))
         XCTAssertFalse(failed)
     }
 }

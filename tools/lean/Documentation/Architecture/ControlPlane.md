@@ -17,8 +17,8 @@ ordering and lifecycle run in the native store. Launch isolation and external
 web-link eligibility also run in Swift before a core is required.
 
 Download records, progress/risk queries and WebKit download callbacks run in
-Swift. `SetDownloadActivity` reports their live count to the remaining quit
-preparation; the C# core holds no download records or transfer identities.
+Swift. Native quit preparation reads their live count directly; the C# core
+holds no download records or transfer identities.
 
 Palette matching, ranking, inline completion, scopes, calculation and suggestion
 filtering run in Swift from a window snapshot. Typed address resolution still
@@ -35,5 +35,7 @@ readers and session import validation still run in the core.
 Page prompt reports, questions and answers have no wire codecs. Native WebKit
 pending callbacks and `NativeBrowserPrompts` handle them directly; remembered
 permission decisions use the native ledger and its SQLite table. Quit confirmation
-and before-unload checking are native. `QuitBarriers` derives active Space
-erasures, and `AcceptQuit` preserves the existing window restoration policy.
+and before-unload checking are native. Website-data reads and erasures have no
+wire codecs. Their native owner tracks active profile erasures for quit and
+validates success before dispatching a Space-removal commit. `AcceptQuit`
+preserves the existing window restoration policy.

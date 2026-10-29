@@ -41,9 +41,6 @@ protocol CloudSyncIntent: Intent {}
 /// The members of `Intent` that derive from the core's `CloudTransportIntent`.
 protocol CloudTransportIntent: Intent {}
 
-/// The members of `Intent` that derive from the core's `DataDeletionIntent`.
-protocol DataDeletionIntent: Intent {}
-
 /// The members of `Intent` that derive from the core's `ImportWorkspace`.
 protocol ImportWorkspace: Intent {}
 
@@ -74,7 +71,6 @@ enum Change: Equatable, Sendable {
     case cloudMergeBegan(CloudMergeBegan)
     case cloudSyncAdvanced(CloudSyncAdvanced)
     case cloudTransportChanged(CloudTransportChanged)
-    case dataDeleted(DataDeleted)
     case enginesChanged(EnginesChanged)
     case foldersChanged(FoldersChanged)
     case historyChanged(HistoryChanged)
@@ -99,7 +95,6 @@ enum Change: Equatable, Sendable {
     case tabsChanged(TabsChanged)
     case tabsImported(TabsImported)
     case transientPageClosed(TransientPageClosed)
-    case websiteDataRead(WebsiteDataRead)
     case windowBroughtForward(WindowBroughtForward)
     case windowChanged(WindowChanged)
     case windowClosed(WindowClosed)
@@ -150,7 +145,6 @@ enum Rejection: Equatable, Error, Sendable {
     case invalidLiveFolder(InvalidLiveFolder)
     case invalidName(InvalidName)
     case invalidSession(InvalidSession)
-    case invalidSiteHost(InvalidSiteHost)
     case invalidSpaceOrder(InvalidSpaceOrder)
     case invalidSplitColumnShares(InvalidSplitColumnShares)
     case invalidSyncRecords(InvalidSyncRecords)
@@ -158,7 +152,6 @@ enum Rejection: Equatable, Error, Sendable {
     case lastStartPage(LastStartPage)
     case legacyCloudStateUnreadable(LegacyCloudStateUnreadable)
     case noArchivedTabs(NoArchivedTabs)
-    case noBrowsingDataCategory(NoBrowsingDataCategory)
     case noCurrentTabs(NoCurrentTabs)
     case noIncludedSpaces(NoIncludedSpaces)
     case noSavedAddress(NoSavedAddress)
@@ -283,14 +276,10 @@ enum EngineCommand: Equatable, Sendable {
     case closePage(ClosePage)
     case createPage(CreatePage)
     case dropStagedLink(DropStagedLink)
-    case eraseBrowsingData(EraseBrowsingData)
-    case eraseProfileData(EraseProfileData)
-    case eraseSiteData(EraseSiteData)
     case exitPictureInPicture(ExitPictureInPicture)
     case goToHistoryEntry(GoToHistoryEntry)
     case groupPages(GroupPages)
     case loadPage(LoadPage)
-    case readSiteData(ReadSiteData)
     case recoverPage(RecoverPage)
     case rejectOfferedPage(RejectOfferedPage)
     case stageNavigation(StageNavigation)
@@ -307,7 +296,6 @@ extension Change {
         case .cloudMergeBegan(let change): change.apply(to: state)
         case .cloudSyncAdvanced(let change): change.apply(to: state)
         case .cloudTransportChanged(let change): change.apply(to: state)
-        case .dataDeleted(let change): change.apply(to: state)
         case .enginesChanged(let change): change.apply(to: state)
         case .foldersChanged(let change): change.apply(to: state)
         case .historyChanged(let change): change.apply(to: state)
@@ -332,7 +320,6 @@ extension Change {
         case .tabsChanged(let change): change.apply(to: state)
         case .tabsImported(let change): change.apply(to: state)
         case .transientPageClosed(let change): change.apply(to: state)
-        case .websiteDataRead(let change): change.apply(to: state)
         case .windowBroughtForward(let change): change.apply(to: state)
         case .windowChanged(let change): change.apply(to: state)
         case .windowClosed(let change): change.apply(to: state)
@@ -354,7 +341,6 @@ extension Change {
         case .cloudMergeBegan(let change): change.apply(to: core, in: &batch)
         case .cloudSyncAdvanced(let change): change.apply(to: core, in: &batch)
         case .cloudTransportChanged(let change): change.apply(to: core, in: &batch)
-        case .dataDeleted(let change): change.apply(to: core, in: &batch)
         case .enginesChanged(let change): change.apply(to: core, in: &batch)
         case .foldersChanged(let change): change.apply(to: core, in: &batch)
         case .historyChanged(let change): change.apply(to: core, in: &batch)
@@ -379,7 +365,6 @@ extension Change {
         case .tabsChanged(let change): change.apply(to: core, in: &batch)
         case .tabsImported(let change): change.apply(to: core, in: &batch)
         case .transientPageClosed(let change): change.apply(to: core, in: &batch)
-        case .websiteDataRead(let change): change.apply(to: core, in: &batch)
         case .windowBroughtForward(let change): change.apply(to: core, in: &batch)
         case .windowChanged(let change): change.apply(to: core, in: &batch)
         case .windowClosed(let change): change.apply(to: core, in: &batch)
@@ -401,7 +386,6 @@ extension Change {
         case .cloudMergeBegan(let change): change.note(in: &receipts)
         case .cloudSyncAdvanced(let change): change.note(in: &receipts)
         case .cloudTransportChanged(let change): change.note(in: &receipts)
-        case .dataDeleted(let change): change.note(in: &receipts)
         case .enginesChanged(let change): change.note(in: &receipts)
         case .foldersChanged(let change): change.note(in: &receipts)
         case .historyChanged(let change): change.note(in: &receipts)
@@ -426,7 +410,6 @@ extension Change {
         case .tabsChanged(let change): change.note(in: &receipts)
         case .tabsImported(let change): change.note(in: &receipts)
         case .transientPageClosed(let change): change.note(in: &receipts)
-        case .websiteDataRead(let change): change.note(in: &receipts)
         case .windowBroughtForward(let change): change.note(in: &receipts)
         case .windowChanged(let change): change.note(in: &receipts)
         case .windowClosed(let change): change.note(in: &receipts)
@@ -1102,48 +1085,16 @@ struct CurrentTabsOnly: Equatable, Sendable {
     }
 }
 
-struct DataDeleted: CoreChange, Equatable, Sendable {
-    let requestID: UUID
-    let deleted: Bool
-}
-
-struct DataErased: EngineEvent, Equatable, Sendable {
-    let erasureID: UUID
-    let erased: Bool
-}
-
 struct DataRetentionPreferences: Equatable, Sendable {
     var history: DataRetention
     var archive: DataRetention
     var downloads: DataRetention
 }
 
-struct DeleteBrowsingData: Intent, DataDeletionIntent, Equatable, Sendable {
-    let requestID: UUID
-    let profileID: UUID
-    let ephemeral: Bool
-    let range: BrowsingDataRange
-    let categories: [BrowsingDataCategory]
-}
-
 struct DeleteFolder: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
     let folderID: UUID
-}
-
-struct DeleteProfileData: Intent, DataDeletionIntent, Equatable, Sendable {
-    let requestID: UUID
-    let profileID: UUID
-    let ephemeral: Bool
-}
-
-struct DeleteSiteData: Intent, DataDeletionIntent, Equatable, Sendable {
-    let requestID: UUID
-    let profileID: UUID
-    let ephemeral: Bool
-    let hosts: [String]
-    let categories: [BrowsingDataCategory]
 }
 
 struct DeleteTab: Intent, SessionIntent, Equatable, Sendable {
@@ -1366,28 +1317,6 @@ struct EngineWindowPlacement: Query, Equatable, Sendable {
 
 struct EnginesChanged: CoreChange, Equatable, Sendable {
     let roster: EngineRoster
-}
-
-struct EraseBrowsingData: Equatable, Sendable {
-    let profileID: UUID
-    let ephemeral: Bool
-    let since: Date?
-    let categories: [BrowsingDataCategory]
-    let erasureID: UUID
-}
-
-struct EraseProfileData: Equatable, Sendable {
-    let profileID: UUID
-    let ephemeral: Bool
-    let erasureID: UUID
-}
-
-struct EraseSiteData: Equatable, Sendable {
-    let profileID: UUID
-    let ephemeral: Bool
-    let hosts: [String]
-    let categories: [BrowsingDataCategory]
-    let erasureID: UUID
 }
 
 struct ExitPictureInPicture: Equatable, Sendable {
@@ -1796,9 +1725,6 @@ struct InvalidSession: Equatable, Sendable {
     let flaw: SessionFlaw
 }
 
-struct InvalidSiteHost: Equatable, Sendable {
-}
-
 struct InvalidSpaceOrder: Equatable, Sendable {
 }
 
@@ -2057,9 +1983,6 @@ struct NavigationStarted: EngineEvent, PageEvent, Equatable, Sendable {
 
 struct NoArchivedTabs: Equatable, Sendable {
     let spaceID: UUID
-}
-
-struct NoBrowsingDataCategory: Equatable, Sendable {
 }
 
 struct NoCurrentTabs: Equatable, Sendable {
@@ -2469,15 +2392,6 @@ struct ProfileInUse: Equatable, Sendable {
     }
 }
 
-struct QuitBarrierList: Equatable, Sendable {
-    let spaceIDs: [UUID]
-}
-
-struct QuitBarriers: Query, Equatable, Sendable {
-    typealias Answer = QuitBarrierList
-
-}
-
 struct ReadArchive: Query, Equatable, Sendable {
     typealias Answer = ImportedSpaces
 
@@ -2489,19 +2403,6 @@ struct ReadImport: Query, Equatable, Sendable {
 
     let source: ImportSource
     let profiles: [ImportProfile]
-}
-
-struct ReadSiteData: Equatable, Sendable {
-    let profileID: UUID
-    let ephemeral: Bool
-    let readingID: UUID
-}
-
-struct ReadWebsiteData: Intent, Equatable, Sendable {
-    let requestID: UUID
-    let profileID: UUID
-    let ephemeral: Bool
-    let host: String?
 }
 
 struct RecentTabItem: Equatable, Sendable {
@@ -3007,12 +2908,6 @@ struct SidebarRow: Equatable, Sendable, Identifiable {
     let members: [UUID]
 }
 
-struct SiteDataRead: EngineEvent, Equatable, Sendable {
-    let readingID: UUID
-    let sites: [StoredSite]
-    let read: Bool
-}
-
 struct SiteOrigin: Hashable, Sendable {
     static let maximumSchemeLength: Int = 64
     static let maximumHostLength: Int = 1024
@@ -3265,11 +3160,6 @@ struct StorageUnreadable: Equatable, Sendable {
 }
 
 struct StoredSessionClosed: Equatable, Sendable {
-}
-
-struct StoredSite: Equatable, Sendable {
-    var site: String
-    var kinds: [WebsiteDataKind]
 }
 
 struct SweepExpiredRecords: Intent, SessionIntent, Equatable, Sendable {
@@ -3572,12 +3462,6 @@ struct WebPagesOnly: Equatable, Sendable {
     var message: LocalizedStringResource {
         LocalizedStringResource("This action requires webpage tabs. Deselect built-in pages first.")
     }
-}
-
-struct WebsiteDataRead: CoreChange, Equatable, Sendable {
-    let requestID: UUID
-    let sites: [StoredSite]
-    let complete: Bool
 }
 
 struct WindowBroughtForward: CoreChange, Equatable, Sendable {
@@ -4240,132 +4124,6 @@ struct BlockedPopupStatus: Hashable, Sendable {
             self.symbol = symbol
             self.guidance = guidance
             self.offersAllow = offersAllow
-        }
-    }
-}
-
-/// The members of the core's `BrowsingDataCategory`. A member's wire tag is its index in `all`.
-struct BrowsingDataCategory: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var detail: LocalizedStringResource? { facts.detail }
-    var clearSiteTitle: LocalizedStringResource? { facts.clearSiteTitle }
-    var clearedTitle: LocalizedStringResource? { facts.clearedTitle }
-    var failedTitle: LocalizedStringResource? { facts.failedTitle }
-    var symbol: String? { facts.symbol }
-    var clearsHistory: Bool { facts.clearsHistory }
-    var clearsBySite: Bool { facts.clearsBySite }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        name: String,
-        title: LocalizedStringResource,
-        detail: LocalizedStringResource?,
-        clearSiteTitle: LocalizedStringResource?,
-        clearedTitle: LocalizedStringResource?,
-        failedTitle: LocalizedStringResource?,
-        symbol: String?,
-        clearsHistory: Bool,
-        clearsBySite: Bool
-    ) {
-        self.tag = tag
-        facts = Facts(
-            name: name,
-            title: title,
-            detail: detail,
-            clearSiteTitle: clearSiteTitle,
-            clearedTitle: clearedTitle,
-            failedTitle: failedTitle,
-            symbol: symbol,
-            clearsHistory: clearsHistory,
-            clearsBySite: clearsBySite
-        )
-    }
-
-    static let history = BrowsingDataCategory(
-        tag: 0,
-        name: "history",
-        title: LocalizedStringResource("History"),
-        detail: nil,
-        clearSiteTitle: nil,
-        clearedTitle: nil,
-        failedTitle: nil,
-        symbol: nil,
-        clearsHistory: true,
-        clearsBySite: false
-    )
-    static let siteData = BrowsingDataCategory(
-        tag: 1,
-        name: "siteData",
-        title: LocalizedStringResource("Cookies and Site Data"),
-        detail: LocalizedStringResource("Signs you out of most sites."),
-        clearSiteTitle: LocalizedStringResource("Clear Cookies"),
-        clearedTitle: LocalizedStringResource("Cookies Cleared"),
-        failedTitle: LocalizedStringResource("Couldn’t Clear Cookies"),
-        symbol: "person.crop.circle.badge.xmark",
-        clearsHistory: false,
-        clearsBySite: true
-    )
-    static let cache = BrowsingDataCategory(
-        tag: 2,
-        name: "cache",
-        title: LocalizedStringResource("Cached Images and Files"),
-        detail: nil,
-        clearSiteTitle: LocalizedStringResource("Clear Cache"),
-        clearedTitle: LocalizedStringResource("Cache Cleared"),
-        failedTitle: LocalizedStringResource("Couldn’t Clear Cache"),
-        symbol: "trash",
-        clearsHistory: false,
-        clearsBySite: true
-    )
-
-    static let all: [BrowsingDataCategory] = [history, siteData, cache]
-
-    static func named(_ name: String?) -> BrowsingDataCategory? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: BrowsingDataCategory, rhs: BrowsingDataCategory) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-        let detail: LocalizedStringResource?
-        let clearSiteTitle: LocalizedStringResource?
-        let clearedTitle: LocalizedStringResource?
-        let failedTitle: LocalizedStringResource?
-        let symbol: String?
-        let clearsHistory: Bool
-        let clearsBySite: Bool
-
-        init(
-            name: String,
-            title: LocalizedStringResource,
-            detail: LocalizedStringResource?,
-            clearSiteTitle: LocalizedStringResource?,
-            clearedTitle: LocalizedStringResource?,
-            failedTitle: LocalizedStringResource?,
-            symbol: String?,
-            clearsHistory: Bool,
-            clearsBySite: Bool
-        ) {
-            self.name = name
-            self.title = title
-            self.detail = detail
-            self.clearSiteTitle = clearSiteTitle
-            self.clearedTitle = clearedTitle
-            self.failedTitle = failedTitle
-            self.symbol = symbol
-            self.clearsHistory = clearsHistory
-            self.clearsBySite = clearsBySite
         }
     }
 }
@@ -8323,47 +8081,6 @@ struct WebScheme: Hashable, Sendable {
             self.name = name
             self.defaultPort = defaultPort
             self.isSecure = isSecure
-        }
-    }
-}
-
-/// The members of the core's `WebsiteDataKind`. A member's wire tag is its index in `all`.
-struct WebsiteDataKind: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, title: LocalizedStringResource) {
-        self.tag = tag
-        facts = Facts(name: name, title: title)
-    }
-
-    static let cookies = WebsiteDataKind(tag: 0, name: "cookies", title: LocalizedStringResource("Cookies"))
-    static let storage = WebsiteDataKind(tag: 1, name: "storage", title: LocalizedStringResource("Storage"))
-    static let cache = WebsiteDataKind(tag: 2, name: "cache", title: LocalizedStringResource("Cache"))
-
-    static let all: [WebsiteDataKind] = [cookies, storage, cache]
-
-    static func named(_ name: String?) -> WebsiteDataKind? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: WebsiteDataKind, rhs: WebsiteDataKind) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-
-        init(name: String, title: LocalizedStringResource) {
-            self.name = name
-            self.title = title
         }
     }
 }

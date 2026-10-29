@@ -49,16 +49,6 @@ internal sealed partial class Device {
         lock (gate) quitAccepted = true;
     }
 
-    /// The Spaces an attached workspace is deleting whose profile's data the
-    /// engines are erasing now, as `erasing` says of each profile.
-    internal IReadOnlyList<Guid> SpacesBeingDeleted(Func<Guid, bool> erasing) {
-        ArgumentNullException.ThrowIfNull(erasing);
-        NativeSessionAuthority[] attached;
-        lock (gate) attached = [.. workspaces.Values];
-        return [.. attached.SelectMany(workspace => workspace.Current.SpaceDeletions)
-            .Where(deletion => erasing(deletion.ProfileId)).Select(deletion => deletion.SpaceId).Distinct()];
-    }
-
     #endregion
 
     #region Actions - Launch

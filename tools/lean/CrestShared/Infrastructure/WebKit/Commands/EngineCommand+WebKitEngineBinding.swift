@@ -9,16 +9,12 @@ extension EngineCommand {
         case .closePage(let command): command.perform(on: binding)
         case .createPage(let command): command.perform(on: binding)
         case .dropStagedLink(let command): command.perform(on: binding)
-        case .eraseBrowsingData(let command): command.perform(on: binding)
-        case .eraseProfileData(let command): command.perform(on: binding)
-        case .eraseSiteData(let command): command.perform(on: binding)
         case .exitPictureInPicture(let command): command.perform(on: binding)
         case .goToHistoryEntry(let command): command.perform(on: binding)
         case .groupPages:
             // WebKit reports no tab groups, so the core never asks it for one.
             break
         case .loadPage(let command): command.perform(on: binding)
-        case .readSiteData(let command): command.perform(on: binding)
         case .recoverPage(let command): command.perform(on: binding)
         case .rejectOfferedPage(let command): command.perform(on: binding)
         case .stageNavigation(let command): command.perform(on: binding)

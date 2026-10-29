@@ -65,7 +65,7 @@ final class BrowserCommandPaletteCompletionTests: XCTestCase {
         browser.selectPresentedSpace(original.id)
         browser.clearPresentedTabSelection(in: original.id)
         XCTAssertNil(model.urlCompletion)
-        browser.replaceProfileForTesting(of: original.id)
+        await browser.replaceProfileForTesting(of: original.id)
         browser.activateSessionTab(tab.id, in: original.id)
         XCTAssertNil(model.urlCompletion)
         XCTAssertFalse(model.acceptURLCompletion())

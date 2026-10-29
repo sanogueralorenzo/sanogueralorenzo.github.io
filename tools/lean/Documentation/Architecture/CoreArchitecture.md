@@ -12,7 +12,7 @@ operations run directly in Swift. Navigation events report resulting changes
 to the state core. Media-session metadata, sequencing, dismissal and Now Playing
 selection belong to `BrowserMediaSessionStore`. Download records, risk and
 progress rules, transfer routing and download prompts belong to
-`BrowserNativeDownloads`; the closing core receives only its derived live count.
+`BrowserNativeDownloads`; native quit preparation reads its derived live count.
 The command palette ranks immutable native snapshots of these read models;
 its text matching, scopes, completion, calculation and suggestions are Swift.
 
@@ -34,10 +34,12 @@ directly to WebKit. Credentials have no core contract or persistence path.
 Remembered permissions, session overrides, revocation and notification
 eligibility are native. The native permission store owns only its existing
 SQLite table; C# device records no longer carry permission rows. Whole-file
-recovery backups still include them. Seeded and private workspaces keep choices in memory, and borrowed windows use their
-owner’s choices.
+recovery backups still include them. Seeded and private workspaces keep choices
+in memory, and borrowed windows use their owner’s choices.
 
 Close and quit preparation is native. Pages are checked in opening order,
 one at a time; a new document invalidates an earlier approval. Native downloads
-provide the quit prompt count. The core still reports active profile erasures
-and records an accepted quit for window restoration until those owners move.
+provide the quit prompt count. Native website-data operations call WebKit
+directly, own in-flight erasures and per-run success proof, and prevent Space
+removal until erasure succeeds. The session core still records accepted quits
+for window restoration and commits Space removals atomically.

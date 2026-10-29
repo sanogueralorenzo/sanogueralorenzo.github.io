@@ -462,7 +462,7 @@ final class BrowserStoreTests: XCTestCase {
         )
     }
 
-    func testStaleDragCannotMoveATabFromAReplacementBrowsingProfile() throws {
+    func testStaleDragCannotMoveATabFromAReplacementBrowsingProfile() async throws {
         let store = BrowserStore(seed: .preview)
         let source = try XCTUnwrap(store.spaceModels.first)
         let destination = try XCTUnwrap(
@@ -474,7 +474,7 @@ final class BrowserStoreTests: XCTestCase {
             spaceID: source.id,
             profileID: source.profileID
         )
-        store.replaceProfileForTesting(of: source.id)
+        await store.replaceProfileForTesting(of: source.id)
 
         XCTAssertFalse(
             store.moveTab(
@@ -708,7 +708,7 @@ final class BrowserStoreMutationTests: XCTestCase {
         )
     }
 
-    func testClearingCapturedHistoryRejectsAReplacementBrowsingProfile() throws {
+    func testClearingCapturedHistoryRejectsAReplacementBrowsingProfile() async throws {
         let store = BrowserStore(seed: .preview, core: .hostingPages())
         let initiatingSpace = try XCTUnwrap(store.shownSpace)
         store.seedVisit(
@@ -720,7 +720,7 @@ final class BrowserStoreMutationTests: XCTestCase {
             spaceName: initiatingSpace.settings.name
         )
         let currentSpace = try XCTUnwrap(store.shownSpace)
-        store.replaceProfileForTesting(of: currentSpace.id)
+        await store.replaceProfileForTesting(of: currentSpace.id)
         let replacement = try XCTUnwrap(store.spaceModel(currentSpace.id))
 
         XCTAssertFalse(store.clearHistory(matching: request.assignment))
@@ -730,7 +730,7 @@ final class BrowserStoreMutationTests: XCTestCase {
         )
     }
 
-    func testRestoringCapturedArchiveRejectsAReplacementBrowsingProfile() throws {
+    func testRestoringCapturedArchiveRejectsAReplacementBrowsingProfile() async throws {
         let store = BrowserStore(seed: .preview)
         let url = try XCTUnwrap(URL(string: "https://example.com/archive"))
         let tabID = try XCTUnwrap(store.openNewTab(url: url))
@@ -738,7 +738,7 @@ final class BrowserStoreMutationTests: XCTestCase {
         let original = try XCTUnwrap(store.shownSpace)
         let assignment = BrowserSpaceRuntimeAssignment(space: original)
         XCTAssertTrue(original.archive.entries.contains(where: { $0.tab.id == tabID }))
-        store.replaceProfileForTesting(of: original.id)
+        await store.replaceProfileForTesting(of: original.id)
 
         XCTAssertFalse(store.restoreArchivedTab(tabID, matching: assignment))
         XCTAssertTrue(
