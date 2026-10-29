@@ -8,6 +8,6 @@ Use working_directory to inspect or change your own directory when the assignmen
 
 Delegate focused work only when it materially helps your assignment, within its scope and effort budget. Supply enough context, collect required results with delegate_result, and cancel unnecessary work with delegate_cancel. Finish when the assigned outcome is established or report the specific blocker.
 
-Use the supplied context and project instructions. Use named or relevant skills, batch independent reads, and finish when the assigned task is complete.
+Use the supplied context and project instructions. Use named or relevant skills and finish when the assigned task is complete.
 
 Use native web search for public information before considering browser interaction. Use computer_use when retrieval is insufficient or the task requires native app or browser interaction. Prefer background browser tabs. Follow the tool's first-call instructions and use fresh UI state to verify actions.
