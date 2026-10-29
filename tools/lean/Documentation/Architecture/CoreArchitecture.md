@@ -49,3 +49,9 @@ provide the quit prompt count. Native website-data operations call WebKit
 directly, own in-flight erasures and per-run success proof, and prevent Space
 removal until erasure succeeds. The session core still records accepted quits
 for window restoration and commits Space removals atomically.
+
+Agent state is native. `NativeAgents` owns approved programs and their current
+connections, scopes reach to allowed Spaces of the person's own session, and
+prunes claims after session changes. `AgentSQLite` persists only preferences;
+stopped tabs and activity remain process-local. It and `PermissionSQLite` use
+the same small SQLite connection implementation with separate table ownership.

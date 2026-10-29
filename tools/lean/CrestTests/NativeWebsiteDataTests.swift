@@ -83,6 +83,8 @@ final class NativeWebsiteDataTests: XCTestCase {
         let stores = SuspendedStores()
         register(stores, in: harness.core)
         let space = try XCTUnwrap(harness.store.spaceModels.first)
+        try harness.core.send(SetAgents(isOn: true))
+        try harness.core.send(AllowAgentSpace(spaceID: space.id, allowed: true))
         let operation = UUID()
         try begin(space.id, operation, in: harness.store)
         let finish = FinishDeletingSpace(
@@ -111,6 +113,8 @@ final class NativeWebsiteDataTests: XCTestCase {
         XCTAssertTrue(harness.core.websiteData.hasErased(space.profileID))
         try sendGenerically(finish, to: harness.core)
         XCTAssertNil(harness.store.spaceModel(space.id))
+        XCTAssertFalse(harness.core.state.agentPreferences.spaceIDs.contains(space.id))
+        XCTAssertFalse(try AgentSQLite(directory: harness.directory).read().spaceIDs.contains(space.id))
     }
 
     func testRestartKeepsThePendingOperationButRequiresFreshErasureProof() async throws {

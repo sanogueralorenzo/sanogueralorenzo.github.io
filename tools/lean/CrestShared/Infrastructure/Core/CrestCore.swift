@@ -41,6 +41,7 @@ final class CrestCore {
     let state = CoreState()
     @ObservationIgnored private(set) lazy var downloads = BrowserNativeDownloads(core: self)
     @ObservationIgnored private(set) var permissions: NativeSitePermissions!
+    @ObservationIgnored private(set) var agents: NativeAgents!
     @ObservationIgnored private(set) lazy var websiteData = NativeWebsiteData(core: self)
     @ObservationIgnored private let pageClock: @MainActor () -> Date
     @ObservationIgnored private(set) lazy var pages = NativePages(core: self, now: pageClock)
@@ -140,8 +141,10 @@ final class CrestCore {
         state.favicons.takePageImage = { [weak self] in self?.engines.takeIcon(of: $0) }
         let installed = crest_app_set_wake(handle, relayCoreWake, Unmanaged.passUnretained(wake).toOpaque())
         guard installed == CREST_OK else { Self.buildBug(installed, "set its wake callback") }
-        state.agentPreferences = try query(GetAgentPreferences())
-        do { permissions = try NativeSitePermissions(core: self) } catch let error as PermissionSQLite.Failure {
+        do {
+            permissions = try NativeSitePermissions(core: self)
+            agents = try NativeAgents(core: self)
+        } catch let error as SQLiteConnection.Failure {
             throw .storageUnreadable(StorageUnreadable(reason: error.reason))
         } catch { throw .storageUnreadable(StorageUnreadable(reason: .unavailable)) }
     }
@@ -173,7 +176,9 @@ final class CrestCore {
         var writer = WireWriter()
         intent.encodeIntent(into: &writer)
         var reader = try call(crest_app_dispatch, writer, "send \(type(of: intent))")
-        return Self.decodeChanges(from: &reader, "\(type(of: intent))")
+        let changes = Self.decodeChanges(from: &reader, "\(type(of: intent))")
+        if let deleted = intent as? FinishDeletingSpace { agents.forgetDeletedSpace(deleted.spaceID) }
+        return changes
     }
 
     // MARK: - Actions - Closing
@@ -334,6 +339,7 @@ final class CrestCore {
         pages.flushCommands()
         var batch = CoreChangeBatch()
         for change in applied { change.apply(to: self, in: &batch) }
+        agents?.reconcile(applied)
         pages.reconcile(in: &batch)
         pages.flushCommands()
         state.finishBatch()

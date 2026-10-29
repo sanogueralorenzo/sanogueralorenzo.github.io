@@ -1,11 +1,10 @@
 namespace CrestCore.Contracts;
 
 public sealed class DevicePlatform {
-    public static readonly DevicePlatform Desktop = new("desktop", offersAgents: true);
-    public static readonly DevicePlatform Mobile = new("mobile", offersAgents: false);
+    public static readonly DevicePlatform Desktop = new("desktop");
+    public static readonly DevicePlatform Mobile = new("mobile");
     public static IReadOnlyList<DevicePlatform> All { get; } = [Desktop, Mobile];
     public string Name { get; }
-    internal bool OffersAgents { get; }
-    private DevicePlatform(string name, bool offersAgents) { Name = name; OffersAgents = offersAgents; }
+    private DevicePlatform(string name) { Name = name; }
     public static DevicePlatform? Named(string? name) => All.FirstOrDefault(platform => platform.Name == name);
 }

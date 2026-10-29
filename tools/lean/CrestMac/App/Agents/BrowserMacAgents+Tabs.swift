@@ -100,7 +100,7 @@ extension BrowserMacAgents {
         var spaces = reach.spaces
         if let id = query.space {
             guard let space = spaces.first(where: { $0.spaceID == id }) else {
-                throw .rejected(.agentSpaceUnavailable(AgentSpaceUnavailable(spaceID: id)))
+                throw .rejected(.spaceUnavailable(id))
             }
             spaces = [space]
         }
@@ -118,7 +118,7 @@ extension BrowserMacAgents {
         guard let reached = reach.spaces.first(where: { $0.spaceID == opening.space }),
             let workspaceID = reach.workspaceID,
             let space = core.state.workspaces[workspaceID]?.spaces.model(opening.space)
-        else { throw .rejected(.agentSpaceUnavailable(AgentSpaceUnavailable(spaceID: opening.space))) }
+        else { throw .rejected(.spaceUnavailable(opening.space)) }
         let window = frontWindow(over: space)
         let shows = opening.show == true && window != nil
         let browser = window?.browser ?? application.browser
@@ -195,13 +195,8 @@ extension BrowserMacAgents {
 
     /// What the agent reaches now, as the core answers.
     func reach(_ call: BrowserAgentCall) throws(BrowserAgentFailure) -> AgentReachList {
-        let reach: AgentReachList
-        do {
-            reach = try core.query(AgentReach(sessionID: call.sessionID))
-        } catch {
-            throw .rejected(error)
-        }
-        guard reach.workspaceID != nil else { throw .rejected(.agentsOff(AgentsOff())) }
+        let reach = core.query(AgentReach(sessionID: call.sessionID))
+        guard reach.workspaceID != nil else { throw .rejected(.agentsOff) }
         return reach
     }
 
@@ -218,7 +213,7 @@ extension BrowserMacAgents {
                 if let tab = space.tabs.model(tabID) { return (space, tab) }
             }
         }
-        throw .rejected(.agentTabUnavailable(AgentTabUnavailable(tabID: tabID)))
+        throw .rejected(.tabUnavailable(tabID))
     }
 
     /// `text` as an address an agent may open: http or https, with a host.
@@ -237,7 +232,7 @@ extension BrowserMacAgents {
                 return describe(tab, in: space.spaceID, model: workspace?.spaces.model(space.spaceID))
             }
         }
-        throw .rejected(.agentTabUnavailable(AgentTabUnavailable(tabID: tabID)))
+        throw .rejected(.tabUnavailable(tabID))
     }
 
     private func describe(_ tab: AgentTab, in spaceID: UUID, model: SpaceModel?) -> TabListing {

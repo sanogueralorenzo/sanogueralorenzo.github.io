@@ -84,7 +84,6 @@ internal sealed partial class Device {
         foreach (var record in records.Windows) saved[record.Id] = record;
         reopening.AddRange(records.Reopening.Distinct());
         lastUse = records.Windows.Count == 0 ? 0 : records.Windows.Max(record => record.Used);
-        agents = records.Agents;
         adopted.UnionWith(records.Adopted);
     }
 
@@ -287,9 +286,7 @@ internal sealed partial class Device {
 
     /// Everything the device store keeps, as it stands. The caller holds the device lock.
     internal DeviceRecords Records() => new([.. saved.Values.OrderBy(record => record.Used)], [.. reopening],
-        new HashSet<DeviceAdoption>(adopted)) {
-        Agents = agents
-    };
+        new HashSet<DeviceAdoption>(adopted));
 
     #endregion
 

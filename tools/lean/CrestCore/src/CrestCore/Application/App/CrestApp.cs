@@ -100,15 +100,13 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     }
 
     /// Commits one session/device turn under the core lock, then returns its
-    /// changes after any earlier pending changes. Agents release stale tabs.
+    /// changes after any earlier pending changes.
     internal IReadOnlyList<Change> Turn(Action<ChangeFeed> apply) {
         IReadOnlyList<Change> published;
         storedSync?.RequireNoTransactionHeldHere();
         lock (gate) {
             var changes = new ChangeFeed();
             apply(changes);
-            // Agents let go of the tabs they may no longer use.
-            device.PruneAgents(changes);
             published = [.. TakePending(), .. changes.Published];
         }
         WakeForRequestedTurn();

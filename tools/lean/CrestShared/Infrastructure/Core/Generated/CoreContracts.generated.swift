@@ -17,9 +17,6 @@ protocol Query: Sendable {
     static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Answer
 }
 
-/// The members of `Intent` that derive from the core's `AgentIntent`.
-protocol AgentIntent: Intent {}
-
 /// The members of `Intent` that derive from the core's `CloudSyncControlIntent`.
 protocol CloudSyncControlIntent: Intent {}
 
@@ -46,8 +43,6 @@ protocol WorkspaceIntent: Intent {}
 
 /// Everything an intent can change. `CoreState.apply` keeps the read model current.
 enum Change: Equatable, Sendable {
-    case agentPreferencesChanged(AgentPreferencesChanged)
-    case agentSessionsChanged(AgentSessionsChanged)
     case appPreferencesChanged(AppPreferencesChanged)
     case archiveChanged(ArchiveChanged)
     case cloudMergeBegan(CloudMergeBegan)
@@ -81,14 +76,6 @@ enum Change: Equatable, Sendable {
 
 /// The rule that refused an intent or a query.
 enum Rejection: Equatable, Error, Sendable {
-    case agentNotApproved(AgentNotApproved)
-    case agentSessionsFull(AgentSessionsFull)
-    case agentSpaceUnavailable(AgentSpaceUnavailable)
-    case agentTabStopped(AgentTabStopped)
-    case agentTabUnavailable(AgentTabUnavailable)
-    case agentsFull(AgentsFull)
-    case agentsOff(AgentsOff)
-    case agentsUnavailable(AgentsUnavailable)
     case alreadyInSpace(AlreadyInSpace)
     case alreadyInSplit(AlreadyInSplit)
     case archiveInvalid(ArchiveInvalid)
@@ -109,7 +96,6 @@ enum Rejection: Equatable, Error, Sendable {
     case folderDepthLimitReached(FolderDepthLimitReached)
     case folderLimitReached(FolderLimitReached)
     case incompleteSplit(IncompleteSplit)
-    case invalidAgent(InvalidAgent)
     case invalidFolderPlacement(InvalidFolderPlacement)
     case invalidImport(InvalidImport)
     case invalidLiveFolder(InvalidLiveFolder)
@@ -161,7 +147,6 @@ enum Rejection: Equatable, Error, Sendable {
     case syncStagingRefused(SyncStagingRefused)
     case tabAlreadyExists(TabAlreadyExists)
     case tabLimitReached(TabLimitReached)
-    case unknownAgentSession(UnknownAgentSession)
     case unknownArchivedTab(UnknownArchivedTab)
     case unknownCloudMerge(UnknownCloudMerge)
     case unknownFolder(UnknownFolder)
@@ -180,14 +165,6 @@ enum Rejection: Equatable, Error, Sendable {
 
     var message: LocalizedStringResource? {
         switch self {
-        case .agentNotApproved(let value): value.message
-        case .agentSessionsFull(let value): value.message
-        case .agentSpaceUnavailable(let value): value.message
-        case .agentTabStopped(let value): value.message
-        case .agentTabUnavailable(let value): value.message
-        case .agentsFull(let value): value.message
-        case .agentsOff(let value): value.message
-        case .agentsUnavailable(let value): value.message
         case .archiveInvalid(let value): value.message
         case .archiveTooLarge(let value): value.message
         case .bookmarksHaveNoLinks(let value): value.message
@@ -200,7 +177,6 @@ enum Rejection: Equatable, Error, Sendable {
         case .currentTabsOnly(let value): value.message
         case .fileUnreadable(let value): value.message
         case .incompleteSplit(let value): value.message
-        case .invalidAgent(let value): value.message
         case .invalidImport(let value): value.message
         case .invalidSyncRecords(let value): value.message
         case .legacyCloudStateUnreadable(let value): value.message
@@ -226,7 +202,6 @@ enum Rejection: Equatable, Error, Sendable {
         case .spaceProfileChanged(let value): value.message
         case .splitLimitReached(let value): value.message
         case .splitNeedsTwoTabs(let value): value.message
-        case .unknownAgentSession(let value): value.message
         case .unknownCloudMerge(let value): value.message
         case .unsupportedArchiveVersion(let value): value.message
         case .webPagesOnly(let value): value.message
@@ -239,8 +214,6 @@ extension Change {
     /// Applies the change to the read model, as its own `apply(to:)` does.
     @MainActor func apply(to state: CoreState) {
         switch self {
-        case .agentPreferencesChanged(let change): change.apply(to: state)
-        case .agentSessionsChanged(let change): change.apply(to: state)
         case .appPreferencesChanged(let change): change.apply(to: state)
         case .archiveChanged(let change): change.apply(to: state)
         case .cloudMergeBegan(let change): change.apply(to: state)
@@ -277,8 +250,6 @@ extension Change {
     /// tells those who follow the batch, as its own `apply(to:in:)` does.
     @MainActor func apply(to core: CrestCore, in batch: inout CoreChangeBatch) {
         switch self {
-        case .agentPreferencesChanged(let change): change.apply(to: core, in: &batch)
-        case .agentSessionsChanged(let change): change.apply(to: core, in: &batch)
         case .appPreferencesChanged(let change): change.apply(to: core, in: &batch)
         case .archiveChanged(let change): change.apply(to: core, in: &batch)
         case .cloudMergeBegan(let change): change.apply(to: core, in: &batch)
@@ -315,8 +286,6 @@ extension Change {
     /// it answers, as its own `note(in:)` does.
     func note(in receipts: inout CloudTransportReceipts) {
         switch self {
-        case .agentPreferencesChanged(let change): change.note(in: &receipts)
-        case .agentSessionsChanged(let change): change.note(in: &receipts)
         case .appPreferencesChanged(let change): change.note(in: &receipts)
         case .archiveChanged(let change): change.note(in: &receipts)
         case .cloudMergeBegan(let change): change.note(in: &receipts)
@@ -372,142 +341,6 @@ struct AdoptWindowRecords: Intent, WindowIntent, Equatable, Sendable {
     let records: Data?
 }
 
-struct AgentActivity: Equatable, Sendable {
-    let kind: AgentActivityKind
-    let subject: String
-    let at: Date
-}
-
-struct AgentIdentity: Equatable, Sendable {
-    static let maximumField: Int = 255
-    static let maximumPath: Int = 1024
-
-    var teamID: String?
-    var signingID: String?
-    var path: String?
-    var client: String?
-}
-
-struct AgentNotApproved: Equatable, Sendable {
-    var message: LocalizedStringResource {
-        LocalizedStringResource("The person hasn’t allowed this agent to use Crest.")
-    }
-}
-
-struct AgentPreferences: Equatable, Sendable {
-    static let maximumAgents: Int = 32
-    static let maximumName: Int = 64
-
-    let isOn: Bool
-    let runsScripts: Bool
-    let spaceIDs: [UUID]
-    let agents: [ApprovedAgent]
-}
-
-struct AgentPreferencesChanged: CoreChange, Equatable, Sendable {
-    let preferences: AgentPreferences
-}
-
-struct AgentReach: Query, Equatable, Sendable {
-    typealias Answer = AgentReachList
-
-    let sessionID: UUID
-}
-
-struct AgentReachList: Equatable, Sendable {
-    let workspaceID: UUID?
-    let spaces: [AgentSpace]
-}
-
-struct AgentSessionState: Equatable, Sendable {
-    let sessionID: UUID
-    let identity: AgentIdentity
-    let name: String
-    let color: BrandColor?
-    let tabIDs: [UUID]
-    let opensWindows: Bool
-    let activity: [AgentActivity]
-}
-
-struct AgentSessionsChanged: CoreChange, Equatable, Sendable {
-    let sessions: [AgentSessionState]
-}
-
-struct AgentSessionsFull: Equatable, Sendable {
-    let maximum: Int
-
-    var message: LocalizedStringResource {
-        LocalizedStringResource("Too many agents are using Crest right now.")
-    }
-}
-
-struct AgentSpace: Equatable, Sendable {
-    let spaceID: UUID
-    let name: String
-    let tabs: [AgentTab]
-}
-
-struct AgentSpaceUnavailable: Equatable, Sendable {
-    let spaceID: UUID
-
-    var message: LocalizedStringResource {
-        LocalizedStringResource("That Space isn’t one agents may use.")
-    }
-}
-
-struct AgentTab: Equatable, Sendable {
-    let tabID: UUID
-    let title: String
-    let url: String?
-    let placement: TabPlacement
-    let claimed: Bool
-}
-
-struct AgentTabStopped: Equatable, Sendable {
-    let tabID: UUID
-
-    var message: LocalizedStringResource {
-        LocalizedStringResource("The person stopped agents from using this tab.")
-    }
-}
-
-struct AgentTabUnavailable: Equatable, Sendable {
-    let tabID: UUID
-
-    var message: LocalizedStringResource {
-        LocalizedStringResource("That tab isn’t one agents may use.")
-    }
-}
-
-struct AgentsFull: Equatable, Sendable {
-    let maximum: Int
-
-    var message: LocalizedStringResource {
-        LocalizedStringResource("Too many agents are allowed. Forget one in Settings first.")
-    }
-}
-
-struct AgentsOff: Equatable, Sendable {
-    var message: LocalizedStringResource {
-        LocalizedStringResource("Agents are turned off in Crest’s settings.")
-    }
-}
-
-struct AgentsUnavailable: Equatable, Sendable {
-    var message: LocalizedStringResource {
-        LocalizedStringResource("Agents can’t use Crest on this device.")
-    }
-}
-
-struct AllowAgentSpace: Intent, AgentIntent, Equatable, Sendable {
-    let spaceID: UUID
-    let allowed: Bool
-}
-
-struct AllowAgentWindows: Intent, AgentIntent, Equatable, Sendable {
-    let sessionID: UUID
-}
-
 struct AlreadyInSpace: Equatable, Sendable {
     let spaceID: UUID
 }
@@ -541,15 +374,6 @@ struct AppPreferences: Equatable, Sendable {
 struct AppPreferencesChanged: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let preferences: AppPreferences?
-}
-
-struct ApproveAgent: Intent, AgentIntent, Equatable, Sendable {
-    let agent: ApprovedAgent
-}
-
-struct ApprovedAgent: Equatable, Sendable {
-    var identity: AgentIdentity
-    var name: String
 }
 
 struct ArchiveChanged: CoreChange, Equatable, Sendable {
@@ -589,12 +413,6 @@ struct ArchivedTabState: Equatable, Sendable {
     var seed: Seed {
         Seed(tab: tab.seed, archivedAt: archivedAt, reason: reason)
     }
-}
-
-struct BeginAgentSession: Intent, AgentIntent, Equatable, Sendable {
-    let sessionID: UUID
-    let identity: AgentIdentity
-    let name: String
 }
 
 struct BeginCloudMerge: Intent, CloudTransportIntent, Equatable, Sendable {
@@ -707,11 +525,6 @@ struct CapacityLimits: Equatable, Sendable {
 
 struct ChooseCloudCopy: Intent, CloudSyncControlIntent, Equatable, Sendable {
     let usesCloud: Bool
-}
-
-struct ClaimAgentTab: Intent, AgentIntent, Equatable, Sendable {
-    let sessionID: UUID
-    let tabID: UUID
 }
 
 struct ClearCurrentTabs: Intent, SessionIntent, Equatable, Sendable {
@@ -1076,10 +889,6 @@ struct EnableGitHubLiveFolder: Intent, SessionIntent, Equatable, Sendable {
     let folderID: UUID
 }
 
-struct EndAgentSession: Intent, AgentIntent, Equatable, Sendable {
-    let sessionID: UUID
-}
-
 struct EnforcedLimits: Query, Equatable, Sendable {
     typealias Answer = CapacityLimits
 
@@ -1275,17 +1084,8 @@ struct FoldersChanged: CoreChange, Equatable, Sendable {
     let order: [UUID]?
 }
 
-struct ForgetAgent: Intent, AgentIntent, Equatable, Sendable {
-    let identity: AgentIdentity
-}
-
 struct ForgetCloudZone: Intent, CloudTransportIntent, Equatable, Sendable {
     let loss: CloudZoneLoss
-}
-
-struct GetAgentPreferences: Query, Equatable, Sendable {
-    typealias Answer = AgentPreferences
-
 }
 
 struct GitHubLiveFolderOptions: Equatable, Sendable {
@@ -1331,12 +1131,6 @@ struct HistoryEntryState: Equatable, Sendable, Identifiable {
     var firstVisitedAt: Date
     var lastVisitedAt: Date
     var visitCount: Int
-}
-
-struct IdentifyAgent: Intent, AgentIntent, Equatable, Sendable {
-    let sessionID: UUID
-    let name: String?
-    let color: BrandColor?
 }
 
 struct ImportBrowserApp: Equatable, Sendable {
@@ -1426,14 +1220,6 @@ struct IncompleteSplit: Equatable, Sendable {
 
     var message: LocalizedStringResource {
         LocalizedStringResource("The split changed. Select the whole group again.")
-    }
-}
-
-struct InvalidAgent: Equatable, Sendable {
-    let maximumName: Int
-
-    var message: LocalizedStringResource {
-        LocalizedStringResource("Crest couldn’t tell which program this agent is.")
     }
 }
 
@@ -1666,12 +1452,6 @@ struct NotAnArchive: Equatable, Sendable {
 
 struct NotPrivateWorkspace: Equatable, Sendable {
     let workspaceID: UUID
-}
-
-struct NoteAgentActivity: Intent, AgentIntent, Equatable, Sendable {
-    let sessionID: UUID
-    let kind: AgentActivityKind
-    let subject: String
 }
 
 struct NotifyCloudLocalChanges: Intent, CloudSyncControlIntent, Equatable, Sendable {
@@ -2185,14 +1965,6 @@ struct SessionUnrecognized: Equatable, Sendable {
     }
 }
 
-struct SetAgentScripts: Intent, AgentIntent, Equatable, Sendable {
-    let runsScripts: Bool
-}
-
-struct SetAgents: Intent, AgentIntent, Equatable, Sendable {
-    let isOn: Bool
-}
-
 struct SetAppPreferences: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let preferences: AppPreferences
@@ -2501,13 +2273,6 @@ struct StepSplitMember: Intent, SessionIntent, Equatable, Sendable {
     let offset: Int
 }
 
-struct StopAgentTab: Intent, AgentIntent, Equatable, Sendable {
-    let tabID: UUID
-}
-
-struct StopAllAgents: Intent, AgentIntent, Equatable, Sendable {
-}
-
 struct StorageFailed: CoreChange, Equatable, Sendable {
     let reason: StorageFailure
 }
@@ -2735,14 +2500,6 @@ struct TogglePin: Intent, SessionIntent, Equatable, Sendable {
     let tabID: UUID
 }
 
-struct UnknownAgentSession: Equatable, Sendable {
-    let sessionID: UUID
-
-    var message: LocalizedStringResource {
-        LocalizedStringResource("This agent is no longer connected to Crest.")
-    }
-}
-
 struct UnknownArchivedTab: Equatable, Sendable {
     let tabID: UUID
 }
@@ -2964,97 +2721,6 @@ struct AdjacentDirection: Hashable, Sendable {
         init(name: String, step: Int) {
             self.name = name
             self.step = step
-        }
-    }
-}
-
-/// The members of the core's `AgentActivityKind`. A member's wire tag is its index in `all`.
-struct AgentActivityKind: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var symbol: String { facts.symbol }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, title: LocalizedStringResource, symbol: String) {
-        self.tag = tag
-        facts = Facts(name: name, title: title, symbol: symbol)
-    }
-
-    static let openedTab = AgentActivityKind(
-        tag: 0,
-        name: "openedTab",
-        title: LocalizedStringResource("Opened a tab"),
-        symbol: "plus.square"
-    )
-    static let loadedPage = AgentActivityKind(
-        tag: 1,
-        name: "loadedPage",
-        title: LocalizedStringResource("Loaded a page"),
-        symbol: "arrow.right.circle"
-    )
-    static let closedTab = AgentActivityKind(
-        tag: 2,
-        name: "closedTab",
-        title: LocalizedStringResource("Closed a tab"),
-        symbol: "xmark.square"
-    )
-    static let openedWindow = AgentActivityKind(
-        tag: 3,
-        name: "openedWindow",
-        title: LocalizedStringResource("Opened a window"),
-        symbol: "macwindow.badge.plus"
-    )
-    static let openedPrivateWindow = AgentActivityKind(
-        tag: 4,
-        name: "openedPrivateWindow",
-        title: LocalizedStringResource("Opened a private window"),
-        symbol: "eyeglasses"
-    )
-    static let deletedHistory = AgentActivityKind(
-        tag: 5,
-        name: "deletedHistory",
-        title: LocalizedStringResource("Deleted history"),
-        symbol: "clock.arrow.trianglehead.counterclockwise.rotate.90"
-    )
-    static let ranScript = AgentActivityKind(
-        tag: 6,
-        name: "ranScript",
-        title: LocalizedStringResource("Ran a script"),
-        symbol: "curlybraces"
-    )
-
-    static let all: [AgentActivityKind] = [
-        openedTab,
-        loadedPage,
-        closedTab,
-        openedWindow,
-        openedPrivateWindow,
-        deletedHistory,
-        ranScript
-    ]
-
-    static func named(_ name: String?) -> AgentActivityKind? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: AgentActivityKind, rhs: AgentActivityKind) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-        let symbol: String
-
-        init(name: String, title: LocalizedStringResource, symbol: String) {
-            self.name = name
-            self.title = title
-            self.symbol = symbol
         }
     }
 }

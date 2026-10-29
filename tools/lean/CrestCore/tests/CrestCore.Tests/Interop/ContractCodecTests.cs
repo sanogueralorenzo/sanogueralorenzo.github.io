@@ -242,7 +242,7 @@ public sealed unsafe class ContractCodecTests {
         Assert.NotEqual(schema.Fingerprint, extended.Fingerprint);
         foreach (var name in new[] { "EngineRegistration", "EngineCommand", "EngineEvent", "EngineQuestion", "PageState", "PageSnapshot",
             "SiteOrigin", "SitePermission", "SitePermissionDecision", "PagePresentation", "BlockedPopupTransition",
-            "ChallengeHandling", "AuthenticationSource", "SchemeHandling", "SecureOriginCheck", "NotificationPermissionRequest", "ExternalLocalDocument" })
+            "ChallengeHandling", "AuthenticationSource", "SchemeHandling", "SecureOriginCheck", "NotificationPermissionRequest", "ExternalLocalDocument", "AgentIdentity", "AgentPreferences", "AgentSessionState", "AgentReach", "AgentActivityKind" })
             Assert.DoesNotMatch(@"\b" + name + @"\b", schema.Canonical);
         Assert.DoesNotContain("EngineFingerprint", CSharpCodecEmitter.Emit(schema), StringComparison.Ordinal);
         Assert.DoesNotContain("CREST_ENGINE_", CHeaderEmitter.Emit(schema), StringComparison.Ordinal);
@@ -251,7 +251,7 @@ public sealed unsafe class ContractCodecTests {
     [Fact]
     public void MalformedMessagesAndStaleHandlesAreStatusErrorsNotRejections() {
         var app = new AppClient();
-        var acknowledge = AppClient.Encode(writer => ContractCodec.WriteIntent(writer, new SetAgents(false)));
+        var acknowledge = AppClient.Encode(writer => ContractCodec.WriteIntent(writer, new RememberWindowsForLaunch([])));
         Assert.Equal(CoreStatus.Ok, app.Dispatch(acknowledge).Status);
         Assert.Equal(CoreStatus.InvalidMessage, app.Dispatch([]).Status);
         // A tag no intent has, however many intents the contract gains.
@@ -267,7 +267,7 @@ public sealed unsafe class ContractCodecTests {
     [Fact]
     public void AMessageLongerThanItsTypesLimitIsRefusedBeforeItIsRead() {
         using var app = new AppClient();
-        var acknowledge = AppClient.Encode(writer => ContractCodec.WriteIntent(writer, new SetAgents(false)));
+        var acknowledge = AppClient.Encode(writer => ContractCodec.WriteIntent(writer, new RememberWindowsForLaunch([])));
         var oversized = new byte[MessageLimitAttribute.DefaultBytes + 1];
         acknowledge.CopyTo(oversized);
         Assert.Equal(CoreStatus.LimitExceeded, app.Dispatch(oversized).Status);

@@ -70,7 +70,7 @@ extension BrowserMacAgents {
         guard (1...1000).contains(limit) else { throw .invalidArguments("limit must be between 1 and 1000.") }
         let reach = try reach(call)
         guard let workspaceID = reach.workspaceID, let workspace = core.state.workspaces[workspaceID] else {
-            throw .rejected(.agentsOff(AgentsOff()))
+            throw .rejected(.agentsOff)
         }
         let terms = (query.query ?? "").lowercased().split(whereSeparator: { $0.isWhitespace })
         let domain = query.domain?.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
@@ -115,7 +115,7 @@ extension BrowserMacAgents {
             BrowserAgentHistoryDeletion(agentName: agentName, address: address, spaceName: spaceName),
             for: ObjectIdentifier(call.link))
         let current = try resolveSpace(deletion.space, call)
-        guard let workspaceID = try reach(call).workspaceID else { throw .rejected(.agentsOff(AgentsOff())) }
+        guard let workspaceID = try reach(call).workspaceID else { throw .rejected(.agentsOff) }
         let before = current.history.entries.count
         do {
             try core.send(RemoveHistoryAddress(workspaceID: workspaceID, spaceID: current.id, address: address))

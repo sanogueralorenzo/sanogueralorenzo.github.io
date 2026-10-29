@@ -41,6 +41,10 @@ struct BrowserAgentFailure: Error, Sendable {
         Self(rejection.explanation)
     }
 
+    static func rejected(_ rejection: AgentFailure) -> Self {
+        Self(rejection.explanation)
+    }
+
     static func unknownTool(_ name: String) -> Self {
         Self("Crest has no tool named \(name).")
     }

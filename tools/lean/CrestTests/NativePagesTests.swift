@@ -222,13 +222,15 @@ final class NativePagesTests: XCTestCase {
         )
         XCTAssertNotNil(page.state)
         c.show(page)
-        c.core.state.agentSessions = [
-            AgentSessionState(
-                sessionID: UUID(), identity: AgentIdentity(teamID: nil, signingID: nil, path: nil, client: "test"),
-                name: "Test", color: nil, tabIDs: [background], opensWindows: false, activity: [])
-        ]
+        let identity = AgentIdentity(teamID: nil, signingID: nil, path: "/private/tmp/page-test-agent", client: nil)
+        let session = UUID()
+        try c.core.send(SetAgents(isOn: true))
+        try c.core.send(AllowAgentSpace(spaceID: c.work, allowed: true))
+        try c.core.send(ApproveAgent(agent: ApprovedAgent(identity: identity, name: "Test")))
+        try c.core.send(BeginAgentSession(sessionID: session, identity: identity, name: "Test"))
+        try c.core.send(ClaimAgentTab(sessionID: session, tabID: background))
         XCTAssertTrue(c.core.query(IdlePages()).pages.isEmpty)
-        c.core.state.agentSessions = []
+        try c.core.send(EndAgentSession(sessionID: session))
         page.report(NavigationCommitted(pageID: page.id, url: "https://new.example/", sameDocument: false))
         try c.core.send(
             UnloadIdlePage(pageID: candidate.pageID, documents: candidate.documents, hiddenSince: candidate.hiddenSince)

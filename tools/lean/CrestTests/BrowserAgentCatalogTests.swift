@@ -18,6 +18,7 @@ final class BrowserAgentCatalogTests: XCTestCase {
 
     func testWindowToolsPreserveTheRequestedSpaceAndSavedTabIdentity() async throws {
         let fixture = try BrowserAgentFixture()
+        defer { fixture.close() }
         let before = fixture.application.stackedWindowIDs
         await fixture.assertRefused("open_window", ["url": .string("file:///private/tmp/test")])
         XCTAssertEqual(fixture.application.stackedWindowIDs, before)
@@ -50,6 +51,7 @@ final class BrowserAgentCatalogTests: XCTestCase {
 
     func testLiveHistoryAndProvidersRespectRevocationAndSearchBeforeLimiting() async throws {
         let fixture = try BrowserAgentFixture()
+        defer { fixture.close() }
         let catalog = try await fixture.invoke("list_search_providers")
         XCTAssertNotNil(catalog["defaultProvider"])
         let url = try XCTUnwrap(URL(string: "https://docs.example.com/older"))
@@ -78,6 +80,7 @@ final class BrowserAgentCatalogTests: XCTestCase {
 
     func testPrivateCreationValidatesBeforeMutationAndNeverExposesPrivateTabs() async throws {
         let fixture = try BrowserAgentFixture()
+        defer { fixture.close() }
         let before = fixture.application.stackedWindowIDs
         await fixture.assertRefused("open_private_window", ["url": .string("javascript:alert(1)")])
         XCTAssertEqual(fixture.application.stackedWindowIDs, before)
@@ -110,6 +113,7 @@ final class BrowserAgentCatalogTests: XCTestCase {
 
     func testShowingSavedTabWithoutAnOpenWindowKeepsItsIdentity() async throws {
         let fixture = try BrowserAgentFixture()
+        defer { fixture.close() }
         XCTAssertNil(fixture.windows.activeBrowserWindow)
         let saved = try addSavedTab(to: fixture)
         let count = fixture.space.tabs.models.count
@@ -117,11 +121,12 @@ final class BrowserAgentCatalogTests: XCTestCase {
         XCTAssertEqual(shown["tab"]?["id"]?.string, saved.id.uuidString)
         XCTAssertEqual(fixture.space.tabs.models.count, count)
         let window = try XCTUnwrap(fixture.windows.activeBrowserWindow)
-        defer { window.close() }
+        window.close()
     }
 
     func testAWindowOpensOnlyOnceThePersonAgreesAndAgainWithoutAskingWhenTheyLetIt() async throws {
         let fixture = try BrowserAgentFixture()
+        defer { fixture.close() }
         let before = fixture.application.stackedWindowIDs
         fixture.answers.windows = .declined
         await fixture.assertRefused("open_window", ["space": .string(fixture.space.id.uuidString)])
@@ -150,6 +155,7 @@ final class BrowserAgentCatalogTests: XCTestCase {
 
     func testDeniedSpacesCannotOpenPublicWindows() async throws {
         let fixture = try BrowserAgentFixture()
+        defer { fixture.close() }
         try fixture.core.send(AllowAgentSpace(spaceID: fixture.space.id, allowed: false))
         let before = fixture.application.stackedWindowIDs
         for name in ["open_window", "open_blank_window"] {

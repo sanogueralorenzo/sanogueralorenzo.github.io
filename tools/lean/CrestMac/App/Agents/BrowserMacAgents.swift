@@ -169,7 +169,7 @@ final class BrowserMacAgents {
     /// The agent connected as `call`'s session.
     func connectedSession(_ call: BrowserAgentCall) throws(BrowserAgentFailure) -> AgentSessionState {
         guard let session = core.state.agentSessions.first(where: { $0.sessionID == call.sessionID }) else {
-            throw .rejected(.unknownAgentSession(UnknownAgentSession(sessionID: call.sessionID)))
+            throw .rejected(.unknownSession(call.sessionID))
         }
         return session
     }
@@ -178,7 +178,7 @@ final class BrowserMacAgents {
     /// question about it names, never the one it introduced itself by.
     func allowedName(of session: AgentSessionState) throws(BrowserAgentFailure) -> String {
         guard let agent = core.state.agentPreferences.agents.first(where: { $0.identity == session.identity }) else {
-            throw .rejected(.unknownAgentSession(UnknownAgentSession(sessionID: session.sessionID)))
+            throw .rejected(.unknownSession(session.sessionID))
         }
         return agent.name
     }
@@ -344,12 +344,12 @@ final class BrowserMacAgents {
     }
 
     private func beginSession(for link: Link) async throws(BrowserAgentFailure) -> UUID {
-        guard core.state.agentPreferences.isOn else { throw .rejected(.agentsOff(AgentsOff())) }
+        guard core.state.agentPreferences.isOn else { throw .rejected(.agentsOff) }
         guard let agent = link.agent else { throw .unidentified }
         let sessionID = UUID()
         do {
             _ = try core.send(BeginAgentSession(sessionID: sessionID, identity: agent.identity, name: agent.agentName))
-        } catch .agentNotApproved {
+        } catch .notApproved {
             try await approvals.approve(agent, client: link.client, for: ObjectIdentifier(link))
             guard links[ObjectIdentifier(link)] != nil, core.state.agentPreferences.isOn else { throw .declined }
             do {

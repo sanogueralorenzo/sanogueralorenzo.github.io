@@ -42,10 +42,10 @@ static void app_boundary(void) {
     const uint8_t garbage[] = { 0xff, 0x7f, 0x01, 0x02 };
     assert(crest_app_dispatch(app, garbage, sizeof(garbage), &buffer) == CREST_INVALID_MESSAGE);
     assert(buffer.bytes == NULL && buffer.length == 0);
-    /* SetAgents(false), with its LEB128 union tag and boolean payload. */
+    /* RememberWindowsForLaunch([]), its LEB128 union tag and empty list. */
     uint8_t request[6];
     size_t request_length = 0;
-    uint32_t tag = CREST_INTENT_SET_AGENTS;
+    uint32_t tag = CREST_INTENT_REMEMBER_WINDOWS_FOR_LAUNCH;
     do {
         uint8_t next = (uint8_t)(tag & 0x7f);
         tag >>= 7;
@@ -53,7 +53,7 @@ static void app_boundary(void) {
     } while (tag != 0);
     request[request_length++] = 0;
     assert(crest_app_dispatch(app, request, request_length, &buffer) == CREST_OK);
-    /* Agents are already disabled: a change list with a count of zero. */
+    /* There are no windows to remember: a change list with a count of zero. */
     assert(buffer.bytes != NULL && buffer.length == 1 && buffer.bytes[0] == 0);
     crest_buffer_free(&buffer);
     assert(buffer.bytes == NULL && buffer.length == 0);

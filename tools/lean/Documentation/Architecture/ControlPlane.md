@@ -50,3 +50,9 @@ and before-unload checking are native. Website-data reads and erasures have no
 wire codecs. Their native owner tracks active profile erasures for quit and
 validates success before dispatching a Space-removal commit. `AcceptQuit`
 preserves the existing window restoration policy.
+
+Agent approvals, allowed Spaces, connection limits, stopped tabs, activity and
+reach are owned by `NativeAgents`. No agent intent, query or change crosses the
+C# boundary. Native persistence owns the existing three device-agent tables;
+the C# device writer leaves them alone. Authorization and connected sessions
+are stored together before notifying observers.

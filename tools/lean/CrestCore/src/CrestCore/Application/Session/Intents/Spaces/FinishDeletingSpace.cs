@@ -31,15 +31,4 @@ public sealed record FinishDeletingSpace(Guid WorkspaceId, Guid WindowId, Guid S
 
     #endregion
 
-    #region Actions - Routing
-
-    /// The native erasure owner validates its proof before dispatch. Session
-    /// operation checks and persistence stay atomic here, including forgetting
-    /// a deleted Space in the device's agent preferences.
-    internal override void Commit(CrestApp app, ChangeFeed changes) {
-        base.Commit(app, changes);
-        app.Device.ForgetAgents(SpaceId, changes);
-    }
-
-    #endregion
 }

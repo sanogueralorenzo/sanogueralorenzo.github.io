@@ -189,7 +189,7 @@ struct BrowserAgentsSettingsPane: View {
         }
     }
 
-    private func send(_ intent: some AgentIntent) {
+    private func send(_ intent: some NativeAgentIntent) {
         do {
             try core.send(intent)
             failure = nil

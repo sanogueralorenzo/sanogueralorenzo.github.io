@@ -77,6 +77,13 @@ final class BrowserAgentFixture {
 
     // MARK: - Actions - Tools
 
+    /// Retires every page, including navigation waiting for extension startup.
+    func close() {
+        agents.stop()
+        application.browser.family.close()
+        application.privateBrowser.family.close()
+    }
+
     func invoke(_ name: String, _ arguments: [String: AgentJSON] = [:]) async throws -> AgentJSON {
         let tool = try XCTUnwrap(BrowserAgentTool.named(name))
         let answer = try await tool.perform(

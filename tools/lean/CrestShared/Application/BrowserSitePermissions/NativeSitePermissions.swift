@@ -31,7 +31,7 @@ final class NativeSitePermissions {
         ledger(space).mediaDecision(space, origin, media)
     }
     private func save(_ next: PermissionLedger, adopting: Bool = false) throws(PermissionFailure) {
-        do { try storage?.save(next.records, adopting: adopting) } catch let failure as PermissionSQLite.Failure {
+        do { try storage?.save(next.records, adopting: adopting) } catch let failure as SQLiteConnection.Failure {
             core.storageFailureHandler?(failure.reason)
             throw .storage(failure.reason)
         } catch { throw .storage(.unavailable) }
@@ -91,7 +91,7 @@ final class NativeSitePermissions {
                     try save(next, adopting: true)
                     kept = next
                 }
-            } catch let error as PermissionFailure { throw error } catch let error as PermissionSQLite.Failure {
+            } catch let error as PermissionFailure { throw error } catch let error as SQLiteConnection.Failure {
                 throw .storage(error.reason)
             } catch { throw .storage(.unavailable) }
         }

@@ -14,6 +14,7 @@ final class BrowserAgentMutationTests: XCTestCase {
     /// unsaved work theirs to decide about.
     func testAnAgentAnswersAPageDialogButNeverOneAboutLeavingThePage() async throws {
         let fixture = try BrowserAgentFixture()
+        defer { fixture.close() }
         let opening = try await fixture.invoke(
             "open_tab",
             ["space": .string(fixture.space.id.uuidString), "url": .string("https://dialog.crest.test/")])
@@ -38,6 +39,7 @@ final class BrowserAgentMutationTests: XCTestCase {
     /// the Space has visited, and checks access before asking and again after.
     func testHistoryDeletionPreservesOtherSpacesAndRejectsUnavailableReach() async throws {
         let fixture = try BrowserAgentFixture()
+        defer { fixture.close() }
         let browser = fixture.application.browser
         let url = try XCTUnwrap(URL(string: "https://history.crest.test/target"))
         let kept = try XCTUnwrap(URL(string: "https://history.crest.test/keep"))
