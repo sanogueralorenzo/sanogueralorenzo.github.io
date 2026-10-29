@@ -22,6 +22,15 @@ def require_available(name):
         raise RuntimeError(f"{name} CLI is not installed or is not on PATH")
 
 
+def model_settings(provider):
+    if os.environ.get("SLACK_REPLY_PROVIDER", "").strip() != provider:
+        return "", ""
+    return (
+        os.environ.get("SLACK_REPLY_MODEL", "").strip(),
+        os.environ.get("SLACK_REPLY_REASONING_EFFORT", "").strip(),
+    )
+
+
 def execute(command, prompt, workspace):
     return subprocess.run(
         command, input=prompt, text=True, capture_output=True, cwd=workspace,
@@ -43,8 +52,7 @@ class CodexProvider:
     def __init__(self, workspace, state_dir):
         self.workspace = workspace
         self.state_dir = state_dir
-        self.model = os.environ.get("CODEX_MODEL", "").strip()
-        self.effort = os.environ.get("CODEX_REASONING_EFFORT", "").strip()
+        self.model, self.effort = model_settings(self.name)
 
     def run(self, prompt, session_id):
         with tempfile.NamedTemporaryFile(dir=self.state_dir, prefix="answer-", delete=False) as output:
@@ -85,10 +93,9 @@ class ClaudeProvider:
 
     def __init__(self, workspace):
         self.workspace = workspace
-        self.model = os.environ.get("CLAUDE_MODEL", "").strip()
-        self.effort = os.environ.get("CLAUDE_REASONING_EFFORT", "").strip()
+        self.model, self.effort = model_settings(self.name)
         if self.effort and self.effort not in {"low", "medium", "high", "xhigh", "max"}:
-            raise ValueError("CLAUDE_REASONING_EFFORT must be low, medium, high, xhigh, or max")
+            raise ValueError("SLACK_REPLY_REASONING_EFFORT for Claude must be low, medium, high, xhigh, or max")
 
     def run(self, prompt, session_id):
         command = ["claude", "-p", "--output-format", "json",
@@ -120,19 +127,18 @@ class PiProvider:
 
     def __init__(self, workspace):
         self.workspace = workspace
-        self.model = os.environ.get("PI_MODEL", "").strip()
-        self.thinking = os.environ.get("PI_THINKING", "").strip()
-        if self.thinking and self.thinking not in {
+        self.model, self.effort = model_settings(self.name)
+        if self.effort and self.effort not in {
             "off", "minimal", "low", "medium", "high", "xhigh", "max",
         }:
-            raise ValueError("PI_THINKING must be off, minimal, low, medium, high, xhigh, or max")
+            raise ValueError("SLACK_REPLY_REASONING_EFFORT for Pi must be off, minimal, low, medium, high, xhigh, or max")
 
     def run(self, prompt, session_id):
         command = ["pi", "--mode", "json", "-p"]
         if self.model:
             command.extend(["--model", self.model])
-        if self.thinking:
-            command.extend(["--thinking", self.thinking])
+        if self.effort:
+            command.extend(["--thinking", self.effort])
         if session_id:
             command.extend(["--session", session_id])
         result = execute(command, prompt, self.workspace)

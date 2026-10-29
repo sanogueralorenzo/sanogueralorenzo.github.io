@@ -91,8 +91,9 @@ class ProviderTests(unittest.TestCase):
                              'model_reasoning_effort="high"')
             return completed('{"type":"thread.started","thread_id":"session-1"}\n')
 
-        with patch.dict(os.environ, {"CODEX_MODEL": "test-model",
-                                    "CODEX_REASONING_EFFORT": "high"}):
+        with patch.dict(os.environ, {"SLACK_REPLY_PROVIDER": "codex",
+                                    "SLACK_REPLY_MODEL": "test-model",
+                                    "SLACK_REPLY_REASONING_EFFORT": "high"}):
             with patch.object(providers, "execute", side_effect=fake_execute):
                 provider = providers.CodexProvider(self.path, self.path)
                 for session_id in [None, "session-1"]:
@@ -100,21 +101,25 @@ class ProviderTests(unittest.TestCase):
                         self.assertEqual(provider.run("prompt", session_id),
                                          ("session-1", "answer"))
 
-    def test_claude_json_result_and_resume_use_same_contract(self):
+    def test_claude_shared_overrides_apply_to_new_and_resumed_sessions(self):
         payload = json.dumps({"type": "result", "is_error": False,
                               "session_id": "session-1", "result": "Claude answer"})
-        with patch.dict(os.environ, {"CLAUDE_MODEL": "sonnet",
-                                  "CLAUDE_REASONING_EFFORT": "high"}):
+        with patch.dict(os.environ, {"SLACK_REPLY_PROVIDER": "claude",
+                                    "SLACK_REPLY_MODEL": "sonnet",
+                                    "SLACK_REPLY_REASONING_EFFORT": "high"}):
             with patch.object(providers, "execute", return_value=completed(payload)) as execute:
-                session, answer = providers.ClaudeProvider(self.path).run(
-                    "prompt", "session-1",
-                )
-        command = execute.call_args.args[0]
-        self.assertEqual(command[:4], ["claude", "-p", "--output-format", "json"])
-        self.assertEqual(command[command.index("--resume") + 1], "session-1")
-        self.assertEqual(command[command.index("--model") + 1], "sonnet")
-        self.assertEqual(command[command.index("--effort") + 1], "high")
-        self.assertEqual((session, answer), ("session-1", "Claude answer"))
+                for session_id in [None, "session-1"]:
+                    with self.subTest(session_id=session_id):
+                        session, answer = providers.ClaudeProvider(self.path).run("prompt", session_id)
+                        command = execute.call_args.args[0]
+                        self.assertEqual(command[:4], ["claude", "-p", "--output-format", "json"])
+                        if session_id:
+                            self.assertEqual(command[command.index("--resume") + 1], session_id)
+                        else:
+                            self.assertNotIn("--resume", command)
+                        self.assertEqual(command[command.index("--model") + 1], "sonnet")
+                        self.assertEqual(command[command.index("--effort") + 1], "high")
+                        self.assertEqual((session, answer), ("session-1", "Claude answer"))
 
     def test_claude_auth_failure_is_reported_instead_of_posted(self):
         payload = json.dumps({"type": "result", "is_error": True, "session_id": "new",
@@ -130,18 +135,47 @@ class ProviderTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "different session"):
                 providers.ClaudeProvider(self.path).run("prompt", "session-1")
 
-    def test_pi_new_session_uses_jsonl_final_answer(self):
-        with patch.dict(os.environ, {"PI_MODEL": "openai-codex/gpt-5.5",
-                                  "PI_THINKING": "medium"}):
+    def test_pi_shared_overrides_apply_to_new_and_resumed_sessions(self):
+        with patch.dict(os.environ, {"SLACK_REPLY_PROVIDER": "pi",
+                                    "SLACK_REPLY_MODEL": "test-provider/test-model",
+                                    "SLACK_REPLY_REASONING_EFFORT": "medium"}):
             with patch.object(providers, "execute",
                               return_value=completed(pi_events("session-1", "Pi answer"))) as execute:
-                session, answer = providers.PiProvider(self.path).run("prompt", None)
-        command = execute.call_args.args[0]
-        self.assertEqual(command[:4], ["pi", "--mode", "json", "-p"])
-        self.assertNotIn("--session", command)
-        self.assertEqual(command[command.index("--model") + 1], "openai-codex/gpt-5.5")
-        self.assertEqual(command[command.index("--thinking") + 1], "medium")
-        self.assertEqual((session, answer), ("session-1", "Pi answer"))
+                for session_id in [None, "session-1"]:
+                    with self.subTest(session_id=session_id):
+                        session, answer = providers.PiProvider(self.path).run("prompt", session_id)
+                        command = execute.call_args.args[0]
+                        self.assertEqual(command[:4], ["pi", "--mode", "json", "-p"])
+                        if session_id:
+                            self.assertEqual(command[command.index("--session") + 1], session_id)
+                        else:
+                            self.assertNotIn("--session", command)
+                        self.assertEqual(command[command.index("--model") + 1], "test-provider/test-model")
+                        self.assertEqual(command[command.index("--thinking") + 1], "medium")
+                        self.assertEqual((session, answer), ("session-1", "Pi answer"))
+
+    def test_pinned_provider_does_not_receive_another_providers_overrides(self):
+        def fake_execute(command, prompt, workspace):
+            for flag in ["--model", "--config", "--effort", "--thinking"]:
+                self.assertNotIn(flag, command)
+            if command[0] == "codex":
+                Path(command[command.index("-o") + 1]).write_text("answer")
+                return completed('{"type":"thread.started","thread_id":"session-1"}\n')
+            if command[0] == "claude":
+                return completed(json.dumps({"session_id": "session-1", "result": "answer"}))
+            return completed(pi_events("session-1", "answer"))
+
+        for pinned, selected in [("codex", "claude"), ("claude", "pi"), ("pi", "codex")]:
+            with self.subTest(pinned=pinned), patch.dict(os.environ, {
+                "SLACK_REPLY_PROVIDER": selected,
+                "SLACK_REPLY_MODEL": "other-model",
+                "SLACK_REPLY_REASONING_EFFORT": "high",
+            }):
+                with patch.object(providers.shutil, "which", return_value="/bin/provider"):
+                    with patch.object(providers, "execute", side_effect=fake_execute):
+                        provider = providers.provider_for(pinned, self.path, self.path)
+                        self.assertEqual(provider.run("prompt", "session-1"),
+                                         ("session-1", "answer"))
 
     def test_pi_resumes_exact_session(self):
         with patch.object(providers, "execute",
