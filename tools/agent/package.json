@@ -1,0 +1,33 @@
+{
+  "name": "agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "start": "node --experimental-strip-types src/server.ts",
+    "login": "node --experimental-strip-types src/login.ts",
+    "check": "tsc --noEmit",
+    "test:tasks": "node --experimental-strip-types --test evals/request-tasks.test.mjs",
+    "test:delegation": "node --experimental-strip-types --test evals/delegation.test.mjs",
+    "test:providers": "node --experimental-strip-types --test evals/providers.test.mjs",
+    "eval:suggestions": "node --experimental-strip-types evals/benchmark/cli.mjs run evals/benchmark/suites/suggestions.json --variants live",
+    "eval:benchmark": "node --experimental-strip-types evals/benchmark/cli.mjs",
+    "test:composer": "node --experimental-strip-types --test evals/composer.test.mjs"
+  },
+  "dependencies": {
+    "@earendil-works/chord": "1.3.0",
+    "@earendil-works/pi-ai": "1.3.0",
+    "@earendil-works/pi-coding-agent": "1.3.0",
+    "@earendil-works/pi-durable": "1.3.0",
+    "@earendil-works/pi-mcp": "1.3.0",
+    "typebox": "1.3.27"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "playwright": "^1.62.1",
+    "typescript": "^5.9.3"
+  }
+}

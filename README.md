@@ -10,8 +10,8 @@ A small collection of things I'm building and experimenting with.
 ## Tools
 
 - [Android Steam](./tools/androidsteam/README.md) — a minimal local Steam experience on Android, in development.
-- [Assistant](./tools/assistant/README.md) — background task delegation and updates in the Pi terminal.
-- [Lean](./tools/browser/README.md) — a native macOS browser derived from Crest, maintained separately from Assistant; [MPL-2.0](./tools/browser/LICENSE).
+- [Agent](./tools/agent/README.md) — a local AI agent with durable tasks, delegation, and a browser UI.
+- [Lean](./tools/browser/README.md) — a native macOS browser derived from Crest, maintained separately from Agent; [MPL-2.0](./tools/browser/LICENSE).
 - [Codex Background](./tools/codex-background/README.md) — native Mac app task dispatch.
 - [Clipboard](./tools/clipboard/README.md) — encrypted clipboard history for macOS.
 - [Overlay](./tools/overlay/README.md) — an Android screen overlay for background audio.
