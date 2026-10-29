@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -31,6 +32,13 @@ def model_settings(provider):
     )
 
 
+def tier_setting(provider):
+    tier = os.environ.get("SLACK_REPLY_TIER", "default").strip()
+    if tier not in {"default", "fast"}:
+        raise ValueError("SLACK_REPLY_TIER must be default or fast")
+    return tier if os.environ.get("SLACK_REPLY_PROVIDER", "").strip() == provider else None
+
+
 def execute(command, prompt, workspace):
     return subprocess.run(
         command, input=prompt, text=True, capture_output=True, cwd=workspace,
@@ -53,6 +61,7 @@ class CodexProvider:
         self.workspace = workspace
         self.state_dir = state_dir
         self.model, self.effort = model_settings(self.name)
+        self.tier = tier_setting(self.name)
 
     def run(self, prompt, session_id):
         with tempfile.NamedTemporaryFile(dir=self.state_dir, prefix="answer-", delete=False) as output:
@@ -65,6 +74,10 @@ class CodexProvider:
                 common.extend(["--model", self.model])
             if self.effort:
                 common.extend(["--config", f"model_reasoning_effort={json.dumps(self.effort)}"])
+            if self.tier:
+                common.extend(["--config", f"service_tier={json.dumps(self.tier)}"])
+                if self.tier == "fast":
+                    common.extend(["--enable", "fast_mode"])
             if session_id:
                 command = ["codex", "exec", "resume", *common, session_id, "-"]
             else:
@@ -94,6 +107,10 @@ class ClaudeProvider:
     def __init__(self, workspace):
         self.workspace = workspace
         self.model, self.effort = model_settings(self.name)
+        self.tier = tier_setting(self.name)
+        model = re.sub(r"-(?:\d{8}|\d{4}-\d{2}-\d{2})$", "", self.model.removesuffix("[1m]"))
+        if self.tier == "fast" and model not in {"opus", "claude-opus-5-5", "claude-opus-5", "claude-opus-4-8"}:
+            raise ValueError("SLACK_REPLY_TIER=fast for Claude requires SLACK_REPLY_MODEL=opus or a supported Opus model")
         if self.effort and self.effort not in {"low", "medium", "high", "xhigh", "max"}:
             raise ValueError("SLACK_REPLY_REASONING_EFFORT for Claude must be low, medium, high, xhigh, or max")
 
@@ -104,6 +121,8 @@ class ClaudeProvider:
             command.extend(["--model", self.model])
         if self.effort:
             command.extend(["--effort", self.effort])
+        if self.tier:
+            command.extend(["--settings", json.dumps({"fastMode": self.tier == "fast"})])
         if session_id:
             command.extend(["--resume", session_id])
         result = execute(command, prompt, self.workspace)
@@ -128,6 +147,7 @@ class PiProvider:
     def __init__(self, workspace):
         self.workspace = workspace
         self.model, self.effort = model_settings(self.name)
+        self.tier = tier_setting(self.name)
         if self.effort and self.effort not in {
             "off", "minimal", "low", "medium", "high", "xhigh", "max",
         }:
@@ -139,10 +159,13 @@ class PiProvider:
             command.extend(["--model", self.model])
         if self.effort:
             command.extend(["--thinking", self.effort])
+        if self.tier:
+            command.extend(["--extension", str(Path(__file__).with_name("pi_tier.mjs")),
+                            "--slack-reply-tier", self.tier])
         if session_id:
             command.extend(["--session", session_id])
         result = execute(command, prompt, self.workspace)
-        if result.returncode:
+        if result.returncode or "Slack Reply tier:" in result.stderr:
             detail = result.stderr[-1500:] or result.stdout[-1500:]
             raise RuntimeError(f"pi CLI failed (exit {result.returncode}): {detail}")
         session = None

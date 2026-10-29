@@ -24,10 +24,22 @@ pip install -r requirements.txt
 umask 077
 cp .env.example .env
 chmod 600 .env
-# Edit .env with your tokens, Slack user ID, provider, model, and absolute workspace path.
+# Edit .env with your tokens, Slack user ID, provider, model, tier, and absolute workspace path.
 ./run.sh
 ```
 
-`.env` is ignored by Git and `run.sh` requires mode `600`. Set `SLACK_REPLY_WORKSPACE` to the directory all CLIs should use, and grant the app only the Slack scopes you need. The session map and answer tracking live in `~/.local/state/slack-reply` by default, with private directory and file permissions; set `SLACK_REPLY_STATE_DIR` to change that path. Slack tokens are removed from every CLI subprocess environment. Set `SLACK_REPLY_PROVIDER` to `codex`, `claude`, or `pi` in `.env`. Optional `SLACK_REPLY_MODEL` and `SLACK_REPLY_REASONING_EFFORT` override the selected provider's CLI defaults. Use a model identifier and reasoning level supported by that provider; the adapters pass them as Codex model/config, Claude model/effort, or Pi model/thinking flags. Codex keeps its normal sandbox and approval settings. Restart after editing `.env`; provider changes apply to new threads, while existing threads keep their original provider. Model and reasoning overrides apply on each invocation for the selected provider, including resumed sessions. Threads pinned to another provider use that CLI's session and defaults without receiving the selected provider's overrides. Claude runs with `acceptEdits` permission mode; Pi uses its own tool settings. Authenticate each CLI separately. Pi uses [JSON events and saved sessions](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/json.md).
+`.env` is ignored by Git and `run.sh` requires mode `600`. Set `SLACK_REPLY_WORKSPACE` to the directory all CLIs should use, and grant the app only the Slack scopes you need. The session map and answer tracking live in `~/.local/state/slack-reply` by default, with private directory and file permissions; set `SLACK_REPLY_STATE_DIR` to change that path. Slack tokens are removed from every CLI subprocess environment. Set `SLACK_REPLY_PROVIDER` to `codex`, `claude`, or `pi` in `.env`. Optional `SLACK_REPLY_MODEL` and `SLACK_REPLY_REASONING_EFFORT` override the selected provider's CLI defaults. Use a model identifier and reasoning level supported by that provider; the adapters pass them as Codex model/config, Claude model/effort, or Pi model/thinking flags. Codex keeps its normal sandbox and approval settings. Restart after editing `.env`; provider changes apply to new threads, while existing threads keep their original provider. Model, reasoning, and tier overrides apply on each invocation for the selected provider, including resumed sessions. Threads pinned to another provider use that CLI's session and defaults without receiving the selected provider's overrides. Claude runs with `acceptEdits` permission mode; Pi uses its own tool settings. Authenticate each CLI separately. Pi uses [JSON events and saved sessions](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/json.md).
+
+## Service tier
+
+Set `SLACK_REPLY_TIER=default` (the default) or `SLACK_REPLY_TIER=fast` in `.env`, then restart. This changes processing speed while keeping the selected model and reasoning effort.
+
+| CLI | `fast` mapping |
+| --- | --- |
+| Codex | `service_tier="fast"` with the `fast_mode` feature enabled |
+| Claude | `fastMode: true`; set `SLACK_REPLY_MODEL=opus` or a supported Opus model |
+| Pi | Bundled extension sets OpenAI/Codex/xAI `service_tier: "priority"`, Google `serviceTier: "priority"`, or Anthropic `speed: "fast"` |
+
+`default` explicitly disables these fast settings. Claude and Pi's Anthropic fast mode support Opus 5.5, Opus 5, and Opus 4.8; unsupported combinations fail without switching models. Pi rejects fast mode for other providers. Availability and pricing depend on the provider, model, and account. See [Codex speed](https://learn.chatgpt.com/docs/agent-configuration/speed) and [Claude fast mode](https://code.claude.com/docs/en/fast-mode).
 
 To trigger it, send a message from the configured user that explicitly mentions that same user. A reply to an existing Slack thread includes that thread through the triggering message and resumes its saved session on later self-mentions. A top-level message sends only itself, starts a thread with the answer, and saves the session for later self-mentions in that thread. Slack Reply ignores other users, bot messages, its own posted answers, and duplicate event deliveries. Stop it with Ctrl-C.

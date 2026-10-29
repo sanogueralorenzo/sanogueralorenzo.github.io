@@ -156,7 +156,7 @@ class ProviderTests(unittest.TestCase):
 
     def test_pinned_provider_does_not_receive_another_providers_overrides(self):
         def fake_execute(command, prompt, workspace):
-            for flag in ["--model", "--config", "--effort", "--thinking"]:
+            for flag in ["--model", "--config", "--effort", "--thinking", "--settings", "--slack-reply-tier"]:
                 self.assertNotIn(flag, command)
             if command[0] == "codex":
                 Path(command[command.index("-o") + 1]).write_text("answer")
@@ -170,6 +170,7 @@ class ProviderTests(unittest.TestCase):
                 "SLACK_REPLY_PROVIDER": selected,
                 "SLACK_REPLY_MODEL": "other-model",
                 "SLACK_REPLY_REASONING_EFFORT": "high",
+                "SLACK_REPLY_TIER": "fast",
             }):
                 with patch.object(providers.shutil, "which", return_value="/bin/provider"):
                     with patch.object(providers, "execute", side_effect=fake_execute):
@@ -206,6 +207,69 @@ class ProviderTests(unittest.TestCase):
         with patch.object(providers, "execute",
                           return_value=completed("", returncode=1, stderr="model unavailable")):
             with self.assertRaisesRegex(RuntimeError, "model unavailable"):
+                providers.PiProvider(self.path).run("prompt", None)
+
+    def test_invalid_tier_is_rejected(self):
+        for value in ["", "priority", "unknown"]:
+            with self.subTest(value=value), patch.dict(os.environ, {"SLACK_REPLY_TIER": value}):
+                with self.assertRaisesRegex(ValueError, "SLACK_REPLY_TIER"):
+                    providers.tier_setting("codex")
+
+    def test_unset_tier_uses_default_for_selected_provider(self):
+        with patch.dict(os.environ, {"SLACK_REPLY_PROVIDER": "codex"}):
+            self.assertEqual(providers.tier_setting("codex"), "default")
+            self.assertIsNone(providers.tier_setting("claude"))
+
+    def test_tiers_apply_to_new_and_resumed_provider_requests(self):
+        def fake_execute(command, prompt, workspace):
+            commands.append(command)
+            if command[0] == "codex":
+                Path(command[command.index("-o") + 1]).write_text("answer")
+                return completed('{"type":"thread.started","thread_id":"session-1"}\n')
+            if command[0] == "claude":
+                return completed(json.dumps({"session_id": "session-1", "result": "answer"}))
+            return completed(pi_events("session-1", "answer"))
+
+        for name in ["codex", "claude", "pi"]:
+            for tier in ["default", "fast"]:
+                commands = []
+                with self.subTest(provider=name, tier=tier), patch.dict(os.environ, {
+                    "SLACK_REPLY_PROVIDER": name, "SLACK_REPLY_MODEL": "opus",
+                    "SLACK_REPLY_REASONING_EFFORT": "high", "SLACK_REPLY_TIER": tier,
+                }):
+                    with patch.object(providers.shutil, "which", return_value="/bin/provider"):
+                        with patch.object(providers, "execute", side_effect=fake_execute):
+                            provider = providers.provider_for(name, self.path, self.path)
+                            for session in [None, "session-1"]:
+                                self.assertEqual(provider.run("prompt", session), ("session-1", "answer"))
+                    for command in commands:
+                        self.assertEqual(command[command.index("--model") + 1], "opus")
+                        if name == "codex":
+                            self.assertIn(f'service_tier="{tier}"', command)
+                            self.assertIn('model_reasoning_effort="high"', command)
+                            self.assertEqual("--enable" in command, tier == "fast")
+                        elif name == "claude":
+                            self.assertEqual(json.loads(command[command.index("--settings") + 1]),
+                                             {"fastMode": tier == "fast"})
+                            self.assertEqual(command[command.index("--effort") + 1], "high")
+                        else:
+                            self.assertTrue(Path(command[command.index("--extension") + 1]).is_file())
+                            self.assertEqual(command[command.index("--slack-reply-tier") + 1], tier)
+                            self.assertEqual(command[command.index("--thinking") + 1], "high")
+
+    def test_claude_fast_rejects_missing_or_unsupported_models(self):
+        for model in ["", "sonnet", "haiku", "claude-opus-4-7"]:
+            with self.subTest(model=model), patch.dict(os.environ, {
+                "SLACK_REPLY_PROVIDER": "claude", "SLACK_REPLY_MODEL": model, "SLACK_REPLY_TIER": "fast",
+            }):
+                with self.assertRaisesRegex(ValueError, "supported Opus"):
+                    providers.ClaudeProvider(self.path)
+
+    def test_pi_tier_extension_failure_cannot_be_posted_as_a_success(self):
+        with patch.object(providers, "execute", return_value=completed(
+            pi_events("session-1", "answer"), stderr="Extension error: Slack Reply tier: unsupported model",
+        )):
+            with self.assertRaisesRegex(RuntimeError, "unsupported model"):
                 providers.PiProvider(self.path).run("prompt", None)
 
 
