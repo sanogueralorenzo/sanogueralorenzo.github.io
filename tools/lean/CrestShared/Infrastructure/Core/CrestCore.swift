@@ -46,6 +46,7 @@ final class CrestCore {
     /// Observable browser state, shared with the native feature stores.
     let state = CoreState()
     @ObservationIgnored private(set) lazy var downloads = BrowserNativeDownloads(core: self)
+    @ObservationIgnored private(set) lazy var browserImport = NativeBrowserImport(core: self)
     /// The engines this core hosts pages on, which the composition registers.
     @ObservationIgnored private(set) lazy var engines = Engines(core: self)
     /// Where the core keeps `session.sqlite`; nil when it keeps everything in

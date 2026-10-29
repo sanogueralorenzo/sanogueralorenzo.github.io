@@ -27,14 +27,13 @@ final class BrowserImportFlow {
     /// What installs the extensions an import brings, when the engine runs any.
     @ObservationIgnored private let extensionInstaller: (any BrowserImportedExtensionInstalling)?
     @ObservationIgnored private var currentImportPayload: BrowserDetectedImportPayload?
-    /// The review's Spaces as the views draw them, for the review the core
-    /// last published, so a view's body builds them once per change.
+    /// The review's Spaces as the views draw them, for the current native review, so a view's body builds them once per change.
     @ObservationIgnored private var reviewCache: (review: ImportReview, spaces: [BrowserImportSpaceReview])?
     /// The session the review would leave, until the review changes.
     @ObservationIgnored private var previewCache: (review: ImportReview, session: BrowserSessionPreview?)?
     @ObservationIgnored private var operationGeneration = 0
 
-    /// Setup as the core holds it, or nil before it opens.
+    /// The shared native queue and review, or nil before setup opens.
     var state: ImportFlowState? { browser.core.state.importFlow }
 
     var step: ImportStep { state?.step ?? .importBrowser }
@@ -84,8 +83,8 @@ final class BrowserImportFlow {
 
     // MARK: - Initializers
 
-    /// A flow over `browser`'s workspace. It sends the core
-    /// nothing until `start`, since a view may build it more than once.
+    /// A flow over `browser`'s workspace. It opens no queue until `start`,
+    /// since a view may build it more than once.
     init(
         browser: BrowserStore,
         sourceDiscovery: any BrowserInstalledImportSourceDiscovering = LiveBrowserInstalledImportSourceDiscovery(),
@@ -103,7 +102,7 @@ final class BrowserImportFlow {
 
     // MARK: - Actions - Lifecycle
 
-    /// Opens setup in the core for the request, offering the browsers found.
+    /// Opens the native queue, offering the browsers found.
     func start() {
         send(StartBrowserImport(workspaceID: browser.family.workspaceID))
         offerInstalledSources()
@@ -188,7 +187,7 @@ final class BrowserImportFlow {
         send(ToggleImportSource(source: application))
     }
 
-    /// Reads the next selected browser after the core starts its import.
+    /// Reads the next selected browser after the queue starts its import.
     func continueImportQueue() {
         guard !isImportSelectionLocked else { return }
         send(ContinueImport())
@@ -203,7 +202,7 @@ final class BrowserImportFlow {
 
     // MARK: - Actions - Reading
 
-    /// Reads the browser the core is on, when it is reading one: from what a
+    /// Reads the browser the queue is on, when it is reading one: from what a
     /// scan found, then a folder the person gave access to, then the browser's
     /// own folder when nothing has read it yet, and otherwise the folder the
     /// person picks.
@@ -287,17 +286,16 @@ final class BrowserImportFlow {
             })
     }
 
-    /// Hands the core what the read brought, with where each of the
-    /// browser's passwords belongs, or why it failed.
+    /// Publishes what the read brought for native review, or why it failed.
     private func completeRead(
         _ result: Result<BrowserImportReadOutput, any Error>, from application: ImportSource
     ) {
         do {
             let output = try result.get()
             extensionIcons.merge(output.extensionIcons.compactMapValues(NSImage.init(data:))) { _, read in read }
-            _ = try browser.core.send(
+            try browser.core.send(
                 ReviewImport(
-                    source: application, spaces: output.imported.map(\.seed),
+                    source: application, spaces: output.imported,
                     // An engine that runs no extensions is offered none to install.
                     extensions: extensionInstaller == nil ? [] : output.extensions,
                     leftOut: output.leftOut,
@@ -341,8 +339,7 @@ final class BrowserImportFlow {
         }
     }
 
-    /// Gives the reviewed Space `sourceSpaceID` `customization`, which the
-    /// core keeps with its branding rules applied.
+    /// Gives the reviewed Space `sourceSpaceID` its chosen customization.
     func customize(_ sourceSpaceID: UUID, as customization: SpaceCustomization) {
         send(CustomizeImportSpace(sourceSpaceID: sourceSpaceID, customization: customization))
     }
@@ -355,7 +352,7 @@ final class BrowserImportFlow {
         review?.summary
     }
 
-    /// What the core says the review's choices mean.
+    /// What the native review's choices mean.
     func reviewAnalysis() -> BrowserImportReviewAnalysis {
         BrowserImportReviewAnalysis(review)
     }
@@ -433,7 +430,7 @@ final class BrowserImportFlow {
     func commitReviewedImport() {
         guard let review, !isCommittingImport else { return }
         do {
-            _ = try browser.core.send(BeginImportCommit())
+            try browser.core.send(BeginImportCommit())
             try browser.importReviewedSpaces()
             currentImportPayload = nil
             if let extensionInstaller, !review.extensionInstalls.isEmpty {
@@ -448,9 +445,8 @@ final class BrowserImportFlow {
 
     // MARK: - Actions - Sending
 
-    /// Sends `intent` to the core. A refused intent leaves setup as the core
-    /// holds it.
-    private func send(_ intent: some Intent) {
+    /// Applies a native flow edit. A refused edit leaves the current flow intact.
+    private func send(_ intent: some BrowserImportIntent) {
         _ = try? browser.core.send(intent)
     }
 

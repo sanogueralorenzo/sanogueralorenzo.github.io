@@ -55,15 +55,6 @@ public sealed record SessionState(
         Spaces = [.. Spaces.Select(space => edited.FirstOrDefault(value => value.Id == space.Id) ?? space)]
     };
 
-    /// The Spaces an import may join: none over a first launch's disposable
-    /// Spaces, and never one going away.
-    internal IReadOnlyList<SpaceState> ImportDestinations => DisposableSeedMarker is not null ? [] : StayingSpaces;
-
-    /// How many new Spaces an import into the session has room for, as
-    /// `ImportReviewedSpaces` counts them: a first launch's disposable Spaces
-    /// make way for the import, and every other Space counts.
-    internal int ImportRoom => Math.Max(0, MaximumSpaces - (DisposableSeedMarker is null ? Spaces.Count : 0));
-
     /// Throws `Rejected` with `SpaceLimitReached` when `additions` more Spaces
     /// would take a workspace holding `existing` past the limit.
     internal static void RequireSpaceCapacity(int existing, int additions) {

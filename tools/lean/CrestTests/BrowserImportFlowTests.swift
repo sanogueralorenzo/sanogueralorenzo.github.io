@@ -44,8 +44,8 @@ final class BrowserImportFlowTests: XCTestCase {
             ImportSpaceExtensions(
                 spaceID: spaceID,
                 extensions: [
-                    ImportExtension(extensionID: first, name: "uBlock Origin"),
-                    ImportExtension(extensionID: second, name: "Dark Reader"),
+                    ImportExtension(extensionID: first, name: "uBlock Origin", iconPath: nil),
+                    ImportExtension(extensionID: second, name: "Dark Reader", iconPath: nil),
                 ])
         ]
         let installer = RecordingExtensionInstaller()

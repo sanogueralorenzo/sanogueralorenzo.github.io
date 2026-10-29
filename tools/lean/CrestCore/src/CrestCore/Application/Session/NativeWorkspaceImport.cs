@@ -178,7 +178,7 @@ internal sealed class NativeWorkspaceImport {
 
     /// Imports the reviewed Spaces the review includes, in their order; see
     /// `ImportReviewedSpaces`. New identities come from `ids`.
-    internal void ImportReviewed(IReadOnlyList<ImportReviewSpace> reviews, IIdSource ids) {
+    internal void ImportReviewed(IReadOnlyList<ReviewedImportSpace> reviews, IIdSource ids) {
         var included = Pair(reviews, review => review.Source.Id).Where(pair => pair.Choice.Included).ToArray();
         if (included.Length == 0) throw new Rejected(new NoIncludedSpaces());
         bool replaceSeed = seedMarker is not null;
@@ -214,7 +214,7 @@ internal sealed class NativeWorkspaceImport {
     /// a tab group's open tabs, and the splits whose tabs still come together.
     /// Pinned tabs past the limit become saved tabs in the overflow folder. New
     /// identities come from `ids`.
-    private void Import(ImportReviewSpace review, Draft input, Draft destination, bool isNew, IIdSource ids) {
+    private void Import(ReviewedImportSpace review, Draft input, Draft destination, bool isNew, IIdSource ids) {
         var included = review.IncludedTabIds.ToHashSet();
         var overrides = review.Placements.GroupBy(choice => choice.TabId).ToDictionary(group => group.Key, group => group.Last().Placement);
         TabPlacement PlacementFor(TabState tab) => overrides.GetValueOrDefault(tab.Id, tab.Placement);

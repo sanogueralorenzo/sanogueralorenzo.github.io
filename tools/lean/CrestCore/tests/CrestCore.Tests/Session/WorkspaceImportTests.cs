@@ -54,19 +54,11 @@ public sealed partial class BrowserContractsTests {
 
     private static Guid TabId(JsonNode tab) => Guid.Parse(tab["id"]!["rawValue"]!.GetValue<string>());
 
-    /// The flow the last `ImportFlowChanged` among `changes` published.
-    private static ImportFlowState Flowing(IReadOnlyList<Change> changes) =>
-        Assert.IsType<ImportFlowChanged>(changes.Last(change => change is ImportFlowChanged)).Flow!;
-
-    /// Opens setup over `device`'s workspace and reviews `spaces`, as Arc
-    /// brought them.
-    private static ImportReview Reviewing(TestDevice device, params JsonNode[] spaces) {
-        device.Send(new StartBrowserImport(device.Workspace));
-        device.Send(new OfferImportSources([ImportSource.Arc]));
-        device.Send(new ToggleImportSource(ImportSource.Arc));
-        device.Send(new ContinueImport());
-        return Flowing(device.Send(new ReviewImport(ImportSource.Arc, ReadSpaces(spaces), []))).Review!;
-    }
+    /// Explicit choices supplied by the native review; session tests keep the
+    /// transactional import behavior independent from UI review state.
+    private static ReviewedImportSpace[] ReviewedChoices(params JsonNode[] spaces) =>
+        [.. ReadSpaces(spaces).Select(space => new ReviewedImportSpace(space, true, null,
+            Customization(space.Settings.Name), [.. space.Tabs.Select(tab => tab.Id)], []))];
 
     [Fact]
     public void AReviewedImportKeepsItsTabGroupsAndTheSplitsThatStillHoldTogether() {
@@ -84,12 +76,11 @@ public sealed partial class BrowserContractsTests {
             InSplit(ImportedTab("https://right.example/"), kept), InSplit(ImportedTab("https://broken-one.example/"), broken), moved);
         space["folders"] = new JsonArray(new JsonObject { ["id"] = SwiftId(group), ["title"] = "Research", ["location"] = "current" });
         space["splitGroups"] = new JsonArray(new JsonObject { ["id"] = SwiftId(kept) }, new JsonObject { ["id"] = SwiftId(broken) });
-        Reviewing(device, space);
+        var reviews = ReviewedChoices(space);
         // Saving one tab of a split leaves its other tab on its own.
-        device.Send(new PlaceImportTab(SpaceId(space), TabId(moved), TabPlacement.Saved));
-        device.Send(new BeginImportCommit());
+        reviews[0] = reviews[0] with { Placements = [new(TabId(moved), TabPlacement.Saved)] };
 
-        device.Send(new ImportReviewedSpaces(device.Workspace, window));
+        device.Send(new ImportReviewedSpaces(device.Workspace, window, reviews));
 
         var grouped = device.Authority.Current.Spaces.Single(candidate => candidate.Settings.Name == "Grouped");
         var research = Assert.Single(grouped.Folders, folder => folder.Title == "Research");
@@ -117,10 +108,10 @@ public sealed partial class BrowserContractsTests {
         // A saved tab is the first to stay behind; an open one comes along.
         var joining = ImportedSpace("reading", [.. Enumerable.Range(0, room).Select(index => ImportedTab($"https://saved.example/{index}", "saved")),
             ImportedTab("https://open.example/")]);
-        Reviewing(device, joining);
-        device.Send(new BeginImportCommit());
+        var reviews = ReviewedChoices(joining);
+        reviews[0] = reviews[0] with { DestinationId = fixture.Space };
 
-        device.Send(new ImportReviewedSpaces(device.Workspace, window));
+        device.Send(new ImportReviewedSpaces(device.Workspace, window, reviews));
 
         var reading = device.Authority.Current.Spaces.Single(space => space.Id == fixture.Space);
         Assert.Equal(BrowserTabCollection.MaximumTabs, reading.Tabs.Count);
@@ -186,17 +177,20 @@ public sealed partial class BrowserContractsTests {
         var moved = ImportedTab("https://moved.example/");
         var fresh = ImportedSpace("Travel", moved, ImportedTab("https://left.example/"));
         var dropped = ImportedSpace("Dropped", ImportedTab("https://dropped.example/"));
-        // The review joins "Reading" and leaves out the tab it holds.
-        var review = Reviewing(device, joining, fresh, dropped);
-        Assert.Equal(fixture.Space, review.Spaces[0].DestinationId);
-        Assert.Equal(joining["tabs"]!.AsArray().Skip(1).Select(tab => TabId(tab!)), review.Spaces[0].IncludedTabIds);
-        device.Send(new CustomizeImportSpace(SpaceId(fresh), Customization("Trips")));
-        device.Send(new IncludeImportTabs(SpaceId(fresh), [TabId(fresh["tabs"]![1]!)], Included: false));
-        device.Send(new PlaceImportTab(SpaceId(fresh), TabId(moved), TabPlacement.Pinned));
-        device.Send(new IncludeImportSpace(SpaceId(dropped), Included: false));
-        device.Send(new BeginImportCommit());
+        var reviews = ReviewedChoices(joining, fresh, dropped);
+        reviews[0] = reviews[0] with {
+            DestinationId = fixture.Space,
+            Customization = Customization("Reading"),
+            IncludedTabIds = [.. reviews[0].Source.Tabs.Skip(1).Select(tab => tab.Id)]
+        };
+        reviews[1] = reviews[1] with {
+            Customization = Customization("Trips"),
+            IncludedTabIds = [TabId(moved)],
+            Placements = [new(TabId(moved), TabPlacement.Pinned)]
+        };
+        reviews[2] = reviews[2] with { Included = false, IncludedTabIds = [] };
 
-        var changes = device.Send(new ImportReviewedSpaces(device.Workspace, window));
+        var changes = device.Send(new ImportReviewedSpaces(device.Workspace, window, reviews));
 
         var current = device.Authority.Current;
         Assert.Equal(2, current.Spaces.Count);
@@ -216,10 +210,7 @@ public sealed partial class BrowserContractsTests {
         Assert.Contains(new ImportedTab(TabId(moved), 1, TabId(moved)), changes.OfType<TabsImported>().Single().Tabs);
         Assert.Equal(reading.Id, device.Space(window));
         Assert.Equal(TabId(moved), device.Tab(window, trips.Id));
-        // An import asked for from the app ends on what it did.
-        var finished = Flowing(device.Send(new FinishImportCommit()));
-        Assert.Equal((ImportStep.Complete, new ImportSummary(TabCount: 15, SpaceCount: 2)),
-            (finished.Step, finished.Summary));
+
     }
 
     [Fact]

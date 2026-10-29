@@ -11,18 +11,18 @@ namespace CrestCore.Contracts;
 /// A new Space keeps its archive and history. Over a first launch's
 /// disposable Spaces, the reviewed Spaces replace them.
 ///
-/// Refused with `NoBrowserImport` when setup holds no review for the workspace, and
-/// `NoIncludedSpaces` when the review includes none.
-public sealed record ImportReviewedSpaces(Guid WorkspaceId, Guid WindowId) : ImportWorkspace(WorkspaceId, WindowId) {
+/// The native review supplies its choices explicitly. Refused with
+/// `NoIncludedSpaces` when the choices include none.
+[MessageLimit(64 * 1024 * 1024)]
+public sealed record ImportReviewedSpaces(Guid WorkspaceId, Guid WindowId, IReadOnlyList<ReviewedImportSpace> Reviews) : ImportWorkspace(WorkspaceId, WindowId) {
     #region Actions - Session
 
     /// Imports the review setup holds for this workspace; see
     /// `ImportReviewedSpaces`.
     internal override SessionEdit? Edit(NativeSessionAuthority workspace, SessionTurn turn) {
         if (!workspace.Kind.KeepsAppPreferences) throw new Rejected(new PersistentWorkspaceRequired(workspace.WorkspaceId));
-        var review = workspace.Device?.ImportReview(workspace.WorkspaceId) ?? throw new Rejected(new NoBrowserImport());
-        return workspace.Importing(turn.Basis, this, [.. review.Spaces.Select(space => space.Source)], turn.Now, turn.Ids,
-            import => import.ImportReviewed(review.Spaces, turn.Ids));
+        return workspace.Importing(turn.Basis, this, [.. Reviews.Select(space => space.Source)], turn.Now, turn.Ids,
+            import => import.ImportReviewed(Reviews, turn.Ids));
     }
 
     #endregion

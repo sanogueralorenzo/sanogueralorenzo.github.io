@@ -65,14 +65,16 @@ extension BrowserStore {
 
     /// Imports the review setup holds for this workspace, as the person chose.
     /// Throws the rule that refused it.
-    func importReviewedSpaces() throws(Rejection) {
-        try family.commit(ImportReviewedSpaces(workspaceID: family.workspaceID, windowID: windowID), from: self)
+    func importReviewedSpaces() throws {
+        let intent = try reviewedImportIntent()
+        try family.commit(intent, from: self)
     }
 
     /// The session importing the review setup holds would leave this
     /// workspace with. Throws the rule that would refuse it.
-    func reviewedImportPreview() throws(Rejection) -> BrowserSessionPreview {
-        try importPreview(ImportReviewedSpaces(workspaceID: family.workspaceID, windowID: windowID))
+    func reviewedImportPreview() throws -> BrowserSessionPreview {
+        let intent = try reviewedImportIntent()
+        return try importPreview(intent)
     }
 
     /// The session `intent` would leave this workspace with, wearing the

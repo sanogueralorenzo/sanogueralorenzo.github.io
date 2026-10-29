@@ -6,7 +6,7 @@ import Observation
 /// `apply(to:)` in a `Changes/Area/Change+CoreState.swift` file. It is
 /// observable per entity: each workspace, Space, tab, folder and window is
 /// an object of its own that notifies only when one of its values really
-/// changes. Native domains update their own values, including download records.
+/// changes. Native domains update their own values, including download records and import review.
 ///
 /// Every value is stored before it is announced, so a view that renders
 /// while a change is announced reads the new value; see
@@ -111,7 +111,7 @@ final class CoreState {
     var shortcuts: [ShortcutCommand: ShortcutBinding] {
         Dictionary(uniqueKeysWithValues: shortcutBindings.map { ($0.command, $0) })
     }
-    /// Import on this device, as the core last published it, or nil while it
+    /// Native import queue and review, or nil while setup
     /// is not open.
     var importFlow: ImportFlowState? {
         get { observed(\.importFlowStorage, as: \.importFlow) }

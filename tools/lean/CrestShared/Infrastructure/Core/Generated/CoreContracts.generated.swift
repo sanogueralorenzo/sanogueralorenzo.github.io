@@ -32,9 +32,6 @@ protocol EngineQuestion: Sendable {
 /// The members of `Intent` that derive from the core's `AgentIntent`.
 protocol AgentIntent: Intent {}
 
-/// The members of `Intent` that derive from the core's `BrowserImportIntent`.
-protocol BrowserImportIntent: Intent {}
-
 /// The members of `Intent` that derive from the core's `CloseIntent`.
 protocol CloseIntent: Intent {}
 
@@ -96,7 +93,6 @@ enum Change: Equatable, Sendable {
     case extensionInstallAsked(ExtensionInstallAsked)
     case foldersChanged(FoldersChanged)
     case historyChanged(HistoryChanged)
-    case importFlowChanged(ImportFlowChanged)
     case navigationRecorded(NavigationRecorded)
     case offeredPageAdopted(OfferedPageAdopted)
     case pageChanged(PageChanged)
@@ -153,7 +149,6 @@ enum Rejection: Equatable, Error, Sendable {
     case bookmarksUnrecognized(BookmarksUnrecognized)
     case borrowedProfileRequiresOwner(BorrowedProfileRequiresOwner)
     case borrowedWorkspaceRequiresSpace(BorrowedWorkspaceRequiresSpace)
-    case browserImportBusy(BrowserImportBusy)
     case cannotDeleteLastSpace(CannotDeleteLastSpace)
     case cannotMoveSplitAcrossSpaces(CannotMoveSplitAcrossSpaces)
     case cannotPinSplit(CannotPinSplit)
@@ -187,7 +182,6 @@ enum Rejection: Equatable, Error, Sendable {
     case lastStartPage(LastStartPage)
     case legacyCloudStateUnreadable(LegacyCloudStateUnreadable)
     case noArchivedTabs(NoArchivedTabs)
-    case noBrowserImport(NoBrowserImport)
     case noBrowsingDataCategory(NoBrowsingDataCategory)
     case noCurrentTabs(NoCurrentTabs)
     case noIncludedSpaces(NoIncludedSpaces)
@@ -270,7 +264,6 @@ enum Rejection: Equatable, Error, Sendable {
         case .bookmarksOverLimits(let value): value.message
         case .bookmarksTooLarge(let value): value.message
         case .bookmarksUnrecognized(let value): value.message
-        case .browserImportBusy(let value): value.message
         case .cannotDeleteLastSpace(let value): value.message
         case .cannotMoveSplitAcrossSpaces(let value): value.message
         case .cannotPinSplit(let value): value.message
@@ -281,7 +274,6 @@ enum Rejection: Equatable, Error, Sendable {
         case .invalidImport(let value): value.message
         case .invalidSyncRecords(let value): value.message
         case .legacyCloudStateUnreadable(let value): value.message
-        case .noBrowserImport(let value): value.message
         case .noIncludedSpaces(let value): value.message
         case .notAnArchive(let value): value.message
         case .persistentWorkspaceRequired(let value): value.message
@@ -357,7 +349,6 @@ extension Change {
         case .extensionInstallAsked(let change): change.apply(to: state)
         case .foldersChanged(let change): change.apply(to: state)
         case .historyChanged(let change): change.apply(to: state)
-        case .importFlowChanged(let change): change.apply(to: state)
         case .navigationRecorded(let change): change.apply(to: state)
         case .offeredPageAdopted(let change): change.apply(to: state)
         case .pageChanged(let change): change.apply(to: state)
@@ -413,7 +404,6 @@ extension Change {
         case .extensionInstallAsked(let change): change.apply(to: core, in: &batch)
         case .foldersChanged(let change): change.apply(to: core, in: &batch)
         case .historyChanged(let change): change.apply(to: core, in: &batch)
-        case .importFlowChanged(let change): change.apply(to: core, in: &batch)
         case .navigationRecorded(let change): change.apply(to: core, in: &batch)
         case .offeredPageAdopted(let change): change.apply(to: core, in: &batch)
         case .pageChanged(let change): change.apply(to: core, in: &batch)
@@ -469,7 +459,6 @@ extension Change {
         case .extensionInstallAsked(let change): change.note(in: &receipts)
         case .foldersChanged(let change): change.note(in: &receipts)
         case .historyChanged(let change): change.note(in: &receipts)
-        case .importFlowChanged(let change): change.note(in: &receipts)
         case .navigationRecorded(let change): change.note(in: &receipts)
         case .offeredPageAdopted(let change): change.note(in: &receipts)
         case .pageChanged(let change): change.note(in: &receipts)
@@ -852,9 +841,6 @@ struct BeginDeletingSpace: Intent, SessionIntent, Equatable, Sendable {
     let operationID: UUID
 }
 
-struct BeginImportCommit: Intent, BrowserImportIntent, Equatable, Sendable {
-}
-
 struct BlockedPopupPageState: Equatable, Sendable {
     static let maximumDocumentIdentifierLength: Int = 128
     static let empty = BlockedPopupPageState(status: nil, origin: nil, documentIdentifier: nil, indicationRevision: 0)
@@ -923,12 +909,6 @@ struct BrandColor: Equatable, Sendable {
     var alpha: Double
 }
 
-struct BrowserImportBusy: Equatable, Sendable {
-    var message: LocalizedStringResource {
-        LocalizedStringResource("Wait for the import to finish.")
-    }
-}
-
 struct BrowsingPreferences: Equatable, Sendable {
     var contentBlocking: ContentBlockingPolicy
     var dataRetention: DataRetentionPreferences
@@ -957,9 +937,6 @@ struct CanTearOff: Query, Equatable, Sendable {
     let profileID: UUID
     let tabID: UUID
     let draggedTabs: [UUID]?
-}
-
-struct CancelImportRead: Intent, BrowserImportIntent, Equatable, Sendable {
 }
 
 struct CannotDeleteLastSpace: Equatable, Sendable {
@@ -1020,11 +997,6 @@ struct CheckBeforeUnload: Equatable, Sendable {
 
 struct ChooseCloudCopy: Intent, CloudSyncControlIntent, Equatable, Sendable {
     let usesCloud: Bool
-}
-
-struct ChooseImportDestination: Intent, BrowserImportIntent, Equatable, Sendable {
-    let sourceSpaceID: UUID
-    let destinationSpaceID: UUID?
 }
 
 struct ClaimAgentTab: Intent, AgentIntent, Equatable, Sendable {
@@ -1237,9 +1209,6 @@ struct ConfigureCloudSync: Intent, CloudSyncControlIntent, Equatable, Sendable {
     let canReachCloud: Bool
 }
 
-struct ContinueImport: Intent, BrowserImportIntent, Equatable, Sendable {
-}
-
 struct CreateFolder: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -1272,11 +1241,6 @@ struct CurrentTabsOnly: Equatable, Sendable {
     var message: LocalizedStringResource {
         LocalizedStringResource("Archive applies to current tabs. Use Unload Pages to close saved or pinned pages, or Delete Tabs to remove their saved entries.")
     }
-}
-
-struct CustomizeImportSpace: Intent, BrowserImportIntent, Equatable, Sendable {
-    let sourceSpaceID: UUID
-    let customization: SpaceCustomization
 }
 
 struct DataDeleted: CoreChange, Equatable, Sendable {
@@ -1636,12 +1600,6 @@ struct ExternalOpenPlacement: Equatable, Sendable {
     let opensWindow: Bool
 }
 
-struct FailImport: Intent, BrowserImportIntent, Equatable, Sendable {
-    let source: ImportSource
-    let reason: ImportFailureReason
-    let detail: String?
-}
-
 struct FallbackTab: Query, Equatable, Sendable {
     typealias Answer = FallbackTabIndex
 
@@ -1695,9 +1653,6 @@ struct FinishDeletingSpace: Intent, SessionIntent, Equatable, Sendable {
     let windowID: UUID
     let spaceID: UUID
     let operationID: UUID
-}
-
-struct FinishImportCommit: Intent, BrowserImportIntent, Equatable, Sendable {
 }
 
 struct FirstInstallSession: Query, Equatable, Sendable {
@@ -1899,39 +1854,9 @@ struct ImportData: Equatable, Sendable {
 }
 
 struct ImportExtension: Equatable, Sendable {
-    var extensionID: String
-    var name: String
-    var iconPath: String?
-}
-
-struct ImportExtensionInstall: Equatable, Sendable {
     let extensionID: String
     let name: String
     let iconPath: String?
-    let spaceIDs: [UUID]
-}
-
-struct ImportFailure: Equatable, Sendable {
-    let reason: ImportFailureReason
-    let source: ImportSource?
-    let detail: String?
-}
-
-struct ImportFlowChanged: CoreChange, Equatable, Sendable {
-    let flow: ImportFlowState?
-}
-
-struct ImportFlowState: Equatable, Sendable {
-    let workspaceID: UUID
-    let step: ImportStep
-    let phase: ImportPhase
-    let offered: [ImportSource]
-    let selected: [ImportSource]
-    let queue: ImportQueue?
-    let source: ImportSource?
-    let review: ImportReview?
-    let failure: ImportFailure?
-    let summary: ImportSummary?
 }
 
 struct ImportFoundBrowser: Equatable, Sendable {
@@ -1942,8 +1867,8 @@ struct ImportFoundBrowser: Equatable, Sendable {
 }
 
 struct ImportLeftOut: Equatable, Sendable {
-    var name: String
-    var reason: Rejection
+    let name: String
+    let reason: Rejection
 }
 
 struct ImportPreview: Query, Sendable {
@@ -1960,54 +1885,15 @@ struct ImportProfile: Equatable, Sendable, Identifiable {
     var profilePath: String?
 }
 
-struct ImportQueue: Equatable, Sendable {
-    let sources: [ImportSource]
-    let index: Int
-    let current: ImportSource?
-    let hasMoreAfterCurrent: Bool
-}
-
-struct ImportReview: Equatable, Sendable {
-    let source: ImportSource
-    let spaces: [ImportReviewSpace]
-    let overflowTabIDs: [UUID]
-    let shownSpaceID: UUID?
-    let leftOut: [ImportLeftOut]
-    let spaceRoom: Int
-    let browserTitle: String?
-    let title: String
-    let hasIncludedSpaces: Bool
-    let includedTabCount: Int
-    let includedExtensionCount: Int
-    let nextSpaceID: UUID?
-    let showsLastSpace: Bool
-    let newSpaceCapacity: Int
-    let extensionInstalls: [ImportExtensionInstall]
-}
-
-struct ImportReviewSpace: Equatable, Sendable {
-    let source: SpaceState
-    let included: Bool
-    let destinationID: UUID?
-    let customization: SpaceCustomization
-    let includedTabIDs: [UUID]
-    let duplicateTabIDs: [UUID]
-    let matchedTabIDs: [UUID]
-    let placements: [TabPlacementChoice]
-    let extensions: [ImportExtension]
-    let includedExtensionIDs: [String]
-    let shownName: String
-    let broughtExtensions: [ImportExtension]
-}
-
 struct ImportReviewedSpaces: Intent, ImportWorkspace, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
+    let reviews: [ReviewedImportSpace.Seed]
 }
 
 struct ImportSpaceExtensions: Equatable, Sendable {
-    var spaceID: UUID
-    var extensions: [ImportExtension]
+    let spaceID: UUID
+    let extensions: [ImportExtension]
 }
 
 struct ImportSpaceNames: Equatable, Sendable {
@@ -2020,11 +1906,6 @@ struct ImportSpaces: Intent, ImportWorkspace, SessionIntent, Equatable, Sendable
     let workspaceID: UUID
     let windowID: UUID
     let spaces: [SpaceState.Seed]
-}
-
-struct ImportSummary: Equatable, Sendable {
-    let tabCount: Int
-    let spaceCount: Int
 }
 
 struct ImportedSpaces: Equatable, Sendable {
@@ -2043,23 +1924,6 @@ struct ImportedWorkspace: Equatable, Sendable {
     let session: SessionState
     let imported: [ImportedTab]
     let copied: [TabCopied]
-}
-
-struct IncludeImportExtension: Intent, BrowserImportIntent, Equatable, Sendable {
-    let sourceSpaceID: UUID
-    let extensionID: String
-    let included: Bool
-}
-
-struct IncludeImportSpace: Intent, BrowserImportIntent, Equatable, Sendable {
-    let sourceSpaceID: UUID
-    let included: Bool
-}
-
-struct IncludeImportTabs: Intent, BrowserImportIntent, Equatable, Sendable {
-    let sourceSpaceID: UUID
-    let tabIDs: [UUID]
-    let included: Bool
 }
 
 struct IncompleteSplit: Equatable, Sendable {
@@ -2379,12 +2243,6 @@ struct NoArchivedTabs: Equatable, Sendable {
     let spaceID: UUID
 }
 
-struct NoBrowserImport: Equatable, Sendable {
-    var message: LocalizedStringResource {
-        LocalizedStringResource("Import is no longer open. Open it again.")
-    }
-}
-
 struct NoBrowsingDataCategory: Equatable, Sendable {
 }
 
@@ -2456,10 +2314,6 @@ struct ObserveCloudAccountAvailability: Intent, CloudSyncControlIntent, Equatabl
 
 struct ObserveCloudAccountChange: Intent, CloudTransportIntent, Equatable, Sendable {
     let transition: CloudAccountTransition
-}
-
-struct OfferImportSources: Intent, BrowserImportIntent, Equatable, Sendable {
-    let installed: [ImportSource]
 }
 
 struct OfferedPageAdopted: CoreChange, Equatable, Sendable {
@@ -2804,12 +2658,6 @@ struct PinsOneTabAtATime: Equatable, Sendable {
     }
 }
 
-struct PlaceImportTab: Intent, BrowserImportIntent, Equatable, Sendable {
-    let sourceSpaceID: UUID
-    let tabID: UUID
-    let placement: TabPlacement
-}
-
 struct PrepareToClosePages: Intent, CloseIntent, Equatable, Sendable {
     let requestID: UUID
     let pageIDs: [UUID]
@@ -3071,12 +2919,36 @@ struct ReturnToSavedAddress: Intent, SessionIntent, Equatable, Sendable {
     let tabID: UUID
 }
 
-struct ReviewImport: Intent, BrowserImportIntent, Equatable, Sendable {
-    let source: ImportSource
-    let spaces: [SpaceState.Seed]
-    let extensions: [ImportSpaceExtensions]?
-    let leftOut: [ImportLeftOut]?
-    let title: String?
+struct ReviewedImportSpace: Equatable, Sendable {
+    let source: SpaceState
+    let included: Bool
+    let destinationID: UUID?
+    let customization: SpaceCustomization
+    let includedTabIDs: [UUID]
+    let placements: [TabPlacementChoice]
+
+    /// The fields of a `ReviewedImportSpace` alone, as a platform builds one to send. The
+    /// core resolves the rest when it reads it.
+    struct Seed: Equatable, Sendable {
+        var source: SpaceState.Seed
+        var included: Bool
+        var destinationID: UUID?
+        var customization: SpaceCustomization
+        var includedTabIDs: [UUID]
+        var placements: [TabPlacementChoice]
+    }
+
+    /// The record's fields alone, as a platform sends it back.
+    var seed: Seed {
+        Seed(
+            source: source.seed,
+            included: included,
+            destinationID: destinationID,
+            customization: customization,
+            includedTabIDs: includedTabIDs,
+            placements: placements
+        )
+    }
 }
 
 struct SamePage: Query, Equatable, Sendable {
@@ -3364,14 +3236,6 @@ struct ShowAdjacentTab: Intent, WindowIntent, Equatable, Sendable {
 struct ShowHistoryEntry: Intent, PageIntent, Equatable, Sendable {
     let pageID: UUID
     let entryID: UUID
-}
-
-struct ShowImportSpace: Intent, BrowserImportIntent, Equatable, Sendable {
-    let sourceSpaceID: UUID
-}
-
-struct ShowImportStep: Intent, BrowserImportIntent, Equatable, Sendable {
-    let step: ImportStep
 }
 
 struct ShowLeastRecentTab: Intent, WindowIntent, Equatable, Sendable {
@@ -3708,10 +3572,6 @@ struct StagedLinkUnavailable: EngineEvent, PageEvent, Equatable, Sendable {
     let pageID: UUID
 }
 
-struct StartBrowserImport: Intent, BrowserImportIntent, Equatable, Sendable {
-    let workspaceID: UUID
-}
-
 struct StartCloudSync: Intent, CloudSyncControlIntent, Equatable, Sendable {
 }
 
@@ -3867,8 +3727,8 @@ struct TabPagePutAway: CoreChange, Equatable, Sendable {
 }
 
 struct TabPlacementChoice: Equatable, Sendable {
-    let tabID: UUID
-    let placement: TabPlacement
+    var tabID: UUID
+    var placement: TabPlacement
 }
 
 struct TabSelection: Equatable, Sendable {
@@ -3961,10 +3821,6 @@ struct TabsImported: CoreChange, Equatable, Sendable {
 struct TearOffPermission: Equatable, Sendable {
     let allowed: Bool
     let reason: TearOffRefusal?
-}
-
-struct ToggleImportSource: Intent, BrowserImportIntent, Equatable, Sendable {
-    let source: ImportSource
 }
 
 struct TogglePin: Intent, SessionIntent, Equatable, Sendable {
@@ -6092,90 +5948,6 @@ struct HostedNotificationRequestAction: Hashable, Sendable {
     }
 }
 
-/// The members of the core's `ImportFailureReason`. A member's wire tag is its index in `all`.
-struct ImportFailureReason: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var returnsToReview: Bool { facts.returnsToReview }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, returnsToReview: Bool) {
-        self.tag = tag
-        facts = Facts(name: name, returnsToReview: returnsToReview)
-    }
-
-    static let sourceUnavailable = ImportFailureReason(tag: 0, name: "sourceUnavailable", returnsToReview: false)
-    static let dataFolder = ImportFailureReason(tag: 1, name: "dataFolder", returnsToReview: false)
-    static let read = ImportFailureReason(tag: 2, name: "read", returnsToReview: false)
-    static let `import` = ImportFailureReason(tag: 3, name: "import", returnsToReview: true)
-
-    static let all: [ImportFailureReason] = [sourceUnavailable, dataFolder, read, `import`]
-
-    static func named(_ name: String?) -> ImportFailureReason? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: ImportFailureReason, rhs: ImportFailureReason) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let returnsToReview: Bool
-
-        init(name: String, returnsToReview: Bool) {
-            self.name = name
-            self.returnsToReview = returnsToReview
-        }
-    }
-}
-
-/// The members of the core's `ImportPhase`. A member's wire tag is its index in `all`.
-struct ImportPhase: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var isBusy: Bool { facts.isBusy }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, isBusy: Bool) {
-        self.tag = tag
-        facts = Facts(name: name, isBusy: isBusy)
-    }
-
-    static let idle = ImportPhase(tag: 0, name: "idle", isBusy: false)
-    static let reading = ImportPhase(tag: 1, name: "reading", isBusy: true)
-    static let reviewing = ImportPhase(tag: 2, name: "reviewing", isBusy: false)
-    static let committing = ImportPhase(tag: 3, name: "committing", isBusy: true)
-
-    static let all: [ImportPhase] = [idle, reading, reviewing, committing]
-
-    static func named(_ name: String?) -> ImportPhase? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: ImportPhase, rhs: ImportPhase) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let isBusy: Bool
-
-        init(name: String, isBusy: Bool) {
-            self.name = name
-            self.isBusy = isBusy
-        }
-    }
-}
-
 /// The members of the core's `ImportSource`. A member's wire tag is its index in `all`.
 struct ImportSource: Hashable, Sendable {
     let tag: Int
@@ -6617,53 +6389,6 @@ struct ImportSource: Hashable, Sendable {
             self.numberedSpaceName = numberedSpaceName
             self.namesItsSpaces = namesItsSpaces
             self.isListed = isListed
-        }
-    }
-}
-
-/// The members of the core's `ImportStep`. A member's wire tag is its index in `all`.
-struct ImportStep: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case importBrowser
-        case review
-        case complete
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    private let facts: Facts
-
-    private init(tag: Int, kind: Kinds, name: String) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name)
-    }
-
-    static let importBrowser = ImportStep(tag: 0, kind: .importBrowser, name: "importBrowser")
-    static let review = ImportStep(tag: 1, kind: .review, name: "review")
-    static let complete = ImportStep(tag: 2, kind: .complete, name: "complete")
-
-    static let all: [ImportStep] = [importBrowser, review, complete]
-
-    static func named(_ name: String?) -> ImportStep? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: ImportStep, rhs: ImportStep) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-
-        init(kind: Kinds, name: String) {
-            self.kind = kind
-            self.name = name
         }
     }
 }

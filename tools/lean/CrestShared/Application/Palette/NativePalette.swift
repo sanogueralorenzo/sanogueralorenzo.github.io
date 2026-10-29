@@ -61,9 +61,9 @@ struct NativePalette: Sendable {
         let found = intents(query)
         var ranked = Self.sections.flatMap { candidates(query, question: question, section: $0, narrowed: false) }
         var claimed = Set(
-            space?.tabs.compactMap { PaletteAddress.place(($0.placement.isDurable ? $0.savedURL : nil) ?? $0.url) }
+            space?.tabs.compactMap { BrowserWebAddress.place(($0.placement.isDurable ? $0.savedURL : nil) ?? $0.url) }
                 ?? [])
-        if let place = PaletteAddress.place(found.first?.address) { claimed.insert(place) }
+        if let place = BrowserWebAddress.place(found.first?.address) { claimed.insert(place) }
         ranked.removeAll { $0.section == .history && $0.place.map(claimed.contains) == true }
         let lead = leading(query, completion: completion, ranked: ranked, completes: question.allowsCompletion)
         if let lead {
@@ -113,7 +113,7 @@ struct NativePalette: Sendable {
             $0.lastActivatedAt > $1.lastActivatedAt
         }.prefix(PaletteSection.recentTabs.restingLimit).map {
             PaletteRow.make(
-                $0.placement.paletteRow, $0.displayTitle, PaletteAddress.host($0.url) ?? $0.url ?? "", tab: $0.id)
+                $0.placement.paletteRow, $0.displayTitle, BrowserWebAddress.host($0.url) ?? $0.url ?? "", tab: $0.id)
         }
         if !recent.isEmpty { groups.append(PaletteGroup(section: .recentTabs, rows: recent)) }
         let commands = question.commands.filter { $0.command.offersInPalette && $0.command.paletteRest != nil }.sorted {
@@ -139,11 +139,11 @@ struct NativePalette: Sendable {
                 }
                 if section == .saved && !tab.placement.isDurable { continue }
                 let address = (tab.placement.isDurable ? tab.savedURL : nil) ?? tab.url
-                let host = PaletteAddress.host(address) ?? ""
+                let host = BrowserWebAddress.host(address) ?? ""
                 let path = tab.folderID.map(folderPath) ?? ""
                 let subtitle =
                     section == .tabs
-                    ? PaletteAddress.host(tab.url) ?? tab.url ?? ""
+                    ? BrowserWebAddress.host(tab.url) ?? tab.url ?? ""
                     : path.isEmpty ? host : host.isEmpty ? path : "\(path) · \(host)"
                 let row = PaletteRow.make(tab.placement.paletteRow, tab.displayTitle, subtitle, tab: tab.id)
                 if let candidate = evidence(
@@ -168,7 +168,7 @@ struct NativePalette: Sendable {
             }
         case .history:
             for entry in (space?.history ?? []).prefix(1_500) {
-                let title = entry.title.isEmpty ? PaletteAddress.host(entry.url) ?? entry.url : entry.title
+                let title = entry.title.isEmpty ? BrowserWebAddress.host(entry.url) ?? entry.url : entry.title
                 let row = PaletteRow.make(.history, title, entry.url, subject: entry.id, address: entry.url)
                 if let candidate = evidence(
                     query, row: row, section: .history, title: title, address: entry.url, entry: entry)
@@ -219,7 +219,7 @@ struct NativePalette: Sendable {
         _ query: PaletteQuery, row: PaletteRow, section: PaletteSection, title: String, address: String?,
         lastUsed: Date? = nil, entry: HistoryEntryState? = nil
     ) -> Candidate? {
-        let place = PaletteAddress.place(address)
+        let place = BrowserWebAddress.place(address)
         let prefixesTitle = query.prefixes(title)
         let prefixes = prefixesTitle || place.map(query.prefixes) == true
         var score = query.isEmpty ? 0 : query.score(title, place ?? "")
@@ -227,7 +227,8 @@ struct NativePalette: Sendable {
         guard let matched = score else { return nil }
         let visit =
             entry
-            ?? PaletteAddress.normalized(address).flatMap { normalized in space?.history.first { $0.url == normalized }
+            ?? BrowserWebAddress.normalized(address).flatMap { normalized in
+                space?.history.first { $0.url == normalized }
             }
         let frecency =
             visit.map {
@@ -261,7 +262,7 @@ struct NativePalette: Sendable {
         }
         guard completes else { return nil }
         if let completion {
-            let place = PaletteAddress.place(completion.opens)
+            let place = BrowserWebAddress.place(completion.opens)
             if var open = ranked.first(where: { $0.place == place && $0.row.tabID != nil }) {
                 open.row.reason = .completion
                 return open

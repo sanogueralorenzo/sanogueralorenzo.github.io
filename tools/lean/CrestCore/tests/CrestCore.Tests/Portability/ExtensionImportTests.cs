@@ -190,44 +190,4 @@ public sealed partial class BrowserContractsTests {
         Assert.Empty(imported.Extensions);
     }
 
-    [Fact]
-    public void TheReviewOffersEachSpacesExtensionsAndLeavesThemOnUntilTheyAreTurnedOff() {
-        using var device = new TestDevice(SessionWithSpaces(withSecondSpace: false));
-        var work = ImportedSpace("Work", ImportedTab("https://mail.example/"));
-        var home = ImportedSpace("Home", ImportedTab("https://bank.example/"));
-        var spaces = ReadSpaces(work, home);
-        ImportSpaceExtensions[] offers = [
-            new(spaces[0].Id, [new(Ublock, "uBlock Origin"), new(Dark, "Dark Reader")]),
-            new(spaces[1].Id, [new(Ublock, "uBlock Origin"), new(Ublock, "uBlock Origin")])
-        ];
-        device.Send(new StartBrowserImport(device.Workspace));
-        device.Send(new OfferImportSources([ImportSource.Chrome]));
-        device.Send(new ToggleImportSource(ImportSource.Chrome));
-        device.Send(new ContinueImport());
-
-        var review = Flowing(device.Send(new ReviewImport(ImportSource.Chrome, spaces, offers))).Review!;
-        // A repeat within a Space is offered once, and an extension several
-        // Spaces bring installs once, into each of them.
-        Assert.Equal([2, 1], review.Spaces.Select(space => space.Extensions.Count));
-        Assert.Equal(3, review.IncludedExtensionCount);
-        Guid Into(ImportReviewSpace space) => space.DestinationId ?? space.Source.Id;
-        Assert.Equal([Ublock, Dark], review.ExtensionInstalls.Select(install => install.ExtensionId));
-        Assert.Equal([Into(review.Spaces[0]), Into(review.Spaces[1])], review.ExtensionInstalls[0].SpaceIds);
-        Assert.Equal([Into(review.Spaces[0])], review.ExtensionInstalls[1].SpaceIds);
-
-        review = Flowing(device.Send(new IncludeImportExtension(spaces[0].Id, Ublock, Included: false))).Review!;
-        Assert.Equal([Dark], review.Spaces[0].BroughtExtensions.Select(extension => extension.ExtensionId));
-        Assert.Equal(2, review.IncludedExtensionCount);
-
-        // An extension the Space does not offer changes nothing.
-        review = Flowing(device.Send(new IncludeImportExtension(spaces[1].Id, Dark, Included: true))).Review!;
-        Assert.Equal([1, 1], [review.Spaces[0].BroughtExtensions.Count, review.Spaces[1].BroughtExtensions.Count]);
-
-        // A Space left out installs nothing, and turning it back on restores the choices.
-        review = Flowing(device.Send(new IncludeImportSpace(spaces[1].Id, Included: false))).Review!;
-        Assert.Equal(1, review.IncludedExtensionCount);
-        review = Flowing(device.Send(new IncludeImportExtension(spaces[0].Id, Ublock, Included: true))).Review!;
-        Assert.Equal([Ublock, Dark], review.Spaces[0].IncludedExtensionIds.Order());
-        Assert.Equal([Ublock, Dark], review.Spaces[0].BroughtExtensions.Select(extension => extension.ExtensionId));
-    }
 }

@@ -27,3 +27,7 @@ uses the shared core navigation rule; palette rows have no wire codec.
 Shortcut catalogs and bindings have no core contracts. Native menus and keys
 read the same fixed catalog, and numbered selections walk the current sidebar
 and available Spaces directly. Link gestures still carry native modifier bits.
+
+The import queue and review run in Swift. `ImportReviewedSpaces` carries only
+explicit source/selection/destination choices for an atomic session edit;
+readers and session import validation still run in the core.
