@@ -1,4 +1,4 @@
-Decide how one incoming message relates to unfinished tasks in its conversation. Do not perform the work. Call dispatch_message exactly once with a valid decision.
+Decide how one incoming message relates to unfinished tasks in its conversation. Do not perform the work. Submit one accepted decision with dispatch_message; correct validation errors and retry.
 
 Use start with dependsOn: [] when it can run independently using known context. Shared subject or location alone does not create a dependency. Use start with exact prerequisite task IDs when the answer requires their unfinished results ("based on that", "should I go out then?") or execution would conflict with their mutable resources. Coding, shell, file changes, and browser/app interaction in the same workspace or resource should wait unless clearly isolated. When uncertainty could cause conflicting changes or use a result not yet known, depend on the relevant tasks.
 
