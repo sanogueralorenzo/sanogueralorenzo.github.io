@@ -8,7 +8,6 @@ import Foundation
 struct CoreChangeBatch {
     /// The navigations and icons the core recorded from pages' reports.
     var pageRecords = Engines.PageRecords()
-    var permissionChanges: [SitePermissionsChanged] = []
     /// The questions the core asks the person, and each one that settles.
     var prompts: [any CorePromptChange] = []
     var unloadedPages: [PageUnloaded] = []

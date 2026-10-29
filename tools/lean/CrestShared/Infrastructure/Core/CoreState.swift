@@ -88,15 +88,15 @@ final class CoreState {
     }
     @ObservationIgnored private var syncJournalStorage: SyncJournalChanged?
     /// The site permission choices each Space keeps, in the order the settings
-    /// list them, as the core last published them. A Space missing here keeps
+    /// list them, as the native ledger last published them. A Space missing here keeps
     /// none.
     var sitePermissions: [UUID: [SitePermissionRecordState]] {
         get { observed(\.sitePermissionsStorage, as: \.sitePermissions) }
         set { publish(newValue, into: \.sitePermissionsStorage, as: \.sitePermissions) }
     }
     @ObservationIgnored private var sitePermissionsStorage: [UUID: [SitePermissionRecordState]] = [:]
-    /// Advances with every site permission change the core publishes, so a
-    /// view that asks the core for a decision redraws when any choice changes.
+    /// Advances with every native site permission change, so a view that
+    /// asks for a decision redraws when any choice changes.
     var sitePermissionRevision: UInt64 {
         get { observed(\.sitePermissionRevisionStorage, as: \.sitePermissionRevision) }
         set { publish(newValue, into: \.sitePermissionRevisionStorage, as: \.sitePermissionRevision) }

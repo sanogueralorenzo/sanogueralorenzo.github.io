@@ -7,7 +7,6 @@ internal sealed class DeviceAdoption {
     #region Static Variables
 
     public static readonly DeviceAdoption WindowRecords = new(marker: "window-records", olderBuildsRead: true);
-    public static readonly DeviceAdoption SitePermissions = new(marker: "site-permissions", olderBuildsRead: false);
     /// The cloud transport's state, which the transport kept in a file of its own.
     public static readonly DeviceAdoption CloudTransport = new(marker: "cloud-transport", olderBuildsRead: false);
     /// The windows the Chromium composition kept open for its next launch,
@@ -15,7 +14,7 @@ internal sealed class DeviceAdoption {
     public static readonly DeviceAdoption OpenWindows = new(marker: "open-windows", olderBuildsRead: false);
 
     public static IReadOnlyList<DeviceAdoption> All { get; } =
-        [WindowRecords, SitePermissions, CloudTransport, OpenWindows];
+        [WindowRecords, CloudTransport, OpenWindows];
 
     #endregion
 

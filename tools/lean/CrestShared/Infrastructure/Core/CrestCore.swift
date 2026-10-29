@@ -46,6 +46,7 @@ final class CrestCore {
     /// Observable browser state, shared with the native feature stores.
     let state = CoreState()
     @ObservationIgnored private(set) lazy var downloads = BrowserNativeDownloads(core: self)
+    @ObservationIgnored private(set) var permissions: NativeSitePermissions!
     @ObservationIgnored private(set) lazy var prompts = NativeBrowserPrompts(core: self)
     @ObservationIgnored private(set) lazy var browserImport = NativeBrowserImport(core: self)
     /// The engines this core hosts pages on, which the composition registers.
@@ -64,9 +65,8 @@ final class CrestCore {
     @ObservationIgnored var saveWaiters: [(revision: Int64, continuation: CheckedContinuation<Void, Never>)] = []
     /// Who hears that an intent from the cloud transport committed.
     @ObservationIgnored private var cloudDeliveryFollowers: [Follower<Void>] = []
-    /// Who hears each site permission change once it is applied. Until WP C
-    /// (e) moves live revocation into engine commands, the pages' permission
-    /// plumbing learns this way what a change covered.
+    /// Pages hear each native permission change synchronously, so a reset
+    /// withdraws existing authorization before a later grant can replace it.
     @ObservationIgnored private var sitePermissionFollowers: [Follower<SitePermissionsChanged>] = []
     @ObservationIgnored private var notificationAccessFollowers: [Follower<Void>] = []
     /// Who hears the questions the core asks the person and those that no
@@ -146,6 +146,9 @@ final class CrestCore {
         let installed = crest_app_set_wake(handle, relayCoreWake, Unmanaged.passUnretained(wake).toOpaque())
         guard installed == CREST_OK else { Self.buildBug(installed, "set its wake callback") }
         state.agentPreferences = try query(GetAgentPreferences())
+        do { permissions = try NativeSitePermissions(core: self) } catch let error as PermissionSQLite.Failure {
+            throw .storageUnreadable(StorageUnreadable(reason: error.reason))
+        } catch { throw .storageUnreadable(StorageUnreadable(reason: .unavailable)) }
     }
 
     deinit {
@@ -357,12 +360,8 @@ final class CrestCore {
         prompts.prune()
         // Profile notifications have no live page to withdraw them when a
         // Space locks, disappears, or changes its permission choices.
-        if batch.notificationAccessChanged {
-            notificationAccessFollowers.removeAll { $0.owner == nil }
-            for follower in notificationAccessFollowers { follower.handler(()) }
-        }
+        if batch.notificationAccessChanged { notificationAccessChanged() }
         if !batch.pageRecords.isEmpty { engines.recordsApplied(batch.pageRecords) }
-        if !batch.permissionChanges.isEmpty { sitePermissionsChanged(batch.permissionChanges) }
         if !batch.prompts.isEmpty { promptsChanged(batch.prompts) }
         if !batch.unloadedPages.isEmpty { pagesUnloaded(batch.unloadedPages) }
         if !batch.putAwayPages.isEmpty { pagesPutAway(batch.putAwayPages) }
@@ -386,6 +385,11 @@ final class CrestCore {
     func followSitePermissions(_ owner: AnyObject, _ handler: @escaping @MainActor (SitePermissionsChanged) -> Void) {
         sitePermissionFollowers.removeAll { $0.owner == nil }
         sitePermissionFollowers.append(Follower(owner: owner, handler: handler))
+    }
+
+    func notificationAccessChanged() {
+        notificationAccessFollowers.removeAll { $0.owner == nil }
+        for follower in notificationAccessFollowers { follower.handler(()) }
     }
 
     func followNotificationAccess(_ owner: AnyObject, _ handler: @escaping @MainActor () -> Void) {
@@ -527,7 +531,7 @@ final class CrestCore {
         }
     }
 
-    private func sitePermissionsChanged(_ changes: [SitePermissionsChanged]) {
+    func sitePermissionsChanged(_ changes: [SitePermissionsChanged]) {
         sitePermissionFollowers.removeAll { $0.owner == nil }
         let followers = sitePermissionFollowers
         for change in changes {

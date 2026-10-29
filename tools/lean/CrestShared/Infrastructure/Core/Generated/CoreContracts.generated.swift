@@ -62,9 +62,6 @@ protocol SessionIntent: Intent {}
 /// The members of `Intent` that derive from the core's `SidebarDrop`.
 protocol SidebarDrop: Intent {}
 
-/// The members of `Intent` that derive from the core's `SitePermissionIntent`.
-protocol SitePermissionIntent: Intent {}
-
 /// The members of `Intent` that derive from the core's `WindowIntent`.
 protocol WindowIntent: Intent {}
 
@@ -96,7 +93,6 @@ enum Change: Equatable, Sendable {
     case saved(Saved)
     case sessionAdopted(SessionAdopted)
     case sidebarChanged(SidebarChanged)
-    case sitePermissionsChanged(SitePermissionsChanged)
     case spaceSettingsChanged(SpaceSettingsChanged)
     case spacesChanged(SpacesChanged)
     case storageFailed(StorageFailed)
@@ -162,9 +158,6 @@ enum Rejection: Equatable, Error, Sendable {
     case invalidName(InvalidName)
     case invalidSession(InvalidSession)
     case invalidSiteHost(InvalidSiteHost)
-    case invalidSiteOrigin(InvalidSiteOrigin)
-    case invalidSitePermissionDetail(InvalidSitePermissionDetail)
-    case invalidSitePermissionGrant(InvalidSitePermissionGrant)
     case invalidSpaceOrder(InvalidSpaceOrder)
     case invalidSplitColumnShares(InvalidSplitColumnShares)
     case invalidSyncRecords(InvalidSyncRecords)
@@ -198,7 +191,6 @@ enum Rejection: Equatable, Error, Sendable {
     case sessionOverLimits(SessionOverLimits)
     case sessionTooLarge(SessionTooLarge)
     case sessionUnrecognized(SessionUnrecognized)
-    case sitePermissionLimitReached(SitePermissionLimitReached)
     case spaceAlreadyExists(SpaceAlreadyExists)
     case spaceBeingDeleted(SpaceBeingDeleted)
     case spaceDataNotErased(SpaceDataNotErased)
@@ -279,7 +271,6 @@ enum Rejection: Equatable, Error, Sendable {
         case .sessionOverLimits(let value): value.message
         case .sessionTooLarge(let value): value.message
         case .sessionUnrecognized(let value): value.message
-        case .sitePermissionLimitReached(let value): value.message
         case .spaceAlreadyExists(let value): value.message
         case .spaceBeingDeleted(let value): value.message
         case .spaceDeletionUnderway(let value): value.message
@@ -343,7 +334,6 @@ extension Change {
         case .saved(let change): change.apply(to: state)
         case .sessionAdopted(let change): change.apply(to: state)
         case .sidebarChanged(let change): change.apply(to: state)
-        case .sitePermissionsChanged(let change): change.apply(to: state)
         case .spaceSettingsChanged(let change): change.apply(to: state)
         case .spacesChanged(let change): change.apply(to: state)
         case .storageFailed(let change): change.apply(to: state)
@@ -394,7 +384,6 @@ extension Change {
         case .saved(let change): change.apply(to: core, in: &batch)
         case .sessionAdopted(let change): change.apply(to: core, in: &batch)
         case .sidebarChanged(let change): change.apply(to: core, in: &batch)
-        case .sitePermissionsChanged(let change): change.apply(to: core, in: &batch)
         case .spaceSettingsChanged(let change): change.apply(to: core, in: &batch)
         case .spacesChanged(let change): change.apply(to: core, in: &batch)
         case .storageFailed(let change): change.apply(to: core, in: &batch)
@@ -445,7 +434,6 @@ extension Change {
         case .saved(let change): change.note(in: &receipts)
         case .sessionAdopted(let change): change.note(in: &receipts)
         case .sidebarChanged(let change): change.note(in: &receipts)
-        case .sitePermissionsChanged(let change): change.note(in: &receipts)
         case .spaceSettingsChanged(let change): change.note(in: &receipts)
         case .spacesChanged(let change): change.note(in: &receipts)
         case .storageFailed(let change): change.note(in: &receipts)
@@ -491,10 +479,6 @@ struct AdoptOfferedPage: Equatable, Sendable {
 
 struct AdoptOpenWindows: Intent, WindowIntent, Equatable, Sendable {
     let windowIDs: [UUID]
-}
-
-struct AdoptSitePermissions: Intent, SitePermissionIntent, Equatable, Sendable {
-    let records: Data?
 }
 
 struct AdoptWindowRecords: Intent, WindowIntent, Equatable, Sendable {
@@ -894,14 +878,6 @@ struct CapacityLimits: Equatable, Sendable {
     let syncRecords: Int
 }
 
-struct CaptureDecision: Query, Equatable, Sendable {
-    typealias Answer = SitePermissionAnswer
-
-    let spaceID: UUID
-    let origin: SiteOrigin
-    let media: SitePermission
-}
-
 struct ChallengeHandled: Equatable, Sendable {
     let handling: AuthenticationHandling
 }
@@ -1180,14 +1156,6 @@ struct DataRetentionPreferences: Equatable, Sendable {
     var history: DataRetention
     var archive: DataRetention
     var downloads: DataRetention
-}
-
-struct DecideSitePermission: Intent, SitePermissionIntent, Equatable, Sendable {
-    let spaceID: UUID
-    let origin: SiteOrigin
-    let permission: SitePermission
-    let detail: String?
-    let decision: SitePermissionDecision
 }
 
 struct DeleteBrowsingData: Intent, DataDeletionIntent, Equatable, Sendable {
@@ -1871,18 +1839,6 @@ struct InvalidSession: Equatable, Sendable {
 struct InvalidSiteHost: Equatable, Sendable {
 }
 
-struct InvalidSiteOrigin: Equatable, Sendable {
-    let origin: SiteOrigin
-}
-
-struct InvalidSitePermissionDetail: Equatable, Sendable {
-    let limit: Int
-}
-
-struct InvalidSitePermissionGrant: Equatable, Sendable {
-    let permission: SitePermission
-}
-
 struct InvalidSpaceOrder: Equatable, Sendable {
 }
 
@@ -2182,17 +2138,6 @@ struct NoteAgentActivity: Intent, AgentIntent, Equatable, Sendable {
     let sessionID: UUID
     let kind: AgentActivityKind
     let subject: String
-}
-
-struct NotificationDisplayCheck: Query, Equatable, Sendable {
-    typealias Answer = NotificationDisplayVerdict
-
-    let spaceID: UUID
-    let origin: SiteOrigin
-}
-
-struct NotificationDisplayVerdict: Equatable, Sendable {
-    let shows: Bool
 }
 
 struct NotificationPermissionRequest: Query, Equatable, Sendable {
@@ -2576,14 +2521,6 @@ struct ProfileInUse: Equatable, Sendable {
     }
 }
 
-struct ProfileNotificationDisplayCheck: Query, Equatable, Sendable {
-    typealias Answer = NotificationDisplayVerdict
-
-    let profileID: UUID
-    let origin: SiteOrigin
-    let source: ProfileNotificationSource
-}
-
 struct PromptSettled: CoreChange, Equatable, Sendable {
     let promptID: UUID
 }
@@ -2738,14 +2675,6 @@ struct ResetCloudTransport: Intent, CloudTransportIntent, Equatable, Sendable {
 struct ResetPrivateBrowsing: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
-}
-
-struct ResetSitePermission: Intent, SitePermissionIntent, Equatable, Sendable {
-    let recordID: UUID
-}
-
-struct ResetSpacePermissions: Intent, SitePermissionIntent, Equatable, Sendable {
-    let spaceID: UUID
 }
 
 struct ResizeSplitColumns: Intent, WindowIntent, Equatable, Sendable {
@@ -3141,15 +3070,6 @@ struct SiteDataRead: EngineEvent, Equatable, Sendable {
     let read: Bool
 }
 
-struct SiteDecision: Query, Equatable, Sendable {
-    typealias Answer = SitePermissionAnswer
-
-    let spaceID: UUID
-    let origin: SiteOrigin
-    let permission: SitePermission
-    let detail: String?
-}
-
 struct SiteOrigin: Hashable, Sendable {
     static let maximumSchemeLength: Int = 64
     static let maximumHostLength: Int = 1024
@@ -3165,41 +3085,6 @@ struct SiteOrigin: Hashable, Sendable {
         self.host = host
         self.port = port
     }
-}
-
-struct SitePermissionAnswer: Equatable, Sendable {
-    let decision: SitePermissionDecision
-}
-
-struct SitePermissionLimitReached: Equatable, Sendable {
-    let limit: Int
-
-    var message: LocalizedStringResource {
-        LocalizedStringResource("Crest can keep up to \(limit) saved site permissions. Reset some to save more.")
-    }
-}
-
-struct SitePermissionRecordState: Equatable, Sendable, Identifiable {
-    let id: UUID
-    let spaceID: UUID
-    let origin: SiteOrigin
-    let permission: SitePermission
-    let detail: String?
-    let decision: SitePermissionDecision
-    let siteName: String
-}
-
-struct SitePermissionScope: Equatable, Sendable {
-    let origin: SiteOrigin?
-    let permission: SitePermission?
-    let detail: String?
-    let revokesAuthorization: Bool
-}
-
-struct SitePermissionsChanged: CoreChange, Equatable, Sendable {
-    let spaceID: UUID
-    let records: [SitePermissionRecordState]
-    let touched: [SitePermissionScope]
 }
 
 struct SpaceAlreadyExists: Equatable, Sendable {
@@ -3823,6 +3708,7 @@ struct WorkspaceOpened: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let kind: WorkspaceKind
     let session: SessionState
+    let keepsFile: Bool
 }
 
 struct WrongDeletionOperation: Equatable, Sendable {
@@ -3853,11 +3739,6 @@ struct PageMediaActivity: OptionSet, Sendable {
     static let playing = PageMediaActivity(rawValue: 1)
     static let capturing = PageMediaActivity(rawValue: 2)
     static let pictureInPicture = PageMediaActivity(rawValue: 4)
-}
-
-enum ProfileNotificationSource: Int, CaseIterable, Sendable {
-    case serviceWorker = 0
-    case `extension` = 1
 }
 
 enum SessionFlaw: Int, CaseIterable, Sendable {
@@ -7593,7 +7474,6 @@ struct SitePermission: Hashable, Sendable {
 }
 
 /// The members of the core's `SitePermissionDecision`. A member's wire tag is its index in `all`.
-/// Core-only behavior, not emitted: `record`.
 struct SitePermissionDecision: Hashable, Sendable {
     let tag: Int
     var name: String { facts.name }

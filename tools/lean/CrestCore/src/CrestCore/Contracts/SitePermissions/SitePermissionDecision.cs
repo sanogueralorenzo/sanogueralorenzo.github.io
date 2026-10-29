@@ -1,5 +1,3 @@
-using CrestCore.Domain;
-
 namespace CrestCore.Contracts;
 
 /// A person's answer for one capability, origin and Space. Session answers
@@ -13,15 +11,15 @@ public sealed class SitePermissionDecision {
 
     /// Ask clears both the session and the saved choice.
     public static readonly SitePermissionDecision Ask = new(name: "ask", SitePermissionVerdict.Ask, isPersistent: false,
-        precedence: 2, title: "Ask", record: (ledger, space, key, _, _, _) => ledger.Forget(space, key));
+        precedence: 2, title: "Ask");
     public static readonly SitePermissionDecision GrantForSession = new(name: "grantForSession", SitePermissionVerdict.Grant,
-        isPersistent: false, precedence: 1, title: "Allowed for Session", record: KeepForSession);
+        isPersistent: false, precedence: 1, title: "Allowed for Session");
     public static readonly SitePermissionDecision DenyForSession = new(name: "denyForSession", SitePermissionVerdict.Deny,
-        isPersistent: false, precedence: 3, title: "Blocked for Session", record: KeepForSession);
+        isPersistent: false, precedence: 3, title: "Blocked for Session");
     public static readonly SitePermissionDecision GrantPersistently = new(name: "grantPersistently", SitePermissionVerdict.Grant,
-        isPersistent: true, precedence: 0, title: "Allow", record: Persist);
+        isPersistent: true, precedence: 0, title: "Allow");
     public static readonly SitePermissionDecision DenyPersistently = new(name: "denyPersistently", SitePermissionVerdict.Deny,
-        isPersistent: true, precedence: 4, title: "Block", record: Persist);
+        isPersistent: true, precedence: 4, title: "Block");
 
     public static IReadOnlyList<SitePermissionDecision> All { get; } =
         [Ask, GrantForSession, DenyForSession, GrantPersistently, DenyPersistently];
@@ -54,23 +52,16 @@ public sealed class SitePermissionDecision {
     [Localized]
     public string Title { get; }
 
-    /// How a ledger records the decision for one choice in one Space, and
-    /// whether that changed what it saves.
-    private readonly Func<SitePermissionLedger, Guid, SitePermissionLedger.SitePermissionKey, SitePermissionDecision, Guid, double, bool>
-        record;
-
     #endregion
 
     #region Constructors
 
-    private SitePermissionDecision(string name, SitePermissionVerdict verdict, bool isPersistent, int precedence, string title,
-        Func<SitePermissionLedger, Guid, SitePermissionLedger.SitePermissionKey, SitePermissionDecision, Guid, double, bool> record) {
+    private SitePermissionDecision(string name, SitePermissionVerdict verdict, bool isPersistent, int precedence, string title) {
         Name = name;
         Verdict = verdict;
         IsPersistent = isPersistent;
         Precedence = precedence;
         Title = title;
-        this.record = record;
     }
 
     #endregion
@@ -79,29 +70,6 @@ public sealed class SitePermissionDecision {
 
     public static SitePermissionDecision? Named(string? name) => All.FirstOrDefault(decision => decision.Name == name);
 
-    /// The decision that holds when all of `decisions` answer one request.
-    public static SitePermissionDecision Strongest(IEnumerable<SitePermissionDecision> decisions) =>
-        decisions.MaxBy(decision => decision.Precedence) ?? Ask;
-
     #endregion
 
-    #region Actions - Recording
-
-    /// Records the decision for `key` in `space` in `ledger`, and says whether
-    /// that changed what the ledger saves. `recordId` names the record a new
-    /// persistent choice creates, made at `now`.
-    internal bool Record(SitePermissionLedger ledger, Guid space, SitePermissionLedger.SitePermissionKey key, Guid recordId, double now) =>
-        record(ledger, space, key, this, recordId, now);
-
-    /// A session answer overrides the saved choice without replacing it.
-    private static bool KeepForSession(SitePermissionLedger ledger, Guid space, SitePermissionLedger.SitePermissionKey key,
-        SitePermissionDecision decision, Guid recordId, double now) =>
-        ledger.KeepForSession(space, key, decision);
-
-    /// A persistent answer replaces both and keeps an existing record's identity.
-    private static bool Persist(SitePermissionLedger ledger, Guid space, SitePermissionLedger.SitePermissionKey key,
-        SitePermissionDecision decision, Guid recordId, double now) =>
-        ledger.Persist(space, key, decision, recordId, now);
-
-    #endregion
 }

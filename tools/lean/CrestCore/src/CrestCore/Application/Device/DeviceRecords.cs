@@ -1,5 +1,4 @@
 using CrestCore.Contracts;
-using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
@@ -15,17 +14,15 @@ internal sealed record TabGroupRecord(Guid Id, Guid SpaceId, string Title, TabGr
 #endregion
 
 /// What the device store holds: every saved window's record, the saved
-/// windows the next launch reopens, back to front, the persistent session's
-/// site permission choices in storage order, the
-/// records it has adopted from an installed release, the
+/// windows the next launch reopens, back to front, the records it adopted
+/// from an installed release, the
 /// tab groups whose folders follow them, and the agent preferences.
 internal sealed record DeviceRecords(IReadOnlyList<SavedWindow> Windows, IReadOnlyList<Guid> Reopening,
-    IReadOnlyList<SitePermissionRecord> SitePermissions,
     IReadOnlySet<DeviceAdoption> Adopted,
     IReadOnlyList<TabGroupRecord> TabGroups) {
     #region Static Variables
 
-    public static readonly DeviceRecords Empty = new([], [], [],
+    public static readonly DeviceRecords Empty = new([], [],
         new HashSet<DeviceAdoption>(), TabGroups: []);
 
     #endregion
@@ -49,12 +46,11 @@ internal sealed record DeviceRecords(IReadOnlyList<SavedWindow> Windows, IReadOn
     public bool Equals(DeviceRecords? other) => other is not null
         && Windows.SequenceEqual(other.Windows)
         && Reopening.SequenceEqual(other.Reopening)
-        && SitePermissions.SequenceEqual(other.SitePermissions)
         && Adopted.SetEquals(other.Adopted)
         && TabGroups.SequenceEqual(other.TabGroups)
         && Agents.Equals(other.Agents);
 
-    public override int GetHashCode() => HashCode.Combine(Windows.Count, SitePermissions.Count, Adopted.Count);
+    public override int GetHashCode() => HashCode.Combine(Windows.Count, Adopted.Count);
 
     #endregion
 }

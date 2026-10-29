@@ -87,7 +87,6 @@ internal sealed partial class Device {
         foreach (var record in records.Windows) saved[record.Id] = record;
         reopening.AddRange(records.Reopening.Distinct());
         lastUse = records.Windows.Count == 0 ? 0 : records.Windows.Max(record => record.Used);
-        keptPermissions.Restore(records.SitePermissions);
         agents = records.Agents;
         adopted.UnionWith(records.Adopted);
         keptTabGroups.AddRange(records.TabGroups);
@@ -99,20 +98,20 @@ internal sealed partial class Device {
 
     /// Attaches a session a window may show as the workspace `workspaceId`,
     /// which the core drew for it, and publishes it whole.
-    public void Attach(NativeSessionAuthority authority, Guid workspaceId) {
+    public void Attach(NativeSessionAuthority authority, Guid workspaceId, bool keepsFile = false) {
         ArgumentNullException.ThrowIfNull(authority);
         lock (gate) {
             if (workspaces.Values.Any(attached => ReferenceEquals(attached, authority)) || !workspaces.TryAdd(workspaceId, authority))
                 throw new InvalidOperationException("A session joins the device once, as a workspace of its own.");
         }
         authority.AttachDevice(this, workspaceId);
-        announce(new WorkspaceOpened(workspaceId, authority.Kind, authority.Current));
+        announce(new WorkspaceOpened(workspaceId, authority.Kind, authority.Current, keepsFile));
     }
 
     /// Attaches the persistent session the core loaded, which every saved
     /// window shows, with the selection an older release kept in it.
     public void AttachPersistent(NativeSessionAuthority authority, JsonObject? legacySelection, Guid workspaceId) {
-        Attach(authority, workspaceId);
+        Attach(authority, workspaceId, keepsFile: true);
         lock (gate) {
             persistentWorkspace = workspaceId;
             legacyTabs = LegacyTabs(legacySelection);
@@ -309,7 +308,6 @@ internal sealed partial class Device {
 
     /// Everything the device store keeps, as it stands. The caller holds the device lock.
     internal DeviceRecords Records() => new([.. saved.Values.OrderBy(record => record.Used)], [.. reopening],
-        [.. keptPermissions.PersistentRecords],
         new HashSet<DeviceAdoption>(adopted), [.. keptTabGroups]) {
         Agents = agents
     };

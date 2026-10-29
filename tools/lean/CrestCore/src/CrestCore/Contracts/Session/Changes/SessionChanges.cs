@@ -13,7 +13,7 @@ public sealed record WorkspaceClosed(Guid WorkspaceId) : Change;
 
 /// <summary>A workspace joined this device: its kind and the whole session it holds.
 /// Every later change to that session names <see cref="WorkspaceId"/>.</summary>
-public sealed record WorkspaceOpened(Guid WorkspaceId, WorkspaceKind Kind, SessionState Session) : Change;
+public sealed record WorkspaceOpened(Guid WorkspaceId, WorkspaceKind Kind, SessionState Session, bool KeepsFile) : Change;
 
 #endregion
 

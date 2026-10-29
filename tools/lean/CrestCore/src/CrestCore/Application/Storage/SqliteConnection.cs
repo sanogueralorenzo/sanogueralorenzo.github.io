@@ -134,9 +134,6 @@ internal sealed class SqliteConnection : IDisposable {
         Execute("CREATE TABLE IF NOT EXISTS device_window_reopen (id TEXT PRIMARY KEY, position INTEGER NOT NULL)");
         Execute("CREATE TABLE IF NOT EXISTS device_marker (name TEXT PRIMARY KEY)");
         Execute("CREATE TABLE IF NOT EXISTS device_adoption (name TEXT PRIMARY KEY)");
-        Execute("CREATE TABLE IF NOT EXISTS device_site_permission (id TEXT PRIMARY KEY, space TEXT NOT NULL, scheme TEXT NOT NULL, "
-            + "host TEXT NOT NULL, port INTEGER NOT NULL, permission TEXT NOT NULL, detail TEXT, decision TEXT NOT NULL, "
-            + "modified_at REAL NOT NULL, position INTEGER NOT NULL)");
         Execute("DROP TABLE IF EXISTS device_site_engine");
         Execute("DROP TABLE IF EXISTS device_shortcut");
         Execute("DROP TABLE IF EXISTS device_link");
@@ -160,7 +157,7 @@ internal sealed class SqliteConnection : IDisposable {
 
     /// Everything the device store holds. A row whose identities or names do
     /// not read is left out.
-    public DeviceRecords ReadDevice() => new(ReadWindows(), ReadReopening(), ReadSitePermissions(),
+    public DeviceRecords ReadDevice() => new(ReadWindows(), ReadReopening(),
         ReadAdoptions(), ReadTabGroups()) {
         Agents = ReadAgents()
     };
@@ -195,21 +192,6 @@ internal sealed class SqliteConnection : IDisposable {
             if (Identity(statement, 0) is { } id) windows.Add(id);
         });
         return windows;
-    }
-
-    private List<SitePermissionRecord> ReadSitePermissions() {
-        var records = new List<SitePermissionRecord>();
-        Rows("SELECT id, space, scheme, host, port, permission, detail, decision, modified_at FROM device_site_permission "
-            + "ORDER BY position", statement => {
-                if (Identity(statement, 0) is not { } id || Identity(statement, 1) is not { } space
-                    || SitePermission.Named(Sqlite.ColumnText(statement, 5)) is not { } permission
-                    || SitePermissionDecision.Named(Sqlite.ColumnText(statement, 7)) is not { } decision) return;
-                records.Add(new(id, space,
-                    new SiteOrigin(Sqlite.ColumnText(statement, 2), Sqlite.ColumnText(statement, 3), Sqlite.sqlite3_column_int(statement, 4)),
-                    permission, Sqlite.ColumnIsNull(statement, 6) ? null : Sqlite.ColumnText(statement, 6), decision,
-                    Sqlite.sqlite3_column_double(statement, 8)));
-            });
-        return records;
     }
 
     /// The tab groups whose folders follow them, in storage order. A group a
@@ -267,7 +249,6 @@ internal sealed class SqliteConnection : IDisposable {
     public void WriteDevice(DeviceRecords records, DeviceRecords? written) {
         if (written is null || !records.Windows.SequenceEqual(written.Windows)) WriteWindows(records.Windows);
         if (written is null || !records.Reopening.SequenceEqual(written.Reopening)) WriteReopening(records.Reopening);
-        if (written is null || !records.SitePermissions.SequenceEqual(written.SitePermissions)) WriteSitePermissions(records.SitePermissions);
         if (written is null || !records.Adopted.SetEquals(written.Adopted)) WriteAdoptions(records.Adopted);
         if (written is null || !records.TabGroups.SequenceEqual(written.TabGroups)) WriteTabGroups(records.TabGroups);
         if (written is null || !records.Agents.Equals(written.Agents)) WriteAgents(records.Agents);
@@ -345,27 +326,6 @@ internal sealed class SqliteConnection : IDisposable {
             Bind(statement, 1, Spelling(window));
             Checked(Sqlite.sqlite3_bind_int64(statement, 2, index));
         });
-    }
-
-    /// The choices in storage order, with every value exactly as the record
-    /// holds it: the capability and decision by `Name`, the time as the double
-    /// it was.
-    private void WriteSitePermissions(IReadOnlyList<SitePermissionRecord> records) {
-        Execute("DELETE FROM device_site_permission");
-        InsertInOrder("INSERT INTO device_site_permission(id, space, scheme, host, port, permission, detail, decision, modified_at, position) "
-            + "VALUES(?,?,?,?,?,?,?,?,?,?)",
-            records, (statement, record, index) => {
-                Bind(statement, 1, Spelling(record.Id));
-                Bind(statement, 2, Spelling(record.Space));
-                Bind(statement, 3, record.Origin.Scheme);
-                Bind(statement, 4, record.Origin.Host);
-                Checked(Sqlite.sqlite3_bind_int64(statement, 5, record.Origin.Port));
-                Bind(statement, 6, record.Permission.Name);
-                Bind(statement, 7, record.Detail);
-                Bind(statement, 8, record.Decision.Name);
-                Checked(Sqlite.sqlite3_bind_double(statement, 9, record.ModifiedAt));
-                Checked(Sqlite.sqlite3_bind_int64(statement, 10, index));
-            });
     }
 
     /// Every adoption goes into `device_adoption`; the ones an older build

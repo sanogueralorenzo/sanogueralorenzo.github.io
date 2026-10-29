@@ -34,5 +34,5 @@ readers and session import validation still run in the core.
 
 Page prompt reports, questions and answers have no wire codecs. Native WebKit
 pending callbacks and `NativeBrowserPrompts` handle them directly; remembered
-permission decisions still use the existing device ledger. Quit confirmation
+permission decisions use the native ledger and its SQLite table. Quit confirmation
 remains part of the core close preparation.

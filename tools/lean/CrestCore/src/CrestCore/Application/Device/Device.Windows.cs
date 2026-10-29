@@ -106,8 +106,6 @@ internal sealed partial class Device {
         }
     }
 
-    internal Guid? OnlySpaceOf(Guid profileId) => OnlyShowableSpaceOf(profileId)?.SpaceId;
-
     internal (Guid WorkspaceId, Guid SpaceId)? OnlyShowableSpaceOf(Guid profileId) {
         KeyValuePair<Guid, NativeSessionAuthority>[] attached;
         lock (gate) attached = [.. workspaces];

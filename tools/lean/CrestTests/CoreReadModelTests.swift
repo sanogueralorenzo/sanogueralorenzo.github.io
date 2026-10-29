@@ -140,7 +140,7 @@ final class CoreReadModelTests: XCTestCase {
                     workspaceID: workspaceID, kind: .private,
                     session: SessionState(
                         spaces: [], disposableSeedMarker: nil, spaceDeletions: [],
-                        appPreferences: nil)
+                        appPreferences: nil), keepsFile: false
                 ).apply(to: detached)
             })
         let windowID = UUID()

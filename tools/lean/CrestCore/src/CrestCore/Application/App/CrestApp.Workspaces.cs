@@ -28,7 +28,7 @@ public sealed partial class CrestApp {
     internal void OpenStored() {
         if (storedSession is not { } session) throw new Rejected(new NoStoredSession());
         if (device.Identity(session) is { } open) {
-            Announce(new WorkspaceOpened(open, session.Kind, session.Current));
+            Announce(new WorkspaceOpened(open, session.Kind, session.Current, KeepsFile: true));
             return;
         }
         if (session.IsReleased) throw new Rejected(new StoredSessionClosed());

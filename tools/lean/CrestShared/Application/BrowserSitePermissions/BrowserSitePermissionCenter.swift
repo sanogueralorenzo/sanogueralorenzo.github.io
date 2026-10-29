@@ -54,14 +54,14 @@ final class BrowserSitePermissionCenter {
     // MARK: - Actions - Adoption
 
     /// Carries the document an installed release kept under
-    /// `crest.site-permissions.v1` into the core's device store, once, and
+    /// `crest.site-permissions.v1` into the native permission store, once, and
     /// seeds the read model with every Space's kept choices.
     func adoptLegacyRecords(_ document: Data?) {
         do {
             try core.send(AdoptSitePermissions(records: document))
         } catch {
             Self.log.error(
-                "The core could not adopt the saved site permissions: \(DiagnosticLog.describe(error))")
+                "Could not adopt the saved site permissions: \(DiagnosticLog.describe(error))")
         }
     }
 
@@ -153,7 +153,7 @@ final class BrowserSitePermissionCenter {
             try core.send(intent)
         } catch {
             Self.log.notice(
-                "The core refused \(String(describing: type(of: intent))): \(DiagnosticLog.describe(error))"
+                "Permission rules refused \(String(describing: type(of: intent))): \(DiagnosticLog.describe(error))"
             )
         }
     }

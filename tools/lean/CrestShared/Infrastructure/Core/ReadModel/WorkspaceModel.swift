@@ -17,6 +17,7 @@ final class WorkspaceModel: Identifiable {
     // MARK: - Variables
 
     let id: UUID
+    let keepsFile: Bool
     let kind: WorkspaceKind
     let spaces: ObservedList<SpaceModel>
     /// Space deletions under way on this device.
@@ -58,6 +59,7 @@ final class WorkspaceModel: Identifiable {
 
     init(_ change: WorkspaceOpened) {
         id = change.workspaceID
+        keepsFile = change.keepsFile
         kind = change.kind
         spaces = ObservedList(change.session.spaces)
         spaceDeletionsStorage = change.session.spaceDeletions
