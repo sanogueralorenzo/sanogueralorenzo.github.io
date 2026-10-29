@@ -45,8 +45,8 @@ struct BrowserRoot: View {
                         .allowsHitTesting(false)
                 }
             }
+            .modifier(BrowserWindowControlsPresentation(showsSidebar: store.showsSidebar))
             .animation(LeanMotion.floatingPane.unlessReducingMotion(reduceMotion), value: store.showsSidebar)
-            .background(BrowserNativeWindowControlsBridge(isVisible: store.showsSidebar))
             .overlay { BrowserSidebarDropDestination(store: store).accessibilityHidden(true) }
         }
         .onGeometryChange(for: CGFloat?.self) { proxy in

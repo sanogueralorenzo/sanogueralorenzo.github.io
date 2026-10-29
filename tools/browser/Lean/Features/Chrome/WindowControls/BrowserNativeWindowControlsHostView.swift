@@ -9,7 +9,7 @@ struct BrowserNativeWindowChromeSnapshot {
     let titlebarSeparatorStyle: NSTitlebarSeparatorStyle
     let toolbar: NSToolbar?
     let contentFrameClipsToBounds: Bool
-    let buttonVisibility: [(NSWindow.ButtonType, Bool)]
+    let buttonAppearance: [(NSWindow.ButtonType, Bool, CGFloat)]
 }
 
 /// Styles the window that shows Lean's chrome, which acts as the window's
@@ -42,12 +42,8 @@ final class BrowserNativeWindowControlsHostView: NSView {
     private var controlLayout: BrowserWindowControlLayout?
     private var enteringFullScreen = false
     private var windowObservers: [NSObjectProtocol] = []
-    var isVisible = true {
-        didSet {
-            guard isVisible != oldValue else { return }
-            applyBrowserChrome()
-        }
-    }
+    var isVisible = true
+    var animatesReveal = true
     /// Whether the window shows the system's standard title bar: while it is
     /// fullscreen and its title bar is revealed, and not once it starts to
     /// leave.
@@ -102,7 +98,15 @@ final class BrowserNativeWindowControlsHostView: NSView {
             guard let button = window.standardWindowButton(type) else { continue }
             let shouldHide = !shouldShowWindowControls
             guard button.isHidden != shouldHide else { continue }
+            let fadesIn = !shouldHide && animatesReveal && !window.styleMask.contains(.fullScreen)
+            button.alphaValue = fadesIn ? 0 : 1
             button.isHidden = shouldHide
+            if fadesIn {
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0.08
+                    button.animator().alphaValue = 1
+                }
+            }
         }
     }
 
@@ -137,8 +141,10 @@ final class BrowserNativeWindowControlsHostView: NSView {
         window.toolbar = originalChrome.toolbar
         window.contentView?.superview?.clipsToBounds =
             originalChrome.contentFrameClipsToBounds
-        for (type, wasHidden) in originalChrome.buttonVisibility {
-            window.standardWindowButton(type)?.isHidden = wasHidden
+        for (type, wasHidden, alpha) in originalChrome.buttonAppearance {
+            guard let button = window.standardWindowButton(type) else { continue }
+            button.isHidden = wasHidden
+            button.alphaValue = alpha
         }
         self.originalChrome = nil
     }
@@ -153,8 +159,9 @@ final class BrowserNativeWindowControlsHostView: NSView {
             toolbar: window.toolbar,
             contentFrameClipsToBounds:
                 window.contentView?.superview?.clipsToBounds ?? false,
-            buttonVisibility: Self.buttonTypes.map { type in
-                (type, window.standardWindowButton(type)?.isHidden ?? false)
+            buttonAppearance: Self.buttonTypes.map { type in
+                let button = window.standardWindowButton(type)
+                return (type, button?.isHidden ?? false, button?.alphaValue ?? 1)
             }
         )
     }
