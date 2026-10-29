@@ -49,14 +49,10 @@ public sealed partial class CrestApp {
 
     /// The engines as they stand, and what they offer with the pages open now.
     /// The caller holds the lock.
-    internal EngineRoster RegisteredEngines() => engines.Roster(pages.HostingEngines);
+    internal EngineRoster RegisteredEngines() => engines.Roster();
 
-    /// Hands `publish` the engines when they changed since the core last
-    /// published them: one registered or went away, or what they offer
-    /// changed because a page opened on an engine no page used or an engine's
-    /// last page went. The shortcut bindings follow when the commands they
-    /// offer changed. The caller holds the lock.
-    internal void PublishEngines(Action<Change> publish) {
+    /// Publishes capability and shortcut changes when WebKit registers or retires.
+    private void PublishEngines(Action<Change> publish) {
         var current = RegisteredEngines();
         if (current.SameAs(publishedEngines)) return;
         var before = Engines.OfferedCommands(publishedEngines);
@@ -84,13 +80,9 @@ public sealed partial class CrestApp {
         Deliver();
     }
 
-    /// A report that moved a page to another engine, or offered one that may
-    /// be the first a registered engine hosts, changes what the engines offer,
-    /// a tab group follows the pages and folders that show it, and what a page
-    /// that went had asked no longer waits. The caller holds the lock.
+    /// Reconcile groups and retire questions after a page report.
     internal void AfterPageReport(ChangeFeed changes) {
         pages.ReconcileGroups(Issue);
-        PublishEngines(changes.Publish);
         prompts.Prune(changes);
         closePreparations.Prune(changes, Issue);
     }

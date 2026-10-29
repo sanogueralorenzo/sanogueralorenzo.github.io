@@ -13,11 +13,7 @@ struct BrowserCommandPaletteRowIcon: View {
                     profileID: model.space?.profileID,
                     size: BrowserCommandPaletteMetrics.rowFaviconSize
                 )
-                .overlay(alignment: .bottomTrailing) {
-                    TabEngineBadge(
-                        tabID: tab.id,
-                        scale: BrowserCommandPaletteMetrics.rowFaviconSize / TabFaviconMetrics.defaultSize)
-                }
+
             } else if row.kind == .space, let id = row.subjectID, let space = model.browser.spaceModel(id) {
                 BrowserSpaceIdentityIcon(space: space, size: BrowserCommandPaletteMetrics.rowIconContainerSize)
             } else if let provider = model.searchProvider(for: row) {

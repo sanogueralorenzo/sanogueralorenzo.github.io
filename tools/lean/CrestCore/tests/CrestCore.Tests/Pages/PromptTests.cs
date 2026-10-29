@@ -53,7 +53,7 @@ public sealed partial class BrowserContractsTests {
             published.AddRange(app.Send(Adoption(fixture.Document["session"]!.AsObject())));
             var (workspace, opened) = TestWorkspaces.OpenStored(app);
             published.AddRange(opened);
-            var engine = app.RegisterEngine(new EngineRegistration(EngineKind.WebKit, EngineCapability.Required, IsDefault: true),
+            var engine = app.RegisterEngine(new EngineRegistration(EngineCapability.Required),
                 binding.Run);
             var (window, page, prompt) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
             published.AddRange(app.Send(new OpenWindow(window, workspace, Saved: true, null, null, [], RestoresTabs: true)));

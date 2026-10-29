@@ -12,37 +12,28 @@ namespace CrestCore.Tests;
 /// asked, started or not, a deletion ends only once each has answered, and a
 /// Space's deletion finishes only after this run erased its profile's data.
 public sealed partial class BrowserContractsTests {
-    /// Registers WebKit as the default engine and Chromium beside it, neither
-    /// showing a page, each recording what the core asks of it.
-    private static (Engine WebKit, RecordingEngine WebKitBinding, Engine Chromium, RecordingEngine ChromiumBinding) IdleEngines(
-        CrestApp app) {
-        var webKitBinding = new RecordingEngine();
-        var chromiumBinding = new RecordingEngine();
-        var webKit = app.RegisterEngine(new EngineRegistration(EngineKind.WebKit, EngineCapability.Required, IsDefault: true),
-            webKitBinding.Run);
-        var chromium = app.RegisterEngine(new EngineRegistration(EngineKind.Chromium, EngineCapability.Required, IsDefault: false),
-            chromiumBinding.Run);
-        return (webKit, webKitBinding, chromium, chromiumBinding);
+    /// The registered WebKit binding can erase data before any page opens.
+    private static (Engine WebKit, RecordingEngine WebKitBinding) IdleEngines(CrestApp app) {
+        var binding = new RecordingEngine();
+        return (app.RegisterEngine(new EngineRegistration(EngineCapability.Required), binding.Run), binding);
     }
 
     [Fact]
-    public void EveryRegisteredEngineErasesAProfileEvenOneThatShowsNoPageAndTheDeletionEndsWithTheLastAnswer() {
+    public void WebKitErasesProfilesWithoutAPageAndReportsCompletionOrFailure() {
         using var app = new CrestApp();
-        var (webKit, webKitBinding, chromium, chromiumBinding) = IdleEngines(app);
+        var (webKit, webKitBinding) = IdleEngines(app);
         var profile = Guid.NewGuid();
         var request = Guid.NewGuid();
 
         Assert.Empty(app.Send(new DeleteProfileData(request, profile, Ephemeral: false)).OfType<DataDeleted>());
         var toWebKit = Assert.IsType<EraseProfileData>(Assert.Single(webKitBinding.Commands));
-        var toChromium = Assert.IsType<EraseProfileData>(Assert.Single(chromiumBinding.Commands));
         Assert.Equal((profile, false), (toWebKit.ProfileId, toWebKit.Ephemeral));
 
         // An answer from the wrong engine counts for nothing.
-        app.Report(chromium, new DataErased(toWebKit.ErasureId, Erased: true));
-        app.Report(webKit, new DataErased(toWebKit.ErasureId, Erased: true));
+        var other = new Engine(new EngineRegistration(EngineCapability.Required), _ => { });
+        app.Report(other, new DataErased(toWebKit.ErasureId, Erased: true));
         Assert.Empty(app.Drain().OfType<DataDeleted>());
-        // One engine that could not erase everything leaves the profile not deleted.
-        app.Report(chromium, new DataErased(toChromium.ErasureId, Erased: false));
+        app.Report(webKit, new DataErased(toWebKit.ErasureId, Erased: false));
         Assert.Equal([new DataDeleted(request, Deleted: false)], app.Drain().OfType<DataDeleted>());
 
         // Sites' data goes the same way, by their hosts, and only a private
@@ -57,7 +48,6 @@ public sealed partial class BrowserContractsTests {
         // share can be cleared by reach the engines.
         Assert.Equal([BrowsingDataCategory.SiteData, BrowsingDataCategory.Cache], site.Categories);
         app.Report(webKit, new DataErased(site.ErasureId, Erased: true));
-        app.Report(chromium, new DataErased(Assert.IsType<EraseSiteData>(chromiumBinding.Commands[^1]).ErasureId, Erased: true));
         Assert.Equal([new DataDeleted(clearing, Deleted: true)], app.Drain().OfType<DataDeleted>());
         foreach (IReadOnlyList<string> hosts in new[] { Array.Empty<string>(), ["example.com", "  "] })
             Assert.IsType<InvalidSiteHost>(Assert.Throws<Rejected>(() =>
@@ -73,7 +63,7 @@ public sealed partial class BrowserContractsTests {
     public void ClearingBrowsingDataReachesBackOnlyAsFarAsItsRangeAndAsksForTheChosenCategories() {
         var clock = new TestClock(DateTimeOffset.Parse("2026-10-25T12:00:00Z"));
         using var app = new CrestApp(new AppConfiguration(null, DevicePlatform.Desktop), clock, new SystemIdSource());
-        var (webKit, webKitBinding, chromium, chromiumBinding) = IdleEngines(app);
+        var (webKit, webKitBinding) = IdleEngines(app);
         var profile = Guid.NewGuid();
 
         var request = Guid.NewGuid();
@@ -82,9 +72,7 @@ public sealed partial class BrowserContractsTests {
         var erasing = Assert.IsType<EraseBrowsingData>(Assert.Single(webKitBinding.Commands));
         Assert.Equal(clock.Now.AddHours(-1), erasing.Since);
         Assert.Equal([BrowsingDataCategory.SiteData, BrowsingDataCategory.Cache], erasing.Categories);
-        app.Report(webKit, new DataErased(erasing.ErasureId, Erased: true));
-        app.Report(chromium, new DataErased(Assert.IsType<EraseBrowsingData>(Assert.Single(chromiumBinding.Commands)).ErasureId,
-            Erased: false));
+        app.Report(webKit, new DataErased(erasing.ErasureId, Erased: false));
         Assert.Equal([new DataDeleted(request, Deleted: false)], app.Drain().OfType<DataDeleted>());
 
         app.Send(new DeleteBrowsingData(Guid.NewGuid(), profile, Ephemeral: false, BrowsingDataRange.AllTime,
@@ -95,23 +83,19 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
-    public void TheWebsiteDataListMergesEveryEnginesSitesAndSaysWhenOneCouldNotList() {
+    public void TheWebsiteDataListNormalizesDuplicateSitesAndReportsIncompleteReads() {
         using var app = new CrestApp();
-        var (webKit, webKitBinding, chromium, chromiumBinding) = IdleEngines(app);
+        var (webKit, webKitBinding) = IdleEngines(app);
         var profile = Guid.NewGuid();
 
         var request = Guid.NewGuid();
         app.Send(new ReadWebsiteData(request, profile, Ephemeral: false, Host: null));
         var toWebKit = Assert.IsType<ReadSiteData>(Assert.Single(webKitBinding.Commands));
-        var toChromium = Assert.IsType<ReadSiteData>(Assert.Single(chromiumBinding.Commands));
         Assert.Equal((profile, false), (toWebKit.ProfileId, toWebKit.Ephemeral));
         app.Report(webKit, new SiteDataRead(toWebKit.ReadingId,
             [new StoredSite("Example.com", [WebsiteDataKind.Cache, WebsiteDataKind.Cookies]), new StoredSite("b.org", [WebsiteDataKind.Storage]),
-                new StoredSite("::1", [WebsiteDataKind.Cookies])],
-            Read: true));
-        Assert.Empty(app.Drain().OfType<WebsiteDataRead>());
-        app.Report(chromium, new SiteDataRead(toChromium.ReadingId,
-            [new StoredSite("example.com", [WebsiteDataKind.Storage]), new StoredSite("[::1]", [WebsiteDataKind.Storage])], Read: false));
+                new StoredSite("::1", [WebsiteDataKind.Cookies]), new StoredSite("example.com", [WebsiteDataKind.Storage]),
+                new StoredSite("[::1]", [WebsiteDataKind.Storage])], Read: false));
         var read = Assert.Single(app.Drain().OfType<WebsiteDataRead>());
         Assert.Equal(request, read.RequestId);
         Assert.False(read.Complete);
@@ -124,7 +108,6 @@ public sealed partial class BrowserContractsTests {
         app.Send(new ReadWebsiteData(Guid.NewGuid(), profile, Ephemeral: false, Host: "Mail.Example.com"));
         app.Report(webKit, new SiteDataRead(Assert.IsType<ReadSiteData>(webKitBinding.Commands[^1]).ReadingId,
             [new StoredSite("example.com", [WebsiteDataKind.Cookies]), new StoredSite("ample.com", [WebsiteDataKind.Cookies])], Read: true));
-        app.Report(chromium, new SiteDataRead(Assert.IsType<ReadSiteData>(chromiumBinding.Commands[^1]).ReadingId, [], Read: true));
         var own = Assert.Single(app.Drain().OfType<WebsiteDataRead>());
         Assert.True(own.Complete);
         Assert.Equal("example.com", Assert.Single(own.Sites).Site);
@@ -150,7 +133,7 @@ public sealed partial class BrowserContractsTests {
             var answered = app.Send(Adoption(document));
             var (workspace, opened) = TestWorkspaces.OpenStored(app);
             DrainLaunch(app, [.. answered, .. opened]);
-            var (webKit, webKitBinding, chromium, chromiumBinding) = IdleEngines(app);
+            var (webKit, webKitBinding) = IdleEngines(app);
             app.Send(new BeginDeletingSpace(workspace, Guid.NewGuid(), deleting, operation));
             Assert.Equal(new SpaceDataNotErased(deleting), Assert.Throws<Rejected>(() =>
                 app.Send(new FinishDeletingSpace(workspace, Guid.NewGuid(), deleting, operation))).Rejection);
@@ -160,8 +143,7 @@ public sealed partial class BrowserContractsTests {
             // again, which a quit no longer waits for.
             app.Send(new DeleteProfileData(Guid.NewGuid(), profile, Ephemeral: false));
             Assert.Equal([deleting], Assert.IsType<SpaceDeletionUnderway>(Refusal(app, new PrepareToQuit(Guid.NewGuid()))).SpaceIds);
-            app.Report(webKit, new DataErased(Assert.IsType<EraseProfileData>(webKitBinding.Commands[^1]).ErasureId, Erased: true));
-            app.Report(chromium, new DataErased(Assert.IsType<EraseProfileData>(chromiumBinding.Commands[^1]).ErasureId, Erased: false));
+            app.Report(webKit, new DataErased(Assert.IsType<EraseProfileData>(webKitBinding.Commands[^1]).ErasureId, Erased: false));
             Assert.Equal(new SpaceDataNotErased(deleting), Assert.Throws<Rejected>(() =>
                 app.Send(new FinishDeletingSpace(workspace, Guid.NewGuid(), deleting, operation))).Rejection);
             Assert.Contains(app.Send(new PrepareToQuit(Guid.NewGuid())), change => change is CloseReady { Allowed: true });
@@ -180,8 +162,6 @@ public sealed partial class BrowserContractsTests {
         relaunched.Send(new DeleteProfileData(Guid.NewGuid(), profile, Ephemeral: false));
         relaunched.Report(engines.WebKit,
             new DataErased(Assert.IsType<EraseProfileData>(Assert.Single(engines.WebKitBinding.Commands)).ErasureId, Erased: true));
-        relaunched.Report(engines.Chromium,
-            new DataErased(Assert.IsType<EraseProfileData>(Assert.Single(engines.ChromiumBinding.Commands)).ErasureId, Erased: true));
         Assert.True(Assert.Single(relaunched.Drain().OfType<DataDeleted>()).Deleted);
         // Once the profile is erased, a quit no longer interrupts anything.
         Assert.Contains(relaunched.Send(new PrepareToQuit(Guid.NewGuid())), change => change is CloseReady { Allowed: true });

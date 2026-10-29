@@ -20,7 +20,7 @@ final class Engines {
         /// window.
         let intent: OpenPage
         /// What the engine's binding built for the platform to host.
-        var built: (WebKitEnginePage)?
+        var built: WebKitEnginePage?
 
         init(page: CorePage, intent: OpenPage) {
             self.page = page
@@ -45,9 +45,7 @@ final class Engines {
     /// One registration to hear page records, which lasts as long as its owner.
     private typealias RecordObserver = (owner: WeakOwner, handler: @MainActor (PageRecords) -> Void)
 
-    /// A page the core opened, with what its engine's binding built for the
-    /// platform to host: WebKit's page, or the platform's host of a page an
-    /// engine the core runs directly created.
+    /// A logical page with the WebKit page its native owner hosts.
     struct OpenedPage {
         let page: CorePage
         let built: WebKitEnginePage
@@ -69,12 +67,11 @@ final class Engines {
     @ObservationIgnored private var registered: (engine: UInt64, relay: Relay)?
     @ObservationIgnored private var requests: [UUID: PageCreation] = [:]
     /// The engine that hosts each page the core asked one to create.
-    @ObservationIgnored private var hosts: [UUID: EngineKind] = [:]
+    @ObservationIgnored private var hosts: Set<UUID> = []
     /// The pages the core opened, while their owners keep them.
     @ObservationIgnored private var opened: [UUID: WeakPage] = [:]
-    /// What an engine the core moved a page to built for it, until the page's
-    /// owner takes it.
-    @ObservationIgnored private var moved: [UUID: WebKitEnginePage] = [:]
+    /// Recreated WebKit pages waiting for their existing native owners.
+    @ObservationIgnored private var replacements: [UUID: WebKitEnginePage] = [:]
     /// What a binding built for a page the core adopted from its engine's
     /// offer, such as a popup WebKit made, until the page's owner hosts it.
     @ObservationIgnored private var offered: [UUID: WebKitEnginePage] = [:]
@@ -95,18 +92,16 @@ final class Engines {
 
     // MARK: - Actions - Registration
 
-    /// Registers a binding with the core, as the engine new pages open on when
-    /// `isDefault`. A refusal is a composition bug.
+    /// Registers the app's WebKit binding. A refusal is a composition bug.
     func register(_ binding: WebKitEngineBinding) {
-        let kind = binding.integration.kind
         let relay = Relay(engines: self)
         binding.attach(to: self)
         do {
-            let engine = try core.registerEngine(binding.integration.registration(isDefault: true), relay: relay)
+            let engine = try core.registerEngine(binding.integration.registration(), relay: relay)
             registered = (engine, relay)
             webKit = binding
         } catch {
-            preconditionFailure("The core refused the \(kind.name) engine: \(error)")
+            preconditionFailure("The core refused WebKit: \(error)")
         }
     }
 
@@ -160,9 +155,9 @@ final class Engines {
     /// Hands the page's owner what `built` is: the page an engine built for a
     /// page the core moved to it. The owner takes it before the engine reports
     /// the page created, so the core's first load reaches the new page.
-    func handOver(_ built: WebKitEnginePage, movedPage page: CorePage) {
-        moved[page.id] = built
-        page.engineMoved?()
+    func handOver(_ built: WebKitEnginePage, recreatedPage page: CorePage) {
+        replacements[page.id] = built
+        page.pageRecreated?()
     }
 
     /// Keeps `built`, the page a binding built for page `pageID`, which the
@@ -171,32 +166,22 @@ final class Engines {
         offered[pageID] = built
     }
 
-    /// What the platform hosts for `page` now that the core moved it off
-    /// engine `current`: the page its new engine's binding built, or the host
-    /// of an engine the core runs directly. Nil when it did not move.
-    func movedHost(for page: CorePage, from current: EngineKind) -> (WebKitEnginePage)? {
-        moved.removeValue(forKey: page.id)
-    }
-
-    /// Tells the owners of `pageIDs` the core moved their pages to another
-    /// engine.
-    func pagesMoved(_ pageIDs: [UUID]) {
-        for pageID in pageIDs {
-            opened[pageID]?.value?.engineMoved?()
-        }
+    /// A recreated WebKit page waiting for its existing native host.
+    func recreatedHost(for page: CorePage) -> WebKitEnginePage? {
+        replacements.removeValue(forKey: page.id)
     }
 
     /// Reports what happened to one of `binding`'s pages. `icon` is the image
     /// a `PageIconChanged` names, which waits here for the tab that adopts it.
     func report(_ event: some EngineEvent, from binding: WebKitEngineBinding, icon: (page: UUID, data: Data)? = nil) {
-        report(event, on: binding.integration.kind, icon: icon)
+        report(event, icon: icon)
     }
 
     /// Reports what happened to `pageID` through the engine that hosts it; a
     /// page no engine was asked to create reports nothing.
     func report(_ event: some EngineEvent, for pageID: UUID, icon: Data? = nil) {
-        guard let kind = hosts[pageID] else { return }
-        report(event, on: kind, icon: icon.map { (pageID, $0) })
+        guard hosts.contains(pageID) else { return }
+        report(event, icon: icon.map { (pageID, $0) })
     }
 
     /// What the core answers `binding` about one of its pages while its
@@ -214,14 +199,14 @@ final class Engines {
 
     /// The page is gone, and nothing it reported waits here any longer.
     func forget(_ pageID: UUID) {
-        hosts[pageID] = nil
+        hosts.remove(pageID)
         pageIcons[pageID] = nil
         opened[pageID] = nil
-        moved[pageID] = nil
+        replacements[pageID] = nil
         offered[pageID] = nil
     }
 
-    private func report(_ event: some EngineEvent, on kind: EngineKind, icon: (page: UUID, data: Data)?) {
+    private func report(_ event: some EngineEvent, icon: (page: UUID, data: Data)?) {
         guard let engine = registered?.engine else { return }
         if let icon { pageIcons[icon.page] = icon.data }
         core.report(event, engine: engine)
@@ -245,13 +230,9 @@ final class Engines {
 
     // MARK: - Actions - Commands
 
-    /// Hands a command the core issued to the binding it names. A page the
-    /// core asks an engine to create is that engine's until it closes. The
-    /// page itself stays the core's: one the core moves to another engine
-    /// closes on this one and lives on, and its owner forgets it only when it
-    /// lets it go.
+    /// Runs a core command on WebKit, tracking the page identities it hosts.
     func run(_ command: EngineCommand) {
-        command.note(runningOn: .webKit, in: &hosts)
+        command.note(in: &hosts)
         webKit?.run(command)
     }
 }

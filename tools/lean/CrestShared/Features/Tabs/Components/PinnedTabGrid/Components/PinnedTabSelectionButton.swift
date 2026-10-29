@@ -32,9 +32,7 @@ struct PinnedTabSelectionButton: View {
                     .opacity(isIconReplaced ? 0 : 1)
                     .font(.system(size: 17 * BrowserSidebarDensity(iconScale).scale, weight: .medium))
                     .browserTabResidency(isLoaded: tab.nativeContent != nil || isLoaded)
-                    .overlay(alignment: .bottomTrailing) {
-                        TabEngineBadge(tabID: tab.id, scale: BrowserSidebarDensity(iconScale).scale)
-                    }
+
                     .anchorPreference(key: TabFaviconBoundsKey.self, value: .bounds) { $0 }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .contentShape(.rect)

@@ -7,7 +7,6 @@ internal sealed class PageGroup {
 
     /// The group's identity, which is also its folder's.
     public Guid Id { get; }
-    public EngineKind Engine { get; }
     public Guid SpaceId { get; }
 
     /// The workspace that holds the group's Space: the one a page of the group
@@ -48,9 +47,8 @@ internal sealed class PageGroup {
 
     /// A group a page of `workspaceId`'s Space `spaceId` reported, which the
     /// device store keeps when `persists`.
-    public PageGroup(Guid id, EngineKind engine, Guid workspaceId, Guid spaceId, bool persists) {
+    public PageGroup(Guid id, Guid workspaceId, Guid spaceId, bool persists) {
         Id = id;
-        Engine = engine;
         WorkspaceId = workspaceId;
         SpaceId = spaceId;
         Persists = persists;
@@ -61,7 +59,6 @@ internal sealed class PageGroup {
     /// it shows, and which the engine holds none of yet.
     public PageGroup(TabGroupRecord record) {
         Id = record.Id;
-        Engine = record.Engine;
         SpaceId = record.SpaceId;
         Persists = true;
         showsFolder = true;
@@ -81,7 +78,7 @@ internal sealed class PageGroup {
     public void Show(PageGroupChanged report, Pages pages) {
         if (!Located(pages) || WorkspaceId is not { } workspaceId) return;
         var reported = report.PageIds.Select(pages.Hosted).OfType<Page>()
-            .Where(page => page.Engine.Kind == Engine && page.WorkspaceId == workspaceId && page.SpaceId == SpaceId).ToList();
+            .Where(page => page.WorkspaceId == workspaceId && page.SpaceId == SpaceId).ToList();
         var made = !showsFolder;
         bool titled = made || report.Title != heldTitle, colored = made || report.Color != heldColor;
         bool collapsed = made || report.IsCollapsed != heldCollapsed;
@@ -90,7 +87,7 @@ internal sealed class PageGroup {
             var joining = reported.Select(page => space.Tabs.FirstOrDefault(tab => tab.Id == page.TabId)).OfType<TabState>()
                 .Where(tab => tab.Placement == location && tab.FolderId != Id).Select(tab => tab.Id).Distinct().ToList();
             var leaving = space.Tabs.Where(tab => tab.FolderId == Id && pages.All.Any(page => page.TabId == tab.Id
-                    && page.Engine.Kind == Engine && page.Phase == PagePhase.Live && page.WindowId == report.WindowId
+                    && page.Phase == PagePhase.Live && page.WindowId == report.WindowId
                     && !report.PageIds.Contains(page.Id)))
                 .Select(tab => tab.Id).ToList();
             try {
@@ -160,7 +157,7 @@ internal sealed class PageGroup {
     /// asked for and none held has nothing to change.
     private void Ask(Pages pages, Action<Engine, EngineCommand> issue, HashSet<Guid> live, bool collapsed, IReadOnlyList<Guid> asking) {
         var holding = heldPageIds.Where(live.Contains).ToHashSet();
-        if (asking.Count == 0 && holding.Count == 0 || pages.Engines.Registered(Engine) is not { } engine) return;
+        if (asking.Count == 0 && holding.Count == 0 || pages.Engines.Default is not { } engine) return;
         if (wantedTitle == heldTitle && wantedColor == heldColor && collapsed == heldCollapsed && holding.SetEquals(asking)) return;
         (heldPageIds, heldTitle, heldColor, heldCollapsed) = (asking, wantedTitle, wantedColor, collapsed);
         issue(engine, new GroupPages(Id, wantedTitle, wantedColor, collapsed, asking));
@@ -178,7 +175,7 @@ internal sealed class PageGroup {
 
     /// What the device store keeps of a group of the persistent session whose
     /// folder shows it, or null for a group it does not keep.
-    public TabGroupRecord? Record() => Persists && showsFolder ? new(Id, SpaceId, Engine, wantedTitle, wantedColor) : null;
+    public TabGroupRecord? Record() => Persists && showsFolder ? new(Id, SpaceId, wantedTitle, wantedColor) : null;
 
     #endregion
 
@@ -210,7 +207,7 @@ internal sealed class PageGroup {
 
     /// The pages of the group's engine that are live there now.
     private HashSet<Guid> Live(Pages pages) =>
-        [.. pages.All.Where(page => page.Engine.Kind == Engine && page.Phase == PagePhase.Live).Select(page => page.Id)];
+        [.. pages.All.Where(page => page.Phase == PagePhase.Live).Select(page => page.Id)];
 
     #endregion
 }

@@ -17,8 +17,7 @@ public sealed partial class BrowserContractsTests {
         var clock = new TestClock(new DateTimeOffset(2026, 9, 26, 12, 0, 0, TimeSpan.Zero));
         var app = new CrestApp(new AppConfiguration(null, DevicePlatform.Desktop), clock, new TestIds());
         var binding = new RecordingEngine();
-        var engine = app.RegisterEngine(new EngineRegistration(EngineKind.Chromium,
-            [.. EngineCapability.Required, EngineCapability.PageResidency], IsDefault: true), binding.Run);
+        var engine = app.RegisterEngine(new EngineRegistration([.. EngineCapability.Required, EngineCapability.PageResidency]), binding.Run);
         var fixture = SavedSession();
         var workspace = TestWorkspaces.Open(app, fixture.Document["session"]!);
         var window = Guid.NewGuid();

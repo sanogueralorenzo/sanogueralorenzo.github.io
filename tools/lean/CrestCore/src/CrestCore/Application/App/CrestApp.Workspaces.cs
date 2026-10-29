@@ -67,7 +67,6 @@ public sealed partial class CrestApp {
         session.Close();
         var dropped = new ChangeFeed();
         pages.Drop(workspaceId, dropped, Issue);
-        PublishEngines(dropped.Publish);
         foreach (var change in dropped.Published) Announce(change);
         device.Detach(workspaceId);
         if (ReferenceEquals(session, storedSession)) storedSync?.Stop();

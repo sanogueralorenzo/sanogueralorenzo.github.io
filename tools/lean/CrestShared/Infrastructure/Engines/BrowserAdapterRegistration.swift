@@ -7,7 +7,6 @@ struct BrowserAdapterRegistration: Sendable {
 
     // MARK: - Variables
 
-    let kind: EngineKind
     let capabilities: [EngineCapability: CapabilityStatus]
     let implementationId: BrowserEngineImplementation
     /// The page archive this engine writes and reads. It follows the engine, not
@@ -18,11 +17,10 @@ struct BrowserAdapterRegistration: Sendable {
     // MARK: - Initializers
 
     init(
-        kind: EngineKind, implementation: BrowserEngineImplementation, supported: [EngineCapability],
+        implementation: BrowserEngineImplementation, supported: [EngineCapability],
         unverified: [EngineCapability] = [], unavailable: [EngineCapability] = [],
         archiveFormat: BrowserPageArchiveFormat
     ) {
-        self.kind = kind
         implementationId = implementation
         self.archiveFormat = archiveFormat
         var values: [EngineCapability: CapabilityStatus] = [:]
@@ -45,7 +43,7 @@ struct BrowserAdapterRegistration: Sendable {
 
     /// What the engine's binding registers with the core: the capabilities it
     /// supports, in the core's order.
-    func registration(isDefault: Bool) -> EngineRegistration {
-        EngineRegistration(kind: kind, capabilities: EngineCapability.all.filter(supports), isDefault: isDefault)
+    func registration() -> EngineRegistration {
+        EngineRegistration(capabilities: EngineCapability.all.filter(supports))
     }
 }

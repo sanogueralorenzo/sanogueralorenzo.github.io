@@ -158,8 +158,7 @@ public sealed partial class BrowserContractsTests {
         var space = SpaceId(session["spaces"]![0]!);
         using var app = new CrestApp();
         var binding = new RecordingEngine();
-        var engine = app.RegisterEngine(new EngineRegistration(EngineKind.Chromium,
-            [.. EngineCapability.Required, EngineCapability.InternalPages], IsDefault: true), binding.Run);
+        var engine = app.RegisterEngine(new EngineRegistration([.. EngineCapability.Required, EngineCapability.InternalPages]), binding.Run);
         var workspace = TestWorkspaces.Open(app, session);
         var authority = app.Workspace(workspace);
         var window = Guid.NewGuid();

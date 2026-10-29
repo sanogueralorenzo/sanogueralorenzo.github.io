@@ -397,12 +397,6 @@ final class BrowserCommandPaletteModel {
         row.tabID.flatMap { space?.tabs.model($0) }
     }
 
-    /// The engine a row's tab runs on, when its icon wears that engine's
-    /// badge, for what the row says to VoiceOver.
-    func engineBadge(for row: PaletteRow) -> EngineKind? {
-        row.tabID.flatMap(browser.core.state.engineBadge(forTab:))
-    }
-
     /// The search provider a row searches with, for its icon.
     func searchProvider(for row: PaletteRow) -> SearchProvider? {
         row.provider

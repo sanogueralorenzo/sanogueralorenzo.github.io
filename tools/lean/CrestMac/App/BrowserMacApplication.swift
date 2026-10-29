@@ -36,7 +36,6 @@ final class BrowserMacApplication {
     /// file goes, and whether to keep one its engine warned about.
     let downloadPrompts: BrowserDownloadPrompts
     /// Offers a switch to another engine for protected video, and a way back.
-    let engineMoveNotices: BrowserEngineMoveNotices
     /// Follows the system's memory pressure for every window's pages; nil in
     /// an isolated launch, which leaves its pages alone.
     let memoryPressure: BrowserMemoryPressureMonitor?
@@ -209,7 +208,6 @@ final class BrowserMacApplication {
         privateWindowCloseGate = BrowserWindowCloseGate(core: core) { [windowID = privateBrowser.windowID] in
             PrepareToCloseWindows(requestID: UUID(), windowIDs: [windowID])
         }
-        engineMoveNotices = BrowserEngineMoveNotices(core: core)
         let downloadDialogs = BrowserDialogPresenter()
         downloadPrompts = BrowserDownloadPrompts(core: core) { asked, dismissal in
             let spaceName = asked.spaceID.flatMap {

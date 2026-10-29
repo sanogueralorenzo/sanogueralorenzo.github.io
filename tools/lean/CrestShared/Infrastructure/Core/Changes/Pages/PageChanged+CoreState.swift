@@ -9,11 +9,4 @@ extension PageChanged {
         state.pages[self.page.id]?.update(self.page)
     }
 
-    @MainActor func apply(to core: CrestCore, in batch: inout CoreChangeBatch) {
-        // Read before the change lands: whether it moves the page to another engine.
-        if let before = core.state.pages[page.id]?.engine, before != page.engine {
-            batch.movedPages.append(page.id)
-        }
-        apply(to: core.state)
-    }
 }

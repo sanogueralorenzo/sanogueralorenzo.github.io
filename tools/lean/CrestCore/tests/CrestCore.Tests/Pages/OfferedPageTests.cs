@@ -92,7 +92,7 @@ public sealed partial class BrowserContractsTests {
             (adopted.WorkspaceId, adopted.WindowId, adopted.SpaceId));
         Assert.Equal(tabs + 1, CurrentTabs(app, workspace, space).Count);
         var opened = Assert.Single(changes.OfType<PageOpened>()).Page;
-        Assert.Equal((adopted.PageId, (Guid?)adopted.TabId, EngineKind.WebKit), (opened.Id, opened.TabId, opened.Engine));
+        Assert.Equal((adopted.PageId, (Guid?)adopted.TabId), (opened.Id, opened.TabId));
         Assert.Equal(new AdoptOfferedPage(adopted.PageId, offer, profile, IsPrivate: false, window), binding.Commands[^1]);
 
         // A window the Quick Window's page asks for opens a Quick Window of its own, and nothing loads in the first.
@@ -189,7 +189,7 @@ public sealed partial class BrowserContractsTests {
         var (app, engine, _, workspace, window) = PageHost(session);
         using var disposal = app;
         var (_, page) = LiveTab(app, engine, workspace, window, space);
-        var other = app.RegisterEngine(new EngineRegistration(EngineKind.Chromium, EngineCapability.Required, IsDefault: false), _ => { });
+        var other = new Engine(new EngineRegistration(EngineCapability.Required), _ => { });
 
         foreach (var gesture in new[] {
                      new LinkGesture(UserActivated: true, TopLevel: true, ShortcutModifiers.None, MiddleClick: false),

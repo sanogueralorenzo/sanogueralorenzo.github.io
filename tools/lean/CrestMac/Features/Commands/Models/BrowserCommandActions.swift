@@ -140,7 +140,7 @@ struct BrowserCommandActions: BrowserNumberedSelectionPerformer {
     /// The shown page's own engine answers whenever there is one.
     func supportsEngineCapability(_ capability: EngineCapability) -> Bool {
         shownPage?.pageEngine.registration.supports(capability)
-            ?? browser.core.state.defaultEngineSupports(capability)
+            ?? browser.core.state.offers(capability)
     }
 
     /// Where each numbered selection command leads right now, per the core.
@@ -212,12 +212,6 @@ struct BrowserCommandActions: BrowserNumberedSelectionPerformer {
             for: shownPageSpace?.settings.browsingPreferences.contentBlocking)
     }
 
-    /// The engines the shown page can move to: every registered engine but
-    /// its own, so the choice is there before any page opens on the others.
-    var pageEngineMoves: [EngineKind] {
-        shownPage?.corePage.otherEngines ?? []
-    }
-
     // MARK: - Chrome
 
     func openLocation() {
@@ -269,11 +263,6 @@ struct BrowserCommandActions: BrowserNumberedSelectionPerformer {
     }
 
     // MARK: - Page
-
-    /// Moves the shown page to `engine`, which loads what it showed there.
-    func movePage(to engine: EngineKind) {
-        shownPage?.corePage.move(to: engine)
-    }
 
     /// Translates the whole shown page.
     func translatePage() {

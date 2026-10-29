@@ -81,9 +81,6 @@ final class CrestCore {
     /// Who hears each saved or pinned tab's page put away, once its batch is
     /// applied.
     @ObservationIgnored private var putAwayFollowers: [Follower<TabPagePutAway>] = []
-    /// Who hears each page the core moved to another engine, once its batch
-    /// is applied.
-    @ObservationIgnored private var rehostFollowers: [Follower<PageRehosted>] = []
     /// Who hears each page an engine opened by itself that the core adopted
     /// for a tab, once its batch is applied.
     @ObservationIgnored private var adoptionFollowers: [Follower<OfferedPageAdopted>] = []
@@ -146,7 +143,6 @@ final class CrestCore {
         let installed = crest_app_set_wake(handle, relayCoreWake, Unmanaged.passUnretained(wake).toOpaque())
         guard installed == CREST_OK else { Self.buildBug(installed, "set its wake callback") }
         try query(GetShortcuts()).apply(to: state)
-        state.enginePreferences = try query(GetEnginePreferences())
         state.agentPreferences = try query(GetAgentPreferences())
     }
 
@@ -369,9 +365,6 @@ final class CrestCore {
         if !batch.startedDownloads.isEmpty { downloadsStarted(batch.startedDownloads) }
         if !batch.unloadedPages.isEmpty { pagesUnloaded(batch.unloadedPages) }
         if !batch.putAwayPages.isEmpty { pagesPutAway(batch.putAwayPages) }
-        // The page's owner hosts it on its new engine before anyone hears it moved.
-        if !batch.movedPages.isEmpty { engines.pagesMoved(batch.movedPages) }
-        if !batch.rehostedPages.isEmpty { pagesRehosted(batch.rehostedPages) }
         if !batch.adoptedPages.isEmpty { pagesAdopted(batch.adoptedPages) }
         if !batch.broughtForward.isEmpty { windowsBroughtForward(batch.broughtForward) }
         if !batch.closedTransientPages.isEmpty { transientPagesClosed(batch.closedTransientPages) }
@@ -447,22 +440,6 @@ final class CrestCore {
     private func pagesPutAway(_ pages: [TabPagePutAway]) {
         putAwayFollowers.removeAll { $0.owner == nil }
         let followers = putAwayFollowers
-        for page in pages {
-            for follower in followers { follower.handler(page) }
-        }
-    }
-
-    /// Calls `handler` with each page the core moved to another engine, once
-    /// its batch is applied: the page on its new engine is already in
-    /// `state`. The registration lasts as long as `owner`.
-    func followRehostedPages(_ owner: AnyObject, _ handler: @escaping @MainActor (PageRehosted) -> Void) {
-        rehostFollowers.removeAll { $0.owner == nil }
-        rehostFollowers.append(Follower(owner: owner, handler: handler))
-    }
-
-    private func pagesRehosted(_ pages: [PageRehosted]) {
-        rehostFollowers.removeAll { $0.owner == nil }
-        let followers = rehostFollowers
         for page in pages {
             for follower in followers { follower.handler(page) }
         }

@@ -21,9 +21,7 @@ struct BrowserSidebarTabFaviconContent: View {
         )
         .opacity(isReplaced ? 0 : 1)
         .browserTabResidency(isLoaded: isLoaded)
-        .overlay(alignment: .bottomTrailing) {
-            TabEngineBadge(tabID: tab.id, scale: BrowserSidebarDensity(iconScale).scale)
-        }
+
         .anchorPreference(key: TabFaviconBoundsKey.self, value: .bounds) { $0 }
         .modifier(BrowserSidebarTabFaviconColumn(slot: metrics.faviconSlot))
         .foregroundStyle(isProminent ? .primary : .secondary)

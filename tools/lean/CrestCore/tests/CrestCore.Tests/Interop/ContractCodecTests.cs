@@ -269,7 +269,7 @@ public sealed unsafe class ContractCodecTests {
     public void AnEngineRegistersOnlyWithThisBuildsEngineContract() {
         using var app = new AppClient();
         var registration = AppClient.Encode(writer => ContractCodec.WriteEngineRegistration(writer,
-            new EngineRegistration(EngineKind.WebKit, EngineCapability.Required, IsDefault: true)));
+            new EngineRegistration(EngineCapability.Required)));
         int Register(ReadOnlySpan<byte> fingerprint, out ulong engine) {
             var binding = new CrestEngineBinding { Run = &IgnoreCommand };
             CrestBuffer rejection;

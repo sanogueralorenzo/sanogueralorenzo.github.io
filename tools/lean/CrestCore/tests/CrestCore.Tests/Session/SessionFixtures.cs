@@ -81,11 +81,11 @@ public sealed partial class BrowserContractsTests {
         /// Registers the default engine, which supports `capabilities` beside
         /// the ones every engine must, and does what the core asks.
         public Engine Register(params EngineCapability[] capabilities) => engine = app.RegisterEngine(
-            new EngineRegistration(EngineKind.WebKit, [.. EngineCapability.Required, .. capabilities], IsDefault: true), _ => { });
+            new EngineRegistration([.. EngineCapability.Required, .. capabilities]), _ => { });
 
         /// Registers the default engine, which records what the core asks in `binding`.
         public Engine Register(RecordingEngine binding) => engine = app.RegisterEngine(
-            new EngineRegistration(EngineKind.WebKit, EngineCapability.Required, IsDefault: true), binding.Run);
+            new EngineRegistration(EngineCapability.Required), binding.Run);
 
         /// Reports `engineEvent` from the device's engine and answers what changed.
         public IReadOnlyList<Change> Report(EngineEvent engineEvent) {

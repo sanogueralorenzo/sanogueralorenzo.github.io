@@ -8,11 +8,6 @@ namespace CrestCore.Application;
 public sealed class Engine {
     #region Variables
 
-    public EngineKind Kind { get; }
-
-    /// New pages open on this engine.
-    public bool IsDefault { get; }
-
     /// What the binding said it supports when it registered.
     private readonly IReadOnlyList<EngineCapability> capabilities;
     private readonly Action<EngineCommand> run;
@@ -23,8 +18,6 @@ public sealed class Engine {
     #region Constructors
 
     internal Engine(EngineRegistration registration, Action<EngineCommand> run) {
-        Kind = registration.Kind;
-        IsDefault = registration.IsDefault;
         capabilities = [.. registration.Capabilities];
         this.run = run;
     }
@@ -35,9 +28,6 @@ public sealed class Engine {
 
     /// Whether the binding supports `capability`.
     internal bool Supports(EngineCapability capability) => capabilities.Contains(capability);
-
-    /// The engine as the read model shows it.
-    internal EngineState State(bool isDefault) => new(Kind, [.. EngineCapability.All.Where(Supports)], isDefault);
 
     #endregion
 

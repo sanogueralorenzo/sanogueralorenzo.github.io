@@ -13,10 +13,6 @@ struct TabFaviconBoundsKey: PreferenceKey {
 }
 
 extension EnvironmentValues {
-    /// Whether a status badge has taken the corner a tab's favicon gives its
-    /// engine badge, so the engine badge steps aside.
-    @Entry var tabFaviconBadgeIsTaken = false
-
     /// Whether a status shows in place of a tab's favicon, so the favicon
     /// steps aside.
     @Entry var tabFaviconIsReplaced = false
@@ -43,7 +39,6 @@ struct BrowserTabStatusBadgeHost: ViewModifier {
         let mark = tab.flatMap { BrowserTabStatus.marks(of: $0).first }
         let replacesIcon = false
         content
-            .environment(\.tabFaviconBadgeIsTaken, mark != nil && !replacesIcon && anchor.takesFaviconCorner)
             .environment(\.tabFaviconIsReplaced, mark != nil && replacesIcon)
             .overlayPreferenceValue(TabFaviconBoundsKey.self) { iconBounds in
                 if let iconBounds, let mark, let tab {

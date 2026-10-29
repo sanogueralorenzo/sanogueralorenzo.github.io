@@ -34,18 +34,11 @@ public sealed record OfferedPageAdopted(Guid PageId, Guid WorkspaceId, Guid Wind
 public sealed record PageChanged(PageState Page) : Change;
 
 [Observed]
-public sealed record PageState(Guid Id, Guid WorkspaceId, Guid SpaceId, Guid? TabId, EngineKind Engine, PagePhase Phase,
+public sealed record PageState(Guid Id, Guid WorkspaceId, Guid SpaceId, Guid? TabId, PagePhase Phase,
     PageLiveState Live);
 
 /// A page opened, and its engine is creating it.
 public sealed record PageOpened(PageState Page) : Change;
-
-/// A page of a Space moved from engine `From` to engine `To`, for `Reason`,
-/// with the address of the site `Origin`, or null for an address that is not
-/// a web page's. The `PageChanged` before it carries the page on its new
-/// engine.
-public sealed record PageRehosted(Guid PageId, Guid SpaceId, SiteOrigin? Origin, EngineKind From, EngineKind To, RehostReason Reason)
-    : Change;
 
 /// Its owner released a page, which is gone.
 public sealed record PageRemoved(Guid PageId) : Change;

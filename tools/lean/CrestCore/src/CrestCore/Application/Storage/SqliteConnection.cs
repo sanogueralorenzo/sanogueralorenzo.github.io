@@ -138,7 +138,6 @@ internal sealed class SqliteConnection : IDisposable {
             + "host TEXT NOT NULL, port INTEGER NOT NULL, permission TEXT NOT NULL, detail TEXT, decision TEXT NOT NULL, "
             + "modified_at REAL NOT NULL, position INTEGER NOT NULL)");
         Execute("DROP TABLE IF EXISTS device_site_engine");
-        Execute("CREATE TABLE IF NOT EXISTS device_engine (id INTEGER PRIMARY KEY CHECK (id = 0), engine TEXT NOT NULL)");
         Execute("DROP TABLE IF EXISTS device_shortcut");
         Execute("DROP TABLE IF EXISTS device_link");
         Execute("DROP TABLE IF EXISTS device_link_route");
@@ -162,16 +161,9 @@ internal sealed class SqliteConnection : IDisposable {
     /// Everything the device store holds. A row whose identities or names do
     /// not read is left out.
     public DeviceRecords ReadDevice() => new(ReadWindows(), ReadReopening(), ReadSitePermissions(),
-        ReadAdoptions(), ReadTabGroups(), ReadDefaultEngine()) {
+        ReadAdoptions(), ReadTabGroups()) {
         Agents = ReadAgents()
     };
-
-    /// The person's preference remains available even in a single-engine product.
-    private EngineKind? ReadDefaultEngine() {
-        EngineKind? engine = null;
-        Rows("SELECT engine FROM device_engine WHERE id = 0", statement => engine = EngineKind.Named(Sqlite.ColumnText(statement, 0)));
-        return engine;
-    }
 
     private List<SavedWindow> ReadWindows() {
         var windows = new Dictionary<Guid, (Guid ShownSpace, long Used)>();
@@ -227,9 +219,9 @@ internal sealed class SqliteConnection : IDisposable {
         var groups = new List<TabGroupRecord>();
         Rows("SELECT id, space, engine, title, color FROM device_tab_group ORDER BY position", statement => {
             if (Identity(statement, 0) is { } id && Identity(statement, 1) is { } space
-                && EngineKind.Named(Sqlite.ColumnText(statement, 2)) is { } engine
+                && Sqlite.ColumnText(statement, 2) == "webkit"
                 && TabGroupColor.Named(Sqlite.ColumnText(statement, 4)) is { } color)
-                groups.Add(new(id, space, engine, Sqlite.ColumnText(statement, 3), color));
+                groups.Add(new(id, space, Sqlite.ColumnText(statement, 3), color));
         });
         return groups;
     }
@@ -276,7 +268,6 @@ internal sealed class SqliteConnection : IDisposable {
         if (written is null || !records.Windows.SequenceEqual(written.Windows)) WriteWindows(records.Windows);
         if (written is null || !records.Reopening.SequenceEqual(written.Reopening)) WriteReopening(records.Reopening);
         if (written is null || !records.SitePermissions.SequenceEqual(written.SitePermissions)) WriteSitePermissions(records.SitePermissions);
-        if (written is null || records.DefaultEngine != written.DefaultEngine) WriteDefaultEngine(records.DefaultEngine);
         if (written is null || !records.Adopted.SetEquals(written.Adopted)) WriteAdoptions(records.Adopted);
         if (written is null || !records.TabGroups.SequenceEqual(written.TabGroups)) WriteTabGroups(records.TabGroups);
         if (written is null || !records.Agents.Equals(written.Agents)) WriteAgents(records.Agents);
@@ -313,7 +304,7 @@ internal sealed class SqliteConnection : IDisposable {
             groups, (statement, group, index) => {
                 Bind(statement, 1, Spelling(group.Id));
                 Bind(statement, 2, Spelling(group.SpaceId));
-                Bind(statement, 3, group.Engine.Name);
+                Bind(statement, 3, "webkit");
                 Bind(statement, 4, group.Title);
                 Bind(statement, 5, group.Color.Name);
                 Checked(Sqlite.sqlite3_bind_int64(statement, 6, index));
@@ -375,13 +366,6 @@ internal sealed class SqliteConnection : IDisposable {
                 Checked(Sqlite.sqlite3_bind_double(statement, 9, record.ModifiedAt));
                 Checked(Sqlite.sqlite3_bind_int64(statement, 10, index));
             });
-    }
-
-    /// The person's explicit default, absent while following the composition.
-    private void WriteDefaultEngine(EngineKind? engine) {
-        Execute("DELETE FROM device_engine");
-        if (engine is not null)
-            Insert("INSERT INTO device_engine(id, engine) VALUES(0,?)", statement => Bind(statement, 1, engine.Name));
     }
 
     /// Every adoption goes into `device_adoption`; the ones an older build

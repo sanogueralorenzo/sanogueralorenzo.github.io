@@ -24,7 +24,7 @@ internal sealed class Page {
     #region Variables
 
     public Guid Id { get; }
-    public Engine Engine { get; private set; }
+    public Engine Engine { get; }
     public Guid ProfileId { get; }
 
     public Guid WorkspaceId { get; private set; }
@@ -43,7 +43,7 @@ internal sealed class Page {
 
     public PagePhase Phase { get; private set; } = PagePhase.Opening;
 
-    public PageState State => new(Id, WorkspaceId, SpaceId, TabId, Engine.Kind, Phase, Live);
+    public PageState State => new(Id, WorkspaceId, SpaceId, TabId, Phase, Live);
 
     /// What rules and views read of the page now: what its engine last showed,
     /// whether its history reaches back or forward, and why its latest
@@ -121,20 +121,6 @@ internal sealed class Page {
     /// brings it back once a window shows it.
     public bool RecoversWhenShown => stoppedUnseen is not null;
 
-    /// The address a page that moved to another engine loads once that
-    /// engine has created it, and the history entry the load stands for when
-    /// the page returned to one.
-    private string? rehostedAddress;
-    private Guid? rehostedEntry;
-
-    /// Why the page moved to another engine, each reason once.
-    private readonly HashSet<RehostReason> movedFor = [];
-
-    /// The document already offered a protected-media fallback, if any.
-    private long? protectedMediaAttempt;
-
-
-
     #endregion
 
     #region Constructors
@@ -170,62 +156,6 @@ internal sealed class Page {
         SpaceId = spaceId;
         TabId = tabId;
         WindowId = windowId;
-    }
-
-    /// The page moves to `engine` for `reason`, and `engine` opens it anew and
-    /// loads `address` once it has created it. Nothing the old engine showed
-    /// stays but the page's history, and the page shows itself heading to
-    /// `address` at once.
-    public void Rehost(Engine engine, string? address, RehostReason reason) {
-        movedFor.Add(reason);
-        History.Leave(engine.Kind, address);
-        Arrive(engine, address, load: address, entry: null);
-    }
-
-    /// The page goes back or forward to a history entry another engine held,
-    /// and `engine` opens it anew, heading to `address`: restoring the
-    /// history it kept, or loading `entry` afresh once it created the page.
-    /// A return is no move of the page's own, so it records no reason.
-    public void Return(Engine engine, string address, Guid? entry) =>
-        Arrive(engine, address, load: entry is null ? null : address, entry);
-
-    /// The page opens anew on `engine`, heading to `address`, and loads
-    /// `load` once created, as `entry` when it names one.
-    private void Arrive(Engine engine, string? address, string? load, Guid? entry) {
-        Engine = engine;
-        Phase = PagePhase.Opening;
-        rehostedAddress = load;
-        rehostedEntry = entry;
-        shown = PageSnapshot.Blank with { PendingUrl = address };
-        failure = null;
-        documentUrl = null;
-        isRecorded = false;
-        record = null;
-        Icon = null;
-        crashes = 0;
-        stoppedUnseen = null;
-    }
-
-    /// Attempts fallback once per document, so repeated capability probes
-    /// never repeat a canceled before-unload prompt.
-    public bool TryProtectedMediaFallback() {
-        if (protectedMediaAttempt == Documents) return false;
-        protectedMediaAttempt = Documents;
-        return true;
-    }
-
-    /// Whether the page ever moved to another engine for `reason`.
-    public bool MovedFor(RehostReason reason) => movedFor.Contains(reason);
-
-    /// The load the page makes now that its new engine created it, taken
-    /// once: its address and the history entry it stands for, if any; null
-    /// for a page that did not move, or one whose engine restores history.
-    public LoadPage? TakeRehostedLoad() {
-        if (rehostedAddress is not { } address) return null;
-        var load = new LoadPage(Id, address, rehostedEntry);
-        rehostedAddress = null;
-        rehostedEntry = null;
-        return load;
     }
 
     #endregion
@@ -311,7 +241,7 @@ internal sealed class Page {
     /// that page's engine's history when `restores`.
     public void Resume(PageHistory history, bool restores) {
         History = history;
-        history.Reopen(Engine.Kind, restores);
+        history.Reopen(restores);
     }
 
     /// Whether a window shows the page now. A page leaving the screen is

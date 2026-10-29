@@ -10,15 +10,9 @@ public sealed record EnginesChanged(EngineRoster Roster) : Change;
 
 #region Rejections
 
-/// Another engine, `Current`, is already the one new pages open on.
-public sealed record DefaultEngineAlreadyRegistered(EngineKind Current) : Rejection;
+public sealed record EngineAlreadyRegistered : Rejection;
 
-/// A binding for this engine is already registered.
-public sealed record EngineAlreadyRegistered(EngineKind Kind) : Rejection;
-
-/// The engine does not support `Capability`, which every engine must support
-/// to register.
-public sealed record EngineLacksCapability(EngineKind Kind, EngineCapability Capability) : Rejection;
+public sealed record EngineLacksCapability(EngineCapability Capability) : Rejection;
 
 /// No registered engine can host a new page: none is the default.
 public sealed record EngineNotRegistered : Rejection;
@@ -27,12 +21,8 @@ public sealed record EngineNotRegistered : Rejection;
 
 #region Configurations
 
-/// What an engine binding tells the core once, when it registers: which engine
-/// it is, the capabilities it supports, and whether new pages open on it. It
-/// must support every required capability, one engine is the default, and each
-/// kind registers once.
-public sealed record EngineRegistration(EngineKind Kind, IReadOnlyList<EngineCapability> Capabilities, bool IsDefault)
-    : Configuration;
+/// Capabilities supported by the app’s WebKit binding.
+public sealed record EngineRegistration(IReadOnlyList<EngineCapability> Capabilities) : Configuration;
 
 #endregion
 
@@ -58,12 +48,6 @@ public enum EngineDownloadWarning {
     /// The engine blocked it for its safety or organization policy verdict.
     PolicyBlocked
 }
-
-/// One engine this device registered, as the read model shows it: the
-/// capabilities its binding supports, in `EngineCapability.All` order, and
-/// whether new pages open on it. A page's own engine answers what the page
-/// can do.
-public sealed record EngineState(EngineKind Kind, IReadOnlyList<EngineCapability> Capabilities, bool IsDefault);
 
 /// What an engine needs to bring a page back as it was: its history, opaque to
 /// the core, at `Url`, the address it showed. The core keeps it in memory

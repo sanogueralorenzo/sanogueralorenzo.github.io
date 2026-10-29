@@ -308,7 +308,7 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
     }
 
     func testClearHistoryConfirmationRejectsSelectionChange() throws {
-        let context = makeContext()
+        let context = makeContext(hostsPages: true)
         let assignment = BrowserSpaceRuntimeAssignment(space: context.source)
         let historyURL = try XCTUnwrap(
             URL(string: "https://sidebar-history.crest.test/selection")
@@ -332,7 +332,7 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
         )
     }
 
-    private func makeContext() -> (
+    private func makeContext(hostsPages: Bool = false) -> (
         store: BrowserStore,
         source: SpaceState.Seed,
         destination: SpaceState.Seed,
@@ -363,7 +363,10 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
             folders: [],
             tabs: [destinationTab]
         )
-        let store = BrowserStore(seed: SessionState.Seed(spaces: [source, destination]), core: .hostingPages())
+        // Only navigation-history setup needs a renderer; assignment guards use session state.
+        let store = BrowserStore(
+            seed: SessionState.Seed(spaces: [source, destination]),
+            core: hostsPages ? .hostingPages() : CrestCore())
         return (store, source, destination, sourceTab)
     }
 

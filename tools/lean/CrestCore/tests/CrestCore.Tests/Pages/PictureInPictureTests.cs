@@ -52,7 +52,7 @@ public sealed partial class BrowserContractsTests {
         var app = new CrestApp(new AppConfiguration(null, DevicePlatform.Desktop), clock, new TestIds());
         using var disposal = app;
         var binding = new RecordingEngine();
-        var engine = app.RegisterEngine(new EngineRegistration(EngineKind.Chromium, EngineCapability.Required, IsDefault: true),
+        var engine = app.RegisterEngine(new EngineRegistration(EngineCapability.Required),
             binding.Run);
         var workspace = TestWorkspaces.Open(app, session);
         var (window, second) = (Guid.NewGuid(), Guid.NewGuid());

@@ -9,7 +9,6 @@ struct BrowserGitHubSidebar: View {
         let assignment: BrowserSpaceRuntimeAssignment
         let folderID: UUID?
         let isAllowed: Bool
-        let engines: EnginePreferences
     }
 
     private struct RefreshIdentity: Equatable {
@@ -40,8 +39,7 @@ struct BrowserGitHubSidebar: View {
     }
     private var sessionIdentity: SessionIdentity {
         SessionIdentity(
-            assignment: assignment, folderID: folder?.id, isAllowed: isAllowed,
-            engines: browser.core.state.enginePreferences)
+            assignment: assignment, folderID: folder?.id, isAllowed: isAllowed)
     }
     private var refreshIdentity: RefreshIdentity {
         RefreshIdentity(

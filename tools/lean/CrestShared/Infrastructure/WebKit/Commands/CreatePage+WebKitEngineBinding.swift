@@ -13,7 +13,7 @@ extension CreatePage {
             // The core moved a page the platform already hosts to WebKit:
             // its owner takes the new page before the core loads it.
             let space = engines.core.state.workspaces[state.workspaceID]?.spaces.model(state.spaceID)
-            engines.handOver(binding.keep(binding.build(self, in: space, popup: nil)), movedPage: moving)
+            engines.handOver(binding.keep(binding.build(self, in: space, popup: nil)), recreatedPage: moving)
         } else {
             engines.report(PageCreationFailed(pageID: pageID), from: binding)
             return

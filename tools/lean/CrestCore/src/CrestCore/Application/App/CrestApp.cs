@@ -87,7 +87,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         siteDataReads = new(engines, ids);
         if (configuration.StorageDirectory is not { } directory) {
             device = new(configuration.Platform, storage: null, DeviceRecords.Empty, Announce, RequestTurn, CloseBorrower, clock);
-            engines.Prefer(device.DefaultEngine);
             pages = new(device, engines, clock, ids);
             prompts = new(device, pages);
             engineDownloads = new(downloads, device, pages, ids);
@@ -98,7 +97,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         }
         storage = SessionStorage.Open(directory, Announce, out var loaded);
         device = new(configuration.Platform, storage, storage.Device, Announce, RequestTurn, CloseBorrower, clock);
-        engines.Prefer(device.DefaultEngine);
         pages = new(device, engines, clock, ids);
         prompts = new(device, pages);
         engineDownloads = new(downloads, device, pages, ids);

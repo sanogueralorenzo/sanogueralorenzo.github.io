@@ -103,7 +103,6 @@ enum Change: Equatable, Sendable {
     case downloadStarted(DownloadStarted)
     case downloadUpdated(DownloadUpdated)
     case downloadsRemoved(DownloadsRemoved)
-    case enginePreferencesChanged(EnginePreferencesChanged)
     case enginesChanged(EnginesChanged)
     case extensionInstallAsked(ExtensionInstallAsked)
     case foldersChanged(FoldersChanged)
@@ -113,7 +112,6 @@ enum Change: Equatable, Sendable {
     case offeredPageAdopted(OfferedPageAdopted)
     case pageChanged(PageChanged)
     case pageOpened(PageOpened)
-    case pageRehosted(PageRehosted)
     case pageRemoved(PageRemoved)
     case pageUnloaded(PageUnloaded)
     case permissionAsked(PermissionAsked)
@@ -173,7 +171,6 @@ enum Rejection: Equatable, Error, Sendable {
     case cannotPinSplit(CannotPinSplit)
     case closePreparationUnderway(ClosePreparationUnderway)
     case currentTabsOnly(CurrentTabsOnly)
-    case defaultEngineAlreadyRegistered(DefaultEngineAlreadyRegistered)
     case downloadLimitReached(DownloadLimitReached)
     case duplicateDownload(DuplicateDownload)
     case duplicatePage(DuplicatePage)
@@ -268,7 +265,6 @@ enum Rejection: Equatable, Error, Sendable {
     case unknownSplitGroup(UnknownSplitGroup)
     case unknownTab(UnknownTab)
     case unknownWorkspace(UnknownWorkspace)
-    case unregisteredEngine(UnregisteredEngine)
     case unrelatedWorkspaces(UnrelatedWorkspaces)
     case unsavedWorkspace(UnsavedWorkspace)
     case unsupportedAddress(UnsupportedAddress)
@@ -388,7 +384,6 @@ extension Change {
         case .downloadStarted(let change): change.apply(to: state)
         case .downloadUpdated(let change): change.apply(to: state)
         case .downloadsRemoved(let change): change.apply(to: state)
-        case .enginePreferencesChanged(let change): change.apply(to: state)
         case .enginesChanged(let change): change.apply(to: state)
         case .extensionInstallAsked(let change): change.apply(to: state)
         case .foldersChanged(let change): change.apply(to: state)
@@ -398,7 +393,6 @@ extension Change {
         case .offeredPageAdopted(let change): change.apply(to: state)
         case .pageChanged(let change): change.apply(to: state)
         case .pageOpened(let change): change.apply(to: state)
-        case .pageRehosted(let change): change.apply(to: state)
         case .pageRemoved(let change): change.apply(to: state)
         case .pageUnloaded(let change): change.apply(to: state)
         case .permissionAsked(let change): change.apply(to: state)
@@ -452,7 +446,6 @@ extension Change {
         case .downloadStarted(let change): change.apply(to: core, in: &batch)
         case .downloadUpdated(let change): change.apply(to: core, in: &batch)
         case .downloadsRemoved(let change): change.apply(to: core, in: &batch)
-        case .enginePreferencesChanged(let change): change.apply(to: core, in: &batch)
         case .enginesChanged(let change): change.apply(to: core, in: &batch)
         case .extensionInstallAsked(let change): change.apply(to: core, in: &batch)
         case .foldersChanged(let change): change.apply(to: core, in: &batch)
@@ -462,7 +455,6 @@ extension Change {
         case .offeredPageAdopted(let change): change.apply(to: core, in: &batch)
         case .pageChanged(let change): change.apply(to: core, in: &batch)
         case .pageOpened(let change): change.apply(to: core, in: &batch)
-        case .pageRehosted(let change): change.apply(to: core, in: &batch)
         case .pageRemoved(let change): change.apply(to: core, in: &batch)
         case .pageUnloaded(let change): change.apply(to: core, in: &batch)
         case .permissionAsked(let change): change.apply(to: core, in: &batch)
@@ -516,7 +508,6 @@ extension Change {
         case .downloadStarted(let change): change.note(in: &receipts)
         case .downloadUpdated(let change): change.note(in: &receipts)
         case .downloadsRemoved(let change): change.note(in: &receipts)
-        case .enginePreferencesChanged(let change): change.note(in: &receipts)
         case .enginesChanged(let change): change.note(in: &receipts)
         case .extensionInstallAsked(let change): change.note(in: &receipts)
         case .foldersChanged(let change): change.note(in: &receipts)
@@ -526,7 +517,6 @@ extension Change {
         case .offeredPageAdopted(let change): change.note(in: &receipts)
         case .pageChanged(let change): change.note(in: &receipts)
         case .pageOpened(let change): change.note(in: &receipts)
-        case .pageRehosted(let change): change.note(in: &receipts)
         case .pageRemoved(let change): change.note(in: &receipts)
         case .pageUnloaded(let change): change.note(in: &receipts)
         case .permissionAsked(let change): change.note(in: &receipts)
@@ -1428,10 +1418,6 @@ struct DecideSitePermission: Intent, SitePermissionIntent, Equatable, Sendable {
     let decision: SitePermissionDecision
 }
 
-struct DefaultEngineAlreadyRegistered: Equatable, Sendable {
-    let current: EngineKind
-}
-
 struct DeleteBrowsingData: Intent, DataDeletionIntent, Equatable, Sendable {
     let requestID: UUID
     let profileID: UUID
@@ -1757,7 +1743,6 @@ struct EnforcedLimits: Query, Equatable, Sendable {
 }
 
 struct EngineAlreadyRegistered: Equatable, Sendable {
-    let kind: EngineKind
 }
 
 struct EngineDownload: Equatable, Sendable {
@@ -1795,30 +1780,18 @@ struct EngineDownloadDestinationRequested: EngineEvent, EngineDownloadEvent, Equ
 }
 
 struct EngineLacksCapability: Equatable, Sendable {
-    let kind: EngineKind
     let capability: EngineCapability
 }
 
 struct EngineNotRegistered: Equatable, Sendable {
 }
 
-struct EnginePreferences: Equatable, Sendable {
-    let defaultEngine: EngineKind?
-}
-
-struct EnginePreferencesChanged: CoreChange, Equatable, Sendable {
-    let preferences: EnginePreferences
-}
-
 struct EngineRegistration: Equatable, Sendable {
-    let kind: EngineKind
     let capabilities: [EngineCapability]
-    let isDefault: Bool
 }
 
 struct EngineRoster: Equatable, Sendable {
     static let unregistered = EngineRoster(
-        engines: [],
         offered: [
             EngineCapability.pages,
             EngineCapability.navigation,
@@ -1849,19 +1822,10 @@ struct EngineRoster: Equatable, Sendable {
             EngineCapability.internalPages,
             EngineCapability.protectedMedia,
             EngineCapability.audioSpectrum
-        ],
-        badged: []
+        ]
     )
 
-    let engines: [EngineState]
     let offered: [EngineCapability]
-    let badged: [EngineKind]
-}
-
-struct EngineState: Equatable, Sendable {
-    let kind: EngineKind
-    let capabilities: [EngineCapability]
-    let isDefault: Bool
 }
 
 struct EngineWindowPlace: Equatable, Sendable {
@@ -2152,11 +2116,6 @@ struct ForgetCloudZone: Intent, CloudTransportIntent, Equatable, Sendable {
 
 struct GetAgentPreferences: Query, Equatable, Sendable {
     typealias Answer = AgentPreferences
-
-}
-
-struct GetEnginePreferences: Query, Equatable, Sendable {
-    typealias Answer = EnginePreferences
 
 }
 
@@ -3076,15 +3035,6 @@ struct PageProfileMismatch: Equatable, Sendable {
     let spaceID: UUID
 }
 
-struct PageRehosted: CoreChange, Equatable, Sendable {
-    let pageID: UUID
-    let spaceID: UUID
-    let origin: SiteOrigin?
-    let from: EngineKind
-    let to: EngineKind
-    let reason: RehostReason
-}
-
 struct PageRemoved: CoreChange, Equatable, Sendable {
     let pageID: UUID
 }
@@ -3110,7 +3060,6 @@ struct PageState: Equatable, Sendable, Identifiable {
     let workspaceID: UUID
     let spaceID: UUID
     let tabID: UUID?
-    let engine: EngineKind
     let phase: PagePhase
     let live: PageLiveState
 }
@@ -3340,11 +3289,6 @@ struct PromptWithdrawn: EngineEvent, PromptEvent, Equatable, Sendable {
     let promptID: UUID
 }
 
-struct ProtectedMediaUnavailable: EngineEvent, PageEvent, Equatable, Sendable {
-    let pageID: UUID
-    let keySystem: KeySystem
-}
-
 struct QuitWithDownloadsAsked: CoreChange, Equatable, Sendable {
     let promptID: UUID
     let requestID: UUID
@@ -3425,11 +3369,6 @@ struct RefreshLiveFolder: Intent, SessionIntent, Equatable, Sendable {
     let source: LiveFolderSource
     let tabs: [LiveFolderTab]
     let expectedOptions: GitHubLiveFolderOptions?
-}
-
-struct RehostPage: Intent, PageIntent, Equatable, Sendable {
-    let pageID: UUID
-    let engine: EngineKind
 }
 
 struct RejectOfferedPage: Equatable, Sendable {
@@ -3660,10 +3599,6 @@ struct SecureOriginCheck: Query, Equatable, Sendable {
 
 struct SecureOriginVerdict: Equatable, Sendable {
     let allowed: Bool
-}
-
-struct SelectDefaultEngine: Intent, Equatable, Sendable {
-    let engine: EngineKind?
 }
 
 struct SelectedRoot: Equatable, Sendable, Identifiable {
@@ -4573,10 +4508,6 @@ struct UnloadIdlePage: Intent, PageIntent, Equatable, Sendable {
     let hiddenSince: Date
 }
 
-struct UnregisteredEngine: Equatable, Sendable {
-    let kind: EngineKind
-}
-
 struct UnrelatedWorkspaces: Equatable, Sendable {
     let destinationWorkspaceID: UUID
 }
@@ -4725,11 +4656,6 @@ enum EngineDownloadWarning: Int, CaseIterable, Sendable {
     case potentiallyUnwanted = 3
     case insecureBlocked = 4
     case policyBlocked = 5
-}
-
-enum EngineMark: Int, CaseIterable, Sendable {
-    case stackedTile = 0
-    case globe = 1
 }
 
 enum ImportFlaw: Int, CaseIterable, Sendable {
@@ -7161,70 +7087,6 @@ struct EngineCapability: Hashable, Sendable {
     }
 }
 
-/// The members of the core's `EngineKind`. A member's wire tag is its index in `all`.
-struct EngineKind: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var mark: EngineMark? { facts.mark }
-    var pageDescription: LocalizedStringResource { facts.pageDescription }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        name: String,
-        title: LocalizedStringResource,
-        mark: EngineMark?,
-        pageDescription: LocalizedStringResource
-    ) {
-        self.tag = tag
-        facts = Facts(name: name, title: title, mark: mark, pageDescription: pageDescription)
-    }
-
-    static let chromium = EngineKind(
-        tag: 0,
-        name: "chromium",
-        title: LocalizedStringResource("Chromium", comment: "The name of a browser engine. Keep the product name as it is."),
-        mark: .globe,
-        pageDescription: LocalizedStringResource("Runs in Chromium", comment: "Said of a tab whose page runs in this browser engine rather than the default one. Keep the product name as it is.")
-    )
-    static let webKit = EngineKind(
-        tag: 1,
-        name: "webkit",
-        title: LocalizedStringResource("WebKit", comment: "The name of a browser engine. Keep the product name as it is."),
-        mark: .stackedTile,
-        pageDescription: LocalizedStringResource("Runs in WebKit", comment: "Said of a tab whose page runs in this browser engine rather than the default one. Keep the product name as it is.")
-    )
-
-    static let all: [EngineKind] = [chromium, webKit]
-
-    static func named(_ name: String?) -> EngineKind? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: EngineKind, rhs: EngineKind) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-        let mark: EngineMark?
-        let pageDescription: LocalizedStringResource
-
-        init(name: String, title: LocalizedStringResource, mark: EngineMark?, pageDescription: LocalizedStringResource) {
-            self.name = name
-            self.title = title
-            self.mark = mark
-            self.pageDescription = pageDescription
-        }
-    }
-}
-
 /// The members of the core's `ExportFormat`. A member's wire tag is its index in `all`.
 struct ExportFormat: Hashable, Sendable {
     let tag: Int
@@ -8009,43 +7871,6 @@ struct ImportStep: Hashable, Sendable {
 
         init(kind: Kinds, name: String) {
             self.kind = kind
-            self.name = name
-        }
-    }
-}
-
-/// The members of the core's `KeySystem`. A member's wire tag is its index in `all`.
-struct KeySystem: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    private let facts: Facts
-
-    private init(tag: Int, name: String) {
-        self.tag = tag
-        facts = Facts(name: name)
-    }
-
-    static let widevine = KeySystem(tag: 0, name: "widevine")
-    static let playReady = KeySystem(tag: 1, name: "playready")
-
-    static let all: [KeySystem] = [widevine, playReady]
-
-    static func named(_ name: String?) -> KeySystem? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: KeySystem, rhs: KeySystem) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-
-        init(name: String) {
             self.name = name
         }
     }
@@ -9604,43 +9429,6 @@ struct PasskeyDeviceConfiguration: Hashable, Sendable {
         init(name: String, rulesOutPasskeys: Bool) {
             self.name = name
             self.rulesOutPasskeys = rulesOutPasskeys
-        }
-    }
-}
-
-/// The members of the core's `RehostReason`. A member's wire tag is its index in `all`.
-struct RehostReason: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    private let facts: Facts
-
-    private init(tag: Int, name: String) {
-        self.tag = tag
-        facts = Facts(name: name)
-    }
-
-    static let personAsked = RehostReason(tag: 0, name: "personAsked")
-    static let protectedMedia = RehostReason(tag: 1, name: "protectedMedia")
-
-    static let all: [RehostReason] = [personAsked, protectedMedia]
-
-    static func named(_ name: String?) -> RehostReason? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: RehostReason, rhs: RehostReason) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-
-        init(name: String) {
-            self.name = name
         }
     }
 }
@@ -13855,10 +13643,6 @@ final class PageStateModel: ObservedModel, Identifiable {
         access(keyPath: \.tabID)
         return tabIDStorage
     }
-    var engine: EngineKind {
-        access(keyPath: \.engine)
-        return engineStorage
-    }
     var phase: PagePhase {
         access(keyPath: \.phase)
         return phaseStorage
@@ -13871,20 +13655,11 @@ final class PageStateModel: ObservedModel, Identifiable {
     @ObservationIgnored private var workspaceIDStorage: UUID
     @ObservationIgnored private var spaceIDStorage: UUID
     @ObservationIgnored private var tabIDStorage: UUID?
-    @ObservationIgnored private var engineStorage: EngineKind
     @ObservationIgnored private var phaseStorage: PagePhase
     @ObservationIgnored private var liveStorage: PageLiveState
 
     var value: PageState {
-        PageState(
-            id: id,
-            workspaceID: workspaceID,
-            spaceID: spaceID,
-            tabID: tabID,
-            engine: engine,
-            phase: phase,
-            live: live
-        )
+        PageState(id: id, workspaceID: workspaceID, spaceID: spaceID, tabID: tabID, phase: phase, live: live)
     }
 
     init(_ value: PageState) {
@@ -13892,7 +13667,6 @@ final class PageStateModel: ObservedModel, Identifiable {
         workspaceIDStorage = value.workspaceID
         spaceIDStorage = value.spaceID
         tabIDStorage = value.tabID
-        engineStorage = value.engine
         phaseStorage = value.phase
         liveStorage = value.live
     }
@@ -13910,10 +13684,6 @@ final class PageStateModel: ObservedModel, Identifiable {
         if tabIDStorage != value.tabID {
             tabIDStorage = value.tabID
             withMutation(keyPath: \.tabID) {}
-        }
-        if engineStorage != value.engine {
-            engineStorage = value.engine
-            withMutation(keyPath: \.engine) {}
         }
         if phaseStorage != value.phase {
             phaseStorage = value.phase

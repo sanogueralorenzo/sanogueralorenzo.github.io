@@ -19,15 +19,14 @@ public sealed record PageGroupChanged(Guid GroupId, Guid WindowId, string Title,
     /// owns, or of its first page, and the device store keeps it when that
     /// Space is the persistent session's.
     internal void Apply(Pages pages, Engine engine) {
+        if (!ReferenceEquals(pages.Engines.Default, engine)) return;
         if (pages.Group(GroupId) is not { } group) {
             if (PageIds.Select(pages.Hosted).OfType<Page>().Where(page => ReferenceEquals(page.Engine, engine))
                 .OrderBy(page => page.TabId is null).FirstOrDefault() is not { } first)
                 return;
-            group = new PageGroup(GroupId, engine.Kind, first.WorkspaceId, first.SpaceId,
+            group = new PageGroup(GroupId, first.WorkspaceId, first.SpaceId,
                 persists: pages.Device.Persistent()?.WorkspaceId == first.WorkspaceId);
             pages.Follow(group);
-        } else if (group.Engine != engine.Kind) {
-            return;
         }
         group.Show(this, pages);
     }

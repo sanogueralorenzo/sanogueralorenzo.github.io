@@ -27,7 +27,7 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     /// What each tab's last page kept when it closed keeping its state, which
     /// the tab's next page restores. Memory only, never saved or synced; a tab
     /// that closes, is archived or loses its Space loses it.
-    private readonly Dictionary<(Guid WorkspaceId, Guid TabId), (Guid SpaceId, EngineKind Engine, PageRestoreState State)> restoreStates = [];
+    private readonly Dictionary<(Guid WorkspaceId, Guid TabId), (Guid SpaceId, PageRestoreState State)> restoreStates = [];
     /// The pages asked to close keeping their state, until their engine says
     /// they are gone.
     private readonly Dictionary<Guid, (Engine Engine, Guid WorkspaceId, Guid SpaceId, Guid TabId)> keeping = [];
@@ -60,9 +60,6 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     /// Every page the core hosts.
     public IReadOnlyCollection<Page> All => open.Values;
 
-    /// The engines a page is open on.
-    public IReadOnlySet<EngineKind> HostingEngines => open.Values.Select(page => page.Engine.Kind).ToHashSet();
-
     /// Whether the engine new pages open on shows internal pages, such as an
     /// engine's settings.
     public bool OpensInternalPages => engines.Default?.Supports(EngineCapability.InternalPages) == true;
@@ -90,19 +87,12 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
 
     #region Actions - Engines
 
-    /// Moves the page to the entry `entryId` names in its history. Its engine
-    /// goes to an entry it holds itself. An entry another engine held takes
-    /// the page back to that engine, once the page's before-unload decision
-    /// allows it. An entry of the page's own engine that it no longer holds
-    /// loads afresh there, as itself. A page its engine does not hold yet
-    /// goes nowhere.
+    /// WebKit traverses entries it holds; cold entries load afresh.
     internal void Traverse(Page page, Guid entryId, PageTurn turn) {
         if (page.Phase != PagePhase.Live) return;
         if (page.History.Holds(entryId)) {
             page.History.Go(entryId);
             turn.Issue(page.Engine, new GoToHistoryEntry(page.Id, entryId));
-        } else if (page.History.Returns(entryId)) {
-            turn.Closing.Return(page, entryId, turn);
         } else if (page.History.Reaches(entryId)) {
             LoadAfresh(page, entryId, turn);
         }
@@ -113,38 +103,6 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         PageHistoryEntry? entry = null;
         Update(page, turn.Changes, () => entry = page.History.Load(entryId));
         turn.Issue(page.Engine, new LoadPage(page.Id, entry!.Url, entry.Id));
-    }
-
-    /// Takes the page back to the engine that held the entry `entryId` names.
-    /// Its engine closes it, keeping its history for the run the page leaves,
-    /// and the entry's engine creates it again, restoring the history it kept
-    /// and going to the entry, or loading the entry afresh when it kept none.
-    /// An entry whose engine this device no longer registers loads afresh on
-    /// the page's own engine.
-    internal void Return(Page page, Guid entryId, PageTurn turn) {
-        if (page.History.Entry(entryId) is not { } entry) return;
-        if (engines.Registered(page.History.EngineOf(entryId)!) is not { } engine) {
-            LoadAfresh(page, entryId, turn);
-            return;
-        }
-        var (_, restore, load) = page.History.Return(entryId);
-        if (page.Phase.HoldsEnginePage) turn.Issue(page.Engine, new ClosePage(page.Id, KeepsState: true));
-        Update(page, turn.Changes, () => page.Return(engine, restore?.Url ?? entry.Url, load?.Id));
-        turn.Issue(engine, new CreatePage(page.Id, page.ProfileId, device.Workspace(page.WorkspaceId).IsPrivateBrowsing,
-            page.WindowId, restore));
-    }
-
-    /// Closes the page on its engine, which hands back its history for the
-    /// run the page leaves, and creates it on `engine`, which loads `address`
-    /// once it has created it, then publishes the move and why it happened.
-    internal void Rehost(Page page, Engine engine, string? address, RehostReason reason, PageTurn turn) {
-        var from = page.Engine;
-        if (page.Phase.HoldsEnginePage) turn.Issue(from, new ClosePage(page.Id, KeepsState: true));
-        Update(page, turn.Changes, () => page.Rehost(engine, address, reason));
-        turn.Issue(engine, new CreatePage(page.Id, page.ProfileId, device.Workspace(page.WorkspaceId).IsPrivateBrowsing, page.WindowId,
-            RestoreState: null));
-        turn.Changes.Publish(new PageRehosted(page.Id, page.SpaceId, address is null ? null : new WebAddress(address).Origin, from.Kind,
-            engine.Kind, reason));
     }
 
     /// The engine a new page in `space` opens on: its opener's, when another
@@ -306,7 +264,6 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     internal void Close(Page page, bool keepsState, Action<Engine, EngineCommand> issue) {
         if (keepsState && page.TabId is { } tabId) {
             keeping[page.Id] = (page.Engine, page.WorkspaceId, page.SpaceId, tabId);
-            page.History.Release();
             KeepHistory((page.WorkspaceId, tabId), page);
         }
         issue(page.Engine, new ClosePage(page.Id, keepsState));
@@ -317,22 +274,19 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     /// keeps what it handed back for the tab's next page.
     internal void KeepRestoreState(Guid pageId, Engine engine, PageRestoreState? state) {
         if (keeping.Remove(pageId, out var kept) && ReferenceEquals(kept.Engine, engine) && state is { } restoreState)
-            Keep((kept.WorkspaceId, kept.TabId), kept.SpaceId, engine.Kind, restoreState);
-        // A page that left `engine` for another keeps what it handed back for
-        // the stretch of its history that engine held.
-        if (Hosted(pageId) is { } page && !ReferenceEquals(page.Engine, engine)) page.History.Keep(engine.Kind, state);
-        else if (histories.Values.FirstOrDefault(kept => kept.PageId == pageId).History is { } history) history.Keep(engine.Kind, state);
+            Keep((kept.WorkspaceId, kept.TabId), kept.SpaceId, restoreState);
+
     }
 
     /// What the tab kept for its next page, taken once, when the tab still
     /// shows the address it kept and the page opens on the engine that kept
     /// it. What it kept for another address or engine is dropped.
-    internal PageRestoreState? Restorable(Guid workspaceId, SpaceState space, Guid tabId, EngineKind engine) {
+    internal PageRestoreState? Restorable(Guid workspaceId, SpaceState space, Guid tabId) {
         var key = (workspaceId, tabId);
         if (!restoreStates.TryGetValue(key, out var kept)) return null;
         Forget(key);
         var tab = space.Tabs.FirstOrDefault(tab => tab.Id == tabId);
-        return kept.SpaceId == space.Id && kept.Engine == engine && tab?.Url is { } url
+        return kept.SpaceId == space.Id && tab?.Url is { } url
             && new WebAddress(url).IsSamePage(new WebAddress(kept.State.Url)) ? kept.State : null;
     }
 
@@ -388,9 +342,9 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         historyOrder.Remove(key);
     }
 
-    private void Keep((Guid WorkspaceId, Guid TabId) key, Guid spaceId, EngineKind engine, PageRestoreState state) {
+    private void Keep((Guid WorkspaceId, Guid TabId) key, Guid spaceId, PageRestoreState state) {
         Forget(key);
-        restoreStates[key] = (spaceId, engine, state);
+        restoreStates[key] = (spaceId, state);
         restoreOrder.Add(key);
         while (restoreOrder.Count > MaximumRestoreStates) Forget(restoreOrder[0]);
     }

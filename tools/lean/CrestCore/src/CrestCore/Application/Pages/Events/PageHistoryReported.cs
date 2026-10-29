@@ -15,7 +15,7 @@ public sealed record PageHistoryReported(Guid PageId, IReadOnlyList<PageHistoryE
     internal override void Apply(Pages pages, Page page, PageTurn turn) {
         if (!PageHistory.Holds(Entries, Current)) return;
         Guid? arrival = null;
-        pages.Update(page, turn.Changes, () => arrival = page.History.Report(page.Engine.Kind, Entries, Current));
+        pages.Update(page, turn.Changes, () => arrival = page.History.Report(Entries, Current));
         if (arrival is { } entryId) turn.Issue(page.Engine, new GoToHistoryEntry(page.Id, entryId));
     }
 

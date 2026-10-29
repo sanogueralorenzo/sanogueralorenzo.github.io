@@ -15,9 +15,6 @@ struct CoreChangeBatch {
     var startedDownloads: [DownloadStarted] = []
     var unloadedPages: [PageUnloaded] = []
     var putAwayPages: [TabPagePutAway] = []
-    /// The pages whose engine the batch changed.
-    var movedPages: [UUID] = []
-    var rehostedPages: [PageRehosted] = []
     var adoptedPages: [OfferedPageAdopted] = []
     var broughtForward: [WindowBroughtForward] = []
     var closedTransientPages: [TransientPageClosed] = []

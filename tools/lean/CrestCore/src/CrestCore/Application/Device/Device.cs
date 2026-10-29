@@ -89,7 +89,6 @@ internal sealed partial class Device {
         reopening.AddRange(records.Reopening.Distinct());
         lastUse = records.Windows.Count == 0 ? 0 : records.Windows.Max(record => record.Used);
         keptPermissions.Restore(records.SitePermissions);
-        defaultEngine = records.DefaultEngine;
         agents = records.Agents;
         adopted.UnionWith(records.Adopted);
         keptTabGroups.AddRange(records.TabGroups);
@@ -312,7 +311,7 @@ internal sealed partial class Device {
     /// Everything the device store keeps, as it stands. The caller holds the device lock.
     internal DeviceRecords Records() => new([.. saved.Values.OrderBy(record => record.Used)], [.. reopening],
         [.. keptPermissions.PersistentRecords],
-        new HashSet<DeviceAdoption>(adopted), [.. keptTabGroups], defaultEngine) {
+        new HashSet<DeviceAdoption>(adopted), [.. keptTabGroups]) {
         Agents = agents
     };
 

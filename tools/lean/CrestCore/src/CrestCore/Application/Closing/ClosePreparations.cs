@@ -76,40 +76,6 @@ internal sealed class ClosePreparations(Device device, Pages pages, Downloads do
 
     #endregion
 
-    #region Actions - Engines
-
-    /// Moving engines discards the old document. Its normal before-unload
-    /// decision must finish first. A page that moved, closed or lost access while the
-    /// question was open never moves from this answer.
-    internal void Move(Page page, Engine engine, string? address, RehostReason reason, PageTurn turn) {
-        var previous = page.Engine;
-        long document = page.Documents;
-        Start(ids.Next(), quits: false, [page.Id], turn.Changes, turn.Issue, (allowed, changes) => {
-            if (!allowed || !ReferenceEquals(pages.Hosted(page.Id), page) || !ReferenceEquals(page.Engine, previous)
-                || page.Documents != document || pages.Shown(page) is null)
-                return;
-            pages.Rehost(page, engine, address, reason, new PageTurn(changes, turn.Issue, this));
-        });
-    }
-
-    /// Going back or forward to an entry another engine held discards the
-    /// document the page shows, as a move does, so its before-unload decision
-    /// finishes first. A canceled answer leaves the page where it is, and a
-    /// page that moved, closed or showed another document while the question
-    /// was open does not go.
-    internal void Return(Page page, Guid entryId, PageTurn turn) {
-        var previous = page.Engine;
-        long document = page.Documents;
-        Start(ids.Next(), quits: false, [page.Id], turn.Changes, turn.Issue, (allowed, changes) => {
-            if (!allowed || !ReferenceEquals(pages.Hosted(page.Id), page) || !ReferenceEquals(page.Engine, previous)
-                || page.Documents != document || pages.Shown(page) is null)
-                return;
-            pages.Return(page, entryId, new PageTurn(changes, turn.Issue, this));
-        });
-    }
-
-    #endregion
-
     #region Actions - Reports
 
     /// The page the preparation waits for went, so it has nothing to answer.

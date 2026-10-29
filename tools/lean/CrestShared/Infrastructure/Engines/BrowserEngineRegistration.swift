@@ -22,7 +22,6 @@ enum BrowserEngineRegistration {
     /// WebKit's desktop close and prompt SPI; a WebKit without it closes pages
     /// without asking.
     static let webKit = BrowserAdapterRegistration(
-        kind: .webKit,
         implementation: webKitImplementation,
         supported: [
             .pages, .navigation, .find, .zoom, .interactionState, .pageResidency,

@@ -303,7 +303,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         )
         self.externalSchemeCoordinator = externalSchemeCoordinator
         super.init()
-        corePage.engineMoved = { [weak self] in self?.moveToNewEngine() }
+        corePage.pageRecreated = { [weak self] in self?.replaceWebKitPage() }
         installEngine()
     }
 
@@ -459,13 +459,10 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         mediaSessionCoordinator = nil
     }
 
-    /// Hosts the page on the engine the core moved it to. The old engine's
-    /// hosting comes down, the new engine's adapter and view take its place,
-    /// and the page keeps its identity, so the tab, lease or window that
-    /// holds it keeps it. What the old engine showed of the page, such as its
-    /// bars, a find or a translation, goes with it.
-    private func moveToNewEngine() {
-        guard let hosted = corePage.movedHost(from: pageEngine.registration.kind) else { return }
+    /// Replace a recreated WebKit view while the tab, lease or window keeps
+    /// the same logical page. Retire the old view's delegates and presentation.
+    private func replaceWebKitPage() {
+        guard let hosted = corePage.recreatedHost() else { return }
         let adapter = hosted.makeDesktopAdapter()
         translation.reset()
         linkContextCapture.clear()

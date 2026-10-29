@@ -143,7 +143,7 @@ internal static class RecordedIntents {
     /// asks and erases what it is asked to at once.
     public static Engine PageEngine(CrestApp app) {
         Engine? engine = null;
-        engine = app.RegisterEngine(new EngineRegistration(EngineKind.WebKit, EngineCapability.Required, IsDefault: true), command => {
+        engine = app.RegisterEngine(new EngineRegistration(EngineCapability.Required), command => {
             if (command is EraseProfileData erasing) app.Report(engine!, new DataErased(erasing.ErasureId, Erased: true));
         });
         return engine;

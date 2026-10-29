@@ -161,7 +161,7 @@ final class CoreReadModelTests: XCTestCase {
             after: {
                 PageOpened(
                     page: PageState(
-                        id: pageID, workspaceID: workspaceID, spaceID: UUID(), tabID: nil, engine: .webKit,
+                        id: pageID, workspaceID: workspaceID, spaceID: UUID(), tabID: nil,
                         phase: .opening, live: .blank)
                 ).apply(to: detached)
             })

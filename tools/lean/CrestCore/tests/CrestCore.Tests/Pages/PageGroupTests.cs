@@ -97,7 +97,7 @@ public sealed partial class BrowserContractsTests {
             var (app, workspace, spaces) = DeviceApp(directory);
             using var disposal = app;
             var binding = new RecordingEngine();
-            var engine = app.RegisterEngine(new EngineRegistration(EngineKind.WebKit, EngineCapability.Required, IsDefault: true), binding.Run);
+            var engine = app.RegisterEngine(new EngineRegistration(EngineCapability.Required), binding.Run);
             var window = Guid.NewGuid();
             app.Send(new OpenWindow(window, workspace, Saved: false, null, null, [], RestoresTabs: true));
             space = SpaceId(spaces[0]!);
@@ -110,7 +110,7 @@ public sealed partial class BrowserContractsTests {
         var (relaunched, persistent, _) = DeviceApp(directory);
         using var relaunchedDisposal = relaunched;
         var restarted = new RecordingEngine();
-        var engineAgain = relaunched.RegisterEngine(new EngineRegistration(EngineKind.WebKit, EngineCapability.Required, IsDefault: true),
+        var engineAgain = relaunched.RegisterEngine(new EngineRegistration(EngineCapability.Required),
             restarted.Run);
         var shown = Guid.NewGuid();
         relaunched.Send(new OpenWindow(shown, persistent, Saved: false, null, null, [], RestoresTabs: true));

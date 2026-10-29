@@ -23,10 +23,8 @@ final class CorePage {
     private(set) var isReleased = false
     /// The owner kept what it needs to bring the page back when it released it.
     private var keptState = false
-    /// Runs when the core moved the page to another engine, so its owner
-    /// hosts it there; `movedHost(from:)` answers what it hosts. Set by the
-    /// page's owner.
-    var engineMoved: (@MainActor () -> Void)?
+    /// Replaces a recreated WebKit view while retaining its logical page owner.
+    var pageRecreated: (@MainActor () -> Void)?
 
     /// The core's model of the page, until the page is gone.
     var state: PageStateModel? { core?.state.pages[id] }
@@ -35,13 +33,6 @@ final class CorePage {
     /// report and why its latest navigation failed. Blank until the core
     /// holds the page.
     var live: PageLiveState { state?.live ?? .blank }
-
-    /// The registered engines this page can move to: every one but its own.
-    /// Empty before the core holds the page or while one engine is registered.
-    var otherEngines: [EngineKind] {
-        guard let current = state?.engine, let engines else { return [] }
-        return engines.engines.map(\.kind).filter { $0 != current }
-    }
 
     // MARK: - Initializers
 
@@ -52,10 +43,9 @@ final class CorePage {
 
     // MARK: - Actions - Engines
 
-    /// What the platform hosts for the page now that the core moved it off
-    /// engine `current`; nil when it did not move.
-    func movedHost(from current: EngineKind) -> (WebKitEnginePage)? {
-        core?.engines.movedHost(for: self, from: current)
+    /// A recreated WebKit page waiting for its existing native host.
+    func recreatedHost() -> (WebKitEnginePage)? {
+        core?.engines.recreatedHost(for: self)
     }
 
     // MARK: - Actions - Data
@@ -199,25 +189,6 @@ final class CorePage {
     func leaveFailure() {
         guard !isReleased, live.failure != nil else { return }
         _ = try? core?.send(LeavePageFailure(pageID: id))
-    }
-
-    // MARK: - Actions - Engines
-
-    /// The engines this device registered, as the core last published them,
-    /// or nil before one registered.
-    var engines: EngineRoster? { core?.state.engines }
-
-    @discardableResult
-    func move(to engine: EngineKind) -> Bool {
-        guard !isReleased, let core else { return false }
-        do {
-            try core.send(RehostPage(pageID: id, engine: engine))
-            return true
-        } catch {
-            Self.logger.debug(
-                "The core kept page \(self.id, privacy: .public) on its engine: \(String(describing: error))")
-            return false
-        }
     }
 
     // MARK: - Actions - Reports

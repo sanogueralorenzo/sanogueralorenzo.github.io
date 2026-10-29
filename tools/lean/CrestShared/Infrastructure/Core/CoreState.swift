@@ -37,20 +37,12 @@ final class CoreState {
     /// page opens or goes, so a page's new title redraws only its readers.
     var pages: [UUID: PageStateModel] { observed(\.pagesStorage, as: \.pages) }
     @ObservationIgnored var pagesStorage: [UUID: PageStateModel] = [:]
-    /// The engines this device registered, with what each supports and which
-    /// one new pages open on, as the core last published them. Nil until an
-    /// engine registers.
+    /// WebKit's capabilities, as published when its binding registers.
     var engines: EngineRoster? {
         get { observed(\.enginesStorage, as: \.engines) }
         set { publish(newValue, into: \.enginesStorage, as: \.engines) }
     }
     @ObservationIgnored private var enginesStorage: EngineRoster?
-    /// The global engine preference on this device.
-    var enginePreferences: EnginePreferences {
-        get { observed(\.enginePreferencesStorage, as: \.enginePreferences) }
-        set { publish(newValue, into: \.enginePreferencesStorage, as: \.enginePreferences) }
-    }
-    @ObservationIgnored private var enginePreferencesStorage = EnginePreferences(defaultEngine: nil)
     /// Whether agents may use Crest on this device, whether they may run
     /// scripts in pages, the Spaces they may reach and the agents the person
     /// allowed.

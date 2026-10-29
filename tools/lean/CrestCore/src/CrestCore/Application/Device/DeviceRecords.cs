@@ -10,7 +10,7 @@ namespace CrestCore.Application;
 /// keeps it so the folder follows the group after the next launch: the
 /// engine whose pages it groups, and the group's own title and color, which
 /// may differ from its folder's.
-internal sealed record TabGroupRecord(Guid Id, Guid SpaceId, EngineKind Engine, string Title, TabGroupColor Color);
+internal sealed record TabGroupRecord(Guid Id, Guid SpaceId, string Title, TabGroupColor Color);
 
 #endregion
 
@@ -22,7 +22,7 @@ internal sealed record TabGroupRecord(Guid Id, Guid SpaceId, EngineKind Engine, 
 internal sealed record DeviceRecords(IReadOnlyList<SavedWindow> Windows, IReadOnlyList<Guid> Reopening,
     IReadOnlyList<SitePermissionRecord> SitePermissions,
     IReadOnlySet<DeviceAdoption> Adopted,
-    IReadOnlyList<TabGroupRecord> TabGroups, EngineKind? DefaultEngine = null) {
+    IReadOnlyList<TabGroupRecord> TabGroups) {
     #region Static Variables
 
     public static readonly DeviceRecords Empty = new([], [], [],
@@ -50,7 +50,6 @@ internal sealed record DeviceRecords(IReadOnlyList<SavedWindow> Windows, IReadOn
         && Windows.SequenceEqual(other.Windows)
         && Reopening.SequenceEqual(other.Reopening)
         && SitePermissions.SequenceEqual(other.SitePermissions)
-        && DefaultEngine == other.DefaultEngine
         && Adopted.SetEquals(other.Adopted)
         && TabGroups.SequenceEqual(other.TabGroups)
         && Agents.Equals(other.Agents);

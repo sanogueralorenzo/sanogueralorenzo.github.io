@@ -27,9 +27,7 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private var commandMenus: [NSMenu] = []
     /// The Page menu, which ends with a row for each engine the shown page
     /// can move to.
-    private weak var pageMenu: NSMenu?
     /// The Page menu's engine rows as last built, with their separator.
-    private var engineMoveItems: [NSMenuItem] = []
 
     // MARK: - Initializers
 
@@ -54,7 +52,6 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
             let items = submenu(String(localized: menu.title), in: bar)
             if menu == .page {
                 applicationItem(.translatePage, in: items)
-                pageMenu = items
             }
             commands(menu.groups, in: items)
             if menu == .view {
@@ -126,7 +123,6 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
     // MARK: - Actions - Menus
 
     func menuNeedsUpdate(_ menu: NSMenu) {
-        if menu === pageMenu { refreshEngineMoves() }
         refreshBindings()
         refreshOffers()
         refreshTitles(in: menu)
@@ -166,11 +162,6 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
         action.perform(in: shell)
     }
 
-    @objc private func movePage(_ item: NSMenuItem) {
-        guard let engine = item.representedObject as? EngineKind else { return }
-        shell.pageActions?.movePage(to: engine)
-    }
-
     // MARK: - Actions - Read model
 
     /// Follows each command's chord and whether the device offers it.
@@ -189,28 +180,6 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
             item.keyEquivalent = shortcut.map { String($0.key.keyEquivalent.character) } ?? ""
             item.keyEquivalentModifierMask = shortcut?.modifiers.appKitModifierFlags ?? []
         }
-    }
-
-    /// Ends the Page menu with a row for each registered engine the shown
-    /// page is not on. Moving depends only on the engine being registered,
-    /// so the rows are there before any page has opened on it.
-    private func refreshEngineMoves() {
-        guard let pageMenu else { return }
-        for item in engineMoveItems { pageMenu.removeItem(item) }
-        engineMoveItems = []
-        let engines = shell.pageActions?.pageEngineMoves ?? []
-        guard !engines.isEmpty else { return }
-        engineMoveItems.append(.separator())
-        for engine in engines {
-            let item = NSMenuItem(
-                title: String(localized: "Open Page in \(String(localized: engine.title))"),
-                action: #selector(movePage(_:)), keyEquivalent: "")
-            item.image = NSImage(systemSymbolName: "arrow.triangle.swap", accessibilityDescription: nil)
-            item.target = self
-            item.representedObject = engine
-            engineMoveItems.append(item)
-        }
-        for item in engineMoveItems { pageMenu.addItem(item) }
     }
 
     /// Names each command in `menu` as the key window calls it now, such as
