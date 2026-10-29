@@ -185,6 +185,10 @@ struct SessionTabs {
         return value
     }
     mutating func repairSplits() {
+        tabs = Self.repairedSplits(tabs)
+    }
+    static func repairedSplits(_ source: [TabState.Seed]) -> [TabState.Seed] {
+        var tabs = source
         var retired: Set<UUID> = []
         var run: UUID?
         var placement: TabPlacement?
@@ -220,6 +224,7 @@ struct SessionTabs {
             }
             tabs[index].splitGroupID = group
         }
+        return tabs
     }
     mutating func normalizeSplits(at now: Date) {
         repairSplits()
