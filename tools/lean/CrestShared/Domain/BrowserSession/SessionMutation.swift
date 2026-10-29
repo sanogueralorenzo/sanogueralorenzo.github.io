@@ -115,6 +115,11 @@ struct SessionMutations {
         return copies.map { TabCopied(workspaceID: workspaceID, sourceTabID: $0.source, copyTabID: $0.copy) }
     }
     func apply(_ request: some SessionIntent) throws -> SessionMutation? {
+        if let changed = try drop(request) { return changed }
+        if let changed = try liveFolder(request) { return changed }
+        if let request = request as? MoveTabToWindow { return try moveWithinWorkspace(request) }
+        if let request = request as? ImportSpaces { return try importing(request) }
+        if let request = request as? ImportReviewedSpaces { return try importing(request) }
         if request is SweepExpiredRecords { return try recordEdit(request) }
         if let changed = try tabEdit(request) { return changed }
         if let changed = try organizationEdit(request) { return changed }
