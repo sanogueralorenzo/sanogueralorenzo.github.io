@@ -17,7 +17,7 @@ extension BrowserPageHost {
     }
 
     func unloadIdlePages(core: CrestCore) async {
-        guard let candidates = try? core.query(IdlePages()).pages else { return }
+        let candidates = core.query(IdlePages()).pages
         for candidate in candidates {
             guard !Task.isCancelled,
                 let page = residentPages.first(where: { $0.corePage.id == candidate.pageID }),

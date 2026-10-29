@@ -1,16 +1,19 @@
 # State ownership
 
 The C# `CrestCore` currently owns browser session state and the rules that edit
-it: Spaces, tabs, folders, splits, window selection, page lifecycle,
+it: Spaces, tabs, folders, splits and window selection,
 import readers and atomic session imports, address resolution,
 persistence and sync records. `CoreState`
 is the observable Swift read model. Views do not independently persist or
 mutate copies of the session.
 
-Native WebKit objects own renderer state and platform services. Local page
-operations run directly in Swift. Navigation events report resulting changes
-to the state core. Media-session metadata, sequencing, dismissal and Now Playing
-selection belong to `BrowserMediaSessionStore`. Download records, risk and
+Native WebKit objects own renderer state and platform services. `NativePages`
+owns logical page lifecycle, document identity, crash recovery, residency,
+popup adoption and bounded history. WebKit commands and callbacks run directly
+in Swift. Completed navigations, accepted titles and icons reach the session
+through three atomic record intents; copy/split edits take native page facts
+captured for the issuing window. The core holds no renderer or live-page cache.
+Media-session metadata, sequencing, dismissal and Now Playing selection belong to `BrowserMediaSessionStore`. Download records, risk and
 progress rules, transfer routing and download prompts belong to
 `BrowserNativeDownloads`; native quit preparation reads its derived live count.
 The command palette ranks immutable native snapshots of these read models;

@@ -7,7 +7,7 @@ namespace CrestCore.Contracts;
 /// with an identity the core gives it, published as `TabCopied`. A copy of a
 /// web page starts from where the source's page is now. When `Shows`, the
 /// window that asked shows the copy and its Space.
-public sealed record DuplicateTab(Guid WorkspaceId, Guid WindowId, Guid SpaceId, Guid TabId, TabPlacement? Placement, bool Shows)
+public sealed record DuplicateTab(Guid WorkspaceId, Guid WindowId, Guid SpaceId, Guid TabId, TabPlacement? Placement, bool Shows, IReadOnlyList<TabPageAppearance>? Appearances = null)
     : SessionIntent(WorkspaceId) {
     #region Actions - Session
 
@@ -19,7 +19,7 @@ public sealed record DuplicateTab(Guid WorkspaceId, Guid WindowId, Guid SpaceId,
         var edited = BrowserTabCollection.Restore(space);
         if (edited.Tab(TabId).Content.IsStartPage) throw new Rejected(new StartPageNotCopied(TabId));
         var copy = edited.DuplicateTab(TabId, turn.Ids, turn.Now, Placement ?? TabPlacement.Current);
-        workspace.StartFromSourcePage(copy, TabId, WindowId, turn.Pages);
+        workspace.StartFromSourcePage(copy, TabId, Appearances);
         var followUp = new WindowFollowUp(workspace.IssuingWindow(WindowId));
         if (Shows) followUp.ShowTab(space.Id, copy.Id).ShowSpace(space.Id);
         return new(turn.Basis.Replacing(edited.Capture(space)), SyncStaging.Creation, followUp,

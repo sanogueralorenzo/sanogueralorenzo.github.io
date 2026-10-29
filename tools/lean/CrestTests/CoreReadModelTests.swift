@@ -42,7 +42,7 @@ final class CoreReadModelTests: XCTestCase {
     /// what a change brings before it announces the change.
     func testEveryReadModelObjectStoresAChangeBeforeAnnouncingIt() throws {
         let core = CrestCore.hostingPages()
-        var batches: [[Change]] = []
+        var batches: [[any CoreChange]] = []
         core.batchApplied = { batches.append($0) }
         let session = SessionState.Seed.preview
         let store = BrowserStore(seed: session, images: [session.spaces[0].tabs[7].id: Data([1])], core: core)
@@ -188,7 +188,7 @@ final class CoreReadModelTests: XCTestCase {
             line: line)
     }
 
-    private func apply(_ batch: [Change], to state: CoreState) {
+    private func apply(_ batch: [any CoreChange], to state: CoreState) {
         for change in batch { change.apply(to: state) }
         state.finishBatch()
     }

@@ -24,8 +24,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     internal Lock Gate => gate;
     /// This device's windows and what each shows.
     private readonly Device device;
-    /// The pages this device hosts, and the engines that host them.
-    private readonly Pages pages;
     /// The cloud transport's state on this device.
     private readonly CloudTransportStore cloudTransport;
     /// What iCloud sync does next on this device.
@@ -40,7 +38,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     // The areas each message routes itself to, which only the core's own
     // messages reach.
     internal Device Device => device;
-    internal Pages Pages => pages;
     internal CloudTransportStore CloudTransport => cloudTransport;
     internal CloudSyncControl CloudSync => cloudSync;
     internal IClock Clock => clock;
@@ -69,7 +66,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         portability = new(configuration.ImportNames, clock, ids);
         if (configuration.StorageDirectory is not { } directory) {
             device = new(configuration.Platform, storage: null, DeviceRecords.Empty, Announce, RequestTurn, CloseBorrower, clock);
-            pages = new(device, engines, clock, ids);
 
             cloudTransport = new(storage: null, device);
             cloudSync = new(cloudTransport, clock, StoredSessionIsDisposableSeed, StoredJournalPendingUploads);
@@ -77,7 +73,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         }
         storage = SessionStorage.Open(directory, Announce, out var loaded);
         device = new(configuration.Platform, storage, storage.Device, Announce, RequestTurn, CloseBorrower, clock);
-        pages = new(device, engines, clock, ids);
 
         cloudTransport = new(storage, device);
         cloudSync = new(cloudTransport, clock, StoredSessionIsDisposableSeed, StoredJournalPendingUploads);
@@ -97,43 +92,32 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     /// The changes still pending when the intent ran and those it published
     /// there, in the order they happened, then the changes the intent itself
     /// published. An intent that does not apply to the current state publishes
-    /// none. Engine commands the intent caused have been delivered when this
-    /// returns, unless it runs inside a delivery. An intent of the cloud
+    /// none. An intent of the cloud
     /// transport answers only its receipts; see `CloudSyncIntent`.
     public IReadOnlyList<Change> Send(Intent intent) {
         ArgumentNullException.ThrowIfNull(intent);
         return intent.Route(this);
     }
 
-    /// Runs `apply` in one turn under the core's lock, with the feed it
-    /// publishes to, and answers the changes still pending and then those it
-    /// published. Afterwards each engine tab group follows the folder that
-    /// shows it, the pages windows show are stamped, and one shown
-    /// again or of a Space this process may not show ends its Picture in
-    /// Picture; closed tabs let go of what they kept. The engine commands the turn caused
-    /// are delivered once the lock is released.
+    /// Commits one session/device turn under the core lock, then returns its
+    /// changes after any earlier pending changes. Agents release stale tabs.
     internal IReadOnlyList<Change> Turn(Action<ChangeFeed> apply) {
         IReadOnlyList<Change> published;
         storedSync?.RequireNoTransactionHeldHere();
         lock (gate) {
             var changes = new ChangeFeed();
             apply(changes);
-            // What the folders that show the engines' tab groups hold now.
-            pages.ReconcileGroups(Issue);
-            pages.Stamp(clock.Now, Issue);
-            pages.PruneRestoreStates();
             // Agents let go of the tabs they may no longer use.
             device.PruneAgents(changes);
             published = [.. TakePending(), .. changes.Published];
         }
-        Deliver();
         WakeForRequestedTurn();
         return published;
     }
 
     /// What a device intent reads in a turn that publishes to `changes`: the
-    /// core's time and identity source, and the pages the windows host.
-    internal DeviceTurn DeviceTurn(ChangeFeed changes) => new(changes, clock.Now, ids, pages);
+    /// core's time and identity source.
+    internal DeviceTurn DeviceTurn(ChangeFeed changes) => new(changes, clock.Now, ids);
 
     #endregion
 
@@ -152,10 +136,8 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     #region Actions - Lifetime
 
     /// Stages and saves any accepted revision still pending and closes the
-    /// session file. The stored session accepts no edits afterwards, and no
-    /// engine binding hears from the core again.
+    /// session file. The stored session accepts no edits afterwards.
     public void Dispose() {
-        lock (gate) engines.Clear();
         storedSync?.Stop();
         storedSession?.Close();
         storage?.Dispose();

@@ -76,12 +76,12 @@ final class NativeShortcutTests: XCTestCase {
         let core = CrestCore()
         let store = BrowserShortcutStore(core: core)
         XCTAssertTrue(store.offeredCommands.contains(.toggleReaderMode))
-        EnginesChanged(roster: EngineRoster(offered: EngineCapability.all.filter(\.isRequired))).apply(to: core.state)
+        core.state.engines = EngineRoster(offered: EngineCapability.all.filter(\.isRequired))
         XCTAssertFalse(store.offeredCommands.contains(.toggleReaderMode))
         XCTAssertFalse(store.offeredCommands.contains(.translatePage))
         XCTAssertFalse(store.offeredCommands.contains(.toggleContentBlocking))
         XCTAssertEqual(store.shortcut(for: .newTab), .init(key: .character("t"), modifiers: .command))
-        EnginesChanged(roster: EngineRoster(offered: EngineCapability.all)).apply(to: core.state)
+        core.state.engines = EngineRoster(offered: EngineCapability.all)
         XCTAssertTrue(store.offeredCommands.contains(.toggleReaderMode))
     }
 

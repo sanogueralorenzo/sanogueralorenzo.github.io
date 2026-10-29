@@ -149,7 +149,6 @@ public sealed partial class BrowserContractsTests {
         var clock = new TestClock(DateTimeOffset.UnixEpoch);
         var ids = new TestIds();
         using var app = new CrestApp(new AppConfiguration(null, DevicePlatform.Desktop), clock, ids);
-        var engine = RecordedIntents.PageEngine(app);
         var opening = app.Send(new OpenWorkspace(WorkspaceKind.Persistent, TestWorkspaces.Seed(MaximalDocument())));
         var workspace = TestWorkspaces.Opened(opening);
         var authority = app.Workspace(workspace);
@@ -182,12 +181,12 @@ public sealed partial class BrowserContractsTests {
             if (RecordedIntents.Typed(request, workspace, window, authority.Current) is { } intents) {
                 clock.Now = RecordedIntents.Time(request);
                 ids.Supply(RecordedIntents.Identities(request));
-                changes = RecordedIntents.Send(app, engine, request, intents, window);
+                changes = RecordedIntents.Send(app, request, intents);
                 var granted = new List<Change>();
                 changes = [.. changes, .. granted];
             } else if (RecordedIntents.Navigation(request) is { } navigation) {
                 clock.Now = navigation.At;
-                changes = RecordedIntents.Report(app, engine, navigation, workspace, window!.Value);
+                changes = RecordedIntents.Report(app, navigation, workspace);
             } else {
                 throw new InvalidOperationException($"{request["operation"]}: every recorded command is an intent or an engine report now.");
             }

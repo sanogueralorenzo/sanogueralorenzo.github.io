@@ -18,7 +18,7 @@ namespace CrestCore.Tests;
 public sealed unsafe class ContractCodecTests {
     /// The contract types the core exports, beside its domain and application.
     private static readonly IReadOnlyList<Type> Contracts = ContractSchema.ContractTypes(typeof(Intent).Assembly);
-    private static readonly Type[] Roots = [typeof(Intent), typeof(Change), typeof(Rejection), typeof(EngineCommand), typeof(EngineEvent)];
+    private static readonly Type[] Roots = [typeof(Intent), typeof(Change), typeof(Rejection)];
     private static readonly NullabilityInfoContext Nullability = new();
 
     private static bool IsQuery(Type type) {
@@ -235,62 +235,15 @@ public sealed unsafe class ContractCodecTests {
         Assert.NotEqual(0ul, handle);
     }
 
-    /// The Chromium engine is built against the engine contract alone, so an
-    /// edit anywhere else, or to a fixed set's data or texts, which never
-    /// cross the wire, must leave its fingerprint as it was.
     [Fact]
-    public void TheEngineContractKeepsItsFingerprintWhenTheApplicationContractChanges() {
-        var types = Contracts;
-        var schema = ContractSchema.Load(types);
-        var extended = ContractSchema.Load([.. types, typeof(Ordered.ShowSignal)]);
-
+    public void TheApplicationSchemaContainsNoRendererContract() {
+        var schema = ContractSchema.Load(Contracts);
+        var extended = ContractSchema.Load([.. Contracts, typeof(Ordered.ShowSignal)]);
         Assert.NotEqual(schema.Fingerprint, extended.Fingerprint);
-        Assert.Equal(schema.EngineFingerprint, extended.EngineFingerprint);
-        Assert.Equal(ContractCodec.EngineFingerprint.ToArray(), schema.EngineFingerprint);
-        Assert.Contains("record EngineRegistration(", schema.EngineCanonical, StringComparison.Ordinal);
-        Assert.Matches(@"engineevent \d+ PageClosed", schema.EngineCanonical);
-        Assert.DoesNotContain("intent ", schema.EngineCanonical, StringComparison.Ordinal);
-        Assert.Contains("set PageSecurity None=0 Insecure=1", schema.EngineCanonical, StringComparison.Ordinal);
-        Assert.DoesNotContain("localized", schema.EngineCanonical, StringComparison.Ordinal);
-        // An enum only a fixed set's data names stays out with that data.
-        Assert.DoesNotContain("enum EngineMark", schema.EngineCanonical, StringComparison.Ordinal);
-        // Native page operations stay entirely in Swift.
-        Assert.DoesNotContain("pagerequest ", schema.EngineCanonical, StringComparison.Ordinal);
-        Assert.DoesNotContain("enginepresentation ", schema.EngineCanonical, StringComparison.Ordinal);
-        var codec = CSharpCodecEmitter.Emit(schema);
-        Assert.DoesNotContain("ReadPageRequest(", codec, StringComparison.Ordinal);
-        Assert.DoesNotContain("ReadPageMediaState(", codec, StringComparison.Ordinal);
-        Assert.DoesNotContain("ReadInfoBarAnswer(", codec, StringComparison.Ordinal);
-    }
-
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static void IgnoreCommand(nint context, byte* command, nuint length) { }
-
-    [Fact]
-    public void AnEngineRegistersOnlyWithThisBuildsEngineContract() {
-        using var app = new AppClient();
-        var registration = AppClient.Encode(writer => ContractCodec.WriteEngineRegistration(writer,
-            new EngineRegistration(EngineCapability.Required)));
-        int Register(ReadOnlySpan<byte> fingerprint, out ulong engine) {
-            var binding = new CrestEngineBinding { Run = &IgnoreCommand };
-            CrestBuffer rejection;
-            ulong handle;
-            int status;
-            fixed (byte* expected = fingerprint)
-            fixed (byte* settings = registration)
-                status = ((delegate* unmanaged[Cdecl]<ulong, byte*, nuint, byte*, nuint, CrestEngineBinding*, ulong*, CrestBuffer*, int>)
-                    &Exports.EngineRegister)(app.Handle, expected, (nuint)fingerprint.Length, settings, (nuint)registration.Length, &binding,
-                    &handle, &rejection);
-            ((delegate* unmanaged[Cdecl]<CrestBuffer*, void>)&Exports.BufferFree)(&rejection);
-            engine = handle;
-            return status;
-        }
-
-        Assert.Equal(CoreStatus.VersionMismatch, Register(ContractCodec.Fingerprint, out var refused));
-        Assert.Equal(0ul, refused);
-        Assert.Equal(CoreStatus.Ok, Register(ContractCodec.EngineFingerprint, out var engine));
-        Assert.NotEqual(0ul, engine);
-        Assert.Equal(CoreStatus.Rejected, Register(ContractCodec.EngineFingerprint, out _));
+        foreach (var name in new[] { "EngineRegistration", "EngineCommand", "EngineEvent", "EngineQuestion", "PageState", "PageSnapshot" })
+            Assert.DoesNotMatch(@"\b" + name + @"\b", schema.Canonical);
+        Assert.DoesNotContain("EngineFingerprint", CSharpCodecEmitter.Emit(schema), StringComparison.Ordinal);
+        Assert.DoesNotContain("CREST_ENGINE_", CHeaderEmitter.Emit(schema), StringComparison.Ordinal);
     }
 
     [Fact]

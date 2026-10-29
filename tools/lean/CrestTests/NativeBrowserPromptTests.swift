@@ -173,7 +173,7 @@ final class NativeBrowserPromptTests: XCTestCase {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let secret = "correct-horse-7f3a9c"
-        var changes: [Change] = []
+        var changes: [any CoreChange] = []
         do {
             let context = try Context(directory: directory)
             context.core.batchApplied = { changes += $0 }

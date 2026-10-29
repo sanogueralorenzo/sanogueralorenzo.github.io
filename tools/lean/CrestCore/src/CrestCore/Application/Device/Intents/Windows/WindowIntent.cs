@@ -19,7 +19,6 @@ public abstract record WindowIntent : Intent {
     /// saw it brings the page back.
     internal sealed override IReadOnlyList<Change> Route(CrestApp app) => app.Turn(changes => {
         app.Device.Handle(this, app.DeviceTurn(changes));
-        app.Pages.RecoverShown(changes, app.Issue);
     });
 
     #endregion

@@ -19,9 +19,9 @@ internal sealed partial class Device {
 
     /// The rule that would refuse `intent` in `authority` now, or null when it
     /// would be accepted. The identities a check draws are never used.
-    internal static Rejection? Refusal(NativeSessionAuthority authority, SessionIntent intent, DateTimeOffset now, Pages pages) {
+    internal static Rejection? Refusal(NativeSessionAuthority authority, SessionIntent intent, DateTimeOffset now) {
         try {
-            authority.Check(intent, now, new SystemIdSource(), pages);
+            authority.Check(intent, now, new SystemIdSource());
             return null;
         } catch (Rejected refused) {
             return refused.Rejection;

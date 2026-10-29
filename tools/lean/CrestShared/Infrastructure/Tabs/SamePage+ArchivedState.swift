@@ -16,7 +16,6 @@ extension SamePage {
         if archivedURL == tabURL { return true }
         // Only the fragment may drift: WebKit restores the exact scroll and
         // in-page position anyway, so an anchor difference is not a mismatch.
-        let match = try? CrestCore.answer(SamePage(first: archivedURL.absoluteString, second: tabURL.absoluteString))
-        return match?.isSamePage == true
+        return PageAddress.samePage(archivedURL.absoluteString, tabURL.absoluteString)
     }
 }

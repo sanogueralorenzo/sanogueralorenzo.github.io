@@ -10,11 +10,17 @@ Swift records and codecs, the C# codec and the tag header. Run
 `Scripts/control-plane/generate-contracts.sh` after changing a core contract.
 Both sides must use the same schema fingerprint.
 
-`Engines` registers the concrete WebKit binding and forwards core page commands
-and events. Local page requests and updates are Swift types under
-`Infrastructure/WebKit/PageOperations`; they have no wire codec. Media-session
-ordering and lifecycle run in the native store. Launch isolation and external
-web-link eligibility also run in Swift before a core is required.
+`Engines` hosts the concrete WebKit binding. `NativePages` handles page lifecycle,
+restoration, residency, crash recovery, popup adoption and history directly.
+There is no engine ABI, engine schema, command relay or page wire codec. Local
+view operations remain under `Infrastructure/WebKit/PageOperations`. Media
+ordering, launch isolation and external web-link eligibility also run in Swift.
+
+The session accepts only completed page records (navigation, title and icon),
+with its existing atomic persistence rules. Copy/split edits carry the native
+appearance captured for the issuing window. Native command delivery preserves
+handover and teardown before UI observers; synchronous reports follow the batch
+that caused them.
 
 Download records, progress/risk queries and WebKit download callbacks run in
 Swift. Native quit preparation reads their live count directly; the C# core

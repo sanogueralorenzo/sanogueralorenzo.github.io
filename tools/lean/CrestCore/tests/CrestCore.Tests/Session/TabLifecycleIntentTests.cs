@@ -120,11 +120,11 @@ public sealed partial class BrowserContractsTests {
         using var device = new TestDevice(session);
         var core = device.Authority;
         var window = device.Open(f.Space, (f.Space, f.Tab));
-        device.ShowPage(window, f.Space, f.Tab, PageSnapshot.Blank with { Url = "https://example.com/live-child", Title = "Live title" });
         var copy = Guid.NewGuid();
         device.Ids.Supply([copy]);
 
-        var copied = Assert.Single(device.Send(new DuplicateTab(device.Workspace, window, f.Space, f.Tab, null, true))
+        var copied = Assert.Single(device.Send(new DuplicateTab(device.Workspace, window, f.Space, f.Tab, null, true,
+            [new TabPageAppearance(f.Tab, "https://example.com/live-child", "Live title")]))
             .OfType<TabCopied>());
         Assert.Equal((device.Workspace, f.Tab, copy), (copied.WorkspaceId, copied.SourceTabId, copied.CopyTabId));
         var tabs = core.Current.Spaces[0].Tabs;

@@ -104,7 +104,7 @@ struct BrowserSidebarReorderTarget: Equatable, Sendable {
                 return BrowserSidebarDrop(
                     intent: DropIntoSplit(
                         workspaceID: workspaceID, windowID: windowID, spaceID: spaceID, selection: selection,
-                        targetTabID: shown, index: index)
+                        targetTabID: shown, index: index, appearances: browser.pageAppearances)
                 )
             case .createCurrentFolder(let tabID):
                 return BrowserSidebarDrop(

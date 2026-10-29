@@ -7,7 +7,7 @@ namespace CrestCore.Contracts;
 /// the split of `TargetTabId` as `JoinSplit` does, copies included. The window
 /// that asked shows the new tab.
 public sealed record OpenLinkInSplit(Guid WorkspaceId, Guid WindowId, Guid SpaceId, Guid TabId, Guid TargetTabId,
-    string Address, string Title) : SessionIntent(WorkspaceId) {
+    string Address, string Title, IReadOnlyList<TabPageAppearance>? Appearances = null) : SessionIntent(WorkspaceId) {
     #region Actions - Session
 
     /// Opens the link as a new open tab and joins it to the target's split.
@@ -19,7 +19,7 @@ public sealed record OpenLinkInSplit(Guid WorkspaceId, Guid WindowId, Guid Space
         edited.InsertTab(BrowserTab.Restore(new TabState(TabId, Title, Address, NativeContent: null,
             SavedUrl: null, TabIconMode.WebSymbol, FaviconUrl: null, IconAccent: null, StoredIconMode: null, TabPlacement.Current,
             FolderId: null, SplitGroupId: null, turn.Now, PositionModifiedAt: null, CustomTitle: null, TitleModifiedAt: null)), null);
-        return workspace.Joining(turn.Basis, space, edited, WindowId, TabId, TargetTabId, null, turn.Pages, turn.Now, turn.Ids);
+        return workspace.Joining(turn.Basis, space, edited, WindowId, TabId, TargetTabId, null, Appearances, turn.Now, turn.Ids);
     }
 
     #endregion

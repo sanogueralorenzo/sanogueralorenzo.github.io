@@ -7,13 +7,13 @@ namespace CrestCore.Contracts;
 /// each published as `TabCopied`. A copy of a web page starts from where its
 /// source's page is now, preferring the page the window shows. The copies of a
 /// split's members form a split of their own.
-public sealed record DuplicateTabs(Guid WorkspaceId, Guid WindowId, Guid SpaceId, TabSelection Selection) : SessionIntent(WorkspaceId) {
+public sealed record DuplicateTabs(Guid WorkspaceId, Guid WindowId, Guid SpaceId, TabSelection Selection, IReadOnlyList<TabPageAppearance>? Appearances = null) : SessionIntent(WorkspaceId) {
     #region Actions - Session
 
     internal override SessionEdit? Edit(NativeSessionAuthority workspace, SessionTurn turn) {
         var batch = workspace.Selecting(turn.Basis, WindowId, SpaceId, Selection);
         var copies = batch.Edited.DuplicateSelected(batch.Selected, turn.Ids, turn.Now);
-        return batch.Result(turn.Basis, SyncStaging.Batch, workspace.StartingCopies(batch, copies, WindowId, turn.Pages));
+        return batch.Result(turn.Basis, SyncStaging.Batch, workspace.StartingCopies(batch, copies, Appearances));
     }
 
     #endregion

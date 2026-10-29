@@ -7,9 +7,8 @@ namespace CrestCore.Generator;
 /// Emits the Swift read model and its codec. Records become structs, whose
 /// fields are variables only in a record a platform builds to send, enums
 /// become `Int` enums or option sets, fixed sets become structs of `static let`
-/// members, messages Swift sends (intents, queries, engine events) conform to
-/// their root's protocol, and messages it receives (changes, rejections,
-/// engine commands) become the cases of their root's enum. An `[Observed]`
+/// members, messages Swift sends (intents and queries) conform to
+/// their root’s protocol, and changes/rejections become their root’s enum. An `[Observed]`
 /// record also becomes the model class the read model keeps for it, and a
 /// record that holds a password names none in its text form.
 internal static class SwiftEmitter {
@@ -459,9 +458,6 @@ internal static class SwiftEmitter {
         code.Append("    /// SHA-256 of the canonical contract schema. The core refuses any other.\n");
         code.Append("    static let fingerprint: [UInt8] = [\n        ");
         code.Append(string.Join(", ", schema.Fingerprint.Select(value => $"0x{value:x2}"))).Append("\n    ]\n");
-        code.Append("    /// SHA-256 of the engine contract alone, which an engine binding registers with.\n");
-        code.Append("    static let engineFingerprint: [UInt8] = [\n        ");
-        code.Append(string.Join(", ", schema.EngineFingerprint.Select(value => $"0x{value:x2}"))).Append("\n    ]\n");
         foreach (var root in ContractRoot.All.Where(root => root.TravelsToCore)) {
             code.Append('\n').Append($"    static func decode{root}(from reader: inout WireReader) throws(WireError) -> any {root} {{\n");
             code.Append("        let tag = try reader.readTag()\n        switch tag {\n");

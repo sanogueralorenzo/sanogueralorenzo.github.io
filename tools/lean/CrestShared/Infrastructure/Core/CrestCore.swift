@@ -5,12 +5,6 @@ import Synchronization
 
 // MARK: - Types
 
-/// Holds the answer the core hands `crest_engine_ask`'s callback, borrowed for
-/// the call.
-final class EngineAnswer {
-    var bytes: [UInt8]?
-}
-
 /// The app's one connection to the core's typed application API.
 ///
 /// `send` runs an intent and applies the changes it caused to `state` before
@@ -48,6 +42,8 @@ final class CrestCore {
     @ObservationIgnored private(set) lazy var downloads = BrowserNativeDownloads(core: self)
     @ObservationIgnored private(set) var permissions: NativeSitePermissions!
     @ObservationIgnored private(set) lazy var websiteData = NativeWebsiteData(core: self)
+    @ObservationIgnored private let pageClock: @MainActor () -> Date
+    @ObservationIgnored private(set) lazy var pages = NativePages(core: self, now: pageClock)
     @ObservationIgnored private(set) lazy var closing = NativeClosePreparation(core: self)
     @ObservationIgnored private(set) lazy var prompts = NativeBrowserPrompts(core: self)
     @ObservationIgnored private(set) lazy var browserImport = NativeBrowserImport(core: self)
@@ -100,7 +96,7 @@ final class CrestCore {
     #if DEBUG
         /// Hears each batch of changes once `state` has applied it, so a test
         /// can apply the same batch again.
-        @ObservationIgnored var batchApplied: (([Change]) -> Void)?
+        @ObservationIgnored var batchApplied: (([any CoreChange]) -> Void)?
     #endif
 
     // MARK: - Initializers
@@ -117,7 +113,8 @@ final class CrestCore {
     /// A core configured once, at creation. With a storage directory the core
     /// opens the session file there; it throws the rejection naming why that
     /// file cannot be used.
-    init(configuration: AppConfiguration) throws(Rejection) {
+    init(configuration: AppConfiguration, pageClock: @escaping @MainActor () -> Date = Date.init) throws(Rejection) {
+        self.pageClock = pageClock
         var writer = WireWriter()
         configuration.encode(into: &writer)
         var handle: UInt64 = 0
@@ -161,13 +158,22 @@ final class CrestCore {
     /// `state`. An intent that does not apply to the current state returns none.
     @discardableResult
     func send(_ intent: some Intent) throws(Rejection) -> [Change] {
+        let changes = try dispatch(intent)
+        apply(changes)
+        return changes
+    }
+
+    @discardableResult
+    func send(_ intent: some NativePageRequest) throws -> [any CoreChange] { try pages.send(intent) }
+
+    /// Native page turns combine these session records with their own page
+    /// changes before notifying observers. The session remains its sole owner.
+    func dispatch(_ intent: some Intent) throws(Rejection) -> [Change] {
         try websiteData.validate(intent)
         var writer = WireWriter()
         intent.encodeIntent(into: &writer)
         var reader = try call(crest_app_dispatch, writer, "send \(type(of: intent))")
-        let changes = Self.decodeChanges(from: &reader, "\(type(of: intent))")
-        apply(changes)
-        return changes
+        return Self.decodeChanges(from: &reader, "\(type(of: intent))")
     }
 
     // MARK: - Actions - Closing
@@ -321,9 +327,15 @@ final class CrestCore {
     /// Applies one batch to `state`, in order, and reports a failed save the
     /// core started itself. Each change notes in the batch what it tells those
     /// who follow it, who hear it once the whole batch is applied.
-    private func apply(_ changes: [Change]) {
+    func apply(_ changes: [any CoreChange]) {
+        let applied = pages.prepare(changes) + changes
+        // Native page turns retain Crest’s handover/teardown ordering. Reports
+        // produced by these commands wait until this batch’s observers finish.
+        pages.flushCommands()
         var batch = CoreChangeBatch()
-        for change in changes { change.apply(to: self, in: &batch) }
+        for change in applied { change.apply(to: self, in: &batch) }
+        pages.reconcile(in: &batch)
+        pages.flushCommands()
         state.finishBatch()
         prompts.prune()
         // Profile notifications have no live page to withdraw them when a
@@ -337,11 +349,12 @@ final class CrestCore {
         if !batch.broughtForward.isEmpty { windowsBroughtForward(batch.broughtForward) }
         if !batch.closedTransientPages.isEmpty { transientPagesClosed(batch.closedTransientPages) }
         #if DEBUG
-            batchApplied?(changes)
+            batchApplied?(applied)
         #endif
         // Closing can release windows and send more intents, after every
         // observer has received the current batch.
         closing.prune()
+        pages.flushReports()
     }
 
     /// Calls `handler` with each site permission change once its batch is

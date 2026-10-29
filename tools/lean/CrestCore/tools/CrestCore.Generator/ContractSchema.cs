@@ -21,16 +21,9 @@ internal sealed class ContractRoot {
         swiftDocumentation: "The rule that refused an intent or a query.", swiftConformances: "Error, Sendable");
     public static readonly ContractRoot Query = new(typeof(Query<>), travelsToCore: true,
         swiftDocumentation: "A question the core answers without changing state, asked with `CrestCore.query`.");
-    public static readonly ContractRoot EngineCommand = new(typeof(EngineCommand), travelsToCore: false, isEngine: true,
-        swiftDocumentation: "What the core asks an engine binding to do, run by `WebKitEngineBinding.run`.");
-    public static readonly ContractRoot EngineEvent = new(typeof(EngineEvent), travelsToCore: true, isEngine: true,
-        swiftDocumentation: "What happened to one of an engine binding's pages, reported with `CrestCore.report`.");
-    public static readonly ContractRoot EngineQuestion = new(typeof(EngineQuestion<>), travelsToCore: true, isEngine: true,
-        swiftDocumentation: "What an engine binding asks the core about one of its pages while the engine waits, answered at once.");
-
     /// Every root, in the order the canonical description lists them.
     public static IReadOnlyList<ContractRoot> All { get; } =
-        [Intent, Change, Rejection, Query, EngineCommand, EngineEvent, EngineQuestion];
+        [Intent, Change, Rejection, Query];
 
     /// The root's C# base type; a query's is the open `Query<>`.
     public Type Type { get; }
@@ -40,9 +33,6 @@ internal sealed class ContractRoot {
 
     /// The core reads messages of this root, each on its own.
     public bool TravelsToCore { get; }
-
-    /// Part of the engine contract rather than the application API.
-    public bool IsEngine { get; }
 
     /// Each message is a question with a typed answer.
     public bool HasAnswer => Type.IsGenericTypeDefinition;
@@ -58,12 +48,11 @@ internal sealed class ContractRoot {
 
     #region Constructors
 
-    private ContractRoot(Type type, bool travelsToCore, string swiftDocumentation, bool isEngine = false,
+    private ContractRoot(Type type, bool travelsToCore, string swiftDocumentation,
         string swiftConformances = "Sendable") {
         Type = type;
         Name = type.IsGenericTypeDefinition ? type.Name[..type.Name.IndexOf('`', StringComparison.Ordinal)] : type.Name;
         TravelsToCore = travelsToCore;
-        IsEngine = isEngine;
         SwiftDocumentation = swiftDocumentation;
         SwiftConformances = swiftConformances;
     }
@@ -207,10 +196,9 @@ internal sealed class ContractSchemaException(string message) : Exception(messag
 ///
 /// The roots are every concrete member of a `ContractRoot`, and every fixed
 /// set, so a set reaches Swift before any record names it. Configurations
-/// cross once, at creation or registration, so they join the closure without a
+/// cross once, at creation, so they join the closure without a
 /// tag. The closure adds the records, enums and fixed sets their constructor
-/// parameters and set data use. The engine contract is described a second
-/// time on its own, for its own fingerprint.
+/// parameters and set data use.
 internal sealed class ContractSchema {
     #region Variables
 
@@ -218,7 +206,6 @@ internal sealed class ContractSchema {
 
     /// The first word of each canonical description, naming its contract.
     private const string ApplicationContract = "crest-contracts";
-    private const string EngineContract = "crest-engine";
 
     /// The members a fixed set declares, and the one the generator adds.
     private const string SetAll = "All";
@@ -274,34 +261,11 @@ internal sealed class ContractSchema {
 
     public byte[] Fingerprint => SHA256.HashData(Encoding.UTF8.GetBytes(Canonical));
 
-    /// The engine contract alone: the engine roots, the registration an
-    /// engine hands the core, and what they reach. An engine binding in
-    /// another language, such as Chromium's C++, is generated from it.
-    public ContractSchema Engine { get; private set; } = null!;
-
-    /// The canonical description of the engine contract alone. It describes
-    /// the wire and nothing the wire does not carry, so an edit anywhere else
-    /// in the contracts, or to a fixed set's data and texts, leaves it, and so
-    /// an engine built against it, unchanged.
-    public string EngineCanonical => Engine.Canonical;
-
-    public byte[] EngineFingerprint => SHA256.HashData(Encoding.UTF8.GetBytes(EngineCanonical));
-
-    /// The contract the canonical description names.
-    private readonly string contract;
-
-    /// The canonical description spells fixed sets' data and records' texts,
-    /// which only the platforms that receive them read.
-    private readonly bool describesData;
-
     #endregion
 
     #region Constructors
 
-    private ContractSchema(string contract, bool describesData) {
-        this.contract = contract;
-        this.describesData = describesData;
-    }
+    private ContractSchema() { }
 
     #endregion
 
@@ -324,32 +288,20 @@ internal sealed class ContractSchema {
         return type.Namespace == typeof(Intent).Namespace;
     }
 
-    /// The schema whose roots are the given types' concrete contract types,
-    /// with the engine contract's own description beside it.
+    /// Describes the one application/session boundary.
     public static ContractSchema Load(IEnumerable<Type> types) {
         ArgumentNullException.ThrowIfNull(types);
         var candidates = types.Where(type => type is { IsClass: true, IsAbstract: false }).ToList();
-        var schema = Describing(ApplicationContract, candidates, ContractRoot.All,
-            candidates.Where(typeof(Configuration).IsAssignableFrom), candidates.Where(IsFixedSet), describesData: true);
-        if (candidates.FirstOrDefault(type => type.IsDefined(typeof(ObservedAttribute), false) && !schema.records.ContainsKey(type))
-            is { } unreached)
-            throw new ContractSchemaException($"{unreached.Name}: an [Observed] record must be one a contract message carries.");
-        schema.Engine = Describing(EngineContract, candidates, [.. ContractRoot.All.Where(root => root.IsEngine)],
-            candidates.Where(type => type == typeof(EngineRegistration)), [], describesData: false);
-        return schema;
-    }
-
-    /// A schema whose roots are `included`'s members among `candidates`, with
-    /// `configurations` and `sets` described whether or not a record names them.
-    private static ContractSchema Describing(string contract, List<Type> candidates, IReadOnlyList<ContractRoot> included,
-        IEnumerable<Type> configurations, IEnumerable<Type> sets, bool describesData) {
-        var schema = new ContractSchema(contract, describesData);
-        foreach (var root in ContractRoot.All) schema.AddRoot(root, included.Contains(root) ? candidates.Where(root.Contains) : []);
-        foreach (var type in configurations.OrderBy(type => type.Name, StringComparer.Ordinal)) schema.DescribeRecord(type);
-        foreach (var set in sets.OrderBy(type => type.Name, StringComparer.Ordinal)) schema.DescribeSet(set, set.Name);
+        var schema = new ContractSchema();
+        foreach (var root in ContractRoot.All) schema.AddRoot(root, candidates.Where(root.Contains));
+        foreach (var type in candidates.Where(typeof(Configuration).IsAssignableFrom).OrderBy(type => type.Name, StringComparer.Ordinal))
+            schema.DescribeRecord(type);
+        foreach (var set in candidates.Where(IsFixedSet).OrderBy(type => type.Name, StringComparer.Ordinal)) schema.DescribeSet(set, set.Name);
         schema.Validate();
         schema.FindSeeds();
         schema.Canonical = schema.Describe();
+        if (candidates.FirstOrDefault(type => type.IsDefined(typeof(ObservedAttribute), false) && !schema.records.ContainsKey(type)) is { } unreached)
+            throw new ContractSchemaException($"{unreached.Name}: an [Observed] record must be one a contract message carries.");
         return schema;
     }
 
@@ -566,13 +518,6 @@ internal sealed class ContractSchema {
         var constants = new List<ContractConstant>();
         // Register before resolving properties so a data member may name this set or one that names it.
         sets[type] = new ContractSet(type, properties, members, coreOnly, type.IsDefined(typeof(OpenSetAttribute), false), constants);
-        if (!describesData) {
-            // Only a member's tag crosses the wire, so a contract that leaves out set data also leaves out
-            // the enums and sets that data names: an engine outlives any edit to them.
-            members.AddRange(instances.Select((instance, tag) => new ContractSetMember(MemberName(type, instance, $"{name}.{SetAll}[{tag}]"),
-                tag, [])));
-            return new SetField(type);
-        }
         foreach (var constant in type.GetFields(BindingFlags.Public | BindingFlags.Static).Where(field => field.IsLiteral)) {
             string at = $"{name}.{constant.Name}";
             if (ResolveSetData(constant.FieldType, null, at, type) is not PrimitiveField primitive)
@@ -916,7 +861,7 @@ internal sealed class ContractSchema {
         union.Base is { } narrowed ? [.. roots[union.Root].Where(member => narrowed.IsAssignableFrom(member.Record.Type))] : roots[union.Root];
 
     /// Whether the platform sends `record` as a message of one of its roots:
-    /// an intent, a query or an engine event, never received.
+    /// an intent or query, never received.
     public bool IsSent(ContractRecord record) {
         ArgumentNullException.ThrowIfNull(record);
         return ContractRoot.All.Any(root => root.TravelsToCore && roots[root].Any(member => member.Record.Type == record.Type));
@@ -965,17 +910,11 @@ internal sealed class ContractSchema {
     /// fields and resolved values in order, and each root's tags.
     private string Describe() {
         var text = new StringBuilder();
-        text.Append(contract).Append(" wire ").Append(WireVersion).Append('\n');
+        text.Append(ApplicationContract).Append(" wire ").Append(WireVersion).Append('\n');
         foreach (var item in Enums)
             text.Append(item.IsFlags ? "flags " : "enum ").Append(item.Name)
                 .Append(string.Concat(item.Members.Select(member => $" {member.Key}={member.Value}"))).Append('\n');
         foreach (var set in Sets) {
-            if (!describesData) {
-                // Only a member's tag crosses the wire.
-                text.Append("set ").Append(set.Name).Append(string.Concat(set.Members.Select(member => $" {member.Name}={member.Tag}")))
-                    .Append('\n');
-                continue;
-            }
             text.Append(set.IsOpen ? "open set " : "set ").Append(set.Name).Append('(')
                 .Append(string.Join(", ", set.Properties.Select(property => $"{property.Name}: {Describe(property.Type)}"))).Append(')')
                 .Append(string.Concat(set.Members.Select(member =>
@@ -986,7 +925,7 @@ internal sealed class ContractSchema {
                 .Append(string.Join(", ", record.Fields.Select(field => $"{field.Name}: {Describe(field.Type)}"))).Append(')')
                 .Append(record.Resolved.Count == 0 ? "" : $" resolved-by-core({string.Join(", ", record.Resolved.Select(field =>
                     $"{field.Name}: {Describe(field.Type)}"))})")
-                .Append(!describesData ? "" : string.Concat(record.Texts.Select(item =>
+                .Append(string.Concat(record.Texts.Select(item =>
                     $" {item.Name}=localized({DescribeValue(item.Text)}, {DescribeValue(item.Comment)}, {DescribeValue(item.Argument)})")))
                 .Append('\n');
         foreach (var root in ContractRoot.All)

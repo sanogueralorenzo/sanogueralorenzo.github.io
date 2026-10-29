@@ -13,7 +13,7 @@ public sealed partial class BrowserContractsTests {
     [Fact]
     public void TheDockMenuListsThePersistentSpacesAndAPrivateWindowNeverTakesOne() {
         var session = SessionWithSpaces(withSecondSpace: true);
-        var (app, _, _, workspace, front) = PageHost(session);
+        var (app, workspace, front) = WindowHost(session);
         using var disposal = app;
         var (locked, open) = (FirstSpaceProfile(session).Space, SpaceId(session["spaces"]![1]!));
         var behind = Guid.NewGuid();
@@ -53,7 +53,7 @@ public sealed partial class BrowserContractsTests {
     [Fact]
     public void AnEngineWindowJoinsTheFrontWindowOfItsProfilesOnlyShowableSpace() {
         var session = SessionWithSpaces(withSecondSpace: true);
-        var (app, _, _, workspace, front) = PageHost(session);
+        var (app, workspace, front) = WindowHost(session);
         using var disposal = app;
         var lockedProfile = FirstSpaceProfile(session).Profile;
         var (open, profile) = (SpaceId(session["spaces"]![1]!), ProfileId(session["spaces"]![1]!));

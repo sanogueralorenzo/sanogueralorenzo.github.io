@@ -25,8 +25,8 @@ public sealed partial class NativeSessionAuthority {
     /// since a page can move on before its navigation is recorded. A copy of
     /// a source without a page, or of one that is not a web page, keeps what
     /// the session holds.
-    internal void StartFromSourcePage(BrowserTab copy, Guid sourceId, Guid windowId, Pages? pages) {
-        if (copy.Content.IsWebPage && pages?.Showing(workspaceId, windowId, sourceId) is { } shown)
+    internal void StartFromSourcePage(BrowserTab copy, Guid sourceId, IReadOnlyList<TabPageAppearance>? appearances) {
+        if (copy.Content.IsWebPage && appearances?.FirstOrDefault(page => page.TabId == sourceId) is { } shown)
             copy.ObserveAppearance(shown.Address, shown.Title);
     }
 

@@ -55,7 +55,7 @@ final class BrowserMemoryPressureMonitor {
         for owner in owners() { owner.relieveMemoryPressure(level) }
         let changes = (try? core?.send(ReportMemoryPressure(level: level))) ?? []
         let unloaded = changes.compactMap { change -> UUID? in
-            guard case .pageUnloaded(let unloaded) = change else { return nil }
+            guard let unloaded = change as? PageUnloaded else { return nil }
             return unloaded.tabID
         }
         DiagnosticLog.pages.notice(

@@ -9,7 +9,7 @@ namespace CrestCore.Contracts;
 /// published as `TabCopied`. The window shows the last tab that joined.
 /// Refused with `SplitNeedsTwoTabs` or `SplitLimitReached` when the split would
 /// hold fewer than two tabs or more than it can.
-public sealed record SplitTabs(Guid WorkspaceId, Guid WindowId, Guid SpaceId, TabSelection Selection, Guid? TargetTabId, int? Index)
+public sealed record SplitTabs(Guid WorkspaceId, Guid WindowId, Guid SpaceId, TabSelection Selection, Guid? TargetTabId, int? Index, IReadOnlyList<TabPageAppearance>? Appearances = null)
     : SessionIntent(WorkspaceId) {
     #region Actions - Session
 
@@ -17,7 +17,7 @@ public sealed record SplitTabs(Guid WorkspaceId, Guid WindowId, Guid SpaceId, Ta
         var batch = workspace.Selecting(turn.Basis, WindowId, SpaceId, Selection);
         var (shown, copies) = batch.Edited.SplitSelected(batch.Selected, TargetTabId, Index, batch.Shown, turn.Ids, turn.Now);
         batch.FollowUp.ShowTab(batch.Space.Id, shown);
-        return batch.Result(turn.Basis, SyncStaging.Batch, workspace.StartingCopies(batch, copies, WindowId, turn.Pages));
+        return batch.Result(turn.Basis, SyncStaging.Batch, workspace.StartingCopies(batch, copies, Appearances));
     }
 
     #endregion

@@ -2,9 +2,7 @@ using System.Text;
 
 namespace CrestCore.Generator;
 
-/// Emits `crest_contracts.h`: the schema and engine contract fingerprints and
-/// every root's wire tags for C and C++ callers of `crest_app.h` and
-/// `crest_engine.h`.
+/// Emits the application schema fingerprint and wire tags for the C ABI.
 internal static class CHeaderEmitter {
     #region Actions - Emitting
 
@@ -25,14 +23,6 @@ internal static class CHeaderEmitter {
             """);
         code.Append("#define CREST_CONTRACTS_FINGERPRINT { ");
         code.Append(string.Join(", ", schema.Fingerprint.Select(value => $"0x{value:x2}"))).Append(" }\n");
-        code.Append("""
-
-            /* SHA-256 of the engine contract alone; pass it to crest_engine_register. */
-            #define CREST_ENGINE_CONTRACT_FINGERPRINT_LENGTH 32u
-
-            """);
-        code.Append("#define CREST_ENGINE_CONTRACT_FINGERPRINT { ");
-        code.Append(string.Join(", ", schema.EngineFingerprint.Select(value => $"0x{value:x2}"))).Append(" }\n");
         foreach (var root in ContractRoot.All) {
             code.Append('\n').Append($"/* {root} tags */\n");
             string prefix = $"CREST_{Naming.UpperSnake(root.Name)}_";

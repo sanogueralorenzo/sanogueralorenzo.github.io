@@ -68,7 +68,6 @@ public sealed class StoredFormatTests {
         var clock = new TestClock(DateTimeOffset.UnixEpoch);
         var ids = new TestIds();
         using var app = new CrestApp(new AppConfiguration(null, DevicePlatform.Desktop), clock, ids);
-        var engine = RecordedIntents.PageEngine(app);
         var workspace = TestWorkspaces.Open(app, session);
         var authority = app.Workspace(workspace);
         var differences = new List<string>();
@@ -89,10 +88,10 @@ public sealed class StoredFormatTests {
             if (RecordedIntents.Typed(request, workspace, window, authority.Current) is { } intents) {
                 clock.Now = RecordedIntents.Time(request);
                 ids.Supply(RecordedIntents.Identities(request));
-                RecordedIntents.Send(app, engine, request, intents, window);
+                RecordedIntents.Send(app, request, intents);
             } else if (RecordedIntents.Navigation(request) is { } navigation) {
                 clock.Now = navigation.At;
-                RecordedIntents.Report(app, engine, navigation, workspace, window!.Value);
+                RecordedIntents.Report(app, navigation, workspace);
             } else {
                 throw new InvalidOperationException($"{name}: every recorded command is an intent or an engine report now.");
             }

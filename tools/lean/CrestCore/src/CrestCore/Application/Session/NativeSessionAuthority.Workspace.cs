@@ -20,7 +20,7 @@ public sealed partial class NativeSessionAuthority {
     internal ImportedWorkspace Preview(ImportWorkspace intent, DateTimeOffset now) {
         ArgumentNullException.ThrowIfNull(intent);
         lock (Gate) {
-            var edit = Edit(intent, Stamp(now), new SystemIdSource(), pages: null)!;
+            var edit = Edit(intent, Stamp(now), new SystemIdSource())!;
             var events = edit.Events ?? SessionTabEvents.None;
             return new(edit.Next, events.Imported ?? [], [.. events.Copies.Select(copy => copy.Copied(workspaceId))]);
         }

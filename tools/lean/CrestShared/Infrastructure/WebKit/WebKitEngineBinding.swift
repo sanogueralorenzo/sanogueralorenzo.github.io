@@ -143,13 +143,13 @@ final class WebKitEngineBinding {
     }
 
     /// Reports what one of this binding's pages or downloads did.
-    func report(_ event: some EngineEvent) {
+    func report(_ event: some NativePageReport) {
         engines?.report(event, from: self)
     }
 
     /// What the core answers about one of this binding's pages while WebKit
     /// waits; nil while the binding is not registered.
-    func ask<Question: EngineQuestion>(_ question: Question) -> Question.Answer? {
+    func ask(_ question: LinkActivation) -> LinkNavigationAnswer? {
         engines?.ask(question, from: self)
     }
 

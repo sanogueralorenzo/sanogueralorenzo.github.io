@@ -48,7 +48,7 @@ final class EnginePageReporter {
 
     // MARK: - Variables
 
-    private let report: @MainActor (any EngineEvent, Data?) -> Void
+    private let report: @MainActor (any NativePageReport, Data?) -> Void
     /// What the engine shows now, given the address a navigation that has not
     /// committed is heading to.
     private let snapshot: @MainActor (_ pendingURL: String?) -> PageSnapshot
@@ -85,7 +85,7 @@ final class EnginePageReporter {
     init(
         pageID: UUID, snapshot: @escaping @MainActor (_ pendingURL: String?) -> PageSnapshot,
         history: @escaping @MainActor () -> (entries: [PageHistoryEntry], current: Int)?,
-        report: @escaping @MainActor (any EngineEvent, Data?) -> Void
+        report: @escaping @MainActor (any NativePageReport, Data?) -> Void
     ) {
         self.pageID = pageID
         self.snapshot = snapshot

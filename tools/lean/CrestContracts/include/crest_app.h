@@ -54,11 +54,9 @@ CREST_API crest_status_t CREST_CALL crest_app_destroy(uint64_t app);
 /* OK: buffer = published changes (a count, then each change): the pending
  * batch first, as crest_app_drain would answer it, then the intent's own.
  * REJECTED: buffer = one rejection.
- * Engine commands the intent caused (crest_engine.h) have run when it returns,
- * unless the dispatch itself runs inside a binding's command.
  * A cloud sync intent is dispatched from the transport's thread, never the
  * host's: its buffer holds only its receipts, what it changed waits for the
- * next crest_app_drain, and the engine commands it caused run there. */
+ * next crest_app_drain. */
 CREST_API crest_status_t CREST_CALL crest_app_dispatch(uint64_t app, const uint8_t* intent, size_t length, crest_buffer_t* out);
 /* OK: buffer = the answer. REJECTED: buffer = one rejection. */
 CREST_API crest_status_t CREST_CALL crest_app_query(uint64_t app, const uint8_t* query, size_t length, crest_buffer_t* out);

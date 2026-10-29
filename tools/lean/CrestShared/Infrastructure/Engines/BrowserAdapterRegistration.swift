@@ -41,9 +41,4 @@ struct BrowserAdapterRegistration: Sendable {
         capabilities[capability]?.isAvailable == true
     }
 
-    /// What the engine's binding registers with the core: the capabilities it
-    /// supports, in the core's order.
-    func registration() -> EngineRegistration {
-        EngineRegistration(capabilities: EngineCapability.all.filter(supports))
-    }
 }

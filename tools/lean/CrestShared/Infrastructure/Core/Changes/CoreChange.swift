@@ -46,3 +46,5 @@ extension CoreChange {
 
     func note(in receipts: inout CloudTransportReceipts) {}
 }
+
+extension Change: CoreChange {}

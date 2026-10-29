@@ -40,7 +40,7 @@ public abstract record SessionIntent(Guid WorkspaceId) : Intent {
     /// Commits the intent to the session of the workspace it names. An intent
     /// that asks more of the device first or afterwards adds to it.
     internal virtual void Commit(CrestApp app, ChangeFeed changes) =>
-        app.Device.Workspace(WorkspaceId).Handle(this, app.Clock.Now, app.Ids, app.Pages);
+        app.Device.Workspace(WorkspaceId).Handle(this, app.Clock.Now, app.Ids);
 
     #endregion
 }

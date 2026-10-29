@@ -30,7 +30,7 @@ public sealed record DropTargets(Guid WorkspaceId, Guid WindowId, Guid SpaceId, 
         lock (app.Device.Gate) shown = window.Tab(spaceId);
         var split = shown is { } target
             ? new SplitDropTarget(target, Device.Refusal(authority,
-                new DropIntoSplit(workspaceId, windowId, spaceId, selection, target, Index: null), app.Clock.Now, app.Pages))
+                new DropIntoSplit(workspaceId, windowId, spaceId, selection, target, Index: null), app.Clock.Now))
             : null;
         // Every candidate passes the rule a drop checks of its tab, so the first
         // answers for all of them what the lift allows.
@@ -41,8 +41,7 @@ public sealed record DropTargets(Guid WorkspaceId, Guid WindowId, Guid SpaceId, 
             .Where(row => row.Kind == SidebarRowKind.Tab && tabs[row.Id].SplitGroupId is null && !lifted.Contains(row.Id))
             .Select(row => row.Id)];
         if (around.Length > 0
-            && Device.Refusal(authority, new DropAroundTab(workspaceId, windowId, spaceId, selection, around[0]), app.Clock.Now,
-                app.Pages) is not null)
+            && Device.Refusal(authority, new DropAroundTab(workspaceId, windowId, spaceId, selection, around[0]), app.Clock.Now) is not null)
             around = [];
         return new(Refusal: null, lists, spaces, split, around);
     }

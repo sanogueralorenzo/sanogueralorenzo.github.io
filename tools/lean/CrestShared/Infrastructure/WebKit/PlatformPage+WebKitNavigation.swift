@@ -48,7 +48,7 @@ extension BrowserPlatformPage {
         in webView: WKWebView,
         decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
     ) {
-        // The core decides what the link does, as it does for Chromium's.
+        // The native page owner decides what this link does.
         let webKitPage = webKitEnginePage
         let decision =
             webKitPage.linkActivation(to: navigationAction.request.url, gesture: navigationAction.linkGesture)

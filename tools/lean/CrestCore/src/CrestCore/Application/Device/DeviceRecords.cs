@@ -2,28 +2,16 @@ using CrestCore.Contracts;
 
 namespace CrestCore.Application;
 
-#region Types
-
-/// An engine tab group an extension made in a Space of the persistent
-/// session, which the folder of the same identity shows, as the device store
-/// keeps it so the folder follows the group after the next launch: the
-/// engine whose pages it groups, and the group's own title and color, which
-/// may differ from its folder's.
-internal sealed record TabGroupRecord(Guid Id, Guid SpaceId, string Title, TabGroupColor Color);
-
-#endregion
-
 /// What the device store holds: every saved window's record, the saved
 /// windows the next launch reopens, back to front, the records it adopted
 /// from an installed release, the
-/// tab groups whose folders follow them, and the agent preferences.
+/// agent preferences.
 internal sealed record DeviceRecords(IReadOnlyList<SavedWindow> Windows, IReadOnlyList<Guid> Reopening,
-    IReadOnlySet<DeviceAdoption> Adopted,
-    IReadOnlyList<TabGroupRecord> TabGroups) {
+    IReadOnlySet<DeviceAdoption> Adopted) {
     #region Static Variables
 
     public static readonly DeviceRecords Empty = new([], [],
-        new HashSet<DeviceAdoption>(), TabGroups: []);
+        new HashSet<DeviceAdoption>());
 
     #endregion
 
@@ -47,7 +35,6 @@ internal sealed record DeviceRecords(IReadOnlyList<SavedWindow> Windows, IReadOn
         && Windows.SequenceEqual(other.Windows)
         && Reopening.SequenceEqual(other.Reopening)
         && Adopted.SetEquals(other.Adopted)
-        && TabGroups.SequenceEqual(other.TabGroups)
         && Agents.Equals(other.Agents);
 
     public override int GetHashCode() => HashCode.Combine(Windows.Count, Adopted.Count);

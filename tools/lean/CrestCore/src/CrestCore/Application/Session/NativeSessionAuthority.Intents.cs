@@ -8,14 +8,14 @@ namespace CrestCore.Application;
 internal sealed record SessionEdit(SessionState Next, SyncStaging? Staging, WindowFollowUp? FollowUp = null,
     SessionTabEvents? Events = null, NativeSessionAuthority.SweepMark? Sweep = null);
 
-internal sealed record SessionTurn(SessionState Basis, DateTimeOffset Now, IIdSource Ids, Pages? Pages);
+internal sealed record SessionTurn(SessionState Basis, DateTimeOffset Now, IIdSource Ids);
 
 #endregion
 
 public sealed partial class NativeSessionAuthority {
     #region Actions - Intents
 
-    internal void Handle(SessionIntent intent, DateTimeOffset now, IIdSource ids, Pages? pages = null) {
+    internal void Handle(SessionIntent intent, DateTimeOffset now, IIdSource ids) {
         ArgumentNullException.ThrowIfNull(intent);
         ArgumentNullException.ThrowIfNull(ids);
         try {
@@ -29,7 +29,7 @@ public sealed partial class NativeSessionAuthority {
         // The edit is accepted, or reserved while it is saved, under the lock
         // that computed it, so nothing else can commit in between.
         lock (Gate) {
-            edit = Edit(intent, Stamp(now), ids, pages);
+            edit = Edit(intent, Stamp(now), ids);
             if (edit is null) return;
             if (edit.Sweep is { } sweep) lastSweep = sweep;
             previous = session;
@@ -60,15 +60,15 @@ public sealed partial class NativeSessionAuthority {
 
     /// Throws the `Rejected` that would refuse `intent` at `now`, and changes
     /// nothing. New identities come from `ids`, and are never used.
-    internal void Check(SessionIntent intent, DateTimeOffset now, IIdSource ids, Pages? pages = null) {
+    internal void Check(SessionIntent intent, DateTimeOffset now, IIdSource ids) {
         ArgumentNullException.ThrowIfNull(intent);
         ArgumentNullException.ThrowIfNull(ids);
-        if (!intent.MovedAcross(this, Stamp(now), commits: false)) lock (Gate) _ = Edit(intent, Stamp(now), ids, pages);
+        if (!intent.MovedAcross(this, Stamp(now), commits: false)) lock (Gate) _ = Edit(intent, Stamp(now), ids);
     }
 
-    private SessionEdit? Edit(SessionIntent intent, DateTimeOffset now, IIdSource ids, Pages? pages) {
+    private SessionEdit? Edit(SessionIntent intent, DateTimeOffset now, IIdSource ids) {
         var basis = IntentBasis();
-        var edit = intent.Edit(this, new SessionTurn(basis, now, ids, pages));
+        var edit = intent.Edit(this, new SessionTurn(basis, now, ids));
         if (edit is null) return null;
         if (intent.ValidatesWholeSession) Validate(edit.Next);
         else Validate(basis, edit.Next);

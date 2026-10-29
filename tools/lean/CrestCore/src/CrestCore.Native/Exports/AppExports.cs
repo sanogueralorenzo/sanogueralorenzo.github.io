@@ -58,7 +58,6 @@ public static unsafe partial class Exports {
     public static int AppDestroy(ulong app) {
         try {
             if (!Apps.TryRemove(app, out var crest)) return CoreStatus.InvalidHandle;
-            ForgetEngines(app);
             crest.Dispose();
             return CoreStatus.Ok;
         } catch { return CoreStatus.InternalError; }

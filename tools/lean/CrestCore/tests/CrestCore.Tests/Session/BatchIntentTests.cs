@@ -134,11 +134,11 @@ public sealed partial class BrowserContractsTests {
         using var device = new TestDevice(f.Session);
         var core = device.Authority;
         var window = device.Open(f.Space, (f.Space, f.Left));
-        device.ShowPage(window, f.Space, f.Left, PageSnapshot.Blank with { Url = "https://batch.example/live", Title = "Live" });
         Guid leftCopy = Guid.NewGuid(), rightCopy = Guid.NewGuid(), savedCopy = Guid.NewGuid(), splitCopy = Guid.NewGuid();
         device.Ids.Supply([savedCopy, leftCopy, rightCopy, splitCopy]);
 
-        var copied = device.Send(new DuplicateTabs(device.Workspace, window, f.Space, Picking(f.Right, f.Left, f.Saved)))
+        var copied = device.Send(new DuplicateTabs(device.Workspace, window, f.Space, Picking(f.Right, f.Left, f.Saved),
+            [new TabPageAppearance(f.Left, "https://batch.example/live", "Live")]))
             .OfType<TabCopied>().ToArray();
 
         // The copies come in the order the sidebar lists their sources, at the

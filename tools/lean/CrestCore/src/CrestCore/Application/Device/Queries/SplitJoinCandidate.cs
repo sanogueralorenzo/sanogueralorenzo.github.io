@@ -24,7 +24,7 @@ public sealed record SplitJoinCandidate(Guid WindowId) : Query<SplitJoinCandidat
         if (Device.Available(authority.Current, spaceId) is not { } space || shown is not { } tabId
             || space.SplitCandidate(tabId) is not { } candidate) return new(TabId: null);
         var joining = new JoinSplit(window.WorkspaceId, WindowId, space.Id, candidate, tabId, Index: null);
-        return new(Device.Refusal(authority, joining, app.Clock.Now, app.Pages) is null ? candidate : null);
+        return new(Device.Refusal(authority, joining, app.Clock.Now) is null ? candidate : null);
     }
 
     #endregion

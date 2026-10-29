@@ -15,7 +15,7 @@ public sealed record NavigateTab(Guid WorkspaceId, Guid SpaceId, Guid TabId, str
         var space = workspace.Editable(turn.Basis, SpaceId);
         var stored = space.Tabs.FirstOrDefault(tab => tab.Id == TabId) ?? throw new Rejected(new UnknownTab(TabId));
         var url = AddressResolution.Loading(Input, workspace.SearchProvider,
-            turn.Pages?.OpensInternalPages ?? false);
+            allowsInternalPages: false);
         var tab = BrowserTab.Restore(stored);
         if (tab.Content.IsWebPage) return new(turn.Basis, SyncStaging.PageReport);
         var address = new Uri(url);

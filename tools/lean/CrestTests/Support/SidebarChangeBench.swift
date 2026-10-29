@@ -35,7 +35,7 @@ final class SidebarChangeBench {
         let core = CrestCore.hostingPages()
         var opened: WorkspaceOpened?
         core.batchApplied = { changes in
-            for case .workspaceOpened(let change) in changes { opened = change }
+            for case .workspaceOpened(let change) in changes.compactMap({ $0 as? Change }) { opened = change }
         }
         let store = BrowserStore(seed: session, core: core)
         guard let opening = opened, let workspace = core.state.workspaces[store.window.workspaceID],

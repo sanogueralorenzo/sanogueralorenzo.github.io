@@ -17,7 +17,7 @@ public sealed record ResolveAddress(Guid? WorkspaceId, Guid? SpaceId, string Inp
     internal override ResolvedAddress Answer(CrestApp app) {
         if (WorkspaceId is not { } workspaceId) return Unplaced();
         var provider = SpaceId is { } spaceId ? app.Device.Workspace(workspaceId).Searches(spaceId) : app.Device.SearchProvider;
-        return NativeSessionAuthority.Resolved(Input, provider, app.Pages.OpensInternalPages);
+        return NativeSessionAuthority.Resolved(Input, provider, allowsInternalPages: false);
     }
 
     /// What the address resolves to outside any workspace: Google searches

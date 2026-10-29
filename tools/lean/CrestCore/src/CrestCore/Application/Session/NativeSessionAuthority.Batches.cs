@@ -55,9 +55,9 @@ public sealed partial class NativeSessionAuthority {
     /// Copies of tabs start from where their sources' pages are now, preferring
     /// the pages `windowId` shows; see `StartFromSourcePage`. Answers what the
     /// copies publish.
-    internal SessionTabEvents StartingCopies(SelectionEdit batch, IReadOnlyList<(Guid Source, Guid Copy)> copies, Guid windowId,
-        Pages? pages) {
-        foreach (var (source, copy) in copies) StartFromSourcePage(batch.Edited.Tab(copy), source, windowId, pages);
+    internal SessionTabEvents StartingCopies(SelectionEdit batch, IReadOnlyList<(Guid Source, Guid Copy)> copies,
+        IReadOnlyList<TabPageAppearance>? appearances) {
+        foreach (var (source, copy) in copies) StartFromSourcePage(batch.Edited.Tab(copy), source, appearances);
         return new([.. copies.Select(pair => new SessionTabCopy(pair.Source, pair.Copy))], null);
     }
 

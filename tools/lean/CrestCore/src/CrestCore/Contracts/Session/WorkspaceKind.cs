@@ -10,11 +10,11 @@ public sealed class WorkspaceKind {
     #region Static Variables
 
     public static readonly WorkspaceKind Persistent = new(name: "persistent", opensDirectly: true, keepsFile: true,
-        isPrivate: false, ownsSpaces: true, keepsAppPreferences: true, sharesPagesAcrossWindows: true);
+        isPrivate: false, ownsSpaces: true, keepsAppPreferences: true);
     public static readonly WorkspaceKind Private = new(name: "private", opensDirectly: true, keepsFile: false,
-        isPrivate: true, ownsSpaces: true, keepsAppPreferences: false, sharesPagesAcrossWindows: false);
+        isPrivate: true, ownsSpaces: true, keepsAppPreferences: false);
     public static readonly WorkspaceKind Borrowed = new(name: "borrowed", opensDirectly: false, keepsFile: false,
-        isPrivate: false, ownsSpaces: false, keepsAppPreferences: false, sharesPagesAcrossWindows: false);
+        isPrivate: false, ownsSpaces: false, keepsAppPreferences: false);
 
     public static IReadOnlyList<WorkspaceKind> All { get; } = [Persistent, Private, Borrowed];
 
@@ -48,26 +48,18 @@ public sealed class WorkspaceKind {
     /// The workspace keeps the app-wide preferences and takes imported Spaces.
     public bool KeepsAppPreferences { get; }
 
-    /// The workspace's windows share its pages where the device lets them, so
-    /// a page outlives the window that hosts it: the workspace's other windows
-    /// show it, or its next window does. A page of a kind that does not, such
-    /// as the private window's or a torn-off tab's, goes with its window. The
-    /// core's own rule, which no platform reads.
-    internal bool SharesPagesAcrossWindows { get; }
-
     #endregion
 
     #region Constructors
 
     private WorkspaceKind(string name, bool opensDirectly, bool keepsFile, bool isPrivate, bool ownsSpaces,
-        bool keepsAppPreferences, bool sharesPagesAcrossWindows) {
+        bool keepsAppPreferences) {
         Name = name;
         OpensDirectly = opensDirectly;
         KeepsFile = keepsFile;
         IsPrivate = isPrivate;
         OwnsSpaces = ownsSpaces;
         KeepsAppPreferences = keepsAppPreferences;
-        SharesPagesAcrossWindows = sharesPagesAcrossWindows;
     }
 
     #endregion

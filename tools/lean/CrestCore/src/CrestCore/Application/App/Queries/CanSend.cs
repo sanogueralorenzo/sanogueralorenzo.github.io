@@ -16,7 +16,7 @@ public sealed record CanSend(Intent Intent) : Query<SendPermission> {
         if (Intent is not SessionIntent session)
             throw new ArgumentOutOfRangeException(nameof(Intent), Intent.GetType().Name, "Only a session intent can be checked.");
         try {
-            app.Device.Workspace(session.WorkspaceId).Check(session, app.Clock.Now, new SystemIdSource(), app.Pages);
+            app.Device.Workspace(session.WorkspaceId).Check(session, app.Clock.Now, new SystemIdSource());
             return new(Refusal: null);
         } catch (Rejected refused) {
             return new(refused.Rejection);

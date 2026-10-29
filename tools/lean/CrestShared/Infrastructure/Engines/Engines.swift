@@ -51,23 +51,10 @@ final class Engines {
         let built: WebKitEnginePage
     }
 
-    /// Carries the core's commands for one engine to its binding.
-    final class Relay: @unchecked Sendable {
-        @MainActor weak var engines: Engines?
-
-        @MainActor
-        init(engines: Engines) {
-            self.engines = engines
-        }
-    }
-
     // MARK: - Variables
 
     private(set) var webKit: WebKitEngineBinding?
-    @ObservationIgnored private var registered: (engine: UInt64, relay: Relay)?
     @ObservationIgnored private var requests: [UUID: PageCreation] = [:]
-    /// The engine that hosts each page the core asked one to create.
-    @ObservationIgnored private var hosts: Set<UUID> = []
     /// The pages the core opened, while their owners keep them.
     @ObservationIgnored private var opened: [UUID: WeakPage] = [:]
     /// Recreated WebKit pages waiting for their existing native owners.
@@ -94,15 +81,10 @@ final class Engines {
 
     /// Registers the app's WebKit binding. A refusal is a composition bug.
     func register(_ binding: WebKitEngineBinding) {
-        let relay = Relay(engines: self)
+        precondition(webKit == nil, "WebKit is registered once per browser core.")
         binding.attach(to: self)
-        do {
-            let engine = try core.registerEngine(binding.integration.registration(), relay: relay)
-            registered = (engine, relay)
-            webKit = binding
-        } catch {
-            preconditionFailure("The core refused WebKit: \(error)")
-        }
+        webKit = binding
+        core.state.engines = EngineRoster(offered: EngineCapability.all.filter(binding.integration.supports))
     }
 
     // MARK: - Actions - Pages
@@ -173,7 +155,10 @@ final class Engines {
 
     /// Reports what happened to one of `binding`'s pages. `icon` is the image
     /// a `PageIconChanged` names, which waits here for the tab that adopts it.
-    func report(_ event: some EngineEvent, from binding: WebKitEngineBinding, icon: (page: UUID, data: Data)? = nil) {
+    func report(
+        _ event: some NativePageReport, from binding: WebKitEngineBinding, icon: (page: UUID, data: Data)? = nil
+    ) {
+        guard webKit === binding else { return }
         report(event, icon: icon)
     }
 
@@ -184,16 +169,17 @@ final class Engines {
 
     /// Reports what happened to `pageID` through the engine that hosts it; a
     /// page no engine was asked to create reports nothing.
-    func report(_ event: some EngineEvent, for pageID: UUID, icon: Data? = nil) {
-        guard hosts.contains(pageID) else { return }
+    func report(_ event: some NativePageReport, for pageID: UUID, icon: Data? = nil) {
+        guard core.pages.page(pageID) != nil else { return }
         report(event, icon: icon.map { (pageID, $0) })
     }
 
     /// What the core answers `binding` about one of its pages while its
     /// engine waits; nil for a binding that is not registered.
-    func ask<Question: EngineQuestion>(_ question: Question, from binding: WebKitEngineBinding) -> Question.Answer? {
-        guard let engine = registered?.engine else { return nil }
-        return core.ask(question, engine: engine)
+    func ask(_ question: LinkActivation, from binding: WebKitEngineBinding) -> LinkNavigationAnswer? {
+        guard webKit === binding else { return nil }
+        guard core.pages.page(question.pageID) != nil else { return LinkNavigationAnswer(decision: .navigate) }
+        return core.query(LinkNavigation(pageID: question.pageID, url: question.url, gesture: question.gesture))
     }
 
     /// The icon `pageID` reported, which leaves this store for the tab that
@@ -204,17 +190,16 @@ final class Engines {
 
     /// The page is gone, and nothing it reported waits here any longer.
     func forget(_ pageID: UUID) {
-        hosts.remove(pageID)
         pageIcons[pageID] = nil
         opened[pageID] = nil
         replacements[pageID] = nil
         offered[pageID] = nil
     }
 
-    private func report(_ event: some EngineEvent, icon: (page: UUID, data: Data)?) {
-        guard let engine = registered?.engine else { return }
+    private func report(_ event: some NativePageReport, icon: (page: UUID, data: Data)?) {
+        guard let webKit else { return }
         if let icon { pageIcons[icon.page] = icon.data }
-        core.report(event, engine: engine)
+        core.pages.report(event, from: webKit)
     }
 
     // MARK: - Actions - Records
@@ -237,7 +222,6 @@ final class Engines {
 
     /// Runs a core command on WebKit, tracking the page identities it hosts.
     func run(_ command: EngineCommand) {
-        command.note(in: &hosts)
         webKit?.run(command)
     }
 }

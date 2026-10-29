@@ -246,7 +246,7 @@ extension BrowserStore {
         sendCopying(
             DuplicateTab(
                 workspaceID: family.workspaceID, windowID: windowID, spaceID: spaceID, tabID: id, placement: nil,
-                shows: true),
+                shows: true, appearances: pageAppearances),
             in: spaceID)?.first?.copyTabID
     }
 
@@ -287,7 +287,7 @@ extension BrowserStore {
         return sendCopying(
             JoinSplit(
                 workspaceID: family.workspaceID, windowID: windowID, spaceID: space.id,
-                tabID: item.tabID, targetTabID: targetTabID, index: memberIndex),
+                tabID: item.tabID, targetTabID: targetTabID, index: memberIndex, appearances: pageAppearances),
             in: space.id) != nil
     }
 
@@ -370,7 +370,7 @@ extension BrowserStore {
         family.canSend(
             JoinSplit(
                 workspaceID: family.workspaceID, windowID: windowID, spaceID: spaceID,
-                tabID: tabID, targetTabID: targetTabID, index: nil),
+                tabID: tabID, targetTabID: targetTabID, index: nil, appearances: pageAppearances),
             from: self)
     }
 
@@ -441,7 +441,7 @@ extension BrowserStore {
                 OpenLinkInSplit(
                     workspaceID: family.workspaceID, windowID: windowID, spaceID: assignment.spaceID,
                     tabID: openedID, targetTabID: targetTabID, address: url.absoluteString,
-                    title: url.host() ?? url.absoluteString),
+                    title: url.host() ?? url.absoluteString, appearances: pageAppearances),
                 in: assignment.spaceID) != nil
         else { return nil }
         return openedID
@@ -465,7 +465,7 @@ extension BrowserStore {
         return family.canSend(
             OpenLinkInSplit(
                 workspaceID: family.workspaceID, windowID: windowID, spaceID: space.id, tabID: UUID(),
-                targetTabID: tabID, address: "about:blank", title: ""),
+                targetTabID: tabID, address: "about:blank", title: "", appearances: pageAppearances),
             from: self)
     }
 

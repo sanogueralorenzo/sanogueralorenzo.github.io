@@ -29,7 +29,7 @@ extension BrowserStore {
         BrowserTabBatch(
             DuplicateTabs(
                 workspaceID: family.workspaceID, windowID: windowID, spaceID: request.spaceID,
-                selection: request.selection),
+                selection: request.selection, appearances: pageAppearances),
             reselection: .copies)
     }
 
@@ -42,7 +42,7 @@ extension BrowserStore {
             SplitTabs(
                 workspaceID: family.workspaceID, windowID: windowID, spaceID: request.spaceID,
                 selection: request.selection,
-                targetTabID: target, index: index),
+                targetTabID: target, index: index, appearances: pageAppearances),
             reselection: .items)
     }
 

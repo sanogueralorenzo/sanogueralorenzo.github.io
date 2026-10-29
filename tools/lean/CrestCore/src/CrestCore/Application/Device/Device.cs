@@ -8,9 +8,8 @@ namespace CrestCore.Application;
 #region Types
 
 /// What one device intent needs: where it publishes what it changed, the
-/// core's time and identity source, and the pages the windows host, which
-/// finishing setup hands the session it applies.
-internal sealed record DeviceTurn(ChangeFeed Changes, DateTimeOffset Now, IIdSource Ids, Pages Pages);
+/// core’s time and identity source.
+internal sealed record DeviceTurn(ChangeFeed Changes, DateTimeOffset Now, IIdSource Ids);
 
 #endregion
 
@@ -53,8 +52,6 @@ internal sealed partial class Device {
     /// What the device store has adopted from an installed release.
     private readonly HashSet<DeviceAdoption> adopted = [];
     internal HashSet<DeviceAdoption> Adopted => adopted;
-    /// The tab groups of the persistent session whose folders follow them.
-    private readonly List<TabGroupRecord> keptTabGroups = [];
     private Guid? persistentWorkspace;
     internal Guid? PersistentWorkspace => persistentWorkspace;
     internal SearchProvider SearchProvider => Persistent()?.Authority.Current.AppPreferences?.SearchProvider ?? AppPreferences.Default.SearchProvider;
@@ -89,7 +86,6 @@ internal sealed partial class Device {
         lastUse = records.Windows.Count == 0 ? 0 : records.Windows.Max(record => record.Used);
         agents = records.Agents;
         adopted.UnionWith(records.Adopted);
-        keptTabGroups.AddRange(records.TabGroups);
     }
 
     #endregion
@@ -285,30 +281,13 @@ internal sealed partial class Device {
         storage?.EnqueueDevice(Records());
     }
 
-    /// The tab groups of the persistent session whose folders follow them, as
-    /// the device store keeps them.
-    internal IReadOnlyList<TabGroupRecord> KeptTabGroups() {
-        lock (gate) return [.. keptTabGroups];
-    }
-
-    /// Keeps `groups` as the tab groups whose folders follow them, saved when
-    /// they changed.
-    internal void KeepTabGroups(IReadOnlyList<TabGroupRecord> groups) {
-        lock (gate) {
-            if (keptTabGroups.SequenceEqual(groups)) return;
-            keptTabGroups.Clear();
-            keptTabGroups.AddRange(groups);
-            storage?.EnqueueDevice(Records());
-        }
-    }
-
     private void Forget() {
         while (saved.Count > MaximumSavedWindows) saved.Remove(saved.Values.MinBy(record => record.Used)!.Id);
     }
 
     /// Everything the device store keeps, as it stands. The caller holds the device lock.
     internal DeviceRecords Records() => new([.. saved.Values.OrderBy(record => record.Used)], [.. reopening],
-        new HashSet<DeviceAdoption>(adopted), [.. keptTabGroups]) {
+        new HashSet<DeviceAdoption>(adopted)) {
         Agents = agents
     };
 

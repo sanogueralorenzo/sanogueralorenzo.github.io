@@ -46,8 +46,6 @@ public sealed partial class BrowserContractsTests {
     private sealed class TestDevice : IDisposable {
         private readonly CrestApp app;
         private readonly Dictionary<Guid, WindowState> windows = [];
-        /// The engine the device's pages open on, once one opened.
-        private Engine? engine;
 
         /// A device with a workspace of `kind`, persistent unless named, opened
         /// from `session`, a document in the stored format.
@@ -78,23 +76,6 @@ public sealed partial class BrowserContractsTests {
         /// The session of the workspace `workspace` names.
         public NativeSessionAuthority Session(Guid workspace) => app.Workspace(workspace);
 
-        /// Registers the default engine, which supports `capabilities` beside
-        /// the ones every engine must, and does what the core asks.
-        public Engine Register(params EngineCapability[] capabilities) => engine = app.RegisterEngine(
-            new EngineRegistration([.. EngineCapability.Required, .. capabilities]), _ => { });
-
-        /// Registers the default engine, which records what the core asks in `binding`.
-        public Engine Register(RecordingEngine binding) => engine = app.RegisterEngine(
-            new EngineRegistration(EngineCapability.Required), binding.Run);
-
-        /// Reports `engineEvent` from the device's engine and answers what changed.
-        public IReadOnlyList<Change> Report(EngineEvent engineEvent) {
-            app.Report(engine ??= Register(), engineEvent);
-            var changes = app.Drain();
-            Record(changes);
-            return changes;
-        }
-
         /// A window on the first session showing `space`, and `tabs` in the Spaces they name.
         public Guid Open(Guid? space, params (Guid Space, Guid? Tab)[] tabs) => OpenIn(Workspace, space, tabs);
 
@@ -115,18 +96,6 @@ public sealed partial class BrowserContractsTests {
                 .Select(item => (SpaceId(item!), (Guid?)Guid.Parse(item!["selectedTabID"]!["rawValue"]!.GetValue<string>())))]);
 
         public TAnswer Query<TAnswer>(Query<TAnswer> query) => app.Query(query);
-
-        /// A live page `window` hosts for `tab` in `space`, or for a Quick
-        /// Window or Peek when `tab` is null, whose engine shows `snapshot`.
-        public Guid ShowPage(Guid window, Guid space, Guid? tab, PageSnapshot snapshot) {
-            engine ??= Register();
-            var page = Guid.NewGuid();
-            Send(new OpenPage(page, Workspace, space, tab, window));
-            app.Report(engine, new PageCreated(page));
-            app.Report(engine, new PageStateChanged(page, snapshot));
-            Record(app.Drain());
-            return page;
-        }
 
         public IReadOnlyList<Change> Send(Intent intent) {
             var changes = app.Send(intent);
@@ -150,6 +119,21 @@ public sealed partial class BrowserContractsTests {
             foreach (var change in changes.OfType<WindowChanged>()) windows[change.Window.Id] = change.Window;
         }
     }
+
+    private static (CrestApp App, Guid Workspace, Guid Window) WindowHost(JsonNode session, WorkspaceKind? kind = null) {
+        var app = new CrestApp();
+        var workspace = TestWorkspaces.Open(app, session, kind);
+        var window = Guid.NewGuid();
+        app.Send(new OpenWindow(window, workspace, Saved: false, null, null, [], RestoresTabs: true));
+        return (app, workspace, window);
+    }
+    private static JsonNode TwoSpaceSession() {
+        var session = SavedSession().Document["session"]!;
+        session["spaces"]!.AsArray().Add(SavedSession().Document["session"]!["spaces"]![0]!.DeepClone());
+        return session;
+    }
+    private static Guid ProfileId(JsonNode space) => Guid.Parse(space["profile"]!["id"]!.GetValue<string>());
+    private static Rejection Refusal(CrestApp app, Intent intent) => Assert.Throws<Rejected>(() => app.Send(intent)).Rejection;
 
     private static Guid SpaceId(JsonNode space) => Guid.Parse(space["id"]!["rawValue"]!.GetValue<string>());
 

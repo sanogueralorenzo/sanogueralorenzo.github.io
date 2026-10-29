@@ -58,16 +58,13 @@ public sealed partial class CrestApp {
     }
 
     /// Closes a workspace and, first, every workspace that borrows from it:
-    /// its session takes no edits, its pages go and their engines close what
-    /// they hold, then its windows close, keeping their saved records, and its
-    /// sync stops once its queued stages ran. The caller holds the lock.
+    /// its session takes no edits, its windows close, and sync stops once its
+    /// queued stages ran. Native pages consume WorkspaceClosed before their UI
+    /// observers. The caller holds the lock.
     internal void Close(Guid workspaceId) {
         if (device.Attached(workspaceId) is not { } session) return;
         foreach (var borrower in device.Borrowers(session)) Close(borrower);
         session.Close();
-        var dropped = new ChangeFeed();
-        pages.Drop(workspaceId, dropped, Issue);
-        foreach (var change in dropped.Published) Announce(change);
         device.Detach(workspaceId);
         if (ReferenceEquals(session, storedSession)) storedSync?.Stop();
     }

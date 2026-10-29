@@ -21,9 +21,9 @@ public sealed partial class NativeSessionAuthority {
     /// of `space`, and shows the joined tab in the issuing window. A copy
     /// starts from where its source's page is now; see `StartFromSourcePage`.
     internal SessionEdit Joining(SessionState basis, SpaceState space, BrowserTabCollection edited, Guid windowId, Guid tabId, Guid targetId,
-        int? index, Pages? pages, DateTimeOffset now, IIdSource ids) {
+        int? index, IReadOnlyList<TabPageAppearance>? appearances, DateTimeOffset now, IIdSource ids) {
         var joined = edited.JoinSplit(tabId, targetId, index, ids, now);
-        foreach (var (source, copyId) in joined.Copies) StartFromSourcePage(edited.Tab(copyId), source, windowId, pages);
+        foreach (var (source, copyId) in joined.Copies) StartFromSourcePage(edited.Tab(copyId), source, appearances);
         var followUp = new WindowFollowUp(IssuingWindow(windowId)).ShowTab(space.Id, joined.SelectedTab).ShowSpace(space.Id);
         return new(basis.Replacing(edited.Capture(space)), SyncStaging.Edit, followUp,
             new([.. joined.Copies.Select(pair => new SessionTabCopy(pair.Source, pair.Copy))], null));

@@ -139,7 +139,7 @@ final class CorePage {
     /// accepted, comes to the front. A core that cannot answer brings it
     /// forward, as an ordinary new-window request does.
     func selectsOpenedWindow(gesture: LinkGesture) -> Bool {
-        (try? core?.query(OpenedWindowSelection(gesture: gesture)))?.selects ?? true
+        PageLinkDecision.selectsWindow(gesture)
     }
 
     /// Tells the core no page will load a link the page's engine staged, so
@@ -158,13 +158,13 @@ final class CorePage {
     /// The entries the page can go back and forward to, nearest first, as the
     /// core keeps its history. Empty before the core holds the page.
     var history: PageHistoryList {
-        (try? core?.query(PageHistoryEntries(pageID: id))) ?? PageHistoryList(back: [], forward: [])
+        (core?.query(PageHistoryEntries(pageID: id))) ?? PageHistoryList(back: [], forward: [])
     }
 
     /// The page's back and forward history as its tab's archive keeps it
     /// across a relaunch, opaque here; nil for none.
     var archivedHistory: Data? {
-        (try? core?.query(ArchivedPageHistory(pageID: id)))?.archive
+        (core?.query(ArchivedPageHistory(pageID: id)))?.archive
     }
 
     /// Moves the page `offset` entries through its history: back when
@@ -194,7 +194,7 @@ final class CorePage {
 
     /// Reports what the page's engine saw it do, through that engine. `icon`
     /// is the image a `PageIconChanged` names. A released page reports nothing.
-    func report(_ event: some EngineEvent, icon: Data? = nil) {
+    func report(_ event: some NativePageReport, icon: Data? = nil) {
         guard !isReleased else { return }
         core?.engines.report(event, for: id, icon: icon)
     }

@@ -110,48 +110,32 @@ internal static class RecordedIntents {
             arguments["title"]?.GetValue<string>() ?? "", Time(request));
     }
 
-    /// Sends the intents a recorded request became, from `window`, while pages
-    /// `engine` hosts there show what the request observed its tabs' pages
-    /// showing, as a split join's copies start from them, and answers the
-    /// changes the core published, through the pages' release.
-    public static IReadOnlyList<Change> Send(CrestApp app, Engine engine, JsonObject request, IReadOnlyList<Intent> intents,
-        Guid? window) {
+    /// Supplies the actual native page facts captured by the recorded host.
+    public static IReadOnlyList<Change> Send(CrestApp app, JsonObject request, IReadOnlyList<Intent> intents) {
+        var appearances = (request["arguments"]?["copyObservations"] as JsonArray ?? []).Select(observed =>
+            new TabPageAppearance(Guid.Parse(observed!["tabId"]!.GetValue<string>()), observed["url"]?.GetValue<string>(),
+                observed["title"]!.GetValue<string>())).ToArray();
         var changes = new List<Change>();
-        var shown = new List<Guid>();
-        foreach (var observed in request["arguments"]?["copyObservations"] as JsonArray ?? []) {
-            var page = Guid.NewGuid();
-            changes.AddRange(app.Send(new OpenPage(page, intents.OfType<SessionIntent>().First().WorkspaceId,
-                Guid.Parse(request["spaceId"]!.GetValue<string>()),
-                Guid.Parse(observed!["tabId"]!.GetValue<string>()), window!.Value)));
-            app.Report(engine, new PageCreated(page));
-            var snapshot = PageSnapshot.Blank with { Url = observed["url"]?.GetValue<string>(), Title = observed["title"]!.GetValue<string>() };
-            app.Report(engine, new PageStateChanged(page, snapshot));
-            shown.Add(page);
-        }
         foreach (var intent in intents) {
-            changes.AddRange(app.Send(intent));
+            Intent prepared = intent switch {
+                DuplicateTab copying => copying with { Appearances = appearances },
+                DuplicateTabs copying => copying with { Appearances = appearances },
+                SplitTabs copying => copying with { Appearances = appearances },
+                JoinSplit copying => copying with { Appearances = appearances },
+                OpenLinkInSplit copying => copying with { Appearances = appearances },
+                DropIntoSplit copying => copying with { Appearances = appearances },
+                _ => intent
+            };
+            changes.AddRange(app.Send(prepared));
         }
-        foreach (var page in shown) changes.AddRange(app.Send(new ReleasePage(page, KeepsState: false)));
         return changes;
     }
 
-    /// A registered engine for pages whose observations the recording supplies.
-    public static Engine PageEngine(CrestApp app) =>
-        app.RegisterEngine(new EngineRegistration(EngineCapability.Required), _ => { });
-
-    /// Reports `navigation` from a page `engine` hosts in `window` for no tab,
-    /// as a Quick Window's page does, and answers the changes the core
-    /// published, through the page's release.
-    public static IReadOnlyList<Change> Report(CrestApp app, Engine engine, RecordedNavigation navigation, Guid workspace, Guid window) {
-        var page = Guid.NewGuid();
-        var changes = new List<Change>(app.Send(new OpenPage(page, workspace, navigation.SpaceId, null, window)));
-        app.Report(engine, new PageCreated(page));
-        app.Report(engine, new NavigationStarted(page, navigation.Url, SameDocument: false));
-        app.Report(engine, new NavigationCommitted(page, navigation.Url, SameDocument: false));
-        app.Report(engine, new NavigationFinished(page, navigation.Url, navigation.Title));
-        changes.AddRange(app.Send(new ReleasePage(page, KeepsState: false)));
-        return changes;
-    }
+    /// The recording's completed transient navigation, already deduplicated
+    /// by the native page owner, becomes one atomic session record.
+    public static IReadOnlyList<Change> Report(CrestApp app, RecordedNavigation navigation, Guid workspace) =>
+        app.Send(new RecordPageNavigation(workspace, Guid.NewGuid(), navigation.SpaceId, null, navigation.Url,
+            navigation.Title, navigation.At, app.Ids.Next(), HasIcon: false, IconAccent: null));
 
     /// The Spaces a recorded reorder left, which moved the ones at `offsets`
     /// to before the one at `destination`, as a list's move does.

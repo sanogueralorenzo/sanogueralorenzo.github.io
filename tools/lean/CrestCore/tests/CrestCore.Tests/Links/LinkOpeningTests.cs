@@ -27,27 +27,4 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal(new ExternalOpenPlacement(front, second, OpensWindow: true), Destination(privateWindow));
     }
 
-    [Fact]
-    public void PreviewLinksAndNewWindowsUseFixedSelectionGestures() {
-        var (document, space, tab) = SavedSession();
-        var (app, _, _, workspace, window) = PageHost(document["session"]!);
-        using var disposal = app;
-        Guid saved = Guid.NewGuid();
-        app.Send(new OpenPage(saved, workspace, space, tab, window));
-        LinkNavigationDecision Follow(string url, ShortcutModifiers held = ShortcutModifiers.None) =>
-            app.Query(new LinkNavigation(saved, url, new LinkGesture(true, true, held, false))).Decision;
-        Assert.Equal(LinkNavigationDecision.ForegroundTab, Follow("https://webkit.org/"));
-        Assert.Equal(LinkNavigationDecision.Navigate, Follow("https://example.com/other"));
-        Assert.Equal(LinkNavigationDecision.ForegroundTab, Follow("https://webkit.org/", ShortcutModifiers.Option));
-        Assert.Equal(LinkNavigationDecision.BackgroundTab, Follow("https://webkit.org/", ShortcutModifiers.Command));
-        Assert.Equal(LinkNavigationDecision.ForegroundTab,
-            Follow("https://webkit.org/", ShortcutModifiers.Command | ShortcutModifiers.Shift));
-        bool Selects(ShortcutModifiers held, bool middle = false) =>
-            app.Query(new OpenedWindowSelection(new LinkGesture(false, true, held, middle))).Selects;
-        Assert.True(Selects(ShortcutModifiers.None));
-        Assert.False(Selects(ShortcutModifiers.Command));
-        Assert.False(Selects(ShortcutModifiers.None, middle: true));
-        Assert.True(Selects(ShortcutModifiers.Command | ShortcutModifiers.Shift));
-        Assert.True(Selects(ShortcutModifiers.Shift, middle: true));
-    }
 }

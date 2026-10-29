@@ -385,7 +385,7 @@ final class BrowserPagePoolTests: XCTestCase {
         )
     }
 
-    func testPrivatePoolReusesOneEphemeralStorePerSpaceWithoutCredentialsOrExtensions() throws {
+    func testPrivatePoolReusesOneEphemeralStoreAndBlockerPerSpace() throws {
         let firstTab = TabState.Seed.startPage()
         let secondTab = TabState.Seed.startPage()
         let firstSpace = makeSpace(tabs: [firstTab], selectedTabID: firstTab.id)
@@ -401,17 +401,21 @@ final class BrowserPagePoolTests: XCTestCase {
 
         XCTAssertFalse(firstStore.isPersistent)
         XCTAssertNil(firstStore.identifier)
-        XCTAssertNil(firstPage.webView.configuration.webExtensionController)
+        let firstBlocker = try XCTUnwrap(firstPage.webView.configuration.webExtensionController)
+        XCTAssertFalse(firstBlocker.configuration.isPersistent)
+        XCTAssertTrue(firstBlocker.configuration.defaultWebsiteDataStore === firstStore)
 
         present(pool, tab: secondTab.id, in: secondSpace.id)
-        let secondStore = try XCTUnwrap(pool.activePage)
-            .webView.configuration.websiteDataStore
+        let secondPage = try XCTUnwrap(pool.activePage)
+        let secondStore = secondPage.webView.configuration.websiteDataStore
         XCTAssertFalse(firstStore === secondStore)
+        XCTAssertFalse(firstBlocker === secondPage.webView.configuration.webExtensionController)
 
         present(pool, tab: firstTab.id, in: firstSpace.id)
         let restoredFirstStore = try XCTUnwrap(pool.activePage)
             .webView.configuration.websiteDataStore
         XCTAssertTrue(firstStore === restoredFirstStore)
+        XCTAssertTrue(firstBlocker === pool.activePage?.webView.configuration.webExtensionController)
     }
 
     func testXCTestStandardPoolNeverUsesTheInstalledWebsiteDataStore() throws {
@@ -1302,6 +1306,9 @@ final class BrowserPagePoolTests: XCTestCase {
 
     private func showing(_ tabID: UUID, in space: SpaceState.Seed) -> SpaceState.Seed {
         fixtureSelections[space.id] = tabID
+        // Page lifecycle fixtures do not wait for the bundled extension to start.
+        var space = space
+        space.settings.browsingPreferences.contentBlocking = .off
         return space
     }
 
