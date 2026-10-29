@@ -1,8 +1,7 @@
 import Foundation
 
 extension BrowserBlockedPopupNotice {
-    /// The generator cannot yet carry a string argument on a set's text, so
-    /// the title that names the host stays here.
+    /// The notice names the site whose automatic popup was held back.
     var title: String {
         status.offersAllow
             ? String(localized: "Pop-up blocked for \(origin.host)")

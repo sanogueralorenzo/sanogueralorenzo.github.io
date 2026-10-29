@@ -61,7 +61,7 @@ struct BrowserPopupSchemeRouting: Equatable, Sendable {
     /// A popup destination is never app-initiated, so `file:` is refused here for
     /// the same reason it is refused for an ordinary navigation.
     static func classify(destinationURL: URL?) -> Self {
-        switch SchemeHandling.disposition(for: destinationURL).kind {
+        switch SchemeHandling.disposition(for: destinationURL) {
         case .engine:
             return .popupPolicy
         case .blocked:

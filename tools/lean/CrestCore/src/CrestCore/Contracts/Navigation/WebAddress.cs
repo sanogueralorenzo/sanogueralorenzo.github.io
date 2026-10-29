@@ -1,3 +1,5 @@
+using CrestCore.Domain;
+
 namespace CrestCore.Contracts;
 
 /// A web page's address as a page, a person or a record spelled it. A page's
@@ -10,11 +12,6 @@ public readonly record struct WebAddress(string Spelling) {
     /// without its fragment, or null for one history does not keep.
     public string? Normalized => Uri.TryCreate(Spelling, UriKind.Absolute, out var value)
         && WebScheme.Named(value.Scheme) is not null ? Spelling.Split('#', 2)[0] : null;
-
-    /// The web origin a page at this address belongs to, with its host in
-    /// ASCII, or null for an address that is not http or https.
-    public SiteOrigin? Origin => Uri.TryCreate(Spelling, UriKind.Absolute, out var value) && WebScheme.Named(value.Scheme) is not null
-        && value.IdnHost.Length > 0 ? new SiteOrigin(value.Scheme, value.IdnHost, value.Port) : null;
 
     /// Where an http or https address points: its host, a port other than the
     /// scheme's own, its path, "/" when it has none, and its query. Null for

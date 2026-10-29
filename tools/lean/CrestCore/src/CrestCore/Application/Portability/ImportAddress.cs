@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 
 using CrestCore.Contracts;
+using CrestCore.Domain;
 
 namespace CrestCore.Application;
 

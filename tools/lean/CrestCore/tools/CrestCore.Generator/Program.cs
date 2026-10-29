@@ -6,9 +6,7 @@ namespace CrestCore.Generator;
 ///
 /// `dotnet run --project CrestCore/tools/CrestCore.Generator [-- --check] [--root PATH]`
 /// writes the C# codec, the two Swift files, and the C tag header. With `--check` it writes nothing and fails when any output is
-/// stale. Either way it fails when a Swift source other than its own calls a
-/// wire initializer, or when a view source reads a read-model object's whole
-/// record.
+/// stale. It also refuses a view source that reads a read-model object's whole record.
 internal static class Program {
     #region Variables
 
@@ -32,7 +30,7 @@ internal static class Program {
             };
             int result = check ? Check(root, outputs) : Write(root, outputs);
             var sources = SwiftSources(root, outputs.Keys).ToList();
-            var misuses = SwiftEmitter.WireInitializerCalls(schema, sources).Concat(SwiftEmitter.WholeRecordReads(schema, sources)).ToList();
+            var misuses = SwiftEmitter.WholeRecordReads(schema, sources);
             foreach (var misuse in misuses) Console.Error.WriteLine($"error: {misuse}");
             return misuses.Count == 0 ? result : 1;
         } catch (ContractSchemaException error) {

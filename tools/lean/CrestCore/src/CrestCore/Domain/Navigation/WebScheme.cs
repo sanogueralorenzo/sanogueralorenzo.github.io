@@ -1,11 +1,7 @@
-namespace CrestCore.Contracts;
+namespace CrestCore.Domain;
 
-/// A scheme the web serves pages over, with the port a URL of the scheme means
-/// when it names none and whether it is secure. An address is a web address
-/// exactly when `Named` knows its scheme. An origin of any other scheme keeps
-/// the port it was given. A scheme travels as its index in `All`, so `All` is
-/// append-only.
-public sealed class WebScheme {
+/// A web scheme used by session address validation and sync projection.
+internal sealed class WebScheme {
     #region Static Variables
 
     public static readonly WebScheme Http = new(name: "http", defaultPort: 80, isSecure: false);

@@ -22,6 +22,11 @@ appearance captured for the issuing window. Native command delivery preserves
 handover and teardown before UI observers; synchronous reports follow the batch
 that caused them.
 
+Page presentation, blocked-popup indications, authentication handling, scheme
+routing, local-document acceptance, secure-origin checks and notification
+consent are native rules. Permission types and origin normalization have no
+C# contracts or wire codecs; their saved names remain unchanged.
+
 Download records, progress/risk queries and WebKit download callbacks run in
 Swift. Native quit preparation reads their live count directly; the C# core
 holds no download records or transfer identities.

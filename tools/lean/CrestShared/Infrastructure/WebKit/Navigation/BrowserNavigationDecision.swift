@@ -89,7 +89,7 @@ struct BrowserNavigationDecision: Equatable, Sendable {
         switch SchemeHandling.disposition(
             for: url,
             isAppInitiated: isAppInitiated
-        ).kind {
+        ) {
         case .engine:
             break
         case .blocked:

@@ -51,8 +51,7 @@ struct PermissionLedger {
         }
     }
     static func valid(_ origin: SiteOrigin) -> Bool {
-        (1...64).contains(origin.scheme.utf16.count) && (1...1_024).contains(origin.host.utf16.count)
-            && (-1...65_535).contains(origin.port)
+        origin.isValid
     }
     private static func valid(_ detail: String?) -> Bool {
         detail.map { (1...maximumDetailLength).contains($0.utf16.count) } ?? true

@@ -110,7 +110,6 @@ enum Rejection: Equatable, Error, Sendable {
     case folderLimitReached(FolderLimitReached)
     case incompleteSplit(IncompleteSplit)
     case invalidAgent(InvalidAgent)
-    case invalidBlockedPopup(InvalidBlockedPopup)
     case invalidFolderPlacement(InvalidFolderPlacement)
     case invalidImport(InvalidImport)
     case invalidLiveFolder(InvalidLiveFolder)
@@ -592,18 +591,6 @@ struct ArchivedTabState: Equatable, Sendable {
     }
 }
 
-struct AuthenticationSource: Query, Equatable, Sendable {
-    typealias Answer = AuthenticationSourceLabel
-
-    let host: String
-    let port: Int
-    let scheme: String?
-}
-
-struct AuthenticationSourceLabel: Equatable, Sendable {
-    let label: String?
-}
-
 struct BeginAgentSession: Intent, AgentIntent, Equatable, Sendable {
     let sessionID: UUID
     let identity: AgentIdentity
@@ -618,29 +605,6 @@ struct BeginDeletingSpace: Intent, SessionIntent, Equatable, Sendable {
     let windowID: UUID
     let spaceID: UUID
     let operationID: UUID
-}
-
-struct BlockedPopupPageState: Equatable, Sendable {
-    static let maximumDocumentIdentifierLength: Int = 128
-    static let empty = BlockedPopupPageState(status: nil, origin: nil, documentIdentifier: nil, indicationRevision: 0)
-
-    var status: BlockedPopupStatus?
-    var origin: SiteOrigin?
-    var documentIdentifier: String?
-    var indicationRevision: Int
-}
-
-struct BlockedPopupTransition: Query, Equatable, Sendable {
-    typealias Answer = BlockedPopupTransitioned
-
-    let state: BlockedPopupPageState
-    let event: BlockedPopupEvent
-    let documentIdentifier: String?
-    let origin: SiteOrigin?
-}
-
-struct BlockedPopupTransitioned: Equatable, Sendable {
-    let state: BlockedPopupPageState?
 }
 
 struct BookmarksHaveNoLinks: Equatable, Sendable {
@@ -739,18 +703,6 @@ struct CapacityLimits: Equatable, Sendable {
     let spaces: Int
     let tabsPerSpace: Int
     let syncRecords: Int
-}
-
-struct ChallengeHandled: Equatable, Sendable {
-    let handling: AuthenticationHandling
-}
-
-struct ChallengeHandling: Query, Equatable, Sendable {
-    typealias Answer = ChallengeHandled
-
-    let method: AuthenticationMethod
-    let isProxy: Bool
-    let previousFailureCount: Int
 }
 
 struct ChooseCloudCopy: Intent, CloudSyncControlIntent, Equatable, Sendable {
@@ -1159,16 +1111,6 @@ struct ExportedDocument: Equatable, Sendable {
     let format: ExportFormat
 }
 
-struct ExternalAddressVerdict: Equatable, Sendable {
-    let accepted: Bool
-}
-
-struct ExternalLocalDocument: Query, Equatable, Sendable {
-    typealias Answer = ExternalAddressVerdict
-
-    let facts: LocalDocumentFacts
-}
-
 struct ExternalOpenDestination: Query, Equatable, Sendable {
     typealias Answer = ExternalOpenPlacement
 
@@ -1495,9 +1437,6 @@ struct InvalidAgent: Equatable, Sendable {
     }
 }
 
-struct InvalidBlockedPopup: Equatable, Sendable {
-}
-
 struct InvalidFolderPlacement: Equatable, Sendable {
 }
 
@@ -1607,13 +1546,6 @@ struct ListDropTarget: Equatable, Sendable {
 struct LiveFolderTab: Equatable, Sendable {
     var url: String
     var title: String
-}
-
-struct LocalDocumentFacts: Equatable, Sendable {
-    var isFile: Bool
-    var hasUser: Bool
-    var hasPath: Bool
-    var host: String?
 }
 
 struct MergeCloudSnapshot: Intent, CloudSyncIntent, Equatable, Sendable {
@@ -1742,17 +1674,6 @@ struct NoteAgentActivity: Intent, AgentIntent, Equatable, Sendable {
     let subject: String
 }
 
-struct NotificationPermissionRequest: Query, Equatable, Sendable {
-    typealias Answer = NotificationRequestAnswer
-
-    let decision: SitePermissionDecision
-    let hasUserActivation: Bool
-}
-
-struct NotificationRequestAnswer: Equatable, Sendable {
-    let action: HostedNotificationRequestAction
-}
-
 struct NotifyCloudLocalChanges: Intent, CloudSyncControlIntent, Equatable, Sendable {
 }
 
@@ -1821,10 +1742,6 @@ struct PageMatch: Equatable, Sendable {
     let isSamePage: Bool
 }
 
-struct PagePresented: Equatable, Sendable {
-    let presentation: PagePresentation
-}
-
 struct PasskeyAccess: Query, Equatable, Sendable {
     typealias Answer = PasskeyAccessVerdict
 
@@ -1887,16 +1804,6 @@ struct PinsOneTabAtATime: Equatable, Sendable {
     var message: LocalizedStringResource {
         LocalizedStringResource("Drag one tab at a time to pin it.")
     }
-}
-
-struct PresentPage: Query, Equatable, Sendable {
-    typealias Answer = PagePresented
-
-    let surface: TabSurface?
-    let hasPage: Bool
-    let hasNavigationFailure: Bool
-    let hasProcessFailure: Bool
-    let restoresUnloaded: Bool
 }
 
 struct PrivateWorkspaceBoundary: Equatable, Sendable {
@@ -2154,27 +2061,6 @@ struct Saved: CoreChange, Equatable, Sendable {
     let revision: Int64
 }
 
-struct SchemeHandled: Equatable, Sendable {
-    let disposition: ExternalSchemeDisposition
-}
-
-struct SchemeHandling: Query, Equatable, Sendable {
-    typealias Answer = SchemeHandled
-
-    let scheme: String?
-    let appInitiated: Bool
-}
-
-struct SecureOriginCheck: Query, Equatable, Sendable {
-    typealias Answer = SecureOriginVerdict
-
-    let origin: SiteOrigin
-}
-
-struct SecureOriginVerdict: Equatable, Sendable {
-    let allowed: Bool
-}
-
 struct SelectedRoot: Equatable, Sendable, Identifiable {
     let id: UUID
     let kind: SidebarRowKind
@@ -2426,23 +2312,6 @@ struct SidebarRow: Equatable, Sendable, Identifiable {
     let parentFolderID: UUID?
     let depth: Int
     let members: [UUID]
-}
-
-struct SiteOrigin: Hashable, Sendable {
-    static let maximumSchemeLength: Int = 64
-    static let maximumHostLength: Int = 1024
-
-    let scheme: String
-    let host: String
-    let port: Int
-
-    /// The wire's initializer: the codec's alone, for values the core wrote after
-    /// normalizing them. Anything else makes one with `init(scheme:host:port:)`, which normalizes.
-    init(normalized scheme: String, host: String, port: Int) {
-        self.scheme = scheme
-        self.host = host
-        self.port = port
-    }
 }
 
 struct SpaceAlreadyExists: Equatable, Sendable {
@@ -3012,12 +2881,6 @@ struct WrongDeletionOperation: Equatable, Sendable {
 
 // MARK: - Enums
 
-enum AuthenticationHandling: Int, CaseIterable, Sendable {
-    case promptForCredentials = 0
-    case performDefaultHandling = 1
-    case cancel = 2
-}
-
 enum ImportFlaw: Int, CaseIterable, Sendable {
     case unreadable = 0
     case malformedSplit = 1
@@ -3036,12 +2899,6 @@ enum SessionFlaw: Int, CaseIterable, Sendable {
     case sharedProfile = 3
     case duplicateTab = 4
     case unknownDeletion = 5
-}
-
-enum SitePermissionVerdict: Int, CaseIterable, Sendable {
-    case ask = 0
-    case grant = 1
-    case deny = 2
 }
 
 enum StorageFailure: Int, CaseIterable, Sendable {
@@ -3390,205 +3247,6 @@ struct ArchiveReason: Hashable, Sendable {
             self.tint = tint
             self.isExplicitDeletion = isExplicitDeletion
             self.isReceived = isReceived
-        }
-    }
-}
-
-/// The members of the core's `AuthenticationMethod`. A member's wire tag is its index in `all`.
-struct AuthenticationMethod: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var promptsForCredentials: Bool { facts.promptsForCredentials }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, promptsForCredentials: Bool) {
-        self.tag = tag
-        facts = Facts(name: name, promptsForCredentials: promptsForCredentials)
-    }
-
-    static let httpBasic = AuthenticationMethod(tag: 0, name: "httpBasic", promptsForCredentials: true)
-    static let httpDigest = AuthenticationMethod(tag: 1, name: "httpDigest", promptsForCredentials: true)
-    static let other = AuthenticationMethod(tag: 2, name: "other", promptsForCredentials: false)
-
-    static let all: [AuthenticationMethod] = [httpBasic, httpDigest, other]
-
-    static func named(_ name: String?) -> AuthenticationMethod? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: AuthenticationMethod, rhs: AuthenticationMethod) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let promptsForCredentials: Bool
-
-        init(name: String, promptsForCredentials: Bool) {
-            self.name = name
-            self.promptsForCredentials = promptsForCredentials
-        }
-    }
-}
-
-/// The members of the core's `BlockedPopupEvent`. A member's wire tag is its index in `all`.
-struct BlockedPopupEvent: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var from: BlockedPopupStatus? { facts.from }
-    var fromAnything: Bool { facts.fromAnything }
-    var to: BlockedPopupStatus? { facts.to }
-    var startsIndication: Bool { facts.startsIndication }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        name: String,
-        from: BlockedPopupStatus?,
-        fromAnything: Bool,
-        to: BlockedPopupStatus?,
-        startsIndication: Bool
-    ) {
-        self.tag = tag
-        facts = Facts(name: name, from: from, fromAnything: fromAnything, to: to, startsIndication: startsIndication)
-    }
-
-    static let blocked = BlockedPopupEvent(
-        tag: 0,
-        name: "blocked",
-        from: nil,
-        fromAnything: false,
-        to: BlockedPopupStatus.blocked,
-        startsIndication: true
-    )
-    static let permissionAllowed = BlockedPopupEvent(
-        tag: 1,
-        name: "permission_allowed",
-        from: BlockedPopupStatus.blocked,
-        fromAnything: false,
-        to: BlockedPopupStatus.allowedAwaitingRetry,
-        startsIndication: false
-    )
-    static let permissionBlockedAgain = BlockedPopupEvent(
-        tag: 2,
-        name: "permission_blocked_again",
-        from: BlockedPopupStatus.allowedAwaitingRetry,
-        fromAnything: false,
-        to: BlockedPopupStatus.blocked,
-        startsIndication: false
-    )
-    static let navigation = BlockedPopupEvent(
-        tag: 3,
-        name: "navigation",
-        from: nil,
-        fromAnything: true,
-        to: nil,
-        startsIndication: false
-    )
-    static let popupAllowed = BlockedPopupEvent(
-        tag: 4,
-        name: "popup_allowed",
-        from: BlockedPopupStatus.allowedAwaitingRetry,
-        fromAnything: false,
-        to: nil,
-        startsIndication: false
-    )
-
-    static let all: [BlockedPopupEvent] = [blocked, permissionAllowed, permissionBlockedAgain, navigation, popupAllowed]
-
-    static func named(_ name: String?) -> BlockedPopupEvent? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: BlockedPopupEvent, rhs: BlockedPopupEvent) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let from: BlockedPopupStatus?
-        let fromAnything: Bool
-        let to: BlockedPopupStatus?
-        let startsIndication: Bool
-
-        init(
-            name: String,
-            from: BlockedPopupStatus?,
-            fromAnything: Bool,
-            to: BlockedPopupStatus?,
-            startsIndication: Bool
-        ) {
-            self.name = name
-            self.from = from
-            self.fromAnything = fromAnything
-            self.to = to
-            self.startsIndication = startsIndication
-        }
-    }
-}
-
-/// The members of the core's `BlockedPopupStatus`. A member's wire tag is its index in `all`.
-struct BlockedPopupStatus: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var symbol: String { facts.symbol }
-    var guidance: LocalizedStringResource { facts.guidance }
-    var offersAllow: Bool { facts.offersAllow }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, symbol: String, guidance: LocalizedStringResource, offersAllow: Bool) {
-        self.tag = tag
-        facts = Facts(name: name, symbol: symbol, guidance: guidance, offersAllow: offersAllow)
-    }
-
-    static let blocked = BlockedPopupStatus(
-        tag: 0,
-        name: "blocked",
-        symbol: "macwindow.badge.plus",
-        guidance: LocalizedStringResource("Automatic pop-ups are blocked. Allow them for this site, then retry the action on the page."),
-        offersAllow: true
-    )
-    static let allowedAwaitingRetry = BlockedPopupStatus(
-        tag: 1,
-        name: "allowedAwaitingRetry",
-        symbol: "checkmark.circle",
-        guidance: LocalizedStringResource("Retry the action on the page. Crest did not reopen the blocked pop-up."),
-        offersAllow: false
-    )
-
-    static let all: [BlockedPopupStatus] = [blocked, allowedAwaitingRetry]
-
-    static func named(_ name: String?) -> BlockedPopupStatus? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: BlockedPopupStatus, rhs: BlockedPopupStatus) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let symbol: String
-        let guidance: LocalizedStringResource
-        let offersAllow: Bool
-
-        init(name: String, symbol: String, guidance: LocalizedStringResource, offersAllow: Bool) {
-            self.name = name
-            self.symbol = symbol
-            self.guidance = guidance
-            self.offersAllow = offersAllow
         }
     }
 }
@@ -4440,137 +4098,6 @@ struct ExportFormat: Hashable, Sendable {
     }
 }
 
-/// The members of the core's `ExternalSchemeDisposition`. A member's wire tag is its index in `all`.
-struct ExternalSchemeDisposition: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case engine
-        case blocked
-        case handOff
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    private let facts: Facts
-
-    private init(tag: Int, kind: Kinds, name: String) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name)
-    }
-
-    static let engine = ExternalSchemeDisposition(tag: 0, kind: .engine, name: "engine")
-    static let blocked = ExternalSchemeDisposition(tag: 1, kind: .blocked, name: "blocked")
-    static let handOff = ExternalSchemeDisposition(tag: 2, kind: .handOff, name: "handOff")
-
-    static let all: [ExternalSchemeDisposition] = [engine, blocked, handOff]
-
-    static func named(_ name: String?) -> ExternalSchemeDisposition? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: ExternalSchemeDisposition, rhs: ExternalSchemeDisposition) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-
-        init(kind: Kinds, name: String) {
-            self.kind = kind
-            self.name = name
-        }
-    }
-}
-
-/// The members of the core's `HostedNotificationRequestAction`. A member's wire tag is its index in `all`.
-struct HostedNotificationRequestAction: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case respondDefault
-        case respondDenied
-        case resolveSystemAuthorization
-        case promptForSitePermission
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var answers: SitePermissionVerdict { facts.answers }
-    var answersUserActivation: Bool? { facts.answersUserActivation }
-    private let facts: Facts
-
-    private init(tag: Int, kind: Kinds, name: String, answers: SitePermissionVerdict, answersUserActivation: Bool?) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, answers: answers, answersUserActivation: answersUserActivation)
-    }
-
-    static let respondDefault = HostedNotificationRequestAction(
-        tag: 0,
-        kind: .respondDefault,
-        name: "respondDefault",
-        answers: .ask,
-        answersUserActivation: false
-    )
-    static let respondDenied = HostedNotificationRequestAction(
-        tag: 1,
-        kind: .respondDenied,
-        name: "respondDenied",
-        answers: .deny,
-        answersUserActivation: nil
-    )
-    static let resolveSystemAuthorization = HostedNotificationRequestAction(
-        tag: 2,
-        kind: .resolveSystemAuthorization,
-        name: "resolveSystemAuthorization",
-        answers: .grant,
-        answersUserActivation: nil
-    )
-    static let promptForSitePermission = HostedNotificationRequestAction(
-        tag: 3,
-        kind: .promptForSitePermission,
-        name: "promptForSitePermission",
-        answers: .ask,
-        answersUserActivation: true
-    )
-
-    static let all: [HostedNotificationRequestAction] = [
-        respondDefault,
-        respondDenied,
-        resolveSystemAuthorization,
-        promptForSitePermission
-    ]
-
-    static func named(_ name: String?) -> HostedNotificationRequestAction? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: HostedNotificationRequestAction, rhs: HostedNotificationRequestAction) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let answers: SitePermissionVerdict
-        let answersUserActivation: Bool?
-
-        init(kind: Kinds, name: String, answers: SitePermissionVerdict, answersUserActivation: Bool?) {
-            self.kind = kind
-            self.name = name
-            self.answers = answers
-            self.answersUserActivation = answersUserActivation
-        }
-    }
-}
-
 /// The members of the core's `ImportSource`. A member's wire tag is its index in `all`.
 struct ImportSource: Hashable, Sendable {
     let tag: Int
@@ -5190,58 +4717,6 @@ struct NativeView: Hashable, Sendable {
     }
 }
 
-/// The members of the core's `PagePresentation`. A member's wire tag is its index in `all`.
-struct PagePresentation: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    private let facts: Facts
-
-    private init(tag: Int, name: String) {
-        self.tag = tag
-        facts = Facts(name: name)
-    }
-
-    static let noSelection = PagePresentation(tag: 0, name: "noSelection")
-    static let startPage = PagePresentation(tag: 1, name: "startPage")
-    static let nativeContent = PagePresentation(tag: 2, name: "nativeContent")
-    static let livePage = PagePresentation(tag: 3, name: "livePage")
-    static let navigationFailure = PagePresentation(tag: 4, name: "navigationFailure")
-    static let processFailure = PagePresentation(tag: 5, name: "processFailure")
-    static let unloaded = PagePresentation(tag: 6, name: "unloaded")
-    static let automaticRestore = PagePresentation(tag: 7, name: "automaticRestore")
-
-    static let all: [PagePresentation] = [
-        noSelection,
-        startPage,
-        nativeContent,
-        livePage,
-        navigationFailure,
-        processFailure,
-        unloaded,
-        automaticRestore
-    ]
-
-    static func named(_ name: String?) -> PagePresentation? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: PagePresentation, rhs: PagePresentation) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-
-        init(name: String) {
-            self.name = name
-        }
-    }
-}
-
 /// The members of the core's `PasskeyAccessStatus`. A member's wire tag is its index in `all`.
 struct PasskeyAccessStatus: Hashable, Sendable {
     let tag: Int
@@ -5704,374 +5179,6 @@ struct SidebarRowKind: Hashable, Sendable {
             self.name = name
             self.opensList = opensList
             self.groupsTabs = groupsTabs
-        }
-    }
-}
-
-/// The members of the core's `SitePermission`. A member's wire tag is its index in `all`.
-struct SitePermission: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var symbol: String { facts.symbol }
-    var requestTitle: LocalizedStringResource { facts.requestTitle }
-    var askTitle: LocalizedStringResource { facts.askTitle }
-    var askChoiceTitle: LocalizedStringResource { facts.askChoiceTitle }
-    var isMedia: Bool { facts.isMedia }
-    var isEngineEnforced: Bool { facts.isEngineEnforced }
-    var isAskedBySystem: Bool { facts.isAskedBySystem }
-    var components: [SitePermission] { facts.components }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        name: String,
-        title: LocalizedStringResource,
-        symbol: String,
-        requestTitle: LocalizedStringResource,
-        askTitle: LocalizedStringResource,
-        askChoiceTitle: LocalizedStringResource,
-        isMedia: Bool,
-        isEngineEnforced: Bool,
-        isAskedBySystem: Bool,
-        components: [SitePermission]
-    ) {
-        self.tag = tag
-        facts = Facts(
-            name: name,
-            title: title,
-            symbol: symbol,
-            requestTitle: requestTitle,
-            askTitle: askTitle,
-            askChoiceTitle: askChoiceTitle,
-            isMedia: isMedia,
-            isEngineEnforced: isEngineEnforced,
-            isAskedBySystem: isAskedBySystem,
-            components: components
-        )
-    }
-
-    static let camera = SitePermission(
-        tag: 0,
-        name: "camera",
-        title: LocalizedStringResource("Camera"),
-        symbol: "video",
-        requestTitle: LocalizedStringResource("Wants to use your camera"),
-        askTitle: LocalizedStringResource("Ask"),
-        askChoiceTitle: LocalizedStringResource("Ask"),
-        isMedia: true,
-        isEngineEnforced: true,
-        isAskedBySystem: false,
-        components: []
-    )
-    static let microphone = SitePermission(
-        tag: 1,
-        name: "microphone",
-        title: LocalizedStringResource("Microphone"),
-        symbol: "mic",
-        requestTitle: LocalizedStringResource("Wants to use your microphone"),
-        askTitle: LocalizedStringResource("Ask"),
-        askChoiceTitle: LocalizedStringResource("Ask"),
-        isMedia: true,
-        isEngineEnforced: true,
-        isAskedBySystem: false,
-        components: []
-    )
-    static let cameraAndMicrophone = SitePermission(
-        tag: 2,
-        name: "cameraAndMicrophone",
-        title: LocalizedStringResource("Camera & Microphone"),
-        symbol: "video.and.waveform",
-        requestTitle: LocalizedStringResource("Wants to use your camera and microphone"),
-        askTitle: LocalizedStringResource("Ask"),
-        askChoiceTitle: LocalizedStringResource("Ask"),
-        isMedia: true,
-        isEngineEnforced: false,
-        isAskedBySystem: false,
-        components: [SitePermission.camera, SitePermission.microphone]
-    )
-    static let location = SitePermission(
-        tag: 3,
-        name: "location",
-        title: LocalizedStringResource("Location"),
-        symbol: "location",
-        requestTitle: LocalizedStringResource("Wants to use your location"),
-        askTitle: LocalizedStringResource("Ask"),
-        askChoiceTitle: LocalizedStringResource("Ask"),
-        isMedia: false,
-        isEngineEnforced: true,
-        isAskedBySystem: false,
-        components: []
-    )
-    static let notifications = SitePermission(
-        tag: 4,
-        name: "notifications",
-        title: LocalizedStringResource("Notifications"),
-        symbol: "bell",
-        requestTitle: LocalizedStringResource("Wants to send notifications"),
-        askTitle: LocalizedStringResource("Ask"),
-        askChoiceTitle: LocalizedStringResource("Ask"),
-        isMedia: false,
-        isEngineEnforced: true,
-        isAskedBySystem: false,
-        components: []
-    )
-    static let popups = SitePermission(
-        tag: 5,
-        name: "popups",
-        title: LocalizedStringResource("Automatic Pop-ups"),
-        symbol: "macwindow.on.rectangle",
-        requestTitle: LocalizedStringResource("Requests permission"),
-        askTitle: LocalizedStringResource("Blocked by Default"),
-        askChoiceTitle: LocalizedStringResource("Default (Block)"),
-        isMedia: false,
-        isEngineEnforced: false,
-        isAskedBySystem: false,
-        components: []
-    )
-    static let automaticDownloads = SitePermission(
-        tag: 6,
-        name: "automaticDownloads",
-        title: LocalizedStringResource("Automatic Downloads"),
-        symbol: "arrow.down.circle",
-        requestTitle: LocalizedStringResource("Wants to download multiple files automatically"),
-        askTitle: LocalizedStringResource("Ask after First"),
-        askChoiceTitle: LocalizedStringResource("Default (Ask after First)"),
-        isMedia: false,
-        isEngineEnforced: false,
-        isAskedBySystem: false,
-        components: []
-    )
-    static let externalApplications = SitePermission(
-        tag: 7,
-        name: "externalApplications",
-        title: LocalizedStringResource("External Apps"),
-        symbol: "arrow.up.forward.app",
-        requestTitle: LocalizedStringResource("Requests permission"),
-        askTitle: LocalizedStringResource("Ask"),
-        askChoiceTitle: LocalizedStringResource("Ask"),
-        isMedia: false,
-        isEngineEnforced: false,
-        isAskedBySystem: false,
-        components: []
-    )
-    static let screenSharing = SitePermission(
-        tag: 8,
-        name: "screenSharing",
-        title: LocalizedStringResource("Screen Sharing"),
-        symbol: "rectangle.inset.filled.and.person.filled",
-        requestTitle: LocalizedStringResource("Wants to share your screen"),
-        askTitle: LocalizedStringResource("Ask"),
-        askChoiceTitle: LocalizedStringResource("Ask"),
-        isMedia: false,
-        isEngineEnforced: false,
-        isAskedBySystem: true,
-        components: []
-    )
-
-    static let all: [SitePermission] = [
-        camera,
-        microphone,
-        cameraAndMicrophone,
-        location,
-        notifications,
-        popups,
-        automaticDownloads,
-        externalApplications,
-        screenSharing
-    ]
-
-    static func named(_ name: String?) -> SitePermission? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: SitePermission, rhs: SitePermission) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource
-        let symbol: String
-        let requestTitle: LocalizedStringResource
-        let askTitle: LocalizedStringResource
-        let askChoiceTitle: LocalizedStringResource
-        let isMedia: Bool
-        let isEngineEnforced: Bool
-        let isAskedBySystem: Bool
-        let components: [SitePermission]
-
-        init(
-            name: String,
-            title: LocalizedStringResource,
-            symbol: String,
-            requestTitle: LocalizedStringResource,
-            askTitle: LocalizedStringResource,
-            askChoiceTitle: LocalizedStringResource,
-            isMedia: Bool,
-            isEngineEnforced: Bool,
-            isAskedBySystem: Bool,
-            components: [SitePermission]
-        ) {
-            self.name = name
-            self.title = title
-            self.symbol = symbol
-            self.requestTitle = requestTitle
-            self.askTitle = askTitle
-            self.askChoiceTitle = askChoiceTitle
-            self.isMedia = isMedia
-            self.isEngineEnforced = isEngineEnforced
-            self.isAskedBySystem = isAskedBySystem
-            self.components = components
-        }
-    }
-}
-
-/// The members of the core's `SitePermissionDecision`. A member's wire tag is its index in `all`.
-struct SitePermissionDecision: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var verdict: SitePermissionVerdict { facts.verdict }
-    var grants: Bool { facts.grants }
-    var denies: Bool { facts.denies }
-    var asks: Bool { facts.asks }
-    var isPersistent: Bool { facts.isPersistent }
-    var precedence: Int { facts.precedence }
-    var title: LocalizedStringResource { facts.title }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        name: String,
-        verdict: SitePermissionVerdict,
-        grants: Bool,
-        denies: Bool,
-        asks: Bool,
-        isPersistent: Bool,
-        precedence: Int,
-        title: LocalizedStringResource
-    ) {
-        self.tag = tag
-        facts = Facts(
-            name: name,
-            verdict: verdict,
-            grants: grants,
-            denies: denies,
-            asks: asks,
-            isPersistent: isPersistent,
-            precedence: precedence,
-            title: title
-        )
-    }
-
-    static let ask = SitePermissionDecision(
-        tag: 0,
-        name: "ask",
-        verdict: .ask,
-        grants: false,
-        denies: false,
-        asks: true,
-        isPersistent: false,
-        precedence: 2,
-        title: LocalizedStringResource("Ask")
-    )
-    static let grantForSession = SitePermissionDecision(
-        tag: 1,
-        name: "grantForSession",
-        verdict: .grant,
-        grants: true,
-        denies: false,
-        asks: false,
-        isPersistent: false,
-        precedence: 1,
-        title: LocalizedStringResource("Allowed for Session")
-    )
-    static let denyForSession = SitePermissionDecision(
-        tag: 2,
-        name: "denyForSession",
-        verdict: .deny,
-        grants: false,
-        denies: true,
-        asks: false,
-        isPersistent: false,
-        precedence: 3,
-        title: LocalizedStringResource("Blocked for Session")
-    )
-    static let grantPersistently = SitePermissionDecision(
-        tag: 3,
-        name: "grantPersistently",
-        verdict: .grant,
-        grants: true,
-        denies: false,
-        asks: false,
-        isPersistent: true,
-        precedence: 0,
-        title: LocalizedStringResource("Allow")
-    )
-    static let denyPersistently = SitePermissionDecision(
-        tag: 4,
-        name: "denyPersistently",
-        verdict: .deny,
-        grants: false,
-        denies: true,
-        asks: false,
-        isPersistent: true,
-        precedence: 4,
-        title: LocalizedStringResource("Block")
-    )
-
-    static let all: [SitePermissionDecision] = [
-        ask,
-        grantForSession,
-        denyForSession,
-        grantPersistently,
-        denyPersistently
-    ]
-
-    static func named(_ name: String?) -> SitePermissionDecision? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: SitePermissionDecision, rhs: SitePermissionDecision) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let verdict: SitePermissionVerdict
-        let grants: Bool
-        let denies: Bool
-        let asks: Bool
-        let isPersistent: Bool
-        let precedence: Int
-        let title: LocalizedStringResource
-
-        init(
-            name: String,
-            verdict: SitePermissionVerdict,
-            grants: Bool,
-            denies: Bool,
-            asks: Bool,
-            isPersistent: Bool,
-            precedence: Int,
-            title: LocalizedStringResource
-        ) {
-            self.name = name
-            self.verdict = verdict
-            self.grants = grants
-            self.denies = denies
-            self.asks = asks
-            self.isPersistent = isPersistent
-            self.precedence = precedence
-            self.title = title
         }
     }
 }
@@ -6770,49 +5877,6 @@ struct TabSurface: Hashable, Sendable {
         init(name: String, showsPage: Bool) {
             self.name = name
             self.showsPage = showsPage
-        }
-    }
-}
-
-/// The members of the core's `WebScheme`. A member's wire tag is its index in `all`.
-struct WebScheme: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var defaultPort: Int { facts.defaultPort }
-    var isSecure: Bool { facts.isSecure }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, defaultPort: Int, isSecure: Bool) {
-        self.tag = tag
-        facts = Facts(name: name, defaultPort: defaultPort, isSecure: isSecure)
-    }
-
-    static let http = WebScheme(tag: 0, name: "http", defaultPort: 80, isSecure: false)
-    static let https = WebScheme(tag: 1, name: "https", defaultPort: 443, isSecure: true)
-
-    static let all: [WebScheme] = [http, https]
-
-    static func named(_ name: String?) -> WebScheme? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: WebScheme, rhs: WebScheme) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let defaultPort: Int
-        let isSecure: Bool
-
-        init(name: String, defaultPort: Int, isSecure: Bool) {
-            self.name = name
-            self.defaultPort = defaultPort
-            self.isSecure = isSecure
         }
     }
 }

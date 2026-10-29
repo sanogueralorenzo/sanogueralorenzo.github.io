@@ -1,8 +1,5 @@
 namespace CrestCore.Contracts;
 
-/// The native surface presentation rule's answer.
-public sealed record PagePresented(PagePresentation Presentation);
-
 /// A navigation accepted by the session, after its tab/history edits.
 public sealed record NavigationRecorded(Guid PageId, Guid WorkspaceId, Guid SpaceId, Guid? TabId, string Url) : Change;
 

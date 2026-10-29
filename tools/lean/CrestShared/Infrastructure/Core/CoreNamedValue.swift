@@ -61,19 +61,11 @@ private struct NameKey: CodingKey {
 
 extension ArchiveReason: CoreNamedValue {}
 
-extension BlockedPopupEvent: CoreNamedValue {}
-
-extension BlockedPopupStatus: CoreNamedValue {}
-
 extension ContentBlockingPolicy: CoreNamedValue {}
 
 extension DataRetention: CoreNamedValue {}
 
 extension DevicePlatform: CoreNamedValue {}
-
-extension ExternalSchemeDisposition: CoreNamedValue {}
-
-extension HostedNotificationRequestAction: CoreNamedValue {}
 
 extension LinkNavigationDecision: CoreNamedValue {}
 

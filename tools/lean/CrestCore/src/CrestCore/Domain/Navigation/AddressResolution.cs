@@ -48,19 +48,6 @@ public sealed record AddressResolution(string Url, string? SearchQuery) {
         return resolution.Url;
     }
 
-    /// `url` as it is, when it is an absolute address an engine loads for
-    /// Crest itself: a held address is never a search, so no rule for typed
-    /// input applies. Null when it is not one, or names an internal page an
-    /// engine that shows none can't load.
-    public static string? Held(string url, bool allowsInternalPages) {
-        ArgumentNullException.ThrowIfNull(url);
-        string value = url.Trim();
-        if (IsInternalPage(value)) return allowsInternalPages ? value : null;
-        return Uri.TryCreate(value, UriKind.Absolute, out var parsed)
-            && UrlScheme.DispositionOf(parsed.Scheme, isAppInitiated: true) == ExternalSchemeDisposition.Engine
-            ? value : null;
-    }
-
     /// What `input` loads with `provider`, or null for blank input. Throws
     /// `Rejected` with `UnsupportedAddress` for input too long to be an
     /// address, or an internal page no Space may hold.

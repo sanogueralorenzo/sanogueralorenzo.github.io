@@ -39,6 +39,9 @@ eligibility are native. The native permission store owns only its existing
 SQLite table; C# device records no longer carry permission rows. Whole-file
 recovery backups still include them. Seeded and private workspaces keep choices
 in memory, and borrowed windows use their owner’s choices.
+Popup notice transitions, permission metadata and origin normalization are also
+native. Page presentation, authentication decisions, URL scheme/local-document
+gates and secure-context checks run directly from page facts.
 
 Close and quit preparation is native. Pages are checked in opening order,
 one at a time; a new document invalidates an earlier approval. Native downloads

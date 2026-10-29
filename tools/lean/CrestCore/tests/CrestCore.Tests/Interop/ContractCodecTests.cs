@@ -240,7 +240,9 @@ public sealed unsafe class ContractCodecTests {
         var schema = ContractSchema.Load(Contracts);
         var extended = ContractSchema.Load([.. Contracts, typeof(Ordered.ShowSignal)]);
         Assert.NotEqual(schema.Fingerprint, extended.Fingerprint);
-        foreach (var name in new[] { "EngineRegistration", "EngineCommand", "EngineEvent", "EngineQuestion", "PageState", "PageSnapshot" })
+        foreach (var name in new[] { "EngineRegistration", "EngineCommand", "EngineEvent", "EngineQuestion", "PageState", "PageSnapshot",
+            "SiteOrigin", "SitePermission", "SitePermissionDecision", "PagePresentation", "BlockedPopupTransition",
+            "ChallengeHandling", "AuthenticationSource", "SchemeHandling", "SecureOriginCheck", "NotificationPermissionRequest", "ExternalLocalDocument" })
             Assert.DoesNotMatch(@"\b" + name + @"\b", schema.Canonical);
         Assert.DoesNotContain("EngineFingerprint", CSharpCodecEmitter.Emit(schema), StringComparison.Ordinal);
         Assert.DoesNotContain("CREST_ENGINE_", CHeaderEmitter.Emit(schema), StringComparison.Ordinal);

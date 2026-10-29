@@ -14,11 +14,6 @@ namespace CrestCore.Generator;
 internal static class SwiftEmitter {
     #region Static Variables
 
-    /// The first label of the wire initializer of a record normalized on
-    /// construction. Only the generated codec calls it, so the natural labels
-    /// stay free for the platform's normalizing initializer.
-    public const string WireInitializerLabel = "normalized";
-
     /// What an observed model's storage for a field adds to the field's name.
     private const string ObservedStorageSuffix = "Storage";
 
@@ -105,8 +100,7 @@ internal static class SwiftEmitter {
             if (roots.TryGetValue(record.Type, out var received) && received.Root == ContractRoot.Change)
                 conformances.Add(ChangeProtocol);
             conformances.AddRange(schema.Families.Where(family => family.Base!.IsAssignableFrom(record.Type)).Select(family => family.Base!.Name));
-            if (record.IsNormalizedOnConstruction) conformances.Add("Hashable");
-            else if (equatable.Contains(record.Type)) conformances.Add("Equatable");
+            if (equatable.Contains(record.Type)) conformances.Add("Equatable");
             conformances.Add("Sendable");
             if (record.Fields.Any(field => field.Name == "Id")) conformances.Add("Identifiable");
             code.Append('\n').Append($"struct {record.Name}: {string.Join(", ", conformances)} {{\n");
@@ -121,7 +115,6 @@ internal static class SwiftEmitter {
             string binding = schema.IsBuilt(record.Type) ? "var" : "let";
             foreach (var field in record.Wire)
                 code.Append($"    {binding} {Naming.SwiftIdentifier(Naming.SwiftMember(field.Name))}: {TypeName(field.Type, schema, isSent)}\n");
-            if (record.IsNormalizedOnConstruction) EmitWireInitializer(code, record);
             foreach (var (text, index) in record.Texts.Select((text, index) => (text, index))) {
                 if (record.Fields.Count > 0 || index > 0) code.Append('\n');
                 code.Append($"    var {Naming.SwiftIdentifier(Naming.SwiftMember(text.Name))}: LocalizedStringResource {{\n");
@@ -169,9 +162,8 @@ internal static class SwiftEmitter {
     /// value to read, and a platform builds it field by field, so its fields
     /// are variables. A published record gives its own as `seed`.
     private static void EmitSeed(StringBuilder code, ContractSchema schema, ContractRecord record, HashSet<Type> equatable) {
-        if (record.IsNormalizedOnConstruction || record.Fields.Any(field => Naming.SwiftMember(field.Name) == "seed"))
-            throw new ContractSchemaException($"{record.Name}: a record with a seed cannot be normalized on construction "
-                + "or name a field Seed.");
+        if (record.Fields.Any(field => Naming.SwiftMember(field.Name) == "seed"))
+            throw new ContractSchemaException($"{record.Name}: a record with a seed cannot name a field Seed.");
         var conformances = new List<string>();
         if (equatable.Contains(record.Type)) conformances.Add("Equatable");
         conformances.Add("Sendable");
@@ -196,27 +188,9 @@ internal static class SwiftEmitter {
         _ => value
     };
 
-    /// A record normalized on construction has no memberwise initializer. The
-    /// codec makes it through this one, labeled so that the natural spelling
-    /// stays free for the platform's initializer, which normalizes.
-    private static void EmitWireInitializer(StringBuilder code, ContractRecord record) {
-        var labels = InitializerLabels(record);
-        string natural = string.Concat(record.Wire.Select(field => $"{Naming.SwiftMember(field.Name)}:"));
-        code.Append('\n').Append("    /// The wire's initializer: the codec's alone, for values the core wrote after\n");
-        code.Append($"    /// normalizing them. Anything else makes one with `init({natural})`, which normalizes.\n");
-        code.Append(Wrapped("    init(", ")", [.. record.Wire.Select((field, index) =>
-            $"{(labels[index] == Naming.SwiftMember(field.Name) ? "" : $"{labels[index]} ")}{Local(field.Name)}: {TypeName(field.Type)}")]));
-        code.Append(" {\n");
-        foreach (var field in record.Wire) code.Append($"        self.{Local(field.Name)} = {Local(field.Name)}\n");
-        code.Append("    }\n");
-    }
-
-    /// The labels generated code makes a record with, one per wire field in
-    /// order: the fields' own names, except that a record normalized on
-    /// construction is made through its wire initializer.
+    /// The labels generated code makes a record with, in wire field order.
     private static IReadOnlyList<string> InitializerLabels(ContractRecord record) =>
-        [.. record.Wire.Select((field, index) =>
-            index == 0 && record.IsNormalizedOnConstruction ? WireInitializerLabel : Naming.SwiftMember(field.Name))];
+        [.. record.Wire.Select(field => Naming.SwiftMember(field.Name))];
 
     /// An observed record becomes a main-actor observable class with one
     /// property per field. Each field keeps its value in storage Observation
@@ -564,39 +538,6 @@ internal static class SwiftEmitter {
         foreach (var field in record.Fields)
             code.Append(Encode(field.Type, Naming.SwiftIdentifier(Naming.SwiftMember(field.Name)), "        ", 0));
         code.Append("    }\n}\n");
-    }
-
-    #endregion
-
-    #region Actions - Wire initializer callers
-
-    /// Each call in `sources` to the wire initializer of a record normalized on
-    /// construction, as `path:line` and what to call instead. Only the codec
-    /// may call one, with values the core already normalized; a value any
-    /// other caller made that way could differ from another spelling of itself.
-    /// A line's `//` comment is not code, so it is not searched.
-    public static IReadOnlyList<string> WireInitializerCalls(ContractSchema schema, IEnumerable<(string Path, string Text)> sources) {
-        ArgumentNullException.ThrowIfNull(schema);
-        ArgumentNullException.ThrowIfNull(sources);
-        var normalized = schema.Records.Where(record => record.IsNormalizedOnConstruction).ToList();
-        if (normalized.Count == 0) return [];
-        var natural = normalized.ToDictionary(record => record.Name,
-            record => $"{record.Name}({string.Concat(record.Wire.Select(field => $"{Naming.SwiftMember(field.Name)}:"))})");
-        string names = string.Join("|", normalized.Select(record => Regex.Escape(record.Name)));
-        var call = new Regex($@"(?:\b(?<type>{names}|Self)\s*(?:\.init\s*)?|\.init\s*)\(\s*{WireInitializerLabel}\s*:",
-            RegexOptions.CultureInvariant);
-        var calls = new List<string>();
-        foreach (var (path, text) in sources) {
-            string code = string.Join('\n', text.Split('\n').Select(line => line.Split("//", 2)[0]));
-            foreach (Match match in call.Matches(code)) {
-                int line = code.AsSpan(0, match.Index).Count('\n') + 1;
-                string instead = natural.TryGetValue(match.Groups["type"].Value, out var spelling)
-                    ? $"{spelling}, which normalizes" : "the initializer that normalizes";
-                calls.Add($"{path}:{line}: only the generated codec calls a wire initializer, init({WireInitializerLabel}:); "
-                    + $"make the value with {instead}.");
-            }
-        }
-        return calls;
     }
 
     #endregion

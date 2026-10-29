@@ -48,7 +48,7 @@ extension BrowserPage {
             let requestURL = message.frameInfo.request.url,
             let origin = SiteOrigin(url: requestURL),
             SiteOrigin(message.frameInfo.securityOrigin) == origin,
-            SecureOriginCheck(origin: origin).isAllowed,
+            origin.isSecureContext,
             let body = message.body as? [String: Any],
             (body["version"] as? Int) == 1,
             let action = body["action"] as? String
@@ -86,7 +86,7 @@ extension BrowserPage {
             origin: origin,
             in: spaceID
         )
-        await NotificationPermissionRequest(decision: decision, hasUserActivation: hasUserActivation).action.respond(
+        await HostedNotificationRequestAction.action(decision: decision, hasUserActivation: hasUserActivation).respond(
             through: BrowserHostedNotificationPermissionResolution(
                 page: self, requestID: requestID, origin: origin, hasUserActivation: hasUserActivation,
                 documentIdentifier: documentIdentifier, frame: frame))

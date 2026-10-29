@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class BrowserAuthenticationPolicyTests: XCTestCase {
-    /// Foundation's challenge names map onto the core's methods so that only
+    /// Foundation's challenge names map onto the native methods so that only
     /// Basic and Digest reach Crest's credential prompt.
     func testTrustAndClientCertificateChallengesRemainSystemOwned() {
         for method in [
@@ -14,20 +14,20 @@ final class BrowserAuthenticationPolicyTests: XCTestCase {
             NSURLAuthenticationMethodNTLM,
         ] {
             XCTAssertEqual(
-                ChallengeHandling(
+                AuthenticationHandling.handling(
                     method: AuthenticationMethod(authenticationMethod: method),
                     isProxy: false,
                     previousFailureCount: 0
-                ).handling,
+                ),
                 .performDefaultHandling
             )
         }
         XCTAssertEqual(
-            ChallengeHandling(
+            AuthenticationHandling.handling(
                 method: AuthenticationMethod(authenticationMethod: NSURLAuthenticationMethodHTTPDigest),
                 isProxy: false,
                 previousFailureCount: 0
-            ).handling,
+            ),
             .promptForCredentials
         )
     }

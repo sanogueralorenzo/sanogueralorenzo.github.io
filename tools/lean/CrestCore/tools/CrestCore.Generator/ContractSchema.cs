@@ -135,10 +135,6 @@ internal sealed record ContractRecord(Type Type, IReadOnlyList<ContractField> Fi
     /// The Apple read model keeps it as an object observed field by field.
     public bool IsObserved => Type.IsDefined(typeof(ObservedAttribute), inherit: false);
 
-    /// Its constructor normalizes its fields, so the platform makes it through
-    /// an initializer of its own and the wire through a labeled one.
-    public bool IsNormalizedOnConstruction => Type.IsDefined(typeof(NormalizedOnConstructionAttribute), inherit: false);
-
     /// The record has an identity of its own.
     public bool IsIdentified => Fields.Any(candidate => candidate.Name == IdentityField);
 
@@ -227,8 +223,7 @@ internal sealed class ContractSchema {
     /// field holds.
     private readonly HashSet<Type> seeded = [];
     /// The records a platform builds field by field to send: those a message
-    /// it sends holds that have no seed, are no message themselves and are not
-    /// normalized on construction.
+    /// it sends holds that have no seed and are no message themselves.
     private readonly HashSet<Type> built = [];
     /// The abstract records a field narrows a root to, with their root.
     private readonly Dictionary<Type, ContractRoot> bases = [];
@@ -735,7 +730,6 @@ internal sealed class ContractSchema {
         foreach (var record in records.Values)
             foreach (var field in record.Wire) ValidateLists(field.Type, $"{record.Name}.{field.Name}");
         foreach (var record in records.Values.Where(record => record.IsObserved)) ValidateObserved(record);
-        foreach (var record in records.Values.Where(record => record.IsNormalizedOnConstruction)) ValidateNormalized(record);
         foreach (var narrowed in Bases)
             if (Members(narrowed).Count == 0)
                 throw new ContractSchemaException($"{narrowed.Base!.Name}: a union base needs at least one concrete member of {narrowed.Root}.");
@@ -767,7 +761,7 @@ internal sealed class ContractSchema {
                 case OptionalField optional: pending.Push(optional.Value); break;
             }
         seeded.IntersectWith(sent);
-        built.UnionWith(sent.Where(type => !seeded.Contains(type) && !records[type].IsNormalizedOnConstruction && !IsSent(records[type])));
+        built.UnionWith(sent.Where(type => !seeded.Contains(type) && !IsSent(records[type])));
     }
 
     /// Whether a field of this type holds a record that has a seed.
@@ -788,31 +782,6 @@ internal sealed class ContractSchema {
             && identity.Type is not PrimitiveField { Kind: Primitive.Guid })
             throw new ContractSchemaException($"{record.Name}.{identity.Name}: an [Observed] record's identity is a Guid.");
     }
-
-    /// A record normalized on construction reaches Swift with a labeled wire
-    /// initializer, whose label needs a field to go on, and as `Hashable` over
-    /// its fields, so each of them must be a value Swift can hash.
-    private void ValidateNormalized(ContractRecord record) {
-        if (record.Wire.Count == 0)
-            throw new ContractSchemaException($"{record.Name}: a [NormalizedOnConstruction] record needs a field to normalize.");
-        if (record.Wire.FirstOrDefault(field => !IsHashable(field.Type)) is { } field)
-            throw new ContractSchemaException($"{record.Name}.{field.Name}: a [NormalizedOnConstruction] record is Hashable in Swift, "
-                + $"so its fields are primitives, plain enums, fixed sets, other such records or lists of them, and "
-                + $"{Describe(field.Type)} is none of them.");
-    }
-
-    /// Swift hashes primitives, plain enums, fixed sets and records normalized
-    /// on construction, and lists and optionals of them; an option set or a
-    /// union it only compares.
-    private bool IsHashable(FieldType type) => type switch {
-        PrimitiveField => true,
-        EnumField item => !enums[item.Type].IsFlags,
-        SetField => true,
-        RecordField record => records[record.Type].IsNormalizedOnConstruction,
-        ListField list => IsHashable(list.Element),
-        OptionalField optional => IsHashable(optional.Value),
-        _ => false
-    };
 
     /// A list's count is checked against the bytes that remain, so every
     /// element must occupy at least one byte.
@@ -874,8 +843,8 @@ internal sealed class ContractSchema {
     public bool HasSeed(Type type) => seeded.Contains(type);
 
     /// Whether a platform builds `type` field by field to send, as a record a
-    /// message it sends holds: one with no seed, no message itself and not
-    /// normalized on construction, such as a Space's branding or the app's
+    /// message it sends holds: one with no seed and no message itself, such
+    /// as a Space's branding or the app's
     /// preferences, which a settings pane edits in place before it sends them.
     public bool IsBuilt(Type type) => built.Contains(type);
 

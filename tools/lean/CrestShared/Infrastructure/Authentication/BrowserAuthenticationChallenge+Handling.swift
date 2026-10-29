@@ -3,11 +3,10 @@ import Foundation
 extension BrowserAuthenticationChallenge {
     // MARK: - Variables
 
-    /// How the core answers this challenge. An unavailable core cancels it
-    /// rather than prompting or handing over stored credentials.
+    /// Basic and Digest prompt; proxy and other challenges keep system handling.
     var handling: AuthenticationHandling {
-        ChallengeHandling(
+        AuthenticationHandling.handling(
             method: authenticationMethod, isProxy: isProxy, previousFailureCount: previousFailureCount
-        ).handling
+        )
     }
 }
