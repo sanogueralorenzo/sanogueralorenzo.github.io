@@ -79,11 +79,7 @@ extension LinkNavigationDecision: CoreNamedValue {}
 
 extension MemoryPressureLevel: CoreNamedValue {}
 
-extension NumberedSelectionTarget: CoreNamedValue {}
-
 extension ShortcutCommand: CoreNamedValue {}
-
-extension ShortcutSpecialKey: CoreNamedValue {}
 
 extension SitePermission: CoreNamedValue {}
 

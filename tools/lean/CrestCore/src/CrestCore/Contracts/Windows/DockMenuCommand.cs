@@ -8,9 +8,8 @@ namespace CrestCore.Contracts;
 public sealed class DockMenuCommand {
     #region Static Variables
 
-    public static readonly DockMenuCommand NewWindow = new(name: "newWindow", ShortcutCommand.NewWindow, title: "New Window");
-    public static readonly DockMenuCommand NewPrivateWindow = new(name: "newPrivateWindow", ShortcutCommand.NewPrivateWindow,
-        title: "New Private Window");
+    public static readonly DockMenuCommand NewWindow = new(name: "newWindow", title: "New Window");
+    public static readonly DockMenuCommand NewPrivateWindow = new(name: "newPrivateWindow", title: "New Private Window");
 
     public static IReadOnlyList<DockMenuCommand> All { get; } = [NewWindow, NewPrivateWindow];
 
@@ -20,10 +19,6 @@ public sealed class DockMenuCommand {
 
     public string Name { get; }
 
-    /// The shortcut command a platform runs for this choice, as its menu bar
-    /// does.
-    public ShortcutCommand Command { get; }
-
     /// What the Dock menu calls the command.
     [Localized]
     public string Title { get; }
@@ -32,9 +27,8 @@ public sealed class DockMenuCommand {
 
     #region Constructors
 
-    private DockMenuCommand(string name, ShortcutCommand command, string title) {
+    private DockMenuCommand(string name, string title) {
         Name = name;
-        Command = command;
         Title = title;
     }
 

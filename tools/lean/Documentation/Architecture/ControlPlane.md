@@ -23,3 +23,7 @@ preparation; the C# core holds no download records or transfer identities.
 Palette matching, ranking, inline completion, scopes, calculation and suggestion
 filtering run in Swift from a window snapshot. Typed address resolution still
 uses the shared core navigation rule; palette rows have no wire codec.
+
+Shortcut catalogs and bindings have no core contracts. Native menus and keys
+read the same fixed catalog, and numbered selections walk the current sidebar
+and available Spaces directly. Link gestures still carry native modifier bits.

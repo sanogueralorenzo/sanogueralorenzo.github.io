@@ -51,14 +51,12 @@ public sealed partial class CrestApp {
     /// The caller holds the lock.
     internal EngineRoster RegisteredEngines() => engines.Roster();
 
-    /// Publishes capability and shortcut changes when WebKit registers or retires.
+    /// Publishes capability changes when WebKit registers or retires.
     private void PublishEngines(Action<Change> publish) {
         var current = RegisteredEngines();
         if (current.SameAs(publishedEngines)) return;
-        var before = Engines.OfferedCommands(publishedEngines);
         publishedEngines = current;
         publish(new EnginesChanged(current));
-        if (device.ShortcutsAfter(before, Engines.OfferedCommands(current)) is { } changed) publish(changed);
     }
 
     /// Applies what an engine saw happen to one of its pages. A report is

@@ -84,22 +84,16 @@ internal sealed class Window {
 
     /// What the window shows over `session`, as the platform reads it: what
     /// it chose to show, the cards its content shows for the tab it shows, and
-    /// the commands it cannot run now. A window over a private workspace keeps
-    /// nothing, which its commands read.
-    public WindowState State(SessionState session, bool isPrivate) {
+    /// their column shares. Command availability is derived by the native UI.
+    public WindowState State(SessionState session) {
         ArgumentNullException.ThrowIfNull(session);
-        var space = Showable(session).FirstOrDefault(candidate => candidate.Id == ShownSpaceId);
-        var shown = space is not null && Tab(space.Id) is { } tabId ? space.Tabs.FirstOrDefault(tab => tab.Id == tabId) : null;
         IReadOnlyList<ShownCards> cards = [.. session.Spaces.OrderBy(candidate => candidate.Id)
             .Select(candidate => Tab(candidate.Id) is { } tabId && Contains(candidate, tabId) ? Cards(candidate, tabId) : null)
             .OfType<ShownCards>()];
-        int shownCards = shown is null ? 0 : cards.First(candidate => candidate.SpaceId == ShownSpaceId).TabIds.Count;
-        var facts = new WindowCommandFacts(space is not null, isPrivate, shown, space?.ArchivedTabs.Count > 0,
-            space is not null && shown is not null && space.SplitCandidate(shown.Id) is not null, shownCards);
         return new(Id, WorkspaceId, ShownSpaceId,
             [.. tabs.OrderBy(entry => entry.Key).Select(entry => new ShownTab(entry.Key, entry.Value))],
             [.. shares.OrderBy(entry => entry.Key).Select(entry => new SplitColumnShares(entry.Key, entry.Value))],
-            cards, [.. ShortcutCommand.All.Where(command => !command.IsAvailable(facts))]);
+            cards);
     }
 
     /// The tabs the window's content shows on screen over `session`: the cards

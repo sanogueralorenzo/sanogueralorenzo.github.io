@@ -143,7 +143,6 @@ final class CrestCore {
         state.favicons.takePageImage = { [weak self] in self?.engines.takeIcon(of: $0) }
         let installed = crest_app_set_wake(handle, relayCoreWake, Unmanaged.passUnretained(wake).toOpaque())
         guard installed == CREST_OK else { Self.buildBug(installed, "set its wake callback") }
-        try query(GetShortcuts()).apply(to: state)
         state.agentPreferences = try query(GetAgentPreferences())
     }
 

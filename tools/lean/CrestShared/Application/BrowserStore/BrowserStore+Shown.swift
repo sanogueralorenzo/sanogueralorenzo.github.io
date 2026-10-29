@@ -74,6 +74,12 @@ extension BrowserStore {
     /// Whether this window can run `command` now by what it shows. Commands
     /// that act on a page also ask the page's engine.
     func allows(_ command: ShortcutCommand) -> Bool {
-        windowModel?.unavailableCommands.contains(command) == false
+        guard !isClosed, windowModel != nil else { return false }
+        return command.availability.allows(
+            showsSpace: shownSpace != nil, isPrivate: workspaceModel?.kind.isPrivate == true,
+            surface: shownTab?.surface, placement: shownTab?.placement,
+            archived: shownSpace?.archive.entries.isEmpty == false,
+            candidate: shownSpace?.hasShortcutSplitCandidate(after: shownTab?.id) == true,
+            cards: shownCards.count)
     }
 }

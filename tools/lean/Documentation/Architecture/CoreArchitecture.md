@@ -18,3 +18,7 @@ its text matching, scopes, completion, calculation and suggestions are Swift.
 The platform supplies CloudKit transport, Keychain, OS permission prompts,
 notifications, file dialogs and software-update presentation. The existing
 Crest features use those services through their native implementations.
+
+The fixed command catalog, capability filtering, window availability and
+numbered sidebar/Space shortcuts are native. Window records hold presentation
+state; command availability is derived from the existing observed models.

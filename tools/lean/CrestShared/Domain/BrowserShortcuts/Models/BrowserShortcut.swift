@@ -27,7 +27,7 @@ extension BrowserShortcut {
         self.init(key: key, modifiers: keys.modifiers)
     }
 
-    /// The keys a command is bound to in the core's read model, or nil for
+    /// The keys a command is bound to in the native catalog, or nil for
     /// keys no shortcut here can spell.
     init?(boundKeys keys: KeyCombination) {
         if keys.isSpecialKey {
@@ -39,7 +39,7 @@ extension BrowserShortcut {
         }
     }
 
-    /// The shortcut as the core's rules read it.
+    /// The shortcut as the native catalog spells it.
     var keys: KeyCombination {
         switch key {
         case .character(let character):

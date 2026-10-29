@@ -102,19 +102,15 @@ final class CoreState {
         set { publish(newValue, into: \.sitePermissionRevisionStorage, as: \.sitePermissionRevision) }
     }
     @ObservationIgnored private var sitePermissionRevisionStorage: UInt64 = 0
-    /// The keys each command this device offers answers to, in the order the
-    /// catalog lists them, as the core last published them.
+    /// Native fixed bindings, filtered by WebKit's published capabilities.
     var shortcutBindings: [ShortcutBinding] {
-        get { observed(\.shortcutBindingsStorage, as: \.shortcutBindings) }
-        set { publish(newValue, into: \.shortcutBindingsStorage, as: \.shortcutBindings) }
+        ShortcutCommand.all.filter { $0.isOffered(in: self) }.map {
+            ShortcutBinding(command: $0, keys: $0.defaultShortcuts.first { $0.platform == .current }?.keys)
+        }
     }
-    @ObservationIgnored private var shortcutBindingsStorage: [ShortcutBinding] = []
-    /// The same bindings, by command.
     var shortcuts: [ShortcutCommand: ShortcutBinding] {
-        get { observed(\.shortcutsStorage, as: \.shortcuts) }
-        set { publish(newValue, into: \.shortcutsStorage, as: \.shortcuts) }
+        Dictionary(uniqueKeysWithValues: shortcutBindings.map { ($0.command, $0) })
     }
-    @ObservationIgnored private var shortcutsStorage: [ShortcutCommand: ShortcutBinding] = [:]
     /// Import on this device, as the core last published it, or nil while it
     /// is not open.
     var importFlow: ImportFlowState? {

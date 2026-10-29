@@ -72,15 +72,11 @@ final class WindowStateModel: ObservedModel, Identifiable {
     /// on its own. A tab lives in one Space, so a row of any Space's sidebar
     /// is shown exactly when its tab is here.
     let shownTabIDs: ObservedSet<UUID>
-    /// The commands the window cannot run now, each observed on its own, so a
-    /// menu item redraws only when its own command changes.
-    let unavailableCommands: ObservedSet<ShortcutCommand>
 
     var value: WindowState {
         WindowState(
             id: id, workspaceID: workspaceID, shownSpaceID: shownSpaceID, shownTabs: shownTabs,
-            splitColumnShares: splitColumnShares, cards: cards,
-            unavailableCommands: ShortcutCommand.all.filter(unavailableCommands.members.contains))
+            splitColumnShares: splitColumnShares, cards: cards)
     }
 
     // MARK: - Initializers
@@ -93,7 +89,6 @@ final class WindowStateModel: ObservedModel, Identifiable {
         splitColumnSharesStorage = value.splitColumnShares
         cardsStorage = value.cards
         shownTabIDs = ObservedSet(Set(value.shownTabs.compactMap(\.tabID)))
-        unavailableCommands = ObservedSet(Set(value.unavailableCommands))
     }
 
     // MARK: - Actions - Reading
@@ -133,7 +128,6 @@ final class WindowStateModel: ObservedModel, Identifiable {
         splitColumnShares = value.splitColumnShares
         cards = value.cards
         shownTabIDs.replace(with: Set(value.shownTabs.compactMap(\.tabID)))
-        unavailableCommands.replace(with: Set(value.unavailableCommands))
         // Store the whole record before announcing any scoped presentation.
         // A reader notified of one Space can already read the others' values.
         for (spaceID, presentation) in spacePresentations {

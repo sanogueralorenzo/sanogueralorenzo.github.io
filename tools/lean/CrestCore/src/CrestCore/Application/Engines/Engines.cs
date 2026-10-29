@@ -10,9 +10,6 @@ internal sealed class Engines {
     public EngineRoster Roster() => Default is { } engine
         ? new([.. EngineCapability.All.Where(engine.Supports)]) : EngineRoster.Unregistered;
 
-    public static IReadOnlyList<ShortcutCommand> OfferedCommands(EngineRoster roster) =>
-        [.. ShortcutCommand.All.Where(command => command.IsOffered(roster.Offered.Contains))];
-
     public Engine Register(EngineRegistration registration, Action<EngineCommand> run) {
         ArgumentNullException.ThrowIfNull(registration);
         ArgumentNullException.ThrowIfNull(run);

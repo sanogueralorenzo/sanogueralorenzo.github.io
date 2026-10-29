@@ -1,6 +1,6 @@
 import Foundation
 
-/// Reads the fixed bindings the core publishes and resolves native keys.
+/// Reads the native catalog’s fixed bindings and resolves native keys.
 @MainActor
 final class BrowserShortcutStore {
     // MARK: - Variables

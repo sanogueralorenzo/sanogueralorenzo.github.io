@@ -265,7 +265,7 @@ internal sealed partial class Device {
     /// device last published for it, keeping a saved window's record current
     /// with what it chose to show. The caller holds the device lock.
     internal WindowChanged? Publishing(Window window, SessionState session) {
-        var state = window.State(session, workspaces.GetValueOrDefault(window.WorkspaceId)?.Kind.IsPrivate == true);
+        var state = window.State(session);
         published.TryGetValue(window.Id, out var before);
         if (state == before) return null;
         published[window.Id] = state;
