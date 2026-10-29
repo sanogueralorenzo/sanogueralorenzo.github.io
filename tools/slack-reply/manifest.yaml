@@ -1,0 +1,26 @@
+display_information:
+  name: Slack Reply
+  description: Reply in Slack threads using your local coding CLI.
+features:
+  bot_user:
+    display_name: slack-reply
+    always_online: false
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+    user:
+      - channels:history
+      - groups:history
+      - im:history
+      - mpim:history
+      - chat:write
+settings:
+  socket_mode_enabled: true
+  token_rotation_enabled: false
+  event_subscriptions:
+    user_events:
+      - message.channels
+      - message.groups
+      - message.im
+      - message.mpim

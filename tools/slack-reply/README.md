@@ -4,9 +4,11 @@ Local Slack Socket Mode bridge to the Codex, Claude, or Pi CLI. A message runs t
 
 ## Slack setup
 
-1. Create a Slack app named **Slack Reply** with a bot user. Enable **Socket Mode** and create an app-level `xapp-` token with `connections:write`.
-2. Enable **Event Subscriptions**. Under **Subscribe to events on behalf of users**, add `message.channels`, `message.groups`, `message.im`, and `message.mpim` for the conversation types you want. These require the corresponding **user token scopes** `channels:history`, `groups:history`, `im:history`, and `mpim:history`. Save Changes. User events cover conversations the installing user belongs to, including existing DMs; bot events only cover conversations the bot belongs to. You can omit unused conversation types and their scopes.
-3. Under **User Token Scopes**, also grant `chat:write`. Install or reinstall the app as the user whose messages should trigger it when adding scopes. If the installed user token already has all required scopes, saving the event subscriptions is sufficient. Copy that user's `xoxp-` token and the app's `xoxb-` bot token. The app checks that the user token belongs to `SLACK_USER_ID` and that both tokens are for the same workspace.
+1. In [Slack apps](https://api.slack.com/apps), choose **Create New App → From a manifest**, select your workspace, and paste [manifest.yaml](manifest.yaml). It configures the bot user, Socket Mode, user message events, and OAuth scopes.
+2. Under **Basic Information → App-Level Tokens**, create a token with `connections:write`. Copy its `xapp-` value to `SLACK_APP_TOKEN` in `.env`.
+3. Under **OAuth & Permissions**, install the app as the user identified by `SLACK_USER_ID`. Copy the **User OAuth Token** (`xoxp-`) to `SLACK_USER_TOKEN` and **Bot User OAuth Token** (`xoxb-`) to `SLACK_BOT_TOKEN` in `.env`.
+
+For an existing app, paste the manifest under **App Manifest** and reinstall if scopes change. User events cover the installing user's public/private channels, existing DMs, and group DMs. Remove unused conversation types and their matching history scopes from the manifest before importing. The bot scope supplies the bot token required by the current bridge; replies use the user token.
 
 Slack [user tokens perform writes as the user](https://docs.slack.dev/authentication/tokens/). A bot token would post as the bot, so the user token is required. Your workspace must permit the requested user scopes. Missing conversation access or history scopes cause thread retrieval to fail; Slack Reply logs the Slack error and does not fall back to incomplete context. Slack's [`conversations.replies` limits](https://docs.slack.dev/reference/methods/conversations.replies/) may also affect large threads or some distributed apps.
 
