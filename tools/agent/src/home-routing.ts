@@ -106,7 +106,7 @@ export class HomeRouter {
         }
       },
     });
-    await this.pi.utility("router", `Current workspace: ${this.cwd}\nHome directory: ${homedir()}\nRecent saved conversations: ${JSON.stringify(sessions.slice(0, 12))}\nRecent Home exchanges (oldest first): ${JSON.stringify(recentExchanges.slice(0, -1))}\nMost recent Home exchange: ${JSON.stringify(recentExchanges.at(-1) || null)}\n\nOriginal user message (verbatim):\n${message.text}\n\nCall route_home to submit one destination for the entire message. Correct rejected calls until accepted.`,
+    await this.pi.utility("router", `Current workspace: ${this.cwd}\nHome directory: ${homedir()}\nRecent saved conversations: ${JSON.stringify(sessions.slice(0, 12))}\nRecent Home exchanges (oldest first): ${JSON.stringify(recentExchanges.slice(0, -1))}\nMost recent Home exchange: ${JSON.stringify(recentExchanges.at(-1) || null)}\n\nOriginal user message (verbatim):\n${message.text}\n\nCall route_home once for the entire message.`,
       this.cwd, [findConversations, readConversation, routeHome], () => accepted ? JSON.stringify(accepted) : undefined, context);
     if (!accepted) throw new Error("Router did not choose a destination");
     return accepted;

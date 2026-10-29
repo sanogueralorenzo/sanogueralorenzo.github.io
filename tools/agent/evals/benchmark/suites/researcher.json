@@ -24,7 +24,6 @@
       "id": "live",
       "files": [
         "../../../prompts/base.md",
-        "../../../prompts/work.md",
         "../../../prompts/worker.md"
       ]
     },
@@ -39,7 +38,6 @@
       "id": "compact_role",
       "files": [
         "../../../prompts/base.md",
-        "../../../prompts/work.md",
         "../variants/roles/researcher-compact.md"
       ]
     }

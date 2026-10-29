@@ -29,7 +29,6 @@
       "id": "baseline",
       "files": [
         "../../../prompts/base.md",
-        "../../../prompts/work.md",
         "../variants/roles/researcher-original.md"
       ]
     },
@@ -50,7 +49,6 @@
       "id": "workflow",
       "files": [
         "../../../prompts/base.md",
-        "../../../prompts/work.md",
         "../variants/roles/researcher-workflow.md"
       ]
     },
@@ -58,7 +56,6 @@
       "id": "live",
       "files": [
         "../../../prompts/base.md",
-        "../../../prompts/work.md",
         "../../../prompts/worker.md"
       ]
     }

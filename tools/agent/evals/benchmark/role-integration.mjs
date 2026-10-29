@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, readdirSync, lstatSync, realpathSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, readdirSync, lstatSync } from "node:fs";
 import { join, dirname, relative, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
@@ -87,7 +87,7 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
   const parent = resolve(options.workspaceDir || join(tmpdir(), "agent-role-benchmark"));
   workspacePath(resolve(tmpdir()), parent);
   mkdirSync(parent, { recursive: true });
-  const cwd = realpathSync(mkdtempSync(join(parent, "case-")));
+  const cwd = mkdtempSync(join(parent, "case-"));
   const test = JSON.parse(JSON.stringify(authoredTest).replaceAll("<workspace>", cwd));
   for (const [path, content] of Object.entries(test.files || {})) {
     const target = workspacePath(cwd, path);
