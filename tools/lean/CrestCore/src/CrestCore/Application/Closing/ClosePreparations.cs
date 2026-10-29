@@ -10,7 +10,7 @@ namespace CrestCore.Application;
 /// after it agreed voids the answer. Quitting with downloads in progress then
 /// asks the person, and a quit allowed tells the device, whose windows then
 /// stay the ones the next launch reopens.
-internal sealed class ClosePreparations(Device device, Pages pages, Downloads downloads, DataDeletions deletions, IIdSource ids) {
+internal sealed class ClosePreparations(Device device, Pages pages, Func<int> liveDownloads, DataDeletions deletions, IIdSource ids) {
     #region Types
 
     internal sealed class Preparation(Guid requestId, bool quits, IEnumerable<Guid> pageIds, Action<bool, ChangeFeed>? completion) {
@@ -107,7 +107,7 @@ internal sealed class ClosePreparations(Device device, Pages pages, Downloads do
             Finish(allowed: false, changes);
             return;
         }
-        int live = downloads.LiveCount;
+        int live = liveDownloads();
         if (preparation.Quits && live > 0) {
             preparation.PromptId = ids.Next();
             changes.Publish(new QuitWithDownloadsAsked(preparation.PromptId.Value, preparation.RequestId, live));

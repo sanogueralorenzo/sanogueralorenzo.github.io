@@ -1,6 +1,6 @@
 import Foundation
 
-/// A generated fixed set that crosses a JSON boundary as its member's `name`:
+/// A named policy value that crosses a JSON boundary as its member's `name`:
 /// a policy request or answer, including as a dictionary key. Decoding a name
 /// this build does not know fails, so a tolerant reader decides what an
 /// unknown name means.
@@ -58,8 +58,6 @@ private struct NameKey: CodingKey {
         nil
     }
 }
-
-extension AutomaticDownloadAction: CoreNamedValue {}
 
 extension ArchiveReason: CoreNamedValue {}
 

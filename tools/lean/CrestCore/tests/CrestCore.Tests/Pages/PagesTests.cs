@@ -55,6 +55,9 @@ public sealed partial class BrowserContractsTests {
 
     private static Guid ProfileId(JsonNode space) => Guid.Parse(space["profile"]!["id"]!.GetValue<string>());
 
+    private static Guid ProfileOf(CrestApp app, Guid workspace, Guid space) =>
+        app.Workspace(workspace).Current.Spaces.Single(item => item.Id == space).ProfileId;
+
     private static Rejection Refusal(CrestApp app, Intent intent) => Assert.Throws<Rejected>(() => app.Send(intent)).Rejection;
 
     [Fact]

@@ -48,9 +48,6 @@ final class WebKitDownloads: NSObject {
         var isCanceling = false
         var hasEnded = false
 
-        /// The engine's name for the download, which the core keeps it by.
-        var engineID: String { id.uuidString }
-
         init(
             profileID: UUID, page: WebKitEnginePage, replay: URLRequest?, sourceURL: URL?, origin: SiteOrigin?,
             spaceID: UUID?, isUserInitiated: Bool, filename: String
@@ -77,7 +74,7 @@ final class WebKitDownloads: NSObject {
     // MARK: - Variables
 
     private unowned let binding: WebKitEngineBinding
-    private var transfers: [String: Transfer] = [:]
+    private var transfers: [UUID: Transfer] = [:]
     private var byDownload: [ObjectIdentifier: Transfer] = [:]
     private var destinations: [UUID: CheckedContinuation<String?, Never>] = [:]
     private var automaticAllowances: [AutomaticScope: Bool] = [:]
@@ -103,7 +100,7 @@ final class WebKitDownloads: NSObject {
             spaceID: binding.core?.state.pages[page.id]?.spaceID,
             isUserInitiated: download.isUserInitiated || isUserInitiated,
             filename: request?.url?.lastPathComponent.nilIfEmpty ?? "download")
-        transfers[transfer.engineID] = transfer
+        transfers[transfer.id] = transfer
         register(download, for: transfer)
         report(transfer, .preparing)
     }
@@ -143,13 +140,13 @@ final class WebKitDownloads: NSObject {
     // MARK: - Actions - Commands
 
     /// Hands the file's place the core settled to the download waiting on it.
-    func settle(_ settlement: SettleDownloadDestination) {
-        destinations.removeValue(forKey: settlement.promptID)?.resume(returning: settlement.path)
+    func settle(promptID: UUID, path: String?) {
+        destinations.removeValue(forKey: promptID)?.resume(returning: path)
     }
 
     /// Stops a download the core cancelled.
-    func cancel(_ engineID: String) {
-        guard let transfer = transfers[engineID], !transfer.hasEnded else { return }
+    func cancel(_ transferID: UUID) {
+        guard let transfer = transfers[transferID], !transfer.hasEnded else { return }
         transfer.isCanceling = true
         if let download = transfer.download {
             download.cancel { _ in }
@@ -160,23 +157,23 @@ final class WebKitDownloads: NSObject {
     }
 
     /// Forgets a download the core cleared, stopping it first if it still runs.
-    func remove(_ engineID: String) {
-        cancel(engineID)
-        transfers[engineID] = nil
+    func remove(_ transferID: UUID) {
+        cancel(transferID)
+        transfers[transferID] = nil
     }
 
     /// Replays a blocked download the person retried, as their own, under the
     /// same name. One whose page or request is gone fails, telling the person
     /// how to get it again.
-    func approve(_ engineID: String) {
-        guard let transfer = transfers[engineID], !transfer.hasEnded, transfer.download == nil else { return }
+    func approve(_ transferID: UUID) {
+        guard let transfer = transfers[transferID], !transfer.hasEnded, transfer.download == nil else { return }
         guard let request = transfer.replay, let webView = transfer.page?.webView else {
             end(transfer, .failed, detail: "Reload the original page, then try the download again.")
             return
         }
         transfer.isApprovedRetry = true
         webView.startDownload(using: request) { [weak self] download in
-            guard let self, self.transfers[engineID] === transfer, !transfer.hasEnded, transfer.download == nil else {
+            guard let self, self.transfers[transferID] === transfer, !transfer.hasEnded, transfer.download == nil else {
                 download.cancel { _ in }
                 return
             }
@@ -343,11 +340,11 @@ final class WebKitDownloads: NSObject {
         detail: String? = nil
     ) -> EngineDownload {
         EngineDownload(
-            downloadID: transfer.engineID, profileID: transfer.profileID, sourcePageID: transfer.pageID,
+            downloadID: transfer.id, profileID: transfer.profileID, sourcePageID: transfer.pageID,
             filename: transfer.filename, path: transfer.destination?.path, received: transfer.received,
             total: transfer.total, startedAt: transfer.startedAt, restored: false, paused: transfer.isPaused,
             state: state, warning: nil, interruption: interruption, failureDetail: detail,
-            approvalToken: state == .blocked ? transfer.engineID : "", canPause: false, canResume: false)
+            approvalToken: state == .blocked ? transfer.id.uuidString : "", canPause: false, canResume: false)
     }
 
     // MARK: - Actions - Facts

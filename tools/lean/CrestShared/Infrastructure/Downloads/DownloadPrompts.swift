@@ -56,14 +56,15 @@ final class BrowserDownloadPrompts {
     private func choose(_ asked: DownloadDestinationAsked) {
         Task { @MainActor [weak self, resolveDestination] in
             let resolution = await resolveDestination(asked.suggestedFilename, asked.spaceID, asked.forcesPrompt)
-            guard let self else { return resolution.abandon() }
+            guard let self, core?.downloads.isAwaitingDestination(asked.promptID, downloadID: asked.downloadID) == true
+            else { return resolution.abandon() }
             resolution.answer(asked, for: self)
         }
     }
 
     /// Sends the person's answer to a question the core asked. An answer to a
     /// question that no longer waits changes nothing.
-    func answer(_ intent: some PromptIntent) {
+    func answer(_ intent: some DownloadIntent) {
         _ = try? core?.send(intent)
     }
 }

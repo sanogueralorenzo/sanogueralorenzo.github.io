@@ -142,7 +142,7 @@ public sealed unsafe class ContractCodecTests {
     [InlineData(false)]
     public void EveryContractRecordRoundTripsWithItsOptionalsSetOrAbsent(bool optionals) {
         var records = Records().ToList();
-        Assert.Contains(typeof(DownloadState), records);
+        Assert.DoesNotContain(records, type => type.Name == "DownloadState");
         foreach (var type in records) {
             var value = Sample(type, null, optionals);
             AssertSameValue(value, RoundTrip(type, value));
@@ -173,7 +173,8 @@ public sealed unsafe class ContractCodecTests {
         // Only fixed sets that cross the core boundary have codecs.
         var sets = Sets().Where(type => !type.IsDefined(typeof(OpenSetAttribute), false) &&
             typeof(ContractCodec).GetMethod($"Write{type.Name}") is not null).ToList();
-        Assert.Contains(typeof(DownloadPhase), sets);
+        Assert.Contains(typeof(TabPlacement), sets);
+        Assert.Null(typeof(ContractCodec).GetMethod("WriteDownloadPhase"));
         Assert.Null(typeof(ContractCodec).GetMethod("WritePageExportFailure"));
         foreach (var type in sets) {
             var members = SetMembers(type)!;
@@ -295,7 +296,7 @@ public sealed unsafe class ContractCodecTests {
     [Fact]
     public void MalformedMessagesAndStaleHandlesAreStatusErrorsNotRejections() {
         var app = new AppClient();
-        var acknowledge = AppClient.Encode(writer => ContractCodec.WriteIntent(writer, new AcknowledgeDownloads(Guid.NewGuid())));
+        var acknowledge = AppClient.Encode(writer => ContractCodec.WriteIntent(writer, new SetDownloadActivity(1)));
         Assert.Equal(CoreStatus.Ok, app.Dispatch(acknowledge).Status);
         Assert.Equal(CoreStatus.InvalidMessage, app.Dispatch([]).Status);
         // A tag no intent has, however many intents the contract gains.
@@ -311,7 +312,7 @@ public sealed unsafe class ContractCodecTests {
     [Fact]
     public void AMessageLongerThanItsTypesLimitIsRefusedBeforeItIsRead() {
         using var app = new AppClient();
-        var acknowledge = AppClient.Encode(writer => ContractCodec.WriteIntent(writer, new AcknowledgeDownloads(Guid.NewGuid())));
+        var acknowledge = AppClient.Encode(writer => ContractCodec.WriteIntent(writer, new SetDownloadActivity(1)));
         var oversized = new byte[MessageLimitAttribute.DefaultBytes + 1];
         acknowledge.CopyTo(oversized);
         Assert.Equal(CoreStatus.LimitExceeded, app.Dispatch(oversized).Status);

@@ -43,8 +43,9 @@ final class CrestCore {
 
     // MARK: - Variables
 
-    /// The read model. Only the changes the core returns update it.
+    /// Observable browser state, shared with the native feature stores.
     let state = CoreState()
+    @ObservationIgnored private(set) lazy var downloads = BrowserNativeDownloads(core: self)
     /// The engines this core hosts pages on, which the composition registers.
     @ObservationIgnored private(set) lazy var engines = Engines(core: self)
     /// Where the core keeps `session.sqlite`; nil when it keeps everything in
@@ -361,8 +362,6 @@ final class CrestCore {
         if !batch.pageRecords.isEmpty { engines.recordsApplied(batch.pageRecords) }
         if !batch.permissionChanges.isEmpty { sitePermissionsChanged(batch.permissionChanges) }
         if !batch.prompts.isEmpty { promptsChanged(batch.prompts) }
-        if !batch.downloads.isEmpty { downloadsChanged(batch.downloads) }
-        if !batch.startedDownloads.isEmpty { downloadsStarted(batch.startedDownloads) }
         if !batch.unloadedPages.isEmpty { pagesUnloaded(batch.unloadedPages) }
         if !batch.putAwayPages.isEmpty { pagesPutAway(batch.putAwayPages) }
         if !batch.adoptedPages.isEmpty { pagesAdopted(batch.adoptedPages) }
@@ -502,7 +501,7 @@ final class CrestCore {
         }
     }
 
-    private func downloadsChanged(_ downloads: [DownloadState]) {
+    func downloadsChanged(_ downloads: [DownloadState]) {
         downloadFollowers.removeAll { $0.owner == nil }
         let followers = downloadFollowers
         for download in downloads {
@@ -510,7 +509,7 @@ final class CrestCore {
         }
     }
 
-    private func downloadsStarted(_ downloads: [DownloadStarted]) {
+    func downloadsStarted(_ downloads: [DownloadStarted]) {
         downloadStartFollowers.removeAll { $0.owner == nil }
         let followers = downloadStartFollowers
         for download in downloads {
@@ -518,7 +517,7 @@ final class CrestCore {
         }
     }
 
-    private func promptsChanged(_ prompts: [any CorePromptChange]) {
+    func promptsChanged(_ prompts: [any CorePromptChange]) {
         promptFollowers.removeAll { $0.owner == nil }
         let followers = promptFollowers
         for prompt in prompts {

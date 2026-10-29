@@ -11,8 +11,6 @@ struct CoreChangeBatch {
     var permissionChanges: [SitePermissionsChanged] = []
     /// The questions the core asks the person, and each one that settles.
     var prompts: [any CorePromptChange] = []
-    var downloads: [DownloadState] = []
-    var startedDownloads: [DownloadStarted] = []
     var unloadedPages: [PageUnloaded] = []
     var putAwayPages: [TabPagePutAway] = []
     var adoptedPages: [OfferedPageAdopted] = []

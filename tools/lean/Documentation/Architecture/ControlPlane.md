@@ -15,3 +15,7 @@ and events. Local page requests and updates are Swift types under
 `Infrastructure/WebKit/PageOperations`; they have no wire codec. Media-session
 ordering and lifecycle run in the native store. Launch isolation and external
 web-link eligibility also run in Swift before a core is required.
+
+Download records, progress/risk queries and WebKit download callbacks run in
+Swift. `SetDownloadActivity` reports their live count to the remaining quit
+preparation; the C# core holds no download records or transfer identities.

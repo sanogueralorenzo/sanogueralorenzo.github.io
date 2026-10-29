@@ -2,10 +2,8 @@ import Foundation
 import Observation
 import os
 
-/// Crest's downloads for one browsing mode: the core's download records, the
-/// feedback they present, and native data saves. Every record change is an
-/// intent sent to the core; engines report their own downloads to the core,
-/// which records them and hands the person's row actions back to the engine.
+/// Presents the native download ledger and coordinates platform data saves.
+/// WebKit owns transfers; the shared ledger owns records and their transitions.
 @Observable
 @MainActor
 final class BrowserDownloadCenter: NSObject {
@@ -89,12 +87,12 @@ final class BrowserDownloadCenter: NSObject {
     /// Sends one download intent. A refused intent changes nothing; the rule
     /// it broke is logged, since it means an engine reported something the
     /// core cannot record.
-    func send(_ intent: some Intent) {
+    func send(_ intent: some DownloadIntent) {
         do {
             try core.send(intent)
         } catch {
             Self.logger.error(
-                "The core refused \(String(describing: type(of: intent)), privacy: .public): \(DiagnosticLog.describe(error), privacy: .public)"
+                "The download ledger refused \(String(describing: type(of: intent)), privacy: .public): \(DiagnosticLog.describe(error), privacy: .public)"
             )
         }
     }

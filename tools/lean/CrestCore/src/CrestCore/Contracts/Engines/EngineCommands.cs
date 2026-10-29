@@ -116,29 +116,6 @@ public sealed record SettleScriptDialog(Guid PromptId, bool Accepted, string? Te
 
 #endregion
 
-#region Downloads
-
-/// Keeps a download the engine warned about, while its warning is still the
-/// one `ApprovalToken` names.
-public sealed record ApproveEngineDownload(Guid ProfileId, string DownloadId, string ApprovalToken) : EngineCommand;
-
-/// Cancels an engine download.
-public sealed record CancelEngineDownload(Guid ProfileId, string DownloadId) : EngineCommand;
-
-/// Pauses a transfer without discarding the engine's saved request or partial file.
-public sealed record PauseEngineDownload(Guid ProfileId, string DownloadId) : EngineCommand;
-
-/// Resumes or restarts a download using the engine's saved request, when it permits recovery.
-public sealed record ResumeEngineDownload(Guid ProfileId, string DownloadId) : EngineCommand;
-
-/// Removes a finished or stopped engine download from the engine's list.
-public sealed record RemoveEngineDownload(Guid ProfileId, string DownloadId) : EngineCommand;
-
-/// The file a download the engine asked about goes to, or none to cancel it.
-/// Choosing where a file goes never overrides the engine's safety verdict.
-public sealed record SettleDownloadDestination(Guid PromptId, string? Path) : EngineCommand;
-
-#endregion
 
 #region Website Data
 

@@ -7,11 +7,11 @@ extension EngineCommand {
         case .adoptOfferedPage(let command): hosts.insert(command.pageID)
         case .closePage(let command): hosts.remove(command.pageID)
         case .createPage(let command): hosts.insert(command.pageID)
-        case .approveEngineDownload, .cancelEngineDownload, .checkBeforeUnload, .dropStagedLink, .eraseBrowsingData,
+        case .checkBeforeUnload, .dropStagedLink, .eraseBrowsingData,
             .eraseProfileData, .eraseSiteData, .exitPictureInPicture, .goToHistoryEntry, .groupPages, .loadPage,
-            .pauseEngineDownload, .readSiteData, .recoverPage, .rejectOfferedPage, .removeEngineDownload,
-            .resumeEngineDownload, .settleAuthentication,
-            .settleDownloadDestination, .settleExtensionInstall, .settlePermission, .settleScriptDialog,
+            .readSiteData, .recoverPage, .rejectOfferedPage,
+            .settleAuthentication,
+            .settleExtensionInstall, .settlePermission, .settleScriptDialog,
             .stageNavigation:
             // These act on a page the engine already hosts, or on none.
             break

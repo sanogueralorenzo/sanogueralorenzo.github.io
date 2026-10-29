@@ -13,7 +13,7 @@ extension CrestCore {
         let finishedBytes = Int64((try? finishedURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
         let activeID = UUID()
         let activeURL = directory.appendingPathComponent("Crest Design Review.pdf")
-        let intents: [any Intent] = [
+        let intents: [any DownloadIntent] = [
             BeginDownload(
                 downloadID: finishedID, profileID: profileID, filename: finishedURL.lastPathComponent,
                 createdAt: .now.addingTimeInterval(-90), isAcknowledged: false),

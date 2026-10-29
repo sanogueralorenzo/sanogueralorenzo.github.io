@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 extension DownloadRiskFacts {
     /// The platform's file-system-safe name and type-registry facts for a
-    /// download. The core decides the risk reasons and whether confirmation
+    /// download. The native policy decides the risk reasons and whether confirmation
     /// is needed.
     init(suggestedFilename: String, mimeType: String?) {
         let sanitizedFilename = BrowserDownloadDestination.safeFilename(from: suggestedFilename)

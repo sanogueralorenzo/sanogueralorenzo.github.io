@@ -1,12 +1,12 @@
 import Foundation
 import Observation
 
-/// The Swift read model of the core's state. Views read it directly; only the
-/// changes `CrestCore` receives update it, each through its own
+/// Observable browser state. Views read it directly. Managed state changes
+/// arrive through `CrestCore`, each through its own
 /// `apply(to:)` in a `Changes/Area/Change+CoreState.swift` file. It is
 /// observable per entity: each workspace, Space, tab, folder and window is
 /// an object of its own that notifies only when one of its values really
-/// changes.
+/// changes. Native domains update their own values, including download records.
 ///
 /// Every value is stored before it is announced, so a view that renders
 /// while a change is announced reads the new value; see

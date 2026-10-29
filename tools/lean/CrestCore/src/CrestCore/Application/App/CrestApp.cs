@@ -22,15 +22,13 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
 
     private readonly Lock gate = new();
     internal Lock Gate => gate;
-    private readonly Downloads downloads = new();
+    private int nativeDownloadCount;
     /// This device's windows and what each shows.
     private readonly Device device;
     /// The pages this device hosts, and the engines that host them.
     private readonly Pages pages;
     /// The questions the pages and engines ask the person.
     private readonly Prompts prompts;
-    /// The downloads engines run, in the download ledger.
-    private readonly EngineDownloads engineDownloads;
     /// Close and quit preparations, which ask each page whether it may go.
     private readonly ClosePreparations closePreparations;
     /// Erasing what every engine keeps for a profile.
@@ -49,11 +47,9 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
 
     // The areas each message routes itself to, which only the core's own
     // messages reach.
-    internal Downloads Downloads => downloads;
     internal Device Device => device;
     internal Pages Pages => pages;
     internal Prompts Prompts => prompts;
-    internal EngineDownloads EngineDownloads => engineDownloads;
     internal ClosePreparations ClosePreparations => closePreparations;
     internal DataDeletions DataDeletions => dataDeletions;
     internal SiteDataReads SiteDataReads => siteDataReads;
@@ -89,8 +85,8 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
             device = new(configuration.Platform, storage: null, DeviceRecords.Empty, Announce, RequestTurn, CloseBorrower, clock);
             pages = new(device, engines, clock, ids);
             prompts = new(device, pages);
-            engineDownloads = new(downloads, device, pages, ids);
-            closePreparations = new(device, pages, downloads, dataDeletions, ids);
+
+            closePreparations = new(device, pages, () => nativeDownloadCount, dataDeletions, ids);
             cloudTransport = new(storage: null, device);
             cloudSync = new(cloudTransport, clock, StoredSessionIsDisposableSeed, StoredJournalPendingUploads);
             return;
@@ -99,8 +95,8 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         device = new(configuration.Platform, storage, storage.Device, Announce, RequestTurn, CloseBorrower, clock);
         pages = new(device, engines, clock, ids);
         prompts = new(device, pages);
-        engineDownloads = new(downloads, device, pages, ids);
-        closePreparations = new(device, pages, downloads, dataDeletions, ids);
+
+        closePreparations = new(device, pages, () => nativeDownloadCount, dataDeletions, ids);
         cloudTransport = new(storage, device);
         cloudSync = new(cloudTransport, clock, StoredSessionIsDisposableSeed, StoredJournalPendingUploads);
         try {
@@ -113,6 +109,11 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     }
 
     #endregion
+
+    internal void SetDownloadActivity(int count) {
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        nativeDownloadCount = count;
+    }
 
     #region Actions - Intents
 

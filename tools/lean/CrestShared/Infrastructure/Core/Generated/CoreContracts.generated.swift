@@ -50,12 +50,6 @@ protocol CloudTransportIntent: Intent {}
 /// The members of `Intent` that derive from the core's `DataDeletionIntent`.
 protocol DataDeletionIntent: Intent {}
 
-/// The members of `Intent` that derive from the core's `DownloadIntent`.
-protocol DownloadIntent: Intent {}
-
-/// The members of `EngineEvent` that derive from the core's `EngineDownloadEvent`.
-protocol EngineDownloadEvent: EngineEvent {}
-
 /// The members of `Intent` that derive from the core's `ImportWorkspace`.
 protocol ImportWorkspace: Intent {}
 
@@ -98,11 +92,6 @@ enum Change: Equatable, Sendable {
     case cloudSyncAdvanced(CloudSyncAdvanced)
     case cloudTransportChanged(CloudTransportChanged)
     case dataDeleted(DataDeleted)
-    case downloadApprovalAsked(DownloadApprovalAsked)
-    case downloadDestinationAsked(DownloadDestinationAsked)
-    case downloadStarted(DownloadStarted)
-    case downloadUpdated(DownloadUpdated)
-    case downloadsRemoved(DownloadsRemoved)
     case enginesChanged(EnginesChanged)
     case extensionInstallAsked(ExtensionInstallAsked)
     case foldersChanged(FoldersChanged)
@@ -171,8 +160,6 @@ enum Rejection: Equatable, Error, Sendable {
     case cannotPinSplit(CannotPinSplit)
     case closePreparationUnderway(ClosePreparationUnderway)
     case currentTabsOnly(CurrentTabsOnly)
-    case downloadLimitReached(DownloadLimitReached)
-    case duplicateDownload(DuplicateDownload)
     case duplicatePage(DuplicatePage)
     case engineAlreadyRegistered(EngineAlreadyRegistered)
     case engineLacksCapability(EngineLacksCapability)
@@ -185,15 +172,10 @@ enum Rejection: Equatable, Error, Sendable {
     case incompleteSplit(IncompleteSplit)
     case invalidAgent(InvalidAgent)
     case invalidBlockedPopup(InvalidBlockedPopup)
-    case invalidDownloadIdentity(InvalidDownloadIdentity)
-    case invalidDownloadProgress(InvalidDownloadProgress)
-    case invalidDownloadSample(InvalidDownloadSample)
-    case invalidDownloadText(InvalidDownloadText)
     case invalidFolderPlacement(InvalidFolderPlacement)
     case invalidImport(InvalidImport)
     case invalidLiveFolder(InvalidLiveFolder)
     case invalidName(InvalidName)
-    case invalidRetentionLifetime(InvalidRetentionLifetime)
     case invalidSession(InvalidSession)
     case invalidShortcut(InvalidShortcut)
     case invalidSiteHost(InvalidSiteHost)
@@ -338,8 +320,6 @@ enum Rejection: Equatable, Error, Sendable {
 /// What the core asks an engine binding to do, run by `WebKitEngineBinding.run`.
 enum EngineCommand: Equatable, Sendable {
     case adoptOfferedPage(AdoptOfferedPage)
-    case approveEngineDownload(ApproveEngineDownload)
-    case cancelEngineDownload(CancelEngineDownload)
     case checkBeforeUnload(CheckBeforeUnload)
     case closePage(ClosePage)
     case createPage(CreatePage)
@@ -351,14 +331,10 @@ enum EngineCommand: Equatable, Sendable {
     case goToHistoryEntry(GoToHistoryEntry)
     case groupPages(GroupPages)
     case loadPage(LoadPage)
-    case pauseEngineDownload(PauseEngineDownload)
     case readSiteData(ReadSiteData)
     case recoverPage(RecoverPage)
     case rejectOfferedPage(RejectOfferedPage)
-    case removeEngineDownload(RemoveEngineDownload)
-    case resumeEngineDownload(ResumeEngineDownload)
     case settleAuthentication(SettleAuthentication)
-    case settleDownloadDestination(SettleDownloadDestination)
     case settleExtensionInstall(SettleExtensionInstall)
     case settlePermission(SettlePermission)
     case settleScriptDialog(SettleScriptDialog)
@@ -379,11 +355,6 @@ extension Change {
         case .cloudSyncAdvanced(let change): change.apply(to: state)
         case .cloudTransportChanged(let change): change.apply(to: state)
         case .dataDeleted(let change): change.apply(to: state)
-        case .downloadApprovalAsked(let change): change.apply(to: state)
-        case .downloadDestinationAsked(let change): change.apply(to: state)
-        case .downloadStarted(let change): change.apply(to: state)
-        case .downloadUpdated(let change): change.apply(to: state)
-        case .downloadsRemoved(let change): change.apply(to: state)
         case .enginesChanged(let change): change.apply(to: state)
         case .extensionInstallAsked(let change): change.apply(to: state)
         case .foldersChanged(let change): change.apply(to: state)
@@ -441,11 +412,6 @@ extension Change {
         case .cloudSyncAdvanced(let change): change.apply(to: core, in: &batch)
         case .cloudTransportChanged(let change): change.apply(to: core, in: &batch)
         case .dataDeleted(let change): change.apply(to: core, in: &batch)
-        case .downloadApprovalAsked(let change): change.apply(to: core, in: &batch)
-        case .downloadDestinationAsked(let change): change.apply(to: core, in: &batch)
-        case .downloadStarted(let change): change.apply(to: core, in: &batch)
-        case .downloadUpdated(let change): change.apply(to: core, in: &batch)
-        case .downloadsRemoved(let change): change.apply(to: core, in: &batch)
         case .enginesChanged(let change): change.apply(to: core, in: &batch)
         case .extensionInstallAsked(let change): change.apply(to: core, in: &batch)
         case .foldersChanged(let change): change.apply(to: core, in: &batch)
@@ -503,11 +469,6 @@ extension Change {
         case .cloudSyncAdvanced(let change): change.note(in: &receipts)
         case .cloudTransportChanged(let change): change.note(in: &receipts)
         case .dataDeleted(let change): change.note(in: &receipts)
-        case .downloadApprovalAsked(let change): change.note(in: &receipts)
-        case .downloadDestinationAsked(let change): change.note(in: &receipts)
-        case .downloadStarted(let change): change.note(in: &receipts)
-        case .downloadUpdated(let change): change.note(in: &receipts)
-        case .downloadsRemoved(let change): change.note(in: &receipts)
         case .enginesChanged(let change): change.note(in: &receipts)
         case .extensionInstallAsked(let change): change.note(in: &receipts)
         case .foldersChanged(let change): change.note(in: &receipts)
@@ -553,10 +514,6 @@ extension Change {
 }
 
 // MARK: - Records
-
-struct AcknowledgeDownloads: Intent, DownloadIntent, Equatable, Sendable {
-    let profileID: UUID
-}
 
 struct AcknowledgeUploads: Intent, CloudSyncIntent, Equatable, Sendable {
     let records: [UploadedRecord]
@@ -742,16 +699,6 @@ struct AnswerAuthentication: Intent, PromptIntent, Equatable, Sendable {
     let credential: AuthenticationCredential?
 }
 
-struct AnswerDownloadApproval: Intent, PromptIntent, Equatable, Sendable {
-    let promptID: UUID
-    let approved: Bool
-}
-
-struct AnswerDownloadDestination: Intent, PromptIntent, Equatable, Sendable {
-    let promptID: UUID
-    let path: String?
-}
-
 struct AnswerExtensionInstall: Intent, PromptIntent, Equatable, Sendable {
     let promptID: UUID
     let accepted: Bool
@@ -806,12 +753,6 @@ struct ApproveAgent: Intent, AgentIntent, Equatable, Sendable {
     let agent: ApprovedAgent
 }
 
-struct ApproveEngineDownload: Equatable, Sendable {
-    let profileID: UUID
-    let downloadID: String
-    let approvalToken: String
-}
-
 struct ApprovedAgent: Equatable, Sendable {
     var identity: AgentIdentity
     var name: String
@@ -862,11 +803,6 @@ struct ArchivedTabState: Equatable, Sendable {
     }
 }
 
-struct AssessDownloadRisk: Intent, DownloadIntent, Equatable, Sendable {
-    let downloadID: UUID
-    let assessment: DownloadRiskAssessment
-}
-
 struct AuthenticationAsked: CoreChange, Equatable, Sendable {
     let promptID: UUID
     let pageID: UUID
@@ -906,24 +842,6 @@ struct AuthenticationSourceLabel: Equatable, Sendable {
     let label: String?
 }
 
-struct AutomaticDownloadCheck: Query, Equatable, Sendable {
-    typealias Answer = AutomaticDownloadVerdict
-
-    let userInitiated: Bool
-    let userApprovedRetry: Bool
-    let savedDecision: SitePermissionDecision
-    let hasAllowedAutomaticDownload: Bool
-}
-
-struct AutomaticDownloadVerdict: Equatable, Sendable {
-    let action: AutomaticDownloadAction
-    let hasAllowedAutomaticDownload: Bool
-}
-
-struct AwaitDownloadApproval: Intent, DownloadIntent, Equatable, Sendable {
-    let downloadID: UUID
-}
-
 struct BeforeUnloadAnswered: EngineEvent, Equatable, Sendable {
     let pageID: UUID
     let proceeds: Bool
@@ -945,19 +863,7 @@ struct BeginDeletingSpace: Intent, SessionIntent, Equatable, Sendable {
     let operationID: UUID
 }
 
-struct BeginDownload: Intent, DownloadIntent, Equatable, Sendable {
-    let downloadID: UUID
-    let profileID: UUID
-    let filename: String
-    let createdAt: Date
-    let isAcknowledged: Bool
-}
-
 struct BeginImportCommit: Intent, BrowserImportIntent, Equatable, Sendable {
-}
-
-struct BlockAutomaticDownload: Intent, DownloadIntent, Equatable, Sendable {
-    let downloadID: UUID
 }
 
 struct BlockedPopupPageState: Equatable, Sendable {
@@ -1062,16 +968,6 @@ struct CanTearOff: Query, Equatable, Sendable {
     let profileID: UUID
     let tabID: UUID
     let draggedTabs: [UUID]?
-}
-
-struct CancelDownload: Intent, DownloadIntent, Equatable, Sendable {
-    let downloadID: UUID
-    let message: String
-}
-
-struct CancelEngineDownload: Equatable, Sendable {
-    let profileID: UUID
-    let downloadID: String
 }
 
 struct CancelImportRead: Intent, BrowserImportIntent, Equatable, Sendable {
@@ -1503,147 +1399,6 @@ struct DockMenuSpace: Equatable, Sendable {
     let color: SpaceColor
 }
 
-struct DownloadApprovalAsked: CoreChange, Equatable, Sendable {
-    let promptID: UUID
-    let downloadID: UUID
-    let spaceID: UUID?
-    let filename: String
-    let reasons: [DownloadRiskReason]
-    let warning: DownloadWarning?
-    let sourceHost: String?
-}
-
-struct DownloadDestinationAsked: CoreChange, Equatable, Sendable {
-    let promptID: UUID
-    let downloadID: UUID
-    let spaceID: UUID
-    let suggestedFilename: String
-    let forcesPrompt: Bool
-}
-
-struct DownloadLimitReached: Equatable, Sendable {
-    let limit: Int
-}
-
-struct DownloadProgress: Query, Equatable, Sendable {
-    typealias Answer = DownloadProgressReading
-
-    let estimator: DownloadTransferEstimator?
-    let completedUnitCount: Int64
-    let totalUnitCount: Int64
-    let fractionCompleted: Double
-    let isPaused: Bool
-    let uptime: Double
-}
-
-struct DownloadProgressReading: Equatable, Sendable {
-    let estimator: DownloadTransferEstimator
-    let telemetry: DownloadTelemetry
-    let progress: Double
-}
-
-struct DownloadRetention: Equatable, Sendable {
-    var profileID: UUID
-    var lifetime: TimeInterval?
-}
-
-struct DownloadRisk: Query, Equatable, Sendable {
-    typealias Answer = DownloadRiskVerdict
-
-    let facts: DownloadRiskFacts
-    let isUserInitiated: Bool
-}
-
-struct DownloadRiskAssessment: Equatable, Sendable {
-    var sanitizedFilename: String
-    var reasons: [DownloadRiskReason]
-}
-
-struct DownloadRiskFacts: Equatable, Sendable {
-    static let maximumSuggestedFilenameLength: Int = 4096
-
-    var suggestedFilename: String
-    var sanitizedFilename: String
-    var mimeType: String?
-    var extensionRunsCode: Bool
-    var mimeTypeRunsCode: Bool
-    var typesRelated: Bool?
-}
-
-struct DownloadRiskVerdict: Equatable, Sendable {
-    let assessment: DownloadRiskAssessment
-    let requiresConfirmation: Bool
-}
-
-struct DownloadStarted: CoreChange, Equatable, Sendable {
-    let downloadID: UUID
-    let pageID: UUID
-}
-
-struct DownloadState: Equatable, Sendable, Identifiable {
-    let id: UUID
-    let profileID: UUID
-    let createdAt: Date
-    let filename: String
-    let destination: String?
-    let progress: Double
-    let telemetry: DownloadTelemetry
-    let phase: DownloadPhase
-    let failure: DownloadFailure?
-    let message: String?
-    let risk: DownloadRiskAssessment?
-    let isAcknowledged: Bool
-    let canPause: Bool
-    let canResume: Bool
-}
-
-struct DownloadTelemetry: Equatable, Sendable {
-    static let empty = DownloadTelemetry(
-        bytesReceived: 0,
-        totalBytes: nil,
-        bytesPerSecond: nil,
-        estimatedTimeRemaining: nil,
-        isPaused: false
-    )
-
-    var bytesReceived: Int64
-    var totalBytes: Int64?
-    var bytesPerSecond: Double?
-    var estimatedTimeRemaining: Double?
-    var isPaused: Bool
-}
-
-struct DownloadTransferEstimator: Equatable, Sendable {
-    static let minimumRateInterval: Double = 0.15
-    static let smoothingWeight: Double = 0.25
-    static let minimumUsefulEstimate: Double = 0.5
-    static let maximumUsefulEstimate: Double = 604800
-    static let initial = DownloadTransferEstimator(
-        publishedBytes: 0,
-        knownTotalBytes: nil,
-        totalIsUnreliable: false,
-        measurementBytes: nil,
-        measurementUptime: nil,
-        smoothedBytesPerSecond: nil
-    )
-
-    var publishedBytes: Int64
-    var knownTotalBytes: Int64?
-    var totalIsUnreliable: Bool
-    var measurementBytes: Int64?
-    var measurementUptime: Double?
-    var smoothedBytesPerSecond: Double?
-}
-
-struct DownloadUpdated: CoreChange, Equatable, Sendable {
-    let download: DownloadState
-    let position: Int
-}
-
-struct DownloadsRemoved: CoreChange, Equatable, Sendable {
-    let downloadIDs: [UUID]
-}
-
 struct DropAroundTab: Intent, SessionIntent, SidebarDrop, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
@@ -1703,9 +1458,6 @@ struct DropTargets: Query, Equatable, Sendable {
     let selection: TabSelection
 }
 
-struct DuplicateDownload: Equatable, Sendable {
-}
-
 struct DuplicatePage: Equatable, Sendable {
     let pageID: UUID
 }
@@ -1743,40 +1495,6 @@ struct EnforcedLimits: Query, Equatable, Sendable {
 }
 
 struct EngineAlreadyRegistered: Equatable, Sendable {
-}
-
-struct EngineDownload: Equatable, Sendable {
-    var downloadID: String
-    var profileID: UUID
-    var sourcePageID: UUID?
-    var filename: String
-    var path: String?
-    var received: Int64
-    var total: Int64
-    var startedAt: Date
-    var restored: Bool
-    var paused: Bool
-    var state: EngineDownloadState
-    var warning: EngineDownloadWarning?
-    var interruption: EngineDownloadInterruption?
-    var failureDetail: String?
-    var approvalToken: String
-    var canPause: Bool
-    var canResume: Bool
-}
-
-struct EngineDownloadChanged: EngineEvent, EngineDownloadEvent, Equatable, Sendable {
-    let download: EngineDownload
-}
-
-struct EngineDownloadDestinationRequested: EngineEvent, EngineDownloadEvent, Equatable, Sendable {
-    let promptID: UUID
-    let download: EngineDownload
-    let suggestedFilename: String
-    let forcesPrompt: Bool
-    let facts: DownloadRiskFacts
-    let userInitiated: Bool
-    let sourceHost: String?
 }
 
 struct EngineLacksCapability: Equatable, Sendable {
@@ -1872,11 +1590,6 @@ struct ExitPictureInPicture: Equatable, Sendable {
     let pageID: UUID
 }
 
-struct ExpireDownloads: Intent, DownloadIntent, Equatable, Sendable {
-    let now: Date
-    let retentions: [DownloadRetention]
-}
-
 struct ExportWorkspace: Query, Equatable, Sendable {
     typealias Answer = ExportedDocument
 
@@ -1932,12 +1645,6 @@ struct ExternalOpenPlacement: Equatable, Sendable {
     let windowID: UUID?
     let spaceID: UUID?
     let opensWindow: Bool
-}
-
-struct FailDownload: Intent, DownloadIntent, Equatable, Sendable {
-    let downloadID: UUID
-    let reason: DownloadFailure?
-    let message: String?
 }
 
 struct FailImport: Intent, BrowserImportIntent, Equatable, Sendable {
@@ -1999,11 +1706,6 @@ struct FinishDeletingSpace: Intent, SessionIntent, Equatable, Sendable {
     let windowID: UUID
     let spaceID: UUID
     let operationID: UUID
-}
-
-struct FinishDownload: Intent, DownloadIntent, Equatable, Sendable {
-    let downloadID: UUID
-    let finalByteCount: Int64?
 }
 
 struct FinishImportCommit: Intent, BrowserImportIntent, Equatable, Sendable {
@@ -2395,19 +2097,6 @@ struct InvalidAgent: Equatable, Sendable {
 struct InvalidBlockedPopup: Equatable, Sendable {
 }
 
-struct InvalidDownloadIdentity: Equatable, Sendable {
-}
-
-struct InvalidDownloadProgress: Equatable, Sendable {
-}
-
-struct InvalidDownloadSample: Equatable, Sendable {
-}
-
-struct InvalidDownloadText: Equatable, Sendable {
-    let field: DownloadTextField
-}
-
 struct InvalidFolderPlacement: Equatable, Sendable {
 }
 
@@ -2425,9 +2114,6 @@ struct InvalidLiveFolder: Equatable, Sendable {
 
 struct InvalidName: Equatable, Sendable {
     let limit: Int
-}
-
-struct InvalidRetentionLifetime: Equatable, Sendable {
 }
 
 struct InvalidSession: Equatable, Sendable {
@@ -3144,15 +2830,6 @@ struct PasskeyAccessVerdict: Equatable, Sendable {
     let status: PasskeyAccessStatus
 }
 
-struct PauseDownload: Intent, DownloadIntent, Equatable, Sendable {
-    let downloadID: UUID
-}
-
-struct PauseEngineDownload: Equatable, Sendable {
-    let profileID: UUID
-    let downloadID: String
-}
-
 struct PendingSave: Query, Equatable, Sendable {
     typealias Answer = PendingSaveRevision
 
@@ -3341,12 +3018,6 @@ struct RecordCloudFields: Intent, CloudTransportIntent, Equatable, Sendable {
     let removed: [String]
 }
 
-struct RecordDownloadTransfer: Intent, DownloadIntent, Equatable, Sendable {
-    let downloadID: UUID
-    let telemetry: DownloadTelemetry
-    let progress: Double
-}
-
 struct RecordsToUpload: Query, Equatable, Sendable {
     typealias Answer = UploadBatch
 
@@ -3384,23 +3055,10 @@ struct RememberWindowsForLaunch: Intent, WindowIntent, Equatable, Sendable {
     let windowIDs: [UUID]
 }
 
-struct RemoveDownload: Intent, DownloadIntent, Equatable, Sendable {
-    let downloadID: UUID
-}
-
-struct RemoveEngineDownload: Equatable, Sendable {
-    let profileID: UUID
-    let downloadID: String
-}
-
 struct RemoveHistoryAddress: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
     let address: String
-}
-
-struct RemoveProfileDownloads: Intent, DownloadIntent, Equatable, Sendable {
-    let profileID: UUID
 }
 
 struct RenameFolder: Intent, SessionIntent, Equatable, Sendable {
@@ -3490,10 +3148,6 @@ struct ResolvedAddress: Equatable, Sendable {
 struct RestartCloudSyncAfterAccountChange: Intent, CloudSyncControlIntent, Equatable, Sendable {
 }
 
-struct RestartDownload: Intent, DownloadIntent, Equatable, Sendable {
-    let downloadID: UUID
-}
-
 struct RestoreArchivedTab: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
@@ -3506,15 +3160,6 @@ struct RestoreTabHistory: Intent, PageIntent, Equatable, Sendable {
     let spaceID: UUID
     let tabID: UUID
     let archive: Data
-}
-
-struct ResumeDownload: Intent, DownloadIntent, Equatable, Sendable {
-    let downloadID: UUID
-}
-
-struct ResumeEngineDownload: Equatable, Sendable {
-    let profileID: UUID
-    let downloadID: String
 }
 
 struct RetryCloudSync: Intent, CloudSyncControlIntent, Equatable, Sendable {
@@ -3749,10 +3394,8 @@ struct SetCloudSyncEnabled: Intent, CloudSyncControlIntent, Equatable, Sendable 
     let isEnabled: Bool
 }
 
-struct SetDownloadDestination: Intent, DownloadIntent, Equatable, Sendable {
-    let downloadID: UUID
-    let destination: String
-    let filename: String
+struct SetDownloadActivity: Intent, Equatable, Sendable {
+    let count: Int
 }
 
 struct SetFolderColor: Intent, SessionIntent, Equatable, Sendable {
@@ -3788,11 +3431,6 @@ struct SettleAuthentication: Equatable, Sendable {
 }
 
 struct SettleCloudOverwrite: Intent, CloudTransportIntent, Equatable, Sendable {
-}
-
-struct SettleDownloadDestination: Equatable, Sendable {
-    let promptID: UUID
-    let path: String?
 }
 
 struct SettleExtensionInstall: Equatable, Sendable {
@@ -4631,33 +4269,6 @@ enum AuthenticationScheme: Int, CaseIterable, Sendable {
     case digest = 1
 }
 
-enum EngineDownloadInterruption: Int, CaseIterable, Sendable {
-    case network = 0
-    case server = 1
-    case noSpace = 2
-    case fileAccess = 3
-    case other = 4
-}
-
-enum EngineDownloadState: Int, CaseIterable, Sendable {
-    case preparing = 0
-    case downloading = 1
-    case awaitingApproval = 2
-    case finished = 3
-    case canceled = 4
-    case failed = 5
-    case blocked = 6
-}
-
-enum EngineDownloadWarning: Int, CaseIterable, Sendable {
-    case insecureConnection = 0
-    case dangerousFile = 1
-    case uncommonContent = 2
-    case potentiallyUnwanted = 3
-    case insecureBlocked = 4
-    case policyBlocked = 5
-}
-
 enum ImportFlaw: Int, CaseIterable, Sendable {
     case unreadable = 0
     case malformedSplit = 1
@@ -5098,53 +4709,6 @@ struct AuthenticationMethod: Hashable, Sendable {
         init(name: String, promptsForCredentials: Bool) {
             self.name = name
             self.promptsForCredentials = promptsForCredentials
-        }
-    }
-}
-
-/// The members of the core's `AutomaticDownloadAction`. A member's wire tag is its index in `all`.
-struct AutomaticDownloadAction: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case allow
-        case deny
-        case requestPermission
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    private let facts: Facts
-
-    private init(tag: Int, kind: Kinds, name: String) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name)
-    }
-
-    static let allow = AutomaticDownloadAction(tag: 0, kind: .allow, name: "allow")
-    static let deny = AutomaticDownloadAction(tag: 1, kind: .deny, name: "deny")
-    static let requestPermission = AutomaticDownloadAction(tag: 2, kind: .requestPermission, name: "requestPermission")
-
-    static let all: [AutomaticDownloadAction] = [allow, deny, requestPermission]
-
-    static func named(_ name: String?) -> AutomaticDownloadAction? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: AutomaticDownloadAction, rhs: AutomaticDownloadAction) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-
-        init(kind: Kinds, name: String) {
-            self.kind = kind
-            self.name = name
         }
     }
 }
@@ -6245,654 +5809,6 @@ struct DockMenuCommand: Hashable, Sendable {
             self.name = name
             self.command = command
             self.title = title
-        }
-    }
-}
-
-/// The members of the core's `DownloadFailure`. A member's wire tag is its index in `all`.
-struct DownloadFailure: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var message: LocalizedStringResource { facts.message }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, message: LocalizedStringResource) {
-        self.tag = tag
-        facts = Facts(name: name, message: message)
-    }
-
-    static let interrupted = DownloadFailure(
-        tag: 0,
-        name: "interrupted",
-        message: LocalizedStringResource("The download was interrupted.")
-    )
-    static let network = DownloadFailure(
-        tag: 1,
-        name: "network",
-        message: LocalizedStringResource("The download stopped because of a network problem.")
-    )
-    static let server = DownloadFailure(
-        tag: 2,
-        name: "server",
-        message: LocalizedStringResource("The server couldn’t provide the file.")
-    )
-    static let noSpace = DownloadFailure(
-        tag: 3,
-        name: "noSpace",
-        message: LocalizedStringResource("There isn’t enough disk space to save the file.")
-    )
-    static let fileAccess = DownloadFailure(
-        tag: 4,
-        name: "fileAccess",
-        message: LocalizedStringResource("The file couldn’t be saved in its folder.")
-    )
-    static let folderUnavailable = DownloadFailure(
-        tag: 5,
-        name: "folderUnavailable",
-        message: LocalizedStringResource("The Downloads folder is unavailable.")
-    )
-    static let blockedUnsafe = DownloadFailure(
-        tag: 6,
-        name: "blockedUnsafe",
-        message: LocalizedStringResource("This download was blocked because it could harm your computer.")
-    )
-    static let blockedInsecure = DownloadFailure(
-        tag: 7,
-        name: "blockedInsecure",
-        message: LocalizedStringResource("This download was blocked because it came over an insecure connection.")
-    )
-    static let blockedByPolicy = DownloadFailure(
-        tag: 8,
-        name: "blockedByPolicy",
-        message: LocalizedStringResource("This download was blocked by a safety or organization policy.")
-    )
-
-    static let all: [DownloadFailure] = [
-        interrupted,
-        network,
-        server,
-        noSpace,
-        fileAccess,
-        folderUnavailable,
-        blockedUnsafe,
-        blockedInsecure,
-        blockedByPolicy
-    ]
-
-    static func named(_ name: String?) -> DownloadFailure? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: DownloadFailure, rhs: DownloadFailure) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let message: LocalizedStringResource
-
-        init(name: String, message: LocalizedStringResource) {
-            self.name = name
-            self.message = message
-        }
-    }
-}
-
-/// The members of the core's `DownloadPhase`. A member's wire tag is its index in `all`.
-struct DownloadPhase: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var title: LocalizedStringResource? { facts.title }
-    var symbol: String? { facts.symbol }
-    var primaryAction: DownloadRowAction { facts.primaryAction }
-    var isLive: Bool { facts.isLive }
-    var isTransferring: Bool { facts.isTransferring }
-    var isComplete: Bool { facts.isComplete }
-    var needsAttention: Bool { facts.needsAttention }
-    var awaitsDecision: Bool { facts.awaitsDecision }
-    var canRetry: Bool { facts.canRetry }
-    var allowsResume: Bool { facts.allowsResume }
-    var canFail: Bool { facts.canFail }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        name: String,
-        title: LocalizedStringResource?,
-        symbol: String?,
-        primaryAction: DownloadRowAction,
-        isLive: Bool,
-        isTransferring: Bool,
-        isComplete: Bool,
-        needsAttention: Bool,
-        awaitsDecision: Bool,
-        canRetry: Bool,
-        allowsResume: Bool,
-        canFail: Bool
-    ) {
-        self.tag = tag
-        facts = Facts(
-            name: name,
-            title: title,
-            symbol: symbol,
-            primaryAction: primaryAction,
-            isLive: isLive,
-            isTransferring: isTransferring,
-            isComplete: isComplete,
-            needsAttention: needsAttention,
-            awaitsDecision: awaitsDecision,
-            canRetry: canRetry,
-            allowsResume: allowsResume,
-            canFail: canFail
-        )
-    }
-
-    static let preparing = DownloadPhase(
-        tag: 0,
-        name: "preparing",
-        title: LocalizedStringResource("Preparing…"),
-        symbol: nil,
-        primaryAction: DownloadRowAction.cancel,
-        isLive: true,
-        isTransferring: false,
-        isComplete: false,
-        needsAttention: false,
-        awaitsDecision: false,
-        canRetry: false,
-        allowsResume: false,
-        canFail: true
-    )
-    static let awaitingApproval = DownloadPhase(
-        tag: 1,
-        name: "awaitingApproval",
-        title: LocalizedStringResource("Waiting for approval…"),
-        symbol: "exclamationmark.shield.fill",
-        primaryAction: DownloadRowAction.cancel,
-        isLive: true,
-        isTransferring: false,
-        isComplete: false,
-        needsAttention: false,
-        awaitsDecision: true,
-        canRetry: false,
-        allowsResume: false,
-        canFail: true
-    )
-    static let downloading = DownloadPhase(
-        tag: 2,
-        name: "downloading",
-        title: LocalizedStringResource("Downloading…"),
-        symbol: nil,
-        primaryAction: DownloadRowAction.cancel,
-        isLive: true,
-        isTransferring: true,
-        isComplete: false,
-        needsAttention: false,
-        awaitsDecision: false,
-        canRetry: false,
-        allowsResume: true,
-        canFail: true
-    )
-    static let finished = DownloadPhase(
-        tag: 3,
-        name: "finished",
-        title: LocalizedStringResource("Completed", comment: "Status of a download whose file is saved."),
-        symbol: nil,
-        primaryAction: DownloadRowAction.open,
-        isLive: false,
-        isTransferring: false,
-        isComplete: true,
-        needsAttention: false,
-        awaitsDecision: false,
-        canRetry: false,
-        allowsResume: false,
-        canFail: false
-    )
-    static let blockedAutomaticDownload = DownloadPhase(
-        tag: 4,
-        name: "blockedAutomaticDownload",
-        title: LocalizedStringResource("Automatic download blocked. Use Allow Download to retry, or change Automatic Downloads in this site’s permissions."),
-        symbol: "arrow.down.circle.fill",
-        primaryAction: DownloadRowAction.retry,
-        isLive: false,
-        isTransferring: false,
-        isComplete: false,
-        needsAttention: true,
-        awaitsDecision: true,
-        canRetry: true,
-        allowsResume: false,
-        canFail: true
-    )
-    static let canceled = DownloadPhase(
-        tag: 5,
-        name: "canceled",
-        title: nil,
-        symbol: "xmark.circle.fill",
-        primaryAction: DownloadRowAction.remove,
-        isLive: false,
-        isTransferring: false,
-        isComplete: false,
-        needsAttention: false,
-        awaitsDecision: false,
-        canRetry: false,
-        allowsResume: false,
-        canFail: false
-    )
-    static let failed = DownloadPhase(
-        tag: 6,
-        name: "failed",
-        title: nil,
-        symbol: "exclamationmark.triangle.fill",
-        primaryAction: DownloadRowAction.remove,
-        isLive: false,
-        isTransferring: false,
-        isComplete: false,
-        needsAttention: true,
-        awaitsDecision: false,
-        canRetry: false,
-        allowsResume: true,
-        canFail: false
-    )
-
-    static let all: [DownloadPhase] = [
-        preparing,
-        awaitingApproval,
-        downloading,
-        finished,
-        blockedAutomaticDownload,
-        canceled,
-        failed
-    ]
-
-    static func named(_ name: String?) -> DownloadPhase? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: DownloadPhase, rhs: DownloadPhase) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let title: LocalizedStringResource?
-        let symbol: String?
-        let primaryAction: DownloadRowAction
-        let isLive: Bool
-        let isTransferring: Bool
-        let isComplete: Bool
-        let needsAttention: Bool
-        let awaitsDecision: Bool
-        let canRetry: Bool
-        let allowsResume: Bool
-        let canFail: Bool
-
-        init(
-            name: String,
-            title: LocalizedStringResource?,
-            symbol: String?,
-            primaryAction: DownloadRowAction,
-            isLive: Bool,
-            isTransferring: Bool,
-            isComplete: Bool,
-            needsAttention: Bool,
-            awaitsDecision: Bool,
-            canRetry: Bool,
-            allowsResume: Bool,
-            canFail: Bool
-        ) {
-            self.name = name
-            self.title = title
-            self.symbol = symbol
-            self.primaryAction = primaryAction
-            self.isLive = isLive
-            self.isTransferring = isTransferring
-            self.isComplete = isComplete
-            self.needsAttention = needsAttention
-            self.awaitsDecision = awaitsDecision
-            self.canRetry = canRetry
-            self.allowsResume = allowsResume
-            self.canFail = canFail
-        }
-    }
-}
-
-/// The members of the core's `DownloadRiskReason`. A member's wire tag is its index in `all`.
-/// Core-only behavior, not emitted: `applies`.
-struct DownloadRiskReason: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var confirmsUserInitiated: Bool { facts.confirmsUserInitiated }
-    var message: LocalizedStringResource { facts.message }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, confirmsUserInitiated: Bool, message: LocalizedStringResource) {
-        self.tag = tag
-        facts = Facts(name: name, confirmsUserInitiated: confirmsUserInitiated, message: message)
-    }
-
-    static let executableOrInstaller = DownloadRiskReason(
-        tag: 0,
-        name: "executableOrInstaller",
-        confirmsUserInitiated: false,
-        message: LocalizedStringResource("This file type can install or run software.")
-    )
-    static let deceptiveFilename = DownloadRiskReason(
-        tag: 1,
-        name: "deceptiveFilename",
-        confirmsUserInitiated: true,
-        message: LocalizedStringResource("The original filename used invisible or direction-changing characters that can disguise its real extension.")
-    )
-    static let dangerousTypeMismatch = DownloadRiskReason(
-        tag: 2,
-        name: "dangerousTypeMismatch",
-        confirmsUserInitiated: true,
-        message: LocalizedStringResource("The server-reported file type does not match the filename and one of those types can run software.")
-    )
-
-    static let all: [DownloadRiskReason] = [executableOrInstaller, deceptiveFilename, dangerousTypeMismatch]
-
-    static func named(_ name: String?) -> DownloadRiskReason? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: DownloadRiskReason, rhs: DownloadRiskReason) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let confirmsUserInitiated: Bool
-        let message: LocalizedStringResource
-
-        init(name: String, confirmsUserInitiated: Bool, message: LocalizedStringResource) {
-            self.name = name
-            self.confirmsUserInitiated = confirmsUserInitiated
-            self.message = message
-        }
-    }
-}
-
-/// The members of the core's `DownloadRowAction`. A member's wire tag is its index in `all`.
-struct DownloadRowAction: Hashable, Sendable {
-    enum Kinds: Sendable {
-        case retry
-        case cancel
-        case open
-        case remove
-        case pause
-        case resume
-    }
-
-    let tag: Int
-    var kind: Kinds { facts.kind }
-    var name: String { facts.name }
-    var title: LocalizedStringResource { facts.title }
-    var symbol: String { facts.symbol }
-    var isDestructive: Bool { facts.isDestructive }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        kind: Kinds,
-        name: String,
-        title: LocalizedStringResource,
-        symbol: String,
-        isDestructive: Bool
-    ) {
-        self.tag = tag
-        facts = Facts(kind: kind, name: name, title: title, symbol: symbol, isDestructive: isDestructive)
-    }
-
-    static let retry = DownloadRowAction(
-        tag: 0,
-        kind: .retry,
-        name: "retry",
-        title: LocalizedStringResource("Allow Download"),
-        symbol: "arrow.clockwise",
-        isDestructive: false
-    )
-    static let cancel = DownloadRowAction(
-        tag: 1,
-        kind: .cancel,
-        name: "cancel",
-        title: LocalizedStringResource("Cancel Download"),
-        symbol: "xmark",
-        isDestructive: false
-    )
-    static let open = DownloadRowAction(
-        tag: 2,
-        kind: .open,
-        name: "open",
-        title: LocalizedStringResource("Download Actions"),
-        symbol: "square.and.arrow.up",
-        isDestructive: false
-    )
-    static let remove = DownloadRowAction(
-        tag: 3,
-        kind: .remove,
-        name: "remove",
-        title: LocalizedStringResource("Remove Download"),
-        symbol: "trash",
-        isDestructive: true
-    )
-    static let pause = DownloadRowAction(
-        tag: 4,
-        kind: .pause,
-        name: "pause",
-        title: LocalizedStringResource("Pause Download"),
-        symbol: "pause",
-        isDestructive: false
-    )
-    static let resume = DownloadRowAction(
-        tag: 5,
-        kind: .resume,
-        name: "resume",
-        title: LocalizedStringResource("Resume Download"),
-        symbol: "play",
-        isDestructive: false
-    )
-
-    static let all: [DownloadRowAction] = [retry, cancel, open, remove, pause, resume]
-
-    static func named(_ name: String?) -> DownloadRowAction? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: DownloadRowAction, rhs: DownloadRowAction) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let kind: Kinds
-        let name: String
-        let title: LocalizedStringResource
-        let symbol: String
-        let isDestructive: Bool
-
-        init(kind: Kinds, name: String, title: LocalizedStringResource, symbol: String, isDestructive: Bool) {
-            self.kind = kind
-            self.name = name
-            self.title = title
-            self.symbol = symbol
-            self.isDestructive = isDestructive
-        }
-    }
-}
-
-/// The members of the core's `DownloadTextField`. A member's wire tag is its index in `all`.
-struct DownloadTextField: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var maximumLength: Int { facts.maximumLength }
-    private let facts: Facts
-
-    private init(tag: Int, name: String, maximumLength: Int) {
-        self.tag = tag
-        facts = Facts(name: name, maximumLength: maximumLength)
-    }
-
-    static let filename = DownloadTextField(tag: 0, name: "filename", maximumLength: 1024)
-    static let destination = DownloadTextField(tag: 1, name: "destination", maximumLength: 8192)
-    static let message = DownloadTextField(tag: 2, name: "message", maximumLength: 2048)
-    static let mimeType = DownloadTextField(tag: 3, name: "mimeType", maximumLength: 255)
-
-    static let all: [DownloadTextField] = [filename, destination, message, mimeType]
-
-    static func named(_ name: String?) -> DownloadTextField? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: DownloadTextField, rhs: DownloadTextField) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let maximumLength: Int
-
-        init(name: String, maximumLength: Int) {
-            self.name = name
-            self.maximumLength = maximumLength
-        }
-    }
-}
-
-/// The members of the core's `DownloadWarning`. A member's wire tag is its index in `all`.
-struct DownloadWarning: Hashable, Sendable {
-    let tag: Int
-    var name: String { facts.name }
-    var engineWarning: EngineDownloadWarning { facts.engineWarning }
-    var approvalMessage: LocalizedStringResource { facts.approvalMessage }
-    var failure: DownloadFailure { facts.failure }
-    var coveredBy: [DownloadRiskReason] { facts.coveredBy }
-    private let facts: Facts
-
-    private init(
-        tag: Int,
-        name: String,
-        engineWarning: EngineDownloadWarning,
-        approvalMessage: LocalizedStringResource,
-        failure: DownloadFailure,
-        coveredBy: [DownloadRiskReason]
-    ) {
-        self.tag = tag
-        facts = Facts(
-            name: name,
-            engineWarning: engineWarning,
-            approvalMessage: approvalMessage,
-            failure: failure,
-            coveredBy: coveredBy
-        )
-    }
-
-    static let insecureConnection = DownloadWarning(
-        tag: 0,
-        name: "insecureConnection",
-        engineWarning: .insecureConnection,
-        approvalMessage: LocalizedStringResource("This file was transferred over an insecure connection and could have been changed by someone else. Keep it only if you trust its source."),
-        failure: DownloadFailure.blockedInsecure,
-        coveredBy: []
-    )
-    static let dangerousFile = DownloadWarning(
-        tag: 1,
-        name: "dangerousFile",
-        engineWarning: .dangerousFile,
-        approvalMessage: LocalizedStringResource("This type of file can change your computer. Keep it only if you trust its source."),
-        failure: DownloadFailure.blockedUnsafe,
-        coveredBy: [DownloadRiskReason.executableOrInstaller, DownloadRiskReason.dangerousTypeMismatch]
-    )
-    static let uncommonContent = DownloadWarning(
-        tag: 2,
-        name: "uncommonContent",
-        engineWarning: .uncommonContent,
-        approvalMessage: LocalizedStringResource("This file is not commonly downloaded. The engine could not confirm that it is safe."),
-        failure: DownloadFailure.blockedUnsafe,
-        coveredBy: []
-    )
-    static let potentiallyUnwanted = DownloadWarning(
-        tag: 3,
-        name: "potentiallyUnwanted",
-        engineWarning: .potentiallyUnwanted,
-        approvalMessage: LocalizedStringResource("This file may change your browser or computer settings without your permission."),
-        failure: DownloadFailure.blockedUnsafe,
-        coveredBy: []
-    )
-    static let insecureBlocked = DownloadWarning(
-        tag: 4,
-        name: "insecureBlocked",
-        engineWarning: .insecureBlocked,
-        approvalMessage: LocalizedStringResource("The engine blocked this insecure download."),
-        failure: DownloadFailure.blockedInsecure,
-        coveredBy: []
-    )
-    static let policyBlocked = DownloadWarning(
-        tag: 5,
-        name: "policyBlocked",
-        engineWarning: .policyBlocked,
-        approvalMessage: LocalizedStringResource("The engine blocked this download because of its safety or organization policy verdict."),
-        failure: DownloadFailure.blockedByPolicy,
-        coveredBy: []
-    )
-
-    static let all: [DownloadWarning] = [
-        insecureConnection,
-        dangerousFile,
-        uncommonContent,
-        potentiallyUnwanted,
-        insecureBlocked,
-        policyBlocked
-    ]
-
-    static func named(_ name: String?) -> DownloadWarning? {
-        all.first { $0.name == name }
-    }
-
-    static func == (lhs: DownloadWarning, rhs: DownloadWarning) -> Bool {
-        lhs.tag == rhs.tag
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(tag)
-    }
-
-    private final class Facts: Sendable {
-        let name: String
-        let engineWarning: EngineDownloadWarning
-        let approvalMessage: LocalizedStringResource
-        let failure: DownloadFailure
-        let coveredBy: [DownloadRiskReason]
-
-        init(
-            name: String,
-            engineWarning: EngineDownloadWarning,
-            approvalMessage: LocalizedStringResource,
-            failure: DownloadFailure,
-            coveredBy: [DownloadRiskReason]
-        ) {
-            self.name = name
-            self.engineWarning = engineWarning
-            self.approvalMessage = approvalMessage
-            self.failure = failure
-            self.coveredBy = coveredBy
         }
     }
 }

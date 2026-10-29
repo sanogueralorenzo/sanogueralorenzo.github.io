@@ -6,7 +6,7 @@ is no Chromium implementation or native C++ page bridge.
 
 - `CrestShared/Features` and `CrestMac/Features` contain the existing product UI.
 - `CrestShared/Application` owns native application behavior, including media
-  sessions and launch isolation.
+  sessions, downloads and launch isolation.
 - `CrestShared/Infrastructure/WebKit` owns page operations, profile storage,
   permissions, document bridges and bundled uBlock Origin Lite.
 - `CrestCore` currently owns session state, browser rules, SQLite persistence
