@@ -1,5 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://crestbrowser.com/sitemap.xml
-Sitemap: https://crestbrowser.com/guides/sitemap.xml

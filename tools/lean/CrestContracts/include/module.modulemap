@@ -1,5 +1,0 @@
-module CrestCoreABI {
-    header "crest_core.h"
-    header "crest_app.h"
-    export *
-}
