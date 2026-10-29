@@ -49,7 +49,8 @@ public sealed partial class BrowserContractsTests {
 
         // The tab and the visit change together, then the record is announced.
         var changes = Browse(app, engine, page, "https://example.com/article#two", "Later title");
-        Assert.Equal([typeof(TabsChanged), typeof(HistoryChanged), typeof(NavigationRecorded)], changes.Select(change => change.GetType()));
+        Assert.Equal([typeof(PageChanged), typeof(TabsChanged), typeof(HistoryChanged), typeof(NavigationRecorded)], changes.Select(change => change.GetType()));
+        Assert.Equal(1, Assert.IsType<PageChanged>(changes[0]).Page.Documents);
         Assert.Equal(new NavigationRecorded(page, workspace, SpaceId(session["spaces"]![0]!), FirstTab(authority).Id,
             "https://example.com/article#two"), changes[^1]);
         Assert.Equal(("https://example.com/article#two", "Later title"), (FirstTab(authority).Url, FirstTab(authority).Title));
@@ -63,9 +64,10 @@ public sealed partial class BrowserContractsTests {
         app.Report(engine, new NavigationFinished(page, "https://example.com/article#two", "Again"));
         Assert.Empty(Own(app.Drain()));
 
-        // A document that commits and never finishes records nothing.
+        // A committed document publishes its generation for close checks,
+        // while an unfinished load changes no tab or visit.
         app.Report(engine, new NavigationCommitted(page, "https://example.com/unfinished", SameDocument: false));
-        Assert.Empty(Own(app.Drain()));
+        Assert.Equal(2, Assert.IsType<PageChanged>(Assert.Single(Own(app.Drain()))).Page.Documents);
         Assert.Equal("https://example.com/article#two", FirstTab(authority).Url);
 
         // A blank title is the page saying nothing, not a request to clear.
@@ -83,7 +85,7 @@ public sealed partial class BrowserContractsTests {
         var tab = FirstTab(authority);
 
         var changes = Browse(app, engine, page, "https://news.example/story", "Story");
-        Assert.Equal([typeof(HistoryChanged), typeof(NavigationRecorded)], changes.Select(change => change.GetType()));
+        Assert.Equal([typeof(PageChanged), typeof(HistoryChanged), typeof(NavigationRecorded)], changes.Select(change => change.GetType()));
         Assert.Null(Assert.IsType<NavigationRecorded>(changes[^1]).TabId);
         Assert.Equal(tab, FirstTab(authority));
         Assert.Equal(("https://news.example/story", "Story", 1), (History(authority)[0].Url, History(authority)[0].Title,
@@ -91,7 +93,7 @@ public sealed partial class BrowserContractsTests {
 
         // An address history does not keep changes nothing, and is still taken.
         var history = History(authority);
-        Assert.Equal([typeof(NavigationRecorded)], Browse(app, engine, page, "crest://extensions", "Extensions")
+        Assert.Equal([typeof(PageChanged), typeof(NavigationRecorded)], Browse(app, engine, page, "crest://extensions", "Extensions")
             .Select(change => change.GetType()));
         Assert.Equal(history, History(authority));
     }
@@ -216,7 +218,7 @@ public sealed partial class BrowserContractsTests {
         // An icon found before the document is recorded waits for the record.
         app.Report(engine, new NavigationCommitted(page, "https://example.org/", SameDocument: false));
         app.Report(engine, new PageIconChanged(page, "https://example.org/", accent));
-        Assert.Empty(Own(app.Drain()));
+        Assert.Equal(1, Assert.IsType<PageChanged>(Assert.Single(Own(app.Drain()))).Page.Documents);
         app.Report(engine, new NavigationFinished(page, "https://example.org/", "Example"));
         var recorded = Own(app.Drain());
         if (!followsPage) {

@@ -160,7 +160,7 @@ final class CoreReadModelTests: XCTestCase {
                 PageOpened(
                     page: PageState(
                         id: pageID, workspaceID: workspaceID, spaceID: UUID(), tabID: nil,
-                        phase: .opening, live: .blank)
+                        phase: .opening, live: .blank, windowID: windowID, documents: 0)
                 ).apply(to: detached)
             })
         assertStoredFirst(

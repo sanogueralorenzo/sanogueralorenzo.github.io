@@ -296,7 +296,7 @@ public sealed unsafe class ContractCodecTests {
     [Fact]
     public void MalformedMessagesAndStaleHandlesAreStatusErrorsNotRejections() {
         var app = new AppClient();
-        var acknowledge = AppClient.Encode(writer => ContractCodec.WriteIntent(writer, new SetDownloadActivity(1)));
+        var acknowledge = AppClient.Encode(writer => ContractCodec.WriteIntent(writer, new SetAgents(false)));
         Assert.Equal(CoreStatus.Ok, app.Dispatch(acknowledge).Status);
         Assert.Equal(CoreStatus.InvalidMessage, app.Dispatch([]).Status);
         // A tag no intent has, however many intents the contract gains.
@@ -312,7 +312,7 @@ public sealed unsafe class ContractCodecTests {
     [Fact]
     public void AMessageLongerThanItsTypesLimitIsRefusedBeforeItIsRead() {
         using var app = new AppClient();
-        var acknowledge = AppClient.Encode(writer => ContractCodec.WriteIntent(writer, new SetDownloadActivity(1)));
+        var acknowledge = AppClient.Encode(writer => ContractCodec.WriteIntent(writer, new SetAgents(false)));
         var oversized = new byte[MessageLimitAttribute.DefaultBytes + 1];
         acknowledge.CopyTo(oversized);
         Assert.Equal(CoreStatus.LimitExceeded, app.Dispatch(oversized).Status);

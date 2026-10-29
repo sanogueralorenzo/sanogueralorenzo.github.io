@@ -11,7 +11,6 @@ final class BrowserNativeDownloads {
     private var depth = 0
     private var flushing = false
     private var effects: [@MainActor () -> Void] = []
-    private var publishedLiveCount = 0
 
     private final class Tracked {
         weak var binding: WebKitEngineBinding?
@@ -61,11 +60,6 @@ final class BrowserNativeDownloads {
     private func finishTurn() {
         depth -= 1
         guard depth == 0 else { return }
-        let live = items.filter { $0.phase.isLive }.count
-        if live != publishedLiveCount {
-            publishedLiveCount = live
-            _ = try? core.send(SetDownloadActivity(count: live))
-        }
         guard !flushing else { return }
         flushing = true
         var index = 0

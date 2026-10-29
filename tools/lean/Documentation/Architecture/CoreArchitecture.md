@@ -36,3 +36,8 @@ eligibility are native. The native permission store owns only its existing
 SQLite table; C# device records no longer carry permission rows. Whole-file
 recovery backups still include them. Seeded and private workspaces keep choices in memory, and borrowed windows use their
 owner’s choices.
+
+Close and quit preparation is native. Pages are checked in opening order,
+one at a time; a new document invalidates an earlier approval. Native downloads
+provide the quit prompt count. The core still reports active profile erasures
+and records an accepted quit for window restoration until those owners move.

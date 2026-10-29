@@ -6,7 +6,6 @@ extension EngineCommand {
     @MainActor func perform(on binding: WebKitEngineBinding) {
         switch self {
         case .adoptOfferedPage(let command): command.perform(on: binding)
-        case .checkBeforeUnload(let command): command.perform(on: binding)
         case .closePage(let command): command.perform(on: binding)
         case .createPage(let command): command.perform(on: binding)
         case .dropStagedLink(let command): command.perform(on: binding)

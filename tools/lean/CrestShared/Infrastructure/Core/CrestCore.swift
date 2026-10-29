@@ -47,12 +47,14 @@ final class CrestCore {
     let state = CoreState()
     @ObservationIgnored private(set) lazy var downloads = BrowserNativeDownloads(core: self)
     @ObservationIgnored private(set) var permissions: NativeSitePermissions!
+    @ObservationIgnored private(set) lazy var closing = NativeClosePreparation(core: self)
     @ObservationIgnored private(set) lazy var prompts = NativeBrowserPrompts(core: self)
     @ObservationIgnored private(set) lazy var browserImport = NativeBrowserImport(core: self)
     /// The engines this core hosts pages on, which the composition registers.
     @ObservationIgnored private(set) lazy var engines = Engines(core: self)
     /// Where the core keeps `session.sqlite`; nil when it keeps everything in
     /// memory.
+    let platform: DevicePlatform
     let storageDirectory: URL?
     /// Called for each save the core started itself and could not finish.
     @ObservationIgnored var storageFailureHandler: ((StorageFailure) -> Void)?
@@ -91,11 +93,9 @@ final class CrestCore {
     /// applied.
     @ObservationIgnored private var broughtForwardFollowers: [Follower<WindowBroughtForward>] = []
     @ObservationIgnored private var transientCloseFollowers: [Follower<TransientPageClosed>] = []
-    /// Who waits for each close preparation to end, by its request.
-    @ObservationIgnored private var closeWaiters: [UUID: @MainActor (Bool) -> Void] = [:]
     /// Whether the app prepares to quit, or quits: a quit asked for that the
     /// core has not refused. No window closes on request meanwhile.
-    @ObservationIgnored private(set) var isQuitting = false
+    var isQuitting: Bool { closing.isQuitting }
     /// What waits for each data deletion to end, by its request.
     @ObservationIgnored private var dataDeletionWaiters: [UUID: @MainActor (Bool) -> Void] = [:]
     /// What waits for each website data reading to end, by its request.
@@ -140,6 +140,7 @@ final class CrestCore {
         default:
             Self.buildBug(status, "create the core")
         }
+        platform = configuration.platform
         storageDirectory = configuration.storageDirectory.map { URL(fileURLWithPath: $0, isDirectory: true) }
         wake.core = self
         state.favicons.takePageImage = { [weak self] in self?.engines.takeIcon(of: $0) }
@@ -173,32 +174,18 @@ final class CrestCore {
 
     // MARK: - Actions - Closing
 
-    /// Asks the core to prepare the close `request` asks for, and calls
+    /// Prepares the close through native WebKit, and calls
     /// `completion` once it ends: whether every page it covers may go and, for
     /// a quit, whether the person agreed to stop downloads in progress. A
     /// request the core refuses, such as one made while another preparation is
     /// under way, answers false at once, or hands `refused` the rule that
     /// refused it when there is one to hear it.
     func prepareToClose(
-        _ request: some CloseRequest, refused: (@MainActor (Rejection) -> Void)? = nil,
+        _ request: some CloseRequest, refused: (@MainActor (NativeClosePreparation.Failure) -> Void)? = nil,
         completion: @escaping @MainActor (Bool) -> Void
     ) {
-        let quits = request.quits
-        if quits { isQuitting = true }
-        closeWaiters[request.requestID] = { [weak self] allowed in
-            if quits, !allowed { self?.isQuitting = false }
-            completion(allowed)
-        }
-        do {
-            try send(request)
-        } catch {
-            let waiter = closeWaiters.removeValue(forKey: request.requestID)
-            guard let refused else {
-                waiter?(false)
-                return
-            }
-            if quits { isQuitting = false }
-            refused(error)
+        do { try closing.prepare(request, completion: completion) } catch {
+            if let refused { refused(error) } else { completion(false) }
         }
     }
 
@@ -371,8 +358,10 @@ final class CrestCore {
         #if DEBUG
             batchApplied?(changes)
         #endif
-        // Last, because a waiter may send the intent its close was waiting for.
-        for ready in batch.closesReady { closeWaiters.removeValue(forKey: ready.requestID)?(ready.allowed) }
+        // Closing can release windows and send more intents, after every
+        // observer has received the current batch.
+        closing.prune()
+        // Last, because a deletion waiter may send another intent.
         for deleted in batch.dataDeleted {
             dataDeletionWaiters.removeValue(forKey: deleted.requestID)?(deleted.deleted)
         }

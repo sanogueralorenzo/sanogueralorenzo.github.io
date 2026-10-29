@@ -18,7 +18,7 @@ public abstract record PageIntent : Intent {
     #region Actions - Routing
 
     internal sealed override IReadOnlyList<Change> Route(CrestApp app) => app.Turn(changes => {
-        app.Pages.Handle(this, new PageTurn(changes, app.Issue, app.ClosePreparations));
+        app.Pages.Handle(this, new PageTurn(changes, app.Issue));
     });
 
     #endregion

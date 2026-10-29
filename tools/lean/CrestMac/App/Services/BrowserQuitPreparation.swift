@@ -1,11 +1,11 @@
 import Foundation
 import Observation
 
-/// Prepares a quit through the core, for either engine's composition: the core
-/// asks every page whether it may go, then asks the person whether to stop the
+/// Native quit presentation: WebKit checks every page, then this asks whether
+/// the person wants to stop the
 /// downloads still in progress, which this shows as an alert on the key window.
 ///
-/// While the engines erase a Space being deleted the core defers the quit.
+/// A quit waits while WebKit erases a Space being deleted.
 /// This tells the person Crest will quit once the Space is deleted, and asks
 /// the entry point to quit again whenever a deletion this device runs ends,
 /// finished or failed, until the core allows it.
@@ -36,8 +36,8 @@ final class BrowserQuitPreparation {
 
     // MARK: - Actions - Quitting
 
-    /// Asks the core whether the app may quit, and calls `completion` with the
-    /// answer on a later turn of the main actor. A quit the core defers while
+    /// Asks the native coordinator whether the app may quit, and calls `completion` with the
+    /// answer on a later turn of the main actor. A quit deferred while
     /// a Space is being deleted answers false, and `retry` runs once the
     /// deletion moved on, so the entry point asks to quit again.
     func prepare(retry: @escaping @MainActor () -> Void, completion: @escaping @MainActor (Bool) -> Void) {

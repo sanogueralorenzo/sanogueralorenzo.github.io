@@ -117,19 +117,6 @@ internal sealed partial class Device {
         return owner.Value.IsDeleting(only.Id) ? null : (owner.Key, only.Id);
     }
 
-    /// The workspaces closing the windows `windowIds` leaves without an open
-    /// window, of a kind whose pages go with their windows, so each goes with
-    /// its last window, and every page of it with that window.
-    internal IReadOnlySet<Guid> EndingWorkspaces(IReadOnlySet<Guid> windowIds) {
-        ArgumentNullException.ThrowIfNull(windowIds);
-        lock (gate) {
-            var ending = open.Values.Where(window => windowIds.Contains(window.Id)).Select(window => window.WorkspaceId).ToHashSet();
-            ending.RemoveWhere(workspaceId => workspaces.GetValueOrDefault(workspaceId)?.Kind.SharesPagesAcrossWindows != false
-                || open.Values.Any(window => window.WorkspaceId == workspaceId && !windowIds.Contains(window.Id)));
-            return ending;
-        }
-    }
-
     /// The attached workspace, or null for one that is gone.
     internal NativeSessionAuthority? Attached(Guid workspaceId) {
         lock (gate) return workspaces.GetValueOrDefault(workspaceId);

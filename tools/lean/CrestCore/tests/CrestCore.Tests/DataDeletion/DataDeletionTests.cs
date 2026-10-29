@@ -142,11 +142,11 @@ public sealed partial class BrowserContractsTests {
             // could not: the Space stays being deleted, and waits to be tried
             // again, which a quit no longer waits for.
             app.Send(new DeleteProfileData(Guid.NewGuid(), profile, Ephemeral: false));
-            Assert.Equal([deleting], Assert.IsType<SpaceDeletionUnderway>(Refusal(app, new PrepareToQuit(Guid.NewGuid()))).SpaceIds);
+            Assert.Equal([deleting], app.Query(new QuitBarriers()).SpaceIds);
             app.Report(webKit, new DataErased(Assert.IsType<EraseProfileData>(webKitBinding.Commands[^1]).ErasureId, Erased: false));
             Assert.Equal(new SpaceDataNotErased(deleting), Assert.Throws<Rejected>(() =>
                 app.Send(new FinishDeletingSpace(workspace, Guid.NewGuid(), deleting, operation))).Rejection);
-            Assert.Contains(app.Send(new PrepareToQuit(Guid.NewGuid())), change => change is CloseReady { Allowed: true });
+            Assert.Empty(app.Query(new QuitBarriers()).SpaceIds);
         }
 
         // After a relaunch the deletion resumes, and must erase the profile again.
@@ -158,13 +158,13 @@ public sealed partial class BrowserContractsTests {
             relaunched.Send(new FinishDeletingSpace(again, Guid.NewGuid(), deleting, operation))).Rejection);
         // Until it erases again, the deletion holds no quit: quitting
         // interrupts nothing, and the next launch resumes it.
-        Assert.Contains(relaunched.Send(new PrepareToQuit(Guid.NewGuid())), change => change is CloseReady { Allowed: true });
+        Assert.Empty(relaunched.Query(new QuitBarriers()).SpaceIds);
         relaunched.Send(new DeleteProfileData(Guid.NewGuid(), profile, Ephemeral: false));
         relaunched.Report(engines.WebKit,
             new DataErased(Assert.IsType<EraseProfileData>(Assert.Single(engines.WebKitBinding.Commands)).ErasureId, Erased: true));
         Assert.True(Assert.Single(relaunched.Drain().OfType<DataDeleted>()).Deleted);
         // Once the profile is erased, a quit no longer interrupts anything.
-        Assert.Contains(relaunched.Send(new PrepareToQuit(Guid.NewGuid())), change => change is CloseReady { Allowed: true });
+        Assert.Empty(relaunched.Query(new QuitBarriers()).SpaceIds);
         relaunched.Send(new FinishDeletingSpace(again, Guid.NewGuid(), deleting, operation));
         Assert.DoesNotContain(relaunched.Workspace(again).Current.Spaces, space => space.Id == deleting);
     }

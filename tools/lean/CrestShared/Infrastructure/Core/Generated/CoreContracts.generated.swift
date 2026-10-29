@@ -32,9 +32,6 @@ protocol EngineQuestion: Sendable {
 /// The members of `Intent` that derive from the core's `AgentIntent`.
 protocol AgentIntent: Intent {}
 
-/// The members of `Intent` that derive from the core's `CloseIntent`.
-protocol CloseIntent: Intent {}
-
 /// The members of `Intent` that derive from the core's `CloudSyncControlIntent`.
 protocol CloudSyncControlIntent: Intent {}
 
@@ -74,7 +71,6 @@ enum Change: Equatable, Sendable {
     case agentSessionsChanged(AgentSessionsChanged)
     case appPreferencesChanged(AppPreferencesChanged)
     case archiveChanged(ArchiveChanged)
-    case closeReady(CloseReady)
     case cloudMergeBegan(CloudMergeBegan)
     case cloudSyncAdvanced(CloudSyncAdvanced)
     case cloudTransportChanged(CloudTransportChanged)
@@ -88,8 +84,6 @@ enum Change: Equatable, Sendable {
     case pageOpened(PageOpened)
     case pageRemoved(PageRemoved)
     case pageUnloaded(PageUnloaded)
-    case promptSettled(PromptSettled)
-    case quitWithDownloadsAsked(QuitWithDownloadsAsked)
     case saved(Saved)
     case sessionAdopted(SessionAdopted)
     case sidebarChanged(SidebarChanged)
@@ -138,7 +132,6 @@ enum Rejection: Equatable, Error, Sendable {
     case cannotDeleteLastSpace(CannotDeleteLastSpace)
     case cannotMoveSplitAcrossSpaces(CannotMoveSplitAcrossSpaces)
     case cannotPinSplit(CannotPinSplit)
-    case closePreparationUnderway(ClosePreparationUnderway)
     case currentTabsOnly(CurrentTabsOnly)
     case duplicatePage(DuplicatePage)
     case engineAlreadyRegistered(EngineAlreadyRegistered)
@@ -194,7 +187,6 @@ enum Rejection: Equatable, Error, Sendable {
     case spaceAlreadyExists(SpaceAlreadyExists)
     case spaceBeingDeleted(SpaceBeingDeleted)
     case spaceDataNotErased(SpaceDataNotErased)
-    case spaceDeletionUnderway(SpaceDeletionUnderway)
     case spaceLimitReached(SpaceLimitReached)
     case spaceProfileChanged(SpaceProfileChanged)
     case splitBoundary(SplitBoundary)
@@ -215,7 +207,6 @@ enum Rejection: Equatable, Error, Sendable {
     case unknownCloudMerge(UnknownCloudMerge)
     case unknownFolder(UnknownFolder)
     case unknownPage(UnknownPage)
-    case unknownPrompt(UnknownPrompt)
     case unknownSpace(UnknownSpace)
     case unknownSplitGroup(UnknownSplitGroup)
     case unknownTab(UnknownTab)
@@ -273,7 +264,6 @@ enum Rejection: Equatable, Error, Sendable {
         case .sessionUnrecognized(let value): value.message
         case .spaceAlreadyExists(let value): value.message
         case .spaceBeingDeleted(let value): value.message
-        case .spaceDeletionUnderway(let value): value.message
         case .spaceLimitReached(let value): value.message
         case .spaceProfileChanged(let value): value.message
         case .splitLimitReached(let value): value.message
@@ -290,7 +280,6 @@ enum Rejection: Equatable, Error, Sendable {
 /// What the core asks an engine binding to do, run by `WebKitEngineBinding.run`.
 enum EngineCommand: Equatable, Sendable {
     case adoptOfferedPage(AdoptOfferedPage)
-    case checkBeforeUnload(CheckBeforeUnload)
     case closePage(ClosePage)
     case createPage(CreatePage)
     case dropStagedLink(DropStagedLink)
@@ -315,7 +304,6 @@ extension Change {
         case .agentSessionsChanged(let change): change.apply(to: state)
         case .appPreferencesChanged(let change): change.apply(to: state)
         case .archiveChanged(let change): change.apply(to: state)
-        case .closeReady(let change): change.apply(to: state)
         case .cloudMergeBegan(let change): change.apply(to: state)
         case .cloudSyncAdvanced(let change): change.apply(to: state)
         case .cloudTransportChanged(let change): change.apply(to: state)
@@ -329,8 +317,6 @@ extension Change {
         case .pageOpened(let change): change.apply(to: state)
         case .pageRemoved(let change): change.apply(to: state)
         case .pageUnloaded(let change): change.apply(to: state)
-        case .promptSettled(let change): change.apply(to: state)
-        case .quitWithDownloadsAsked(let change): change.apply(to: state)
         case .saved(let change): change.apply(to: state)
         case .sessionAdopted(let change): change.apply(to: state)
         case .sidebarChanged(let change): change.apply(to: state)
@@ -365,7 +351,6 @@ extension Change {
         case .agentSessionsChanged(let change): change.apply(to: core, in: &batch)
         case .appPreferencesChanged(let change): change.apply(to: core, in: &batch)
         case .archiveChanged(let change): change.apply(to: core, in: &batch)
-        case .closeReady(let change): change.apply(to: core, in: &batch)
         case .cloudMergeBegan(let change): change.apply(to: core, in: &batch)
         case .cloudSyncAdvanced(let change): change.apply(to: core, in: &batch)
         case .cloudTransportChanged(let change): change.apply(to: core, in: &batch)
@@ -379,8 +364,6 @@ extension Change {
         case .pageOpened(let change): change.apply(to: core, in: &batch)
         case .pageRemoved(let change): change.apply(to: core, in: &batch)
         case .pageUnloaded(let change): change.apply(to: core, in: &batch)
-        case .promptSettled(let change): change.apply(to: core, in: &batch)
-        case .quitWithDownloadsAsked(let change): change.apply(to: core, in: &batch)
         case .saved(let change): change.apply(to: core, in: &batch)
         case .sessionAdopted(let change): change.apply(to: core, in: &batch)
         case .sidebarChanged(let change): change.apply(to: core, in: &batch)
@@ -415,7 +398,6 @@ extension Change {
         case .agentSessionsChanged(let change): change.note(in: &receipts)
         case .appPreferencesChanged(let change): change.note(in: &receipts)
         case .archiveChanged(let change): change.note(in: &receipts)
-        case .closeReady(let change): change.note(in: &receipts)
         case .cloudMergeBegan(let change): change.note(in: &receipts)
         case .cloudSyncAdvanced(let change): change.note(in: &receipts)
         case .cloudTransportChanged(let change): change.note(in: &receipts)
@@ -429,8 +411,6 @@ extension Change {
         case .pageOpened(let change): change.note(in: &receipts)
         case .pageRemoved(let change): change.note(in: &receipts)
         case .pageUnloaded(let change): change.note(in: &receipts)
-        case .promptSettled(let change): change.note(in: &receipts)
-        case .quitWithDownloadsAsked(let change): change.note(in: &receipts)
         case .saved(let change): change.note(in: &receipts)
         case .sessionAdopted(let change): change.note(in: &receipts)
         case .sidebarChanged(let change): change.note(in: &receipts)
@@ -459,6 +439,9 @@ extension Change {
 }
 
 // MARK: - Records
+
+struct AcceptQuit: Intent, Equatable, Sendable {
+}
 
 struct AcknowledgeUploads: Intent, CloudSyncIntent, Equatable, Sendable {
     let records: [UploadedRecord]
@@ -629,11 +612,6 @@ struct AlreadyInSplit: Equatable, Sendable {
     let tabID: UUID
 }
 
-struct AnswerQuitWithDownloads: Intent, Equatable, Sendable {
-    let promptID: UUID
-    let quits: Bool
-}
-
 struct AppConfiguration: Equatable, Sendable {
     let storageDirectory: String?
     let platform: DevicePlatform
@@ -725,11 +703,6 @@ struct AuthenticationSource: Query, Equatable, Sendable {
 
 struct AuthenticationSourceLabel: Equatable, Sendable {
     let label: String?
-}
-
-struct BeforeUnloadAnswered: EngineEvent, Equatable, Sendable {
-    let pageID: UUID
-    let proceeds: Bool
 }
 
 struct BeginAgentSession: Intent, AgentIntent, Equatable, Sendable {
@@ -890,10 +863,6 @@ struct ChallengeHandling: Query, Equatable, Sendable {
     let previousFailureCount: Int
 }
 
-struct CheckBeforeUnload: Equatable, Sendable {
-    let pageID: UUID
-}
-
 struct ChooseCloudCopy: Intent, CloudSyncControlIntent, Equatable, Sendable {
     let usesCloud: Bool
 }
@@ -918,15 +887,6 @@ struct ClearHistory: Intent, SessionIntent, Equatable, Sendable {
 struct ClosePage: Equatable, Sendable {
     let pageID: UUID
     let keepsState: Bool
-}
-
-struct ClosePreparationUnderway: Equatable, Sendable {
-    let requestID: UUID
-}
-
-struct CloseReady: CoreChange, Equatable, Sendable {
-    let requestID: UUID
-    let allowed: Bool
 }
 
 struct CloseTab: Intent, SessionIntent, Equatable, Sendable {
@@ -2404,6 +2364,8 @@ struct PageState: Equatable, Sendable, Identifiable {
     let tabID: UUID?
     let phase: PagePhase
     let live: PageLiveState
+    let windowID: UUID
+    let documents: Int64
 }
 
 struct PageStateChanged: EngineEvent, PageEvent, Equatable, Sendable {
@@ -2485,20 +2447,6 @@ struct PinsOneTabAtATime: Equatable, Sendable {
     }
 }
 
-struct PrepareToClosePages: Intent, CloseIntent, Equatable, Sendable {
-    let requestID: UUID
-    let pageIDs: [UUID]
-}
-
-struct PrepareToCloseWindows: Intent, CloseIntent, Equatable, Sendable {
-    let requestID: UUID
-    let windowIDs: [UUID]
-}
-
-struct PrepareToQuit: Intent, CloseIntent, Equatable, Sendable {
-    let requestID: UUID
-}
-
 struct PresentPage: Query, Equatable, Sendable {
     typealias Answer = PagePresented
 
@@ -2521,14 +2469,13 @@ struct ProfileInUse: Equatable, Sendable {
     }
 }
 
-struct PromptSettled: CoreChange, Equatable, Sendable {
-    let promptID: UUID
+struct QuitBarrierList: Equatable, Sendable {
+    let spaceIDs: [UUID]
 }
 
-struct QuitWithDownloadsAsked: CoreChange, Equatable, Sendable {
-    let promptID: UUID
-    let requestID: UUID
-    let liveDownloads: Int
+struct QuitBarriers: Query, Equatable, Sendable {
+    typealias Answer = QuitBarrierList
+
 }
 
 struct ReadArchive: Query, Equatable, Sendable {
@@ -2950,10 +2897,6 @@ struct SetCloudSyncEnabled: Intent, CloudSyncControlIntent, Equatable, Sendable 
     let isEnabled: Bool
 }
 
-struct SetDownloadActivity: Intent, Equatable, Sendable {
-    let count: Int
-}
-
 struct SetFolderColor: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -3117,14 +3060,6 @@ struct SpaceDeletionState: Equatable, Sendable, Identifiable {
     var id: UUID
     var spaceID: UUID
     var profileID: UUID
-}
-
-struct SpaceDeletionUnderway: Equatable, Sendable {
-    let spaceIDs: [UUID]
-
-    var message: LocalizedStringResource {
-        LocalizedStringResource("Crest will quit once the Space is deleted.")
-    }
 }
 
 struct SpaceLimitReached: Equatable, Sendable {
@@ -3577,10 +3512,6 @@ struct UnknownFolder: Equatable, Sendable {
 
 struct UnknownPage: Equatable, Sendable {
     let pageID: UUID
-}
-
-struct UnknownPrompt: Equatable, Sendable {
-    let promptID: UUID
 }
 
 struct UnknownSpace: Equatable, Sendable {
@@ -8710,15 +8641,34 @@ final class PageStateModel: ObservedModel, Identifiable {
         access(keyPath: \.live)
         return liveStorage
     }
+    var windowID: UUID {
+        access(keyPath: \.windowID)
+        return windowIDStorage
+    }
+    var documents: Int64 {
+        access(keyPath: \.documents)
+        return documentsStorage
+    }
 
     @ObservationIgnored private var workspaceIDStorage: UUID
     @ObservationIgnored private var spaceIDStorage: UUID
     @ObservationIgnored private var tabIDStorage: UUID?
     @ObservationIgnored private var phaseStorage: PagePhase
     @ObservationIgnored private var liveStorage: PageLiveState
+    @ObservationIgnored private var windowIDStorage: UUID
+    @ObservationIgnored private var documentsStorage: Int64
 
     var value: PageState {
-        PageState(id: id, workspaceID: workspaceID, spaceID: spaceID, tabID: tabID, phase: phase, live: live)
+        PageState(
+            id: id,
+            workspaceID: workspaceID,
+            spaceID: spaceID,
+            tabID: tabID,
+            phase: phase,
+            live: live,
+            windowID: windowID,
+            documents: documents
+        )
     }
 
     init(_ value: PageState) {
@@ -8728,6 +8678,8 @@ final class PageStateModel: ObservedModel, Identifiable {
         tabIDStorage = value.tabID
         phaseStorage = value.phase
         liveStorage = value.live
+        windowIDStorage = value.windowID
+        documentsStorage = value.documents
     }
 
     func update(_ value: PageState) {
@@ -8751,6 +8703,14 @@ final class PageStateModel: ObservedModel, Identifiable {
         if liveStorage != value.live {
             liveStorage = value.live
             withMutation(keyPath: \.live) {}
+        }
+        if windowIDStorage != value.windowID {
+            windowIDStorage = value.windowID
+            withMutation(keyPath: \.windowID) {}
+        }
+        if documentsStorage != value.documents {
+            documentsStorage = value.documents
+            withMutation(keyPath: \.documents) {}
         }
     }
 }

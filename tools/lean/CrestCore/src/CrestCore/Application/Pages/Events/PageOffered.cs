@@ -74,7 +74,7 @@ public sealed record PageOffered(Guid OfferId, Guid ProfileId, Guid? SourcePageI
     #region Actions - Routing
 
     internal override void Route(CrestApp app, Engine engine, ChangeFeed changes) {
-        Apply(app.Pages, engine, new PageTurn(changes, app.Issue, app.ClosePreparations));
+        Apply(app.Pages, engine, new PageTurn(changes, app.Issue));
         app.AfterPageReport(changes);
     }
 

@@ -35,7 +35,7 @@ public sealed record PageChanged(PageState Page) : Change;
 
 [Observed]
 public sealed record PageState(Guid Id, Guid WorkspaceId, Guid SpaceId, Guid? TabId, PagePhase Phase,
-    PageLiveState Live);
+    PageLiveState Live, Guid WindowId, long Documents);
 
 /// A page opened, and its engine is creating it.
 public sealed record PageOpened(PageState Page) : Change;

@@ -8,7 +8,7 @@ namespace CrestCore.Application;
 /// What one page intent or engine report needs: where it publishes what it
 /// changed, and where it hands the engine commands it causes, which reach
 /// their engines once the core lets go of its lock.
-internal sealed record PageTurn(ChangeFeed Changes, Action<Engine, EngineCommand> Issue, ClosePreparations Closing);
+internal sealed record PageTurn(ChangeFeed Changes, Action<Engine, EngineCommand> Issue);
 
 #endregion
 

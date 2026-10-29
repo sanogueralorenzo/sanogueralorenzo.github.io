@@ -35,6 +35,7 @@ final class CoreState {
     /// Each page this device hosts, by page: its owner, its engine, where it
     /// stands there and its live state. The dictionary changes only when a
     /// page opens or goes, so a page's new title redraws only its readers.
+    @ObservationIgnored var pageOrder: [UUID] = []
     var pages: [UUID: PageStateModel] { observed(\.pagesStorage, as: \.pages) }
     @ObservationIgnored var pagesStorage: [UUID: PageStateModel] = [:]
     /// WebKit's capabilities, as published when its binding registers.

@@ -174,7 +174,7 @@ public sealed partial class BrowserContractsTests {
             // goes behind. Once the quit is allowed, the windows closing as
             // the app goes are still the ones to reopen.
             app.Send(new RememberWindowsForLaunch([back, Guid.NewGuid(), front]));
-            Assert.Contains(app.Send(new PrepareToQuit(Guid.NewGuid())), change => change is CloseReady { Allowed: true });
+            app.Send(new AcceptQuit());
             foreach (var window in new[] { back, minimized, front }) app.Send(new CloseWindow(window));
         }
         {

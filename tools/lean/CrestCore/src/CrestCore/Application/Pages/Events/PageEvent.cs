@@ -27,7 +27,7 @@ public abstract record PageEvent(Guid PageId) : EngineEvent {
     #region Actions - Routing
 
     internal sealed override void Route(CrestApp app, Engine engine, ChangeFeed changes) {
-        app.Pages.Report(this, engine, new PageTurn(changes, app.Issue, app.ClosePreparations));
+        app.Pages.Report(this, engine, new PageTurn(changes, app.Issue));
         app.AfterPageReport(changes);
     }
 
