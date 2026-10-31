@@ -1,0 +1,25 @@
+{
+  "display_information": {
+    "name": "Agent Slack",
+    "description": "Reply in Slack threads using your coding CLI."
+  },
+  "oauth_config": {
+    "scopes": {
+      "user": [
+        "channels:history",
+        "groups:history",
+        "im:history",
+        "mpim:history",
+        "chat:write",
+        "reactions:write"
+      ]
+    }
+  },
+  "settings": {
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": false,
+    "event_subscriptions": {
+      "user_events": ["message.channels", "message.groups", "message.im", "message.mpim"]
+    }
+  }
+}
