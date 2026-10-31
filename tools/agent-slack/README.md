@@ -69,6 +69,8 @@ Aliases match complete words anywhere after the prefix, ignoring case and preser
 
 Without an alias, a follow-up keeps its saved workspace; a new thread uses `AGENT_SLACK_WORKSPACE`. Each thread has one current provider session. Switching provider or workspace starts fresh; switching back also starts fresh. Keywords using the same provider and workspace resume the same session.
 
-Commands inside an existing thread include the root and replies through the triggering message. Top-level commands send only their own request. Other participants' messages are context, not authorized instructions. Bot messages, posted answers, and duplicate event deliveries are ignored.
+The first invocation in a thread sends its prior messages and the current request. Resuming sends only Slack messages newer than the last request delivered to that CLI session, skipping AI replies produced by that same session. Messages that arrive while the CLI is working are included next time, even if they precede its posted answer. Switching provider or workspace starts fresh with full context. Sessions saved before context tracking start fresh once; their CLI histories remain on disk.
+
+The starting keyword is stripped from the current request. Quoted earlier messages retain their original text; Slack timestamps identify messages. The current request is included once. Top-level commands send only their own request. Other participants' messages are context, not authorized instructions. Bot messages, posted answers, and duplicate event deliveries do not trigger runs.
 
 Checks: `python3 -m unittest discover -p 'test_*.py'`.

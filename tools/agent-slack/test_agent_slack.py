@@ -124,7 +124,7 @@ class AgentSlackTests(unittest.TestCase):
 
     def test_duplicate_finishing_during_acknowledgement_does_not_restore_eyes(self):
         def add(**kwargs):
-            self.state.mark("handled", "T123", "C123", FIRST)
+            self.state.mark_handled("T123", "C123", FIRST)
 
         with (patch.object(self.client, "reactions_add", side_effect=add),
               patch.object(reply, "provider_for") as factory):
@@ -239,7 +239,7 @@ class AgentSlackTests(unittest.TestCase):
 
     def test_explicit_workspace_switch_starts_fresh_and_keeps_thread_provider(self):
         self.state.save_session("T123", "C123", ROOT, "claude", "old-session",
-                                self.projects["project"])
+                                self.projects["project"], ROOT)
         switches = [event(ts=FIRST, text="claude service fix", thread_ts=ROOT),
                     event(ts=SECOND, text="claude continue", thread_ts=ROOT),
                     event(ts="1700000004.000001", text="claude project back", thread_ts=ROOT)]
@@ -259,7 +259,7 @@ class AgentSlackTests(unittest.TestCase):
 
     def test_explicit_same_workspace_resumes_session(self):
         self.state.save_session("T123", "C123", ROOT, "codex", "same-session",
-                                self.projects["project"])
+                                self.projects["project"], ROOT)
         self.client.pages = [{"messages": [event(thread_ts=ROOT)]}]
         self.runner.run.return_value = ("same-session", "answer")
         with patch.object(reply, "provider_for", return_value=self.runner):
@@ -267,8 +267,8 @@ class AgentSlackTests(unittest.TestCase):
         self.assertEqual(self.runner.run.call_args.args[1], "same-session")
 
     def test_legacy_session_without_workspace_is_never_resumed(self):
-        self.state.db.execute("INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?)",
-                              ("T123", "C123", ROOT, "claude", "unknown-cwd-session", None))
+        self.state.db.execute("INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?)",
+                              ("T123", "C123", ROOT, "claude", "unknown-cwd-session", None, None))
         self.state.db.commit()
         self.client.pages = [{"messages": [event(thread_ts=ROOT)]}]
         self.runner.run.return_value = ("fresh", "answer")
@@ -279,7 +279,7 @@ class AgentSlackTests(unittest.TestCase):
 
     def test_missing_sticky_workspace_does_not_fall_back(self):
         missing = self.path / "removed"
-        self.state.save_session("T123", "C123", ROOT, "codex", "old", missing)
+        self.state.save_session("T123", "C123", ROOT, "codex", "old", missing, ROOT)
         with patch.object(reply, "provider_for") as factory:
             with self.assertRaisesRegex(ValueError, "not a directory"):
                 self.handle(event(thread_ts=ROOT))
@@ -298,6 +298,148 @@ class AgentSlackTests(unittest.TestCase):
         self.assertEqual([item["ts"] for item in messages], [ROOT, FIRST, SECOND])
         self.assertEqual(self.client.calls[1]["cursor"], "next")
         self.assertEqual(self.client.calls[0]["latest"], SECOND)
+
+    def test_first_thread_invocation_includes_prior_context_and_one_stripped_request(self):
+        old_answer = "1700000001.500000"
+        self.state.record_reply("T123", "C123", old_answer, "claude", "another-session")
+        trigger = event(ts=SECOND, text="chat explain project", thread_ts=ROOT)
+        self.client.pages = [{"messages": [
+            {"ts": ROOT, "user": "UOTHER", "text": "original discussion"},
+            event(text="chat earlier request"),
+            event(ts=old_answer, text="earlier AI answer"), trigger,
+        ]}]
+        self.runner.run.return_value = ("fresh-session", "answer")
+        with patch.object(reply, "provider_for", return_value=self.runner):
+            self.handle(trigger)
+        prompt, session = self.runner.run.call_args.args
+        self.assertIsNone(session)
+        self.assertIn("original discussion", prompt)
+        self.assertIn("chat earlier request", prompt)
+        self.assertIn("earlier AI answer", prompt)
+        self.assertIn("previous Agent Slack answer", prompt)
+        self.assertEqual(prompt.count("explain project"), 1)
+        self.assertNotIn("chat explain project", prompt)
+        self.assertNotIn("oldest", self.client.calls[0])
+
+    def test_resume_sends_only_new_messages_and_skips_its_answer_after_restart(self):
+        root = {"ts": ROOT, "user": "UOTHER", "text": "old root discussion"}
+        first = event(text="chat first request", thread_ts=ROOT)
+        second = event(ts="1700000004.000001", text="chat follow up", thread_ts=ROOT)
+        self.client.pages = [{"messages": [root, first]}, {"messages": [
+            root, first,
+            event(ts="1700000001.500001", text="shared words", user="UOTHER"),
+            event(ts="1700000003.000001", text="shared words"),  # Our first AI reply.
+            event(ts="1700000003.500001", text="shared words"),  # Same text, new human message.
+            event(ts="1700000005.000001", text="future discussion"), second,
+        ]}]
+        self.runner.run.side_effect = [("session-1", "shared words"), ("session-1", "answer")]
+        with patch.object(reply, "provider_for", return_value=self.runner):
+            self.handle(first)
+            self.state.db.close()
+            self.state = reply.State(self.path / "state")
+            self.addCleanup(self.state.db.close)
+            self.handle(second)
+        prompt, session = self.runner.run.call_args.args
+        self.assertEqual(session, "session-1")
+        self.assertEqual(self.client.calls[1]["oldest"], FIRST)
+        self.assertEqual(self.client.calls[1]["latest"], second["ts"])
+        self.assertNotIn("old root discussion", prompt)
+        self.assertNotIn("first request", prompt)
+        self.assertNotIn("future discussion", prompt)
+        self.assertEqual(prompt.count("shared words"), 2)
+        self.assertEqual(prompt.count("follow up"), 1)
+        self.assertNotIn("chat follow up", prompt)
+        self.assertEqual(self.state.session("T123", "C123", ROOT)[3], second["ts"])
+
+    def test_resume_includes_new_ai_replies_from_a_different_provider_session(self):
+        self.state.save_session("T123", "C123", ROOT, "codex", "session-1", self.path, FIRST)
+        other_answer, own_answer = "1700000001.100001", "1700000001.200001"
+        self.state.record_reply("T123", "C123", other_answer, "claude", "session-1")
+        self.state.record_reply("T123", "C123", own_answer, "codex", "session-1")
+        trigger = event(ts=SECOND, text="chat continue", thread_ts=ROOT)
+        self.client.pages = [{"messages": [
+            event(ts=other_answer, text="other session answer"),
+            event(ts=own_answer, text="already known answer"), trigger,
+        ]}]
+        self.runner.run.return_value = ("session-1", "answer")
+        with patch.object(reply, "provider_for", return_value=self.runner):
+            self.handle(trigger)
+        prompt, session = self.runner.run.call_args.args
+        self.assertEqual(session, "session-1")
+        self.assertIn("other session answer", prompt)
+        self.assertNotIn("already known answer", prompt)
+
+    def test_provider_or_workspace_switch_gets_full_context_again(self):
+        old_answer = "1700000003.900001"
+        self.state.record_reply("T123", "C123", old_answer, "codex", "old-session")
+        for index, request in enumerate(["claude continue", "chat service continue"]):
+            with self.subTest(request=request):
+                self.state.save_session("T123", "C123", ROOT, "codex", "old-session",
+                                        self.projects["project"], FIRST)
+                trigger = event(ts=f"170000000{index+4}.000001", text=request, thread_ts=ROOT)
+                self.client.pages = [{"messages": [
+                    {"ts": ROOT, "user": "UOTHER", "text": "old root discussion"},
+                    event(ts=old_answer, text="previous session answer"), trigger,
+                ]}]
+                self.runner.run.return_value = (f"fresh-{index}", "answer")
+                with patch.object(reply, "provider_for", return_value=self.runner):
+                    self.handle(trigger)
+                prompt, session = self.runner.run.call_args.args
+                self.assertIsNone(session)
+                self.assertIn("old root discussion", prompt)
+                self.assertIn("previous session answer", prompt)
+                self.assertNotIn("oldest", self.client.calls[-1])
+
+    def test_failed_provider_does_not_advance_the_context_timestamp(self):
+        self.state.save_session("T123", "C123", ROOT, "codex", "session-1", self.path, FIRST)
+        trigger = event(ts=SECOND, text="chat continue", thread_ts=ROOT)
+        self.client.pages = [{"messages": [trigger]}]
+        self.runner.run.side_effect = RuntimeError("provider failed")
+        with patch.object(reply, "provider_for", return_value=self.runner):
+            with self.assertRaisesRegex(RuntimeError, "provider failed"):
+                self.handle(trigger)
+        self.assertEqual(self.state.session("T123", "C123", ROOT)[3], FIRST)
+
+    def test_session_without_context_tracking_starts_fresh_with_full_context(self):
+        self.state.save_session("T123", "C123", ROOT, "codex", "untracked-session", self.path, None)
+        trigger = event(ts=SECOND, text="chat continue", thread_ts=ROOT)
+        self.client.pages = [{"messages": [
+            {"ts": ROOT, "user": "UOTHER", "text": "old root discussion"}, trigger,
+        ]}]
+        self.runner.run.return_value = ("new-session", "answer")
+        with patch.object(reply, "provider_for", return_value=self.runner):
+            self.handle(trigger)
+        prompt, session = self.runner.run.call_args.args
+        self.assertIsNone(session)
+        self.assertIn("old root discussion", prompt)
+        self.assertNotIn("oldest", self.client.calls[0])
+        self.assertEqual(self.state.session("T123", "C123", ROOT),
+                         ("codex", "new-session", str(self.path), SECOND))
+
+    def test_existing_state_gains_context_tracking_without_losing_deduplication(self):
+        directory = self.path / "before-context-tracking"
+        directory.mkdir()
+        with sqlite3.connect(directory / "sessions.sqlite3") as db:
+            db.executescript(
+                "CREATE TABLE sessions (team TEXT, channel TEXT, thread_ts TEXT, provider TEXT, "
+                "session_id TEXT, workspace TEXT, PRIMARY KEY (team, channel, thread_ts));"
+                "CREATE TABLE posted (team TEXT, channel TEXT, ts TEXT, PRIMARY KEY (team, channel, ts));"
+                "CREATE TABLE handled (team TEXT, channel TEXT, ts TEXT, PRIMARY KEY (team, channel, ts));"
+            )
+            db.execute("INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?)",
+                       ("T123", "C123", ROOT, "codex", "old-session", str(self.path)))
+            db.execute("INSERT INTO posted VALUES (?, ?, ?)", ("T123", "C123", FIRST))
+            db.execute("INSERT INTO handled VALUES (?, ?, ?)", ("T123", "C123", ROOT))
+        db.close()
+        state = reply.State(directory)
+        self.addCleanup(state.db.close)
+        self.assertEqual(state.session("T123", "C123", ROOT),
+                         ("codex", "old-session", str(self.path), None))
+        self.assertTrue(state.seen("posted", "T123", "C123", FIRST))
+        self.assertTrue(state.seen("handled", "T123", "C123", ROOT))
+        self.assertFalse(state.knows_reply("T123", "C123", FIRST, "codex", "old-session"))
+        state.record_reply("T123", "C123", SECOND, "codex", "new-session")
+        self.assertTrue(state.knows_reply("T123", "C123", SECOND, "codex", "new-session"))
 
     def test_thread_resumes_and_own_answer_cannot_trigger(self):
         first = event(thread_ts=ROOT)
@@ -318,9 +460,9 @@ class AgentSlackTests(unittest.TestCase):
         self.assertEqual(self.runner.run.call_count, 2)
         self.assertIsNone(self.runner.run.call_args_list[0].args[1])
         self.assertEqual(self.runner.run.call_args_list[1].args[1], "session-1")
-        self.assertIn("root", self.runner.run.call_args_list[1].args[0])
+        self.assertNotIn("root", self.runner.run.call_args_list[1].args[0])
         self.assertEqual(self.client.posts[0]["thread_ts"], ROOT)
-        self.assertEqual(self.state.session("T123", "C123", ROOT), ("codex", "session-1", str(self.path)))
+        self.assertEqual(self.state.session("T123", "C123", ROOT), ("codex", "session-1", str(self.path), SECOND))
 
     def test_top_level_starts_thread_without_channel_history(self):
         self.runner.run.return_value = ("fresh", "answer")
@@ -328,7 +470,7 @@ class AgentSlackTests(unittest.TestCase):
             self.handle(event())
         self.assertEqual(self.client.calls, [])
         self.assertEqual(self.client.posts[0]["thread_ts"], FIRST)
-        self.assertEqual(self.state.session("T123", "C123", FIRST), ("codex", "fresh", str(self.path)))
+        self.assertEqual(self.state.session("T123", "C123", FIRST), ("codex", "fresh", str(self.path), FIRST))
         self.assertIsNone(self.runner.run.call_args.args[1])
         self.assertNotIn("Thread through", self.runner.run.call_args.args[0])
         self.assertTrue(self.runner.run.call_args.args[0].endswith("question"))
@@ -350,11 +492,13 @@ class AgentSlackTests(unittest.TestCase):
             self.handle(followup)
         self.assertIsNone(self.runner.run.call_args_list[0].args[1])
         self.assertEqual(self.runner.run.call_args_list[1].args[1], "session-1")
-        self.assertIn("previous Agent Slack answer", self.runner.run.call_args_list[1].args[0])
+        self.assertNotIn("first answer", self.runner.run.call_args_list[1].args[0])
+        self.assertNotIn("previous Agent Slack answer", self.runner.run.call_args_list[1].args[0])
+        self.assertNotIn("question", self.runner.run.call_args_list[1].args[0])
         self.assertEqual([post["thread_ts"] for post in self.client.posts], [ROOT, ROOT])
 
     def test_provider_switch_starts_fresh_in_the_same_thread(self):
-        self.state.save_session("T123", "C123", ROOT, "codex", "codex-session", self.path)
+        self.state.save_session("T123", "C123", ROOT, "codex", "codex-session", self.path, ROOT)
         requests = [event(ts=FIRST, text="claude review this", thread_ts=ROOT),
                     event(ts=SECOND, text="chat fix this", thread_ts=ROOT),
                     event(ts="1700000004.000001", text="assist verify this", thread_ts=ROOT)]
@@ -368,14 +512,14 @@ class AgentSlackTests(unittest.TestCase):
                          ["claude", "codex", "pi"])
         self.assertEqual([call.args[1] for call in self.runner.run.call_args_list], [None, None, None])
         self.assertEqual(self.state.session("T123", "C123", ROOT),
-                         ("pi", "pi-session", str(self.path)))
+                         ("pi", "pi-session", str(self.path), "1700000004.000001"))
 
     def test_session_survives_restart_in_private_state(self):
-        self.state.save_session("T123", "C123", ROOT, "pi", "session-1", self.path)
+        self.state.save_session("T123", "C123", ROOT, "pi", "session-1", self.path, ROOT)
         restarted = reply.State(self.path / "state")
         self.addCleanup(restarted.db.close)
         self.assertEqual(restarted.session("T123", "C123", ROOT),
-                         ("pi", "session-1", str(self.path)))
+                         ("pi", "session-1", str(self.path), ROOT))
         self.assertEqual((self.path / "state").stat().st_mode & 0o777, 0o700)
         self.assertEqual((self.path / "state" / "sessions.sqlite3").stat().st_mode & 0o777, 0o600)
 
@@ -392,7 +536,7 @@ class AgentSlackTests(unittest.TestCase):
         migrated = reply.State(legacy_dir)
         self.addCleanup(migrated.db.close)
         self.assertEqual(migrated.session("T123", "C123", ROOT),
-                         ("codex", "old-session", None))
+                         ("codex", "old-session", None, None))
 
     def test_removed_provider_command_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "configure keyword commands in .env"):
