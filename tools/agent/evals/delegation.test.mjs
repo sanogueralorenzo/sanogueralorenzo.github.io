@@ -16,6 +16,7 @@ const text = value => ({ type: "text", text: value });
 async function fixture(t, respond) {
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), "agent-delegation-")));
   const runtime = {
+    getAuth: async () => undefined,
     getModel: () => model,
     streamSimple: (selected, transcript) => lazyStream(selected, async () => (async function* () {
       const content = respond(transcript.messages);

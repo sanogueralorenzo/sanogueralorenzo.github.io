@@ -14,7 +14,7 @@ export type SessionRecord = SavedSession & { status: "idle" | "running" | "inter
 export type Turn = { id: string; sessionId: string; entryId: string | null; sourceId?: string; replyToId?: string; text: string; status: "queued" | "running"; createdAt: string; dependsOn?: string[] };
 export type Data = { messages: HomeMessage[]; entries: HomeEntry[]; sessions: SessionRecord[]; turns: Turn[] };
 export type HomeData = { messages: HomeMessage[]; entries: SavedEntry[]; sessions: SavedSession[]; lastRouteTaskId?: number };
-export const HomeDoc = defineDoc<HomeData>({ kind: "agent.home", version: 1, scope: "session", initial: () => ({ messages: [], entries: [], sessions: [] }) });
+export const HomeDoc = defineDoc<HomeData>({ kind: "agent.home", version: 1, scope: "session", checkpointWhen: () => false, initial: () => ({ messages: [], entries: [], sessions: [] }) });
 export const now = () => new Date().toISOString();
 export const messageText = (message: { content?: unknown }): string => typeof message.content === "string" ? message.content : Array.isArray(message.content)
   ? message.content.flatMap((part) => part?.type === "text" && typeof part.text === "string" ? [part.text] : []).join("\n") : "";

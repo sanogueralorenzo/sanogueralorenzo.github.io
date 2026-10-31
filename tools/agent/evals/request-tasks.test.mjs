@@ -19,7 +19,7 @@ async function fixture(t, respond, dispatcher = () => ({ action: "start", depend
   { storage, router = ({ sessions }) => ({ mode: "continue", sessionId: sessions[0].id }) } = {}) {
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), "agent-request-")));
   const calls = [];
-  const runtime = { getModel: () => model, streamSimple: (selected, transcript, options = {}) => lazyStream(selected, async () => (async function* () {
+  const runtime = { getAuth: async () => undefined, getModel: () => model, streamSimple: (selected, transcript, options = {}) => lazyStream(selected, async () => (async function* () {
     const timestamp = Date.now();
     const input = transcript.messages.filter(message => message.role === "user").at(-1)?.content;
     const names = (transcript.tools || transcript.messages.flatMap(message => message.toolsAdded || [])).map(tool => tool.name);

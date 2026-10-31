@@ -108,7 +108,10 @@ test("native search preserves client tools, skips router and dispatcher calls, a
       assert.equal(request.tools.flatMap(tool => tool.functionDeclarations || []).some(tool => tool.name === "read"), true);
     } else {
       assert.equal(request.tools.filter(tool => tool.type?.startsWith("web_search")).length, 1);
-      assert.equal(request.tools.some(tool => tool.name === "read"), true);
+      const clientTools = provider === "openai"
+        ? request.input.filter(item => item.type === "additional_tools").flatMap(item => item.tools)
+        : request.tools;
+      assert.equal(clientTools.some(tool => tool.name === "read"), true);
       if (provider === "anthropic") assert.equal(request.tools.find(tool => tool.name === "web_search").type, "web_search_20250305");
     }
     for (const name of ["route_home", "dispatch_message"]) {
@@ -233,6 +236,7 @@ test("router and dispatcher disable reasoning or use the provider minimum with f
   ]) for (const fast of [false, true]) {
     const calls = [];
     const models = {
+      getAuth: async () => undefined,
       getModel: (name, id) => name === "fixture" ? { ...catalog.getModel("openai", "gpt-6-luna"), provider: name, id } : catalog.getModel(name, id),
       streamSimple: (selected, transcript, options) => lazyStream(selected, async () => (async function* () {
         calls.push({ provider: selected.provider, modelId: selected.id, effort: options.reasoning });

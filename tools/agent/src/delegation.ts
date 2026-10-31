@@ -7,7 +7,7 @@ import { agentText } from "./state.ts";
 type Status = "outstanding" | "collected" | "failed" | "cancelled";
 type Delegation = { conversationId: number; ownerTaskId: number; requestId: number; status: Status; submissionId?: number; reason?: string };
 export const DelegationsDoc = defineDoc<{ calls: Record<string, Delegation> }>({ kind: "agent.delegations", version: 2,
-  scope: "conversation", history: "latest", fork: "initial", initial: () => ({ calls: {} }) });
+  scope: "conversation", history: "latest", fork: "initial", checkpointWhen: () => false, initial: () => ({ calls: {} }) });
 
 export function createDelegation(getWorker: () => Extension, getHarness: () => Harness) {
   async function collect(delegationId: string, child: Delegation, context: Context) {
