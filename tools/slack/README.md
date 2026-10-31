@@ -5,7 +5,7 @@ Run your local coding tools from Slack. Only your messages trigger work; answers
 **Setup** requires Python 3.10+, a [Slack app](docs/slack.md), and authenticated CLIs for the wrappers you use:
 
 ```sh
-cd tools/agent-slack
+cd tools/slack
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 umask 077
