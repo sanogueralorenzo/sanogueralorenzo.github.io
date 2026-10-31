@@ -1,6 +1,6 @@
 # Agent Slack
 
-![Agent Slack — answer a teammate's question from a Slack thread](docs/AgentSlack.png)
+![Agent Slack: resolve a teammate's upload issue and open a pull request from Slack](docs/AgentSlack.png)
 
 Run your local coding tools from Slack. Only your messages trigger work; answers appear in the same thread. Commands and project directories are configured in `.env`.
 
