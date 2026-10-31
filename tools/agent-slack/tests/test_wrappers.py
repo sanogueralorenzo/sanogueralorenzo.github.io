@@ -56,7 +56,7 @@ class WrapperTests(unittest.TestCase):
             self.addCleanup(patcher.stop)
 
     def executor(self, name):
-        wrapper = str((Path(__file__).parent / "wrappers" / f"{name}.py").resolve())
+        wrapper = str((Path(__file__).resolve().parent.parent / "wrappers" / f"{name}.py").resolve())
         return Executor(Command((wrapper,), (wrapper, "{session_id}")), self.path)
 
     def test_wrappers_normalize_start_and_resume_without_overriding_settings(self):
