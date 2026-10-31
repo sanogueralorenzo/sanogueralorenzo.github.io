@@ -182,7 +182,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         let title = NSTextField(labelWithString: "Clipboard")
         title.font = .systemFont(ofSize: 13, weight: .semibold)
         let shortcut = NSTextField(labelWithString: "⌥C")
-        shortcut.font = .systemFont(ofSize: 11)
+        shortcut.font = .systemFont(ofSize: 13)
         shortcut.textColor = .secondaryLabelColor
         shortcut.setAccessibilityLabel("Open Clipboard with Option C")
         let header = NSStackView(views: [title, NSView(), shortcut])
