@@ -126,7 +126,7 @@ def prompt_for(event, messages, state, team, request):
     for message in messages:
         author = message.get("user") or message.get("bot_id") or "unknown"
         if state.seen("posted", team, event["channel"], message["ts"]):
-            author += " (previous Slack Reply answer)"
+            author += " (previous Agent Slack answer)"
         lines.append(f"[{message['ts']}] {author}: {message.get('text', '')}")
     return (
         "Respond to the final command by the authorized user. "
@@ -167,7 +167,7 @@ def handle(event, team, user_id, client, state, workspace, state_dir, projects, 
     saved_workspace = Path(saved[2]) if saved and saved[2] else None
     workspace = parsed.workspace or saved_workspace or workspace
     if not workspace.is_dir():
-        raise ValueError(f"Slack Reply workspace is not a directory: {workspace}")
+        raise ValueError(f"Agent Slack workspace is not a directory: {workspace}")
     session_id = saved[1] if saved and saved[0] == provider_name and saved_workspace == workspace else None
     messages = thread_messages(client, event) if is_reply else None
     prompt = prompt_for(event, messages, state, team, parsed.request)
@@ -189,7 +189,7 @@ def main(argv=None):
     args = sys.argv[1:] if argv is None else argv
     if args:
         raise ValueError("Usage: ./run.sh (configure keyword commands in .env)")
-    state_dir = Path(os.environ.get("SLACK_REPLY_STATE_DIR", "~/.local/state/slack-reply")).expanduser()
+    state_dir = Path(os.environ.get("AGENT_SLACK_STATE_DIR", "~/.local/state/agent-slack")).expanduser()
     commands = command_providers()
     for provider_name in dict.fromkeys(commands.values()):
         require_available(provider_name)
@@ -200,9 +200,9 @@ def main(argv=None):
     app_token = required("SLACK_APP_TOKEN")
     user_token = required("SLACK_USER_TOKEN")
     user_id = required("SLACK_USER_ID")
-    workspace = Path(required("SLACK_REPLY_WORKSPACE")).expanduser().resolve()
+    workspace = Path(required("AGENT_SLACK_WORKSPACE")).expanduser().resolve()
     if not workspace.is_dir():
-        raise ValueError(f"SLACK_REPLY_WORKSPACE is not a directory: {workspace}")
+        raise ValueError(f"AGENT_SLACK_WORKSPACE is not a directory: {workspace}")
     projects = project_workspaces()
     if not app_token.startswith("xapp-") or not user_token.startswith("xoxp-"):
         raise ValueError("Use an xapp app token and xoxp authorized-user token")
@@ -249,7 +249,7 @@ def main(argv=None):
         cleanup.callback(socket.close)
         cleanup.callback(processes.close)
         socket.connect()
-        print(f"Slack Reply listening for {'/'.join(commands)} commands from {user_id}", flush=True)
+        print(f"Agent Slack listening for {'/'.join(commands)} commands from {user_id}", flush=True)
         while True:
             event = events.get()
             if acknowledge(event, team, user_id, user_client, admission_state, commands):
@@ -262,5 +262,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         pass
     except (ValueError, RuntimeError) as error:
-        print(f"Slack Reply: {error}", file=sys.stderr)
+        print(f"Agent Slack: {error}", file=sys.stderr)
         sys.exit(1)

@@ -42,6 +42,7 @@ class ProviderTests(unittest.TestCase):
 
     def test_subprocess_does_not_inherit_slack_tokens(self):
         with patch.dict(os.environ, {"PATH": "/usr/bin", "SLACK_USER_TOKEN": "secret",
+                                     "AGENT_SLACK_COMMANDS": '{"chat":"codex"}',
                                      "SLACK_APP_TOKEN": "secret", "CLAUDE_CODE_EFFORT_LEVEL": "high",
                                      "CODEX_HOME": "/custom/codex", "CLAUDE_CONFIG_DIR": "/custom/claude"},
                         clear=True):
@@ -49,6 +50,7 @@ class ProviderTests(unittest.TestCase):
                 providers.execute(["claude", "-p"], "prompt", self.path)
         self.assertNotIn("SLACK_USER_TOKEN", run.call_args.kwargs["env"])
         self.assertNotIn("SLACK_APP_TOKEN", run.call_args.kwargs["env"])
+        self.assertNotIn("AGENT_SLACK_COMMANDS", run.call_args.kwargs["env"])
         self.assertEqual(run.call_args.kwargs["env"]["CLAUDE_CODE_EFFORT_LEVEL"], "high")
         self.assertEqual(run.call_args.kwargs["env"]["CODEX_HOME"], "/custom/codex")
         self.assertEqual(run.call_args.kwargs["env"]["CLAUDE_CONFIG_DIR"], "/custom/claude")

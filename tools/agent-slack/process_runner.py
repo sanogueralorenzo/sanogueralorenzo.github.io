@@ -42,7 +42,7 @@ class ProcessRunner:
     def run(self, command, prompt, workspace, env):
         with self.lock:
             if self.closed:
-                raise RuntimeError("Slack Reply is shutting down")
+                raise RuntimeError("Agent Slack is shutting down")
             process = subprocess.Popen(
                 command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 text=True, cwd=workspace, env=env, start_new_session=True,

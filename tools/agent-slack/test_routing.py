@@ -61,7 +61,7 @@ class CommandConfigurationTests(unittest.TestCase):
             "Review": "claude",
             "!ask": "pi",
         }
-        with patch.dict(os.environ, {"SLACK_REPLY_COMMANDS": json.dumps(config)}, clear=True):
+        with patch.dict(os.environ, {"AGENT_SLACK_COMMANDS": json.dumps(config)}, clear=True):
             commands = command_providers()
         self.assertEqual(commands["work"], "codex")
         self.assertEqual(commands["Review"], "claude")
@@ -74,16 +74,16 @@ class CommandConfigurationTests(unittest.TestCase):
 
     def test_commands_are_required_and_must_be_a_nonempty_object(self):
         with patch.dict(os.environ, {}, clear=True):
-            with self.assertRaisesRegex(ValueError, "SLACK_REPLY_COMMANDS"):
+            with self.assertRaisesRegex(ValueError, "AGENT_SLACK_COMMANDS"):
                 command_providers()
         for raw in ["", "bad json", "null", "[]", "{}"]:
-            with self.subTest(raw=raw), patch.dict(os.environ, {"SLACK_REPLY_COMMANDS": raw}):
+            with self.subTest(raw=raw), patch.dict(os.environ, {"AGENT_SLACK_COMMANDS": raw}):
                 with self.assertRaises(ValueError):
                     command_providers()
 
     def test_keyword_names_do_not_imply_a_provider(self):
         config = {"claude": "codex", "chat": "pi"}
-        with patch.dict(os.environ, {"SLACK_REPLY_COMMANDS": json.dumps(config)}):
+        with patch.dict(os.environ, {"AGENT_SLACK_COMMANDS": json.dumps(config)}):
             commands = command_providers()
         self.assertEqual(command("claude help", {}, commands).provider, "codex")
         self.assertEqual(command("chat help", {}, commands).provider, "pi")
@@ -97,7 +97,7 @@ class CommandConfigurationTests(unittest.TestCase):
             {"work": {"provider": "codex"}},
         ]
         for config in invalid:
-            with self.subTest(config=config), patch.dict(os.environ, {"SLACK_REPLY_COMMANDS": json.dumps(config)}):
+            with self.subTest(config=config), patch.dict(os.environ, {"AGENT_SLACK_COMMANDS": json.dumps(config)}):
                 with self.assertRaises(ValueError):
                     command_providers()
 

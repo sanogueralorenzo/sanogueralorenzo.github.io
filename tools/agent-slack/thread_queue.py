@@ -9,7 +9,7 @@ from threading import Lock
 class ThreadQueue:
     def __init__(self, process, max_workers=8):
         self.process = process
-        self.pool = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="slack-reply")
+        self.pool = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="agent-slack")
         self.queues = {}
         self.lock = Lock()
         self.closed = False
@@ -18,7 +18,7 @@ class ThreadQueue:
         key = (event["channel"], event.get("thread_ts") or event["ts"])
         with self.lock:
             if self.closed:
-                raise RuntimeError("Slack Reply queue is closed")
+                raise RuntimeError("Agent Slack queue is closed")
             if key in self.queues:
                 self.queues[key].append(event)
             else:
@@ -33,7 +33,7 @@ class ThreadQueue:
                 self.process(event)
             except Exception:
                 logging.getLogger(__name__).exception(
-                    "Slack Reply could not process %s/%s", event["channel"], event["ts"]
+                    "Agent Slack could not process %s/%s", event["channel"], event["ts"]
                 )
             with self.lock:
                 pending = self.queues[key]

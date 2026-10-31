@@ -12,7 +12,7 @@ from threading import Event, Lock
 from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock, patch
 
-import slack_reply as reply
+import agent_slack as reply
 from thread_queue import ThreadQueue
 
 
@@ -214,8 +214,8 @@ class ThreadQueueTests(unittest.TestCase):
             path = Path(directory)
             env = {"SLACK_APP_TOKEN": "xapp-test",
                    "SLACK_USER_TOKEN": "xoxp-test", "SLACK_USER_ID": "U123",
-                   "SLACK_REPLY_COMMANDS": json.dumps({"work": "codex"}), "SLACK_REPLY_PROJECTS": "{}", "SLACK_REPLY_WORKSPACE": directory,
-                   "SLACK_REPLY_STATE_DIR": str(path / "state")}
+                   "AGENT_SLACK_COMMANDS": json.dumps({"work": "codex"}), "AGENT_SLACK_PROJECTS": "{}", "AGENT_SLACK_WORKSPACE": directory,
+                   "AGENT_SLACK_STATE_DIR": str(path / "state")}
             with (patch.dict(os.environ, env, clear=True), patch.dict(sys.modules, modules),
                   patch.object(reply, "require_available"),
                   patch.object(reply, "processes", Mock(closed=False)) as processes,

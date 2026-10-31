@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-import slack_reply as reply
+import agent_slack as reply
 
 
 USER = "U123ABC"
@@ -46,7 +46,7 @@ class FakeClient:
         return {"ts": f"1700000003.{len(self.posts):06d}"}
 
 
-class SlackReplyTests(unittest.TestCase):
+class AgentSlackTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -350,7 +350,7 @@ class SlackReplyTests(unittest.TestCase):
             self.handle(followup)
         self.assertIsNone(self.runner.run.call_args_list[0].args[1])
         self.assertEqual(self.runner.run.call_args_list[1].args[1], "session-1")
-        self.assertIn("previous Slack Reply answer", self.runner.run.call_args_list[1].args[0])
+        self.assertIn("previous Agent Slack answer", self.runner.run.call_args_list[1].args[0])
         self.assertEqual([post["thread_ts"] for post in self.client.posts], [ROOT, ROOT])
 
     def test_provider_switch_starts_fresh_in_the_same_thread(self):
@@ -400,11 +400,11 @@ class SlackReplyTests(unittest.TestCase):
 
     def test_missing_command_configuration_fails_before_slack_setup(self):
         with patch.dict(os.environ, {}, clear=True):
-            with self.assertRaisesRegex(ValueError, "SLACK_REPLY_COMMANDS"):
+            with self.assertRaisesRegex(ValueError, "AGENT_SLACK_COMMANDS"):
                 reply.main([])
 
     def test_configured_provider_is_validated_before_slack_setup(self):
-        with patch.dict(os.environ, {"SLACK_REPLY_COMMANDS": '{"work":"pi"}'}, clear=True):
+        with patch.dict(os.environ, {"AGENT_SLACK_COMMANDS": '{"work":"pi"}'}, clear=True):
             with patch.object(reply, "require_available", side_effect=RuntimeError("pi CLI is not installed")) as available:
                 with self.assertRaisesRegex(RuntimeError, "pi CLI is not installed"):
                     reply.main([])
@@ -416,14 +416,14 @@ class ConfigurationTests(unittest.TestCase):
             self.assertEqual(reply.project_workspaces(), {})
         with tempfile.TemporaryDirectory() as directory:
             import json
-            with patch.dict(os.environ, {"SLACK_REPLY_PROJECTS": json.dumps({"work": directory})}):
+            with patch.dict(os.environ, {"AGENT_SLACK_PROJECTS": json.dumps({"work": directory})}):
                 self.assertEqual(reply.project_workspaces(), {"work": Path(directory).resolve()})
 
     def test_invalid_project_config_is_rejected(self):
         for config in ['invalid json', '[]', 'null', '{"Bad": "/tmp"}',
                        '{"two words": "/tmp"}', '{"work": 3}', '{"work": ""}',
-                       '{"work": "/nonexistent-slack-reply-project"}']:
-            with self.subTest(config=config), patch.dict(os.environ, {"SLACK_REPLY_PROJECTS": config}):
+                       '{"work": "/nonexistent-agent-slack-project"}']:
+            with self.subTest(config=config), patch.dict(os.environ, {"AGENT_SLACK_PROJECTS": config}):
                 with self.assertRaises(ValueError):
                     reply.project_workspaces()
 

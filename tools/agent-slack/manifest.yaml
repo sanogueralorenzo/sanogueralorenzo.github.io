@@ -1,5 +1,5 @@
 display_information:
-  name: Slack Reply
+  name: Agent Slack
   description: Reply in Slack threads using your local coding CLI.
 oauth_config:
   scopes:

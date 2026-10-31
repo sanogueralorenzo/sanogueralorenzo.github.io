@@ -26,7 +26,8 @@ def require_available(name):
 def execute(command, prompt, workspace):
     return processes.run(
         command, prompt, workspace,
-        env={key: value for key, value in os.environ.items() if not key.startswith("SLACK_")},
+        env={key: value for key, value in os.environ.items()
+             if not key.startswith(("SLACK_", "AGENT_SLACK_"))},
     )
 
 

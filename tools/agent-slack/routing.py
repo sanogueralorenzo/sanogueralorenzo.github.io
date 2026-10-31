@@ -15,9 +15,9 @@ class Command:
 
 
 def command_providers():
-    commands = json.loads(os.environ.get("SLACK_REPLY_COMMANDS", "{}"))
+    commands = json.loads(os.environ.get("AGENT_SLACK_COMMANDS", "{}"))
     if not isinstance(commands, dict) or not commands:
-        raise ValueError("SLACK_REPLY_COMMANDS must map at least one keyword to a CLI name")
+        raise ValueError("AGENT_SLACK_COMMANDS must map at least one keyword to a CLI name")
     for keyword, provider in commands.items():
         if not keyword or not keyword.isprintable() or any(character.isspace() for character in keyword):
             raise ValueError("Command keywords must be nonempty words without whitespace")
@@ -34,9 +34,9 @@ def prefix(text, commands):
 
 
 def project_workspaces():
-    projects = json.loads(os.environ.get("SLACK_REPLY_PROJECTS", "{}"))
+    projects = json.loads(os.environ.get("AGENT_SLACK_PROJECTS", "{}"))
     if not isinstance(projects, dict):
-        raise ValueError("SLACK_REPLY_PROJECTS must be a JSON object mapping aliases to directories")
+        raise ValueError("AGENT_SLACK_PROJECTS must be a JSON object mapping aliases to directories")
     result = {}
     for alias, directory in projects.items():
         if not re.fullmatch(r"[a-z][a-z0-9_-]*", alias) or not isinstance(directory, str) or not directory.strip():
