@@ -10,10 +10,9 @@ from threading import Event, Lock
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-import agent_slack
-import app
-from commands import Command
-from state import State
+from agent_slack import app, cli
+from agent_slack.commands import Command
+from agent_slack.state import State
 
 
 class BridgeTests(unittest.TestCase):
@@ -82,11 +81,11 @@ class BridgeTests(unittest.TestCase):
                   patch.object(app.queue, "Queue", return_value=SimpleNamespace(put=inbox.put, get=next_event)),
                   patch.object(app, "ProcessRunner", return_value=Mock(closed=False)) as process_factory,
                   patch.object(app, "Executor", return_value=Mock(run=run)),
-                  patch("thread_queue.logging.Logger.exception") as errors,
+                  patch("agent_slack.thread_queue.logging.Logger.exception") as errors,
                   redirect_stdout(io.StringIO())):
                 previous_signal = signal.getsignal(signal.SIGTERM)
                 with self.assertRaises(KeyboardInterrupt):
-                    agent_slack.main([])
+                    cli.run(["--config", str(Path(directory) / ".env")])
                 self.assertEqual(signal.getsignal(signal.SIGTERM), previous_signal)
                 process_factory.return_value.close.assert_called_once()
                 errors.assert_not_called()

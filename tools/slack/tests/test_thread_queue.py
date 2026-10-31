@@ -2,7 +2,7 @@ import unittest
 from threading import Event, Lock
 from unittest.mock import patch
 
-from thread_queue import ThreadQueue
+from agent_slack.thread_queue import ThreadQueue
 
 
 def message(ts, text="work first", **extra):
@@ -85,7 +85,7 @@ class ThreadQueueTests(unittest.TestCase):
                 raise RuntimeError("CLI failed")
 
         workers = ThreadQueue(process, max_workers=1)
-        with patch("thread_queue.logging.Logger.exception") as log:
+        with patch("agent_slack.thread_queue.logging.Logger.exception") as log:
             try:
                 workers.submit(message("1"), "parsed")
                 workers.submit(message("2", thread_ts="1"), "parsed")

@@ -11,13 +11,13 @@ from slack_sdk import WebClient
 from slack_sdk.socket_mode import SocketModeClient
 from slack_sdk.socket_mode.response import SocketModeResponse
 
-from commands import Command, Executor, load_commands
-from conversation import Conversation, acknowledge
-from process_runner import ProcessRunner
-from reactions import react
-from routing import project_workspaces
-from state import State
-from thread_queue import ThreadQueue
+from .commands import Command, Executor, load_commands
+from .conversation import Conversation, acknowledge
+from .process_runner import ProcessRunner
+from .reactions import react
+from .routing import project_workspaces
+from .state import State
+from .thread_queue import ThreadQueue
 
 
 def required(name):

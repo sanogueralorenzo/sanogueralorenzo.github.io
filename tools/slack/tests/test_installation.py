@@ -19,8 +19,8 @@ from urllib.parse import parse_qs, urlsplit
 
 from slack_sdk.errors import SlackApiError
 
-import installation
-from state import Session, State
+from agent_slack import installation
+from agent_slack.state import Session, State
 
 
 SOURCE = Path(__file__).resolve().parent.parent
@@ -38,15 +38,15 @@ class InstallationTests(unittest.TestCase):
         self.addCleanup(directory.cleanup)
         self.home = Path(directory.name) / "home space & 100%"
         self.root = self.home / ".local/share/agent-slack"
-        (self.root / "wrappers").mkdir(parents=True)
         (self.root / ".venv/bin").mkdir(parents=True)
         (self.root / ".venv/bin/python").symlink_to(sys.executable)
-        (self.root / "wrappers/codex.py").touch()
+        (self.root / ".venv/bin/agent-slack-codex").write_text("#!/bin/sh\nexit 0\n")
+        (self.root / ".venv/bin/agent-slack-codex").chmod(0o700)
         self.bin = self.home / "bin"
         self.bin.mkdir()
         (self.bin / "codex").write_text("#!/bin/sh\nexit 0\n")
         (self.bin / "codex").chmod(0o700)
-        self.manifest = json.loads((SOURCE / "manifest.json").read_text())
+        self.manifest = json.loads((SOURCE / "src/agent_slack/manifest.json").read_text())
         self.client = Mock()
         self.client.auth_test.return_value = Auth(",".join(self.manifest["oauth_config"]["scopes"]["user"]))
         self.output = io.StringIO()
@@ -76,7 +76,7 @@ class InstallationTests(unittest.TestCase):
         self.assertEqual(values["AGENT_SLACK_WORKSPACE"], str(self.home))
         commands = json.loads(values["AGENT_SLACK_COMMANDS"])
         self.assertEqual(set(commands), {"chat"})
-        self.assertEqual(commands["chat"]["start"][0], str(self.root / ".venv/bin/python"))
+        self.assertEqual(commands["chat"]["start"][0], str(self.root / ".venv/bin/agent-slack-codex"))
         self.assertEqual((self.root / ".env").stat().st_mode & 0o777, 0o600)
         url = installation.webbrowser.open.call_args.args[0]
         self.assertEqual(json.loads(parse_qs(urlsplit(url).query)["manifest_json"][0]), self.manifest)
@@ -101,7 +101,7 @@ class InstallationTests(unittest.TestCase):
                 target = installation.service_path(system)
                 if system == "Darwin":
                     data = plistlib.loads(target.read_bytes())
-                    self.assertEqual(data["ProgramArguments"], [str(self.root / "run.sh")])
+                    self.assertEqual(data["ProgramArguments"], [str(self.root / ".venv/bin/agent-slack"), "--config", str(self.root / ".env")])
                     self.assertEqual(data["WorkingDirectory"], str(self.root))
                     self.assertNotIn("SLACK_USER_TOKEN", data["EnvironmentVariables"])
                     log = config.state_dir / "agent-slack.log"
@@ -109,7 +109,7 @@ class InstallationTests(unittest.TestCase):
                     self.run.assert_called_with(["launchctl", "bootstrap", f"gui/{os.getuid()}", str(target)], check=True)
                 else:
                     unit = target.read_text()
-                    self.assertIn(f'ExecStart="{str(self.root).replace("%", "%%")}/run.sh"', unit)
+                    self.assertIn(f'ExecStart="{str(self.root).replace("%", "%%")}/.venv/bin/agent-slack" "--config"', unit)
                     self.assertIn("KillMode=mixed", unit)
                     self.assertNotIn("xoxp-", unit)
                     self.run.assert_any_call(["systemctl", "--user", "enable", "--now", f"{installation.SERVICE}.service"], check=True)
@@ -127,8 +127,9 @@ class InstallationTests(unittest.TestCase):
         values.update(AGENT_SLACK_COMMANDS=json.dumps(commands), AGENT_SLACK_WORKSPACE=str(workspace),
                       AGENT_SLACK_PROJECTS=json.dumps({"repo": str(workspace)}), EXTRA_SETTING="spaces and 'quotes' # literal $HOME")
         installation.save_config(values)
-        # The shell launcher sources the existing file before calling configuration on an update.
-        os.environ.update(values)
+        # A second installer process reads the edited file without the first process's environment.
+        for key in values:
+            os.environ.pop(key, None)
         session = Session("command", "saved-id", workspace, "1.000001")
         state = State(config.state_dir)
         self.addCleanup(state.close)
@@ -166,6 +167,7 @@ class BootstrapTests(unittest.TestCase):
                             ignore=shutil.ignore_patterns(".env", ".venv", ".runtime", "__pycache__"))
             bins = base / "bin"
             bins.mkdir()
+            (bins / "python3").symlink_to(Path(sys.executable).resolve())
             scripts = {
                 "git": '''import os, shutil, sys
 from pathlib import Path
@@ -179,20 +181,26 @@ from pathlib import Path
 Path(sys.argv[-1]).write_text('mkdir -p "$UV_UNMANAGED_INSTALL"\\ncp "$TEST_UV" "$UV_UNMANAGED_INSTALL/uv"\\nchmod 700 "$UV_UNMANAGED_INSTALL/uv"\\n')
 ''',
                 "codex": "pass\n",
-                "uv": '''import os, sys
+                "uv": '''import os, shlex, shutil, subprocess, sys, venv
 from pathlib import Path
 if sys.argv[1:3] == ["python", "find"]:
     print(sys.executable)
 elif sys.argv[1] == "venv":
-    target = Path(sys.argv[-1]) / "bin"
-    target.mkdir(parents=True, exist_ok=True)
-    (target / "python").write_text("#!" + sys.executable + "\\n" + "import sys\\nfrom pathlib import Path\\nsys.path.insert(0, str(Path(sys.argv[1]).resolve().parent))\\nimport installation\\ninstallation.ask_token = lambda _: ''\\ninstallation.webbrowser.open = lambda _: False\\nsys.argv = sys.argv[1:]\\ninstallation.main()\\n")
-    (target / "python").chmod(0o700)
+    venv.EnvBuilder(with_pip=False, clear=True, symlinks=True).create(sys.argv[-1])
+elif sys.argv[1:3] == ["pip", "install"]:
+    python = Path(sys.argv[4])
+    source = Path(sys.argv[5])
+    library = Path(subprocess.check_output([str(python), "-c", "import sysconfig; print(sysconfig.get_path('purelib'))"], text=True).strip())
+    shutil.copytree(source / "src/agent_slack", library / "agent_slack")
+    code = "import sys; from agent_slack import installation; installation.ask_token = lambda _: ''; installation.webbrowser.open = lambda _: False; sys.exit(installation.main())"
+    script = python.parent / "agent-slack-setup"
+    script.write_text("#!/bin/sh\\nexec " + shlex.quote(str(python)) + " -c " + shlex.quote(code) + ' "$@"\\n')
+    script.chmod(0o700)
 ''',
             }
             for name, body in scripts.items():
                 executable = bins / name
-                executable.write_text(f"#!{sys.executable}\n" + body)
+                executable.write_text("#!/usr/bin/env python3\n" + body)
                 executable.chmod(0o700)
             env = {"HOME": str(home), "PATH": f"{bins}:/usr/bin:/bin", "TEST_SOURCE": str(fixture), "TEST_UV": str(bins / "uv")}
             script = (SOURCE / "install.sh").read_text()
@@ -204,14 +212,16 @@ elif sys.argv[1] == "venv":
             self.assertIn("Local setup is ready", result.stdout)
             with (root / ".env").open("a") as output:
                 output.write("EXTRA_SETTING='keep me'\n")
-            (root / "src/obsolete.py").touch()
+            package = next((root / ".venv").glob("lib/python*/site-packages/agent_slack"))
+            (package / "obsolete.py").touch()
             state = home / ".local/state/agent-slack"
             state.mkdir(parents=True)
             (state / "keep").write_text("history")
             result = subprocess.run(["sh"], input=script, env=env, text=True, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("EXTRA_SETTING='keep me'", (root / ".env").read_text())
-            self.assertFalse((root / "src/obsolete.py").exists())
+            self.assertFalse((package / "obsolete.py").exists())
+            self.assertFalse((root / "src").exists())
             self.assertEqual((state / "keep").read_text(), "history")
 
 
@@ -221,7 +231,7 @@ class TokenPromptTests(unittest.TestCase):
         pid, terminal = pty.fork()
         if pid == 0:
             os.dup2(os.open(os.devnull, os.O_RDONLY), 0)
-            code = "from installation import ask_token; print('accepted=' + str(ask_token('App token: ') == '" + token + "'))"
+            code = "from agent_slack.installation import ask_token; print('accepted=' + str(ask_token('App token: ') == '" + token + "'))"
             os.execl(sys.executable, sys.executable, "-c", code)
         output = bytearray()
 

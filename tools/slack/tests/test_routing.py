@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from commands import Command
-from routing import command_for, project_workspaces
+from agent_slack.commands import Command
+from agent_slack.routing import command_for, project_workspaces
 
 
 class RoutingTests(unittest.TestCase):

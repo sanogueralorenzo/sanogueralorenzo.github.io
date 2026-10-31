@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Normalize Codex's final answer and session ID. Optional argument: session ID."""
 
 import json
@@ -9,9 +8,9 @@ import tempfile
 from pathlib import Path
 
 
-def main():
+def run():
     if len(sys.argv) > 2:
-        raise ValueError("Usage: codex.py [session_id]")
+        raise ValueError("Usage: agent-slack-codex [session_id]")
     with tempfile.TemporaryDirectory(prefix="agent-slack-codex-") as directory:
         answer_path = Path(directory) / "answer"
         common = ["--json", "-o", str(answer_path), "--skip-git-repo-check"]
@@ -32,9 +31,13 @@ def main():
         print(json.dumps({"session_id": session_id, "answer": answer_path.read_text()}))
 
 
-if __name__ == "__main__":
+def main():
     try:
-        main()
+        run()
     except (OSError, ValueError, RuntimeError) as error:
         print(error, file=sys.stderr)
-        sys.exit(1)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

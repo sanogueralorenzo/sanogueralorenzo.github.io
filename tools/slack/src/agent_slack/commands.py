@@ -5,7 +5,7 @@ import os
 import shutil
 from dataclasses import dataclass
 
-from process_runner import ProcessRunner
+from .process_runner import ProcessRunner
 
 
 @dataclass(frozen=True)

@@ -6,12 +6,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from commands import Command, Executor
-from process_runner import ProcessRunner
+from agent_slack.commands import Command, Executor
+from agent_slack.process_runner import ProcessRunner
 
 
 # Fake native CLIs: the wrappers still run as real executables, in the selected CWD.
-CLI = '''#!{python}
+CLI = '''#!/usr/bin/env python3
 import json, os, sys
 from pathlib import Path
 args = sys.argv[1:]
@@ -44,18 +44,19 @@ class WrapperTests(unittest.TestCase):
         self.path = Path(directory.name)
         self.bin = self.path / "bin"
         self.bin.mkdir()
+        (self.bin / "python3").symlink_to(Path(sys.executable).resolve())
         for name in ("codex", "claude"):
             executable = self.bin / name
-            executable.write_text(CLI.format(python=sys.executable))
+            executable.write_text(CLI.format())
             executable.chmod(0o700)
         self.runner = ProcessRunner()
         self.addCleanup(self.runner.close)
-        path = patch.dict(os.environ, {"PATH": str(self.bin) + os.pathsep + os.environ["PATH"]})
+        path = patch.dict(os.environ, {"PATH": str(self.bin)})
         path.start()
         self.addCleanup(path.stop)
 
     def run_wrapper(self, name, prompt, session_id):
-        wrapper = str((Path(__file__).resolve().parent.parent / "wrappers" / f"{name}.py").resolve())
+        wrapper = str(Path(sys.executable).parent / f"agent-slack-{name}")
         command = Command((wrapper,), (wrapper, "{session_id}"))
         return Executor(self.runner).run(command, prompt, self.path, session_id)
 

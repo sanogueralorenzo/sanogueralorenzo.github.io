@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from commands import Command
+from .commands import Command
 
 
 @dataclass(frozen=True)

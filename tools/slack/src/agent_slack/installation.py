@@ -1,21 +1,23 @@
-"""Configure an installed checkout and register its per-user background service."""
+"""Configure the installed package and register its per-user background service."""
 
 import getpass
 import json
 import os
 import platform
 import plistlib
-import re
 import shlex
 import shutil
 import subprocess
 import sys
 import webbrowser
+from importlib.resources import files
 from pathlib import Path
 from urllib.parse import urlencode
 
+from .environment import read_env
 
-ROOT = Path(__file__).resolve().parent.parent
+
+ROOT = Path.home() / ".local/share/agent-slack"
 SERVICE = "dev.sanogueralorenzo.agent-slack"
 
 
@@ -37,14 +39,7 @@ def stop_service(system):
 
 
 def read_config():
-    path = ROOT / ".env"
-    values = {}
-    if path.exists():
-        for assignment in shlex.split(path.read_text(), comments=True):
-            key, separator, value = assignment.partition("=")
-            if not separator or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
-                raise ValueError("Use KEY=value assignments in .env")
-            values[key] = os.environ.get(key, value)
+    values = {key: os.environ.get(key, value) for key, value in read_env(ROOT / ".env").items()}
     for key in ("SLACK_APP_TOKEN", "SLACK_USER_TOKEN", "SLACK_USER_ID", "AGENT_SLACK_COMMANDS",
                 "AGENT_SLACK_WORKSPACE", "AGENT_SLACK_PROJECTS", "AGENT_SLACK_STATE_DIR"):
         if key not in values and key in os.environ:
@@ -52,8 +47,8 @@ def read_config():
     values.setdefault("AGENT_SLACK_WORKSPACE", str(Path.home()))
     if not values.get("AGENT_SLACK_COMMANDS"):
         commands = {
-            keyword: {"start": [str(ROOT / ".venv/bin/python"), str(ROOT / "wrappers" / f"{cli}.py")],
-                      "resume": [str(ROOT / ".venv/bin/python"), str(ROOT / "wrappers" / f"{cli}.py"), "{session_id}"]}
+            keyword: {"start": [str(ROOT / f".venv/bin/agent-slack-{cli}")],
+                      "resume": [str(ROOT / f".venv/bin/agent-slack-{cli}"), "{session_id}"]}
             for keyword, cli in (("chat", "codex"), ("claude", "claude")) if shutil.which(cli)
         }
         if not commands:
@@ -63,6 +58,7 @@ def read_config():
 
 
 def save_config(values):
+    ROOT.mkdir(parents=True, exist_ok=True)
     path = ROOT / ".env"
     temporary = ROOT / ".env.new"
     fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -130,7 +126,7 @@ def configure(manifest):
     values["SLACK_USER_ID"] = auth["user_id"]
     save_config(values)
     os.environ.update(values)
-    from app import Config
+    from .app import Config
 
     return Config.from_env()
 
@@ -143,6 +139,7 @@ def start_service(system, config):
     target = service_path(system)
     target.parent.mkdir(parents=True, exist_ok=True)
     path = os.environ.get("PATH", os.defpath)
+    command = [str(ROOT / ".venv/bin/agent-slack"), "--config", str(ROOT / ".env")]
     if system == "Darwin":
         config.state_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         config.state_dir.chmod(0o700)
@@ -150,7 +147,7 @@ def start_service(system, config):
         log.touch(mode=0o600, exist_ok=True)
         log.chmod(0o600)
         data = {
-            "Label": SERVICE, "ProgramArguments": [str(ROOT / "run.sh")], "WorkingDirectory": str(ROOT),
+            "Label": SERVICE, "ProgramArguments": command, "WorkingDirectory": str(ROOT),
             "EnvironmentVariables": {"PATH": path, "HOME": str(Path.home())},
             "RunAtLoad": True, "KeepAlive": {"SuccessfulExit": False}, "ThrottleInterval": 10,
             "StandardOutPath": str(log), "StandardErrorPath": str(log),
@@ -162,7 +159,7 @@ def start_service(system, config):
     else:
         target.write_text(
             "[Unit]\nDescription=Agent Slack\n\n[Service]\n"
-            f"ExecStart={unit_value(ROOT / 'run.sh')}\nWorkingDirectory={unit_value(ROOT)}\n"
+            f"ExecStart={' '.join(unit_value(arg) for arg in command)}\nWorkingDirectory={unit_value(ROOT)}\n"
             f"Environment={unit_value('PATH=' + path)}\nEnvironment={unit_value('HOME=' + str(Path.home()))}\n"
             "Restart=on-failure\nRestartSec=10\nKillMode=mixed\nTimeoutStopSec=10\n\n"
             "[Install]\nWantedBy=default.target\n"
@@ -176,12 +173,12 @@ def start_service(system, config):
     print(f"Configuration: {ROOT / '.env'}")
 
 
-def main():
+def run():
     system = platform.system()
     if sys.argv[1:] == ["--stop"]:
         stop_service(system)
         return
-    manifest = json.loads((ROOT / "manifest.json").read_text())
+    manifest = json.loads(files("agent_slack").joinpath("manifest.json").read_text())
     config = configure(manifest)
     if not config:
         print(f"Local setup is ready at {ROOT}. Rerun the installer after Slack approval to enter the tokens.")
@@ -191,12 +188,16 @@ def main():
     print(f"Agent Slack installed from main ({revision}). Enabled keywords: {'/'.join(config.commands)}.")
 
 
-if __name__ == "__main__":
+def main():
     try:
-        main()
+        run()
     except KeyboardInterrupt:
         print("\nSetup paused. Rerun the installer when ready.", file=sys.stderr)
-        sys.exit(1)
+        return 1
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"Agent Slack installation: {error}", file=sys.stderr)
-        sys.exit(1)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

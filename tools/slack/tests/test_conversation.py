@@ -3,9 +3,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, call, patch
 
-import conversation as reply
-from commands import Command
-from state import Session, State
+from agent_slack import conversation as reply
+from agent_slack.commands import Command
+from agent_slack.state import Session, State
 
 
 USER = "U123"
@@ -91,7 +91,7 @@ class ConversationTests(unittest.TestCase):
     def test_reaction_errors_do_not_block_or_duplicate_answers(self):
         self.client.reactions_add.side_effect = RuntimeError("unavailable")
         self.client.reactions_remove.side_effect = RuntimeError("unavailable")
-        with patch("reactions.logging.Logger.warning"):
+        with patch("agent_slack.reactions.logging.Logger.warning"):
             self.handle(event())
             self.handle(event())
         self.executor.run.assert_called_once()

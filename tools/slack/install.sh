@@ -31,20 +31,11 @@ git -C "$checkout_dir/repo" sparse-checkout set tools/slack
 revision=$(git -C "$checkout_dir/repo" rev-parse --short HEAD)
 source_dir="$checkout_dir/repo/tools/slack"
 
-"$python_bin" "$source_dir/src/installation.py" --stop
-# Replace managed code; keep the user's configuration and state.
-for directory in src wrappers docs tests; do
-  rm -rf "$install_dir/$directory"
-done
-cp -R "$source_dir/." "$install_dir/"
+if [ -x "$install_dir/.venv/bin/agent-slack-setup" ]; then
+  "$install_dir/.venv/bin/agent-slack-setup" --stop
+fi
 "$uv_bin" venv --python "$python_bin" --clear "$install_dir/.venv"
-"$uv_bin" pip install --python "$install_dir/.venv/bin/python" -r "$install_dir/requirements.txt"
+"$uv_bin" pip install --python "$install_dir/.venv/bin/python" "$source_dir"
 
 cd "$install_dir"
-if [ -f .env ]; then
-  chmod 600 .env
-  set -a
-  . ./.env
-  set +a
-fi
-"$install_dir/.venv/bin/python" src/installation.py "$revision"
+"$install_dir/.venv/bin/agent-slack-setup" "$revision"

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Normalize Claude's final answer and session ID. Optional argument: session ID."""
 
 import json
@@ -6,9 +5,9 @@ import subprocess
 import sys
 
 
-def main():
+def run():
     if len(sys.argv) > 2:
-        raise ValueError("Usage: claude.py [session_id]")
+        raise ValueError("Usage: agent-slack-claude [session_id]")
     command = ["claude", "-p", "--output-format", "json"]
     if len(sys.argv) == 2:
         command.extend(["--resume", sys.argv[1]])
@@ -23,9 +22,13 @@ def main():
     print(json.dumps({"session_id": response.get("session_id"), "answer": response.get("result")}))
 
 
-if __name__ == "__main__":
+def main():
     try:
-        main()
+        run()
     except (OSError, ValueError, RuntimeError) as error:
         print(error, file=sys.stderr)
-        sys.exit(1)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

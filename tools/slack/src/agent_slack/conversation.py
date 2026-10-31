@@ -2,11 +2,11 @@
 
 from pathlib import Path
 
-from commands import Executor
-from reactions import react
-from routing import Request, command_for
-from state import Session, State
-from thread_context import prompt_for, thread_messages, timestamp
+from .commands import Executor
+from .reactions import react
+from .routing import Request, command_for
+from .state import Session, State
+from .thread_context import prompt_for, thread_messages, timestamp
 
 
 def acknowledge(event, team, user_id, client, state, projects, commands):

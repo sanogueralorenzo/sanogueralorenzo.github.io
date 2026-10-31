@@ -10,7 +10,7 @@ from pathlib import Path
 from threading import Thread
 from unittest.mock import patch
 
-from process_runner import ProcessRunner
+from agent_slack.process_runner import ProcessRunner
 
 
 FAMILY = """
@@ -90,7 +90,7 @@ class ProcessRunnerTests(unittest.TestCase):
         for path in paths:
             for pid in json.loads(path.read_text()):
                 self.assert_stopped(pid)
-        with patch("process_runner.subprocess.Popen") as spawn:
+        with patch("agent_slack.process_runner.subprocess.Popen") as spawn:
             with self.assertRaisesRegex(RuntimeError, "shutting down"):
                 self.runner.run([sys.executable, "-c", "pass"], "", self.path, {})
             spawn.assert_not_called()

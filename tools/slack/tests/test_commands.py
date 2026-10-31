@@ -7,8 +7,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from commands import Command, Executor, load_commands
-from process_runner import ProcessRunner
+from agent_slack.commands import Command, Executor, load_commands
+from agent_slack.process_runner import ProcessRunner
 
 
 class CommandConfigurationTests(unittest.TestCase):

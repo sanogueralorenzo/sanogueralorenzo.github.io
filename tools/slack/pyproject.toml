@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-slack"
+version = "0.1.0"
+description = "A self-hosted bridge from Slack to your coding tools"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["slack-sdk>=3.35,<4"]
+
+[project.scripts]
+agent-slack = "agent_slack.cli:main"
+agent-slack-setup = "agent_slack.installation:main"
+agent-slack-codex = "agent_slack.wrappers.codex:main"
+agent-slack-claude = "agent_slack.wrappers.claude:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_slack"]

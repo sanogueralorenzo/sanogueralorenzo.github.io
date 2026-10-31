@@ -20,4 +20,16 @@ Only your messages trigger work; answers appear in the same thread. Start each r
 
 State stays in `~/.local/state/agent-slack`. Rerun the installer after editing `.env`; it must have permissions `600`. Service controls and logs are in [Slack setup](docs/slack.md).
 
-Local development: create `.venv`, install `requirements.txt`, configure `.env` from [.env.example](.env.example), then `./run.sh`. Custom commands: [wrappers](wrappers/README.md) · Fast checks: `./tests/run.sh`.
+Local development (Python 3.10+):
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e .
+cp .env.example .env
+chmod 600 .env
+# Edit .env with your tokens and workspaces.
+agent-slack
+```
+
+Source lives in `src/agent_slack`; tests live in `tests`. Run checks with `python -m unittest discover -s tests`. `python -m agent_slack` also starts the bridge; use `--config /path/to/.env` from another directory. Environment variables override file values. Custom commands: [command wrappers](docs/commands.md).

@@ -1,6 +1,6 @@
 # Slack setup
 
-The installer opens a [prefilled Slack app creation link](https://docs.slack.dev/app-manifests/configuring-apps-with-app-manifests/#sharing-manifests) using [manifest.json](../manifest.json). Choose your workspace and create the app. If your workspace requires approval, request it under **OAuth & Permissions**.
+The installer opens a [prefilled Slack app creation link](https://docs.slack.dev/app-manifests/configuring-apps-with-app-manifests/#sharing-manifests) using the packaged [manifest.json](../src/agent_slack/manifest.json). Choose your workspace and create the app. If your workspace requires approval, request it under **OAuth & Permissions**.
 
 After approval:
 
@@ -26,4 +26,4 @@ On Linux, a systemd user session is required. Logs are available with `journalct
 systemctl --user stop dev.sanogueralorenzo.agent-slack.service
 ```
 
-The Linux installer also enables user lingering to keep the service running after logout. If your server requires administrator approval for that, it prints the command to request. Stop any manually launched `./run.sh` instance before installing the background service.
+The Linux installer also enables user lingering to keep the service running after logout. If your server requires administrator approval for that, it prints the command to request. Stop any manually launched `agent-slack` instance before installing the background service.
