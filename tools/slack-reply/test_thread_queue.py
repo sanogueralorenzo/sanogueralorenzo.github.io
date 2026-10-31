@@ -136,7 +136,8 @@ class ThreadQueueTests(unittest.TestCase):
                 self.token = token
 
             def auth_test(self):
-                return {"team_id": "T123", "user_id": "U123" if self.token.startswith("xoxp-") else "UBOT"}
+                self.assert_user_token()
+                return {"team_id": "T123", "user_id": "U123"}
 
             def conversations_replies(self, **kwargs):
                 return {"messages": [event for event in messages if event["ts"] <= kwargs["latest"]]}
@@ -178,6 +179,8 @@ class ThreadQueueTests(unittest.TestCase):
 
         class Socket:
             def __init__(self, **kwargs):
+                if kwargs["app_token"] != "xapp-test" or kwargs["web_client"].token != "xoxp-test":
+                    raise RuntimeError("Socket Mode must use the app token and authorized user client")
                 self.socket_mode_request_listeners = []
                 self.closed = False
                 sockets.append(self)
@@ -187,9 +190,14 @@ class ThreadQueueTests(unittest.TestCase):
 
             def connect(self):
                 for index, event in enumerate(messages):
-                    request = SimpleNamespace(type="events_api", envelope_id=str(index), payload={"event": event})
+                    request = SimpleNamespace(type="events_api", envelope_id=str(index),
+                                              payload={"team_id": "T123", "event": event})
                     for listener in self.socket_mode_request_listeners:
                         listener(self, request)
+                foreign = SimpleNamespace(type="events_api", envelope_id="foreign",
+                                          payload={"team_id": "TOTHER", "event": message("1700000005.000001")})
+                for listener in self.socket_mode_request_listeners:
+                    listener(self, foreign)
 
             def close(self):
                 self.closed = True
@@ -204,11 +212,11 @@ class ThreadQueueTests(unittest.TestCase):
                    "slack_sdk.socket_mode.response": response}
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)
-            env = {"SLACK_APP_TOKEN": "xapp-test", "SLACK_BOT_TOKEN": "xoxb-test",
+            env = {"SLACK_APP_TOKEN": "xapp-test",
                    "SLACK_USER_TOKEN": "xoxp-test", "SLACK_USER_ID": "U123",
                    "SLACK_REPLY_COMMANDS": json.dumps({"work": "codex"}), "SLACK_REPLY_PROJECTS": "{}", "SLACK_REPLY_WORKSPACE": directory,
                    "SLACK_REPLY_STATE_DIR": str(path / "state")}
-            with (patch.dict(os.environ, env), patch.dict(sys.modules, modules),
+            with (patch.dict(os.environ, env, clear=True), patch.dict(sys.modules, modules),
                   patch.object(reply, "require_available"),
                   patch.object(reply, "processes", Mock(closed=False)) as processes,
                   patch.object(reply, "provider_for", return_value=Mock(run=run)),

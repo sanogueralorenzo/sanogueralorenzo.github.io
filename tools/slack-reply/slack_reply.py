@@ -198,24 +198,19 @@ def main(argv=None):
     from slack_sdk.socket_mode.response import SocketModeResponse
 
     app_token = required("SLACK_APP_TOKEN")
-    bot_token = required("SLACK_BOT_TOKEN")
     user_token = required("SLACK_USER_TOKEN")
     user_id = required("SLACK_USER_ID")
     workspace = Path(required("SLACK_REPLY_WORKSPACE")).expanduser().resolve()
     if not workspace.is_dir():
         raise ValueError(f"SLACK_REPLY_WORKSPACE is not a directory: {workspace}")
     projects = project_workspaces()
-    if not app_token.startswith("xapp-") or not bot_token.startswith("xoxb-") or not user_token.startswith("xoxp-"):
-        raise ValueError("Use an xapp app token, xoxb bot token, and xoxp authorized-user token")
+    if not app_token.startswith("xapp-") or not user_token.startswith("xoxp-"):
+        raise ValueError("Use an xapp app token and xoxp authorized-user token")
     State(state_dir).db.close()
-    bot_client = WebClient(token=bot_token)
     user_client = WebClient(token=user_token)
-    bot_auth = bot_client.auth_test()
     user_auth = user_client.auth_test()
     if user_auth.get("bot_id") or user_auth.get("user_id") != user_id:
         raise ValueError("SLACK_USER_TOKEN must belong to SLACK_USER_ID as a human user")
-    if bot_auth.get("team_id") != user_auth.get("team_id"):
-        raise ValueError("Bot and user tokens must belong to the same Slack workspace")
     team = user_auth["team_id"]
     events = queue.Queue()
 
@@ -233,11 +228,11 @@ def main(argv=None):
             state.db.close()
 
     workers = ThreadQueue(process_event)
-    socket = SocketModeClient(app_token=app_token, web_client=bot_client)
+    socket = SocketModeClient(app_token=app_token, web_client=user_client)
 
     def receive(client, request):
         client.send_socket_mode_response(SocketModeResponse(envelope_id=request.envelope_id))
-        if request.type == "events_api":
+        if request.type == "events_api" and request.payload.get("team_id") == team:
             events.put(request.payload.get("event", {}))
 
     socket.socket_mode_request_listeners.append(receive)
