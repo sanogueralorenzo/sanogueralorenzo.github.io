@@ -1,0 +1,211 @@
+import io
+import os
+import sys
+import tempfile
+import unittest
+from collections import deque
+from contextlib import redirect_stdout
+from pathlib import Path
+from threading import Event, Lock
+from types import ModuleType, SimpleNamespace
+from unittest.mock import Mock, patch
+
+import slack_reply as reply
+from thread_queue import ThreadQueue
+
+
+def message(ts, text="ask <@U123> first", **extra):
+    return {"type": "message", "user": "U123", "channel": "C123", "ts": ts,
+            "text": text, **extra}
+
+
+class ThreadQueueTests(unittest.TestCase):
+    def test_busy_thread_preserves_order_without_occupying_another_worker(self):
+        started, release, next_started, other_done = Event(), Event(), Event(), Event()
+        calls = []
+
+        def process(event):
+            calls.append(event["ts"])
+            if event["ts"] == "1":
+                started.set()
+                if not release.wait(5):
+                    raise RuntimeError("Test did not release the first request")
+            elif event["ts"] == "2":
+                next_started.set()
+            else:
+                other_done.set()
+
+        workers = ThreadQueue(process, max_workers=2)
+        try:
+            workers.submit(message("1"))
+            self.assertTrue(started.wait(5))
+            workers.submit(message("2", thread_ts="1"))
+            # The same root timestamp in another channel is a different thread.
+            workers.submit(message("3", channel="C456", thread_ts="1"))
+            self.assertTrue(other_done.wait(5))
+            self.assertFalse(next_started.is_set())
+        finally:
+            release.set()
+            workers.close()
+        self.assertEqual(calls, ["1", "3", "2"])
+
+    def test_worker_limit_and_shutdown_drain_all_queued_threads(self):
+        release, full = Event(), Event()
+        lock = Lock()
+        active = maximum = completed = 0
+
+        def process(event):
+            nonlocal active, maximum, completed
+            with lock:
+                active += 1
+                maximum = max(maximum, active)
+                if active == 2:
+                    full.set()
+            if not release.wait(5):
+                raise RuntimeError("Test did not release the workers")
+            with lock:
+                active -= 1
+                completed += 1
+
+        workers = ThreadQueue(process, max_workers=2)
+        try:
+            for ts in range(5):
+                workers.submit(message(str(ts)))
+            self.assertTrue(full.wait(5))
+            with lock:
+                self.assertEqual(active, 2)
+        finally:
+            release.set()
+            workers.close()
+        self.assertEqual(maximum, 2)
+        self.assertEqual(completed, 5)
+        with self.assertRaisesRegex(RuntimeError, "closed"):
+            workers.submit(message("6"))
+
+    def test_failed_message_does_not_block_followups(self):
+        calls = []
+        release = Event()
+
+        def process(event):
+            calls.append(event["ts"])
+            if event["ts"] == "1":
+                if not release.wait(5):
+                    raise RuntimeError("Test did not enqueue the followup")
+                raise RuntimeError("CLI failed")
+
+        workers = ThreadQueue(process, max_workers=1)
+        with patch("thread_queue.logging.Logger.exception") as log:
+            try:
+                workers.submit(message("1"))
+                workers.submit(message("2", thread_ts="1"))
+            finally:
+                release.set()
+                workers.close()
+        self.assertEqual(calls, ["1", "2"])
+        log.assert_called_once()
+
+    def test_bridge_runs_parallel_sessions_with_worker_owned_sqlite_connections(self):
+        independent_started = Event()
+        calls, posts, sockets = [], [], []
+        post_lock = Lock()
+        messages = [
+            message("1700000001.000001"),
+            message("1700000001.000001"),  # Duplicate delivery must not execute twice.
+            message("1700000002.000001", "ask <@U123> followup", thread_ts="1700000001.000001"),
+            message("1700000003.000001", "ask <@U123> independent"),
+        ]
+
+        def run(prompt, session_id):
+            name = prompt.split()[-1]
+            calls.append((name, session_id))
+            if name == "first":
+                if not independent_started.wait(5):
+                    raise RuntimeError("Another Slack thread was blocked")
+            elif name == "independent":
+                independent_started.set()
+            return session_id or f"session-{name}", f"answer {name}"
+
+        class Client:
+            def __init__(self, token):
+                self.token = token
+
+            def auth_test(self):
+                return {"team_id": "T123", "user_id": "U123" if self.token.startswith("xoxp-") else "UBOT"}
+
+            def conversations_replies(self, **kwargs):
+                return {"messages": [event for event in messages if event["ts"] <= kwargs["latest"]]}
+
+            def chat_postMessage(self, **kwargs):
+                with post_lock:
+                    posts.append(kwargs)
+                    return {"ts": f"1700000004.{len(posts):06d}"}
+
+        class Inbox:
+            def __init__(self):
+                self.events = deque()
+
+            def put(self, event):
+                self.events.append(event)
+
+            def get(self):
+                if self.events:
+                    return self.events.popleft()
+                raise KeyboardInterrupt
+
+        class Socket:
+            def __init__(self, **kwargs):
+                self.socket_mode_request_listeners = []
+                self.closed = False
+                sockets.append(self)
+
+            def send_socket_mode_response(self, response):
+                pass
+
+            def connect(self):
+                for index, event in enumerate(messages):
+                    request = SimpleNamespace(type="events_api", envelope_id=str(index), payload={"event": event})
+                    for listener in self.socket_mode_request_listeners:
+                        listener(self, request)
+
+            def close(self):
+                self.closed = True
+
+        sdk = ModuleType("slack_sdk")
+        sdk.WebClient = Client
+        socket_mode = ModuleType("slack_sdk.socket_mode")
+        socket_mode.SocketModeClient = Socket
+        response = ModuleType("slack_sdk.socket_mode.response")
+        response.SocketModeResponse = SimpleNamespace
+        modules = {"slack_sdk": sdk, "slack_sdk.socket_mode": socket_mode,
+                   "slack_sdk.socket_mode.response": response}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            env = {"SLACK_APP_TOKEN": "xapp-test", "SLACK_BOT_TOKEN": "xoxb-test",
+                   "SLACK_USER_TOKEN": "xoxp-test", "SLACK_USER_ID": "U123",
+                   "SLACK_REPLY_PROVIDER": "codex", "SLACK_REPLY_TRIGGER": "ask",
+                   "SLACK_REPLY_PROJECTS": "{}", "SLACK_REPLY_WORKSPACE": directory,
+                   "SLACK_REPLY_STATE_DIR": str(path / "state")}
+            with (patch.dict(os.environ, env), patch.dict(sys.modules, modules),
+                  patch.object(reply, "require_available"),
+                  patch.object(reply, "provider_for", return_value=Mock(run=run)),
+                  patch.object(reply.queue, "Queue", Inbox),
+                  patch("thread_queue.logging.Logger.exception") as errors,
+                  redirect_stdout(io.StringIO())):
+                with self.assertRaises(KeyboardInterrupt):
+                    reply.main([])
+                errors.assert_not_called()
+            state = reply.State(path / "state")
+            try:
+                self.assertEqual(state.session("T123", "C123", messages[0]["ts"])[:2],
+                                 ("codex", "session-first"))
+                self.assertEqual(state.session("T123", "C123", messages[-1]["ts"])[:2],
+                                 ("codex", "session-independent"))
+            finally:
+                state.db.close()
+        self.assertCountEqual(calls, [("first", None), ("independent", None), ("followup", "session-first")])
+        self.assertEqual(len(posts), 3)
+        self.assertTrue(sockets[0].closed)
+
+
+if __name__ == "__main__":
+    unittest.main()

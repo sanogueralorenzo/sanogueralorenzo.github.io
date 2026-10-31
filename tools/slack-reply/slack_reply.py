@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from providers import provider_for, require_available
+from thread_queue import ThreadQueue
 
 
 def required(name):
@@ -183,7 +184,7 @@ def main(argv=None):
         raise ValueError(f"SLACK_REPLY_WORKSPACE is not a directory: {workspace}")
     if not app_token.startswith("xapp-") or not bot_token.startswith("xoxb-") or not user_token.startswith("xoxp-"):
         raise ValueError("Use an xapp app token, xoxb bot token, and xoxp authorized-user token")
-    state = State(state_dir)
+    State(state_dir).db.close()
     provider_for(provider_name, workspace, state_dir)
     bot_client = WebClient(token=bot_token)
     user_client = WebClient(token=user_token)
@@ -195,6 +196,16 @@ def main(argv=None):
         raise ValueError("Bot and user tokens must belong to the same Slack workspace")
     team = user_auth["team_id"]
     events = queue.Queue()
+
+    def process_event(event):
+        state = State(state_dir)
+        try:
+            client = WebClient(token=user_token)
+            handle(event, team, user_id, client, state, workspace, state_dir)
+        finally:
+            state.db.close()
+
+    workers = ThreadQueue(process_event)
     socket = SocketModeClient(app_token=app_token, web_client=bot_client)
 
     def receive(client, request):
@@ -203,18 +214,16 @@ def main(argv=None):
             events.put(request.payload.get("event", {}))
 
     socket.socket_mode_request_listeners.append(receive)
-    socket.connect()
-    print(f"Slack Reply listening for self-mentions from {user_id}", flush=True)
     try:
+        socket.connect()
+        print(f"Slack Reply listening for self-mentions from {user_id}", flush=True)
         while True:
             event = events.get()
-            try:
-                handle(event, team, user_id, user_client, state, workspace, state_dir)
-            except Exception as error:
-                print(f"Slack Reply could not process {event.get('channel', '?')}/{event.get('ts', '?')}: {error}", file=sys.stderr, flush=True)
+            if eligible(event, user_id):
+                workers.submit(event)
     finally:
         socket.close()
-        state.db.close()
+        workers.close()
 
 
 if __name__ == "__main__":
