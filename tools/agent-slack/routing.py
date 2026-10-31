@@ -1,4 +1,4 @@
-"""Choose a CLI from the prefix and a workspace from project aliases."""
+"""Choose a configured command and workspace from an authorized Slack message."""
 
 import json
 import os
@@ -6,24 +6,14 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from commands import Command
+
 
 @dataclass(frozen=True)
-class Command:
-    provider: str
+class Request:
+    command: Command
     workspace: Path | None
     request: str
-
-
-def command_providers():
-    commands = json.loads(os.environ.get("AGENT_SLACK_COMMANDS", "{}"))
-    if not isinstance(commands, dict) or not commands:
-        raise ValueError("AGENT_SLACK_COMMANDS must map at least one keyword to a CLI name")
-    for keyword, provider in commands.items():
-        if not keyword or not keyword.isprintable() or any(character.isspace() for character in keyword):
-            raise ValueError("Command keywords must be nonempty words without whitespace")
-        if provider not in ("codex", "claude"):
-            raise ValueError(f"Keyword {keyword} requires provider codex or claude")
-    return commands
 
 
 def project_workspaces():
@@ -44,8 +34,8 @@ def command(text, projects, commands):
     if not text or text[0].isspace():
         return None
     parts = text.split(maxsplit=1)
-    provider = commands.get(parts[0])
-    if provider is None:
+    selected = commands.get(parts[0])
+    if selected is None:
         return None
     request = parts[1].strip() if len(parts) == 2 else ""
     if not request:
@@ -57,7 +47,7 @@ def command(text, projects, commands):
         if match and match.start() < first:
             first = match.start()
             workspace = directory
-    return Command(provider, workspace, request)
+    return Request(selected, workspace, request)
 
 
 def command_for(event, user_id, projects, commands):

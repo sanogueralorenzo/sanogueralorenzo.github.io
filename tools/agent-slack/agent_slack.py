@@ -1,4 +1,4 @@
-"""Local Socket Mode bridge from an authorized command to a CLI provider session."""
+"""Run authorized Slack requests through configured local commands."""
 
 import os
 import queue
@@ -7,10 +7,11 @@ import sys
 from contextlib import ExitStack
 from pathlib import Path
 
+from commands import load_commands
 from conversation import State, acknowledge, handle
-from providers import processes, require_available
+from process_runner import processes
 from reactions import react
-from routing import command_providers, project_workspaces
+from routing import project_workspaces
 from thread_queue import ThreadQueue
 
 
@@ -26,9 +27,7 @@ def main(argv=None):
     if args:
         raise ValueError("Usage: ./run.sh (configure keyword commands in .env)")
     state_dir = Path(os.environ.get("AGENT_SLACK_STATE_DIR", "~/.local/state/agent-slack")).expanduser()
-    commands = command_providers()
-    for provider_name in dict.fromkeys(commands.values()):
-        require_available(provider_name)
+    commands = load_commands()
     from slack_sdk import WebClient
     from slack_sdk.socket_mode import SocketModeClient
     from slack_sdk.socket_mode.response import SocketModeResponse
@@ -56,7 +55,7 @@ def main(argv=None):
         state = State(state_dir)
         try:
             client = WebClient(token=user_token)
-            handle(event, parsed, team, client, state, workspace, state_dir)
+            handle(event, parsed, team, client, state, workspace)
         except Exception:
             if not processes.closed:
                 raise

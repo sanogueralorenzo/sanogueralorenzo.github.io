@@ -3,7 +3,7 @@
 import sqlite3
 from pathlib import Path
 
-from providers import provider_for
+from commands import Executor
 from reactions import react
 from routing import command_for
 
@@ -24,7 +24,7 @@ class State:
             """
             CREATE TABLE IF NOT EXISTS sessions (
                 team TEXT NOT NULL, channel TEXT NOT NULL, thread_ts TEXT NOT NULL,
-                provider TEXT NOT NULL,
+                command_key TEXT NOT NULL,
                 session_id TEXT NOT NULL,
                 workspace TEXT NOT NULL,
                 context_ts TEXT NOT NULL,
@@ -32,7 +32,7 @@ class State:
             );
             CREATE TABLE IF NOT EXISTS posted (
                 team TEXT NOT NULL, channel TEXT NOT NULL, ts TEXT NOT NULL,
-                provider TEXT NOT NULL, session_id TEXT NOT NULL,
+                command_key TEXT NOT NULL, session_id TEXT NOT NULL,
                 PRIMARY KEY (team, channel, ts)
             );
             CREATE TABLE IF NOT EXISTS handled (
@@ -50,30 +50,30 @@ class State:
 
     def session(self, team, channel, thread_ts):
         row = self.db.execute(
-            "SELECT provider, session_id, workspace, context_ts FROM sessions WHERE team=? AND channel=? AND thread_ts=?",
+            "SELECT command_key, session_id, workspace, context_ts FROM sessions WHERE team=? AND channel=? AND thread_ts=?",
             (team, channel, thread_ts),
         ).fetchone()
         return row
 
-    def save_session(self, team, channel, thread_ts, provider, session_id, workspace, context_ts):
+    def save_session(self, team, channel, thread_ts, command_key, session_id, workspace, context_ts):
         self.db.execute(
-            "INSERT OR REPLACE INTO sessions (team, channel, thread_ts, provider, session_id, workspace, context_ts) "
+            "INSERT OR REPLACE INTO sessions (team, channel, thread_ts, command_key, session_id, workspace, context_ts) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (team, channel, thread_ts, provider, session_id, str(workspace), context_ts),
+            (team, channel, thread_ts, command_key, session_id, str(workspace), context_ts),
         )
         self.db.commit()
 
-    def record_reply(self, team, channel, ts, provider, session_id):
+    def record_reply(self, team, channel, ts, command_key, session_id):
         self.db.execute(
-            "INSERT INTO posted (team, channel, ts, provider, session_id) VALUES (?, ?, ?, ?, ?)",
-            (team, channel, ts, provider, session_id),
+            "INSERT INTO posted (team, channel, ts, command_key, session_id) VALUES (?, ?, ?, ?, ?)",
+            (team, channel, ts, command_key, session_id),
         )
         self.db.commit()
 
-    def knows_reply(self, team, channel, ts, provider, session_id):
+    def knows_reply(self, team, channel, ts, command_key, session_id):
         return self.db.execute(
-            "SELECT 1 FROM posted WHERE team=? AND channel=? AND ts=? AND provider=? AND session_id=?",
-            (team, channel, ts, provider, session_id),
+            "SELECT 1 FROM posted WHERE team=? AND channel=? AND ts=? AND command_key=? AND session_id=?",
+            (team, channel, ts, command_key, session_id),
         ).fetchone() is not None
 
     def mark_handled(self, team, channel, ts):
@@ -153,7 +153,7 @@ def acknowledge(event, team, user_id, client, state, projects, commands):
     return parsed
 
 
-def handle(event, parsed, team, client, state, workspace, state_dir):
+def handle(event, parsed, team, client, state, workspace):
     channel, ts = event["channel"], event["ts"]
     if state.seen("posted", team, channel, ts) or state.seen("handled", team, channel, ts):
         return
@@ -161,27 +161,27 @@ def handle(event, parsed, team, client, state, workspace, state_dir):
         thread_ts = event.get("thread_ts") or ts
         is_reply = thread_ts != ts
         saved = state.session(team, channel, thread_ts) if is_reply else None
-        provider_name = parsed.provider
+        command_key = parsed.command.key
         saved_workspace = Path(saved[2]) if saved else None
         workspace = parsed.workspace or saved_workspace or workspace
         if not workspace.is_dir():
             raise ValueError(f"Agent Slack workspace is not a directory: {workspace}")
-        session_id = saved[1] if saved and saved[0] == provider_name and saved_workspace == workspace else None
+        session_id = saved[1] if saved and saved[0] == command_key and saved_workspace == workspace else None
         after = saved[3] if session_id else None
         messages = thread_messages(client, event, after) if is_reply else None
         if session_id:
             messages = [message for message in messages
-                        if not state.knows_reply(team, channel, message["ts"], provider_name, session_id)]
+                        if not state.knows_reply(team, channel, message["ts"], command_key, session_id)]
         prompt = prompt_for(event, messages, state, team, parsed.request)
-        provider = provider_for(provider_name, workspace, state_dir)
-        new_session_id, answer = provider.run(prompt, session_id)
+        executor = Executor(parsed.command, workspace)
+        new_session_id, answer = executor.run(prompt, session_id)
         context_ts = max(after, ts, key=timestamp) if after else ts
-        state.save_session(team, channel, thread_ts, provider_name, new_session_id, workspace, context_ts)
+        state.save_session(team, channel, thread_ts, command_key, new_session_id, workspace, context_ts)
         response = client.chat_postMessage(
             channel=channel, thread_ts=thread_ts, markdown_text=answer,
             unfurl_links=False, unfurl_media=False,
         )
-        state.record_reply(team, channel, response["ts"], provider_name, new_session_id)
+        state.record_reply(team, channel, response["ts"], command_key, new_session_id)
         state.mark_handled(team, channel, ts)
         react(client, channel, response["ts"], "robot_face")
         react(client, channel, ts, "white_check_mark")

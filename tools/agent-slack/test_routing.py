@@ -5,14 +5,15 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from routing import command, command_providers, project_workspaces
+from commands import Command
+from routing import command, project_workspaces
 
 
 class RoutingTests(unittest.TestCase):
     def setUp(self):
-        self.commands = {"chat": "codex",
-                         "claude": "claude",
-                         "assist": "codex"}
+        self.commands = {keyword: Command((name,), (name, "{session_id}"))
+                         for keyword, name in (("chat", "custom-one"), ("claude", "custom-two"),
+                                               ("assist", "custom-one"))}
         self.projects = {"tonal": Path("/repos/tonal"), "mobile": Path("/repos/mobile"),
                          "api": Path("/repos/api-go")}
 
@@ -53,54 +54,6 @@ class RoutingTests(unittest.TestCase):
                 parsed = command("chat " + request, self.projects, self.commands)
                 self.assertEqual(parsed.workspace, self.projects[alias])
                 self.assertEqual(parsed.request, request)
-
-
-class CommandConfigurationTests(unittest.TestCase):
-    def test_arbitrary_keywords_select_their_cli(self):
-        config = {
-            "work": "codex",
-            "Review": "claude",
-            "!ask": "codex",
-        }
-        with patch.dict(os.environ, {"AGENT_SLACK_COMMANDS": json.dumps(config)}, clear=True):
-            commands = command_providers()
-        self.assertEqual(commands["work"], "codex")
-        self.assertEqual(commands["Review"], "claude")
-        self.assertEqual(commands["!ask"], "codex")
-        self.assertEqual(command("Review inspect this", {}, commands).provider, commands["Review"])
-        self.assertIsNone(command("review inspect this", {}, commands))
-        self.assertIsNone(command("chat inspect this", {}, commands))
-        self.assertIsNone(command("claude inspect this", {}, commands))
-        self.assertIsNone(command("bot inspect this", {}, commands))
-
-    def test_commands_are_required_and_must_be_a_nonempty_object(self):
-        with patch.dict(os.environ, {}, clear=True):
-            with self.assertRaisesRegex(ValueError, "AGENT_SLACK_COMMANDS"):
-                command_providers()
-        for raw in ["", "bad json", "null", "[]", "{}"]:
-            with self.subTest(raw=raw), patch.dict(os.environ, {"AGENT_SLACK_COMMANDS": raw}):
-                with self.assertRaises(ValueError):
-                    command_providers()
-
-    def test_keyword_names_do_not_imply_a_provider(self):
-        config = {"claude": "codex", "chat": "codex"}
-        with patch.dict(os.environ, {"AGENT_SLACK_COMMANDS": json.dumps(config)}):
-            commands = command_providers()
-        self.assertEqual(command("claude help", {}, commands).provider, "codex")
-        self.assertEqual(command("chat help", {}, commands).provider, "codex")
-
-    def test_invalid_keywords_or_providers_are_rejected(self):
-        invalid = [
-            {"": "codex"}, {"two words": "codex"},
-            {" chat": "codex"}, {"chat\u0000": "codex"},
-            {"work": None}, {"work": 1}, {"work": {}}, {"work": []},
-            {"work": "unknown"}, {"work": ""}, {"work": "codex --model other"},
-            {"work": {"provider": "codex"}},
-        ]
-        for config in invalid:
-            with self.subTest(config=config), patch.dict(os.environ, {"AGENT_SLACK_COMMANDS": json.dumps(config)}):
-                with self.assertRaises(ValueError):
-                    command_providers()
 
 
 class ConfigurationTests(unittest.TestCase):

@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import conversation as reply
+from commands import Command
 from routing import command, command_for
 
 
@@ -56,10 +57,10 @@ class AgentSlackTests(unittest.TestCase):
         self.client = FakeClient()
         self.runner = Mock()
         self.commands = {
-            "chat": "codex",
-            "claude": "claude",
-            "assist": "codex",
+            "chat": Command(("custom-one",), ("custom-one", "{session_id}")),
+            "claude": Command(("custom-two",), ("custom-two", "{session_id}")),
         }
+        self.commands["assist"] = self.commands["chat"]
         self.projects = {"project": self.path / "project", "service": self.path / "service"}
         for directory in self.projects.values():
             directory.mkdir()
@@ -67,7 +68,7 @@ class AgentSlackTests(unittest.TestCase):
     def handle(self, message):
         parsed = reply.acknowledge(message, "T123", USER, self.client, self.state, self.projects, self.commands)
         if parsed is not None:
-            reply.handle(message, parsed, "T123", self.client, self.state, self.path, self.path)
+            reply.handle(message, parsed, "T123", self.client, self.state, self.path)
 
     def test_reactions_mark_each_keyword_before_work_and_after_reply(self):
         for index, keyword in enumerate(self.commands):
@@ -84,7 +85,7 @@ class AgentSlackTests(unittest.TestCase):
                     self.client.actions.append(("run",))
                     return f"session-{keyword}", "answer"
 
-                with patch.object(reply, "provider_for", return_value=Mock(run=run)):
+                with patch.object(reply, "Executor", return_value=Mock(run=run)):
                     self.handle(request)
                     self.handle(request)  # Completed deliveries must not restore :eyes:.
                 self.assertEqual(self.client.actions, [
@@ -104,7 +105,7 @@ class AgentSlackTests(unittest.TestCase):
                 self.client.reactions.clear()
                 runner = Mock(run=Mock(side_effect=RuntimeError("CLI failed"))) if stage == "run" else self.runner
                 self.runner.run.return_value = ("session", "answer")
-                with (patch.object(reply, "provider_for", return_value=runner),
+                with (patch.object(reply, "Executor", return_value=runner),
                       patch.object(self.client, "chat_postMessage", side_effect=RuntimeError("post failed")),
                       patch.object(self.client, "conversations_replies", return_value={"messages": []},
                                    side_effect=RuntimeError("history failed") if stage == "history" else None)):
@@ -119,7 +120,7 @@ class AgentSlackTests(unittest.TestCase):
 
     def test_reaction_errors_do_not_block_or_repeat_the_reply(self):
         self.runner.run.return_value = ("session", "answer")
-        with (patch.object(reply, "provider_for", return_value=self.runner),
+        with (patch.object(reply, "Executor", return_value=self.runner),
               patch.object(self.client, "reactions_add", side_effect=RuntimeError("reaction unavailable")),
               patch.object(self.client, "reactions_remove", side_effect=RuntimeError("reaction unavailable")),
               patch("reactions.logging.Logger.warning") as warning):
@@ -134,7 +135,7 @@ class AgentSlackTests(unittest.TestCase):
             self.state.mark_handled("T123", "C123", FIRST)
 
         with (patch.object(self.client, "reactions_add", side_effect=add),
-              patch.object(reply, "provider_for") as factory):
+              patch.object(reply, "Executor") as factory):
             self.handle(event())
         factory.assert_not_called()
         self.assertEqual(self.client.reactions, [("remove", {
@@ -150,7 +151,7 @@ class AgentSlackTests(unittest.TestCase):
               patch.object(self.client, "reactions_remove", side_effect=APIError("no_reaction")),
               patch("reactions.logging.Logger.warning") as warning):
             self.runner.run.return_value = ("session", "answer")
-            with patch.object(reply, "provider_for", return_value=self.runner):
+            with patch.object(reply, "Executor", return_value=self.runner):
                 self.handle(event())
         warning.assert_not_called()
         self.assertTrue(self.state.seen("handled", "T123", "C123", FIRST))
@@ -171,8 +172,8 @@ class AgentSlackTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertFalse(command_for(event(text=text), USER, self.projects, self.commands))
 
-    def test_unauthorized_users_and_mentions_never_run_provider(self):
-        with patch.object(reply, "provider_for") as factory:
+    def test_unauthorized_users_and_mentions_never_run_command(self):
+        with patch.object(reply, "Executor") as factory:
             for keyword in self.commands:
                 self.handle(event(text=f"{keyword} project do this", user="UOTHER"))
             self.handle(event(text="bot project do this"))
@@ -184,7 +185,7 @@ class AgentSlackTests(unittest.TestCase):
         self.assertEqual(self.client.reactions, [])
 
     def test_empty_commands_are_ignored(self):
-        with patch.object(reply, "provider_for") as factory:
+        with patch.object(reply, "Executor") as factory:
             for text in ["chat", "chat ", "assist   ", "claude\n"]:
                 with self.subTest(text=text):
                     self.assertIsNone(command(text, self.projects, self.commands))
@@ -192,34 +193,34 @@ class AgentSlackTests(unittest.TestCase):
         factory.assert_not_called()
         self.assertEqual(self.client.reactions, [])
 
-    def test_prefix_selects_provider_before_matching_workspace(self):
+    def test_prefix_selects_command_before_matching_workspace(self):
         for index, keyword in enumerate(self.commands):
             with self.subTest(keyword=keyword):
                 self.runner.run.return_value = (f"session-{index}", "answer")
-                with patch.object(reply, "provider_for", return_value=self.runner) as factory:
+                with patch.object(reply, "Executor", return_value=self.runner) as factory:
                     self.handle(event(ts=f"1700000001.{index:06d}", text=f"{keyword} explain the PROJECT build"))
-                factory.assert_called_once_with(self.commands[keyword], self.projects["project"], self.path)
+                factory.assert_called_once_with(self.commands[keyword], self.projects["project"])
                 self.assertTrue(self.runner.run.call_args.args[0].endswith("explain the PROJECT build"))
 
     def test_first_mentioned_workspace_runs_once_with_the_full_request(self):
         request = event(text="chat compare service and project")
         self.runner.run.return_value = ("service-session", "answer")
-        with patch.object(reply, "provider_for", return_value=self.runner) as factory:
+        with patch.object(reply, "Executor", return_value=self.runner) as factory:
             self.handle(request)
             self.handle(request)
-        factory.assert_called_once_with(self.commands["chat"], self.projects["service"], self.path)
+        factory.assert_called_once_with(self.commands["chat"], self.projects["service"])
         self.runner.run.assert_called_once()
         self.assertTrue(self.runner.run.call_args.args[0].endswith("compare service and project"))
         self.assertEqual(len(self.client.posts), 1)
         self.assertEqual(self.client.posts[0]["markdown_text"], "answer")
 
-    def test_keywords_for_one_provider_resume_the_same_session(self):
-        self.commands["quick"] = "codex"
+    def test_keywords_for_one_command_resume_the_same_session(self):
+        self.commands["quick"] = self.commands["chat"]
         root = event(ts=ROOT, text="chat first question")
         followup = event(text="quick follow up", thread_ts=ROOT)
         self.client.pages = [{"messages": [root, followup]}]
         self.runner.run.return_value = ("session-1", "answer")
-        with patch.object(reply, "provider_for", return_value=self.runner) as factory:
+        with patch.object(reply, "Executor", return_value=self.runner) as factory:
             self.handle(root)
             self.handle(followup)
         self.assertEqual([call.args[0] for call in factory.call_args_list],
@@ -232,7 +233,7 @@ class AgentSlackTests(unittest.TestCase):
         root = event(ts=ROOT, text="chat project first question")
         followup = event(text="chat follow up", thread_ts=ROOT)
         self.client.pages = [{"messages": [root, followup]}]
-        with patch.object(reply, "provider_for", return_value=self.runner) as factory:
+        with patch.object(reply, "Executor", return_value=self.runner) as factory:
             self.handle(root)
             self.state.db.close()
             self.state = reply.State(self.path / "state")
@@ -244,8 +245,8 @@ class AgentSlackTests(unittest.TestCase):
                          [None, "project-session"])
         self.assertTrue(self.runner.run.call_args.args[0].endswith("Current request:\nfollow up"))
 
-    def test_explicit_workspace_switch_starts_fresh_and_keeps_thread_provider(self):
-        self.state.save_session("T123", "C123", ROOT, "claude", "old-session",
+    def test_explicit_workspace_switch_starts_fresh_and_keeps_thread_command(self):
+        self.state.save_session("T123", "C123", ROOT, self.commands["claude"].key, "old-session",
                                 self.projects["project"], ROOT)
         switches = [event(ts=FIRST, text="claude service fix", thread_ts=ROOT),
                     event(ts=SECOND, text="claude continue", thread_ts=ROOT),
@@ -254,29 +255,29 @@ class AgentSlackTests(unittest.TestCase):
         self.runner.run.side_effect = [("service-session", "answer"),
                                        ("service-session", "answer"),
                                        ("fresh-project-session", "answer")]
-        with patch.object(reply, "provider_for", return_value=self.runner) as factory:
+        with patch.object(reply, "Executor", return_value=self.runner) as factory:
             for message in switches:
                 self.handle(message)
         self.assertEqual([call.args[0] for call in factory.call_args_list],
-                         ["claude", "claude", "claude"])
+                         [self.commands["claude"], self.commands["claude"], self.commands["claude"]])
         self.assertEqual([call.args[1] for call in factory.call_args_list],
                          [self.projects["service"], self.projects["service"], self.projects["project"]])
         self.assertEqual([call.args[1] for call in self.runner.run.call_args_list],
                          [None, "service-session", None])
 
     def test_explicit_same_workspace_resumes_session(self):
-        self.state.save_session("T123", "C123", ROOT, "codex", "same-session",
+        self.state.save_session("T123", "C123", ROOT, self.commands["chat"].key, "same-session",
                                 self.projects["project"], ROOT)
         self.client.pages = [{"messages": [event(thread_ts=ROOT)]}]
         self.runner.run.return_value = ("same-session", "answer")
-        with patch.object(reply, "provider_for", return_value=self.runner):
+        with patch.object(reply, "Executor", return_value=self.runner):
             self.handle(event(text="chat project continue", thread_ts=ROOT))
         self.assertEqual(self.runner.run.call_args.args[1], "same-session")
 
     def test_missing_sticky_workspace_does_not_fall_back(self):
         missing = self.path / "removed"
-        self.state.save_session("T123", "C123", ROOT, "codex", "old", missing, ROOT)
-        with patch.object(reply, "provider_for") as factory:
+        self.state.save_session("T123", "C123", ROOT, self.commands["chat"].key, "old", missing, ROOT)
+        with patch.object(reply, "Executor") as factory:
             with self.assertRaisesRegex(ValueError, "not a directory"):
                 self.handle(event(thread_ts=ROOT))
         factory.assert_not_called()
@@ -297,7 +298,7 @@ class AgentSlackTests(unittest.TestCase):
 
     def test_first_thread_invocation_includes_prior_context_and_one_stripped_request(self):
         old_answer = "1700000001.500000"
-        self.state.record_reply("T123", "C123", old_answer, "claude", "another-session")
+        self.state.record_reply("T123", "C123", old_answer, self.commands["claude"].key, "another-session")
         trigger = event(ts=SECOND, text="chat explain project", thread_ts=ROOT)
         self.client.pages = [{"messages": [
             {"ts": ROOT, "user": "UOTHER", "text": "original discussion"},
@@ -305,7 +306,7 @@ class AgentSlackTests(unittest.TestCase):
             event(ts=old_answer, text="earlier AI answer"), trigger,
         ]}]
         self.runner.run.return_value = ("fresh-session", "answer")
-        with patch.object(reply, "provider_for", return_value=self.runner):
+        with patch.object(reply, "Executor", return_value=self.runner):
             self.handle(trigger)
         prompt, session = self.runner.run.call_args.args
         self.assertIsNone(session)
@@ -329,7 +330,7 @@ class AgentSlackTests(unittest.TestCase):
             event(ts="1700000005.000001", text="future discussion"), second,
         ]}]
         self.runner.run.side_effect = [("session-1", "shared words"), ("session-1", "answer")]
-        with patch.object(reply, "provider_for", return_value=self.runner):
+        with patch.object(reply, "Executor", return_value=self.runner):
             self.handle(first)
             self.state.db.close()
             self.state = reply.State(self.path / "state")
@@ -347,30 +348,30 @@ class AgentSlackTests(unittest.TestCase):
         self.assertNotIn("chat follow up", prompt)
         self.assertEqual(self.state.session("T123", "C123", ROOT)[3], second["ts"])
 
-    def test_resume_includes_new_ai_replies_from_a_different_provider_session(self):
-        self.state.save_session("T123", "C123", ROOT, "codex", "session-1", self.path, FIRST)
+    def test_resume_includes_new_ai_replies_from_a_different_command_session(self):
+        self.state.save_session("T123", "C123", ROOT, self.commands["chat"].key, "session-1", self.path, FIRST)
         other_answer, own_answer = "1700000001.100001", "1700000001.200001"
-        self.state.record_reply("T123", "C123", other_answer, "claude", "session-1")
-        self.state.record_reply("T123", "C123", own_answer, "codex", "session-1")
+        self.state.record_reply("T123", "C123", other_answer, self.commands["claude"].key, "session-1")
+        self.state.record_reply("T123", "C123", own_answer, self.commands["chat"].key, "session-1")
         trigger = event(ts=SECOND, text="chat continue", thread_ts=ROOT)
         self.client.pages = [{"messages": [
             event(ts=other_answer, text="other session answer"),
             event(ts=own_answer, text="already known answer"), trigger,
         ]}]
         self.runner.run.return_value = ("session-1", "answer")
-        with patch.object(reply, "provider_for", return_value=self.runner):
+        with patch.object(reply, "Executor", return_value=self.runner):
             self.handle(trigger)
         prompt, session = self.runner.run.call_args.args
         self.assertEqual(session, "session-1")
         self.assertIn("other session answer", prompt)
         self.assertNotIn("already known answer", prompt)
 
-    def test_provider_or_workspace_switch_gets_full_context_again(self):
+    def test_command_or_workspace_switch_gets_full_context_again(self):
         old_answer = "1700000003.900001"
-        self.state.record_reply("T123", "C123", old_answer, "codex", "old-session")
+        self.state.record_reply("T123", "C123", old_answer, self.commands["chat"].key, "old-session")
         for index, request in enumerate(["claude continue", "chat service continue"]):
             with self.subTest(request=request):
-                self.state.save_session("T123", "C123", ROOT, "codex", "old-session",
+                self.state.save_session("T123", "C123", ROOT, self.commands["chat"].key, "old-session",
                                         self.projects["project"], FIRST)
                 trigger = event(ts=f"170000000{index+4}.000001", text=request, thread_ts=ROOT)
                 self.client.pages = [{"messages": [
@@ -378,7 +379,7 @@ class AgentSlackTests(unittest.TestCase):
                     event(ts=old_answer, text="previous session answer"), trigger,
                 ]}]
                 self.runner.run.return_value = (f"fresh-{index}", "answer")
-                with patch.object(reply, "provider_for", return_value=self.runner):
+                with patch.object(reply, "Executor", return_value=self.runner):
                     self.handle(trigger)
                 prompt, session = self.runner.run.call_args.args
                 self.assertIsNone(session)
@@ -386,13 +387,13 @@ class AgentSlackTests(unittest.TestCase):
                 self.assertIn("previous session answer", prompt)
                 self.assertNotIn("oldest", self.client.calls[-1])
 
-    def test_failed_provider_does_not_advance_the_context_timestamp(self):
-        self.state.save_session("T123", "C123", ROOT, "codex", "session-1", self.path, FIRST)
+    def test_failed_command_does_not_advance_the_context_timestamp(self):
+        self.state.save_session("T123", "C123", ROOT, self.commands["chat"].key, "session-1", self.path, FIRST)
         trigger = event(ts=SECOND, text="chat continue", thread_ts=ROOT)
         self.client.pages = [{"messages": [trigger]}]
-        self.runner.run.side_effect = RuntimeError("provider failed")
-        with patch.object(reply, "provider_for", return_value=self.runner):
-            with self.assertRaisesRegex(RuntimeError, "provider failed"):
+        self.runner.run.side_effect = RuntimeError("command failed")
+        with patch.object(reply, "Executor", return_value=self.runner):
+            with self.assertRaisesRegex(RuntimeError, "command failed"):
                 self.handle(trigger)
         self.assertEqual(self.state.session("T123", "C123", ROOT)[3], FIRST)
 
@@ -407,7 +408,7 @@ class AgentSlackTests(unittest.TestCase):
         ]
         self.runner.run.side_effect = [("session-1", "answer 1"),
                                        ("session-1", "answer 2")]
-        with patch.object(reply, "provider_for", return_value=self.runner):
+        with patch.object(reply, "Executor", return_value=self.runner):
             self.handle(first)
             self.handle(first)
             self.handle(event(ts="1700000003.000001", thread_ts=ROOT))
@@ -417,15 +418,15 @@ class AgentSlackTests(unittest.TestCase):
         self.assertEqual(self.runner.run.call_args_list[1].args[1], "session-1")
         self.assertNotIn("root", self.runner.run.call_args_list[1].args[0])
         self.assertEqual(self.client.posts[0]["thread_ts"], ROOT)
-        self.assertEqual(self.state.session("T123", "C123", ROOT), ("codex", "session-1", str(self.path), SECOND))
+        self.assertEqual(self.state.session("T123", "C123", ROOT), (self.commands["chat"].key, "session-1", str(self.path), SECOND))
 
     def test_top_level_starts_thread_without_channel_history(self):
         self.runner.run.return_value = ("fresh", "answer")
-        with patch.object(reply, "provider_for", return_value=self.runner):
+        with patch.object(reply, "Executor", return_value=self.runner):
             self.handle(event())
         self.assertEqual(self.client.calls, [])
         self.assertEqual(self.client.posts[0]["thread_ts"], FIRST)
-        self.assertEqual(self.state.session("T123", "C123", FIRST), ("codex", "fresh", str(self.path), FIRST))
+        self.assertEqual(self.state.session("T123", "C123", FIRST), (self.commands["chat"].key, "fresh", str(self.path), FIRST))
         self.assertIsNone(self.runner.run.call_args.args[1])
         self.assertNotIn("Thread through", self.runner.run.call_args.args[0])
         self.assertTrue(self.runner.run.call_args.args[0].endswith("question"))
@@ -442,7 +443,7 @@ class AgentSlackTests(unittest.TestCase):
         }]
         self.runner.run.side_effect = [("session-1", "first answer"),
                                        ("session-1", "second answer")]
-        with patch.object(reply, "provider_for", return_value=self.runner):
+        with patch.object(reply, "Executor", return_value=self.runner):
             self.handle(root)
             self.handle(followup)
         self.assertIsNone(self.runner.run.call_args_list[0].args[1])
@@ -452,29 +453,29 @@ class AgentSlackTests(unittest.TestCase):
         self.assertNotIn("question", self.runner.run.call_args_list[1].args[0])
         self.assertEqual([post["thread_ts"] for post in self.client.posts], [ROOT, ROOT])
 
-    def test_provider_switch_starts_fresh_in_the_same_thread(self):
-        self.state.save_session("T123", "C123", ROOT, "codex", "codex-session", self.path, ROOT)
+    def test_command_switch_starts_fresh_in_the_same_thread(self):
+        self.state.save_session("T123", "C123", ROOT, self.commands["chat"].key, "codex-session", self.path, ROOT)
         requests = [event(ts=FIRST, text="claude review this", thread_ts=ROOT),
                     event(ts=SECOND, text="chat fix this", thread_ts=ROOT),
                     event(ts="1700000004.000001", text="claude verify this", thread_ts=ROOT)]
         self.client.pages = [{"messages": [request]} for request in requests]
         self.runner.run.side_effect = [("claude-session", "answer"),
                                        ("fresh-codex-session", "answer"), ("fresh-session", "answer")]
-        with patch.object(reply, "provider_for", return_value=self.runner) as factory:
+        with patch.object(reply, "Executor", return_value=self.runner) as factory:
             for request in requests:
                 self.handle(request)
         self.assertEqual([call.args[0] for call in factory.call_args_list],
-                         ["claude", "codex", "claude"])
+                         [self.commands["claude"], self.commands["chat"], self.commands["claude"]])
         self.assertEqual([call.args[1] for call in self.runner.run.call_args_list], [None, None, None])
         self.assertEqual(self.state.session("T123", "C123", ROOT),
-                         ("claude", "fresh-session", str(self.path), "1700000004.000001"))
+                         (self.commands["claude"].key, "fresh-session", str(self.path), "1700000004.000001"))
 
     def test_session_survives_restart_in_private_state(self):
-        self.state.save_session("T123", "C123", ROOT, "codex", "session-1", self.path, ROOT)
+        self.state.save_session("T123", "C123", ROOT, self.commands["chat"].key, "session-1", self.path, ROOT)
         restarted = reply.State(self.path / "state")
         self.addCleanup(restarted.db.close)
         self.assertEqual(restarted.session("T123", "C123", ROOT),
-                         ("codex", "session-1", str(self.path), ROOT))
+                         (self.commands["chat"].key, "session-1", str(self.path), ROOT))
         self.assertEqual((self.path / "state").stat().st_mode & 0o777, 0o700)
         self.assertEqual((self.path / "state" / "sessions.sqlite3").stat().st_mode & 0o777, 0o600)
 

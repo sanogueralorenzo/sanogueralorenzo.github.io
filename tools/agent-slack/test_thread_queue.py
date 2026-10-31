@@ -14,6 +14,7 @@ from unittest.mock import Mock, patch
 
 import agent_slack as reply
 import conversation
+from commands import Command
 from thread_queue import ThreadQueue
 
 
@@ -217,12 +218,12 @@ class ThreadQueueTests(unittest.TestCase):
             path = Path(directory)
             env = {"SLACK_APP_TOKEN": "xapp-test",
                    "SLACK_USER_TOKEN": "xoxp-test", "SLACK_USER_ID": "U123",
-                   "AGENT_SLACK_COMMANDS": json.dumps({"work": "codex"}), "AGENT_SLACK_PROJECTS": "{}", "AGENT_SLACK_WORKSPACE": directory,
+                   "AGENT_SLACK_COMMANDS": json.dumps({"work": {"start": ["/bin/custom"], "resume": ["/bin/custom", "{session_id}"]}}), "AGENT_SLACK_PROJECTS": "{}", "AGENT_SLACK_WORKSPACE": directory,
                    "AGENT_SLACK_STATE_DIR": str(path / "state")}
             with (patch.dict(os.environ, env, clear=True), patch.dict(sys.modules, modules),
-                  patch.object(reply, "require_available"),
+                  patch("commands.shutil.which", side_effect=lambda path: path),
                   patch.object(reply, "processes", Mock(closed=False)) as processes,
-                  patch.object(conversation, "provider_for", return_value=Mock(run=run)),
+                  patch.object(conversation, "Executor", return_value=Mock(run=run)),
                   patch.object(reply.queue, "Queue", Inbox),
                   patch("thread_queue.logging.Logger.exception") as errors,
                   redirect_stdout(io.StringIO())):
@@ -235,9 +236,9 @@ class ThreadQueueTests(unittest.TestCase):
             state = reply.State(path / "state")
             try:
                 self.assertEqual(state.session("T123", "C123", messages[0]["ts"])[:2],
-                                 ("codex", "session-first"))
+                                 (Command(("/bin/custom",), ("/bin/custom", "{session_id}")).key, "session-first"))
                 self.assertEqual(state.session("T123", "C123", messages[-1]["ts"])[:2],
-                                 ("codex", "session-independent"))
+                                 (Command(("/bin/custom",), ("/bin/custom", "{session_id}")).key, "session-independent"))
             finally:
                 state.db.close()
         self.assertCountEqual(calls, [("first", None), ("independent", None), ("followup", "session-first")])
