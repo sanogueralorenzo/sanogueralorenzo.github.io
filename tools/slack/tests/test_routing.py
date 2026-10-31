@@ -21,17 +21,19 @@ class RoutingTests(unittest.TestCase):
 
     def test_only_authorized_messages_starting_with_a_complete_keyword_trigger(self):
         for keyword in self.commands:
-            for separator in (" ", "\t", "\n"):
-                parsed = self.parse(keyword + separator + "help", subtype="thread_broadcast")
-                self.assertEqual(parsed.command, self.commands[keyword])
-                self.assertEqual(parsed.request, "help")
-        for text in ("chat", "chat ", " chat help", "Chat help", "chatbot help", "chat: help", "please chat help", "<@U123> chat help"):
+            for spelling in (keyword, keyword.title(), keyword.upper()):
+                for separator in (" ", "\t", "\n"):
+                    with self.subTest(keyword=spelling, separator=separator):
+                        parsed = self.parse(spelling + separator + "Help Me", subtype="thread_broadcast")
+                        self.assertEqual(parsed.command, self.commands[keyword])
+                        self.assertEqual(parsed.request, "Help Me")
+        for text in ("chat", "chat ", " chat help", "CHATBOT help", "chat: help", "please chat help", "<@U123> chat help"):
             with self.subTest(text=text):
                 self.assertIsNone(self.parse(text))
         for extra in ({"user": "OTHER"}, {"bot_id": "B123"}, {"app_id": "A123"},
                       {"subtype": "message_changed"}, {"type": "app_mention"}, {"channel": ""}, {"ts": ""}):
             with self.subTest(extra=extra):
-                self.assertIsNone(self.parse(**extra))
+                self.assertIsNone(self.parse("Chat help", **extra))
 
     def test_first_complete_alias_selects_workspace_and_preserves_request(self):
         for request, workspace in (("compare (API), project", self.projects["api"]),

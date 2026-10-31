@@ -22,13 +22,13 @@ class CommandConfigurationTests(unittest.TestCase):
             executable.chmod(0o700)
             entry = {"start": [str(executable)], "resume": [str(executable), "--resume", "{session_id}"]}
             commands = self.load({"!work": entry, "Review": entry})
-            self.assertEqual(commands["!work"], commands["Review"])
-            self.assertEqual(commands["Review"].start, (str(executable.resolve()),))
-            self.assertEqual(commands["Review"].resume, (str(executable.resolve()), "--resume", "{session_id}"))
+            self.assertEqual(commands["!work"], commands["review"])
+            self.assertEqual(commands["review"].start, (str(executable.resolve()),))
+            self.assertEqual(commands["review"].resume, (str(executable.resolve()), "--resume", "{session_id}"))
 
     def test_invalid_configurations_are_rejected(self):
         entry = {"start": [sys.executable], "resume": [sys.executable, "{session_id}"]}
-        configs = [{}, {"two words": entry}, {"work": "command"},
+        configs = [{}, {"two words": entry}, {"work": "command"}, {"work": entry, "WORK": entry},
                    {"work": {**entry, "start": []}}, {"work": {**entry, "resume": [sys.executable]}},
                    {"work": {**entry, "start": ["/missing/command"]}}]
         for config in configs:

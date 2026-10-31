@@ -34,7 +34,7 @@ def command(text, projects, commands):
     if not text or text[0].isspace():
         return None
     parts = text.split(maxsplit=1)
-    selected = commands.get(parts[0])
+    selected = commands.get(parts[0].casefold())
     if selected is None:
         return None
     request = parts[1].strip() if len(parts) == 2 else ""

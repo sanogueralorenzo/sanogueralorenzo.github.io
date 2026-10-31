@@ -26,6 +26,9 @@ def load_commands():
     for keyword, entry in config.items():
         if not keyword or not keyword.isprintable() or any(character.isspace() for character in keyword):
             raise ValueError("Command keywords must be nonempty words without whitespace")
+        keyword = keyword.casefold()
+        if keyword in commands:
+            raise ValueError(f"Command keywords must be unique ignoring case: {keyword}")
         if not isinstance(entry, dict) or set(entry) != {"start", "resume"}:
             raise ValueError(f"Keyword {keyword} requires start and resume argument arrays")
         resolved = {}

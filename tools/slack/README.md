@@ -18,7 +18,7 @@ cp .env.example .env
 
 With the example configuration, **`chat investigate project`** runs Codex in `project`. **`claude review service`** runs Claude in `service`. The first project alias mentioned selects the directory; without one, a new thread uses the default workspace and a follow-up keeps its previous directory.
 
-Every request must start with a configured keyword. Follow-ups in the same thread resume its session with new context. Changing commands or directories starts fresh. Up to eight threads run at once; requests within a thread run in order.
+Every request must start with a configured keyword, ignoring case (`chat`, `Chat`, and `CHAT` all work). Follow-ups in the same thread resume its session with new context. Changing commands or directories starts fresh. Up to eight threads run at once; requests within a thread run in order.
 
 **👀** queued or running · **✅** answered · **🤖** AI reply. Failure removes 👀 and logs the error locally.
 
