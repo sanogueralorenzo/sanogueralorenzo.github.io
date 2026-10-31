@@ -5,10 +5,19 @@ import os
 import re
 import shutil
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
 from process_runner import processes
+
+
+@dataclass(frozen=True)
+class ProviderSettings:
+    provider: str
+    model: str = ""
+    effort: str = ""
+    tier: str | None = None
 
 
 class Provider(Protocol):
@@ -22,21 +31,6 @@ def require_available(name):
         raise ValueError(f"Unknown provider: {name}")
     if not shutil.which(name):
         raise RuntimeError(f"{name} CLI is not installed or is not on PATH")
-
-
-def model_settings(provider, model=None, effort=None):
-    defaults = (
-        os.environ.get("SLACK_REPLY_MODEL", "").strip(),
-        os.environ.get("SLACK_REPLY_REASONING_EFFORT", "").strip(),
-    ) if os.environ.get("SLACK_REPLY_PROVIDER", "").strip() == provider else ("", "")
-    return defaults[0] if model is None else model, defaults[1] if effort is None else effort
-
-
-def tier_setting(provider):
-    tier = os.environ.get("SLACK_REPLY_TIER", "default").strip()
-    if tier not in {"default", "fast"}:
-        raise ValueError("SLACK_REPLY_TIER must be default or fast")
-    return tier if os.environ.get("SLACK_REPLY_PROVIDER", "").strip() == provider else None
 
 
 def execute(command, prompt, workspace, *, env=None):
@@ -57,11 +51,10 @@ def check_session(name, returned, expected):
 class CodexProvider:
     name = "codex"
 
-    def __init__(self, workspace, state_dir, *, model=None, effort=None):
+    def __init__(self, workspace, state_dir, *, model="", effort="", tier=None):
         self.workspace = workspace
         self.state_dir = state_dir
-        self.model, self.effort = model_settings(self.name, model, effort)
-        self.tier = tier_setting(self.name)
+        self.model, self.effort, self.tier = model, effort, tier
 
     def run(self, prompt, session_id):
         with tempfile.NamedTemporaryFile(dir=self.state_dir, prefix="answer-", delete=False) as output:
@@ -104,15 +97,14 @@ class CodexProvider:
 class ClaudeProvider:
     name = "claude"
 
-    def __init__(self, workspace, *, model=None, effort=None):
+    def __init__(self, workspace, *, model="", effort="", tier=None):
         self.workspace = workspace
-        self.model, self.effort = model_settings(self.name, model, effort)
-        self.tier = tier_setting(self.name)
+        self.model, self.effort, self.tier = model, effort, tier
         model = re.sub(r"-(?:\d{8}|\d{4}-\d{2}-\d{2})$", "", self.model.removesuffix("[1m]"))
         if self.tier == "fast" and model not in {"opus", "claude-opus-5-5", "claude-opus-5", "claude-opus-4-8"}:
-            raise ValueError("SLACK_REPLY_TIER=fast for Claude requires SLACK_REPLY_MODEL=opus or a supported Opus model")
+            raise ValueError("Claude fast tier requires opus or a supported Opus model")
         if self.effort and self.effort not in {"low", "medium", "high", "xhigh", "max"}:
-            raise ValueError("SLACK_REPLY_REASONING_EFFORT for Claude must be low, medium, high, xhigh, or max")
+            raise ValueError("Claude reasoning_effort must be low, medium, high, xhigh, or max")
 
     def run(self, prompt, session_id):
         command = ["claude", "-p", "--output-format", "json",
@@ -145,14 +137,13 @@ class ClaudeProvider:
 class PiProvider:
     name = "pi"
 
-    def __init__(self, workspace, *, model=None, effort=None):
+    def __init__(self, workspace, *, model="", effort="", tier=None):
         self.workspace = workspace
-        self.model, self.effort = model_settings(self.name, model, effort)
-        self.tier = tier_setting(self.name)
+        self.model, self.effort, self.tier = model, effort, tier
         if self.effort and self.effort not in {
             "off", "minimal", "low", "medium", "high", "xhigh", "max",
         }:
-            raise ValueError("SLACK_REPLY_REASONING_EFFORT for Pi must be off, minimal, low, medium, high, xhigh, or max")
+            raise ValueError("Pi reasoning_effort must be off, minimal, low, medium, high, xhigh, or max")
 
     def run(self, prompt, session_id):
         command = ["pi", "--mode", "json", "-p"]
@@ -200,10 +191,11 @@ class PiProvider:
         return session, answer
 
 
-def provider_for(name, workspace, state_dir, *, model=None, effort=None) -> Provider:
-    require_available(name)
-    if name == "codex":
-        return CodexProvider(workspace, state_dir, model=model, effort=effort)
-    if name == "claude":
-        return ClaudeProvider(workspace, model=model, effort=effort)
-    return PiProvider(workspace, model=model, effort=effort)
+def provider_for(settings, workspace, state_dir) -> Provider:
+    require_available(settings.provider)
+    options = {"model": settings.model, "effort": settings.effort, "tier": settings.tier}
+    if settings.provider == "codex":
+        return CodexProvider(workspace, state_dir, **options)
+    if settings.provider == "claude":
+        return ClaudeProvider(workspace, **options)
+    return PiProvider(workspace, **options)

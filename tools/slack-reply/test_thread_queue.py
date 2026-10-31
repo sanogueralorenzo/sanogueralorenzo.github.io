@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import signal
 import sys
@@ -15,7 +16,7 @@ import slack_reply as reply
 from thread_queue import ThreadQueue
 
 
-def message(ts, text="bot first", **extra):
+def message(ts, text="work first", **extra):
     return {"type": "message", "user": "U123", "channel": "C123", "ts": ts,
             "text": text, **extra}
 
@@ -113,8 +114,8 @@ class ThreadQueueTests(unittest.TestCase):
         messages = [
             message("1700000001.000001"),
             message("1700000001.000001"),  # Duplicate delivery must not execute twice.
-            message("1700000002.000001", "bot followup", thread_ts="1700000001.000001"),
-            message("1700000003.000001", "bot independent"),
+            message("1700000002.000001", "work followup", thread_ts="1700000001.000001"),
+            message("1700000003.000001", "work independent"),
         ]
 
         def run(prompt, session_id):
@@ -188,7 +189,7 @@ class ThreadQueueTests(unittest.TestCase):
             path = Path(directory)
             env = {"SLACK_APP_TOKEN": "xapp-test", "SLACK_BOT_TOKEN": "xoxb-test",
                    "SLACK_USER_TOKEN": "xoxp-test", "SLACK_USER_ID": "U123",
-                   "SLACK_REPLY_PROVIDER": "codex", "SLACK_REPLY_PROJECTS": "{}", "SLACK_REPLY_WORKSPACE": directory,
+                   "SLACK_REPLY_COMMANDS": json.dumps({"work": {"provider": "codex"}}), "SLACK_REPLY_PROJECTS": "{}", "SLACK_REPLY_WORKSPACE": directory,
                    "SLACK_REPLY_STATE_DIR": str(path / "state")}
             with (patch.dict(os.environ, env), patch.dict(sys.modules, modules),
                   patch.object(reply, "require_available"),

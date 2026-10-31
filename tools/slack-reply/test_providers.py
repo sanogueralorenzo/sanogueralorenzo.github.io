@@ -86,48 +86,32 @@ class ProviderTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "different session"):
                 providers.CodexProvider(self.path, self.path).run("prompt", "session-1")
 
-    def test_codex_env_overrides_apply_to_new_and_resumed_sessions(self):
-        def fake_execute(command, prompt, workspace, **kwargs):
+    def test_codex_settings_apply_to_new_and_resumed_sessions(self):
+        def fake_execute(command, prompt, workspace):
             Path(command[command.index("-o") + 1]).write_text("answer")
             self.assertEqual(command[command.index("--model") + 1], "test-model")
-            self.assertEqual(command[command.index("--config") + 1],
-                             'model_reasoning_effort="high"')
+            self.assertIn('model_reasoning_effort="high"', command)
             return completed('{"type":"thread.started","thread_id":"session-1"}\n')
+        with patch.object(providers, "execute", side_effect=fake_execute):
+            adapter = providers.CodexProvider(self.path, self.path, model="test-model", effort="high")
+            for session in [None, "session-1"]:
+                with self.subTest(session=session):
+                    self.assertEqual(adapter.run("prompt", session), ("session-1", "answer"))
 
-        with patch.dict(os.environ, {"SLACK_REPLY_PROVIDER": "codex",
-                                    "SLACK_REPLY_MODEL": "test-model",
-                                    "SLACK_REPLY_REASONING_EFFORT": "high"}):
-            with patch.object(providers, "execute", side_effect=fake_execute):
-                provider = providers.CodexProvider(self.path, self.path)
-                for session_id in [None, "session-1"]:
-                    with self.subTest(session_id=session_id):
-                        self.assertEqual(provider.run("prompt", session_id),
-                                         ("session-1", "answer"))
+    def test_claude_settings_apply_to_new_and_resumed_sessions(self):
+        payload = json.dumps({"session_id": "session-1", "result": "Claude answer"})
+        with patch.object(providers, "execute", return_value=completed(payload)) as execute:
+            adapter = providers.ClaudeProvider(self.path, model="sonnet", effort="high")
+            for session_id in [None, "session-1"]:
+                with self.subTest(session=session_id):
+                    self.assertEqual(adapter.run("prompt", session_id), ("session-1", "Claude answer"))
+                    command = execute.call_args.args[0]
+                    self.assertEqual(command[:4], ["claude", "-p", "--output-format", "json"])
+                    self.assertEqual(command[command.index("--model") + 1], "sonnet")
+                    self.assertEqual(command[command.index("--effort") + 1], "high")
+                    self.assertEqual("--resume" in command, session_id is not None)
 
-    def test_claude_shared_overrides_apply_to_new_and_resumed_sessions(self):
-        payload = json.dumps({"type": "result", "is_error": False,
-                              "session_id": "session-1", "result": "Claude answer"})
-        with patch.dict(os.environ, {"SLACK_REPLY_PROVIDER": "claude",
-                                    "SLACK_REPLY_MODEL": "sonnet",
-                                    "SLACK_REPLY_REASONING_EFFORT": "high"}):
-            with patch.object(providers, "execute", return_value=completed(payload)) as execute:
-                for session_id in [None, "session-1"]:
-                    with self.subTest(session_id=session_id):
-                        session, answer = providers.ClaudeProvider(self.path).run("prompt", session_id)
-                        command = execute.call_args.args[0]
-                        self.assertEqual(command[:4], ["claude", "-p", "--output-format", "json"])
-                        if session_id:
-                            self.assertEqual(command[command.index("--resume") + 1], session_id)
-                        else:
-                            self.assertNotIn("--resume", command)
-                        self.assertEqual(command[command.index("--model") + 1], "sonnet")
-                        self.assertEqual(command[command.index("--effort") + 1], "high")
-                        self.assertEqual((session, answer), ("session-1", "Claude answer"))
-
-    def test_fixed_profiles_override_default_provider_settings_without_mutating_env(self):
-        env = {"SLACK_REPLY_PROVIDER": "pi", "SLACK_REPLY_MODEL": "default-model",
-               "SLACK_REPLY_REASONING_EFFORT": "low", "CLAUDE_CODE_EFFORT_LEVEL": "medium"}
-
+    def test_keyword_profiles_are_explicit_and_do_not_mutate_environment(self):
         def fake_execute(command, prompt, workspace, **kwargs):
             self.assertEqual(command[command.index("--model") + 1],
                              "gpt-6.1-sol" if command[0] == "codex" else "claude-opus-5-5")
@@ -138,17 +122,15 @@ class ProviderTests(unittest.TestCase):
             self.assertEqual(command[command.index("--effort") + 1], "high")
             self.assertEqual(kwargs["env"], {"CLAUDE_CODE_EFFORT_LEVEL": "high"})
             return completed(json.dumps({"session_id": "session-1", "result": "answer"}))
-
-        with patch.dict(os.environ, env), patch.object(providers.shutil, "which", return_value="/bin/cli"):
-            with patch.object(providers, "execute", side_effect=fake_execute):
-                for name, model in [("codex", "gpt-6.1-sol"), ("claude", "claude-opus-5-5")]:
-                    for session_id in [None, "session-1"]:
-                        with self.subTest(provider=name, session=session_id):
-                            adapter = providers.provider_for(name, self.path, self.path, model=model, effort="high")
-                            self.assertEqual(adapter.run("prompt", session_id), ("session-1", "answer"))
-                self.assertEqual(os.environ["SLACK_REPLY_MODEL"], "default-model")
-                self.assertEqual(os.environ["SLACK_REPLY_REASONING_EFFORT"], "low")
-                self.assertEqual(os.environ["CLAUDE_CODE_EFFORT_LEVEL"], "medium")
+        with patch.dict(os.environ, {"CLAUDE_CODE_EFFORT_LEVEL": "medium"}):
+            with patch.object(providers.shutil, "which", return_value="/bin/cli"):
+                with patch.object(providers, "execute", side_effect=fake_execute):
+                    for name, model in [("codex", "gpt-6.1-sol"), ("claude", "claude-opus-5-5")]:
+                        settings = providers.ProviderSettings(name, model, "high")
+                        for session in [None, "session-1"]:
+                            adapter = providers.provider_for(settings, self.path, self.path)
+                            self.assertEqual(adapter.run("prompt", session), ("session-1", "answer"))
+                    self.assertEqual(os.environ["CLAUDE_CODE_EFFORT_LEVEL"], "medium")
 
     def test_claude_auth_failure_is_reported_instead_of_posted(self):
         payload = json.dumps({"type": "result", "is_error": True, "session_id": "new",
@@ -164,26 +146,19 @@ class ProviderTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "different session"):
                 providers.ClaudeProvider(self.path).run("prompt", "session-1")
 
-    def test_pi_shared_overrides_apply_to_new_and_resumed_sessions(self):
-        with patch.dict(os.environ, {"SLACK_REPLY_PROVIDER": "pi",
-                                    "SLACK_REPLY_MODEL": "test-provider/test-model",
-                                    "SLACK_REPLY_REASONING_EFFORT": "medium"}):
-            with patch.object(providers, "execute",
-                              return_value=completed(pi_events("session-1", "Pi answer"))) as execute:
-                for session_id in [None, "session-1"]:
-                    with self.subTest(session_id=session_id):
-                        session, answer = providers.PiProvider(self.path).run("prompt", session_id)
-                        command = execute.call_args.args[0]
-                        self.assertEqual(command[:4], ["pi", "--mode", "json", "-p"])
-                        if session_id:
-                            self.assertEqual(command[command.index("--session") + 1], session_id)
-                        else:
-                            self.assertNotIn("--session", command)
-                        self.assertEqual(command[command.index("--model") + 1], "test-provider/test-model")
-                        self.assertEqual(command[command.index("--thinking") + 1], "medium")
-                        self.assertEqual((session, answer), ("session-1", "Pi answer"))
+    def test_pi_settings_apply_to_new_and_resumed_sessions(self):
+        with patch.object(providers, "execute", return_value=completed(pi_events("session-1", "Pi answer"))) as execute:
+            adapter = providers.PiProvider(self.path, model="test-provider/test-model", effort="medium")
+            for session in [None, "session-1"]:
+                with self.subTest(session=session):
+                    self.assertEqual(adapter.run("prompt", session), ("session-1", "Pi answer"))
+                    command = execute.call_args.args[0]
+                    self.assertEqual(command[:4], ["pi", "--mode", "json", "-p"])
+                    self.assertEqual(command[command.index("--model") + 1], "test-provider/test-model")
+                    self.assertEqual(command[command.index("--thinking") + 1], "medium")
+                    self.assertEqual("--session" in command, session is not None)
 
-    def test_other_provider_does_not_receive_default_providers_overrides(self):
+    def test_omitted_settings_use_cli_defaults(self):
         def fake_execute(command, prompt, workspace, **kwargs):
             for flag in ["--model", "--config", "--effort", "--thinking", "--settings", "--slack-reply-tier"]:
                 self.assertNotIn(flag, command)
@@ -193,19 +168,11 @@ class ProviderTests(unittest.TestCase):
             if command[0] == "claude":
                 return completed(json.dumps({"session_id": "session-1", "result": "answer"}))
             return completed(pi_events("session-1", "answer"))
-
-        for requested, selected in [("codex", "claude"), ("claude", "pi"), ("pi", "codex")]:
-            with self.subTest(provider=requested), patch.dict(os.environ, {
-                "SLACK_REPLY_PROVIDER": selected,
-                "SLACK_REPLY_MODEL": "other-model",
-                "SLACK_REPLY_REASONING_EFFORT": "high",
-                "SLACK_REPLY_TIER": "fast",
-            }):
-                with patch.object(providers.shutil, "which", return_value="/bin/provider"):
-                    with patch.object(providers, "execute", side_effect=fake_execute):
-                        provider = providers.provider_for(requested, self.path, self.path)
-                        self.assertEqual(provider.run("prompt", "session-1"),
-                                         ("session-1", "answer"))
+        with patch.object(providers.shutil, "which", return_value="/bin/cli"):
+            with patch.object(providers, "execute", side_effect=fake_execute):
+                for name in ["codex", "claude", "pi"]:
+                    adapter = providers.provider_for(providers.ProviderSettings(name), self.path, self.path)
+                    self.assertEqual(adapter.run("prompt", None), ("session-1", "answer"))
 
     def test_pi_resumes_exact_session(self):
         with patch.object(providers, "execute",
@@ -238,17 +205,6 @@ class ProviderTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "model unavailable"):
                 providers.PiProvider(self.path).run("prompt", None)
 
-    def test_invalid_tier_is_rejected(self):
-        for value in ["", "priority", "unknown"]:
-            with self.subTest(value=value), patch.dict(os.environ, {"SLACK_REPLY_TIER": value}):
-                with self.assertRaisesRegex(ValueError, "SLACK_REPLY_TIER"):
-                    providers.tier_setting("codex")
-
-    def test_unset_tier_uses_default_for_selected_provider(self):
-        with patch.dict(os.environ, {"SLACK_REPLY_PROVIDER": "codex"}):
-            self.assertEqual(providers.tier_setting("codex"), "default")
-            self.assertIsNone(providers.tier_setting("claude"))
-
     def test_tiers_apply_to_new_and_resumed_provider_requests(self):
         def fake_execute(command, prompt, workspace, **kwargs):
             commands.append(command)
@@ -262,13 +218,10 @@ class ProviderTests(unittest.TestCase):
         for name in ["codex", "claude", "pi"]:
             for tier in ["default", "fast"]:
                 commands = []
-                with self.subTest(provider=name, tier=tier), patch.dict(os.environ, {
-                    "SLACK_REPLY_PROVIDER": name, "SLACK_REPLY_MODEL": "opus",
-                    "SLACK_REPLY_REASONING_EFFORT": "high", "SLACK_REPLY_TIER": tier,
-                }):
+                with self.subTest(provider=name, tier=tier):
                     with patch.object(providers.shutil, "which", return_value="/bin/provider"):
                         with patch.object(providers, "execute", side_effect=fake_execute):
-                            provider = providers.provider_for(name, self.path, self.path)
+                            provider = providers.provider_for(providers.ProviderSettings(name, "opus", "high", tier), self.path, self.path)
                             for session in [None, "session-1"]:
                                 self.assertEqual(provider.run("prompt", session), ("session-1", "answer"))
                     for command in commands:
@@ -288,11 +241,9 @@ class ProviderTests(unittest.TestCase):
 
     def test_claude_fast_rejects_missing_or_unsupported_models(self):
         for model in ["", "sonnet", "haiku", "claude-opus-4-7"]:
-            with self.subTest(model=model), patch.dict(os.environ, {
-                "SLACK_REPLY_PROVIDER": "claude", "SLACK_REPLY_MODEL": model, "SLACK_REPLY_TIER": "fast",
-            }):
+            with self.subTest(model=model):
                 with self.assertRaisesRegex(ValueError, "supported Opus"):
-                    providers.ClaudeProvider(self.path)
+                    providers.ClaudeProvider(self.path, model=model, tier="fast")
 
     def test_pi_tier_extension_failure_cannot_be_posted_as_a_success(self):
         with patch.object(providers, "execute", return_value=completed(
