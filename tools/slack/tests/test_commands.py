@@ -4,7 +4,8 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 from commands import Command, Executor, load_commands
 from process_runner import ProcessRunner
@@ -47,9 +48,9 @@ class CommandExecutionTests(unittest.TestCase):
         self.command = Command(("tool",), ("tool", "--resume", "{session_id}"))
 
     def response(self, stdout, session=None, returncode=0, stderr=""):
-        result = type("Result", (), {"stdout": stdout, "returncode": returncode, "stderr": stderr})()
-        with patch("commands.processes.run", return_value=result):
-            return Executor(self.command, self.path).run("prompt", session)
+        result = SimpleNamespace(stdout=stdout, returncode=returncode, stderr=stderr)
+        processes = Mock(run=Mock(return_value=result))
+        return Executor(processes).run(self.command, "prompt", self.path, session)
 
     def test_rejects_invalid_output_or_different_resumed_session(self):
         for response in ("not JSON", "[]", "{}",
@@ -77,12 +78,11 @@ print(json.dumps({"session_id": "saved session", "answer": answer}))
                           (sys.executable, str(script), literal, "--resume", "{session_id}"))
         runner = ProcessRunner()
         self.addCleanup(runner.close)
-        with (patch("commands.processes", runner),
-              patch.dict(os.environ, {"SLACK_USER_TOKEN": "secret", "AGENT_SLACK_COMMANDS": "secret",
-                                      "CUSTOM_SETTING": "native"})):
+        with patch.dict(os.environ, {"SLACK_USER_TOKEN": "secret", "AGENT_SLACK_COMMANDS": "secret",
+                                     "CUSTOM_SETTING": "native"}):
             for session in (None, "saved session"):
                 with self.subTest(session=session):
-                    returned, answer = Executor(command, self.path).run("hello 🌍\nnext", session)
+                    returned, answer = Executor(runner).run(command, "hello 🌍\nnext", self.path, session)
                     self.assertEqual(returned, "saved session")
                     details = json.loads(answer)
                     self.assertEqual(details, {"prompt": "hello 🌍\nnext", "cwd": str(self.path.resolve()),

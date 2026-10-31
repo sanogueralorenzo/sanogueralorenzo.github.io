@@ -5,7 +5,7 @@ import os
 import shutil
 from dataclasses import dataclass
 
-from process_runner import processes
+from process_runner import ProcessRunner
 
 
 @dataclass(frozen=True)
@@ -48,15 +48,14 @@ def load_commands():
 
 
 class Executor:
-    def __init__(self, command, workspace):
-        self.command = command
-        self.workspace = workspace
+    def __init__(self, processes: ProcessRunner):
+        self.processes = processes
 
-    def run(self, prompt, session_id):
-        args = self.command.resume if session_id else self.command.start
+    def run(self, command: Command, prompt: str, workspace, session_id=None) -> tuple[str, str]:
+        args = command.resume if session_id else command.start
         args = [session_id if arg == "{session_id}" else arg for arg in args]
-        result = processes.run(
-            args, prompt, self.workspace,
+        result = self.processes.run(
+            args, prompt, workspace,
             env={key: value for key, value in os.environ.items()
                  if not key.startswith(("SLACK_", "AGENT_SLACK_"))},
         )

@@ -11,8 +11,9 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import agent_slack
-import conversation
+import app
 from commands import Command
+from state import State
 
 
 class BridgeTests(unittest.TestCase):
@@ -33,7 +34,8 @@ class BridgeTests(unittest.TestCase):
         client.conversations_replies.side_effect = lambda **kwargs: {"messages": events[:3]}
         command = Command(("custom",), ("custom", "{session_id}"))
 
-        def run(prompt, session_id):
+        def run(selected, prompt, workspace, session_id):
+            self.assertEqual(selected, command)
             name = prompt.split()[-1]
             calls.append((name, session_id))
             if name == "first":
@@ -74,29 +76,59 @@ class BridgeTests(unittest.TestCase):
             env = {"SLACK_APP_TOKEN": "xapp-test", "SLACK_USER_TOKEN": "xoxp-test", "SLACK_USER_ID": "U123",
                    "AGENT_SLACK_WORKSPACE": directory, "AGENT_SLACK_PROJECTS": "{}", "AGENT_SLACK_STATE_DIR": directory}
             with (patch.dict(os.environ, env, clear=True),
-                  patch.object(agent_slack, "load_commands", return_value={"work": command}),
-                  patch("slack_sdk.WebClient", return_value=client),
-                  patch("slack_sdk.socket_mode.SocketModeClient", return_value=socket),
-                  patch.object(agent_slack.queue, "Queue", return_value=SimpleNamespace(put=inbox.put, get=next_event)),
-                  patch.object(agent_slack, "processes", Mock(closed=False)) as processes,
-                  patch.object(conversation, "Executor", return_value=Mock(run=run)),
+                  patch.object(app, "load_commands", return_value={"work": command}),
+                  patch.object(app, "WebClient", return_value=client),
+                  patch.object(app, "SocketModeClient", return_value=socket),
+                  patch.object(app.queue, "Queue", return_value=SimpleNamespace(put=inbox.put, get=next_event)),
+                  patch.object(app, "ProcessRunner", return_value=Mock(closed=False)) as process_factory,
+                  patch.object(app, "Executor", return_value=Mock(run=run)),
                   patch("thread_queue.logging.Logger.exception") as errors,
                   redirect_stdout(io.StringIO())):
                 previous_signal = signal.getsignal(signal.SIGTERM)
                 with self.assertRaises(KeyboardInterrupt):
                     agent_slack.main([])
                 self.assertEqual(signal.getsignal(signal.SIGTERM), previous_signal)
-                processes.close.assert_called_once()
+                process_factory.return_value.close.assert_called_once()
                 errors.assert_not_called()
-            state = conversation.State(Path(directory))
+            state = State(Path(directory))
             try:
-                self.assertEqual(state.session("T123", "C123", events[0]["ts"])[:2], (command.key, "session-first"))
+                session = state.session("T123", "C123", events[0]["ts"])
+                self.assertEqual(session.command_key, command.key)
+                self.assertEqual(session.session_id, "session-first")
             finally:
-                state.db.close()
+                state.close()
         self.assertCountEqual(calls, [("first", None), ("independent", None), ("followup", "session-first")])
         self.assertEqual(len(posts), 3)
         self.assertEqual(socket.send_socket_mode_response.call_count, 5)
         socket.close.assert_called_once()
+
+    def test_failed_connection_closes_resources_and_next_app_gets_a_fresh_runner(self):
+        client = Mock()
+        client.auth_test.return_value = {"team_id": "T123", "user_id": "U123"}
+        runners = []
+        previous_signal = signal.getsignal(signal.SIGTERM)
+        with tempfile.TemporaryDirectory() as directory:
+            config = app.Config(app_token="xapp-test", user_token="xoxp-test", user_id="U123",
+                                workspace=Path(directory), state_dir=Path(directory), commands={}, projects={})
+            for _ in range(2):
+                socket = Mock(socket_mode_request_listeners=[])
+
+                def fail_connection():
+                    self.assertFalse(bridge.processes.closed)
+                    runners.append(bridge.processes)
+                    raise RuntimeError("connect failed")
+
+                socket.connect.side_effect = fail_connection
+                with (patch.object(app, "WebClient", return_value=client),
+                      patch.object(app, "SocketModeClient", return_value=socket)):
+                    bridge = app.Application(config)
+                    with self.assertRaisesRegex(RuntimeError, "connect failed"):
+                        bridge.run()
+                self.assertTrue(bridge.processes.closed)
+                self.assertTrue(bridge.workers.closed)
+                self.assertEqual(signal.getsignal(signal.SIGTERM), previous_signal)
+                socket.close.assert_called_once()
+        self.assertIsNot(runners[0], runners[1])
 
 
 if __name__ == "__main__":

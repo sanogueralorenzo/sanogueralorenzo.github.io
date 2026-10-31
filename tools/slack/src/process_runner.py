@@ -71,6 +71,3 @@ class ProcessRunner:
             self.closed = True
             active = tuple(self.active)
         stop_processes(active)
-
-
-processes = ProcessRunner()

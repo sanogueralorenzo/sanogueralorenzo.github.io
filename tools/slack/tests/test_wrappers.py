@@ -48,22 +48,22 @@ class WrapperTests(unittest.TestCase):
             executable = self.bin / name
             executable.write_text(CLI.format(python=sys.executable))
             executable.chmod(0o700)
-        runner = ProcessRunner()
-        self.addCleanup(runner.close)
-        for patcher in (patch("commands.processes", runner),
-                        patch.dict(os.environ, {"PATH": str(self.bin) + os.pathsep + os.environ["PATH"]})):
-            patcher.start()
-            self.addCleanup(patcher.stop)
+        self.runner = ProcessRunner()
+        self.addCleanup(self.runner.close)
+        path = patch.dict(os.environ, {"PATH": str(self.bin) + os.pathsep + os.environ["PATH"]})
+        path.start()
+        self.addCleanup(path.stop)
 
-    def executor(self, name):
+    def run_wrapper(self, name, prompt, session_id):
         wrapper = str((Path(__file__).resolve().parent.parent / "wrappers" / f"{name}.py").resolve())
-        return Executor(Command((wrapper,), (wrapper, "{session_id}")), self.path)
+        command = Command((wrapper,), (wrapper, "{session_id}"))
+        return Executor(self.runner).run(command, prompt, self.path, session_id)
 
     def test_wrappers_normalize_start_and_resume_without_overriding_settings(self):
         for name in ("codex", "claude"):
             for session in (None, "session-1"):
                 with self.subTest(command=name, session=session):
-                    returned, answer = self.executor(name).run("hello 🌍\nnext", session)
+                    returned, answer = self.run_wrapper(name, "hello 🌍\nnext", session)
                     self.assertEqual(returned, "session-1")
                     details = json.loads(answer)
                     self.assertEqual(details["prompt"], "hello 🌍\nnext")
@@ -75,7 +75,7 @@ class WrapperTests(unittest.TestCase):
         for name in ("codex", "claude"):
             for prompt in ("fail", "plain fail"):
                 with self.subTest(command=name, prompt=prompt), self.assertRaisesRegex(RuntimeError, "native failure"):
-                    self.executor(name).run(prompt, None)
+                    self.run_wrapper(name, prompt, None)
 
 
 if __name__ == "__main__":
