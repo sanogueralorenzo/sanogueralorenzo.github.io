@@ -26,7 +26,7 @@ Connected OpenAI, Anthropic, xAI, and Google accounts show a lightning button to
 
 State and transcripts live in `~/.agent/durable.sqlite`; suggestions live in `~/.agent/suggestions.db`. Provider credentials stay in `~/.agent/auth.json`, with the selected provider and model in `~/.agent/provider.json` and per-provider fast preferences in `~/.agent/fast-mode.json`. Pi manages the installation ID in `~/.agent/settings.json`.
 
-Run `npm run check`, `npm run test:tasks`, `npm run test:delegation`, `npm run test:providers`, and `npm run test:composer` (requires Google Chrome). The [instruction benchmark](evals/benchmark/README.md) uses Durable for native agent integration. `npm run eval:suggestions` runs the tool-free suggestion trials with the saved Codex login.
+Run `npm run check`, `npm run test:tasks`, `npm run test:delegation`, `npm run test:providers`, and `npm run test:composer` (requires Google Chrome).
 
 ## Headless
 
