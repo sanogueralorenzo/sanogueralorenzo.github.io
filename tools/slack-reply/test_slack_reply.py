@@ -25,6 +25,16 @@ class FakeClient:
         self.pages = []
         self.calls = []
         self.posts = []
+        self.reactions = []
+        self.actions = []
+
+    def reactions_add(self, **kwargs):
+        self.reactions.append(("add", kwargs))
+        self.actions.append(("reaction", "add", kwargs["name"]))
+
+    def reactions_remove(self, **kwargs):
+        self.reactions.append(("remove", kwargs))
+        self.actions.append(("reaction", "remove", kwargs["name"]))
 
     def conversations_replies(self, **kwargs):
         self.calls.append(kwargs)
@@ -32,6 +42,7 @@ class FakeClient:
 
     def chat_postMessage(self, **kwargs):
         self.posts.append(kwargs)
+        self.actions.append(("post",))
         return {"ts": f"1700000003.{len(self.posts):06d}"}
 
 
@@ -54,7 +65,88 @@ class SlackReplyTests(unittest.TestCase):
             directory.mkdir()
 
     def handle(self, message):
-        reply.handle(message, "T123", USER, self.client, self.state, self.path, self.path, self.projects, self.commands)
+        if reply.acknowledge(message, "T123", USER, self.client, self.state, self.commands):
+            reply.handle(message, "T123", USER, self.client, self.state, self.path, self.path, self.projects, self.commands)
+
+    def test_reactions_mark_each_keyword_before_work_and_after_reply(self):
+        for index, keyword in enumerate(self.commands):
+            with self.subTest(keyword=keyword):
+                self.client.reactions.clear()
+                self.client.actions.clear()
+                request = event(ts=f"1700000001.{index:06d}", text=f"{keyword} question", thread_ts=ROOT)
+                self.client.pages = [{"messages": [request]}]
+
+                def run(prompt, session_id):
+                    self.assertEqual(self.client.reactions, [("add", {
+                        "channel": "C123", "timestamp": request["ts"], "name": "eyes",
+                    })])
+                    self.client.actions.append(("run",))
+                    return f"session-{keyword}", "answer"
+
+                with patch.object(reply, "provider_for", return_value=Mock(run=run)):
+                    self.handle(request)
+                    self.handle(request)  # Completed deliveries must not restore :eyes:.
+                self.assertEqual(self.client.actions, [
+                    ("reaction", "add", "eyes"), ("run",), ("post",),
+                    ("reaction", "add", "robot_face"),
+                    ("reaction", "add", "white_check_mark"),
+                    ("reaction", "remove", "eyes"),
+                ])
+                self.assertEqual(self.client.reactions[1][1]["timestamp"], f"1700000003.{index+1:06d}")
+                for _, reaction in [self.client.reactions[0], *self.client.reactions[2:]]:
+                    self.assertEqual(reaction["timestamp"], request["ts"])
+
+    def test_failed_work_or_post_never_marks_the_request_completed(self):
+        for stage in ("run", "post"):
+            with self.subTest(stage=stage):
+                self.client.actions.clear()
+                self.client.reactions.clear()
+                runner = Mock(run=Mock(side_effect=RuntimeError("CLI failed"))) if stage == "run" else self.runner
+                self.runner.run.return_value = ("session", "answer")
+                with patch.object(reply, "provider_for", return_value=runner):
+                    with patch.object(self.client, "chat_postMessage", side_effect=RuntimeError("post failed")):
+                        with self.assertRaises(RuntimeError):
+                            self.handle(event())
+                self.assertEqual([item[1]["name"] for item in self.client.reactions], ["eyes"])
+                self.assertFalse(self.state.seen("handled", "T123", "C123", FIRST))
+
+    def test_reaction_errors_do_not_block_or_repeat_the_reply(self):
+        self.runner.run.return_value = ("session", "answer")
+        with (patch.object(reply, "provider_for", return_value=self.runner),
+              patch.object(self.client, "reactions_add", side_effect=RuntimeError("reaction unavailable")),
+              patch.object(self.client, "reactions_remove", side_effect=RuntimeError("reaction unavailable")),
+              patch("reactions.logging.Logger.warning") as warning):
+            self.handle(event())
+            self.handle(event())
+        self.runner.run.assert_called_once()
+        self.assertEqual(len(self.client.posts), 1)
+        self.assertEqual(warning.call_count, 4)
+
+    def test_duplicate_finishing_during_acknowledgement_does_not_restore_eyes(self):
+        def add(**kwargs):
+            self.state.mark("handled", "T123", "C123", FIRST)
+
+        with (patch.object(self.client, "reactions_add", side_effect=add),
+              patch.object(reply, "provider_for") as factory):
+            self.handle(event())
+        factory.assert_not_called()
+        self.assertEqual(self.client.reactions, [("remove", {
+            "channel": "C123", "timestamp": FIRST, "name": "eyes",
+        })])
+
+    def test_repeated_or_missing_reactions_are_harmless(self):
+        class APIError(Exception):
+            def __init__(self, code):
+                self.response = {"error": code}
+
+        with (patch.object(self.client, "reactions_add", side_effect=APIError("already_reacted")),
+              patch.object(self.client, "reactions_remove", side_effect=APIError("no_reaction")),
+              patch("reactions.logging.Logger.warning") as warning):
+            self.runner.run.return_value = ("session", "answer")
+            with patch.object(reply, "provider_for", return_value=self.runner):
+                self.handle(event())
+        warning.assert_not_called()
+        self.assertTrue(self.state.seen("handled", "T123", "C123", FIRST))
 
     def test_trigger_requires_same_author_and_exact_prefix(self):
         for text in ["assist question", "chat question", "claude question", "chat\tquestion", "chat\nquestion"]:
@@ -82,6 +174,7 @@ class SlackReplyTests(unittest.TestCase):
         factory.assert_not_called()
         self.assertEqual(self.client.posts, [])
         self.assertEqual(self.client.calls, [])
+        self.assertEqual(self.client.reactions, [])
 
     def test_empty_commands_are_ignored(self):
         with patch.object(reply, "provider_for") as factory:
@@ -90,6 +183,7 @@ class SlackReplyTests(unittest.TestCase):
                     self.assertIsNone(reply.command(text, self.projects, self.commands))
                     self.handle(event(text=text))
         factory.assert_not_called()
+        self.assertEqual(self.client.reactions, [])
 
     def test_prefix_selects_provider_before_matching_workspace(self):
         for index, keyword in enumerate(self.commands):

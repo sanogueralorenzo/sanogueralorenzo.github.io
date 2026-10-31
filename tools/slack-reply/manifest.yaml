@@ -15,6 +15,7 @@ oauth_config:
       - im:history
       - mpim:history
       - chat:write
+      - reactions:write
 settings:
   socket_mode_enabled: true
   token_rotation_enabled: false

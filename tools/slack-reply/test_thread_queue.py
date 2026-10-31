@@ -109,7 +109,7 @@ class ThreadQueueTests(unittest.TestCase):
     def test_bridge_runs_parallel_sessions_with_worker_owned_sqlite_connections(self):
         independent_started = Event()
         delivered = Event()
-        calls, posts, sockets = [], [], []
+        calls, posts, sockets, reactions = [], [], [], []
         post_lock = Lock()
         messages = [
             message("1700000001.000001"),
@@ -125,6 +125,9 @@ class ThreadQueueTests(unittest.TestCase):
                 if not independent_started.wait(5):
                     raise RuntimeError("Another Slack thread was blocked")
             elif name == "independent":
+                # Even a follow-up waiting behind a busy thread is acknowledged immediately.
+                self.assertIn(("add", "1700000002.000001", "eyes"), reactions)
+                self.assertNotIn(("followup", "session-first"), calls)
                 independent_started.set()
             return session_id or f"session-{name}", f"answer {name}"
 
@@ -137,6 +140,20 @@ class ThreadQueueTests(unittest.TestCase):
 
             def conversations_replies(self, **kwargs):
                 return {"messages": [event for event in messages if event["ts"] <= kwargs["latest"]]}
+
+            def reactions_add(self, **kwargs):
+                self.assert_user_token()
+                with post_lock:
+                    reactions.append(("add", kwargs["timestamp"], kwargs["name"]))
+
+            def reactions_remove(self, **kwargs):
+                self.assert_user_token()
+                with post_lock:
+                    reactions.append(("remove", kwargs["timestamp"], kwargs["name"]))
+
+            def assert_user_token(self):
+                if not self.token.startswith("xoxp-"):
+                    raise RuntimeError("Reactions must use the authorized user token")
 
             def chat_postMessage(self, **kwargs):
                 with post_lock:
@@ -214,6 +231,9 @@ class ThreadQueueTests(unittest.TestCase):
                 state.db.close()
         self.assertCountEqual(calls, [("first", None), ("independent", None), ("followup", "session-first")])
         self.assertEqual(len(posts), 3)
+        self.assertEqual(sum(name == "robot_face" for _, _, name in reactions), 3)
+        self.assertEqual(sum(name == "white_check_mark" for _, _, name in reactions), 3)
+        self.assertEqual(sum(action == "remove" and name == "eyes" for action, _, name in reactions), 3)
         self.assertTrue(sockets[0].closed)
 
 

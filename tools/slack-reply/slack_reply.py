@@ -9,6 +9,7 @@ from contextlib import ExitStack
 from pathlib import Path
 
 from providers import processes, provider_for, require_available
+from reactions import react
 from routing import command, command_providers, eligible, project_workspaces
 from thread_queue import ThreadQueue
 
@@ -137,6 +138,19 @@ def prompt_for(event, messages, state, team, request):
     )
 
 
+def acknowledge(event, team, user_id, client, state, commands):
+    if not eligible(event, user_id, commands) or command(event["text"], {}, commands) is None:
+        return False
+    channel, ts = event["channel"], event["ts"]
+    if state.seen("posted", team, channel, ts) or state.seen("handled", team, channel, ts):
+        return False
+    react(client, channel, ts, "eyes")
+    if state.seen("handled", team, channel, ts):
+        react(client, channel, ts, "eyes", remove=True)
+        return False
+    return True
+
+
 def handle(event, team, user_id, client, state, workspace, state_dir, projects, commands):
     if not eligible(event, user_id, commands):
         return
@@ -166,6 +180,9 @@ def handle(event, team, user_id, client, state, workspace, state_dir, projects, 
     )
     state.mark("posted", team, channel, response["ts"])
     state.mark("handled", team, channel, ts)
+    react(client, channel, response["ts"], "robot_face")
+    react(client, channel, ts, "white_check_mark")
+    react(client, channel, ts, "eyes", remove=True)
 
 
 def main(argv=None):
@@ -229,6 +246,8 @@ def main(argv=None):
         raise KeyboardInterrupt
 
     with ExitStack() as cleanup:
+        admission_state = State(state_dir)
+        cleanup.callback(admission_state.db.close)
         previous = signal.signal(signal.SIGTERM, interrupt)
         cleanup.callback(signal.signal, signal.SIGTERM, previous)
         cleanup.callback(workers.close)
@@ -238,7 +257,7 @@ def main(argv=None):
         print(f"Slack Reply listening for {'/'.join(commands)} commands from {user_id}", flush=True)
         while True:
             event = events.get()
-            if eligible(event, user_id, commands):
+            if acknowledge(event, team, user_id, user_client, admission_state, commands):
                 workers.submit(event)
 
 

@@ -4,6 +4,8 @@ Local Slack Socket Mode bridge to the Codex, Claude, or Pi CLI. Only messages fr
 
 A keyword must be a separate word at the very start of your message, followed by whitespace and a request. Matching is case-sensitive. Leading whitespace, partial words, self-mentions, other people's messages, and keywords later in a message do not trigger it. Every follow-up needs a configured keyword. Answers are posted in the triggering thread with the authorized user's token, using Slack's native Markdown rendering (up to 12,000 characters).
 
+Accepted requests receive an `:eyes:` reaction immediately, including while queued. After the reply is posted, the request's `:eyes:` is replaced by `:white_check_mark:`, and the AI reply receives `:robot_face:`. Reactions use the authorized user's token and require the `reactions:write` user scope. Reaction errors are logged without blocking replies.
+
 Up to eight Slack threads run concurrently. Messages within each thread run in arrival order and resume its CLI session. Threads share filesystem access; use separate workspaces for simultaneous edits to the same project.
 
 On macOS and Linux, Ctrl-C or SIGTERM stops CLI process groups, including child processes. Processes get two seconds to exit before being killed; queued requests do not start during shutdown.
