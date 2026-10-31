@@ -14,23 +14,23 @@ class ThreadQueue:
         self.lock = Lock()
         self.closed = False
 
-    def submit(self, event):
+    def submit(self, event, command):
         key = (event["channel"], event.get("thread_ts") or event["ts"])
         with self.lock:
             if self.closed:
                 raise RuntimeError("Agent Slack queue is closed")
             if key in self.queues:
-                self.queues[key].append(event)
+                self.queues[key].append((event, command))
             else:
-                self.queues[key] = deque([event])
+                self.queues[key] = deque([(event, command)])
                 self.pool.submit(self.run, key)
 
     def run(self, key):
         while True:
             with self.lock:
-                event = self.queues[key][0]
+                event, command = self.queues[key][0]
             try:
-                self.process(event)
+                self.process(event, command)
             except Exception:
                 logging.getLogger(__name__).exception(
                     "Agent Slack could not process %s/%s", event["channel"], event["ts"]

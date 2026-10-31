@@ -21,16 +21,9 @@ def command_providers():
     for keyword, provider in commands.items():
         if not keyword or not keyword.isprintable() or any(character.isspace() for character in keyword):
             raise ValueError("Command keywords must be nonempty words without whitespace")
-        if provider not in ("codex", "claude", "pi"):
-            raise ValueError(f"Keyword {keyword} requires provider codex, claude, or pi")
+        if provider not in ("codex", "claude"):
+            raise ValueError(f"Keyword {keyword} requires provider codex or claude")
     return commands
-
-
-def prefix(text, commands):
-    if not text or text[0].isspace():
-        return None
-    parts = text.split(maxsplit=1)
-    return commands.get(parts[0])
 
 
 def project_workspaces():
@@ -48,10 +41,12 @@ def project_workspaces():
 
 
 def command(text, projects, commands):
-    provider = prefix(text, commands)
-    if provider is None:
+    if not text or text[0].isspace():
         return None
     parts = text.split(maxsplit=1)
+    provider = commands.get(parts[0])
+    if provider is None:
+        return None
     request = parts[1].strip() if len(parts) == 2 else ""
     if not request:
         return None
@@ -65,13 +60,14 @@ def command(text, projects, commands):
     return Command(provider, workspace, request)
 
 
-def eligible(event, user_id, commands):
-    return (
+def command_for(event, user_id, projects, commands):
+    if (
         event.get("type") == "message"
         and event.get("subtype") in (None, "thread_broadcast")
         and not event.get("bot_id")
         and not event.get("app_id")
         and event.get("user") == user_id
-        and prefix(event.get("text", ""), commands) is not None
         and bool(event.get("channel") and event.get("ts"))
-    )
+    ):
+        return command(event.get("text", ""), projects, commands)
+    return None

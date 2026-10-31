@@ -17,7 +17,7 @@ class Provider(Protocol):
 
 
 def require_available(name):
-    if name not in {"codex", "claude", "pi"}:
+    if name not in {"codex", "claude"}:
         raise ValueError(f"Unknown provider: {name}")
     if not shutil.which(name):
         raise RuntimeError(f"{name} CLI is not installed or is not on PATH")
@@ -101,55 +101,8 @@ class ClaudeProvider:
         return new_session_id, answer.strip()
 
 
-class PiProvider:
-    name = "pi"
-
-    def __init__(self, workspace):
-        self.workspace = workspace
-
-    def run(self, prompt, session_id):
-        command = ["pi", "--mode", "json", "-p"]
-        if session_id:
-            command.extend(["--session", session_id])
-        result = execute(command, prompt, self.workspace)
-        if result.returncode:
-            detail = result.stderr[-1500:] or result.stdout[-1500:]
-            raise RuntimeError(f"pi CLI failed (exit {result.returncode}): {detail}")
-        session = None
-        last_assistant = None
-        settled = False
-        try:
-            for line in result.stdout.split("\n"):
-                if not line:
-                    continue
-                event = json.loads(line)
-                if event.get("type") == "session":
-                    session = event.get("id")
-                elif event.get("type") == "message_end":
-                    message = event.get("message") or {}
-                    if message.get("role") == "assistant":
-                        last_assistant = message
-                elif event.get("type") == "agent_settled":
-                    settled = True
-        except json.JSONDecodeError as error:
-            raise RuntimeError("pi CLI did not return valid JSONL") from error
-        check_session(self.name, session, session_id)
-        if not settled or not last_assistant or last_assistant.get("stopReason") != "stop":
-            detail = (last_assistant or {}).get("errorMessage") or "no completed assistant answer"
-            raise RuntimeError(f"pi CLI did not complete: {detail}")
-        answer = "".join(
-            block.get("text", "") for block in last_assistant.get("content", [])
-            if block.get("type") == "text"
-        ).strip()
-        if not answer:
-            raise RuntimeError("pi CLI returned an empty final answer")
-        return session, answer
-
-
 def provider_for(name, workspace, state_dir) -> Provider:
     require_available(name)
     if name == "codex":
         return CodexProvider(workspace, state_dir)
-    if name == "claude":
-        return ClaudeProvider(workspace)
-    return PiProvider(workspace)
+    return ClaudeProvider(workspace)

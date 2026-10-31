@@ -1,17 +1,18 @@
 import json
 import os
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from routing import command, command_providers
+from routing import command, command_providers, project_workspaces
 
 
 class RoutingTests(unittest.TestCase):
     def setUp(self):
         self.commands = {"chat": "codex",
                          "claude": "claude",
-                         "assist": "pi"}
+                         "assist": "codex"}
         self.projects = {"tonal": Path("/repos/tonal"), "mobile": Path("/repos/mobile"),
                          "api": Path("/repos/api-go")}
 
@@ -59,13 +60,13 @@ class CommandConfigurationTests(unittest.TestCase):
         config = {
             "work": "codex",
             "Review": "claude",
-            "!ask": "pi",
+            "!ask": "codex",
         }
         with patch.dict(os.environ, {"AGENT_SLACK_COMMANDS": json.dumps(config)}, clear=True):
             commands = command_providers()
         self.assertEqual(commands["work"], "codex")
         self.assertEqual(commands["Review"], "claude")
-        self.assertEqual(commands["!ask"], "pi")
+        self.assertEqual(commands["!ask"], "codex")
         self.assertEqual(command("Review inspect this", {}, commands).provider, commands["Review"])
         self.assertIsNone(command("review inspect this", {}, commands))
         self.assertIsNone(command("chat inspect this", {}, commands))
@@ -82,11 +83,11 @@ class CommandConfigurationTests(unittest.TestCase):
                     command_providers()
 
     def test_keyword_names_do_not_imply_a_provider(self):
-        config = {"claude": "codex", "chat": "pi"}
+        config = {"claude": "codex", "chat": "codex"}
         with patch.dict(os.environ, {"AGENT_SLACK_COMMANDS": json.dumps(config)}):
             commands = command_providers()
         self.assertEqual(command("claude help", {}, commands).provider, "codex")
-        self.assertEqual(command("chat help", {}, commands).provider, "pi")
+        self.assertEqual(command("chat help", {}, commands).provider, "codex")
 
     def test_invalid_keywords_or_providers_are_rejected(self):
         invalid = [
@@ -100,6 +101,23 @@ class CommandConfigurationTests(unittest.TestCase):
             with self.subTest(config=config), patch.dict(os.environ, {"AGENT_SLACK_COMMANDS": json.dumps(config)}):
                 with self.assertRaises(ValueError):
                     command_providers()
+
+
+class ConfigurationTests(unittest.TestCase):
+    def test_project_mapping_is_optional_and_resolves_directories(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(project_workspaces(), {})
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(os.environ, {"AGENT_SLACK_PROJECTS": json.dumps({"work": directory})}):
+                self.assertEqual(project_workspaces(), {"work": Path(directory).resolve()})
+
+    def test_invalid_project_config_is_rejected(self):
+        for config in ['invalid json', '[]', 'null', '{"Bad": "/tmp"}',
+                       '{"two words": "/tmp"}', '{"work": 3}', '{"work": ""}',
+                       '{"work": "/nonexistent-agent-slack-project"}']:
+            with self.subTest(config=config), patch.dict(os.environ, {"AGENT_SLACK_PROJECTS": config}):
+                with self.assertRaises(ValueError):
+                    project_workspaces()
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock, patch
 
 import agent_slack as reply
+import conversation
 from thread_queue import ThreadQueue
 
 
@@ -26,7 +27,8 @@ class ThreadQueueTests(unittest.TestCase):
         started, release, next_started, other_done = Event(), Event(), Event(), Event()
         calls = []
 
-        def process(event):
+        def process(event, parsed):
+            self.assertEqual(parsed, "parsed")
             calls.append(event["ts"])
             if event["ts"] == "1":
                 started.set()
@@ -39,11 +41,11 @@ class ThreadQueueTests(unittest.TestCase):
 
         workers = ThreadQueue(process, max_workers=2)
         try:
-            workers.submit(message("1"))
+            workers.submit(message("1"), "parsed")
             self.assertTrue(started.wait(5))
-            workers.submit(message("2", thread_ts="1"))
+            workers.submit(message("2", thread_ts="1"), "parsed")
             # The same root timestamp in another channel is a different thread.
-            workers.submit(message("3", channel="C456", thread_ts="1"))
+            workers.submit(message("3", channel="C456", thread_ts="1"), "parsed")
             self.assertTrue(other_done.wait(5))
             self.assertFalse(next_started.is_set())
         finally:
@@ -56,7 +58,7 @@ class ThreadQueueTests(unittest.TestCase):
         lock = Lock()
         active = maximum = completed = 0
 
-        def process(event):
+        def process(event, parsed):
             nonlocal active, maximum, completed
             with lock:
                 active += 1
@@ -72,7 +74,7 @@ class ThreadQueueTests(unittest.TestCase):
         workers = ThreadQueue(process, max_workers=2)
         try:
             for ts in range(5):
-                workers.submit(message(str(ts)))
+                workers.submit(message(str(ts)), "parsed")
             self.assertTrue(full.wait(5))
             with lock:
                 self.assertEqual(active, 2)
@@ -82,13 +84,14 @@ class ThreadQueueTests(unittest.TestCase):
         self.assertEqual(maximum, 2)
         self.assertEqual(completed, 5)
         with self.assertRaisesRegex(RuntimeError, "closed"):
-            workers.submit(message("6"))
+            workers.submit(message("6"), "parsed")
 
     def test_failed_message_does_not_block_followups(self):
         calls = []
         release = Event()
 
-        def process(event):
+        def process(event, parsed):
+            self.assertEqual(parsed, "parsed")
             calls.append(event["ts"])
             if event["ts"] == "1":
                 if not release.wait(5):
@@ -98,8 +101,8 @@ class ThreadQueueTests(unittest.TestCase):
         workers = ThreadQueue(process, max_workers=1)
         with patch("thread_queue.logging.Logger.exception") as log:
             try:
-                workers.submit(message("1"))
-                workers.submit(message("2", thread_ts="1"))
+                workers.submit(message("1"), "parsed")
+                workers.submit(message("2", thread_ts="1"), "parsed")
             finally:
                 release.set()
                 workers.close()
@@ -219,7 +222,7 @@ class ThreadQueueTests(unittest.TestCase):
             with (patch.dict(os.environ, env, clear=True), patch.dict(sys.modules, modules),
                   patch.object(reply, "require_available"),
                   patch.object(reply, "processes", Mock(closed=False)) as processes,
-                  patch.object(reply, "provider_for", return_value=Mock(run=run)),
+                  patch.object(conversation, "provider_for", return_value=Mock(run=run)),
                   patch.object(reply.queue, "Queue", Inbox),
                   patch("thread_queue.logging.Logger.exception") as errors,
                   redirect_stdout(io.StringIO())):

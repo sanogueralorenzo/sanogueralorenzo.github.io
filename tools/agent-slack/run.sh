@@ -11,4 +11,4 @@ if [ -f .env ]; then
   . ./.env
   set +a
 fi
-exec python3 agent_slack.py "$@"
+exec .venv/bin/python agent_slack.py "$@"

@@ -14,18 +14,6 @@ def completed(stdout, returncode=0, stderr=""):
     })()
 
 
-def pi_events(session_id, answer, stop_reason="stop", settled=True):
-    events = [
-        {"type": "session", "id": session_id},
-        {"type": "message_end", "message": {"role": "assistant",
-                                            "content": [{"type": "text", "text": answer}],
-                                            "stopReason": stop_reason}},
-    ]
-    if settled:
-        events.append({"type": "agent_settled"})
-    return "\n".join(json.dumps(event) for event in events) + "\n"
-
-
 class ProviderTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -119,47 +107,13 @@ class ProviderTests(unittest.TestCase):
                 self.assertEqual(command, ["claude", "-p", "--output-format", "json"]
                                  + (["--resume", session] if session else []))
                 return completed(json.dumps({"session_id": "session-1", "result": "answer"}))
-            self.assertEqual(command, ["pi", "--mode", "json", "-p"]
-                             + (["--session", session] if session else []))
-            return completed(pi_events("session-1", "answer"))
         with patch.object(providers.shutil, "which", return_value="/bin/cli"):
             with patch.object(providers, "execute", side_effect=fake_execute):
-                for name in ["codex", "claude", "pi"]:
+                for name in ["codex", "claude"]:
                     adapter = providers.provider_for(name, self.path, self.path)
                     for session in [None, "session-1"]:
                         with self.subTest(provider=name, session=session):
                             self.assertEqual(adapter.run("prompt", session), ("session-1", "answer"))
-
-    def test_pi_resumes_exact_session(self):
-        with patch.object(providers, "execute",
-                          return_value=completed(pi_events("session-1", "Follow-up"))) as execute:
-            session, answer = providers.PiProvider(self.path).run("prompt", "session-1")
-        command = execute.call_args.args[0]
-        self.assertEqual(command[command.index("--session") + 1], "session-1")
-        self.assertEqual((session, answer), ("session-1", "Follow-up"))
-
-    def test_pi_keeps_unicode_line_separator_inside_json_string(self):
-        answer = "first\u2028second"
-        events = pi_events("session-1", answer).replace("\\u2028", "\u2028")
-        with patch.object(providers, "execute", return_value=completed(events)):
-            self.assertEqual(providers.PiProvider(self.path).run("prompt", None),
-                             ("session-1", answer))
-
-    def test_pi_rejects_different_or_incomplete_session(self):
-        with patch.object(providers, "execute",
-                          return_value=completed(pi_events("other", "answer"))):
-            with self.assertRaisesRegex(RuntimeError, "different session"):
-                providers.PiProvider(self.path).run("prompt", "session-1")
-        with patch.object(providers, "execute",
-                          return_value=completed(pi_events("session-1", "partial", settled=False))):
-            with self.assertRaisesRegex(RuntimeError, "did not complete"):
-                providers.PiProvider(self.path).run("prompt", None)
-
-    def test_pi_cli_failure_is_reported(self):
-        with patch.object(providers, "execute",
-                          return_value=completed("", returncode=1, stderr="model unavailable")):
-            with self.assertRaisesRegex(RuntimeError, "model unavailable"):
-                providers.PiProvider(self.path).run("prompt", None)
 
 
 if __name__ == "__main__":
