@@ -35,11 +35,17 @@ class RoutingTests(unittest.TestCase):
             with self.subTest(request=request):
                 self.assertIsNone(command("bot explain " + request, self.projects).workspace)
 
-    def test_repeated_alias_is_one_workspace_but_distinct_aliases_are_ambiguous(self):
+    def test_first_alias_in_text_wins_regardless_of_configuration_order(self):
         self.assertEqual(command("chat tonal fix tonal tests", self.projects).workspace,
                          self.projects["tonal"])
-        with self.assertRaisesRegex(ValueError, "only one project alias"):
-            command("chat compare mobile and api", self.projects)
+        for request, alias in [("compare mobile and api", "mobile"),
+                               ("compare api and mobile", "api"),
+                               ("mobile api tonal", "mobile"),
+                               ("compare (API), tonal and mobile", "api")]:
+            with self.subTest(request=request):
+                parsed = command("chat " + request, self.projects)
+                self.assertEqual(parsed.workspace, self.projects[alias])
+                self.assertEqual(parsed.request, request)
 
 
 if __name__ == "__main__":

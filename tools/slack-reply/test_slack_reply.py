@@ -101,14 +101,18 @@ class SlackReplyTests(unittest.TestCase):
                                                 model=model, effort=effort)
                 self.assertTrue(self.runner.run.call_args.args[0].endswith("explain the PROJECT build"))
 
-    def test_ambiguous_workspace_gets_a_reply_without_running_a_cli(self):
-        request = event(text="chat compare project and service")
-        with patch.object(reply, "provider_for") as factory:
+    def test_first_mentioned_workspace_runs_once_with_the_full_request(self):
+        request = event(text="chat compare service and project")
+        self.runner.run.return_value = ("service-session", "answer")
+        with patch.object(reply, "provider_for", return_value=self.runner) as factory:
             self.handle(request)
             self.handle(request)
-        factory.assert_not_called()
+        factory.assert_called_once_with("codex", self.projects["service"], self.path,
+                                        model="gpt-6.1-sol", effort="high")
+        self.runner.run.assert_called_once()
+        self.assertTrue(self.runner.run.call_args.args[0].endswith("compare service and project"))
         self.assertEqual(len(self.client.posts), 1)
-        self.assertIn("only one project alias", self.client.posts[0]["markdown_text"])
+        self.assertEqual(self.client.posts[0]["markdown_text"], "answer")
 
     def test_alias_workspace_sticks_without_alias_and_survives_restart(self):
         self.runner.run.side_effect = [("project-session", "answer"),

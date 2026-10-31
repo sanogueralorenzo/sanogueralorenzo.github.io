@@ -66,7 +66,7 @@ Set `SLACK_REPLY_TIER=default` (the default) or `SLACK_REPLY_TIER=fast` in `.env
 SLACK_REPLY_PROJECTS='{"project":"/absolute/path/to/project","service":"/absolute/path/to/service"}'
 ```
 
-Aliases match complete words anywhere after the prefix, ignoring case and preserving the request text. Partial words and hyphenated or underscored extensions do not match. Mention at most one alias; multiple different aliases get a clarification reply without starting a CLI.
+Aliases match complete words anywhere after the prefix, ignoring case and preserving the request text. Partial words and hyphenated or underscored extensions do not match. When several aliases appear, the first one in the message selects the workspace, regardless of their order in `.env`.
 
 - `bot explain this` uses the default provider and workspace.
 - `chat investigate the failing tests in project` uses Codex / Sol / high in `project`.

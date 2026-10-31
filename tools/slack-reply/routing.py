@@ -45,11 +45,13 @@ def command(text, projects):
     request = text[prefix.end():].strip()
     if not request:
         return None
-    aliases = [alias for alias in projects
-               if re.search(rf"(?<![\w-]){re.escape(alias)}(?![\w-])", request, re.IGNORECASE)]
-    if len(aliases) > 1:
-        raise ValueError("Mention only one project alias per command: " + ", ".join(aliases))
-    workspace = projects[aliases[0]] if aliases else None
+    workspace = None
+    first = len(request)
+    for alias, directory in projects.items():
+        match = re.search(rf"(?<![\w-]){re.escape(alias)}(?![\w-])", request, re.IGNORECASE)
+        if match and match.start() < first:
+            first = match.start()
+            workspace = directory
     return Command(*PROFILES[prefix.group(1)], workspace, request)
 
 

@@ -137,27 +137,13 @@ def prompt_for(event, messages, state, team, request):
     )
 
 
-def post_answer(client, state, team, event, answer):
-    channel, ts = event["channel"], event["ts"]
-    response = client.chat_postMessage(
-        channel=channel, thread_ts=event.get("thread_ts") or ts, markdown_text=answer,
-        unfurl_links=False, unfurl_media=False,
-    )
-    state.mark("posted", team, channel, response["ts"])
-    state.mark("handled", team, channel, ts)
-
-
 def handle(event, team, user_id, client, state, workspace, state_dir, projects):
     if not eligible(event, user_id):
         return
     channel, ts = event["channel"], event["ts"]
     if state.seen("posted", team, channel, ts) or state.seen("handled", team, channel, ts):
         return
-    try:
-        parsed = command(event["text"], projects)
-    except ValueError as error:
-        post_answer(client, state, team, event, str(error))
-        return
+    parsed = command(event["text"], projects)
     if parsed is None:
         return
     thread_ts = event.get("thread_ts") or ts
@@ -174,7 +160,12 @@ def handle(event, team, user_id, client, state, workspace, state_dir, projects):
     provider = provider_for(provider_name, workspace, state_dir, model=parsed.model, effort=parsed.effort)
     new_session_id, answer = provider.run(prompt, session_id)
     state.save_session(team, channel, thread_ts, provider_name, new_session_id, workspace)
-    post_answer(client, state, team, event, answer)
+    response = client.chat_postMessage(
+        channel=channel, thread_ts=thread_ts, markdown_text=answer,
+        unfurl_links=False, unfurl_media=False,
+    )
+    state.mark("posted", team, channel, response["ts"])
+    state.mark("handled", team, channel, ts)
 
 
 def main(argv=None):
