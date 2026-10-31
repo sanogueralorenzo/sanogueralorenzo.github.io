@@ -2,7 +2,7 @@
 
 Local Slack Socket Mode bridge to the Codex, Claude, or Pi CLI. A message runs the selected provider only when its author is `SLACK_USER_ID` and its text contains `<@SLACK_USER_ID>`. Every answer is posted in the triggering message's thread, with one provider session per thread. A top-level trigger starts a fresh session using only that message, without channel history. Answers are posted with the authorized user's Slack token using Slack's native Markdown rendering (up to 12,000 characters).
 
-Up to eight Slack threads run concurrently. Messages within each thread run in arrival order and resume its CLI session. Threads share filesystem access; use separate workspaces for simultaneous edits to the same project.
+Up to 20 Slack threads run concurrently. Messages within each thread run in arrival order and resume its CLI session. Threads share filesystem access; use separate workspaces for simultaneous edits to the same project.
 
 ## Slack setup
 
