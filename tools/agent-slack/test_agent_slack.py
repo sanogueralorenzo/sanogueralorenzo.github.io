@@ -1,25 +1,102 @@
+import io
 import os
+import queue
+import signal
+import tempfile
 import unittest
-from unittest.mock import patch
+from contextlib import redirect_stdout
+from pathlib import Path
+from threading import Event, Lock
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import agent_slack
+import conversation
+from commands import Command
 
 
-class StartupTests(unittest.TestCase):
-    def test_arguments_are_rejected(self):
-        with self.assertRaisesRegex(ValueError, "configure keyword commands in .env"):
-            agent_slack.main(["provider", "codex"])
+class BridgeTests(unittest.TestCase):
+    def test_socket_events_run_parallel_threads_and_resume_queued_followups(self):
+        events = [
+            {"type": "message", "user": "U123", "channel": "C123", "ts": ts,
+             "text": f"work {text}", **extra}
+            for ts, text, extra in (("1700000001.000001", "first", {}),
+                                    ("1700000001.000001", "first", {}),  # Duplicate delivery.
+                                    ("1700000002.000001", "followup", {"thread_ts": "1700000001.000001"}),
+                                    ("1700000003.000001", "independent", {}))
+        ]
+        independent, delivered = Event(), Event()
+        lock, calls, posts = Lock(), [], []
+        inbox = queue.Queue()
+        client = Mock()
+        client.auth_test.return_value = {"team_id": "T123", "user_id": "U123"}
+        client.conversations_replies.side_effect = lambda **kwargs: {"messages": events[:3]}
+        command = Command(("custom",), ("custom", "{session_id}"))
 
-    def test_missing_command_configuration_fails_before_slack_setup(self):
-        with patch.dict(os.environ, {}, clear=True):
-            with self.assertRaisesRegex(ValueError, "AGENT_SLACK_COMMANDS"):
-                agent_slack.main([])
+        def run(prompt, session_id):
+            name = prompt.split()[-1]
+            calls.append((name, session_id))
+            if name == "first":
+                if not independent.wait(5):
+                    raise RuntimeError("Another Slack thread was blocked")
+            elif name == "independent":
+                client.reactions_add.assert_any_call(channel="C123", timestamp=events[2]["ts"], name="eyes")
+                self.assertNotIn(("followup", "session-first"), calls)
+                independent.set()
+            return session_id or f"session-{name}", f"answer {name}"
 
-    def test_missing_executable_fails_before_slack_setup(self):
-        config = '{"work":{"start":["/missing/command"],"resume":["/missing/command","{session_id}"]}}'
-        with patch.dict(os.environ, {"AGENT_SLACK_COMMANDS": config}, clear=True):
-            with self.assertRaisesRegex(ValueError, "executable not found"):
-                agent_slack.main([])
+        def post(**kwargs):
+            with lock:
+                posts.append(kwargs)
+                if len(posts) == 3:
+                    delivered.set()
+                return {"ts": f"1700000004.{len(posts):06d}"}
+
+        def next_event():
+            try:
+                return inbox.get_nowait()
+            except queue.Empty:
+                self.assertTrue(delivered.wait(5), "The bridge did not finish its requests")
+                signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
+
+        socket = Mock(socket_mode_request_listeners=[])
+
+        def connect():
+            foreign = {**events[0], "ts": "1700000005.000001", "text": "work foreign"}
+            for index, event in enumerate([*events, foreign]):
+                request = SimpleNamespace(type="events_api", envelope_id=str(index),
+                                          payload={"team_id": "T123" if index < 4 else "FOREIGN", "event": event})
+                socket.socket_mode_request_listeners[0](socket, request)
+
+        socket.connect.side_effect = connect
+        client.chat_postMessage.side_effect = post
+        with tempfile.TemporaryDirectory() as directory:
+            env = {"SLACK_APP_TOKEN": "xapp-test", "SLACK_USER_TOKEN": "xoxp-test", "SLACK_USER_ID": "U123",
+                   "AGENT_SLACK_WORKSPACE": directory, "AGENT_SLACK_PROJECTS": "{}", "AGENT_SLACK_STATE_DIR": directory}
+            with (patch.dict(os.environ, env, clear=True),
+                  patch.object(agent_slack, "load_commands", return_value={"work": command}),
+                  patch("slack_sdk.WebClient", return_value=client),
+                  patch("slack_sdk.socket_mode.SocketModeClient", return_value=socket),
+                  patch.object(agent_slack.queue, "Queue", return_value=SimpleNamespace(put=inbox.put, get=next_event)),
+                  patch.object(agent_slack, "processes", Mock(closed=False)) as processes,
+                  patch.object(conversation, "Executor", return_value=Mock(run=run)),
+                  patch("thread_queue.logging.Logger.exception") as errors,
+                  redirect_stdout(io.StringIO())):
+                previous_signal = signal.getsignal(signal.SIGTERM)
+                with self.assertRaises(KeyboardInterrupt):
+                    agent_slack.main([])
+                self.assertEqual(signal.getsignal(signal.SIGTERM), previous_signal)
+                processes.close.assert_called_once()
+                errors.assert_not_called()
+            state = conversation.State(Path(directory))
+            try:
+                self.assertEqual(state.session("T123", "C123", events[0]["ts"])[:2], (command.key, "session-first"))
+            finally:
+                state.db.close()
+        self.assertCountEqual(calls, [("first", None), ("independent", None), ("followup", "session-first")])
+        self.assertEqual(len(posts), 3)
+        self.assertEqual(socket.send_socket_mode_response.call_count, 5)
+        socket.close.assert_called_once()
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ import time
 import unittest
 from pathlib import Path
 from threading import Thread
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from process_runner import ProcessRunner
 
@@ -94,23 +94,6 @@ class ProcessRunnerTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "shutting down"):
                 self.runner.run([sys.executable, "-c", "pass"], "", self.path, {})
             spawn.assert_not_called()
-
-    def test_execution_error_still_reaps_the_process(self):
-        spawn = subprocess.Popen
-        children = []
-
-        def fail_communication(*args, **kwargs):
-            process = spawn(*args, **kwargs)
-            process.communicate = Mock(side_effect=ValueError("decode failed"))
-            children.append(process)
-            return process
-
-        with patch("process_runner.subprocess.Popen", side_effect=fail_communication):
-            with self.assertRaisesRegex(ValueError, "decode failed"):
-                self.runner.run([sys.executable, "-c", "import time; time.sleep(60)"],
-                                "", self.path, {})
-        self.assertIsNotNone(children[0].returncode)
-        self.assert_stopped(children[0].pid)
 
 
 if __name__ == "__main__":

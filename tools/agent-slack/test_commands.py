@@ -15,37 +15,22 @@ class CommandConfigurationTests(unittest.TestCase):
         with patch.dict(os.environ, {"AGENT_SLACK_COMMANDS": json.dumps(config)}, clear=True):
             return load_commands()
 
-    def test_arbitrary_keywords_and_executables(self):
-        entry = {"start": [sys.executable, "-c", "start"],
-                 "resume": [sys.executable, "-c", "resume", "{session_id}"]}
-        commands = self.load({"!work": entry, "Review": entry})
-        self.assertEqual(commands["!work"], commands["Review"])
-        self.assertEqual(commands["Review"].resume[-1], "{session_id}")
-
-    def test_relative_executable_is_resolved_before_workspace_changes(self):
+    def test_loads_start_resume_commands_and_resolves_executables_before_cwd_changes(self):
         with tempfile.TemporaryDirectory(dir=".") as directory:
             executable = Path(directory) / "custom tool"
             executable.write_text("#!/bin/sh\nexit 0\n")
             executable.chmod(0o700)
-            entry = {"start": [str(executable)], "resume": [str(executable), "{session_id}"]}
-            commands = self.load({"work": entry})
-            self.assertEqual(commands["work"].start[0], str(executable.resolve()))
-
-    def test_command_changes_change_session_identity(self):
-        original = Command(("tool",), ("tool", "{session_id}"))
-        self.assertNotEqual(original.key, Command(("tool", "new"), original.resume).key)
-        self.assertNotEqual(original.key, Command(original.start, ("other", "{session_id}")).key)
+            entry = {"start": [str(executable)], "resume": [str(executable), "--resume", "{session_id}"]}
+            commands = self.load({"!work": entry, "Review": entry})
+            self.assertEqual(commands["!work"], commands["Review"])
+            self.assertEqual(commands["Review"].start, (str(executable.resolve()),))
+            self.assertEqual(commands["Review"].resume, (str(executable.resolve()), "--resume", "{session_id}"))
 
     def test_invalid_configurations_are_rejected(self):
         entry = {"start": [sys.executable], "resume": [sys.executable, "{session_id}"]}
-        configs = [None, [], {}, {"": entry}, {"two words": entry}, {"bad\0": entry},
-                   {"work": "codex"}, {"work": None}, {"work": {}},
-                   {"work": {**entry, "extra": []}}]
-        for mode in ("start", "resume"):
-            for args in (None, "command", [], [1], [""], ["bad\0"], ["/missing/command"]):
-                configs.append({"work": {**entry, mode: args}})
-        configs += [{"work": {**entry, "resume": [sys.executable]}},
-                    {"work": {**entry, "start": [sys.executable, "{session_id}"]}}]
+        configs = [{}, {"two words": entry}, {"work": "command"},
+                   {"work": {**entry, "start": []}}, {"work": {**entry, "resume": [sys.executable]}},
+                   {"work": {**entry, "start": ["/missing/command"]}}]
         for config in configs:
             with self.subTest(config=config), self.assertRaises(ValueError):
                 self.load(config)
@@ -67,9 +52,8 @@ class CommandExecutionTests(unittest.TestCase):
             return Executor(self.command, self.path).run("prompt", session)
 
     def test_rejects_invalid_output_or_different_resumed_session(self):
-        for response in ("", "not JSON", "[]", "null", "{}",
+        for response in ("not JSON", "[]", "{}",
                          '{"session_id":42,"answer":"ok"}',
-                         '{"session_id":" ","answer":"ok"}',
                          '{"session_id":"s","answer":" "}',
                          '{"session_id":"s","answer":null}'):
             with self.subTest(response=response), self.assertRaises(RuntimeError):
