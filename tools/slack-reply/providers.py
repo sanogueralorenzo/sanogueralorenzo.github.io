@@ -4,10 +4,11 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import tempfile
 from pathlib import Path
 from typing import Protocol
+
+from process_runner import processes
 
 
 class Provider(Protocol):
@@ -40,9 +41,8 @@ def tier_setting(provider):
 
 
 def execute(command, prompt, workspace):
-    return subprocess.run(
-        command, input=prompt, text=True, capture_output=True, cwd=workspace,
-        check=False,
+    return processes.run(
+        command, prompt, workspace,
         env={key: value for key, value in os.environ.items() if not key.startswith("SLACK_")},
     )
 

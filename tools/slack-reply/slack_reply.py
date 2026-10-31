@@ -3,11 +3,13 @@
 import os
 import queue
 import re
+import signal
 import sqlite3
 import sys
+from contextlib import ExitStack
 from pathlib import Path
 
-from providers import provider_for, require_available
+from providers import processes, provider_for, require_available
 from thread_queue import ThreadQueue
 
 
@@ -198,10 +200,15 @@ def main(argv=None):
     events = queue.Queue()
 
     def process_event(event):
+        if processes.closed:
+            return
         state = State(state_dir)
         try:
             client = WebClient(token=user_token)
             handle(event, team, user_id, client, state, workspace, state_dir)
+        except Exception:
+            if not processes.closed:
+                raise
         finally:
             state.db.close()
 
@@ -214,21 +221,29 @@ def main(argv=None):
             events.put(request.payload.get("event", {}))
 
     socket.socket_mode_request_listeners.append(receive)
-    try:
+
+    def interrupt(signum, frame):
+        raise KeyboardInterrupt
+
+    with ExitStack() as cleanup:
+        previous = signal.signal(signal.SIGTERM, interrupt)
+        cleanup.callback(signal.signal, signal.SIGTERM, previous)
+        cleanup.callback(workers.close)
+        cleanup.callback(socket.close)
+        cleanup.callback(processes.close)
         socket.connect()
         print(f"Slack Reply listening for self-mentions from {user_id}", flush=True)
         while True:
             event = events.get()
             if eligible(event, user_id):
                 workers.submit(event)
-    finally:
-        socket.close()
-        workers.close()
 
 
 if __name__ == "__main__":
     try:
         main()
+    except KeyboardInterrupt:
+        pass
     except (ValueError, RuntimeError) as error:
         print(f"Slack Reply: {error}", file=sys.stderr)
         sys.exit(1)

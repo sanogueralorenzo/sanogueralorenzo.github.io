@@ -43,10 +43,10 @@ class ProviderTests(unittest.TestCase):
     def test_subprocess_does_not_inherit_slack_tokens(self):
         with patch.dict(os.environ, {"PATH": "/usr/bin", "SLACK_USER_TOKEN": "secret"},
                         clear=True):
-            with patch.object(providers.subprocess, "run", return_value=completed("")) as run:
+            with patch.object(providers.processes, "run", return_value=completed("")) as run:
                 providers.execute(["claude", "-p"], "prompt", self.path)
         self.assertNotIn("SLACK_USER_TOKEN", run.call_args.kwargs["env"])
-        self.assertEqual(run.call_args.kwargs["input"], "prompt")
+        self.assertEqual(run.call_args.args[1], "prompt")
 
     def test_codex_new_session_reads_final_answer_and_session_id(self):
         def fake_execute(command, prompt, workspace):

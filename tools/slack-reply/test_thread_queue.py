@@ -1,5 +1,6 @@
 import io
 import os
+import signal
 import sys
 import tempfile
 import unittest
@@ -106,6 +107,7 @@ class ThreadQueueTests(unittest.TestCase):
 
     def test_bridge_runs_parallel_sessions_with_worker_owned_sqlite_connections(self):
         independent_started = Event()
+        delivered = Event()
         calls, posts, sockets = [], [], []
         post_lock = Lock()
         messages = [
@@ -138,6 +140,8 @@ class ThreadQueueTests(unittest.TestCase):
             def chat_postMessage(self, **kwargs):
                 with post_lock:
                     posts.append(kwargs)
+                    if len(posts) == 3:
+                        delivered.set()
                     return {"ts": f"1700000004.{len(posts):06d}"}
 
         class Inbox:
@@ -150,7 +154,9 @@ class ThreadQueueTests(unittest.TestCase):
             def get(self):
                 if self.events:
                     return self.events.popleft()
-                raise KeyboardInterrupt
+                if not delivered.wait(5):
+                    raise RuntimeError("The bridge did not finish the test requests")
+                signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
 
         class Socket:
             def __init__(self, **kwargs):
@@ -187,13 +193,17 @@ class ThreadQueueTests(unittest.TestCase):
                    "SLACK_REPLY_STATE_DIR": str(path / "state")}
             with (patch.dict(os.environ, env), patch.dict(sys.modules, modules),
                   patch.object(reply, "require_available"),
+                  patch.object(reply, "processes", Mock(closed=False)) as processes,
                   patch.object(reply, "provider_for", return_value=Mock(run=run)),
                   patch.object(reply.queue, "Queue", Inbox),
                   patch("thread_queue.logging.Logger.exception") as errors,
                   redirect_stdout(io.StringIO())):
+                previous_signal = signal.getsignal(signal.SIGTERM)
                 with self.assertRaises(KeyboardInterrupt):
                     reply.main([])
                 errors.assert_not_called()
+                processes.close.assert_called_once()
+                self.assertEqual(signal.getsignal(signal.SIGTERM), previous_signal)
             state = reply.State(path / "state")
             try:
                 self.assertEqual(state.session("T123", "C123", messages[0]["ts"])[:2],

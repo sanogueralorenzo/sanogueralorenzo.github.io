@@ -4,6 +4,8 @@ Local Slack Socket Mode bridge to the Codex, Claude, or Pi CLI. A message runs t
 
 Up to eight Slack threads run concurrently. Messages within each thread run in arrival order and resume its CLI session. Threads share filesystem access; use separate workspaces for simultaneous edits to the same project.
 
+On macOS and Linux, Ctrl-C or SIGTERM stops CLI process groups, including child processes. Processes get two seconds to exit before being killed; queued requests do not start during shutdown.
+
 ## Slack setup
 
 1. In [Slack apps](https://api.slack.com/apps), choose **Create New App → From a manifest**, select your workspace, and paste [manifest.yaml](manifest.yaml). It configures the bot user, Socket Mode, user message events, and OAuth scopes.
