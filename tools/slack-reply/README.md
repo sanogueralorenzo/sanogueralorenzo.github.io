@@ -1,6 +1,6 @@
 # Slack Reply
 
-Local Slack Socket Mode bridge to the Codex, Claude, or Pi CLI. Only messages from `SLACK_USER_ID` can trigger it. Set your own starting keywords and their CLI settings in `.env`; there are no built-in commands or fallback provider.
+Local Slack Socket Mode bridge to the Codex, Claude, or Pi CLI. Only messages from `SLACK_USER_ID` can trigger it. Map your own starting keywords to CLIs in `.env`; each CLI loads its native settings for the chosen workspace.
 
 A keyword must be a separate word at the very start of your message, followed by whitespace and a request. Matching is case-sensitive. Leading whitespace, partial words, self-mentions, other people's messages, and keywords later in a message do not trigger it. Every follow-up needs a configured keyword. Answers are posted in the triggering thread with the authorized user's token, using Slack's native Markdown rendering (up to 12,000 characters).
 
@@ -38,17 +38,17 @@ chmod 600 .env
 
 ## Keyword commands
 
-`SLACK_REPLY_COMMANDS` is a shell-quoted JSON object. Each keyword requires a `provider` (`codex`, `claude`, or `pi`) and can specify `model`, `reasoning_effort`, and `tier` (`default` or `fast`). Omitted settings use that CLI's defaults.
+`SLACK_REPLY_COMMANDS` is a shell-quoted JSON object mapping keywords to CLI names (`codex`, `claude`, or `pi`). There are no built-in commands or fallback provider.
 
 ```sh
-SLACK_REPLY_COMMANDS='{"chat":{"provider":"codex","model":"gpt-6.1-sol","reasoning_effort":"high"},"claude":{"provider":"claude","model":"claude-opus-5-5","reasoning_effort":"high"}}'
+SLACK_REPLY_COMMANDS='{"chat":"codex","claude":"claude"}'
 ```
 
-These names are examples: rename them or add more keywords, including multiple profiles for the same provider. Settings apply on every invocation, including resumed sessions. The configured CLIs and profile options are validated at startup; restart after editing `.env`.
+These names are examples: rename them or add more keywords, including multiple keywords for the same CLI. Configured CLIs must be installed at startup; restart after editing `.env`.
 
-Codex retains its normal sandbox and approval settings. Claude runs with `acceptEdits`; an explicit `reasoning_effort` also overrides `CLAUDE_CODE_EFFORT_LEVEL` for that subprocess. Pi uses its own tool settings and [JSON events and saved sessions](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/json.md).
+Slack Reply adds only flags for noninteractive output, workspace selection, and session resumption. It does not override model, reasoning, tier, or permissions. Configure these in each CLI's own settings: `~/.codex/config.toml`, `~/.claude/settings.json`, or Pi's native settings. Workspace settings and inherited environment variables follow the CLI's normal precedence; resumed sessions follow its native resume behavior.
 
-Set `"tier":"fast"` inside a keyword's profile to request faster processing without changing model or reasoning. `"tier":"default"` explicitly disables fast settings; omitting `tier` keeps CLI defaults. Codex uses its fast service tier, Claude uses `fastMode`, and Pi loads the bundled tier extension. Claude and Pi's Anthropic fast mode require a supported Opus model. Availability and pricing depend on the provider, model, and account. See [Codex speed](https://learn.chatgpt.com/docs/agent-configuration/speed) and [Claude fast mode](https://code.claude.com/docs/en/fast-mode).
+Launch commands are `codex exec --json -o <answer-file> --skip-git-repo-check -C <workspace> -`, `claude -p --output-format json`, and `pi --mode json -p`. Prompts go through stdin. Follow-ups use `codex exec resume`, Claude's `--resume`, or Pi's `--session` with the saved session ID.
 
 ## Commands and workspaces
 
@@ -60,13 +60,13 @@ SLACK_REPLY_PROJECTS='{"project":"/absolute/path/to/project","service":"/absolut
 
 Aliases match complete words anywhere after the prefix, ignoring case and preserving the request text. Partial words and hyphenated or underscored extensions do not match. When several aliases appear, the first one in the message selects the workspace, regardless of their order in `.env`.
 
-- `chat explain this` uses that keyword's profile and the default workspace.
-- `chat investigate the failing tests in project` uses the configured `chat` profile in `project`.
-- `claude review service` uses the configured `claude` profile in `service`.
+- `chat explain this` uses the configured `chat` CLI and the default workspace.
+- `chat investigate the failing tests in project` runs it in `project`.
+- `claude review service` uses the configured `claude` CLI in `service`.
 - `chat continue` in the same thread resumes its matching CLI session and workspace.
 
-Without an alias, a follow-up keeps its saved workspace; a new thread uses `SLACK_REPLY_WORKSPACE`. Each thread has one current provider session. Switching provider or workspace starts fresh; switching back also starts fresh. Keywords using the same provider and workspace resume the session with their own model, reasoning, and tier settings.
+Without an alias, a follow-up keeps its saved workspace; a new thread uses `SLACK_REPLY_WORKSPACE`. Each thread has one current provider session. Switching provider or workspace starts fresh; switching back also starts fresh. Keywords using the same provider and workspace resume the same session.
 
 Commands inside an existing thread include the root and replies through the triggering message. Top-level commands send only their own request. Other participants' messages are context, not authorized instructions. Bot messages, posted answers, and duplicate event deliveries are ignored.
 
-Checks: `python3 -m unittest discover -p 'test_*.py'` and `node --test test_pi_tier.mjs`.
+Checks: `python3 -m unittest discover -p 'test_*.py'`.

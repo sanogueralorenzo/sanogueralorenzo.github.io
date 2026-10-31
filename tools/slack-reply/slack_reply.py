@@ -9,7 +9,7 @@ from contextlib import ExitStack
 from pathlib import Path
 
 from providers import processes, provider_for, require_available
-from routing import command, command_profiles, eligible, project_workspaces
+from routing import command, command_providers, eligible, project_workspaces
 from thread_queue import ThreadQueue
 
 
@@ -137,19 +137,19 @@ def prompt_for(event, messages, state, team, request):
     )
 
 
-def handle(event, team, user_id, client, state, workspace, state_dir, projects, profiles):
-    if not eligible(event, user_id, profiles):
+def handle(event, team, user_id, client, state, workspace, state_dir, projects, commands):
+    if not eligible(event, user_id, commands):
         return
     channel, ts = event["channel"], event["ts"]
     if state.seen("posted", team, channel, ts) or state.seen("handled", team, channel, ts):
         return
-    parsed = command(event["text"], projects, profiles)
+    parsed = command(event["text"], projects, commands)
     if parsed is None:
         return
     thread_ts = event.get("thread_ts") or ts
     is_reply = thread_ts != ts
     saved = state.session(team, channel, thread_ts) if is_reply else None
-    provider_name = parsed.settings.provider
+    provider_name = parsed.provider
     saved_workspace = Path(saved[2]) if saved and saved[2] else None
     workspace = parsed.workspace or saved_workspace or workspace
     if not workspace.is_dir():
@@ -157,7 +157,7 @@ def handle(event, team, user_id, client, state, workspace, state_dir, projects, 
     session_id = saved[1] if saved and saved[0] == provider_name and saved_workspace == workspace else None
     messages = thread_messages(client, event) if is_reply else None
     prompt = prompt_for(event, messages, state, team, parsed.request)
-    provider = provider_for(parsed.settings, workspace, state_dir)
+    provider = provider_for(provider_name, workspace, state_dir)
     new_session_id, answer = provider.run(prompt, session_id)
     state.save_session(team, channel, thread_ts, provider_name, new_session_id, workspace)
     response = client.chat_postMessage(
@@ -173,8 +173,8 @@ def main(argv=None):
     if args:
         raise ValueError("Usage: ./run.sh (configure keyword commands in .env)")
     state_dir = Path(os.environ.get("SLACK_REPLY_STATE_DIR", "~/.local/state/slack-reply")).expanduser()
-    profiles = command_profiles()
-    for provider_name in dict.fromkeys(settings.provider for settings in profiles.values()):
+    commands = command_providers()
+    for provider_name in dict.fromkeys(commands.values()):
         require_available(provider_name)
     from slack_sdk import WebClient
     from slack_sdk.socket_mode import SocketModeClient
@@ -191,8 +191,6 @@ def main(argv=None):
     if not app_token.startswith("xapp-") or not bot_token.startswith("xoxb-") or not user_token.startswith("xoxp-"):
         raise ValueError("Use an xapp app token, xoxb bot token, and xoxp authorized-user token")
     State(state_dir).db.close()
-    for settings in profiles.values():
-        provider_for(settings, workspace, state_dir)
     bot_client = WebClient(token=bot_token)
     user_client = WebClient(token=user_token)
     bot_auth = bot_client.auth_test()
@@ -210,7 +208,7 @@ def main(argv=None):
         state = State(state_dir)
         try:
             client = WebClient(token=user_token)
-            handle(event, team, user_id, client, state, workspace, state_dir, projects, profiles)
+            handle(event, team, user_id, client, state, workspace, state_dir, projects, commands)
         except Exception:
             if not processes.closed:
                 raise
@@ -237,10 +235,10 @@ def main(argv=None):
         cleanup.callback(socket.close)
         cleanup.callback(processes.close)
         socket.connect()
-        print(f"Slack Reply listening for {'/'.join(profiles)} commands from {user_id}", flush=True)
+        print(f"Slack Reply listening for {'/'.join(commands)} commands from {user_id}", flush=True)
         while True:
             event = events.get()
-            if eligible(event, user_id, profiles):
+            if eligible(event, user_id, commands):
                 workers.submit(event)
 
 

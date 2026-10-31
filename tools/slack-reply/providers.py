@@ -2,22 +2,12 @@
 
 import json
 import os
-import re
 import shutil
 import tempfile
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
 from process_runner import processes
-
-
-@dataclass(frozen=True)
-class ProviderSettings:
-    provider: str
-    model: str = ""
-    effort: str = ""
-    tier: str | None = None
 
 
 class Provider(Protocol):
@@ -33,11 +23,10 @@ def require_available(name):
         raise RuntimeError(f"{name} CLI is not installed or is not on PATH")
 
 
-def execute(command, prompt, workspace, *, env=None):
-    environment = {**os.environ, **(env or {})}
+def execute(command, prompt, workspace):
     return processes.run(
         command, prompt, workspace,
-        env={key: value for key, value in environment.items() if not key.startswith("SLACK_")},
+        env={key: value for key, value in os.environ.items() if not key.startswith("SLACK_")},
     )
 
 
@@ -51,10 +40,9 @@ def check_session(name, returned, expected):
 class CodexProvider:
     name = "codex"
 
-    def __init__(self, workspace, state_dir, *, model="", effort="", tier=None):
+    def __init__(self, workspace, state_dir):
         self.workspace = workspace
         self.state_dir = state_dir
-        self.model, self.effort, self.tier = model, effort, tier
 
     def run(self, prompt, session_id):
         with tempfile.NamedTemporaryFile(dir=self.state_dir, prefix="answer-", delete=False) as output:
@@ -63,14 +51,6 @@ class CodexProvider:
             common = [
                 "--json", "-o", str(answer_path), "--skip-git-repo-check",
             ]
-            if self.model:
-                common.extend(["--model", self.model])
-            if self.effort:
-                common.extend(["--config", f"model_reasoning_effort={json.dumps(self.effort)}"])
-            if self.tier:
-                common.extend(["--config", f"service_tier={json.dumps(self.tier)}"])
-                if self.tier == "fast":
-                    common.extend(["--enable", "fast_mode"])
             if session_id:
                 command = ["codex", "exec", "resume", *common, session_id, "-"]
             else:
@@ -97,28 +77,14 @@ class CodexProvider:
 class ClaudeProvider:
     name = "claude"
 
-    def __init__(self, workspace, *, model="", effort="", tier=None):
+    def __init__(self, workspace):
         self.workspace = workspace
-        self.model, self.effort, self.tier = model, effort, tier
-        model = re.sub(r"-(?:\d{8}|\d{4}-\d{2}-\d{2})$", "", self.model.removesuffix("[1m]"))
-        if self.tier == "fast" and model not in {"opus", "claude-opus-5-5", "claude-opus-5", "claude-opus-4-8"}:
-            raise ValueError("Claude fast tier requires opus or a supported Opus model")
-        if self.effort and self.effort not in {"low", "medium", "high", "xhigh", "max"}:
-            raise ValueError("Claude reasoning_effort must be low, medium, high, xhigh, or max")
 
     def run(self, prompt, session_id):
-        command = ["claude", "-p", "--output-format", "json",
-                   "--permission-mode", "acceptEdits"]
-        if self.model:
-            command.extend(["--model", self.model])
-        if self.effort:
-            command.extend(["--effort", self.effort])
-        if self.tier:
-            command.extend(["--settings", json.dumps({"fastMode": self.tier == "fast"})])
+        command = ["claude", "-p", "--output-format", "json"]
         if session_id:
             command.extend(["--resume", session_id])
-        result = execute(command, prompt, self.workspace,
-                         env={"CLAUDE_CODE_EFFORT_LEVEL": self.effort} if self.effort else {})
+        result = execute(command, prompt, self.workspace)
         try:
             response = json.loads(result.stdout)
         except json.JSONDecodeError as error:
@@ -137,27 +103,15 @@ class ClaudeProvider:
 class PiProvider:
     name = "pi"
 
-    def __init__(self, workspace, *, model="", effort="", tier=None):
+    def __init__(self, workspace):
         self.workspace = workspace
-        self.model, self.effort, self.tier = model, effort, tier
-        if self.effort and self.effort not in {
-            "off", "minimal", "low", "medium", "high", "xhigh", "max",
-        }:
-            raise ValueError("Pi reasoning_effort must be off, minimal, low, medium, high, xhigh, or max")
 
     def run(self, prompt, session_id):
         command = ["pi", "--mode", "json", "-p"]
-        if self.model:
-            command.extend(["--model", self.model])
-        if self.effort:
-            command.extend(["--thinking", self.effort])
-        if self.tier:
-            command.extend(["--extension", str(Path(__file__).with_name("pi_tier.mjs")),
-                            "--slack-reply-tier", self.tier])
         if session_id:
             command.extend(["--session", session_id])
         result = execute(command, prompt, self.workspace)
-        if result.returncode or "Slack Reply tier:" in result.stderr:
+        if result.returncode:
             detail = result.stderr[-1500:] or result.stdout[-1500:]
             raise RuntimeError(f"pi CLI failed (exit {result.returncode}): {detail}")
         session = None
@@ -191,11 +145,10 @@ class PiProvider:
         return session, answer
 
 
-def provider_for(settings, workspace, state_dir) -> Provider:
-    require_available(settings.provider)
-    options = {"model": settings.model, "effort": settings.effort, "tier": settings.tier}
-    if settings.provider == "codex":
-        return CodexProvider(workspace, state_dir, **options)
-    if settings.provider == "claude":
-        return ClaudeProvider(workspace, **options)
-    return PiProvider(workspace, **options)
+def provider_for(name, workspace, state_dir) -> Provider:
+    require_available(name)
+    if name == "codex":
+        return CodexProvider(workspace, state_dir)
+    if name == "claude":
+        return ClaudeProvider(workspace)
+    return PiProvider(workspace)

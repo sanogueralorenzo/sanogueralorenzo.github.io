@@ -189,7 +189,7 @@ class ThreadQueueTests(unittest.TestCase):
             path = Path(directory)
             env = {"SLACK_APP_TOKEN": "xapp-test", "SLACK_BOT_TOKEN": "xoxb-test",
                    "SLACK_USER_TOKEN": "xoxp-test", "SLACK_USER_ID": "U123",
-                   "SLACK_REPLY_COMMANDS": json.dumps({"work": {"provider": "codex"}}), "SLACK_REPLY_PROJECTS": "{}", "SLACK_REPLY_WORKSPACE": directory,
+                   "SLACK_REPLY_COMMANDS": json.dumps({"work": "codex"}), "SLACK_REPLY_PROJECTS": "{}", "SLACK_REPLY_WORKSPACE": directory,
                    "SLACK_REPLY_STATE_DIR": str(path / "state")}
             with (patch.dict(os.environ, env), patch.dict(sys.modules, modules),
                   patch.object(reply, "require_available"),

@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import slack_reply as reply
-from providers import ProviderSettings
 
 
 USER = "U123ABC"
@@ -45,37 +44,37 @@ class SlackReplyTests(unittest.TestCase):
         self.addCleanup(self.state.db.close)
         self.client = FakeClient()
         self.runner = Mock()
-        self.profiles = {
-            "chat": ProviderSettings("codex", "gpt-6.1-sol", "high"),
-            "claude": ProviderSettings("claude", "claude-opus-5-5", "high"),
-            "assist": ProviderSettings("pi"),
+        self.commands = {
+            "chat": "codex",
+            "claude": "claude",
+            "assist": "pi",
         }
         self.projects = {"project": self.path / "project", "service": self.path / "service"}
         for directory in self.projects.values():
             directory.mkdir()
 
     def handle(self, message):
-        reply.handle(message, "T123", USER, self.client, self.state, self.path, self.path, self.projects, self.profiles)
+        reply.handle(message, "T123", USER, self.client, self.state, self.path, self.path, self.projects, self.commands)
 
     def test_trigger_requires_same_author_and_exact_prefix(self):
         for text in ["assist question", "chat question", "claude question", "chat\tquestion", "chat\nquestion"]:
-            self.assertTrue(reply.eligible(event(text=text), USER, self.profiles))
-        self.assertTrue(reply.eligible(event(subtype="thread_broadcast"), USER, self.profiles))
+            self.assertTrue(reply.eligible(event(text=text), USER, self.commands))
+        self.assertTrue(reply.eligible(event(subtype="thread_broadcast"), USER, self.commands))
         for overrides in [
             {"user": "UOTHER"}, {"bot_id": "B123"}, {"app_id": "A123"},
             {"subtype": "bot_message"}, {"subtype": "message_changed"},
             {"type": "app_mention"}, {"channel": ""}, {"ts": ""},
         ]:
             with self.subTest(overrides=overrides):
-                self.assertFalse(reply.eligible(event(**overrides), USER, self.profiles))
+                self.assertFalse(reply.eligible(event(**overrides), USER, self.commands))
         for text in ["C question", "Bot question", " CHAT question", "please chat help", "chatbot help",
                      "claudecode help", f"question <@{USER}>", f"<@{USER}> chat question"]:
             with self.subTest(text=text):
-                self.assertFalse(reply.eligible(event(text=text), USER, self.profiles))
+                self.assertFalse(reply.eligible(event(text=text), USER, self.commands))
 
     def test_unauthorized_users_and_mentions_never_run_provider(self):
         with patch.object(reply, "provider_for") as factory:
-            for keyword in self.profiles:
+            for keyword in self.commands:
                 self.handle(event(text=f"{keyword} project do this", user="UOTHER"))
             self.handle(event(text="bot project do this"))
             self.handle(event(text=f"question <@{USER}>"))
@@ -88,17 +87,17 @@ class SlackReplyTests(unittest.TestCase):
         with patch.object(reply, "provider_for") as factory:
             for text in ["chat", "chat ", "assist   ", "claude\n"]:
                 with self.subTest(text=text):
-                    self.assertIsNone(reply.command(text, self.projects, self.profiles))
+                    self.assertIsNone(reply.command(text, self.projects, self.commands))
                     self.handle(event(text=text))
         factory.assert_not_called()
 
-    def test_prefix_selects_configured_settings_before_matching_workspace(self):
-        for index, keyword in enumerate(self.profiles):
+    def test_prefix_selects_provider_before_matching_workspace(self):
+        for index, keyword in enumerate(self.commands):
             with self.subTest(keyword=keyword):
                 self.runner.run.return_value = (f"session-{index}", "answer")
                 with patch.object(reply, "provider_for", return_value=self.runner) as factory:
                     self.handle(event(ts=f"1700000001.{index:06d}", text=f"{keyword} explain the PROJECT build"))
-                factory.assert_called_once_with(self.profiles[keyword], self.projects["project"], self.path)
+                factory.assert_called_once_with(self.commands[keyword], self.projects["project"], self.path)
                 self.assertTrue(self.runner.run.call_args.args[0].endswith("explain the PROJECT build"))
 
     def test_first_mentioned_workspace_runs_once_with_the_full_request(self):
@@ -107,14 +106,14 @@ class SlackReplyTests(unittest.TestCase):
         with patch.object(reply, "provider_for", return_value=self.runner) as factory:
             self.handle(request)
             self.handle(request)
-        factory.assert_called_once_with(self.profiles["chat"], self.projects["service"], self.path)
+        factory.assert_called_once_with(self.commands["chat"], self.projects["service"], self.path)
         self.runner.run.assert_called_once()
         self.assertTrue(self.runner.run.call_args.args[0].endswith("compare service and project"))
         self.assertEqual(len(self.client.posts), 1)
         self.assertEqual(self.client.posts[0]["markdown_text"], "answer")
 
-    def test_keywords_for_one_provider_keep_their_settings_when_resuming(self):
-        self.profiles["quick"] = ProviderSettings("codex", "other-model", "low", "fast")
+    def test_keywords_for_one_provider_resume_the_same_session(self):
+        self.commands["quick"] = "codex"
         root = event(ts=ROOT, text="chat first question")
         followup = event(text="quick follow up", thread_ts=ROOT)
         self.client.pages = [{"messages": [root, followup]}]
@@ -123,7 +122,7 @@ class SlackReplyTests(unittest.TestCase):
             self.handle(root)
             self.handle(followup)
         self.assertEqual([call.args[0] for call in factory.call_args_list],
-                         [self.profiles["chat"], self.profiles["quick"]])
+                         [self.commands["chat"], self.commands["quick"]])
         self.assertEqual([call.args[1] for call in self.runner.run.call_args_list], [None, "session-1"])
 
     def test_alias_workspace_sticks_without_alias_and_survives_restart(self):
@@ -157,7 +156,7 @@ class SlackReplyTests(unittest.TestCase):
         with patch.object(reply, "provider_for", return_value=self.runner) as factory:
             for message in switches:
                 self.handle(message)
-        self.assertEqual([call.args[0].provider for call in factory.call_args_list],
+        self.assertEqual([call.args[0] for call in factory.call_args_list],
                          ["claude", "claude", "claude"])
         self.assertEqual([call.args[1] for call in factory.call_args_list],
                          [self.projects["service"], self.projects["service"], self.projects["project"]])
@@ -181,7 +180,7 @@ class SlackReplyTests(unittest.TestCase):
         self.runner.run.return_value = ("fresh", "answer")
         with patch.object(reply, "provider_for", return_value=self.runner) as factory:
             self.handle(event(thread_ts=ROOT))
-        factory.assert_called_once_with(self.profiles["chat"], self.path, self.path)
+        factory.assert_called_once_with(self.commands["chat"], self.path, self.path)
         self.assertIsNone(self.runner.run.call_args.args[1])
 
     def test_missing_sticky_workspace_does_not_fall_back(self):
@@ -271,7 +270,7 @@ class SlackReplyTests(unittest.TestCase):
         with patch.object(reply, "provider_for", return_value=self.runner) as factory:
             for request in requests:
                 self.handle(request)
-        self.assertEqual([call.args[0].provider for call in factory.call_args_list],
+        self.assertEqual([call.args[0] for call in factory.call_args_list],
                          ["claude", "codex", "pi"])
         self.assertEqual([call.args[1] for call in self.runner.run.call_args_list], [None, None, None])
         self.assertEqual(self.state.session("T123", "C123", ROOT),
@@ -311,7 +310,7 @@ class SlackReplyTests(unittest.TestCase):
                 reply.main([])
 
     def test_configured_provider_is_validated_before_slack_setup(self):
-        with patch.dict(os.environ, {"SLACK_REPLY_COMMANDS": '{"work":{"provider":"pi"}}'}, clear=True):
+        with patch.dict(os.environ, {"SLACK_REPLY_COMMANDS": '{"work":"pi"}'}, clear=True):
             with patch.object(reply, "require_available", side_effect=RuntimeError("pi CLI is not installed")) as available:
                 with self.assertRaisesRegex(RuntimeError, "pi CLI is not installed"):
                     reply.main([])
