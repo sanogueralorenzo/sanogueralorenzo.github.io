@@ -39,13 +39,13 @@ class State:
                 team TEXT NOT NULL, channel TEXT NOT NULL, thread_ts TEXT NOT NULL,
                 provider TEXT NOT NULL,
                 session_id TEXT NOT NULL,
-                workspace TEXT,
-                context_ts TEXT,
+                workspace TEXT NOT NULL,
+                context_ts TEXT NOT NULL,
                 PRIMARY KEY (team, channel, thread_ts)
             );
             CREATE TABLE IF NOT EXISTS posted (
                 team TEXT NOT NULL, channel TEXT NOT NULL, ts TEXT NOT NULL,
-                provider TEXT, session_id TEXT,
+                provider TEXT NOT NULL, session_id TEXT NOT NULL,
                 PRIMARY KEY (team, channel, ts)
             );
             CREATE TABLE IF NOT EXISTS handled (
@@ -54,19 +54,6 @@ class State:
             );
             """
         )
-        if "provider" not in {row[1] for row in self.db.execute("PRAGMA table_info(sessions)")}:
-            self.db.execute("ALTER TABLE sessions ADD COLUMN provider TEXT NOT NULL DEFAULT 'codex'")
-            self.db.commit()
-        if "workspace" not in {row[1] for row in self.db.execute("PRAGMA table_info(sessions)")}:
-            self.db.execute("ALTER TABLE sessions ADD COLUMN workspace TEXT")
-            self.db.commit()
-        if "context_ts" not in {row[1] for row in self.db.execute("PRAGMA table_info(sessions)")}:
-            self.db.execute("ALTER TABLE sessions ADD COLUMN context_ts TEXT")
-            self.db.commit()
-        for column in ("provider", "session_id"):
-            if column not in {row[1] for row in self.db.execute("PRAGMA table_info(posted)")}:
-                self.db.execute(f"ALTER TABLE posted ADD COLUMN {column} TEXT")
-                self.db.commit()
 
     def seen(self, table, team, channel, ts):
         return self.db.execute(
@@ -191,12 +178,11 @@ def handle(event, team, user_id, client, state, workspace, state_dir, projects, 
     is_reply = thread_ts != ts
     saved = state.session(team, channel, thread_ts) if is_reply else None
     provider_name = parsed.provider
-    saved_workspace = Path(saved[2]) if saved and saved[2] else None
+    saved_workspace = Path(saved[2]) if saved else None
     workspace = parsed.workspace or saved_workspace or workspace
     if not workspace.is_dir():
         raise ValueError(f"Agent Slack workspace is not a directory: {workspace}")
-    session_id = (saved[1] if saved and saved[0] == provider_name
-                  and saved_workspace == workspace and saved[3] else None)
+    session_id = saved[1] if saved and saved[0] == provider_name and saved_workspace == workspace else None
     after = saved[3] if session_id else None
     messages = thread_messages(client, event, after) if is_reply else None
     if session_id:

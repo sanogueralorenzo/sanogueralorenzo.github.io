@@ -1,6 +1,5 @@
 import json
 import os
-import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -266,17 +265,6 @@ class AgentSlackTests(unittest.TestCase):
             self.handle(event(text="chat project continue", thread_ts=ROOT))
         self.assertEqual(self.runner.run.call_args.args[1], "same-session")
 
-    def test_legacy_session_without_workspace_is_never_resumed(self):
-        self.state.db.execute("INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?)",
-                              ("T123", "C123", ROOT, "claude", "unknown-cwd-session", None, None))
-        self.state.db.commit()
-        self.client.pages = [{"messages": [event(thread_ts=ROOT)]}]
-        self.runner.run.return_value = ("fresh", "answer")
-        with patch.object(reply, "provider_for", return_value=self.runner) as factory:
-            self.handle(event(thread_ts=ROOT))
-        factory.assert_called_once_with(self.commands["chat"], self.path, self.path)
-        self.assertIsNone(self.runner.run.call_args.args[1])
-
     def test_missing_sticky_workspace_does_not_fall_back(self):
         missing = self.path / "removed"
         self.state.save_session("T123", "C123", ROOT, "codex", "old", missing, ROOT)
@@ -400,47 +388,6 @@ class AgentSlackTests(unittest.TestCase):
                 self.handle(trigger)
         self.assertEqual(self.state.session("T123", "C123", ROOT)[3], FIRST)
 
-    def test_session_without_context_tracking_starts_fresh_with_full_context(self):
-        self.state.save_session("T123", "C123", ROOT, "codex", "untracked-session", self.path, None)
-        trigger = event(ts=SECOND, text="chat continue", thread_ts=ROOT)
-        self.client.pages = [{"messages": [
-            {"ts": ROOT, "user": "UOTHER", "text": "old root discussion"}, trigger,
-        ]}]
-        self.runner.run.return_value = ("new-session", "answer")
-        with patch.object(reply, "provider_for", return_value=self.runner):
-            self.handle(trigger)
-        prompt, session = self.runner.run.call_args.args
-        self.assertIsNone(session)
-        self.assertIn("old root discussion", prompt)
-        self.assertNotIn("oldest", self.client.calls[0])
-        self.assertEqual(self.state.session("T123", "C123", ROOT),
-                         ("codex", "new-session", str(self.path), SECOND))
-
-    def test_existing_state_gains_context_tracking_without_losing_deduplication(self):
-        directory = self.path / "before-context-tracking"
-        directory.mkdir()
-        with sqlite3.connect(directory / "sessions.sqlite3") as db:
-            db.executescript(
-                "CREATE TABLE sessions (team TEXT, channel TEXT, thread_ts TEXT, provider TEXT, "
-                "session_id TEXT, workspace TEXT, PRIMARY KEY (team, channel, thread_ts));"
-                "CREATE TABLE posted (team TEXT, channel TEXT, ts TEXT, PRIMARY KEY (team, channel, ts));"
-                "CREATE TABLE handled (team TEXT, channel TEXT, ts TEXT, PRIMARY KEY (team, channel, ts));"
-            )
-            db.execute("INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?)",
-                       ("T123", "C123", ROOT, "codex", "old-session", str(self.path)))
-            db.execute("INSERT INTO posted VALUES (?, ?, ?)", ("T123", "C123", FIRST))
-            db.execute("INSERT INTO handled VALUES (?, ?, ?)", ("T123", "C123", ROOT))
-        db.close()
-        state = reply.State(directory)
-        self.addCleanup(state.db.close)
-        self.assertEqual(state.session("T123", "C123", ROOT),
-                         ("codex", "old-session", str(self.path), None))
-        self.assertTrue(state.seen("posted", "T123", "C123", FIRST))
-        self.assertTrue(state.seen("handled", "T123", "C123", ROOT))
-        self.assertFalse(state.knows_reply("T123", "C123", FIRST, "codex", "old-session"))
-        state.record_reply("T123", "C123", SECOND, "codex", "new-session")
-        self.assertTrue(state.knows_reply("T123", "C123", SECOND, "codex", "new-session"))
-
     def test_thread_resumes_and_own_answer_cannot_trigger(self):
         first = event(thread_ts=ROOT)
         second = event(ts=SECOND, text="chat again", thread_ts=ROOT)
@@ -522,21 +469,6 @@ class AgentSlackTests(unittest.TestCase):
                          ("pi", "session-1", str(self.path), ROOT))
         self.assertEqual((self.path / "state").stat().st_mode & 0o777, 0o700)
         self.assertEqual((self.path / "state" / "sessions.sqlite3").stat().st_mode & 0o777, 0o600)
-
-    def test_existing_codex_sessions_are_migrated(self):
-        legacy_dir = self.path / "legacy"
-        legacy_dir.mkdir()
-        database = sqlite3.connect(legacy_dir / "sessions.sqlite3")
-        database.execute("CREATE TABLE sessions (team TEXT, channel TEXT, thread_ts TEXT, "
-                         "session_id TEXT, PRIMARY KEY (team, channel, thread_ts))")
-        database.execute("INSERT INTO sessions VALUES (?, ?, ?, ?)",
-                         ("T123", "C123", ROOT, "old-session"))
-        database.commit()
-        database.close()
-        migrated = reply.State(legacy_dir)
-        self.addCleanup(migrated.db.close)
-        self.assertEqual(migrated.session("T123", "C123", ROOT),
-                         ("codex", "old-session", None, None))
 
     def test_removed_provider_command_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "configure keyword commands in .env"):
