@@ -1,5 +1,7 @@
 # Agent Slack
 
+![Agent Slack — example Slack thread with progress reactions](docs/AgentSlack.png)
+
 Run your local coding tools from Slack. Only your messages trigger work; answers appear in the same thread. Commands and project directories are configured in `.env`.
 
 **Setup** requires Python 3.10+, a [Slack app](docs/slack.md), and authenticated CLIs for the wrappers you use:
