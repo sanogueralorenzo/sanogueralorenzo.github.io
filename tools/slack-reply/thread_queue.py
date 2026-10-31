@@ -7,7 +7,7 @@ from threading import Lock
 
 
 class ThreadQueue:
-    def __init__(self, process, max_workers=4):
+    def __init__(self, process, max_workers=8):
         self.process = process
         self.pool = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="slack-reply")
         self.queues = {}
