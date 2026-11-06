@@ -1,6 +1,6 @@
 # Agent
 
-![Agent — focused agents route, organize, and execute work in one workflow](docs/banner.png)
+![Agent — a coordinator with read-only file access delegates work to workers and reviews their results](docs/banner.png)
 
 A local assistant with focused agents, each with a distinct role and tool access.
 
@@ -11,7 +11,7 @@ A local assistant with focused agents, each with a distinct role and tool access
 | Coordinator | Plan, delegate, and check results | Read-only files, web search, delegation |
 | Workers | Execute focused tasks | File read/write, shell, web search, computer use, delegation |
 
-The coordinator delegates file changes, shell commands, and app interaction to workers.
+The coordinator delegates file changes, shell commands, and app interaction to workers, then reviews their results and replies.
 
 Independent tasks run in parallel. Follow-ups wait for the results they need. Conversations and task progress survive restarts.
 
