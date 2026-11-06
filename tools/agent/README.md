@@ -2,11 +2,18 @@
 
 ![Agent — focused agents route, organize, and execute work in one workflow](docs/banner.png)
 
-A local assistant that divides work among focused agents. Routing finds the right conversation, dispatch handles dependencies, and a coordinator delegates focused tasks to workers.
+A local assistant with focused agents, each with a distinct role and tool access.
+
+| Agent | Responsibility | Main tools |
+| --- | --- | --- |
+| Router | Find the right conversation | Read-only files, conversation lookup |
+| Dispatcher | Order tasks and dependencies | Task decisions only |
+| Coordinator | Plan, delegate, and check results | Read-only files, web search, delegation |
+| Workers | Execute focused tasks | File read/write, shell, web search, computer use, delegation |
+
+The coordinator delegates file changes, shell commands, and app interaction to workers.
 
 Independent tasks run in parallel. Follow-ups wait for the results they need. Conversations and task progress survive restarts.
-
-Workers can research the web, write code, run commands, and interact with apps. You follow progress and receive answers in one conversation.
 
 **Start** (Node 26+):
 
