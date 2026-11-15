@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Browser Hooks",
+  "version": "0.2.0",
+  "minimum_chrome_version": "120",
+  "description": "Automatic Slack keyword listener using your signed-in browser session.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://app.slack.com/*", "http://127.0.0.1/*"],
+  "background": { "service_worker": "slack/extension/background.mjs", "type": "module" },
+  "content_scripts": [
+    { "matches": ["https://app.slack.com/*"], "js": ["slack/hook.js"], "world": "MAIN", "run_at": "document_idle" },
+    { "matches": ["https://app.slack.com/*"], "js": ["slack/extension/relay.js"], "world": "ISOLATED", "run_at": "document_idle" }
+  ],
+  "action": { "default_title": "Browser Hooks", "default_popup": "popup/index.html" }
+}

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Browser Hooks</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header><span class="mark" aria-hidden="true">↳</span><div><h1>Browser Hooks</h1><p>Slack · automatic listener</p></div></header>
+  <section aria-live="polite">
+    <div class="status"><span id="dot"></span><strong id="status">Checking…</strong></div>
+    <p id="detail"></p><p id="counts"></p>
+  </section>
+  <form id="mode-form">
+    <label for="mode">Reply mode</label>
+    <select id="mode"><option value="agent">Local agent</option><option value="echo">Echo test</option></select>
+    <div id="echo-settings" hidden><label for="keyword">Test keyword</label><input id="keyword" value="hook" maxlength="40" autocomplete="off"></div>
+    <button>Save configuration</button>
+  </form>
+  <form id="pair-form">
+    <label for="code">Local bridge pairing code</label>
+    <input id="code" type="password" autocomplete="off" placeholder="Code printed by bridge.py serve">
+    <button>Pair local bridge</button>
+  </form>
+  <p id="feedback" role="status"></p>
+  <footer>Always attaches on Slack pages. Your own keyword-prefixed messages trigger replies in their threads. Agent keywords are configured locally.</footer>
+  <script type="module" src="index.js"></script>
+</body>
+</html>

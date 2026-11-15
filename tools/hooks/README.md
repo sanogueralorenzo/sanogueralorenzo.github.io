@@ -1,38 +1,28 @@
 # Browser Hooks
 
-Small hooks that run inside websites you are already signed into. No browser
-profile extraction, Keychain access, Slack app, or OAuth setup.
+Hooks that attach automatically to registered websites using the browser's
+existing sign-in. The [Slack hook](slack/README.md) listens for keywords in your
+own messages and replies as you, in the same thread.
 
-## Slack proof of concept
+## Install locally
 
-Open your self-DM in Slack in Edge. In Developer Tools → Sources → Snippets,
-create a snippet with [slack/hook.js](slack/hook.js), then run it. Send
-`hook ping` to yourself; the hook replies in that message's thread as you.
+1. On `edge://extensions` or `chrome://extensions`, enable **Developer mode**,
+   choose **Load unpacked**, and select this folder.
+2. Open or reload Slack. The listener attaches automatically; no Start button.
+3. Set up the [local command bridge](slack/README.md) for Codex, Claude, or another
+   command. For a browser-only check, choose **Echo test** in the extension popup.
 
-The page shows a small status control. Click **Stop**, run
-`agentHooks.stop()`, or reload the tab to stop. `agentHooks.status()` returns
-connection state and message counts, without credentials.
+After updating these files, reload the extension once, then reload Slack.
+Allow access to Slack when Edge asks. One tab per workspace listens; other tabs
+stand by and take over if it closes. Keep a Slack tab open and the computer awake.
 
-By default the hook echoes requests. Replace its handler in the same page to
-provide your own browser-based behavior:
+Slack authentication stays in the page. Permissions cover Slack, local loopback
+communication, and extension settings. No Slack app, OAuth approval, browser
+profile extraction, Keychain access, or Browse installation is needed.
 
-```js
-agentHooks.setHandler(async ({ text, threadTs }) => {
-  return `Received in this thread: ${text}`;
-});
+Checks from the repository root:
+
+```sh
+node --test tools/hooks/slack/*.test.mjs
+python3 -m unittest discover -s tools/hooks/slack/tests
 ```
-
-Handlers receive request text and message/thread/channel identifiers, never
-session credentials. Running a local coding CLI would require a separate bridge;
-this proof of concept runs entirely in the browser.
-
-The hook accepts only new `hook ` messages from you in your self-DM and keeps
-replies in their threads. Other conversations cannot trigger it. Per-thread
-queues and message IDs prevent overlapping runs and repeated event replies.
-
-Keep the Slack tab open. Hooks stop on reload; reconnects do not replay missed
-messages. Slack's web authentication and event protocol are unofficial and may
-change. Credentials stay within the signed-in page; no IDs, sessions, or secrets
-belong in this folder.
-
-Checks: `node --test slack/hook.test.mjs` from this directory.

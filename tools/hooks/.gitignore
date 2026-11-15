@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+config.json
+*.sqlite3*
+pairing.json
