@@ -1,13 +1,13 @@
-const ui = Object.fromEntries(['dot', 'code', 'feedback', 'pair-form'].map(id => [id, document.getElementById(id)]));
+const dot = document.getElementById('dot');
 async function request(message) {
   const response = await chrome.runtime.sendMessage(message);
   if (!response?.ok) throw new Error(response?.error || 'Extension unavailable. Reload Browser Hooks once after updating.');
   return response.value;
 }
 function connection(connected, detail) {
-  ui.dot.dataset.connected = String(connected);
-  ui.dot.setAttribute('aria-label', connected ? 'Slack connected' : 'Slack disconnected');
-  ui.dot.title = detail;
+  dot.dataset.connected = String(connected);
+  dot.setAttribute('aria-label', connected ? 'Slack connected' : 'Slack disconnected');
+  dot.title = detail;
 }
 async function refresh() {
   try {
@@ -22,19 +22,6 @@ async function refresh() {
     connection(false, 'Reload Browser Hooks on the Extensions page, then reload Slack.');
   }
 }
-ui['pair-form'].addEventListener('submit', async event => {
-  event.preventDefault();
-  ui.code.disabled = true;
-  ui.feedback.textContent = '';
-  connection(false, 'Pairing local bridge…');
-  try {
-    await request({ type: 'popup.pair', code: ui.code.value.trim() });
-    ui.code.value = '';
-    await refresh();
-  } catch (error) { ui.feedback.textContent = error.message; }
-  finally { ui.code.disabled = false; }
-});
-ui.code.addEventListener('input', () => { ui.feedback.textContent = ''; });
 void refresh();
 const timer = setInterval(refresh, 2000);
 window.addEventListener('pagehide', () => clearInterval(timer), { once: true });

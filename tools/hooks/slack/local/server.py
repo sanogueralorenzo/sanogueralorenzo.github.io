@@ -19,11 +19,13 @@ class Server(ThreadingHTTPServer):
         self.pair_lock = threading.Lock()
         self.pair_code = secrets.token_urlsafe(24)
         self.pair_deadline = time.monotonic() + 600
-        self.pair_file = state_dir / 'pair-code'
-        with os.fdopen(os.open(self.pair_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'w') as file:
-            file.write(self.pair_code)
+        self.pair_file = state_dir / 'extension' / 'bridge-pairing.json'
         self.paired = json.loads(self.credentials.read_text()) if self.credentials.exists() else None
         super().__init__(address, Handler)
+        self.pair_file.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self.pair_file.parent.chmod(0o700)
+        with os.fdopen(os.open(self.pair_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'w') as file:
+            json.dump({'code': self.pair_code, 'expiresAt': int(time.time() * 1000) + 600_000}, file)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -79,7 +81,7 @@ class Handler(BaseHTTPRequestHandler):
                 with self.server.pair_lock:
                     code = body.get('code', '')
                     if not isinstance(code, str) or not self.server.pair_code or time.monotonic() > self.server.pair_deadline or not hmac.compare_digest(code, self.server.pair_code):
-                        return self.respond(403, {'error': 'Pairing code expired or incorrect. Rerun the installer and copy the new code.'})
+                        return self.respond(403, {'error': 'Automatic pairing expired. Rerun the installer, then reload Browser Hooks.'})
                     paired = {'origin': origin, 'token': secrets.token_urlsafe(32)}
                     # The private state directory is never inside the public checkout.
                     with os.fdopen(os.open(self.server.credentials, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'w') as file:
@@ -91,7 +93,7 @@ class Handler(BaseHTTPRequestHandler):
             paired = self.server.paired
             supplied = self.headers.get('Authorization', '')
             if not paired or origin != paired['origin'] or not hmac.compare_digest(supplied, 'Bearer ' + paired['token']):
-                return self.respond(403, {'error': 'Browser pairing expired. Rerun the installer, then pair Browser Hooks with the displayed code.'})
+                return self.respond(403, {'error': 'Browser pairing expired. Rerun the installer, then reload Browser Hooks.'})
             runtime = self.server.runtime
             if self.path == '/config' and self.command == 'GET':
                 return self.respond(200, {'keywords': list(runtime.config['commands'])})

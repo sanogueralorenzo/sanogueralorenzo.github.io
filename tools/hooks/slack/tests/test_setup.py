@@ -20,7 +20,6 @@ class SetupTests(unittest.TestCase):
         self.path = self.root / 'config.json'
         self.state = self.root / 'state'
         self.state.mkdir()
-        (self.state / 'pair-code').write_text('synthetic-one-time-pair-code')
         self.checkout = Path(__file__).resolve().parents[1]
 
     def tearDown(self):
@@ -48,15 +47,27 @@ class SetupTests(unittest.TestCase):
         install.assert_called_once_with(self.checkout / 'bridge.py', self.path, self.state)
         self.assertEqual(self.path.read_bytes(), before)
         self.assertEqual((self.state / 'state.sqlite3').read_bytes(), b'existing sessions')
-        self.assertIn('Browser already paired', output.getvalue())
+        self.assertIn('Existing browser pairing', output.getvalue())
 
-    def test_first_install_prints_extension_folder_and_code_without_searching_logs(self):
-        (self.state / 'pair-code').write_text('synthetic-one-time-pair-code')
+    def test_first_install_builds_private_extension_without_printing_a_secret(self):
         with patch('local.setup.shutil.which', return_value=sys.executable), patch('local.setup.launcher', return_value=self.root / 'slack-hook'), patch('local.setup.install'), patch('local.setup.health', return_value={'paired': False}), contextlib.redirect_stdout(io.StringIO()) as output:
             setup(self.path, self.state, self.checkout, self.root)
         self.assertIn('Load unpacked', output.getvalue())
-        self.assertIn('synthetic-one-time-pair-code', output.getvalue())
-        self.assertIn(str(self.checkout.parent), output.getvalue())
+        self.assertIn('no code to copy', output.getvalue())
+        extension = self.state / 'extension'
+        self.assertIn(str(extension), output.getvalue())
+        self.assertFalse(extension.is_relative_to(self.checkout.parents[2]))
+        self.assertTrue((extension / 'manifest.json').is_file())
+        self.assertTrue((extension / 'slack/extension/background.mjs').is_file())
+        self.assertFalse((extension / 'slack/local').exists())
+        self.assertFalse((extension / 'slack/tests').exists())
+        self.assertEqual(extension.stat().st_mode & 0o777, 0o700)
+        self.assertEqual((extension / 'manifest.json').stat().st_mode & 0o777, 0o600)
+
+    def test_generated_extension_rejects_a_folder_inside_the_repository(self):
+        from local.extension import prepare
+        with self.assertRaisesRegex(ValueError, 'outside the public repository'):
+            prepare(self.checkout, self.checkout / 'private-state')
 
     def test_launcher_executes_from_any_directory_with_explicit_configuration(self):
         with patch('local.setup.Path.home', return_value=self.root / 'home with spaces'):

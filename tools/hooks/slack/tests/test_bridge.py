@@ -191,9 +191,17 @@ print(json.dumps({'session_id': sys.argv[2] if len(sys.argv)>2 else 'synthetic-s
             self.assertEqual(call('GET', '/health')[1]['service'], 'browser-hooks-slack')
             self.assertEqual(call('GET', '/health', headers={'Host': 'evil.example'})[0], 403)
             self.assertEqual(call('POST', '/pair', {'code': server.pair_code}, {'Origin': 'https://app.slack.com'})[0], 403)
-            code = server.pair_code
+            bootstrap = json.loads(server.pair_file.read_text())
+            self.assertEqual(bootstrap['code'], server.pair_code)
+            self.assertGreater(bootstrap['expiresAt'], time.time() * 1000)
+            self.assertEqual(server.pair_file.stat().st_mode & 0o777, 0o600)
+            code = bootstrap['code']
+            server.pair_deadline = time.monotonic() - 1
+            self.assertEqual(call('POST', '/pair', {'code': code})[0], 403)
+            server.pair_deadline = time.monotonic() + 600
             status, paired, _ = call('POST', '/pair', {'code': code})
             self.assertEqual(status, 200)
+            self.assertFalse(server.pair_file.exists())
             self.assertEqual(call('POST', '/pair', {'code': code})[0], 403)
             headers = {'Authorization': 'Bearer ' + paired['token']}
             status, config, response_headers = call('GET', '/config', headers=headers)

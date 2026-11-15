@@ -7,13 +7,11 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <form id="pair-form" aria-label="Slack connection">
+  <div class="connection" aria-label="Slack connection">
     <img src="../slack/icon.png" width="20" height="20" alt="">
     <span>Slack</span>
     <span id="dot" role="status" aria-label="Checking Slack connection" title="Checking Slack connection"></span>
-    <input id="code" type="password" aria-label="Slack pairing code" aria-describedby="feedback" autocomplete="off" placeholder="Pairing code" title="Paste the code printed by the installer and press Enter" required>
-  </form>
-  <p id="feedback" role="status"></p>
+  </div>
   <script type="module" src="index.js"></script>
 </body>
 </html>

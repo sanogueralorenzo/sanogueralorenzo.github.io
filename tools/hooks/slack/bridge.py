@@ -22,8 +22,8 @@ def main():
     config_path = args.config.expanduser().resolve()
     checkout = Path(__file__).resolve().parent
     state = args.state.expanduser().resolve()
-    if checkout.is_relative_to(state) or state.is_relative_to(checkout.parents[2]):
-        raise ValueError('Keep private state outside the public repository')
+    if checkout.is_relative_to(state) or any(path.is_relative_to(checkout.parents[2]) for path in [state, config_path]):
+        raise ValueError('Keep private state and configuration outside the public repository')
     if args.action == 'install':
         from local.setup import setup
         setup(config_path, state, checkout, args.workspace)
@@ -42,7 +42,7 @@ def main():
             print(f'Slack browser bridge listening on 127.0.0.1:{server.server_port}', flush=True)
             print('Keywords: ' + ', '.join(config['commands']), flush=True)
             if not server.paired:
-                print('Run bridge.py install to display your pairing code.', flush=True)
+                print('Run slack-hook install, then load or reload the printed extension folder to pair automatically.', flush=True)
             server.serve_forever(poll_interval=0.2)
         except KeyboardInterrupt:
             pass

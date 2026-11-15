@@ -8,6 +8,7 @@ import time
 from http.client import HTTPConnection, HTTPException
 
 from .config import load
+from .extension import prepare
 from .service import install
 
 
@@ -57,6 +58,7 @@ def launcher(path, state, checkout):
 
 def setup(path, state, checkout, workspace):
     config = configure(path, checkout, workspace)
+    extension = prepare(checkout, state)
     install(checkout / 'bridge.py', path, state)
     deadline = time.monotonic() + 8
     result = None
@@ -70,15 +72,15 @@ def setup(path, state, checkout, workspace):
     executable = launcher(path, state, checkout)
     print('Slack browser listener is ready. Keywords: ' + ' / '.join(config['commands']))
     print(f'Configuration: {path}')
-    print(f'Extension folder: {checkout.parent}')
+    print(f'Extension folder: {extension}')
     if result['paired']:
-        print('Browser already paired. Existing settings and agent sessions were preserved.')
+        print('Existing browser pairing, settings and agent sessions were preserved.')
         print('After an extension update, reload Browser Hooks once, then reload Slack.')
     else:
         print('1. Load the extension folder in Edge/Chrome (Developer mode → Load unpacked).')
-        print('2. Open Browser Hooks and enter the pairing code below.')
+        print('2. Pairing happens automatically when the extension loads; no code to copy.')
         print('3. Open Slack and send: ' + next(iter(config['commands'])) + ' your request')
-    print('Pairing code (new browser or repair): ' + (state / 'pair-code').read_text().strip())
+    print('Load or reload this private extension folder within ten minutes; rerun the installer if needed.')
     print('Check status: ' + (str(executable) if not shutil.which('slack-hook') else 'slack-hook') + ' status')
     print('Slack attaches automatically. Keep one Slack tab open; no listening toggle.')
 
@@ -87,7 +89,7 @@ def status(path, state):
     config = load(path)
     result = health()
     print('Bridge: ' + ('running' if result else 'not running; rerun the installer'))
-    print('Browser: ' + ('paired' if result and result['paired'] else 'not paired; rerun the installer to get a pairing code'))
+    print('Browser: ' + ('paired' if result and result['paired'] else 'not paired; rerun the installer, then load or reload the printed extension folder'))
     print('Keywords: ' + ' / '.join(config['commands']))
     print(f'Configuration: {path}')
     print(f'Logs: {state / "bridge.log"}')

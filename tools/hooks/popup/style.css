@@ -1,17 +1,11 @@
 :root { color-scheme: light dark; font: 13px/1.4 system-ui, sans-serif; background: #fff; color: #1d1c1d; }
 * { box-sizing: border-box; }
-body { width: 320px; margin: 0; padding: 10px 12px; }
-form { display: flex; align-items: center; gap: 10px; }
+body { width: 152px; margin: 0; padding: 12px; }
+.connection { display: flex; align-items: center; gap: 10px; }
 img { flex-shrink: 0; }
-form > span:first-of-type { font-weight: 600; }
-#dot { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: #949497; }
+.connection > span:first-of-type { font-weight: 600; }
+#dot { width: 7px; height: 7px; margin-left: auto; flex-shrink: 0; border-radius: 50%; background: #949497; }
 #dot[data-connected="true"] { background: #2bac76; }
-input { margin-left: auto; width: 154px; min-width: 0; padding: 6px 8px; border: 1px solid #d6d6d6; border-radius: 5px; background: transparent; color: inherit; font: inherit; }
-input:focus-visible { outline: 2px solid #1264a3; outline-offset: 1px; }
-input:disabled { opacity: .6; }
-#feedback { margin: 8px 0 0; font-size: 12px; overflow-wrap: anywhere; }
-#feedback:empty { display: none; }
 @media (prefers-color-scheme: dark) {
   :root { background: #1a1d21; color: #d1d2d3; }
-  input { border-color: #56585b; }
 }
