@@ -23,7 +23,7 @@ with (root/'git-calls').open('a') as out: out.write(json.dumps(args)+'\\n')
 if args[0]=='clone':
  source=Path(args[-1]);(source/'.git').mkdir(parents=True)
  bridge=source/'tools/hooks/slack/bridge.py';bridge.parent.mkdir(parents=True)
- bridge.write_text('import sys\\nassert sys.argv[1:]==["install","--workspace","/fixture/project"]\\nprint("INSTALL_OK")\\n')
+ bridge.write_text('import sys\\nargs=sys.argv[1:]; assert args[:2]==["install","--data"]; assert __import__("pathlib").Path(args[2]).resolve()==__import__("pathlib").Path(__file__).resolve().parents[4]; assert args[3:]==["--workspace","/fixture/project"]\\nprint("INSTALL_OK")\\n')
 ''')
             git.chmod(0o700)
             env = {**os.environ, 'PATH': str(bin_dir) + os.pathsep + os.environ.get('PATH', ''), 'BROWSER_HOOKS_INSTALL_DIR': str(root / 'install')}

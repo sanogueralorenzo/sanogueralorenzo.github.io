@@ -1,18 +1,18 @@
-"""Build the unpacked extension in private state, outside the checkout."""
+"""Build the unpacked extension in private application data, outside the checkout."""
 import os
 from pathlib import Path
 import shutil
 import tempfile
 
 
-def prepare(checkout, state):
-    target = state / 'extension'
+def prepare(checkout, data):
+    target = data / 'extension'
     if target.resolve().is_relative_to(checkout.parents[2].resolve()):
         raise ValueError('Keep the generated extension outside the public repository')
-    state.mkdir(parents=True, exist_ok=True, mode=0o700)
-    state.chmod(0o700)
+    data.mkdir(parents=True, exist_ok=True, mode=0o700)
+    data.chmod(0o700)
     # Only browser runtime files belong in the generated extension.
-    with tempfile.TemporaryDirectory(dir=state) as folder:
+    with tempfile.TemporaryDirectory(dir=data) as folder:
         staging = Path(folder)
         source = checkout.parent
         for name in ['manifest.json', 'popup', 'slack/extension', 'slack/hook.js', 'slack/icon.png']:

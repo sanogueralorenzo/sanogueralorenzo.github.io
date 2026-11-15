@@ -19,6 +19,7 @@ class BridgeTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name).resolve()
+        self.data = self.root / 'data'
         self.workspace = self.root / 'work'
         self.workspace.mkdir()
         self.project = self.root / 'project'
@@ -66,7 +67,7 @@ print(json.dumps({'session_id': sys.argv[2] if len(sys.argv)>2 else 'synthetic-s
         return [json.loads(line) for line in self.log.read_text().splitlines()]
 
     def test_background_service_keeps_only_explicit_configuration_and_path(self):
-        value = specification(Path(sys.executable), self.root / 'bridge.py', self.config_path, self.root / 'state')
+        value = specification(Path(sys.executable), self.root / 'bridge.py', self.config_path, self.root / 'state', self.data)
         self.assertTrue(value['RunAtLoad'])
         self.assertTrue(value['KeepAlive'])
         self.assertEqual(set(value['EnvironmentVariables']), {'PATH'})
@@ -173,7 +174,7 @@ print(json.dumps({'session_id': sys.argv[2] if len(sys.argv)>2 else 'synthetic-s
         self.assertIn('$(touch', self.runs()[0]['prompt'])
 
     def test_http_pairing_and_authenticated_bridge_with_no_slack_credentials(self):
-        server = Server(('127.0.0.1', 0), self.runtime, self.root / 'state')
+        server = Server(('127.0.0.1', 0), self.runtime, self.data)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         origin = 'chrome-extension://' + 'a' * 32
@@ -211,16 +212,16 @@ print(json.dumps({'session_id': sys.argv[2] if len(sys.argv)>2 else 'synthetic-s
             self.assertEqual(status, 200)
             self.wait(accepted['job'])
             self.assertEqual(call('GET', '/jobs/' + accepted['job'], headers=headers)[1]['answer'], 'synthetic answer')
-            self.assertEqual(os.stat(self.root / 'state' / 'pairing.json').st_mode & 0o777, 0o600)
+            self.assertEqual(os.stat(self.data / 'slack' / 'pairing.json').st_mode & 0o777, 0o600)
         finally:
             server.shutdown(); server.server_close(); thread.join()
 
     def test_pairing_file_expires_without_requests_and_preserves_saved_credentials(self):
-        state = self.root / 'state'
-        credentials = state / 'pairing.json'
+        credentials = self.data / 'slack' / 'pairing.json'
+        credentials.parent.mkdir(parents=True)
         saved = json.dumps({'origin': 'chrome-extension://' + 'a' * 32, 'token': 'synthetic-saved-token'})
         credentials.write_text(saved)
-        server = Server(('127.0.0.1', 0), self.runtime, state)
+        server = Server(('127.0.0.1', 0), self.runtime, self.data)
         code = server.pair_code
         server.pair_deadline = time.monotonic() + 0.03
         thread = threading.Thread(target=lambda: server.serve_forever(poll_interval=0.01), daemon=True)
@@ -244,7 +245,7 @@ print(json.dumps({'session_id': sys.argv[2] if len(sys.argv)>2 else 'synthetic-s
             server.shutdown(); server.server_close(); thread.join()
 
     def test_server_close_removes_unused_pairing_file(self):
-        server = Server(('127.0.0.1', 0), self.runtime, self.root / 'state')
+        server = Server(('127.0.0.1', 0), self.runtime, self.data)
         self.assertTrue(server.pair_file.exists())
         server.server_close()
         self.assertFalse(server.pair_file.exists())

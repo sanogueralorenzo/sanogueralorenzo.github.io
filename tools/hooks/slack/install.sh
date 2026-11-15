@@ -17,7 +17,16 @@ for candidate in python3 python3.14 python3.13 python3.12 python3.11; do
 done
 [ -n "$python_bin" ] || { echo 'Install Python 3.11 or newer, then rerun this installer.' >&2; exit 1; }
 
-install_dir="${BROWSER_HOOKS_INSTALL_DIR:-$HOME/.local/share/browser-hooks}"
+data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+case "$data_home" in
+  /*) ;;
+  *) data_home="$HOME/.local/share" ;;
+esac
+install_dir="${BROWSER_HOOKS_INSTALL_DIR:-$data_home/browser-hooks}"
+case "$install_dir" in
+  /*) ;;
+  *) echo 'BROWSER_HOOKS_INSTALL_DIR must be an absolute path.' >&2; exit 1 ;;
+esac
 source_dir="$install_dir/source"
 if [ -d "$source_dir/.git" ]; then
   [ -z "$(git -C "$source_dir" status --porcelain)" ] || { echo "Local edits in $source_dir; save them before updating." >&2; exit 1; }
@@ -28,4 +37,4 @@ else
     https://github.com/sanogueralorenzo/sanogueralorenzo.github.io.git "$source_dir"
   git -C "$source_dir" sparse-checkout set tools/hooks
 fi
-"$python_bin" "$source_dir/tools/hooks/slack/bridge.py" install "$@"
+"$python_bin" "$source_dir/tools/hooks/slack/bridge.py" install --data "$install_dir" "$@"

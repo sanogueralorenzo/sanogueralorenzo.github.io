@@ -11,15 +11,17 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 class Server(ThreadingHTTPServer):
     daemon_threads = True
-    def __init__(self, address, runtime, state_dir):
+    def __init__(self, address, runtime, data_dir):
         if address[0] != '127.0.0.1':
             raise ValueError('Bridge must bind to loopback')
         self.runtime = runtime
-        self.credentials = state_dir / 'pairing.json'
+        self.credentials = data_dir / 'slack' / 'pairing.json'
+        self.credentials.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self.credentials.parent.chmod(0o700)
         self.pair_lock = threading.Lock()
         self.pair_code = secrets.token_urlsafe(24)
         self.pair_deadline = time.monotonic() + 600
-        self.pair_file = state_dir / 'extension' / 'bridge-pairing.json'
+        self.pair_file = data_dir / 'extension' / 'bridge-pairing.json'
         self.paired = json.loads(self.credentials.read_text()) if self.credentials.exists() else None
         super().__init__(address, Handler)
         self.pair_file.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -99,7 +101,7 @@ class Handler(BaseHTTPRequestHandler):
                     if not isinstance(code, str) or not self.server.pair_code or time.monotonic() > self.server.pair_deadline or not hmac.compare_digest(code, self.server.pair_code):
                         return self.respond(403, {'error': 'Automatic pairing expired. Rerun the installer, then reload Browser Hooks.'})
                     paired = {'origin': origin, 'token': secrets.token_urlsafe(32)}
-                    # The private state directory is never inside the public checkout.
+                    # Private application data never lives inside the public checkout.
                     with os.fdopen(os.open(self.server.credentials, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'w') as file:
                         json.dump(paired, file)
                     self.server.paired = paired

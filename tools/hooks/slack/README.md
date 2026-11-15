@@ -43,8 +43,9 @@ listener. No Slack app or workspace approval is required.
 
 **To update**, rerun the installer, reload Browser Hooks on the Extensions page,
 then reload Slack. Configuration and sessions are preserved.
-If you previously loaded the source checkout, remove that Browser Hooks entry
-and load the printed private extension folder instead.
+If you previously loaded the source checkout or a folder under `.local/state`,
+remove that Browser Hooks entry and load the printed extension folder instead.
+The installer removes the old extension copy from state.
 
 From a local checkout, `python3 tools/hooks/slack/bridge.py install` performs setup
 without downloading another copy. Use `--workspace /path/to/project` to choose
@@ -70,10 +71,21 @@ Failed requests show an actionable message in their Slack thread and the popup.
 For an expired login, run `codex login` or `claude auth login` on your computer,
 then send a new request. Raw command output and credentials are never posted.
 
-State, private logs and the generated extension live in
-`~/.local/state/browser-hooks/slack`, outside the source checkout. The private
-pairing file is deleted after use, after ten minutes, or when the bridge stops.
-If pairing expires, rerun the installer and reload Browser Hooks from the printed folder.
+Files stay outside the source checkout:
+
+| Default location | Contents |
+| --- | --- |
+| `~/.local/bin/slack-hook` | Launcher |
+| `~/.config/browser-hooks/slack.json` | Configuration |
+| `~/.local/share/browser-hooks/extension` | Installed extension and temporary pairing file |
+| `~/.local/share/browser-hooks/slack` | Saved browser key |
+| `~/.local/share/browser-hooks/source` | Installer-managed source checkout |
+| `~/.local/state/browser-hooks/slack` | Logs and agent sessions |
+
+`XDG_BIN_HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME` and `XDG_STATE_HOME` override
+these defaults when set to absolute paths. No cache directory is needed.
+The temporary pairing file is deleted after use, expiry (ten minutes), or bridge
+shutdown. If pairing expires, rerun the installer and reload Browser Hooks.
 Uncertain sends are never retried automatically. Messages missed while offline
 are not replayed. Slack's browser authentication and event protocol are unofficial
 and may change.

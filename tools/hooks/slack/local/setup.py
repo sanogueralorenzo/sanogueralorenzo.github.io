@@ -10,6 +10,7 @@ from http.client import HTTPConnection, HTTPException
 from .config import load
 from .extension import prepare
 from .service import install
+from .paths import bin_root
 
 
 def health():
@@ -46,20 +47,20 @@ def configure(path, checkout, workspace):
     return load(path)
 
 
-def launcher(path, state, checkout):
-    target = Path.home() / '.local/bin/slack-hook'
+def launcher(path, state, data, checkout):
+    target = bin_root() / 'slack-hook'
     target.parent.mkdir(parents=True, exist_ok=True)
     command = ' '.join(shlex.quote(str(arg)) for arg in [sys.executable, checkout / 'bridge.py'])
-    options = ' '.join(shlex.quote(str(arg)) for arg in ['--config', path, '--state', state])
+    options = ' '.join(shlex.quote(str(arg)) for arg in ['--config', path, '--state', state, '--data', data])
     target.write_text('#!/bin/sh\nexec ' + command + ' "$@" ' + options + '\n')
     target.chmod(0o700)
     return target
 
 
-def setup(path, state, checkout, workspace):
+def setup(path, state, data, checkout, workspace):
     config = configure(path, checkout, workspace)
-    extension = prepare(checkout, state)
-    install(checkout / 'bridge.py', path, state)
+    extension = prepare(checkout, data)
+    install(checkout / 'bridge.py', path, state, data)
     deadline = time.monotonic() + 8
     result = None
     while time.monotonic() < deadline:
@@ -69,7 +70,11 @@ def setup(path, state, checkout, workspace):
         time.sleep(0.1)
     if not result:
         raise RuntimeError(f'Bridge did not start. check {state / "bridge.log"}')
-    executable = launcher(path, state, checkout)
+    executable = launcher(path, state, data, checkout)
+    previous_extension = state / 'extension'
+    if previous_extension.exists():
+        shutil.rmtree(previous_extension)
+    (state / 'pairing.json').unlink(missing_ok=True)
     print('Slack browser listener is ready. Keywords: ' + ' / '.join(config['commands']))
     print(f'Configuration: {path}')
     print(f'Extension folder: {extension}')
@@ -85,7 +90,7 @@ def setup(path, state, checkout, workspace):
     print('Slack attaches automatically. Keep one Slack tab open; no listening toggle.')
 
 
-def status(path, state):
+def status(path, state, data):
     config = load(path)
     result = health()
     print('Bridge: ' + ('running' if result else 'not running; rerun the installer'))
@@ -93,6 +98,7 @@ def status(path, state):
     print('Keywords: ' + ' / '.join(config['commands']))
     print(f'Configuration: {path}')
     print(f'Logs: {state / "bridge.log"}')
+    print(f'Extension folder: {data / "extension"}')
     for name in ['codex', 'claude']:
         if any(str(Path(arg).name) == f'{name}.py' for entry in config['commands'].values() for arg in entry['start']):
             print(name + ': ' + ('installed (login checked when a request runs)' if shutil.which(name) else 'not found; install the CLI and rerun the installer'))

@@ -6,13 +6,15 @@ import subprocess
 import sys
 import time
 
+from .paths import root
+
 LABEL = 'dev.browser-hooks.slack'
 
 
-def specification(python, bridge, config, state):
+def specification(python, bridge, config, state, data):
     return {
         'Label': LABEL,
-        'ProgramArguments': [str(python), str(bridge), 'serve', '--config', str(config), '--state', str(state)],
+        'ProgramArguments': [str(python), str(bridge), 'serve', '--config', str(config), '--state', str(state), '--data', str(data)],
         'RunAtLoad': True, 'KeepAlive': True,
         'WorkingDirectory': str(bridge.parent),
         'EnvironmentVariables': {'PATH': os.environ.get('PATH', '/usr/bin:/bin')},
@@ -23,11 +25,11 @@ def specification(python, bridge, config, state):
     }
 
 
-def install(bridge, config, state):
+def install(bridge, config, state, data):
     if sys.platform not in ('darwin', 'linux'):
         raise ValueError('Installation supports macOS and Linux')
     if sys.platform == 'linux':
-        return install_linux(bridge, config, state)
+        return install_linux(bridge, config, state, data)
     folder = Path.home() / 'Library' / 'LaunchAgents'
     folder.mkdir(parents=True, exist_ok=True)
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -42,7 +44,7 @@ def install(bridge, config, state):
         result = subprocess.run(['launchctl', 'bootout', target], capture_output=True)
         if result.returncode:
             raise RuntimeError('Could not stop the previous bridge service. Check launchctl for ' + LABEL)
-    path.write_bytes(plistlib.dumps(specification(Path(sys.executable).resolve(), bridge, config, state)))
+    path.write_bytes(plistlib.dumps(specification(Path(sys.executable).resolve(), bridge, config, state, data)))
     path.chmod(0o600)
     deadline = time.monotonic() + 5
     while True:
@@ -60,8 +62,8 @@ def unit_value(value):
     return '"' + str(value).replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r').replace('%', '%%') + '"'
 
 
-def linux_unit(python, bridge, config, state):
-    args = specification(python, bridge, config, state)['ProgramArguments']
+def linux_unit(python, bridge, config, state, data):
+    args = specification(python, bridge, config, state, data)['ProgramArguments']
     return ('[Unit]\nDescription=Slack browser command bridge\n\n[Service]\n'
             + 'ExecStart=' + ' '.join(unit_value(arg) for arg in args) + '\n'
             + 'WorkingDirectory=' + unit_value(bridge.parent) + '\n'
@@ -71,15 +73,15 @@ def linux_unit(python, bridge, config, state):
             + 'StandardError=' + unit_value('append:' + str(state / 'bridge.log')) + '\n\n[Install]\nWantedBy=default.target\n')
 
 
-def install_linux(bridge, config, state):
+def install_linux(bridge, config, state, data):
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
     state.chmod(0o700)
     log = state / 'bridge.log'
     log.touch(mode=0o600, exist_ok=True)
     log.chmod(0o600)
-    path = Path.home() / '.config/systemd/user' / f'{LABEL}.service'
+    path = root('XDG_CONFIG_HOME', '.config') / 'systemd/user' / f'{LABEL}.service'
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(linux_unit(Path(sys.executable).resolve(), bridge, config, state))
+    path.write_text(linux_unit(Path(sys.executable).resolve(), bridge, config, state, data))
     path.chmod(0o600)
     for args in [['daemon-reload'], ['enable', f'{LABEL}.service'], ['restart', f'{LABEL}.service']]:
         result = subprocess.run(['systemctl', '--user', *args], capture_output=True)
