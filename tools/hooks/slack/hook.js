@@ -100,6 +100,7 @@
   }
   async function process(s, event, request) {
     assertCurrent(s);
+    let completion;
     try {
       const context = await history(s, event);
       const result = await bridge(s, "run", {
@@ -124,9 +125,10 @@
       await bridge(s, "delivered", { job: result.job, ts: posted.ts });
       state.replies++;
       await reaction(s, { channel: event.channel, ts: posted.ts }, "robot_face");
-      await reaction(s, event, diagnostic ? "warning" : "white_check_mark");
+      completion = diagnostic ? "warning" : "white_check_mark";
       state.error = diagnostic || null;
     } finally { await reaction(s, event, "eyes", true); }
+    await reaction(s, event, completion);
   }
   function receive(s, event) {
     const request = parse(event, s);

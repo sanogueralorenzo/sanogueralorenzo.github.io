@@ -12,7 +12,7 @@ function locks() {
     held.add(key); try { return await fn({ name: key }); } finally { held.delete(key); }
   } };
 }
-function fixture({ manager = locks(), action, failPost = false } = {}) {
+function fixture({ manager = locks(), action, failPost = false, removeEyes } = {}) {
   const calls = [], sockets = [], timers = new Map(), messages = [], listeners = new Map();
   let serial = 0, token = 'fixture', user = 'UTEST';
   class Socket {
@@ -31,6 +31,7 @@ function fixture({ manager = locks(), action, failPost = false } = {}) {
     async fetch(url, options) {
       const method = url.split('/').at(-1), values = Object.fromEntries(options.body);
       calls.push({ method, values, options });
+      if (method === 'reactions.remove' && values.name === 'eyes' && removeEyes) await removeEyes();
       if (method === 'chat.postMessage' && failPost) throw new Error('Unknown network delivery');
       let result = {};
       if (method === 'auth.test') result = { user_id: user };
@@ -89,6 +90,28 @@ test('only own new keyword-prefixed messages trigger; ignores duplicates, edits,
     { app_id: 'ATEST' }, { text: 'hook ping' }, { text: ' code ping' }, { text: 'code ' }, { channel: '' }]) socket.event(message({ text: 'code ping', ...extra }));
   socket.event(message({ text: 'CoDe\tping' })); socket.event(message({ text: 'CoDe\tping' }));
   await settle(); assert.equal(f.posts().length, 1);
+});
+
+test('completion reactions wait until removing the eyes reaction finishes', async () => {
+  for (const diagnostic of [false, true]) {
+    let finishRemoval;
+    const f = fixture({
+      removeEyes: () => new Promise(resolve => { finishRemoval = resolve; }),
+      action: d => d.action === 'run'
+        ? { job: 'test', ...(diagnostic ? { error: { message: 'Sign in again.' } } : { answer: 'Done' }) }
+        : d.action === 'claim' ? { claimed: true } : { ok: true },
+    });
+    f.configure(); await settle();
+    f.sockets[0].event(message()); await settle();
+    const reactions = () => f.calls.filter(c => c.method.startsWith('reactions.') && c.values.timestamp === message().ts)
+      .map(c => `${c.method}:${c.values.name}`);
+    assert.deepEqual(reactions(), ['reactions.add:eyes', 'reactions.remove:eyes']);
+    assert.equal(f.page.agentHooks.status().pending, 1);
+    finishRemoval(); await settle();
+    assert.deepEqual(reactions(), ['reactions.add:eyes', 'reactions.remove:eyes', `reactions.add:${diagnostic ? 'warning' : 'white_check_mark'}`]);
+    assert.equal(f.page.agentHooks.status().pending, 0);
+    f.page.agentHooks.dispose();
+  }
 });
 
 test('queues each channel/thread in order while different conversations run concurrently', async () => {
