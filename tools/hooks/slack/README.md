@@ -1,5 +1,7 @@
 # Slack browser listener
 
+![Agent Slack banner](docs/banner.png)
+
 Send `chat your request` for Codex or `claude your request` for Claude. Your own
 keyword-prefixed messages trigger work in channels and DMs, including messages
 sent from your phone. Replies appear as you in the same thread; follow-ups resume
@@ -7,22 +9,42 @@ the agent session. **👀** queued/running · **✅** answered · **⚠️** fai
 
 ## Install or update
 
-Requires macOS or Linux with systemd, Git, Python 3.11+, and a signed-in coding CLI.
+1. **Install the prerequisites:** macOS or Linux with systemd, Git, Python 3.11+,
+   Edge or Chrome, and Codex or Claude CLI.
 
-```sh
-curl -fsSL https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.github.io/main/tools/hooks/slack/install.sh | sh
-```
+2. **Sign in to your coding CLI:** run `codex login` or `claude auth login` on
+   your computer.
 
-The installer detects installed CLIs, creates the default keywords, starts the
-background service, and prints the extension folder and pairing code. Load that
-folder unpacked in Edge/Chrome, then enter the code in **Browser Hooks**. No Slack
-app or workspace approval. Slack attaches automatically whenever it opens.
+3. **Run the installer:**
 
-Rerun the command to update. Configuration and sessions are preserved. Reload the
-extension once after updates, then reload Slack. Keep a Slack tab open and the
-computer awake. From a local checkout, `python3 tools/hooks/slack/bridge.py install`
-performs setup without downloading another copy. Use `--workspace /path/to/project`
-to choose the default workspace on first installation.
+    ```sh
+    curl -fsSL https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.github.io/main/tools/hooks/slack/install.sh | sh
+    ```
+
+   It detects installed CLIs, creates the `chat` and/or `claude` keywords, starts
+   the background service, and prints an extension folder and pairing code.
+
+4. **Load the extension:** open `edge://extensions` or `chrome://extensions`,
+   enable **Developer mode**, select **Load unpacked**, and choose the printed
+   extension folder. Allow its Slack and localhost access.
+
+5. **Pair once:** open **Browser Hooks** from the browser's Extensions menu,
+   paste the printed pairing code, and click **Pair local bridge**.
+
+6. **Open Slack and test:** sign in, or reload an existing Slack tab, then send
+   `chat Reply with hello` or `claude Reply with hello` in your self-DM.
+   The answer appears as you in that message's thread.
+
+Listening is automatic; there is no Start button. Keep your computer awake and
+one Slack tab open. Messages sent from your phone can trigger the same listener.
+No Slack app or workspace approval is required.
+
+**To update**, rerun the installer, reload Browser Hooks on the Extensions page,
+then reload Slack. Configuration and sessions are preserved.
+
+From a local checkout, `python3 tools/hooks/slack/bridge.py install` performs setup
+without downloading another copy. Use `--workspace /path/to/project` to choose
+the default workspace on first installation.
 
 ## Configure
 
