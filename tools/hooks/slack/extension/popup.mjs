@@ -1,44 +1,40 @@
-const ui = Object.fromEntries(['status', 'detail', 'counts', 'dot', 'code', 'feedback', 'pairing', 'pair-label', 'pair-form', 'pair-button'].map(id => [id, document.getElementById(id)]));
+const ui = Object.fromEntries(['dot', 'code', 'feedback', 'pair-form'].map(id => [id, document.getElementById(id)]));
 async function request(message) {
   const response = await chrome.runtime.sendMessage(message);
   if (!response?.ok) throw new Error(response?.error || 'Extension unavailable. Reload Browser Hooks once after updating.');
   return response.value;
 }
+function connection(connected, detail) {
+  ui.dot.dataset.connected = String(connected);
+  ui.dot.setAttribute('aria-label', connected ? 'Slack connected' : 'Slack disconnected');
+  ui.dot.title = detail;
+}
 async function refresh() {
   try {
     const config = await request({ type: 'popup.settings' });
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    let state;
-    if (tab?.url?.startsWith('https://app.slack.com/')) {
-      try { state = await chrome.tabs.sendMessage(tab.id, { type: 'slack.status' }); } catch { /* Page needs reload after installation. */ }
-    }
-    const error = config.error || state?.error;
-    ui.status.textContent = config.error ? 'Bridge unavailable' : error ? 'Needs attention' : state?.standby ? 'Listening in another tab' : state?.connected ? 'Listening automatically' : 'Waiting for Slack';
-    ui.dot.dataset.state = error ? 'error' : state?.connected || state?.standby ? 'connected' : 'stopped';
-    ui.detail.textContent = error || `Keywords: ${config.keywords.join(' / ')}. Replies appear as you.`;
-    ui.counts.textContent = state ? `${state.received} requests · ${state.replies} replies · ${state.pending} pending` : 'Open or reload a Slack tab to attach the listener.';
-    ui['pair-label'].textContent = config.error ? 'Pair local bridge' : 'Repair pairing';
-    return config;
+    const tabs = await chrome.tabs.query({ url: 'https://app.slack.com/*' });
+    const results = await Promise.allSettled(tabs.map(tab => chrome.tabs.sendMessage(tab.id, { type: 'slack.status' })));
+    const states = results.filter(result => result.status === 'fulfilled').map(result => result.value).filter(Boolean);
+    const connected = !config.error && states.some(state => state.connected);
+    const error = config.error || states.find(state => state.error)?.error;
+    connection(connected, error || (connected ? 'Slack connected' : tabs.length ? 'Reload your Slack tab to attach the listener.' : 'Open Slack in this browser.'));
   } catch {
-    ui.status.textContent = 'Extension update needed';
-    ui.detail.textContent = 'Reload Browser Hooks on the Extensions page, then reload Slack.';
-    ui.dot.dataset.state = 'error';
+    connection(false, 'Reload Browser Hooks on the Extensions page, then reload Slack.');
   }
 }
 ui['pair-form'].addEventListener('submit', async event => {
   event.preventDefault();
-  ui['pair-button'].disabled = true;
+  ui.code.disabled = true;
   ui.feedback.textContent = '';
+  connection(false, 'Pairing local bridge…');
   try {
     await request({ type: 'popup.pair', code: ui.code.value.trim() });
     ui.code.value = '';
-    ui.pairing.open = false;
-    ui.feedback.textContent = 'Connected. Slack listens automatically.';
     await refresh();
   } catch (error) { ui.feedback.textContent = error.message; }
-  finally { ui['pair-button'].disabled = false; }
+  finally { ui.code.disabled = false; }
 });
-const initial = await refresh();
-ui.pairing.open = !!initial?.error;
+ui.code.addEventListener('input', () => { ui.feedback.textContent = ''; });
+void refresh();
 const timer = setInterval(refresh, 2000);
 window.addEventListener('pagehide', () => clearInterval(timer), { once: true });

@@ -29,15 +29,18 @@ the agent session. **👀** queued/running · **✅** answered · **⚠️** fai
    extension folder. Allow its Slack and localhost access.
 
 5. **Pair once:** open **Browser Hooks** from the browser's Extensions menu,
-   paste the printed pairing code, and click **Pair local bridge**.
+   paste the printed code into the Slack row, and press **Enter**. Its dot turns
+   green when Slack is connected; gray means disconnected. Hover for details.
 
 6. **Open Slack and test:** sign in, or reload an existing Slack tab, then send
    `chat Reply with hello` or `claude Reply with hello` in your self-DM.
    The answer appears as you in that message's thread.
 
 Listening runs automatically and invisibly; nothing is added to the Slack page.
-Open the extension only for pairing or troubleshooting. Keep your computer awake
-and one Slack tab open. Messages sent from your phone can trigger the same listener.
+Pairing authorizes the extension to use your local command bridge and persists
+across restarts. Open the extension only for pairing or troubleshooting. Keep your
+computer awake and one Slack tab open. Messages sent from your phone can trigger
+the same listener.
 No Slack app or workspace approval is required.
 
 **To update**, rerun the installer, reload Browser Hooks on the Extensions page,

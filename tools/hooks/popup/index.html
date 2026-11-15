@@ -7,21 +7,13 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header><span class="mark" aria-hidden="true">↳</span><div><h1>Browser Hooks</h1><p>Slack · automatic listener</p></div></header>
-  <section aria-live="polite">
-    <div class="status"><span id="dot"></span><strong id="status">Checking…</strong></div>
-    <p id="detail"></p><p id="counts"></p>
-  </section>
-  <details id="pairing">
-    <summary id="pair-label">Pair local bridge</summary>
-    <form id="pair-form">
-      <label for="code">Pairing code</label>
-      <input id="code" type="password" autocomplete="off" placeholder="Code printed by the installer" required>
-      <button id="pair-button">Pair local bridge</button>
-    </form>
-  </details>
+  <form id="pair-form" aria-label="Slack connection">
+    <img src="../slack/icon.png" width="20" height="20" alt="">
+    <span>Slack</span>
+    <span id="dot" role="status" aria-label="Checking Slack connection" title="Checking Slack connection"></span>
+    <input id="code" type="password" aria-label="Slack pairing code" aria-describedby="feedback" autocomplete="off" placeholder="Pairing code" title="Paste the code printed by the installer and press Enter" required>
+  </form>
   <p id="feedback" role="status"></p>
-  <footer>For diagnostics, run <code>slack-hook status</code>. Configure keywords in your local Slack configuration.</footer>
   <script type="module" src="index.js"></script>
 </body>
 </html>
