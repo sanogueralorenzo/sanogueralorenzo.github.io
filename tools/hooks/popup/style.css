@@ -23,5 +23,7 @@ footer { font-size: 11px; }
 }
 form { display: grid; gap: 8px; margin: 14px 0; }
 label { display: block; font-size: 12px; margin-bottom: 4px; }
-input, select { width: 100%; box-sizing: border-box; font: inherit; padding: 8px; border: 1px solid #89979d; border-radius: 6px; background: Canvas; color: CanvasText; }
+input { width: 100%; box-sizing: border-box; font: inherit; padding: 8px; border: 1px solid #89979d; border-radius: 6px; background: Canvas; color: CanvasText; }
 #feedback { font-size: 12px; }
+summary { cursor: pointer; margin-top: 14px; }
+code { font-size: inherit; }

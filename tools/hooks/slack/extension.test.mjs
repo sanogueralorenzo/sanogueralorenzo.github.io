@@ -46,7 +46,7 @@ test('pairing token is restricted to trusted extension storage and never returne
   const result = await w.handle({ type: 'popup.pair', code: 'synthetic_pair_code_123456' }, popup);
   assert.deepEqual(w.levels, [{ accessLevel: 'TRUSTED_CONTEXTS' }]);
   assert.equal(w.stored.bridgeToken, 't'.repeat(43));
-  assert.deepEqual(result, { mode: 'agent', keywords: ['code', 'chat'] });
+  assert.deepEqual(result, { keywords: ['code', 'chat'] });
   assert.ok(!JSON.stringify(result).includes(w.stored.bridgeToken));
   assert.equal(w.calls[1].options.headers.Authorization, `Bearer ${w.stored.bridgeToken}`);
   assert.equal(w.calls[1].options.headers['X-Browser-Hooks-Origin'], origin);
@@ -64,13 +64,6 @@ test('websites and content scripts cannot pair the bridge or change executable c
   assert.equal(w.calls.length, 0);
 });
 
-test('echo mode has a configurable keyword and needs no local bridge', async () => {
-  const w = await worker();
-  await w.handle({ type: 'popup.mode', mode: 'echo', keyword: 'CHECK' }, popup);
-  assert.deepEqual(await w.handle({ type: 'slack.settings' }, slack), { mode: 'echo', keywords: ['check'] });
-  assert.equal(w.calls.length, 0);
-});
-
 test('isolated relay discovers settings automatically and polls jobs using short background requests', async () => {
   const listeners = new Map(), posted = [], calls = [], intervals = new Set();
   let poll = 0, terminal = { status: 'ready', answer: 'answer' };
@@ -82,7 +75,7 @@ test('isolated relay discovers settings automatically and polls jobs using short
   };
   const chrome = { runtime: { onMessage: { addListener() {} }, async sendMessage(data) {
     calls.push(data);
-    if (data.type === 'slack.settings') return { ok: true, value: { mode: 'agent', keywords: ['code'] } };
+    if (data.type === 'slack.settings') return { ok: true, value: { keywords: ['code'] } };
     if (data.action === 'run') return { ok: true, value: { job: 'a'.repeat(64), status: 'queued' } };
     return { ok: true, value: ++poll > 1 ? { job: 'a'.repeat(64), ...terminal } : { status: 'running' } };
   } } };

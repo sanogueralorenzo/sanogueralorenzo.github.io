@@ -19,7 +19,7 @@
     try {
       const result = await chrome.runtime.sendMessage({ type: "slack.settings" });
       if (result?.ok) send("configure", { settings: result.value });
-    } catch { send("configure", { settings: { mode: "agent", keywords: [], error: "Extension updated. Reload this Slack tab." } }); }
+    } catch { send("configure", { settings: { keywords: [], error: "Extension updated. Reload this Slack tab." } }); }
     finally { refreshing = false; }
   }
   async function dispatch(data) {

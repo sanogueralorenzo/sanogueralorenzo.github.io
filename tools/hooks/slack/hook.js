@@ -4,7 +4,7 @@
   const page = window;
   page.agentHooks?.dispose?.();
   const state = { running: false, connected: false, received: 0, replies: 0, pending: 0, error: null, standby: false };
-  let settings = { mode: "agent", keywords: [] };
+  let settings = { keywords: [] };
   let session, disposed = false, acquiring = false, retryAt = 0;
   const pending = new Map();
 
@@ -102,9 +102,7 @@
     assertCurrent(s);
     try {
       const context = await history(s, event);
-      let result;
-      if (settings.mode === "echo") result = { answer: `🤖 Browser hook received: ${request.text}` };
-      else result = await bridge(s, "run", {
+      const result = await bridge(s, "run", {
         team: s.team, user: s.user, channel: event.channel, ts: event.ts,
         thread_ts: event.thread_ts || event.ts, text: event.text, messages: context,
       });
@@ -114,7 +112,7 @@
       if (diagnostic) result.answer = `⚠️ ${diagnostic}`;
       if (typeof result.answer !== "string" || !result.answer.trim() || result.answer.length > 12000) throw failure("Command returned an invalid answer.");
       // Claim delivery durably before the non-idempotent Slack request. Unknown sends are never retried.
-      if (settings.mode !== "echo" && !(await bridge(s, "claim", { job: result.job })).claimed) return;
+      if (!(await bridge(s, "claim", { job: result.job })).claimed) return;
       assertCurrent(s);
       const clientId = page.crypto.randomUUID();
       s.sent.add(clientId);
@@ -123,7 +121,7 @@
         client_msg_id: clientId, unfurl_links: "false", unfurl_media: "false",
       });
       s.seen.add(`${event.channel}:${posted.ts}`);
-      if (settings.mode !== "echo") await bridge(s, "delivered", { job: result.job, ts: posted.ts });
+      await bridge(s, "delivered", { job: result.job, ts: posted.ts });
       state.replies++;
       await reaction(s, { channel: event.channel, ts: posted.ts }, "robot_face");
       await reaction(s, event, diagnostic ? "warning" : "white_check_mark");
@@ -223,8 +221,7 @@
   function configure(value) {
     const keywords = [...new Set((value.keywords || []).map(k => String(k).toLowerCase()))];
     if (!keywords.every(k => k.length <= 40 && /^\S+$/.test(k))) throw failure("Keywords must be nonempty words.");
-    if (!['agent', 'echo'].includes(value.mode)) throw failure("Choose agent or echo mode.");
-    const next = { mode: value.mode, keywords };
+    const next = { keywords };
     if (value.error) { state.error = value.error; publishStatus(); }
     if (JSON.stringify(next) === JSON.stringify(settings)) return;
     end(); settings = next; retryAt = 0; state.error = value.error || null; tick(); publishStatus();
@@ -246,6 +243,6 @@
   page.addEventListener("pagehide", dispose, { once: true });
   const watch = page.setInterval(tick, 1000);
   page.agentHooks = Object.freeze({ configure, dispose,
-    status: () => Object.freeze({ ...state, keywords: [...settings.keywords], mode: settings.mode }) });
+    status: () => Object.freeze({ ...state, keywords: [...settings.keywords] }) });
   publishStatus(); emit("ready", {});
 })();

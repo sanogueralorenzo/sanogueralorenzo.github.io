@@ -12,19 +12,16 @@
     <div class="status"><span id="dot"></span><strong id="status">Checking…</strong></div>
     <p id="detail"></p><p id="counts"></p>
   </section>
-  <form id="mode-form">
-    <label for="mode">Reply mode</label>
-    <select id="mode"><option value="agent">Local agent</option><option value="echo">Echo test</option></select>
-    <div id="echo-settings" hidden><label for="keyword">Test keyword</label><input id="keyword" value="hook" maxlength="40" autocomplete="off"></div>
-    <button>Save configuration</button>
-  </form>
-  <form id="pair-form">
-    <label for="code">Local bridge pairing code</label>
-    <input id="code" type="password" autocomplete="off" placeholder="Code printed by the installer">
-    <button>Pair local bridge</button>
-  </form>
+  <details id="pairing">
+    <summary id="pair-label">Pair local bridge</summary>
+    <form id="pair-form">
+      <label for="code">Pairing code</label>
+      <input id="code" type="password" autocomplete="off" placeholder="Code printed by the installer" required>
+      <button id="pair-button">Pair local bridge</button>
+    </form>
+  </details>
   <p id="feedback" role="status"></p>
-  <footer>Always attaches on Slack pages. Your own keyword-prefixed messages trigger replies in their threads. Agent keywords are configured locally.</footer>
+  <footer>For diagnostics, run <code>slack-hook status</code>. Configure keywords in your local Slack configuration.</footer>
   <script type="module" src="index.js"></script>
 </body>
 </html>

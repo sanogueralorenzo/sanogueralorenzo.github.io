@@ -22,13 +22,11 @@ async function request(path, body, pairing = false) {
 
 async function settings() {
   await trusted;
-  const { mode = "agent", echoKeyword = "hook" } = await chrome.storage.local.get(["mode", "echoKeyword"]);
-  if (mode === "echo") return { mode, keywords: [echoKeyword] };
   try {
     const config = await request("/config");
     if (!Array.isArray(config.keywords) || !config.keywords.every(k => typeof k === "string" && /^\S{1,40}$/.test(k))) throw new Error();
-    return { mode: "agent", keywords: config.keywords };
-  } catch (error) { return { mode: "agent", keywords: [], error: error.message }; }
+    return { keywords: config.keywords };
+  } catch (error) { return { keywords: [], error: error.message }; }
 }
 
 function slackSender(sender) {
@@ -55,12 +53,7 @@ export async function handle(message, sender) {
     if (typeof message.code !== "string" || !/^[A-Za-z0-9_-]{20,100}$/.test(message.code)) throw new Error("Enter the pairing code printed by the installer.");
     const paired = await request("/pair", { code: message.code }, true);
     if (typeof paired.token !== "string" || !/^[A-Za-z0-9_-]{40,100}$/.test(paired.token)) throw new Error("Invalid bridge pairing response");
-    await chrome.storage.local.set({ bridgeToken: paired.token, mode: "agent" });
-    return settings();
-  }
-  if (message.type === "popup.mode") {
-    if (!["agent", "echo"].includes(message.mode) || !/^\S{1,40}$/.test(message.keyword)) throw new Error("Enter a keyword without spaces.");
-    await chrome.storage.local.set({ mode: message.mode, echoKeyword: message.keyword.toLowerCase() });
+    await chrome.storage.local.set({ bridgeToken: paired.token });
     return settings();
   }
   throw new Error("Unknown popup operation");

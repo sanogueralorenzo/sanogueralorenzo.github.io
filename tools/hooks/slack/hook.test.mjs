@@ -50,13 +50,18 @@ function fixture({ manager = locks(), action, failPost = false } = {}) {
     removeEventListener(name, fn) { listeners.get(name)?.delete(fn); },
     postMessage(data) {
       messages.push(data);
-      if (data.type === 'request' && action) Promise.resolve(action(data)).then(value => respond(data.id, value));
+      if (data.type === 'request') {
+        const value = action ? action(data) : data.action === 'run'
+          ? { job: `job-${data.id}`, answer: 'Test agent answer' }
+          : data.action === 'claim' ? { claimed: true } : { ok: true };
+        Promise.resolve(value).then(result => respond(data.id, result));
+      }
     },
   };
   function respond(id, value) { for (const fn of listeners.get('message') || []) fn({ source: page, origin: page.location.origin, data: { source: 'browser-hooks-extension', type: 'response', id, ok: true, value } }); }
   vm.runInNewContext(source, { window: page, URLSearchParams, AbortController, AbortSignal, Date: { now: () => 2000000000000 } });
   return { page, calls, sockets, messages, timers, respond,
-    configure: (options = {}) => page.agentHooks.configure({ mode: 'echo', keywords: ['hook'], ...options }),
+    configure: (options = {}) => page.agentHooks.configure({ keywords: ['hook'], ...options }),
     tick: () => { for (const fn of [...timers.values()]) fn(); },
     token: value => { token = value; }, user: value => { user = value; },
     posts: () => calls.filter(c => c.method === 'chat.postMessage') };
@@ -71,7 +76,7 @@ test('starts from any Slack view and replies in public/private channels, DMs and
   await settle();
   assert.equal(f.posts().length, 5);
   assert.ok(f.posts().every(p => p.values.thread_ts === '2000000002.000001'));
-  assert.ok(f.posts().every(p => p.values.markdown_text === '🤖 Browser hook received: ping' && !('text' in p.values)));
+  assert.ok(f.posts().every(p => p.values.markdown_text === 'Test agent answer' && !('text' in p.values)));
   assert.ok(f.calls.every(c => c.options.credentials === 'same-origin' && c.options.redirect === 'error'));
   assert.ok(!JSON.stringify(f.page.agentHooks.status()).includes('xoxc'));
   assert.ok(!JSON.stringify(f.messages).includes('xoxc'));
@@ -93,7 +98,7 @@ test('queues each channel/thread in order while different conversations run conc
     if (data.action === 'claim') return { claimed: true };
     return { ok: true };
   } });
-  f.configure({ mode: 'agent' }); await settle();
+  f.configure(); await settle();
   f.sockets[0].event(message());
   f.sockets[0].event(message({ ts: '2000000003.000001', thread_ts: '2000000002.000001' }));
   f.sockets[0].event(message({ channel: 'COTHER' }));
@@ -119,7 +124,7 @@ test('one workspace leader prevents duplicate replies across tabs; another tab t
 test('reload/dispose and account changes cancel queued sends and release the socket', async () => {
   let finish;
   const f = fixture({ action: () => new Promise(resolve => { finish = resolve; }) });
-  f.configure({ mode: 'agent' }); await settle(); f.sockets[0].event(message()); await settle();
+  f.configure(); await settle(); f.sockets[0].event(message()); await settle();
   f.token('changed'); f.tick(); await settle();
   finish({ job: 'one', answer: 'must not send' }); await settle();
   assert.equal(f.posts().length, 0);
@@ -136,7 +141,7 @@ test('uncertain Slack delivery is not retried and later duplicate events do not 
 
 test('a delivery claim denied by the bridge prevents sending', async () => {
   const f = fixture({ action: d => d.action === 'run' ? { job: 'test', answer: 'answer' } : { claimed: false } });
-  f.configure({ mode: 'agent' }); await settle(); f.sockets[0].event(message()); await settle();
+  f.configure(); await settle(); f.sockets[0].event(message()); await settle();
   assert.equal(f.posts().length, 0);
 });
 
@@ -153,7 +158,7 @@ test('CLI failures post one actionable diagnostic with warning, never a success 
   const f = fixture({ action: d => d.action === 'run'
     ? { job: 'test', error: { code: 'auth_required', message: messageText } }
     : d.action === 'claim' ? { claimed: true } : { ok: true } });
-  f.configure({ mode: 'agent' }); await settle();
+  f.configure(); await settle();
   f.sockets[0].event(message()); f.sockets[0].event(message()); await settle();
   assert.equal(f.posts().length, 1);
   assert.equal(f.posts()[0].values.markdown_text, `⚠️ ${messageText}`);
