@@ -15,7 +15,7 @@
     if (!badge && page.document.body) {
       badge = page.document.createElement("aside");
       badge.id = "browser-hooks-slack";
-      badge.style.cssText = "position:fixed;bottom:12px;left:12px;z-index:2147483647;background:#17252b;color:white;padding:8px 12px;border-radius:8px;font:12px system-ui;box-shadow:0 2px 12px #0004";
+      badge.style.cssText = "position:fixed;bottom:12px;left:12px;z-index:2147483647;background:#17252b;color:white;padding:8px 12px;border-radius:8px;font:12px/1.4 system-ui;max-width:min(520px,calc(100vw - 24px));box-sizing:border-box;overflow-wrap:anywhere;box-shadow:0 2px 12px #0004";
       badge.append(page.document.createTextNode(""));
       page.document.body.append(badge);
     }
@@ -26,6 +26,8 @@
         ? `Hook listening (${settings.keywords.join(" / ")}) · ${state.replies} replies` : "Hook connecting…";
     emit("status", { status: { ...state } });
   }
+  function failure(message) { return Object.assign(new Error(message), { publicMessage: message }); }
+  function errorMessage(error) { return error?.publicMessage || "Request failed. Run slack-hook status on your computer."; }
   function credential() {
     const team = page.location.pathname.match(/^\/client\/([A-Z0-9]+)(?:\/|$)/)?.[1];
     let config;
@@ -39,7 +41,7 @@
       && auth?.team === s.team && auth.token === s.token;
   }
   function assertCurrent(s) {
-    if (!current(s)) throw new Error("Listener stopped or Slack account changed.");
+    if (!current(s)) throw failure("Listener stopped or Slack account changed.");
   }
   async function api(s, method, values = {}) {
     assertCurrent(s);
@@ -49,21 +51,30 @@
       body: new URLSearchParams({ ...values, token: s.token }),
     });
     assertCurrent(s);
-    if (!response.ok) throw new Error(response.status === 429 ? "Slack rate limited. Try later." : `Slack HTTP ${response.status}.`);
+    if (!response.ok) throw failure(response.status === 429 ? "Slack rate limited. Try later." : `Slack HTTP ${response.status}.`);
     const result = await response.json();
-    if (!result.ok) throw new Error(`Slack ${method}: ${/^[a-z_]+$/.test(result.error) ? result.error : "request_failed"}`);
+    if (!result.ok) {
+      const messages = {
+        invalid_auth: "Slack sign-in expired. Sign in again in this browser.",
+        not_authed: "Sign in to Slack in this browser.", token_revoked: "Slack sign-in expired. Sign in again in this browser.",
+        channel_not_found: "Slack could not access this conversation. Check your membership.",
+        is_archived: "This Slack conversation is archived. Use an active conversation.",
+        ratelimited: "Slack rate limited requests. Retry later.",
+      };
+      throw failure(messages[result.error] || `Slack ${method}: ${/^[a-z_]+$/.test(result.error) ? result.error : "request_failed"}`);
+    }
     return result;
   }
   async function bridge(s, action, payload) {
     assertCurrent(s);
     const id = page.crypto.randomUUID();
     return new Promise((resolve, reject) => {
-      const cancel = () => { page.clearTimeout(timer); s.abort.signal.removeEventListener("abort", cancel); pending.delete(id); emit("cancel", { id }); reject(new Error("Listener stopped.")); };
+      const cancel = () => { page.clearTimeout(timer); s.abort.signal.removeEventListener("abort", cancel); pending.delete(id); emit("cancel", { id }); reject(failure("Listener stopped.")); };
       s.abort.signal.addEventListener("abort", cancel, { once: true });
       const timer = page.setTimeout(cancel, 660000);
       pending.set(id, {
         resolve(value) { page.clearTimeout(timer); s.abort.signal.removeEventListener("abort", cancel); resolve(value); },
-        reject() { page.clearTimeout(timer); s.abort.signal.removeEventListener("abort", cancel); reject(new Error("Local command failed. Check the bridge terminal.")); },
+        reject(message) { page.clearTimeout(timer); s.abort.signal.removeEventListener("abort", cancel); reject(failure(typeof message === "string" ? message.slice(0, 500) : "Local bridge request failed. Rerun the installer.")); },
       });
       emit("request", { id, action, payload });
     });
@@ -84,7 +95,7 @@
         if (typeof m.ts === "string" && Number(m.ts) <= Number(event.ts)) messages.push({ ts: m.ts, user: m.user || m.bot_id || "unknown", text: (m.text || "").slice(0, 12000) });
       }
       cursor = result.response_metadata?.next_cursor || "";
-      if (messages.length > 1000 || visited.has(cursor) && cursor) throw new Error("Thread too large. Start a new thread.");
+      if (messages.length > 1000 || visited.has(cursor) && cursor) throw failure("Thread too large. Start a new thread.");
       visited.add(cursor);
     } while (cursor);
     return messages;
@@ -111,7 +122,9 @@
       });
       assertCurrent(s);
       if (result.skip) return;
-      if (typeof result.answer !== "string" || !result.answer.trim() || result.answer.length > 12000) throw new Error("Command returned an invalid answer.");
+      const diagnostic = result.error?.message;
+      if (diagnostic) result.answer = `⚠️ ${diagnostic}`;
+      if (typeof result.answer !== "string" || !result.answer.trim() || result.answer.length > 12000) throw failure("Command returned an invalid answer.");
       // Claim delivery durably before the non-idempotent Slack request. Unknown sends are never retried.
       if (settings.mode !== "echo" && !(await bridge(s, "claim", { job: result.job })).claimed) return;
       assertCurrent(s);
@@ -125,8 +138,8 @@
       if (settings.mode !== "echo") await bridge(s, "delivered", { job: result.job, ts: posted.ts });
       state.replies++;
       await reaction(s, { channel: event.channel, ts: posted.ts }, "robot_face");
-      await reaction(s, event, "white_check_mark");
-      state.error = null;
+      await reaction(s, event, diagnostic ? "warning" : "white_check_mark");
+      state.error = diagnostic || null;
     } finally { await reaction(s, event, "eyes", true); }
   }
   function receive(s, event) {
@@ -138,7 +151,7 @@
     const key = `${event.channel}:${event.thread_ts || event.ts}`;
     const acknowledged = reaction(s, event, "eyes");
     const work = (s.threads.get(key) || Promise.resolve()).then(async () => { await acknowledged; return process(s, event, request); })
-      .catch(() => { if (current(s)) state.error = "Request failed. Check the local bridge and Slack connection."; })
+      .catch(error => { if (current(s)) { state.error = errorMessage(error); void reaction(s, event, "warning"); } })
       .finally(() => {
         if (session === s) state.pending--;
         if (s.threads.get(key) === work) s.threads.delete(key);
@@ -154,7 +167,7 @@
     if (!current(s)) return;
     try {
       const auth = await api(s, "auth.test");
-      if (auth.user_id !== s.user || auth.bot_id) throw new Error("Slack account changed.");
+      if (auth.user_id !== s.user || auth.bot_id) throw failure("Slack account changed.");
       assertCurrent(s);
       const query = new URLSearchParams({ token: s.token, gateway_server: `${s.gateway}-1`, slack_client: "desktop", batch_presence_aware: "1" });
       const socket = s.socket = new page.WebSocket(`wss://wss-primary.slack.com/?${query}`);
@@ -177,8 +190,8 @@
       };
       s.helloTimeout = page.setTimeout(() => socket.close(), 20000);
       s.heartbeat = page.setInterval(() => { if (socket.readyState === 1) socket.send(JSON.stringify({ type: "ping", id: ++s.sequence })); }, 15000);
-    } catch {
-      if (current(s)) { state.error = "Slack connection unavailable; retrying"; render(); s.reconnect = page.setTimeout(() => connect(s), 10000); }
+    } catch (error) {
+      if (current(s)) { state.error = errorMessage(error); render(); s.reconnect = page.setTimeout(() => connect(s), 10000); }
     }
   }
   function end() {
@@ -201,13 +214,13 @@
         state.running = true; state.standby = false; state.error = null; render();
         try {
           const identity = await api(s, "auth.test");
-          if (identity.bot_id || !identity.user_id) throw new Error("A signed-in human Slack account is required.");
+          if (identity.bot_id || !identity.user_id) throw failure("A signed-in human Slack account is required.");
           s.user = identity.user_id;
           s.gateway = (await api(s, "team.info")).team.id;
           await connect(s);
           await held;
-        } catch {
-          if (session === s) { end(); state.error = "Slack sign-in unavailable; retrying"; retryAt = Date.now() + 10000; render(); }
+        } catch (error) {
+          if (session === s) { end(); state.error = errorMessage(error); retryAt = Date.now() + 10000; render(); }
         }
       });
     } finally { acquiring = false; }
@@ -221,11 +234,12 @@
   }
   function configure(value) {
     const keywords = [...new Set((value.keywords || []).map(k => String(k).toLowerCase()))];
-    if (!keywords.every(k => k.length <= 40 && /^\S+$/.test(k))) throw new Error("Keywords must be nonempty words.");
-    if (!['agent', 'echo'].includes(value.mode)) throw new Error("Choose agent or echo mode.");
+    if (!keywords.every(k => k.length <= 40 && /^\S+$/.test(k))) throw failure("Keywords must be nonempty words.");
+    if (!['agent', 'echo'].includes(value.mode)) throw failure("Choose agent or echo mode.");
     const next = { mode: value.mode, keywords };
+    if (value.error) { state.error = value.error; render(); }
     if (JSON.stringify(next) === JSON.stringify(settings)) return;
-    end(); settings = next; retryAt = 0; state.error = null; tick(); render();
+    end(); settings = next; retryAt = 0; state.error = value.error || null; tick(); render();
   }
   function onMessage(event) {
     if (event.source !== page || event.origin !== page.location.origin || event.data?.source !== "browser-hooks-extension") return;
@@ -233,7 +247,7 @@
     if (data.type === "configure") { try { configure(data.settings); } catch { state.error = "Invalid hook settings."; render(); } }
     if (data.type === "response") {
       const entry = pending.get(data.id); if (!entry) return;
-      pending.delete(data.id); data.ok ? entry.resolve(data.value) : entry.reject();
+      pending.delete(data.id); data.ok ? entry.resolve(data.value) : entry.reject(data.error);
     }
   }
   function dispose() {

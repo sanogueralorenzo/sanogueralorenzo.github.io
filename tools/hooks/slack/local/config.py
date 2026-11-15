@@ -6,22 +6,31 @@ from pathlib import Path
 
 
 def load(path):
-    data = json.loads(path.read_text())
+    if not path.exists():
+        raise ValueError('Configuration is missing. Run bridge.py install first.')
+    try:
+        data = json.loads(path.read_text())
+    except ValueError:
+        raise ValueError(f'Configuration is not valid JSON. Edit {path} and rerun the installer.') from None
+    if not isinstance(data, dict) or not isinstance(data.get('workspace'), str) or not isinstance(data.get('commands'), dict):
+        raise ValueError('Configuration needs workspace and commands. Edit the config file and rerun the installer.')
+    if not isinstance(data.get('projects', {}), dict):
+        raise ValueError('projects must map aliases to directory paths')
     workspace = Path(data['workspace']).expanduser().resolve()
     if not workspace.is_dir():
         raise ValueError('workspace must be an existing directory')
     projects = {}
     for alias, directory in data.get('projects', {}).items():
-        if not re.fullmatch(r'[a-z][a-z0-9_-]*', alias):
+        if not re.fullmatch(r'[a-z][a-z0-9_-]*', alias) or not isinstance(directory, str):
             raise ValueError('project aliases must be lowercase words')
         projects[alias] = Path(directory).expanduser().resolve()
         if not projects[alias].is_dir():
             raise ValueError('project directories must exist')
     commands = {}
     for keyword, entry in data['commands'].items():
-        if not re.fullmatch(r'\S{1,40}', keyword) or keyword.casefold() in commands:
+        if not keyword.isprintable() or not re.fullmatch(r'\S{1,40}', keyword) or keyword.casefold() in commands:
             raise ValueError('keywords must be unique words ignoring case')
-        if set(entry) != {'start', 'resume'}:
+        if not isinstance(entry, dict) or set(entry) != {'start', 'resume'}:
             raise ValueError('commands need start and resume arrays')
         commands[keyword.casefold()] = {}
         for mode in ('start', 'resume'):

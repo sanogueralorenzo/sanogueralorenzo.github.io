@@ -5,15 +5,19 @@ async function request(path, body, pairing = false) {
   await trusted;
   const { bridgeToken } = await chrome.storage.local.get("bridgeToken");
   if (!pairing && !bridgeToken) throw new Error("Pair the local bridge in Browser Hooks.");
-  const response = await fetch(`${BASE}${path}`, {
+  let response;
+  try { response = await fetch(`${BASE}${path}`, {
     method: body === undefined ? "GET" : "POST", credentials: "omit", redirect: "error", cache: "no-store",
     signal: AbortSignal.timeout(8000),
     headers: { "Content-Type": "application/json", "X-Browser-Hooks-Origin": chrome.runtime.getURL("").replace(/\/$/, ""),
       ...(!pairing ? { Authorization: `Bearer ${bridgeToken}` } : {}) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
-  if (!response.ok) throw new Error("Bridge unavailable or pairing expired. Check its terminal.");
-  return response.json();
+  }); } catch { throw new Error("Local bridge is not running. Rerun the Slack browser installer."); }
+  if (response.status === 403) throw new Error(pairing
+    ? "Pairing code expired or incorrect. Rerun the installer and copy the new code."
+    : "Browser pairing expired. Rerun the installer and pair Browser Hooks again.");
+  if (!response.ok) throw new Error("Local bridge rejected the request. Run slack-hook status on your computer.");
+  try { return await response.json(); } catch { throw new Error("Local bridge returned an invalid response. Rerun the installer."); }
 }
 
 async function settings() {
@@ -24,7 +28,7 @@ async function settings() {
     const config = await request("/config");
     if (!Array.isArray(config.keywords) || !config.keywords.every(k => typeof k === "string" && /^\S{1,40}$/.test(k))) throw new Error();
     return { mode: "agent", keywords: config.keywords };
-  } catch { return { mode: "agent", keywords: [], error: "Start and pair the local bridge." }; }
+  } catch (error) { return { mode: "agent", keywords: [], error: error.message }; }
 }
 
 function slackSender(sender) {
@@ -48,7 +52,7 @@ export async function handle(message, sender) {
   if (!ownPage || sender.tab) throw new Error("Only the extension popup can configure the bridge");
   if (message.type === "popup.settings") return settings();
   if (message.type === "popup.pair") {
-    if (typeof message.code !== "string" || !/^[A-Za-z0-9_-]{20,100}$/.test(message.code)) throw new Error("Enter the pairing code printed by the bridge.");
+    if (typeof message.code !== "string" || !/^[A-Za-z0-9_-]{20,100}$/.test(message.code)) throw new Error("Enter the pairing code printed by the installer.");
     const paired = await request("/pair", { code: message.code }, true);
     if (typeof paired.token !== "string" || !/^[A-Za-z0-9_-]{40,100}$/.test(paired.token)) throw new Error("Invalid bridge pairing response");
     await chrome.storage.local.set({ bridgeToken: paired.token, mode: "agent" });

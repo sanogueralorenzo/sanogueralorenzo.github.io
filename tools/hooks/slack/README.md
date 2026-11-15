@@ -1,60 +1,50 @@
 # Slack browser listener
 
-A keyword at the beginning of your own message triggers a configured command.
-Works in public/private channels, DMs and group DMs you can access. Answers stay
-in the thread; follow-ups with the keyword resume its agent session. Threads run
-in parallel, with requests inside each thread processed in order.
+Send `chat your request` for Codex or `claude your request` for Claude. Your own
+keyword-prefixed messages trigger work in channels and DMs, including messages
+sent from your phone. Replies appear as you in the same thread; follow-ups resume
+the agent session. **👀** queued/running · **✅** answered · **⚠️** failed.
 
-**👀** queued/running · **✅** answered · **🤖** generated answer.
+## Install or update
 
-## Setup
-
-Requires macOS/Linux, Python 3.11+, an authenticated coding CLI, and the
-[Browser Hooks extension](../README.md). From this directory:
+Requires macOS or Linux with systemd, Git, Python 3.11+, and a signed-in coding CLI.
 
 ```sh
-python3 bridge.py init --agent codex --keyword hook --workspace /path/to/project
-python3 bridge.py serve
+curl -fsSL https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.github.io/main/tools/hooks/slack/install.sh | sh
 ```
 
-Open the extension popup, enter the pairing code printed by `serve`, and choose
-**Pair local bridge**. Then send `hook your request` in Slack. Pairing persists
-across restarts. The bridge must stay running for local agents; the browser
-listener attaches automatically whenever Slack opens. No manual listening toggle.
+The installer detects installed CLIs, creates the default keywords, starts the
+background service, and prints the extension folder and pairing code. Load that
+folder unpacked in Edge/Chrome, then enter the code in **Browser Hooks**. No Slack
+app or workspace approval. Slack attaches automatically whenever it opens.
 
-On macOS, `python3 bridge.py install` runs the bridge at login instead of keeping
-a terminal open. Stop a foreground `serve` first. Its pairing code and diagnostics
-are in `~/.local/state/browser-hooks/slack/bridge.log`.
+Rerun the command to update. Configuration and sessions are preserved. Reload the
+extension once after updates, then reload Slack. Keep a Slack tab open and the
+computer awake. From a local checkout, `python3 tools/hooks/slack/bridge.py install`
+performs setup without downloading another copy. Use `--workspace /path/to/project`
+to choose the default workspace on first installation.
 
-`init --agent claude` selects Claude instead. Configuration lives outside the
-checkout at `~/.config/browser-hooks/slack.json`; edit it and restart the bridge.
-Add keywords to `commands`, and map project aliases to directories in `projects`.
-The first project alias in a request selects that workspace; follow-ups inherit it.
+## Configure
 
-Each command has `start` and `resume` argument arrays, for example:
+Edit `~/.config/browser-hooks/slack.json`, then rerun the installer or run
+`slack-hook install`. Each key in `commands` is a trigger keyword. Each command
+has `start` and `resume` argument arrays; only `resume` includes `{session_id}`.
+Commands read the prompt from stdin and return JSON with `session_id` and `answer`.
+Codex/Claude adapters are included; other CLIs can use the same contract.
 
-```json
-{
-  "start": ["python3", "/absolute/path/to/slack/agents/codex.py"],
-  "resume": ["python3", "/absolute/path/to/slack/agents/codex.py", "{session_id}"]
-}
-```
+Set `workspace` for the default directory and `projects` for aliases mapped to
+project directories. The first alias in a request selects the project; follow-ups
+inherit it. Native CLI models and permissions are preserved. `timeout_seconds`
+sets the per-command limit, up to 600 seconds.
 
-Commands read the prompt from stdin and print one JSON object containing
-`session_id` and `answer` (1–12,000 characters). No shell is involved. Codex and
-Claude wrappers are included. Agents inherit your existing CLI permissions;
-interactive approvals are not bypassed. Commands time out after 600 seconds;
-`timeout_seconds` can lower that limit. Ctrl-C stops the bridge and its children.
+## Troubleshoot
 
-Slack tokens/cookies never leave the Slack page. The extension sends message
-context to a paired loopback bridge on port 19736. Pairing keys, deduplication,
-and agent sessions live in `~/.local/state/browser-hooks/slack`, never this repo.
-Only keyword requests and their thread context reach the local command.
+Run `slack-hook status` to check the bridge, pairing, keywords and last error.
+Failed requests show an actionable message in their Slack thread and the popup.
+For an expired login, run `codex login` or `claude auth login` on your computer,
+then send a new request. Raw command output and credentials are never posted.
 
-For a browser-only check, choose **Echo test**, set a keyword, and save. It replies
-without invoking a local command. Switch back to **Local agent** for normal use.
-
-Reloads/reconnects do not replay missed messages. Agent sessions survive bridge
-restarts, but interrupted commands and uncertain sends are never automatically
-retried. Start a new keyword message to retry deliberately. Slack's browser API
-and event protocol are unofficial and may change.
+State and private logs live in `~/.local/state/browser-hooks/slack`. Pairing codes
+last ten minutes; rerun the installer for a fresh code. Uncertain sends are never
+retried automatically. Messages missed while offline are not replayed. Slack's
+browser authentication and event protocol are unofficial and may change.

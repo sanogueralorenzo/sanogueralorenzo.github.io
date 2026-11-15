@@ -10,7 +10,7 @@
   }
   async function call(action, payload) {
     const response = await chrome.runtime.sendMessage({ type: "slack.request", action, payload });
-    if (!response?.ok) throw new Error("Local bridge request failed.");
+    if (!response?.ok) throw new Error(response?.error || "Local bridge request failed. Rerun the installer.");
     return response.value;
   }
   async function refresh() {
@@ -19,7 +19,7 @@
     try {
       const result = await chrome.runtime.sendMessage({ type: "slack.settings" });
       if (result?.ok) send("configure", { settings: result.value });
-    } catch { send("configure", { settings: { mode: "agent", keywords: [] } }); }
+    } catch { send("configure", { settings: { mode: "agent", keywords: [], error: "Extension updated. Reload this Slack tab." } }); }
     finally { refreshing = false; }
   }
   async function dispatch(data) {
@@ -38,13 +38,14 @@
         }
         if (entry.cancelled) { await call("cancel", { job: entry.job }); return; }
         if (result.status === "ready") result = { job: result.job, answer: result.answer };
+        else if (result.status === "failed" && result.error) result = { job: result.job, error: result.error };
         else if (["delivered", "sending", "interrupted", "cancelled"].includes(result.status)) result = { skip: true };
         else throw new Error("Command failed.");
       }
       if (!entry.cancelled) send("response", { id: data.id, ok: true, value: result });
-    } catch {
+    } catch (error) {
       if (entry.job) void call("cancel", { job: entry.job }).catch(() => {});
-      if (!entry.cancelled) send("response", { id: data.id, ok: false });
+      if (!entry.cancelled) send("response", { id: data.id, ok: false, error: error.message || "Local bridge request failed." });
     } finally { active.delete(data.id); }
   }
   function message(event) {

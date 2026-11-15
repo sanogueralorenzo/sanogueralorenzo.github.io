@@ -4,3 +4,4 @@ __pycache__/
 config.json
 *.sqlite3*
 pairing.json
+pair-code

@@ -32,6 +32,9 @@ with Path(sys.argv[1]).open('a') as f:
  f.write(json.dumps({'args': sys.argv[2:], 'cwd': os.getcwd(), 'prompt': prompt}) + '\\n')
 if 'SLOW' in prompt: time.sleep(0.15)
 if 'HANG' in prompt: time.sleep(30)
+if 'AUTHFAIL' in prompt:
+ print(json.dumps({'error': {'code': 'auth_required', 'provider': 'Claude', 'message': 'fixture-private-secret'}}))
+ raise SystemExit(1)
 if 'FAIL' in prompt: raise SystemExit(1)
 print(json.dumps({'session_id': sys.argv[2] if len(sys.argv)>2 else 'synthetic-session', 'answer': 'synthetic answer'}))
 ''')
@@ -126,13 +129,27 @@ print(json.dumps({'session_id': sys.argv[2] if len(sys.argv)>2 else 'synthetic-s
         self.assertEqual(same[1]['args'], ['synthetic-session'])
 
     def test_failed_or_cancelled_commands_never_produce_answers(self):
-        failed = self.runtime.submit(self.event(text='hook FAIL'))['job']
-        self.wait(failed, 'failed')
+        with self.assertLogs(level='ERROR'):
+            failed = self.runtime.submit(self.event(text='hook FAIL'))['job']
+            self.wait(failed, 'failed')
         hung = self.runtime.submit(self.event(ts='2000000002.000001', text='hook HANG'))['job']
         self.wait(hung, 'running')
         self.runtime.cancel(hung)
         self.assertFalse(self.runtime.claim(hung)['claimed'])
         self.assertNotIn('answer', self.runtime.status(hung))
+
+    def test_failed_requests_expose_safe_errors_and_claim_delivery_once_without_a_session(self):
+        with self.assertLogs(level='ERROR') as logged:
+            job = self.runtime.submit(self.event(text='hook AUTHFAIL'))['job']
+            result = self.wait(job, 'failed')
+        self.assertEqual(result['error']['code'], 'auth_required')
+        self.assertIn('claude auth login', result['error']['message'])
+        self.assertNotIn('fixture-private-secret', json.dumps(result) + str(logged.output))
+        self.assertTrue(self.runtime.claim(job)['claimed'])
+        self.assertFalse(self.runtime.claim(job)['claimed'])
+        self.assertTrue(self.runtime.delivered(job, '2000000002.000001')['ok'])
+        self.assertEqual(self.runtime.status(job)['status'], 'delivered')
+        self.assertEqual(self.runtime.db.execute('SELECT count(*) FROM sessions').fetchone()[0], 0)
 
     def test_unknown_sends_and_interrupted_jobs_are_never_retried(self):
         event = self.event()
@@ -171,6 +188,8 @@ print(json.dumps({'session_id': sys.argv[2] if len(sys.argv)>2 else 'synthetic-s
             return result
         try:
             self.assertEqual(call('GET', '/config')[0], 403)
+            self.assertEqual(call('GET', '/health')[1]['service'], 'browser-hooks-slack')
+            self.assertEqual(call('GET', '/health', headers={'Host': 'evil.example'})[0], 403)
             self.assertEqual(call('POST', '/pair', {'code': server.pair_code}, {'Origin': 'https://app.slack.com'})[0], 403)
             code = server.pair_code
             status, paired, _ = call('POST', '/pair', {'code': code})

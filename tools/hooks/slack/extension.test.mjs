@@ -73,7 +73,7 @@ test('echo mode has a configurable keyword and needs no local bridge', async () 
 
 test('isolated relay discovers settings automatically and polls jobs using short background requests', async () => {
   const listeners = new Map(), posted = [], calls = [], intervals = new Set();
-  let poll = 0;
+  let poll = 0, terminal = { status: 'ready', answer: 'answer' };
   const page = {
     location: { origin: 'https://app.slack.com' },
     addEventListener(name, fn) { listeners.set(name, fn); },
@@ -84,7 +84,7 @@ test('isolated relay discovers settings automatically and polls jobs using short
     calls.push(data);
     if (data.type === 'slack.settings') return { ok: true, value: { mode: 'agent', keywords: ['code'] } };
     if (data.action === 'run') return { ok: true, value: { job: 'a'.repeat(64), status: 'queued' } };
-    return { ok: true, value: ++poll > 1 ? { job: 'a'.repeat(64), status: 'ready', answer: 'answer' } : { status: 'running' } };
+    return { ok: true, value: ++poll > 1 ? { job: 'a'.repeat(64), ...terminal } : { status: 'running' } };
   } } };
   const source = readFileSync(new URL('./extension/relay.js', import.meta.url), 'utf8');
   vm.runInNewContext(source, { window: page, chrome, Date, setTimeout: fn => setImmediate(fn),
@@ -98,6 +98,27 @@ test('isolated relay discovers settings automatically and polls jobs using short
   const response = posted.find(p => p.type === 'response');
   assert.equal(response.value.answer, 'answer');
   assert.ok(!calls.some(c => c.action === 'claim')); // Claim occurs only when the page is ready to post.
+  terminal = { status: 'failed', error: { code: 'auth_required', message: 'Run claude auth login.' } };
+  poll = 0;
+  listeners.get('message')({ source: page, origin: page.location.origin, data: { source: 'browser-hooks-slack', type: 'request', id: 'failure', action: 'run', payload: { text: 'code ping' } } });
+  for (let i = 0; i < 10; i++) await new Promise(resolve => setImmediate(resolve));
+  assert.equal(posted.find(p => p.id === 'failure').value.error.message, 'Run claude auth login.');
   listeners.get('pagehide')();
   assert.equal(intervals.size, 0);
+});
+
+test('bridge offline, stale pairing and malformed responses give distinct fixes without raw errors', async () => {
+  const w = await worker();
+  w.stored.bridgeToken = 't'.repeat(43);
+  globalThis.fetch = async () => { throw new Error('fixture-private-secret'); };
+  let config = await w.handle({ type: 'slack.settings' }, slack);
+  assert.match(config.error, /not running/);
+  assert.ok(!config.error.includes('fixture-private-secret'));
+  globalThis.fetch = async () => ({ status: 403, ok: false });
+  config = await w.handle({ type: 'slack.settings' }, slack);
+  assert.match(config.error, /pairing expired/);
+  globalThis.fetch = async () => ({ ok: true, json() { throw new Error('fixture-private-secret'); } });
+  config = await w.handle({ type: 'slack.settings' }, slack);
+  assert.match(config.error, /invalid response/);
+  assert.ok(!config.error.includes('fixture-private-secret'));
 });

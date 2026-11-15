@@ -1,43 +1,38 @@
-"""Normalize Codex's final answer and session ID. Optional argument: session ID."""
-
+"""Normalize Codex's final answer, session ID, and safe failures."""
 import json
 import os
+from pathlib import Path
 import subprocess
 import sys
 import tempfile
-from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from local.errors import HookError, classify, report
 
 
 def run():
     if len(sys.argv) > 2:
-        raise ValueError("Usage: slack-hook-codex [session_id]")
-    with tempfile.TemporaryDirectory(prefix="slack-hook-codex-") as directory:
-        answer_path = Path(directory) / "answer"
-        common = ["--json", "-o", str(answer_path), "--skip-git-repo-check"]
-        if len(sys.argv) == 2:
-            command = ["codex", "exec", "resume", *common, sys.argv[1], "-"]
-        else:
-            command = ["codex", "exec", *common, "-C", os.getcwd(), "-"]
-        result = subprocess.run(command, input=sys.stdin.read(), capture_output=True, text=True)
+        raise HookError('invalid_response', 'Codex')
+    with tempfile.TemporaryDirectory(prefix='slack-hook-codex-') as directory:
+        answer_path = Path(directory) / 'answer'
+        common = ['--json', '-o', str(answer_path), '--skip-git-repo-check']
+        command = (['codex', 'exec', 'resume', *common, sys.argv[1], '-'] if len(sys.argv) == 2
+                   else ['codex', 'exec', *common, '-C', os.getcwd(), '-'])
+        try:
+            result = subprocess.run(command, input=sys.stdin.read(), capture_output=True, text=True)
+        except FileNotFoundError:
+            raise HookError('missing_cli', 'Codex') from None
         if result.returncode:
-            raise RuntimeError(f"codex exec failed (exit {result.returncode}): check local CLI authentication")
-        session_id = None
-        for line in result.stdout.split("\n"):
-            if line.startswith("{"):
-                event = json.loads(line)
-                if event.get("type") == "thread.started":
-                    session_id = event.get("thread_id")
-                    break
-        print(json.dumps({"session_id": session_id, "answer": answer_path.read_text()}))
+            raise classify(result.stdout + '\n' + result.stderr, 'Codex')
+        events = [json.loads(line) for line in result.stdout.splitlines() if line.startswith('{')]
+        session = next((e.get('thread_id') for e in events if e.get('type') == 'thread.started'), None)
+        if not answer_path.exists():
+            raise HookError('invalid_response', 'Codex')
+        print(json.dumps({'session_id': session, 'answer': answer_path.read_text()}))
 
 
-def main():
+if __name__ == '__main__':
     try:
         run()
     except (OSError, ValueError, RuntimeError) as error:
-        print(error, file=sys.stderr)
-        return 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+        raise SystemExit(report(error))

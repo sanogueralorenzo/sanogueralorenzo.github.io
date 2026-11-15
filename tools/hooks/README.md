@@ -1,24 +1,16 @@
 # Browser Hooks
 
-Hooks that attach automatically to registered websites using the browser's
-existing sign-in. The [Slack hook](slack/README.md) listens for keywords in your
-own messages and replies as you, in the same thread.
+Automatic hooks for websites you are already signed into. The
+[Slack listener](slack/README.md) connects your own keyword-prefixed messages to
+Codex, Claude, or another CLI and replies as you in their threads.
 
-## Install locally
+Follow [Slack installation](slack/README.md#install-or-update) for the guided
+installer. For a local checkout, run `python3 tools/hooks/slack/bridge.py install`
+from the repository root. Load this folder unpacked in Edge/Chrome and pair once
+with the printed code. No manual listening toggle; one tab per workspace listens.
 
-1. On `edge://extensions` or `chrome://extensions`, enable **Developer mode**,
-   choose **Load unpacked**, and select this folder.
-2. Open or reload Slack. The listener attaches automatically; no Start button.
-3. Set up the [local command bridge](slack/README.md) for Codex, Claude, or another
-   command. For a browser-only check, choose **Echo test** in the extension popup.
-
-After updating these files, reload the extension once, then reload Slack.
-Allow access to Slack when Edge asks. One tab per workspace listens; other tabs
-stand by and take over if it closes. Keep a Slack tab open and the computer awake.
-
-Slack authentication stays in the page. Permissions cover Slack, local loopback
-communication, and extension settings. No Slack app, OAuth approval, browser
-profile extraction, Keychain access, or Browse installation is needed.
+Authentication stays in Slack. Permissions cover Slack, loopback communication,
+and extension settings. After an update, reload the extension, then reload Slack.
 
 Checks from the repository root:
 

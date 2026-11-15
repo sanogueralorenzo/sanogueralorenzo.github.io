@@ -5,6 +5,7 @@ import os
 import re
 import secrets
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
@@ -17,6 +18,10 @@ class Server(ThreadingHTTPServer):
         self.credentials = state_dir / 'pairing.json'
         self.pair_lock = threading.Lock()
         self.pair_code = secrets.token_urlsafe(24)
+        self.pair_deadline = time.monotonic() + 600
+        self.pair_file = state_dir / 'pair-code'
+        with os.fdopen(os.open(self.pair_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'w') as file:
+            file.write(self.pair_code)
         self.paired = json.loads(self.credentials.read_text()) if self.credentials.exists() else None
         super().__init__(address, Handler)
 
@@ -48,6 +53,10 @@ class Handler(BaseHTTPRequestHandler):
     def handle_api(self):
         self.connection.settimeout(5)
         origin = self.headers.get('X-Browser-Hooks-Origin', '')
+        if self.headers.get('Host') != f'127.0.0.1:{self.server.server_port}':
+            return self.respond(403, {'error': 'Loopback host required'})
+        if self.path == '/health' and self.command == 'GET':
+            return self.respond(200, {'service': 'browser-hooks-slack', 'paired': bool(self.server.paired), 'error': self.server.runtime.last_error})
         browser_origin = self.headers.get('Origin')
         if browser_origin and browser_origin != origin:
             return self.respond(403, {'error': 'Origin mismatch'})
@@ -69,19 +78,20 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == '/pair' and self.command == 'POST':
                 with self.server.pair_lock:
                     code = body.get('code', '')
-                    if not isinstance(code, str) or not self.server.pair_code or not hmac.compare_digest(code, self.server.pair_code):
-                        return self.respond(403, {'error': 'Invalid pairing code'})
+                    if not isinstance(code, str) or not self.server.pair_code or time.monotonic() > self.server.pair_deadline or not hmac.compare_digest(code, self.server.pair_code):
+                        return self.respond(403, {'error': 'Pairing code expired or incorrect. Rerun the installer and copy the new code.'})
                     paired = {'origin': origin, 'token': secrets.token_urlsafe(32)}
                     # The private state directory is never inside the public checkout.
                     with os.fdopen(os.open(self.server.credentials, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'w') as file:
                         json.dump(paired, file)
                     self.server.paired = paired
                     self.server.pair_code = None
+                    self.server.pair_file.unlink(missing_ok=True)
                     return self.respond(200, paired)
             paired = self.server.paired
             supplied = self.headers.get('Authorization', '')
             if not paired or origin != paired['origin'] or not hmac.compare_digest(supplied, 'Bearer ' + paired['token']):
-                return self.respond(403, {'error': 'Pair the extension first'})
+                return self.respond(403, {'error': 'Browser pairing expired. Rerun the installer, then pair Browser Hooks with the displayed code.'})
             runtime = self.server.runtime
             if self.path == '/config' and self.command == 'GET':
                 return self.respond(200, {'keywords': list(runtime.config['commands'])})

@@ -156,3 +156,17 @@ test('reconnect preserves admission state and uses only Slack fixed socket origi
   assert.equal(new URL(socket.url).origin, 'wss://wss-primary.slack.com');
   socket.event(message()); await settle(); assert.equal(f.posts().length, 1);
 });
+
+test('CLI failures post one actionable diagnostic with warning, never a success reaction', async () => {
+  const messageText = 'Claude login expired. Run `claude auth login` on your computer.';
+  const f = fixture({ action: d => d.action === 'run'
+    ? { job: 'test', error: { code: 'auth_required', message: messageText } }
+    : d.action === 'claim' ? { claimed: true } : { ok: true } });
+  f.configure({ mode: 'agent' }); await settle();
+  f.sockets[0].event(message()); f.sockets[0].event(message()); await settle();
+  assert.equal(f.posts().length, 1);
+  assert.equal(f.posts()[0].values.markdown_text, `⚠️ ${messageText}`);
+  assert.equal(f.page.agentHooks.status().error, messageText);
+  assert.ok(f.calls.some(c => c.method === 'reactions.add' && c.values.name === 'warning'));
+  assert.ok(!f.calls.some(c => c.method === 'reactions.add' && c.values.name === 'white_check_mark'));
+});

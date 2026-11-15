@@ -1,34 +1,38 @@
-"""Normalize Claude's final answer and session ID. Optional argument: session ID."""
-
+"""Normalize Claude's final answer, session ID, and safe failures."""
 import json
+from pathlib import Path
 import subprocess
 import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from local.errors import HookError, classify, report
 
 
 def run():
     if len(sys.argv) > 2:
-        raise ValueError("Usage: slack-hook-claude [session_id]")
-    command = ["claude", "-p", "--output-format", "json"]
+        raise HookError('invalid_response', 'Claude')
+    command = ['claude', '-p', '--output-format', 'json']
     if len(sys.argv) == 2:
-        command.extend(["--resume", sys.argv[1]])
-    result = subprocess.run(command, input=sys.stdin.read(), capture_output=True, text=True)
+        command.extend(['--resume', sys.argv[1]])
+    try:
+        result = subprocess.run(command, input=sys.stdin.read(), capture_output=True, text=True)
+    except FileNotFoundError:
+        raise HookError('missing_cli', 'Claude') from None
     try:
         response = json.loads(result.stdout)
-    except json.JSONDecodeError as error:
-        raise RuntimeError(f"claude CLI did not return JSON: check local CLI authentication") from error
-    if result.returncode or response.get("is_error"):
-        detail = response.get("result") or result.stderr[-1500:]
-        raise RuntimeError(f"claude CLI failed (exit {result.returncode}): check local CLI authentication")
-    print(json.dumps({"session_id": response.get("session_id"), "answer": response.get("result")}))
+    except ValueError:
+        if result.returncode:
+            raise classify(result.stderr + '\n' + result.stdout, 'Claude') from None
+        raise HookError('invalid_response', 'Claude') from None
+    if not isinstance(response, dict):
+        raise HookError('invalid_response', 'Claude')
+    if result.returncode or response.get('is_error'):
+        raise classify(str(response.get('result', '')) + '\n' + result.stderr, 'Claude')
+    print(json.dumps({'session_id': response.get('session_id'), 'answer': response.get('result')}))
 
 
-def main():
+if __name__ == '__main__':
     try:
         run()
     except (OSError, ValueError, RuntimeError) as error:
-        print(error, file=sys.stderr)
-        return 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+        raise SystemExit(report(error))
