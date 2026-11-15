@@ -7,14 +7,14 @@ import tempfile
 
 def prepare(checkout, data):
     target = data / 'extension'
-    if target.resolve().is_relative_to(checkout.parents[2].resolve()):
+    if target.resolve().is_relative_to(checkout.parents[1].resolve()):
         raise ValueError('Keep the generated extension outside the public repository')
     data.mkdir(parents=True, exist_ok=True, mode=0o700)
     data.chmod(0o700)
     # Only browser runtime files belong in the generated extension.
     with tempfile.TemporaryDirectory(dir=data) as folder:
         staging = Path(folder)
-        source = checkout.parent
+        source = checkout
         for name in ['manifest.json', 'popup', 'slack/extension', 'slack/hook.js', 'slack/icon.png']:
             origin, destination = source / name, staging / name
             destination.parent.mkdir(parents=True, exist_ok=True)

@@ -67,7 +67,7 @@ print(json.dumps({'session_id': sys.argv[2] if len(sys.argv)>2 else 'synthetic-s
         return [json.loads(line) for line in self.log.read_text().splitlines()]
 
     def test_background_service_keeps_only_explicit_configuration_and_path(self):
-        value = specification(Path(sys.executable), self.root / 'bridge.py', self.config_path, self.root / 'state', self.data)
+        value = specification(Path(sys.executable), self.root / 'cli.py', self.data)
         self.assertTrue(value['RunAtLoad'])
         self.assertTrue(value['KeepAlive'])
         self.assertEqual(set(value['EnvironmentVariables']), {'PATH'})
@@ -212,12 +212,12 @@ print(json.dumps({'session_id': sys.argv[2] if len(sys.argv)>2 else 'synthetic-s
             self.assertEqual(status, 200)
             self.wait(accepted['job'])
             self.assertEqual(call('GET', '/jobs/' + accepted['job'], headers=headers)[1]['answer'], 'synthetic answer')
-            self.assertEqual(os.stat(self.data / 'slack' / 'pairing.json').st_mode & 0o777, 0o600)
+            self.assertEqual(os.stat(self.data / 'hooks/slack/pairing.json').st_mode & 0o777, 0o600)
         finally:
             server.shutdown(); server.server_close(); thread.join()
 
     def test_pairing_file_expires_without_requests_and_preserves_saved_credentials(self):
-        credentials = self.data / 'slack' / 'pairing.json'
+        credentials = self.data / 'hooks/slack/pairing.json'
         credentials.parent.mkdir(parents=True)
         saved = json.dumps({'origin': 'chrome-extension://' + 'a' * 32, 'token': 'synthetic-saved-token'})
         credentials.write_text(saved)

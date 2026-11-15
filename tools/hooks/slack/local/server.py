@@ -15,7 +15,7 @@ class Server(ThreadingHTTPServer):
         if address[0] != '127.0.0.1':
             raise ValueError('Bridge must bind to loopback')
         self.runtime = runtime
-        self.credentials = data_dir / 'slack' / 'pairing.json'
+        self.credentials = data_dir / 'hooks/slack/pairing.json'
         self.credentials.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.credentials.parent.chmod(0o700)
         self.pair_lock = threading.Lock()

@@ -2,15 +2,12 @@
 import json
 from pathlib import Path
 import shutil
-import shlex
 import sys
 import time
 from http.client import HTTPConnection, HTTPException
 
 from .config import load
-from .extension import prepare
 from .service import install
-from .paths import bin_root
 
 
 def health():
@@ -47,58 +44,32 @@ def configure(path, checkout, workspace):
     return load(path)
 
 
-def launcher(path, state, data, checkout):
-    target = bin_root() / 'slack-hook'
-    target.parent.mkdir(parents=True, exist_ok=True)
-    command = ' '.join(shlex.quote(str(arg)) for arg in [sys.executable, checkout / 'bridge.py'])
-    options = ' '.join(shlex.quote(str(arg)) for arg in ['--config', path, '--state', state, '--data', data])
-    target.write_text('#!/bin/sh\nexec ' + command + ' "$@" ' + options + '\n')
-    target.chmod(0o700)
-    return target
-
-
-def setup(path, state, data, checkout, workspace):
-    config = configure(path, checkout, workspace)
-    extension = prepare(checkout, data)
-    install(checkout / 'bridge.py', path, state, data)
+def setup(home, checkout, workspace):
+    folder = home / 'hooks/slack'
+    config = configure(folder / 'config.json', checkout / 'slack', workspace)
+    install(checkout / 'cli.py', home)
     deadline = time.monotonic() + 8
-    result = None
     while time.monotonic() < deadline:
-        result = health()
-        if result:
+        if health():
             break
         time.sleep(0.1)
-    if not result:
-        raise RuntimeError(f'Bridge did not start. check {state / "bridge.log"}')
-    executable = launcher(path, state, data, checkout)
-    previous_extension = state / 'extension'
-    if previous_extension.exists():
-        shutil.rmtree(previous_extension)
-    (state / 'pairing.json').unlink(missing_ok=True)
-    print('Slack browser listener is ready. Keywords: ' + ' / '.join(config['commands']))
-    print(f'Configuration: {path}')
-    print(f'Extension folder: {extension}')
-    if result['paired']:
-        print('Existing browser pairing, settings and agent sessions were preserved.')
-        print('After an extension update, reload Browser Hooks once, then reload Slack.')
     else:
-        print('1. Load the extension folder in Edge/Chrome (Developer mode → Load unpacked).')
-        print('2. Pairing happens automatically when the extension loads; no code to copy.')
-        print('3. Open Slack and send: ' + next(iter(config['commands'])) + ' your request')
-    print('Load or reload this private extension folder within ten minutes; rerun the installer if needed.')
-    print('Check status: ' + (str(executable) if not shutil.which('slack-hook') else 'slack-hook') + ' status')
+        raise RuntimeError(f'Bridge did not start. Check {folder / "logs/bridge.log"}')
+    print('Slack is ready. Keywords: ' + ' / '.join(config['commands']))
+    print(f'Configuration: {folder / "config.json"}')
     print('Slack attaches automatically. Keep one Slack tab open; no listening toggle.')
 
 
-def status(path, state, data):
-    config = load(path)
+def status(home):
+    folder = home / 'hooks/slack'
+    config = load(folder / 'config.json')
     result = health()
-    print('Bridge: ' + ('running' if result else 'not running; rerun the installer'))
+    print('Slack bridge: ' + ('running' if result else 'not running; rerun the installer'))
     print('Browser: ' + ('paired' if result and result['paired'] else 'not paired; rerun the installer, then load or reload the printed extension folder'))
     print('Keywords: ' + ' / '.join(config['commands']))
-    print(f'Configuration: {path}')
-    print(f'Logs: {state / "bridge.log"}')
-    print(f'Extension folder: {data / "extension"}')
+    print(f'Configuration: {folder / "config.json"}')
+    print(f'Logs: {folder / "logs/bridge.log"}')
+    print(f'Extension folder: {home / "extension"}')
     for name in ['codex', 'claude']:
         if any(str(Path(arg).name) == f'{name}.py' for entry in config['commands'].values() for arg in entry['start']):
             print(name + ': ' + ('installed (login checked when a request runs)' if shutil.which(name) else 'not found; install the CLI and rerun the installer'))

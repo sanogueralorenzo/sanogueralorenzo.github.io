@@ -7,7 +7,7 @@ from pathlib import Path
 
 def load(path):
     if not path.exists():
-        raise ValueError('Configuration is missing. Run bridge.py install first.')
+        raise ValueError('Configuration is missing. Run browser-hooks install first.')
     try:
         data = json.loads(path.read_text())
     except ValueError:

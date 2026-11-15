@@ -55,7 +55,7 @@ async function request(path, body) {
 
 async function read(response) {
   if (response.status === 403) throw new Error(REPAIR);
-  if (!response.ok) throw new Error("Local bridge rejected the request. Run slack-hook status on your computer.");
+  if (!response.ok) throw new Error("Local bridge rejected the request. Run browser-hooks slack status on your computer.");
   try { return await response.json(); } catch { throw new Error("Local bridge returned an invalid response. Rerun the installer."); }
 }
 

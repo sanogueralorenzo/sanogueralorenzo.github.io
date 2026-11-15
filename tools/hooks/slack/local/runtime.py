@@ -19,8 +19,8 @@ class Runtime:
         self.last_error = None
         state_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         state_dir.chmod(0o700)
-        self.db = sqlite3.connect(state_dir / 'state.sqlite3', check_same_thread=False)
-        (state_dir / 'state.sqlite3').chmod(0o600)
+        self.db = sqlite3.connect(state_dir / 'sessions.sqlite3', check_same_thread=False)
+        (state_dir / 'sessions.sqlite3').chmod(0o600)
         self.lock = threading.RLock()
         self.db.executescript('''
           CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, thread TEXT, status TEXT, answer TEXT);

@@ -22,12 +22,12 @@ root=Path(__file__).parent.parent
 with (root/'git-calls').open('a') as out: out.write(json.dumps(args)+'\\n')
 if args[0]=='clone':
  source=Path(args[-1]);(source/'.git').mkdir(parents=True)
- bridge=source/'tools/hooks/slack/bridge.py';bridge.parent.mkdir(parents=True)
- bridge.write_text('import sys\\nargs=sys.argv[1:]; assert args[:2]==["install","--data"]; assert __import__("pathlib").Path(args[2]).resolve()==__import__("pathlib").Path(__file__).resolve().parents[4]; assert args[3:]==["--workspace","/fixture/project"]\\nprint("INSTALL_OK")\\n')
+ bridge=source/'tools/hooks/cli.py';bridge.parent.mkdir(parents=True)
+ bridge.write_text('import sys\\nargs=sys.argv[1:]; assert args[:2]==["install","--home"]; assert __import__("pathlib").Path(args[2]).resolve()==__import__("pathlib").Path(__file__).resolve().parents[3]; assert args[3:]==["--workspace","/fixture/project"]\\nprint("INSTALL_OK")\\n')
 ''')
             git.chmod(0o700)
-            env = {**os.environ, 'PATH': str(bin_dir) + os.pathsep + os.environ.get('PATH', ''), 'BROWSER_HOOKS_INSTALL_DIR': str(root / 'install')}
-            installer = Path(__file__).resolve().parents[1] / 'install.sh'
+            env = {**os.environ, 'PATH': str(bin_dir) + os.pathsep + os.environ.get('PATH', ''), 'BROWSER_HOOKS_HOME': str(root / 'install')}
+            installer = Path(__file__).resolve().parents[2] / 'install.sh'
             for _ in range(2):
                 result = subprocess.run(['sh', str(installer), '--workspace', '/fixture/project'], capture_output=True, text=True, env=env)
                 self.assertEqual(result.returncode, 0, result.stderr)
