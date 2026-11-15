@@ -72,8 +72,8 @@ then send a new request. Raw command output and credentials are never posted.
 
 State, private logs and the generated extension live in
 `~/.local/state/browser-hooks/slack`, outside the source checkout. The private
-pairing file expires after ten minutes and is deleted after use. If pairing
-expires, rerun the installer and reload Browser Hooks from the printed folder.
+pairing file is deleted after use, after ten minutes, or when the bridge stops.
+If pairing expires, rerun the installer and reload Browser Hooks from the printed folder.
 Uncertain sends are never retried automatically. Messages missed while offline
 are not replayed. Slack's browser authentication and event protocol are unofficial
 and may change.

@@ -196,9 +196,6 @@ print(json.dumps({'session_id': sys.argv[2] if len(sys.argv)>2 else 'synthetic-s
             self.assertGreater(bootstrap['expiresAt'], time.time() * 1000)
             self.assertEqual(server.pair_file.stat().st_mode & 0o777, 0o600)
             code = bootstrap['code']
-            server.pair_deadline = time.monotonic() - 1
-            self.assertEqual(call('POST', '/pair', {'code': code})[0], 403)
-            server.pair_deadline = time.monotonic() + 600
             status, paired, _ = call('POST', '/pair', {'code': code})
             self.assertEqual(status, 200)
             self.assertFalse(server.pair_file.exists())
@@ -217,6 +214,42 @@ print(json.dumps({'session_id': sys.argv[2] if len(sys.argv)>2 else 'synthetic-s
             self.assertEqual(os.stat(self.root / 'state' / 'pairing.json').st_mode & 0o777, 0o600)
         finally:
             server.shutdown(); server.server_close(); thread.join()
+
+    def test_pairing_file_expires_without_requests_and_preserves_saved_credentials(self):
+        state = self.root / 'state'
+        credentials = state / 'pairing.json'
+        saved = json.dumps({'origin': 'chrome-extension://' + 'a' * 32, 'token': 'synthetic-saved-token'})
+        credentials.write_text(saved)
+        server = Server(('127.0.0.1', 0), self.runtime, state)
+        code = server.pair_code
+        server.pair_deadline = time.monotonic() + 0.03
+        thread = threading.Thread(target=lambda: server.serve_forever(poll_interval=0.01), daemon=True)
+        thread.start()
+        try:
+            deadline = time.monotonic() + 2
+            while server.pair_file.exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            with server.pair_lock:
+                self.assertFalse(server.pair_file.exists())
+                self.assertIsNone(server.pair_code)
+            self.assertEqual(credentials.read_text(), saved)
+            client = http.client.HTTPConnection('127.0.0.1', server.server_port, timeout=3)
+            try:
+                client.request('POST', '/pair', json.dumps({'code': code}), {
+                    'Content-Type': 'application/json', 'X-Browser-Hooks-Origin': 'chrome-extension://' + 'a' * 32})
+                self.assertEqual(client.getresponse().status, 403)
+            finally:
+                client.close()
+        finally:
+            server.shutdown(); server.server_close(); thread.join()
+
+    def test_server_close_removes_unused_pairing_file(self):
+        server = Server(('127.0.0.1', 0), self.runtime, self.root / 'state')
+        self.assertTrue(server.pair_file.exists())
+        server.server_close()
+        self.assertFalse(server.pair_file.exists())
+        self.assertIsNone(server.pair_code)
+        server.server_close()  # Closing twice is harmless.
 
 
 if __name__ == '__main__':

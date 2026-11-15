@@ -27,6 +27,22 @@ class Server(ThreadingHTTPServer):
         with os.fdopen(os.open(self.pair_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'w') as file:
             json.dump({'code': self.pair_code, 'expiresAt': int(time.time() * 1000) + 600_000}, file)
 
+    def clear_pairing_code(self):
+        # Call with pair_lock held so expiry cannot race a successful redemption.
+        self.pair_file.unlink(missing_ok=True)
+        self.pair_code = None
+
+    def service_actions(self):
+        # serve_forever calls this even when no HTTP requests arrive.
+        with self.pair_lock:
+            if self.pair_code and time.monotonic() >= self.pair_deadline:
+                self.clear_pairing_code()
+
+    def server_close(self):
+        super().server_close()
+        with self.pair_lock:
+            self.clear_pairing_code()
+
 
 class Handler(BaseHTTPRequestHandler):
     protocol_version = 'HTTP/1.0'
@@ -87,8 +103,7 @@ class Handler(BaseHTTPRequestHandler):
                     with os.fdopen(os.open(self.server.credentials, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'w') as file:
                         json.dump(paired, file)
                     self.server.paired = paired
-                    self.server.pair_code = None
-                    self.server.pair_file.unlink(missing_ok=True)
+                    self.server.clear_pairing_code()
                     return self.respond(200, paired)
             paired = self.server.paired
             supplied = self.headers.get('Authorization', '')
