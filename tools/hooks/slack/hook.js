@@ -5,25 +5,13 @@
   page.agentHooks?.dispose?.();
   const state = { running: false, connected: false, received: 0, replies: 0, pending: 0, error: null, standby: false };
   let settings = { mode: "agent", keywords: [] };
-  let session, disposed = false, acquiring = false, retryAt = 0, badge;
+  let session, disposed = false, acquiring = false, retryAt = 0;
   const pending = new Map();
 
   function emit(type, payload) {
     page.postMessage({ source: "browser-hooks-slack", type, ...payload }, page.location.origin);
   }
-  function render() {
-    if (!badge && page.document.body) {
-      badge = page.document.createElement("aside");
-      badge.id = "browser-hooks-slack";
-      badge.style.cssText = "position:fixed;bottom:12px;left:12px;z-index:2147483647;background:#17252b;color:white;padding:8px 12px;border-radius:8px;font:12px/1.4 system-ui;max-width:min(520px,calc(100vw - 24px));box-sizing:border-box;overflow-wrap:anywhere;box-shadow:0 2px 12px #0004";
-      badge.append(page.document.createTextNode(""));
-      page.document.body.append(badge);
-    }
-    if (!badge) return;
-    badge.firstChild.textContent = state.error ? `Hook · ${state.error}`
-      : !settings.keywords.length ? "Hook · connect local bridge"
-      : state.standby ? "Hook · another tab is listening" : state.connected
-        ? `Hook listening (${settings.keywords.join(" / ")}) · ${state.replies} replies` : "Hook connecting…";
+  function publishStatus() {
     emit("status", { status: { ...state } });
   }
   function failure(message) { return Object.assign(new Error(message), { publicMessage: message }); }
@@ -146,7 +134,7 @@
     const request = parse(event, s);
     if (!request) return;
     s.seen.add(`${event.channel}:${event.ts}`);
-    if (state.pending >= 100) { state.error = "Queue full. Send the command again later."; render(); return; }
+    if (state.pending >= 100) { state.error = "Queue full. Send the command again later."; publishStatus(); return; }
     state.received++; state.pending++;
     const key = `${event.channel}:${event.thread_ts || event.ts}`;
     const acknowledged = reaction(s, event, "eyes");
@@ -155,9 +143,9 @@
       .finally(() => {
         if (session === s) state.pending--;
         if (s.threads.get(key) === work) s.threads.delete(key);
-        render();
+        publishStatus();
       });
-    s.threads.set(key, work); render();
+    s.threads.set(key, work); publishStatus();
   }
   function disconnect(s) {
     page.clearTimeout(s.reconnect); page.clearInterval(s.heartbeat); page.clearTimeout(s.helloTimeout);
@@ -175,23 +163,23 @@
         if (!current(s) || s.socket !== socket) return;
         let event; try { event = JSON.parse(data); } catch { return; }
         if (event.type === "hello") {
-          page.clearTimeout(s.helloTimeout); s.attempts = 0; state.connected = true; state.error = null; render();
+          page.clearTimeout(s.helloTimeout); s.attempts = 0; state.connected = true; state.error = null; publishStatus();
         } else if (event.type === "reconnect_url") { /* Always reconnect to the fixed Slack origin. */ }
         else if (event.type === "goodbye") socket.close();
         else receive(s, event);
       };
-      socket.onerror = () => { if (current(s)) { state.error = "Slack disconnected; reconnecting"; render(); socket.close(); } };
+      socket.onerror = () => { if (current(s)) { state.error = "Slack disconnected; reconnecting"; publishStatus(); socket.close(); } };
       socket.onclose = () => {
         page.clearInterval(s.heartbeat); page.clearTimeout(s.helloTimeout);
         if (current(s)) {
-          state.connected = false; render();
+          state.connected = false; publishStatus();
           s.reconnect = page.setTimeout(() => connect(s), Math.min(30000, 1000 * 2 ** Math.min(5, s.attempts++)));
         }
       };
       s.helloTimeout = page.setTimeout(() => socket.close(), 20000);
       s.heartbeat = page.setInterval(() => { if (socket.readyState === 1) socket.send(JSON.stringify({ type: "ping", id: ++s.sequence })); }, 15000);
     } catch (error) {
-      if (current(s)) { state.error = errorMessage(error); render(); s.reconnect = page.setTimeout(() => connect(s), 10000); }
+      if (current(s)) { state.error = errorMessage(error); publishStatus(); s.reconnect = page.setTimeout(() => connect(s), 10000); }
     }
   }
   function end() {
@@ -202,16 +190,16 @@
     state.running = state.connected = state.standby = false; state.pending = 0;
   }
   async function attach(auth) {
-    if (!page.navigator.locks) { state.error = "This browser needs Web Locks support."; render(); return; }
+    if (!page.navigator.locks) { state.error = "This browser needs Web Locks support."; publishStatus(); return; }
     acquiring = true;
     try {
       await page.navigator.locks.request(`browser-hooks-slack:${auth.team}`, { ifAvailable: true }, async lock => {
-        if (!lock) { state.standby = true; render(); return; }
+        if (!lock) { state.standby = true; publishStatus(); return; }
         if (disposed || !settings.keywords.length || credential()?.token !== auth.token) return;
         const s = session = { ...auth, abort: new AbortController(), started: Date.now() / 1000,
           seen: new Set(), sent: new Set(), threads: new Map(), attempts: 0, sequence: 0 };
         const held = new Promise(resolve => { s.release = resolve; });
-        state.running = true; state.standby = false; state.error = null; render();
+        state.running = true; state.standby = false; state.error = null; publishStatus();
         try {
           const identity = await api(s, "auth.test");
           if (identity.bot_id || !identity.user_id) throw failure("A signed-in human Slack account is required.");
@@ -220,7 +208,7 @@
           await connect(s);
           await held;
         } catch (error) {
-          if (session === s) { end(); state.error = errorMessage(error); retryAt = Date.now() + 10000; render(); }
+          if (session === s) { end(); state.error = errorMessage(error); retryAt = Date.now() + 10000; publishStatus(); }
         }
       });
     } finally { acquiring = false; }
@@ -229,7 +217,7 @@
     if (disposed) return;
     const auth = credential();
     if (session && (!auth || session.token !== auth.token || session.team !== auth.team)) end();
-    if (!settings.keywords.length) { end(); render(); return; }
+    if (!settings.keywords.length) { end(); publishStatus(); return; }
     if (!session && !acquiring && auth && Date.now() >= retryAt) void attach(auth);
   }
   function configure(value) {
@@ -237,21 +225,21 @@
     if (!keywords.every(k => k.length <= 40 && /^\S+$/.test(k))) throw failure("Keywords must be nonempty words.");
     if (!['agent', 'echo'].includes(value.mode)) throw failure("Choose agent or echo mode.");
     const next = { mode: value.mode, keywords };
-    if (value.error) { state.error = value.error; render(); }
+    if (value.error) { state.error = value.error; publishStatus(); }
     if (JSON.stringify(next) === JSON.stringify(settings)) return;
-    end(); settings = next; retryAt = 0; state.error = value.error || null; tick(); render();
+    end(); settings = next; retryAt = 0; state.error = value.error || null; tick(); publishStatus();
   }
   function onMessage(event) {
     if (event.source !== page || event.origin !== page.location.origin || event.data?.source !== "browser-hooks-extension") return;
     const data = event.data;
-    if (data.type === "configure") { try { configure(data.settings); } catch { state.error = "Invalid hook settings."; render(); } }
+    if (data.type === "configure") { try { configure(data.settings); } catch { state.error = "Invalid hook settings."; publishStatus(); } }
     if (data.type === "response") {
       const entry = pending.get(data.id); if (!entry) return;
       pending.delete(data.id); data.ok ? entry.resolve(data.value) : entry.reject(data.error);
     }
   }
   function dispose() {
-    disposed = true; end(); page.clearInterval(watch); badge?.remove();
+    disposed = true; end(); page.clearInterval(watch);
     page.removeEventListener("message", onMessage); page.removeEventListener("pagehide", dispose);
   }
   page.addEventListener("message", onMessage);
@@ -259,5 +247,5 @@
   const watch = page.setInterval(tick, 1000);
   page.agentHooks = Object.freeze({ configure, dispose,
     status: () => Object.freeze({ ...state, keywords: [...settings.keywords], mode: settings.mode }) });
-  render(); emit("ready", {});
+  publishStatus(); emit("ready", {});
 })();

@@ -35,8 +35,9 @@ the agent session. **👀** queued/running · **✅** answered · **⚠️** fai
    `chat Reply with hello` or `claude Reply with hello` in your self-DM.
    The answer appears as you in that message's thread.
 
-Listening is automatic; there is no Start button. Keep your computer awake and
-one Slack tab open. Messages sent from your phone can trigger the same listener.
+Listening runs automatically and invisibly; nothing is added to the Slack page.
+Open the extension only for pairing or troubleshooting. Keep your computer awake
+and one Slack tab open. Messages sent from your phone can trigger the same listener.
 No Slack app or workspace approval is required.
 
 **To update**, rerun the installer, reload Browser Hooks on the Extensions page,

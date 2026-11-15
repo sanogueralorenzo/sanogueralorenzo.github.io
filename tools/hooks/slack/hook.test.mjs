@@ -15,14 +15,6 @@ function locks() {
 function fixture({ manager = locks(), action, failPost = false } = {}) {
   const calls = [], sockets = [], timers = new Map(), messages = [], listeners = new Map();
   let serial = 0, token = 'fixture', user = 'UTEST';
-  class Element {
-    children = []; style = {};
-    append(child) { this.children.push(child); }
-    get firstChild() { return this.children[0]; }
-    get lastChild() { return this.children.at(-1); }
-    addEventListener() {}
-    remove() {}
-  }
   class Socket {
     readyState = 1;
     constructor(url) { this.url = url; sockets.push(this); }
@@ -35,7 +27,6 @@ function fixture({ manager = locks(), action, failPost = false } = {}) {
     navigator: { locks: manager },
     localStorage: { getItem: () => JSON.stringify({ teams: { ETEST: { token: ['xoxc', token].join('-') } } }) },
     crypto: { randomUUID: () => `fixture-${++serial}` },
-    document: { createElement: () => new Element(), createTextNode: text => ({ textContent: text }), body: new Element() },
     WebSocket: Socket,
     async fetch(url, options) {
       const method = url.split('/').at(-1), values = Object.fromEntries(options.body);
