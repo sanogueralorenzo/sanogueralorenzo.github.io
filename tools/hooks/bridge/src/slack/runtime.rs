@@ -1,4 +1,4 @@
-use crate::{
+use super::{
     config::{Command, Config, Event, storage_json},
     errors::{HookError, WorkResult},
     process::{self, Cancel},
@@ -320,7 +320,7 @@ impl Runtime {
         Ok(json!({"claimed":count==1}))
     }
     pub fn delivered(&self, job: &str, ts: &str) -> Result<Value, String> {
-        if !crate::config::timestamp(ts) {
+        if !super::config::timestamp(ts) {
             return Err("Invalid reply timestamp".into());
         }
         let mut inner = self.inner.lock().unwrap();

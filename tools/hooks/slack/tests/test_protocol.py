@@ -73,10 +73,12 @@ class NativeProtocolTests(unittest.TestCase):
         status, paired, headers = b.call("POST", "/pair", {"code": code})
         self.assertEqual(status, 200)
         b.token = paired["token"]
+        self.assertEqual(b.call("POST", "/run", event())[0], 404)
+        self.assertEqual(b.call("POST", "/github/run", event())[0], 404)
         self.assertNotIn("Access-Control-Allow-Origin", headers)
         self.assertFalse((self.home / "extension/bridge-pairing.json").exists())
         self.assertEqual(
-            (self.home / "hooks/slack/pairing.json").stat().st_mode & 0o777, 0o600
+            (self.home / "pairing.json").stat().st_mode & 0o777, 0o600
         )
         self.assertEqual(
             (self.home / "hooks/slack/sessions.sqlite3").stat().st_mode & 0o777, 0o600
@@ -93,7 +95,7 @@ class NativeProtocolTests(unittest.TestCase):
             )[0],
             403,
         )
-        self.assertEqual(b.call("GET", "/config")[1], {"keywords": ["hook"]})
+        self.assertEqual(b.call("GET", "/config")[1], {"hooks": {"slack": {"keywords": ["hook"]}}})
 
     def test_websocket_origin_authentication_keepalive_and_completion(self):
         b = self.start()
@@ -116,21 +118,21 @@ class NativeProtocolTests(unittest.TestCase):
         self.assertEqual(c.receive(), {"type": "pong"})
         c.send(b"heartbeat", opcode=9)
         self.assertEqual(c.receive(), (10, b"heartbeat"))
-        accepted = b.request("POST", "/run", event())
+        accepted = b.request("POST", "/slack/run", event())
         expected = hashlib.sha256(
             json.dumps(["ETEST", "UTEST", "CTEST", "2000000001.000001"]).encode()
         ).hexdigest()
         self.assertEqual(accepted["job"], expected)
-        self.assertEqual(c.receive(), {"type": "job", "job": expected})
+        self.assertEqual(c.receive(), {"type": "job", "hook": "slack", "job": expected})
         self.assertEqual(
-            b.request("GET", "/jobs/" + expected)["answer"], "synthetic answer"
+            b.request("GET", "/slack/jobs/" + expected)["answer"], "synthetic answer"
         )
 
     def test_pair_rotation_disconnects_old_stream(self):
         folder = self.home / "hooks/slack"
         folder.mkdir(parents=True)
         saved = {"origin": ORIGIN, "token": "synthetic-saved-token"}
-        (folder / "pairing.json").write_text(json.dumps(saved))
+        (self.home / "pairing.json").write_text(json.dumps(saved))
         b = self.start(auto_pair=False)
         c = self.ws(b)
         code = b.bootstrap()["code"]
@@ -146,7 +148,7 @@ class NativeProtocolTests(unittest.TestCase):
     def test_graceful_shutdown_removes_bootstrap_and_closes_stream(self):
         folder = self.home / "hooks/slack"
         folder.mkdir(parents=True)
-        (folder / "pairing.json").write_text(
+        (self.home / "pairing.json").write_text(
             json.dumps({"origin": ORIGIN, "token": "synthetic-saved-token"})
         )
         b = self.start(auto_pair=False)
@@ -177,27 +179,27 @@ class NativeProtocolTests(unittest.TestCase):
         ]
         for extra in invalid:
             self.assertEqual(
-                b.call("POST", "/run", event(**extra))[0], 400, extra.keys()
+                b.call("POST", "/slack/run", event(**extra))[0], 400, extra.keys()
             )
-        self.assertEqual(b.call("POST", "/run", raw="[]")[0], 400)
-        self.assertEqual(b.call("POST", "/run", raw="{broken")[0], 400)
+        self.assertEqual(b.call("POST", "/slack/run", raw="[]")[0], 400)
+        self.assertEqual(b.call("POST", "/slack/run", raw="{broken")[0], 400)
         self.assertEqual(
-            b.call("POST", "/run", event(), headers={"Content-Type": "text/plain"})[0],
+            b.call("POST", "/slack/run", event(), headers={"Content-Type": "text/plain"})[0],
             415,
         )
         self.assertEqual(
             b.call(
                 "POST",
-                "/run",
+                "/slack/run",
                 raw="x",
                 headers={"Content-Length": str(2 * 1024 * 1024 + 1)},
             )[0],
             413,
         )
         for name in ("claim", "delivered", "cancel"):
-            self.assertEqual(b.call("POST", "/" + name, {"job": "../config"})[0], 400)
+            self.assertEqual(b.call("POST", "/slack/" + name, {"job": "../config"})[0], 400)
         self.assertEqual(
-            b.call("POST", "/delivered", {"job": "a" * 64, "ts": "bad"})[0], 400
+            b.call("POST", "/slack/delivered", {"job": "a" * 64, "ts": "bad"})[0], 400
         )
 
     def test_cancellation_and_shutdown_kill_descendant_processes(self):
@@ -208,14 +210,14 @@ class NativeProtocolTests(unittest.TestCase):
             + ',"w").write(json.dumps([os.getpid(),p.pid]));time.sleep(30)'
         )
         b = self.start(config=configuration(self.home, script))
-        job = b.request("POST", "/run", event())["job"]
+        job = b.request("POST", "/slack/run", event())["job"]
         wait_until(pids.exists)
         parent, child = json.loads(pids.read_text())
-        b.request("POST", "/cancel", {"job": job})
+        b.request("POST", "/slack/cancel", {"job": job})
         b.wait(job, "cancelled")
         wait_until(lambda: dead(parent) and dead(child))
         pids.unlink()
-        b.request("POST", "/run", event(ts="2000000002.000001"))
+        b.request("POST", "/slack/run", event(ts="2000000002.000001"))
         wait_until(pids.exists)
         parent, child = json.loads(pids.read_text())
         b.stop()
@@ -229,7 +231,7 @@ class NativeProtocolTests(unittest.TestCase):
             + ',"w").write(str(child.pid));print(json.dumps({"session_id":"s","answer":"answer"}))'
         )
         b = self.start(config=configuration(self.home, script))
-        job = b.request("POST", "/run", event())["job"]
+        job = b.request("POST", "/slack/run", event())["job"]
         self.assertEqual(b.wait(job)["answer"], "answer")
         wait_until(lambda: dead(int(pid_file.read_text())))
 
@@ -259,7 +261,7 @@ class NativeProtocolTests(unittest.TestCase):
             sub.mkdir()
             b = Backend(sub, configuration(sub, script, limit))
             self.backends.append(b)
-            job = b.request("POST", "/run", event())["job"]
+            job = b.request("POST", "/slack/run", event())["job"]
             self.assertEqual(b.wait(job, "failed")["error"]["code"], code)
             b.stop()
 
@@ -273,7 +275,7 @@ class NativeProtocolTests(unittest.TestCase):
             "KEEP_PARITY": "kept",
         }
         b = self.start(config=configuration(self.home, script), env=env)
-        job = b.request("POST", "/run", event())["job"]
+        job = b.request("POST", "/slack/run", event())["job"]
         self.assertEqual(json.loads(b.wait(job)["answer"]), {"KEEP_PARITY": "kept"})
 
     def test_context_limit_and_session_mismatch(self):
@@ -282,7 +284,7 @@ class NativeProtocolTests(unittest.TestCase):
             {"ts": "2000000000.000001", "user": "UTEST", "text": "x" * 12000}
             for _ in range(23)
         ]
-        job = b.request("POST", "/run", event(messages=context))["job"]
+        job = b.request("POST", "/slack/run", event(messages=context))["job"]
         self.assertEqual(b.wait(job, "failed")["error"]["code"], "context_limit")
         # Change session on resume; the bridge must reject it.
         b.stop()
@@ -292,9 +294,9 @@ class NativeProtocolTests(unittest.TestCase):
         )
         b = Backend(self.home, cfg)
         self.backends.append(b)
-        job = b.request("POST", "/run", event(ts="2000000002.000001"))["job"]
+        job = b.request("POST", "/slack/run", event(ts="2000000002.000001"))["job"]
         b.wait(job)
-        job = b.request("POST", "/run", event(ts="2000000003.000001"))["job"]
+        job = b.request("POST", "/slack/run", event(ts="2000000003.000001"))["job"]
         self.assertEqual(b.wait(job, "failed")["error"]["code"], "session_invalid")
 
     def test_queue_admission_is_bounded(self):
@@ -303,9 +305,9 @@ class NativeProtocolTests(unittest.TestCase):
         )
         for n in range(100):
             self.assertEqual(
-                b.call("POST", "/run", event(ts=f"2000000001.{n:06}"))[0], 200
+                b.call("POST", "/slack/run", event(ts=f"2000000001.{n:06}"))[0], 200
             )
-        self.assertEqual(b.call("POST", "/run", event(ts="2000000002.000001"))[0], 400)
+        self.assertEqual(b.call("POST", "/slack/run", event(ts="2000000002.000001"))[0], 400)
         b.stop()
 
     def test_large_prompt_preserves_structured_errors_when_cli_ignores_stdin(self):
@@ -315,7 +317,7 @@ class NativeProtocolTests(unittest.TestCase):
             {"ts": "2000000000.000001", "user": "UTEST", "text": "x" * 12000}
             for _ in range(8)
         ]
-        job = b.request("POST", "/run", event(messages=context))["job"]
+        job = b.request("POST", "/slack/run", event(messages=context))["job"]
         value = b.wait(job, "failed")
         self.assertEqual(value["error"]["code"], "auth_required")
         self.assertNotIn(
@@ -354,7 +356,7 @@ class NativeProtocolTests(unittest.TestCase):
             }
             b = Backend(home, cfg, env=env)
             self.backends.append(b)
-            job = b.request("POST", "/run", event())["job"]
+            job = b.request("POST", "/slack/run", event())["job"]
             value = b.wait(job, "failed")
             self.assertEqual(value["error"]["code"], "auth_required")
             self.assertEqual(value["error"]["provider"].lower(), name)
@@ -421,7 +423,7 @@ class NativeProtocolTests(unittest.TestCase):
         )
         b = self.start(config=configuration(self.home, script, 4))
         jobs = [
-            b.request("POST", "/run", event(channel=f"C{n}", ts=f"2000000001.{n:06}"))[
+            b.request("POST", "/slack/run", event(channel=f"C{n}", ts=f"2000000001.{n:06}"))[
                 "job"
             ]
             for n in range(12)

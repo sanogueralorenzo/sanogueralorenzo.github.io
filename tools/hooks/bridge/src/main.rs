@@ -1,8 +1,5 @@
-mod config;
-mod errors;
-mod process;
-mod runtime;
 mod server;
+mod slack;
 
 use std::{
     path::{Path, PathBuf},
@@ -43,7 +40,7 @@ async fn run() -> Result<(), String> {
     let mut args = std::env::args().skip(1);
     let action = args.next().unwrap_or_else(|| "--help".into());
     if ["--help", "-h"].contains(&action.as_str()) {
-        println!("Slack bridge: serve --home PATH [--port PORT] | config --home PATH");
+        println!("Browser Hooks bridge: serve --home PATH [--port PORT] | config --home PATH");
         return Ok(());
     }
     if !["serve", "config"].contains(&action.as_str()) {
@@ -61,10 +58,10 @@ async fn run() -> Result<(), String> {
     }
     let home = private_home(home.ok_or("--home is required")?)?;
     if action == "config" {
-        let config = config::Config::load(&home.join("hooks/slack/config.json"))?;
+        let config = slack::config::Config::load(&home.join("hooks/slack/config.json"))?;
         println!(
             "{}",
-            serde_json::json!({"keywords": config.commands.keys().collect::<Vec<_>>()})
+            serde_json::json!({"hooks":{"slack":{"keywords": config.commands.keys().collect::<Vec<_>>()}}})
         );
         Ok(())
     } else {

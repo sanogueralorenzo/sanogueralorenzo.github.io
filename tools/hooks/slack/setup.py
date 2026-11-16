@@ -8,7 +8,7 @@ import sys
 import time
 from http.client import HTTPConnection, HTTPException
 
-from .service import install
+from service import install
 
 
 def health():
@@ -20,7 +20,7 @@ def health():
         return (
             value
             if response.status == 200
-            and value.get("service") == "browser-hooks-slack"
+            and value.get("service") == "browser-hooks"
             and value.get("implementation") == "rust"
             else None
         )
@@ -39,7 +39,7 @@ def validate(home, binary):
             result.stderr.strip()
             or "Invalid Slack configuration. Edit config.json and rerun the installer."
         )
-    return json.loads(result.stdout)["keywords"]
+    return json.loads(result.stdout)["hooks"]["slack"]["keywords"]
 
 
 def configure(home, checkout, workspace, binary):
@@ -88,7 +88,7 @@ def start(home, binary, keywords):
         time.sleep(0.1)
     else:
         raise RuntimeError(
-            f"Bridge did not start. Check {home / 'hooks/slack/logs/bridge.log'}"
+            f"Bridge did not start. Check {home / 'logs/bridge.log'}"
         )
     print("Slack is ready. Keywords: " + " / ".join(keywords))
     print(f"Configuration: {home / 'hooks/slack/config.json'}")
@@ -96,14 +96,14 @@ def start(home, binary, keywords):
 
 
 def status(home):
-    binary = home / "bin/slack-bridge"
+    binary = home / "bin/browser-hooks-bridge"
     if not binary.is_file():
         raise ValueError("Rust bridge is missing. Run browser-hooks install.")
     keywords = validate(home, binary)
     folder = home / "hooks/slack"
     result = health()
     print(
-        "Slack bridge (Rust): "
+        "Browser Hooks bridge (Rust): "
         + ("running" if result else "not running; rerun the installer")
     )
     print(
@@ -116,7 +116,7 @@ def status(home):
     )
     print("Keywords: " + " / ".join(keywords))
     print(f"Configuration: {folder / 'config.json'}")
-    print(f"Logs: {folder / 'logs/bridge.log'}")
+    print(f"Logs: {home / 'logs/bridge.log'}")
     print(f"Extension folder: {home / 'extension'}")
     config = json.loads((folder / "config.json").read_text())
     for name in ["codex", "claude"]:
@@ -134,6 +134,6 @@ def status(home):
                     else "not found; install the CLI and rerun the installer"
                 )
             )
-    if result and result.get("error"):
-        print("Last request: " + result["error"]["message"])
+    if result and result["hooks"]["slack"].get("error"):
+        print("Last request: " + result["hooks"]["slack"]["error"]["message"])
     return 0 if result and result["paired"] else 1

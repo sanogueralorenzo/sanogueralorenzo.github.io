@@ -47,21 +47,23 @@ function worker({ token, bootstrap, pairStatus = 200 } = {}) {
     if (url.endsWith('/pair')) return { ok: pairStatus === 200, status: pairStatus, async json() { return { token: 't'.repeat(43) }; } };
     if (options.headers.Authorization !== `Bearer ${'t'.repeat(43)}`) return { ok: false, status: 403 };
     return { ok: true, async json() {
-      if (url.endsWith('/config')) return { keywords: ['chat', 'claude'] };
-      if (url.includes('/jobs/')) return state;
-      if (url.endsWith('/run')) return { job, status: 'queued' };
+      if (url.endsWith('/config')) return { hooks: {slack: {keywords: ['chat', 'claude']}} };
+      if (url.includes('/slack/jobs/')) return state;
+      if (url.endsWith('/slack/run')) return { job, status: 'queued' };
       return { ok: true };
     } };
   };
-  const source = readFileSync(new URL('./extension/background.mjs', import.meta.url), 'utf8').replace('export function', 'function');
-  const module = vm.runInNewContext(source + '\n({connectPort})', { chrome, fetch, WebSocket: Socket, URL, AbortSignal,
+  const transport = readFileSync(new URL('../bridge.mjs', import.meta.url), 'utf8').replace(/export /g, '');
+  const source = readFileSync(new URL('./extension/background.mjs', import.meta.url), 'utf8').replace('export function', 'function')
+    .replace(/^import .*?;\n/, `const {request, subscribe} = (() => { ${transport}; return {request, subscribe}; })();\n`);
+  const module = vm.runInNewContext(source + '\n({connectPort, subscribe})', { chrome, fetch, WebSocket: Socket, URL, AbortSignal,
     setInterval: (fn, ms) => { const id = ++serial; timers.set(id, { fn, ms, interval: true }); return id; },
     setTimeout: (fn, ms) => { const id = ++serial; timers.set(id, { fn, ms }); return id; },
     clearInterval: id => timers.delete(id), clearTimeout: id => timers.delete(id),
   });
   return { ...module, stored, calls, levels, sockets, timers,
     state: value => { state = { job, ...value }; }, override: fn => { fetchOverride = fn; },
-    async ready() { await settle(); const socket = sockets.at(-1); socket.open(); socket.event({ type: 'settings', keywords: ['chat', 'claude'] }); await settle(); return socket; },
+    async ready() { await settle(); const socket = sockets.at(-1); socket.open(); socket.event({ type: 'settings', hooks: {slack: {keywords: ['chat', 'claude']}} }); await settle(); return socket; },
     retry() { const [id, timer] = [...timers].find(([, timer]) => !timer.interval && timer.ms === 1000); timers.delete(id); timer.fn(); },
   };
 }
@@ -140,10 +142,10 @@ test('job completion is pushed and failure diagnostics are delivered without pol
   for (const result of [{ status: 'ready', answer: 'answer' }, { status: 'failed', error: { code: 'auth_required', message: 'Run claude auth login.' } }]) {
     const w = worker(), page = port(); w.connectPort(page); const socket = await w.ready();
     page.send({ type: 'request', id: 'request', action: 'run', payload: { text: 'chat ping' } }); await settle();
-    assert.equal(w.calls.filter(c => c.url.includes('/jobs/')).length, 1);
+    assert.equal(w.calls.filter(c => c.url.includes('/slack/jobs/')).length, 1);
     assert.ok(!page.sent.some(value => value.type === 'response'));
-    w.state(result); socket.event({ type: 'job', job }); await settle();
-    assert.equal(w.calls.filter(c => c.url.endsWith('/run')).length, 1);
+    w.state(result); socket.event({ type: 'job', hook: 'slack', job }); await settle();
+    assert.equal(w.calls.filter(c => c.url.endsWith('/slack/run')).length, 1);
     const response = page.sent.find(value => value.type === 'response');
     assert.equal(response.ok, true);
     assert.equal(response.value.answer || response.value.error.message, result.answer || result.error.message);
@@ -153,12 +155,12 @@ test('job completion is pushed and failure diagnostics are delivered without pol
 test('a completion arriving during the initial snapshot cannot be lost', async () => {
   const w = worker(), page = port(); w.connectPort(page); const socket = await w.ready();
   let release;
-  w.override(async url => url.includes('/jobs/')
+  w.override(async url => url.includes('/slack/jobs/')
     ? new Promise(resolve => { release = () => resolve({ ok: true, json: async () => ({ job, status: 'queued' }) }); })
     : { ok: true, json: async () => ({ job, status: 'queued' }) });
   page.send({ type: 'request', id: 'race', action: 'run', payload: {} }); await settle();
   w.override(async () => ({ ok: true, json: async () => ({ job, status: 'ready', answer: 'not lost' }) }));
-  socket.event({ type: 'job', job }); await settle();
+  socket.event({ type: 'job', hook: 'slack', job }); await settle();
   assert.equal(page.sent.find(value => value.id === 'race').value.answer, 'not lost');
   release(); await settle();
   assert.equal(page.sent.filter(value => value.id === 'race').length, 1);
@@ -168,7 +170,7 @@ test('overlapping completion events answer each request only once', async () => 
   const w = worker(), page = port(); w.connectPort(page); const socket = await w.ready();
   page.send({ type: 'request', id: 'once', action: 'run', payload: {} }); await settle();
   w.state({ status: 'ready', answer: 'one answer' });
-  socket.event({ type: 'job', job }); socket.event({ type: 'job', job }); await settle();
+  socket.event({ type: 'job', hook: 'slack', job }); socket.event({ type: 'job', hook: 'slack', job }); await settle();
   assert.equal(page.sent.filter(value => value.id === 'once').length, 1);
 });
 
@@ -180,14 +182,14 @@ test('bridge reconnect takes pending job snapshots without rerunning commands', 
   w.state({ status: 'ready', answer: 'finished while disconnected' });
   w.retry(); await w.ready();
   assert.equal(page.sent.find(value => value.id === 'resume').value.answer, 'finished while disconnected');
-  assert.equal(w.calls.filter(c => c.url.endsWith('/run')).length, 1);
+  assert.equal(w.calls.filter(c => c.url.endsWith('/slack/run')).length, 1);
 });
 
 test('closing a page cancels its pending job and releases the push connection', async () => {
   const w = worker(), page = port(); w.connectPort(page); await w.ready();
   page.send({ type: 'request', id: 'cancel', action: 'run', payload: {} }); await settle();
   page.disconnect(); await settle();
-  assert.equal(w.calls.filter(c => c.url.endsWith('/cancel')).length, 1);
+  assert.equal(w.calls.filter(c => c.url.endsWith('/slack/cancel')).length, 1);
   assert.equal(w.timers.size, 0);
 });
 
@@ -197,8 +199,8 @@ test('closing one owner preserves another pending request for the same job', asy
   first.send({ type: 'request', id: 'first', action: 'run', payload: {} });
   second.send({ type: 'request', id: 'second', action: 'run', payload: {} }); await settle();
   first.disconnect(); await settle();
-  assert.equal(w.calls.filter(c => c.url.endsWith('/cancel')).length, 0);
-  w.state({ status: 'ready', answer: 'still wanted' }); socket.event({ type: 'job', job }); await settle();
+  assert.equal(w.calls.filter(c => c.url.endsWith('/slack/cancel')).length, 0);
+  w.state({ status: 'ready', answer: 'still wanted' }); socket.event({ type: 'job', hook: 'slack', job }); await settle();
   assert.equal(second.sent.find(value => value.id === 'second').value.answer, 'still wanted');
   assert.ok(!first.sent.some(value => value.type === 'response'));
 });
@@ -206,12 +208,12 @@ test('closing one owner preserves another pending request for the same job', asy
 test('cancelling before run acknowledgement cancels the accepted job without replying', async () => {
   const w = worker(), page = port(); w.connectPort(page); await w.ready();
   let release;
-  w.override(async url => url.endsWith('/run') ? new Promise(resolve => {
+  w.override(async url => url.endsWith('/slack/run') ? new Promise(resolve => {
     release = () => resolve({ ok: true, json: async () => ({ job, status: 'queued' }) });
   }) : { ok: true, json: async () => ({ ok: true }) });
   page.send({ type: 'request', id: 'cancel-early', action: 'run', payload: {} }); await settle();
   page.send({ type: 'cancel', id: 'cancel-early' }); release(); await settle();
-  assert.equal(w.calls.filter(c => c.url.endsWith('/cancel')).length, 1);
+  assert.equal(w.calls.filter(c => c.url.endsWith('/slack/cancel')).length, 1);
   assert.ok(!page.sent.some(value => value.type === 'response'));
 });
 
@@ -228,4 +230,37 @@ test('relay forwards events without idle timers and disconnects on page close', 
   client.onMessage.emit({ type: 'response', id: 'run', ok: true, value: { job, answer: 'answer' } });
   assert.equal(posted.at(-1).value.answer, 'answer');
   listeners.get('pagehide')(); assert.equal(client.disconnected, true);
+});
+
+test('adapters share one bridge socket and releasing one preserves the other', async () => {
+  const w = worker(), page = port();
+  w.connectPort(page); const socket = await w.ready();
+  const events = [], errors = [];
+  const release = w.subscribe(value => events.push(value), error => errors.push(error));
+  await settle();
+  assert.equal(w.sockets.length, 1);
+  assert.equal(w.calls.filter(c => c.url.endsWith('/config')).length, 1);
+  assert.deepEqual([...events[0].hooks.slack.keywords], ['chat', 'claude']);
+  page.disconnect();
+  assert.equal(socket.readyState, 1);
+  socket.event({type: 'job', hook: 'another-site', job});
+  assert.equal(events.at(-1).hook, 'another-site');
+  assert.equal(errors.length, 0);
+  release();
+  assert.equal(socket.readyState, 3);
+  assert.equal(w.timers.size, 0);
+});
+
+test('Slack only consumes its own namespaced job events', async () => {
+  const w = worker(), page = port();
+  w.connectPort(page); const socket = await w.ready();
+  page.send({type:'request', id:'scoped', action:'run', payload:{}}); await settle();
+  assert.ok(w.calls.some(c => c.url.endsWith('/slack/run')));
+  const count = w.calls.length;
+  w.state({status:'ready', answer:'Slack answer'});
+  socket.event({type:'job', hook:'another-site', job}); await settle();
+  assert.equal(w.calls.length, count);
+  assert.ok(!page.sent.some(message => message.id === 'scoped'));
+  socket.event({type:'job', hook:'slack', job}); await settle();
+  assert.equal(page.sent.find(message => message.id === 'scoped').value.answer, 'Slack answer');
 });

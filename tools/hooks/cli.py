@@ -21,10 +21,10 @@ def main():
     )
     install.add_argument("--workspace", type=Path, default=Path.cwd())
     commands.add_parser("status", parents=[shared], help="Show hook status")
+    commands.add_parser("serve", parents=[shared], help="Run the shared local bridge")
     slack = commands.add_parser("slack", help="Slack hook")
     actions = slack.add_subparsers(dest="action", required=True)
     actions.add_parser("status", parents=[shared], help="Show Slack status")
-    actions.add_parser("serve", parents=[shared], help="Run the local Slack bridge")
     args = parser.parse_args()
     os.umask(0o077)
     home = args.home.expanduser().resolve()
@@ -41,12 +41,12 @@ def main():
         from installation import install
 
         install(home, checkout, args.workspace)
-    elif args.command == "status" or args.action == "status":
+    elif args.command == "status" or args.command == "slack":
         from slack.setup import status
 
         raise SystemExit(status(home))
     else:
-        binary = home / "bin/slack-bridge"
+        binary = home / "bin/browser-hooks-bridge"
         if not binary.is_file():
             raise ValueError("Rust bridge is missing. Run browser-hooks install.")
         os.execv(binary, [str(binary), "serve", "--home", str(home)])

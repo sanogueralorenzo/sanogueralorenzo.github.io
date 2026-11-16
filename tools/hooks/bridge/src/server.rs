@@ -1,4 +1,4 @@
-use crate::{config::Config, runtime::Runtime};
+use crate::slack::Slack;
 use axum::{
     Json, Router,
     body::{Body, to_bytes},
@@ -36,15 +36,15 @@ struct Pair {
     deadline: Instant,
 }
 pub struct App {
-    pub runtime: Arc<Runtime>,
+    slack: Slack,
     home: PathBuf,
     host: String,
     pair: Mutex<Pair>,
     rotated: watch::Sender<u64>,
     closing: watch::Sender<bool>,
 }
-type ApiResult<T> = Result<T, (StatusCode, &'static str)>;
-fn fail(message: &'static str) -> (StatusCode, &'static str) {
+pub(crate) type ApiResult<T> = Result<T, (StatusCode, &'static str)>;
+pub(crate) fn fail(message: &'static str) -> (StatusCode, &'static str) {
     (StatusCode::BAD_REQUEST, message)
 }
 fn response(status: StatusCode, value: Value) -> Response {
@@ -100,17 +100,10 @@ impl App {
         port: u16,
         ttl: Duration,
     ) -> Result<(Arc<Self>, TcpListener), String> {
-        let config = Config::load(&home.join("hooks/slack/config.json"))?;
+        let slack = Slack::new(&home)?;
         private_dir(&home)?;
-        private_dir(&home.join("hooks/slack"))?;
         private_dir(&home.join("extension"))?;
-        let runtime = Runtime::new(config, &home.join("hooks/slack"))?;
-        fs::set_permissions(
-            home.join("hooks/slack/sessions.sqlite3"),
-            fs::Permissions::from_mode(0o600),
-        )
-        .map_err(|_| "Cannot secure sessions")?;
-        let credentials = home.join("hooks/slack/pairing.json");
+        let credentials = home.join("pairing.json");
         let saved = if credentials.exists() {
             let c: Credentials = serde_json::from_slice(
                 &fs::read(&credentials).map_err(|_| "Cannot read saved pairing")?,
@@ -145,7 +138,7 @@ impl App {
         let (rotated, _) = watch::channel(0);
         let (closing, _) = watch::channel(false);
         let app = Arc::new(Self {
-            runtime,
+            slack,
             home,
             host,
             pair: Mutex::new(Pair {
@@ -223,15 +216,15 @@ impl App {
             token: random(32).map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Pairing failed"))?,
         };
         let value = serde_json::to_value(&saved).unwrap();
-        private_json(&self.home.join("hooks/slack/pairing.json"), &value)
+        private_json(&self.home.join("pairing.json"), &value)
             .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Cannot save pairing"))?;
         pair.saved = Some(saved);
         self.clear_code(&mut pair);
         self.rotated.send_modify(|version| *version += 1);
         Ok(value)
     }
-    fn keywords(&self) -> Vec<String> {
-        self.runtime.config.commands.keys().cloned().collect()
+    fn config(&self) -> Value {
+        json!({"hooks":{"slack":self.slack.config()}})
     }
     pub fn address(&self) -> &str {
         &self.host
@@ -242,7 +235,7 @@ impl App {
             let mut pair = self.pair.lock().unwrap();
             self.clear_code(&mut pair);
         }
-        self.runtime.close().await;
+        self.slack.close().await;
     }
 }
 async fn api(State(app): State<Arc<App>>, request: Request<Body>) -> Response {
@@ -260,7 +253,7 @@ async fn dispatch(app: &Arc<App>, request: Request<Body>) -> ApiResult<Value> {
     app.check_host(&headers)?;
     if path == "/health" && method == Method::GET {
         return Ok(
-            json!({"service":"browser-hooks-slack","implementation":"rust","paired":app.pair.lock().unwrap().saved.is_some(),"error":app.runtime.last_error()}),
+            json!({"service":"browser-hooks","implementation":"rust","paired":app.pair.lock().unwrap().saved.is_some(),"hooks":{"slack":{"error":app.slack.error()}}}),
         );
     }
     let origin = app.check_origin(&headers)?;
@@ -302,47 +295,15 @@ async fn dispatch(app: &Arc<App>, request: Request<Body>) -> ApiResult<Value> {
         return app.pair(origin, &body);
     }
     app.authenticated(&headers, &origin)?;
-    let action = if method == Method::GET && path == "/config" {
-        return Ok(json!({"keywords":app.keywords()}));
-    } else if method == Method::GET && path.starts_with("/jobs/") {
-        return app
-            .runtime
-            .status(path.strip_prefix("/jobs/").unwrap())
-            .map_err(|_| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Local bridge storage failed",
-                )
-            })?
-            .ok_or((StatusCode::NOT_FOUND, "Unknown job"));
-    } else if method == Method::POST && path == "/run" {
-        app.runtime.submit(body)
-    } else if method == Method::POST && ["/claim", "/cancel", "/delivered"].contains(&path.as_str())
-    {
-        static JOB: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A[a-f0-9]{64}\z").unwrap());
-        let job = body["job"]
-            .as_str()
-            .filter(|j| JOB.is_match(j))
-            .ok_or(fail("Invalid job"))?;
-        match path.as_str() {
-            "/claim" => app.runtime.claim(job),
-            "/cancel" => app.runtime.cancel(job),
-            _ => app.runtime.delivered(
-                job,
-                body["ts"].as_str().ok_or(fail("Invalid reply timestamp"))?,
-            ),
-        }
-    } else {
-        return Err((StatusCode::NOT_FOUND, "Unknown endpoint"));
-    };
-    action.map_err(|message| {
-        if message.starts_with("Local bridge") || message == "Bridge is stopping" {
-            (StatusCode::INTERNAL_SERVER_ERROR, "Local bridge failed")
-        } else {
-            fail("Invalid request or configuration")
-        }
-    })
+    if method == Method::GET && path == "/config" {
+        return Ok(app.config());
+    }
+    let path = path
+        .strip_prefix("/slack/")
+        .ok_or((StatusCode::NOT_FOUND, "Unknown hook"))?;
+    app.slack.request(method, &format!("/{path}"), body)
 }
+
 async fn events(
     State(app): State<Arc<App>>,
     headers: HeaderMap,
@@ -405,10 +366,10 @@ async fn stream(mut socket: WebSocket, app: Arc<App>, token: String, version: u6
     if *rotated.borrow() != version || *closing.borrow() {
         return;
     }
-    let mut events = app.runtime.events.subscribe();
+    let mut events = app.slack.events();
     if !send(
         &mut socket,
-        json!({"type":"settings","keywords":app.keywords()}),
+        json!({"type":"settings","hooks":app.config()["hooks"]}),
     )
     .await
     {
@@ -433,7 +394,8 @@ async fn stream(mut socket: WebSocket, app: Arc<App>, token: String, version: u6
                 }
             }
             event=events.recv()=>{
-                let Ok(event)=event else{break;};
+                let Ok(mut event)=event else{break;};
+                event["hook"] = json!("slack");
                 if !send(&mut socket,event).await{break;}
             }
         }
@@ -472,8 +434,8 @@ mod tests {
         let home = temp.path().to_path_buf();
         private_dir(&home.join("hooks/slack")).unwrap();
         let saved = json!({"origin":format!("chrome-extension://{}", "a".repeat(32)),"token":"synthetic-saved-token"});
-        private_json(&home.join("hooks/slack/pairing.json"), &saved).unwrap();
-        let bytes = fs::read(home.join("hooks/slack/pairing.json")).unwrap();
+        private_json(&home.join("pairing.json"), &saved).unwrap();
+        let bytes = fs::read(home.join("pairing.json")).unwrap();
         private_json(&home.join("hooks/slack/config.json"), &json!({"workspace":home,"commands":{"hook":{"start":["/bin/echo"],"resume":["/bin/echo","{session_id}"]}}})).unwrap();
         let (app, _listener) = App::start(home.clone(), 0, Duration::from_millis(20))
             .await
@@ -482,12 +444,9 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(60)).await;
         assert!(!home.join("extension/bridge-pairing.json").exists());
         assert!(app.pair.lock().unwrap().code.is_none());
+        assert_eq!(fs::read(home.join("pairing.json")).unwrap(), bytes);
         assert_eq!(
-            fs::read(home.join("hooks/slack/pairing.json")).unwrap(),
-            bytes
-        );
-        assert_eq!(
-            fs::metadata(home.join("hooks/slack/pairing.json"))
+            fs::metadata(home.join("pairing.json"))
                 .unwrap()
                 .permissions()
                 .mode()

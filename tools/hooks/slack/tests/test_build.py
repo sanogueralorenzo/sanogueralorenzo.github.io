@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from slack.build import build
+from build import build
 
 
 class BuildTests(unittest.TestCase):
@@ -14,7 +14,7 @@ class BuildTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             home = root / "app with spaces"
-            binary = home / "bin/slack-bridge"
+            binary = home / "bin/browser-hooks-bridge"
             binary.parent.mkdir(parents=True)
             binary.write_bytes(b"old executable")
             cargo = root / "cargo"
@@ -25,7 +25,7 @@ class BuildTests(unittest.TestCase):
 import os,sys
 from pathlib import Path
 assert '--locked' in sys.argv and '--release' in sys.argv
-binary=Path(os.environ['CARGO_TARGET_DIR'])/'release/slack-bridge'
+binary=Path(os.environ['CARGO_TARGET_DIR'])/'release/browser-hooks-bridge'
 binary.parent.mkdir(parents=True)
 binary.write_bytes(b'new executable')
 """
@@ -40,7 +40,7 @@ binary.write_bytes(b'new executable')
             self.assertEqual(result, binary)
             self.assertEqual(binary.read_bytes(), b"new executable")
             self.assertEqual(binary.stat().st_mode & 0o777, 0o700)
-            self.assertTrue((home / "build/slack-build.log").exists())
+            self.assertTrue((home / "build/bridge-build.log").exists())
 
 
 if __name__ == "__main__":

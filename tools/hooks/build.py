@@ -1,4 +1,4 @@
-"""Build and atomically install the Slack bridge in private application data."""
+"""Build and atomically install the shared bridge in private application data."""
 
 import os
 from pathlib import Path
@@ -12,9 +12,9 @@ def build(home, checkout):
         raise ValueError(
             "Install Rust/Cargo and a C compiler, then rerun the installer."
         )
-    target = home / "build/slack"
+    target = home / "build/bridge"
     target.mkdir(parents=True, exist_ok=True, mode=0o700)
-    log = home / "build/slack-build.log"
+    log = home / "build/bridge-build.log"
     with log.open("w") as output:
         result = subprocess.run(
             [
@@ -35,11 +35,11 @@ def build(home, checkout):
         )
     folder = home / "bin"
     folder.mkdir(parents=True, exist_ok=True, mode=0o700)
-    binary = folder / "slack-bridge"
+    binary = folder / "browser-hooks-bridge"
     with tempfile.NamedTemporaryFile(dir=folder, delete=False) as file:
         staged = Path(file.name)
     try:
-        shutil.copyfile(target / "release/slack-bridge", staged)
+        shutil.copyfile(target / "release/browser-hooks-bridge", staged)
         staged.chmod(0o700)
         os.replace(staged, binary)
     finally:

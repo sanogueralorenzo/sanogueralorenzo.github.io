@@ -13,7 +13,7 @@ def bridge_binary():
     override = os.environ.get("BROWSER_HOOKS_BRIDGE")
     if override:
         return Path(override).resolve()
-    manifest = ROOT / "slack/bridge/Cargo.toml"
+    manifest = ROOT / "bridge/Cargo.toml"
     result = subprocess.run(
         ["cargo", "build", "--locked", "--manifest-path", str(manifest)],
         capture_output=True,
@@ -22,7 +22,7 @@ def bridge_binary():
     if result.returncode:
         raise RuntimeError(result.stderr)
     target = Path(os.environ.get("CARGO_TARGET_DIR", manifest.parent / "target"))
-    return target.resolve() / "debug/slack-bridge"
+    return target.resolve() / "debug/browser-hooks-bridge"
 
 
 class Client:
@@ -99,7 +99,7 @@ class Backend:
             self.server = SimpleNamespace(
                 server_address=("127.0.0.1", self.port), server_port=self.port
             )
-            saved = self.home / "hooks/slack/pairing.json"
+            saved = self.home / "pairing.json"
             if saved.exists():
                 self.token = json.loads(saved.read_text())["token"]
             if auto_pair:
@@ -153,14 +153,14 @@ class Backend:
         c.send({"type": "authenticate", "token": token or self.token})
         assert c.receive() == {
             "type": "settings",
-            "keywords": sorted(self.config["commands"]),
+            "hooks": {"slack": {"keywords": sorted(self.config["commands"])}},
         }
         return c
 
     def wait(self, job, status="ready", seconds=5):
         deadline = time.monotonic() + seconds
         while time.monotonic() < deadline:
-            value = self.request("GET", "/jobs/" + job)
+            value = self.request("GET", "/slack/jobs/" + job)
             if value["status"] == status:
                 return value
             time.sleep(0.01)
@@ -201,10 +201,10 @@ class RuntimeProxy:
         self.closed = False
 
     def submit(self, event):
-        return self.backend.request("POST", "/run", event)
+        return self.backend.request("POST", "/slack/run", event)
 
     def status(self, job):
-        status, value, _ = self.backend.call("GET", "/jobs/" + job)
+        status, value, _ = self.backend.call("GET", "/slack/jobs/" + job)
         if status == 404:
             return None
         if value.get("status") == "failed":
@@ -212,13 +212,13 @@ class RuntimeProxy:
         return value
 
     def cancel(self, job):
-        return self.backend.request("POST", "/cancel", {"job": job})
+        return self.backend.request("POST", "/slack/cancel", {"job": job})
 
     def claim(self, job):
-        return self.backend.request("POST", "/claim", {"job": job})
+        return self.backend.request("POST", "/slack/claim", {"job": job})
 
     def delivered(self, job, ts):
-        return self.backend.request("POST", "/delivered", {"job": job, "ts": ts})
+        return self.backend.request("POST", "/slack/delivered", {"job": job, "ts": ts})
 
     def close(self):
         if not self.closed:

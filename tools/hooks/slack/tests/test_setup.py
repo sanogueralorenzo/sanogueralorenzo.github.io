@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from installation import install as install_hooks, launcher
 from paths import app_home
 from slack.setup import configure, validate
-from slack.service import install_linux, linux_unit, specification
+from service import install_linux, linux_unit, specification
 from support import bridge_binary
 
 
@@ -52,9 +52,10 @@ class SetupTests(unittest.TestCase):
         self.path.write_text(json.dumps(config))
         files = {
             "config.json": self.path.read_bytes(),
-            "pairing.json": b"synthetic-saved-key",
             "sessions.sqlite3": b"existing database bytes",
         }
+        pairing = self.home / "pairing.json"
+        pairing.write_bytes(b"synthetic-saved-key")
         for name, data in files.items():
             (self.folder / name).write_bytes(data)
         with (
@@ -66,6 +67,7 @@ class SetupTests(unittest.TestCase):
         ):
             install_hooks(self.home, self.checkout, self.root)
         service.assert_called_once_with(self.binary, self.home)
+        self.assertEqual(pairing.read_bytes(), b"synthetic-saved-key")
         for name, data in files.items():
             self.assertEqual((self.folder / name).read_bytes(), data)
         self.assertEqual(
@@ -87,8 +89,9 @@ class SetupTests(unittest.TestCase):
         self.assertIn("no code to copy", output.getvalue())
         extension = self.home / "extension"
         self.assertTrue((extension / "manifest.json").is_file())
-        self.assertTrue((extension / "slack/extension/background.mjs").is_file())
-        self.assertFalse((extension / "slack/bridge").exists())
+        self.assertTrue((extension / "background.mjs").is_file())
+        self.assertTrue((extension / "bridge.mjs").is_file())
+        self.assertFalse((extension / "bridge").exists())
         self.assertFalse((extension / "slack/tests").exists())
         self.assertEqual(extension.stat().st_mode & 0o777, 0o700)
         self.assertEqual((extension / "manifest.json").stat().st_mode & 0o777, 0o600)
@@ -123,9 +126,10 @@ class SetupTests(unittest.TestCase):
             text=True,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("status,serve", result.stdout)
+        self.assertIn("status", result.stdout)
+        self.assertNotIn("serve", result.stdout)
         self.assertEqual(path.stat().st_mode & 0o777, 0o700)
-        binary = self.home / "bin/slack-bridge"
+        binary = self.home / "bin/browser-hooks-bridge"
         binary.parent.mkdir(parents=True)
         binary.write_text(
             "#!"
@@ -134,7 +138,7 @@ class SetupTests(unittest.TestCase):
         )
         binary.chmod(0o700)
         result = subprocess.run(
-            [str(path), "slack", "serve"], cwd=self.root, capture_output=True, text=True
+            [str(path), "serve"], cwd=self.root, capture_output=True, text=True
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout), ["serve", "--home", str(self.home)])
@@ -163,15 +167,15 @@ class SetupTests(unittest.TestCase):
             self.assertEqual(self.path.read_text(), contents)
 
     def test_macos_update_waits_for_previous_service_to_exit(self):
-        from slack.service import install
+        from service import install
 
         completed = lambda code: Mock(returncode=code)
         with (
-            patch("slack.service.sys.platform", "darwin"),
-            patch("slack.service.Path.home", return_value=self.root),
-            patch("slack.service.time.sleep"),
+            patch("service.sys.platform", "darwin"),
+            patch("service.Path.home", return_value=self.root),
+            patch("service.time.sleep"),
             patch(
-                "slack.service.subprocess.run",
+                "service.subprocess.run",
                 side_effect=[completed(0), completed(0), completed(5), completed(0)],
             ) as run,
             contextlib.redirect_stdout(io.StringIO()),
@@ -182,16 +186,16 @@ class SetupTests(unittest.TestCase):
         )
 
     def test_linux_service_uses_native_binary_and_only_explicit_path(self):
-        unit = linux_unit(self.root / "with spaces/slack-bridge", self.home)
-        self.assertIn('with spaces/slack-bridge" "serve" "--home"', unit)
+        unit = linux_unit(self.root / "with spaces/browser-hooks-bridge", self.home)
+        self.assertIn('with spaces/browser-hooks-bridge" "serve" "--home"', unit)
         self.assertIn("UMask=0077", unit)
         self.assertNotIn("SLACK_", unit)
         self.assertEqual(
             set(specification(self.binary, self.home)["EnvironmentVariables"]), {"PATH"}
         )
         with (
-            patch("slack.service.Path.home", return_value=self.root),
-            patch("slack.service.subprocess.run") as run,
+            patch("service.Path.home", return_value=self.root),
+            patch("service.subprocess.run") as run,
             contextlib.redirect_stdout(io.StringIO()),
         ):
             run.return_value.returncode = 0
@@ -201,7 +205,7 @@ class SetupTests(unittest.TestCase):
             ["daemon-reload", "enable", "restart"],
         )
         self.assertEqual(
-            (self.folder / "logs/bridge.log").stat().st_mode & 0o777, 0o600
+            (self.home / "logs/bridge.log").stat().st_mode & 0o777, 0o600
         )
 
 

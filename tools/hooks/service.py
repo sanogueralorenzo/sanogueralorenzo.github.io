@@ -7,7 +7,7 @@ import subprocess
 import sys
 import time
 
-LABEL = "dev.browser-hooks.slack"
+LABEL = "dev.browser-hooks.bridge"
 
 
 def specification(binary, home):
@@ -18,8 +18,8 @@ def specification(binary, home):
         "KeepAlive": True,
         "WorkingDirectory": str(home),
         "EnvironmentVariables": {"PATH": os.environ.get("PATH", "/usr/bin:/bin")},
-        "StandardOutPath": str(home / "hooks/slack/logs/bridge.log"),
-        "StandardErrorPath": str(home / "hooks/slack/logs/bridge.log"),
+        "StandardOutPath": str(home / "logs/bridge.log"),
+        "StandardErrorPath": str(home / "logs/bridge.log"),
         "Umask": 0o077,
         "ThrottleInterval": 10,
     }
@@ -32,10 +32,10 @@ def install(binary, home):
         return install_linux(binary, home)
     folder = Path.home() / "Library" / "LaunchAgents"
     folder.mkdir(parents=True, exist_ok=True)
-    logs = home / "hooks/slack/logs"
+    logs = home / "logs"
     logs.mkdir(parents=True, exist_ok=True, mode=0o700)
     logs.chmod(0o700)
-    log = home / "hooks/slack/logs/bridge.log"
+    log = home / "logs/bridge.log"
     log.touch(mode=0o600, exist_ok=True)
     log.chmod(0o600)
     path = folder / f"{LABEL}.plist"
@@ -86,7 +86,7 @@ def unit_value(value):
 def linux_unit(binary, home):
     args = specification(binary, home)["ProgramArguments"]
     return (
-        "[Unit]\nDescription=Slack browser command bridge\n\n[Service]\n"
+        "[Unit]\nDescription=Browser Hooks bridge\n\n[Service]\n"
         + "ExecStart="
         + " ".join(unit_value(arg) for arg in args)
         + "\n"
@@ -98,19 +98,19 @@ def linux_unit(binary, home):
         + "\n"
         + "UMask=0077\nRestart=on-failure\nRestartSec=10\nKillMode=mixed\nTimeoutStopSec=10\n"
         + "StandardOutput="
-        + unit_value("append:" + str(home / "hooks/slack/logs/bridge.log"))
+        + unit_value("append:" + str(home / "logs/bridge.log"))
         + "\n"
         + "StandardError="
-        + unit_value("append:" + str(home / "hooks/slack/logs/bridge.log"))
+        + unit_value("append:" + str(home / "logs/bridge.log"))
         + "\n\n[Install]\nWantedBy=default.target\n"
     )
 
 
 def install_linux(binary, home):
-    logs = home / "hooks/slack/logs"
+    logs = home / "logs"
     logs.mkdir(parents=True, exist_ok=True, mode=0o700)
     logs.chmod(0o700)
-    log = home / "hooks/slack/logs/bridge.log"
+    log = home / "logs/bridge.log"
     log.touch(mode=0o600, exist_ok=True)
     log.chmod(0o600)
     path = Path.home() / ".config" / "systemd/user" / f"{LABEL}.service"

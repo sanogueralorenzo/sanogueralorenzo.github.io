@@ -15,7 +15,7 @@ def prepare(checkout, data):
     with tempfile.TemporaryDirectory(dir=data) as folder:
         staging = Path(folder)
         source = checkout
-        for name in ['manifest.json', 'popup', 'slack/extension', 'slack/hook.js', 'slack/icon.png']:
+        for name in ['manifest.json', 'background.mjs', 'bridge.mjs', 'popup', 'slack/extension', 'slack/hook.js', 'slack/icon.png']:
             origin, destination = source / name, staging / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             if origin.is_dir():

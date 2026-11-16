@@ -3,7 +3,9 @@
 Automatic hooks for websites you are signed into. The [Slack hook](slack/README.md)
 connects your keyword-prefixed messages to Codex, Claude, or another CLI and replies
 as you in the same thread. Listening is automatic and invisible. The resident
-bridge runs in Rust; Python handles setup and the Codex/Claude adapters.
+bridge runs in Rust; Python handles setup and the Codex/Claude adapters. One
+background worker and one bridge process serve all website adapters, sharing
+pairing and a single local event connection. Slack is the available adapter.
 
 ## Install or update
 
@@ -39,6 +41,7 @@ From a local checkout, run `python3 tools/hooks/cli.py install` instead. Add
 browser-hooks install
 browser-hooks status
 browser-hooks slack status
+browser-hooks serve          # foreground; stop the login service first
 ```
 
 The launcher lives at `~/.local/bin/browser-hooks`. All application files live in
@@ -46,16 +49,16 @@ The launcher lives at `~/.local/bin/browser-hooks`. All application files live i
 
 ```text
 browser-hooks/
-├── bin/slack-bridge        # installed Rust executable
+├── bin/browser-hooks-bridge # shared Rust executable
 ├── build/                  # Cargo build cache and build log
 ├── extension/
+├── pairing.json            # shared browser credentials
+├── logs/bridge.log          # shared service log
 ├── source/                 # download installer's managed checkout
 └── hooks/
     └── slack/
         ├── config.json
-        ├── pairing.json
-        ├── sessions.sqlite3
-        └── logs/
+        └── sessions.sqlite3
 ```
 
 Use `BROWSER_HOOKS_HOME` or `--home /absolute/path` to choose another application
@@ -67,7 +70,7 @@ connection dot for details; run `browser-hooks slack status` for diagnostics.
 Checks from the repository root:
 
 ```sh
-cargo test --locked --manifest-path tools/hooks/slack/bridge/Cargo.toml
+cargo test --locked --manifest-path tools/hooks/bridge/Cargo.toml
 python3 -m unittest discover -s tools/hooks/slack/tests
 node --test tools/hooks/slack/*.test.mjs
 ```

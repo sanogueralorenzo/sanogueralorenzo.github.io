@@ -64,13 +64,13 @@ class StorageTests(unittest.TestCase):
             backend = Backend(home, config)
             try:
                 self.assertEqual(
-                    backend.request("POST", "/run", event(text="hook inspect demo"))[
+                    backend.request("POST", "/slack/run", event(text="hook inspect demo"))[
                         "status"
                     ],
                     "delivered",
                 )
                 self.assertEqual(
-                    backend.request("GET", "/jobs/" + uncertain)["status"], "sending"
+                    backend.request("GET", "/slack/jobs/" + uncertain)["status"], "sending"
                 )
                 context = [
                     {"ts": "2000000001.000001", "user": "UTEST", "text": "old request"},
@@ -86,7 +86,7 @@ class StorageTests(unittest.TestCase):
                     },
                 ]
                 job = backend.request(
-                    "POST", "/run", event(ts="2000000004.000001", messages=context)
+                    "POST", "/slack/run", event(ts="2000000004.000001", messages=context)
                 )["job"]
                 backend.wait(job)
                 recorded = json.loads(log.read_text())

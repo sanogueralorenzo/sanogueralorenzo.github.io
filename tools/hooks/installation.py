@@ -5,7 +5,7 @@ import shlex
 import sys
 
 from extension import prepare
-from slack.build import build
+from build import build
 from slack.setup import configure, start
 
 
@@ -27,7 +27,7 @@ def launcher(home, checkout):
 
 
 def install(home, checkout, workspace):
-    binary = build(home, checkout / "slack")
+    binary = build(home, checkout)
     keywords = configure(home, checkout / "slack", workspace, binary)
     extension = prepare(checkout, home)
     start(home, binary, keywords)
