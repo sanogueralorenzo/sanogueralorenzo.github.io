@@ -8,6 +8,8 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from .events import stream
+
 
 class Server(ThreadingHTTPServer):
     daemon_threads = True
@@ -15,6 +17,9 @@ class Server(ThreadingHTTPServer):
         if address[0] != '127.0.0.1':
             raise ValueError('Bridge must bind to loopback')
         self.runtime = runtime
+        self.peers = set()
+        self.peers_lock = threading.Lock()
+        self.closing = False
         self.credentials = data_dir / 'hooks/slack/pairing.json'
         self.credentials.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.credentials.parent.chmod(0o700)
@@ -28,19 +33,30 @@ class Server(ThreadingHTTPServer):
         self.pair_file.parent.chmod(0o700)
         with os.fdopen(os.open(self.pair_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'w') as file:
             json.dump({'code': self.pair_code, 'expiresAt': int(time.time() * 1000) + 600_000}, file)
+        self.expiry = threading.Timer(600, self.expire_pairing_code)
+        self.expiry.daemon = True
+        self.expiry.start()
 
     def clear_pairing_code(self):
         # Call with pair_lock held so expiry cannot race a successful redemption.
         self.pair_file.unlink(missing_ok=True)
         self.pair_code = None
+        self.expiry.cancel()
 
-    def service_actions(self):
-        # serve_forever calls this even when no HTTP requests arrive.
+    def expire_pairing_code(self):
         with self.pair_lock:
-            if self.pair_code and time.monotonic() >= self.pair_deadline:
-                self.clear_pairing_code()
+            self.clear_pairing_code()
+
+    def disconnect_events(self):
+        with self.peers_lock:
+            peers = tuple(self.peers)
+        for peer in peers:
+            peer.close()
 
     def server_close(self):
+        with self.peers_lock:
+            self.closing = True
+        self.disconnect_events()
         super().server_close()
         with self.pair_lock:
             self.clear_pairing_code()
@@ -75,6 +91,8 @@ class Handler(BaseHTTPRequestHandler):
         origin = self.headers.get('X-Browser-Hooks-Origin', '')
         if self.headers.get('Host') != f'127.0.0.1:{self.server.server_port}':
             return self.respond(403, {'error': 'Loopback host required'})
+        if self.path == '/events' and self.command == 'GET':
+            return stream(self)
         if self.path == '/health' and self.command == 'GET':
             return self.respond(200, {'service': 'browser-hooks-slack', 'paired': bool(self.server.paired), 'error': self.server.runtime.last_error})
         browser_origin = self.headers.get('Origin')
@@ -105,6 +123,7 @@ class Handler(BaseHTTPRequestHandler):
                     with os.fdopen(os.open(self.server.credentials, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'w') as file:
                         json.dump(paired, file)
                     self.server.paired = paired
+                    self.server.disconnect_events()
                     self.server.clear_pairing_code()
                     return self.respond(200, paired)
             paired = self.server.paired

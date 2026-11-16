@@ -33,6 +33,21 @@ class Runtime:
         self.queues = {}
         self.cancels = {}
         self.closed = False
+        self.listeners = set()
+
+    def subscribe(self, callback):
+        with self.lock:
+            self.listeners.add(callback)
+        def unsubscribe():
+            with self.lock:
+                self.listeners.discard(callback)
+        return unsubscribe
+
+    def notify(self, job):
+        # Subscribers enqueue notifications without blocking command execution.
+        with self.lock:
+            for callback in tuple(self.listeners):
+                callback({'type': 'job', 'job': job})
 
     def submit(self, event):
         if not isinstance(event, dict) or set(event) != {'team', 'user', 'channel', 'ts', 'thread_ts', 'text', 'messages'}:
@@ -141,6 +156,8 @@ class Runtime:
                 self.db.execute("UPDATE jobs SET status=?,answer=? WHERE id=?",
                                 ('cancelled' if cancel.is_set() else 'failed', json.dumps(safe.public()), job))
                 self.db.commit()
+        finally:
+            self.notify(job)
 
     def claim(self, job):
         with self.lock:
@@ -167,6 +184,7 @@ class Runtime:
                 self.cancels[job].set()
             self.db.execute("UPDATE jobs SET status='cancelled',answer=NULL WHERE id=? AND status IN ('queued','running','ready')", (job,))
             self.db.commit()
+        self.notify(job)
         return {'ok': True}
 
     def close(self):

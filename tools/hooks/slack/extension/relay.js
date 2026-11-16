@@ -1,73 +1,52 @@
-/* Isolated world: Slack session credentials are never read or sent to the extension. */
+/* Isolated world: Slack credentials never enter the extension. */
 (() => {
   if (window.__slackHookRelay) return;
   window.__slackHookRelay = true;
-  const active = new Map();
-  let stopped = false, refreshing = false, status = null;
-  const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+  let port, retry, stopped = false, status = null, attempts = 0;
+  const active = new Set();
   function send(type, data) {
     if (!stopped) window.postMessage({ source: "browser-hooks-extension", type, ...data }, window.location.origin);
   }
-  async function call(action, payload) {
-    const response = await chrome.runtime.sendMessage({ type: "slack.request", action, payload });
-    if (!response?.ok) throw new Error(response?.error || "Local bridge request failed. Rerun the installer.");
-    return response.value;
-  }
-  async function refresh() {
-    if (refreshing || stopped) return;
-    refreshing = true;
+  function connect() {
+    if (stopped || port) return;
     try {
-      const result = await chrome.runtime.sendMessage({ type: "slack.settings" });
-      if (result?.ok) send("configure", { settings: result.value });
-    } catch { send("configure", { settings: { keywords: [], error: "Extension updated. Reload this Slack tab." } }); }
-    finally { refreshing = false; }
-  }
-  async function dispatch(data) {
-    if (active.has(data.id) || active.size >= 100) return;
-    const entry = { cancelled: false, job: null };
-    active.set(data.id, entry);
-    try {
-      let result = await call(data.action, data.payload);
-      if (data.action === "run") {
-        entry.job = result.job;
-        const deadline = Date.now() + 650000;
-        while (!entry.cancelled && ["queued", "running"].includes(result.status)) {
-          if (Date.now() > deadline) throw new Error("Command timed out.");
-          await pause(1000);
-          result = await call("poll", { job: entry.job });
-        }
-        if (entry.cancelled) { await call("cancel", { job: entry.job }); return; }
-        if (result.status === "ready") result = { job: result.job, answer: result.answer };
-        else if (result.status === "failed" && result.error) result = { job: result.job, error: result.error };
-        else if (["delivered", "sending", "interrupted", "cancelled"].includes(result.status)) result = { skip: true };
-        else throw new Error("Command failed.");
-      }
-      if (!entry.cancelled) send("response", { id: data.id, ok: true, value: result });
-    } catch (error) {
-      if (entry.job) void call("cancel", { job: entry.job }).catch(() => {});
-      if (!entry.cancelled) send("response", { id: data.id, ok: false, error: error.message || "Local bridge request failed." });
-    } finally { active.delete(data.id); }
+      const current = port = chrome.runtime.connect({ name: "slack" });
+      current.onMessage.addListener(data => {
+        if (port !== current) return;
+        attempts = 0;
+        if (data.type === "settings") send("configure", { settings: data.settings });
+        if (data.type === "response" && active.delete(data.id)) send("response", data);
+      });
+      current.onDisconnect.addListener(() => {
+        if (port !== current) return;
+        port = null;
+        for (const id of active) send("response", { id, ok: false, error: "Extension disconnected. Reload this Slack tab." });
+        active.clear();
+        send("configure", { settings: { keywords: [], error: "Extension disconnected. Reconnecting automatically…" } });
+        if (!stopped) retry = setTimeout(connect, Math.min(30000, 1000 * 2 ** Math.min(attempts++, 5)));
+      });
+      if (status) current.postMessage({ type: "status", status });
+    } catch {
+      send("configure", { settings: { keywords: [], error: "Extension updated. Reload this Slack tab." } });
+    }
   }
   function message(event) {
     if (event.source !== window || event.origin !== window.location.origin || event.data?.source !== "browser-hooks-slack") return;
     const data = event.data;
-    if (data.type === "ready") void refresh();
-    if (data.type === "status") status = data.status;
-    if (data.type === "request" && typeof data.id === "string" && data.id.length <= 100
-      && ["run", "claim", "delivered"].includes(data.action)) void dispatch(data);
-    if (data.type === "cancel") {
-      const entry = active.get(data.id);
-      if (entry) { entry.cancelled = true; if (entry.job) void call("cancel", { job: entry.job }).catch(() => {}); }
+    if (data.type === "ready") { if (port) port.postMessage({ type: "ready" }); else connect(); }
+    if (data.type === "status") { status = data.status; port?.postMessage({ type: "status", status }); }
+    if (data.type === "request" && typeof data.id === "string" && data.id.length <= 100 && !active.has(data.id)
+      && active.size < 100 && ["run", "claim", "delivered"].includes(data.action)) {
+      if (!port) { send("response", { id: data.id, ok: false, error: "Extension disconnected. Reload this Slack tab." }); return; }
+      active.add(data.id);
+      port.postMessage({ type: "request", id: data.id, action: data.action, payload: data.payload });
     }
+    if (data.type === "cancel" && active.delete(data.id)) port?.postMessage({ type: "cancel", id: data.id });
   }
-  chrome.runtime.onMessage.addListener((data, _sender, reply) => {
-    if (data?.type === "slack.status") { reply(status); return false; }
-  });
   window.addEventListener("message", message);
-  const timer = setInterval(refresh, 5000);
   window.addEventListener("pagehide", () => {
-    stopped = true; clearInterval(timer); window.removeEventListener("message", message);
-    for (const entry of active.values()) { entry.cancelled = true; if (entry.job) void call("cancel", { job: entry.job }).catch(() => {}); }
+    stopped = true; clearTimeout(retry); window.removeEventListener("message", message);
+    port?.disconnect(); active.clear();
   }, { once: true });
-  void refresh();
+  connect();
 })();

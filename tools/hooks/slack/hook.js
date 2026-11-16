@@ -5,7 +5,7 @@
   page.agentHooks?.dispose?.();
   const state = { running: false, connected: false, received: 0, replies: 0, pending: 0, error: null, standby: false };
   let settings = { keywords: [] };
-  let session, disposed = false, acquiring = false, retryAt = 0;
+  let session, waiting, retry, disposed = false;
   const pending = new Map();
 
   function emit(type, payload) {
@@ -131,6 +131,7 @@
     await reaction(s, event, completion);
   }
   function receive(s, event) {
+    sync();
     const request = parse(event, s);
     if (!request) return;
     s.seen.add(`${event.channel}:${event.ts}`);
@@ -183,50 +184,61 @@
     }
   }
   function end() {
+    page.clearTimeout(retry); retry = undefined;
+    waiting?.abort.abort(); waiting = null;
     if (session) {
       const old = session; session = null;
       old.abort.abort(); disconnect(old); old.release?.();
     }
     state.running = state.connected = state.standby = false; state.pending = 0;
   }
-  async function attach(auth) {
+  function attach(auth) {
     if (!page.navigator.locks) { state.error = "This browser needs Web Locks support."; publishStatus(); return; }
-    acquiring = true;
-    try {
-      await page.navigator.locks.request(`browser-hooks-slack:${auth.team}`, { ifAvailable: true }, async lock => {
-        if (!lock) { state.standby = true; publishStatus(); return; }
-        if (disposed || !settings.keywords.length || credential()?.token !== auth.token) return;
-        const s = session = { ...auth, abort: new AbortController(), started: Date.now() / 1000,
-          seen: new Set(), sent: new Set(), threads: new Map(), attempts: 0, sequence: 0 };
-        const held = new Promise(resolve => { s.release = resolve; });
-        state.running = true; state.standby = false; state.error = null; publishStatus();
-        try {
-          const identity = await api(s, "auth.test");
-          if (identity.bot_id || !identity.user_id) throw failure("A signed-in human Slack account is required.");
-          s.user = identity.user_id;
-          s.gateway = (await api(s, "team.info")).team.id;
-          await connect(s);
-          await held;
-        } catch (error) {
-          if (session === s) { end(); state.error = errorMessage(error); retryAt = Date.now() + 10000; publishStatus(); }
+    const candidate = waiting = { ...auth, abort: new AbortController() };
+    state.standby = true; publishStatus();
+    // Queue once. The browser grants ownership immediately when the leader releases it.
+    void page.navigator.locks.request(`browser-hooks-slack:${auth.team}`, { signal: candidate.abort.signal }, async () => {
+      if (disposed || candidate.abort.signal.aborted || !settings.keywords.length
+        || credential()?.team !== auth.team || credential()?.token !== auth.token) return;
+      const s = session = { ...auth, abort: candidate.abort, started: Date.now() / 1000,
+        seen: new Set(), sent: new Set(), threads: new Map(), attempts: 0, sequence: 0 };
+      const held = new Promise(resolve => { s.release = resolve; });
+      state.running = true; state.standby = false; state.error = null; publishStatus();
+      try {
+        const identity = await api(s, "auth.test");
+        if (identity.bot_id || !identity.user_id) throw failure("A signed-in human Slack account is required.");
+        s.user = identity.user_id;
+        s.gateway = (await api(s, "team.info")).team.id;
+        await connect(s);
+        await held;
+      } catch (error) {
+        if (session === s) {
+          end(); state.error = errorMessage(error); publishStatus();
+          retry = page.setTimeout(() => { retry = undefined; sync(); }, 10000);
         }
-      });
-    } finally { acquiring = false; }
+      }
+    }).catch(error => {
+      if (!candidate.abort.signal.aborted && !disposed) { state.error = errorMessage(error); publishStatus(); }
+    }).finally(() => { if (waiting === candidate) waiting = null; });
   }
-  function tick() {
+  function sync() {
     if (disposed) return;
     const auth = credential();
-    if (session && (!auth || session.token !== auth.token || session.team !== auth.team)) end();
+    const attached = session || waiting;
+    if (attached && (!auth || attached.token !== auth.token || attached.team !== auth.team)) end();
     if (!settings.keywords.length) { end(); publishStatus(); return; }
-    if (!session && !acquiring && auth && Date.now() >= retryAt) void attach(auth);
+    if (!session && !waiting && auth && !retry) attach(auth);
   }
   function configure(value) {
     const keywords = [...new Set((value.keywords || []).map(k => String(k).toLowerCase()))];
     if (!keywords.every(k => k.length <= 40 && /^\S+$/.test(k))) throw failure("Keywords must be nonempty words.");
-    const next = { keywords };
-    if (value.error) { state.error = value.error; publishStatus(); }
+    const next = { keywords, error: value.error || null };
     if (JSON.stringify(next) === JSON.stringify(settings)) return;
-    end(); settings = next; retryAt = 0; state.error = value.error || null; tick(); publishStatus();
+    const changed = JSON.stringify(keywords) !== JSON.stringify(settings.keywords);
+    if (changed) end();
+    settings = next; state.error = next.error;
+    if (changed) sync();
+    publishStatus();
   }
   function onMessage(event) {
     if (event.source !== page || event.origin !== page.location.origin || event.data?.source !== "browser-hooks-extension") return;
@@ -238,12 +250,33 @@
     }
   }
   function dispose() {
-    disposed = true; end(); page.clearInterval(watch);
+    disposed = true; end();
+    for (const cleanup of watchers) cleanup();
     page.removeEventListener("message", onMessage); page.removeEventListener("pagehide", dispose);
   }
   page.addEventListener("message", onMessage);
   page.addEventListener("pagehide", dispose, { once: true });
-  const watch = page.setInterval(tick, 1000);
+  const watchers = [];
+  function watch(target, event, callback) {
+    target?.addEventListener(event, callback);
+    watchers.push(() => target?.removeEventListener(event, callback));
+  }
+  watch(page, "storage", event => { if (event.key === "localConfig_v2" || event.key === null) sync(); });
+  for (const event of ["popstate", "hashchange", "pageshow", "focus", "online"]) watch(page, event, sync);
+  watch(page.navigation, "currententrychange", sync);
+  // Storage events only fire in other documents. Notify after same-page Slack auth writes too.
+  const storage = page.Storage?.prototype;
+  for (const name of ["setItem", "removeItem", "clear"]) {
+    const original = storage?.[name];
+    if (!original) continue;
+    const wrapped = function (...args) {
+      const result = Reflect.apply(original, this, args);
+      if (this === page.localStorage && (name === "clear" || String(args[0]) === "localConfig_v2")) sync();
+      return result;
+    };
+    storage[name] = wrapped;
+    watchers.push(() => { if (storage[name] === wrapped) storage[name] = original; });
+  }
   page.agentHooks = Object.freeze({ configure, dispose,
     status: () => Object.freeze({ ...state, keywords: [...settings.keywords] }) });
   publishStatus(); emit("ready", {});

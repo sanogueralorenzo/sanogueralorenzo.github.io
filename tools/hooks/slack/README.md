@@ -10,6 +10,8 @@ the agent session. **👀** queued/running · **✅** answered · **⚠️** fai
 Follow [Browser Hooks setup](../README.md#install-or-update) to install the shared
 extension and local service. The popup shows Slack and a green/gray connection
 dot. Listening runs automatically and invisibly; no toggle or on-page UI.
+Messages, job results and connection status arrive as events, without idle
+polling. Socket keepalives maintain the connections; failures reconnect automatically.
 
 ## Configure
 

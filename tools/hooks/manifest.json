@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Browser Hooks",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "minimum_chrome_version": "120",
   "description": "Automatic Slack keyword listener using your signed-in browser session.",
   "permissions": ["storage"],

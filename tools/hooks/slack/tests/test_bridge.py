@@ -7,6 +7,7 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from local.config import load, route
@@ -227,9 +228,10 @@ print(json.dumps({'session_id': sys.argv[2] if len(sys.argv)>2 else 'synthetic-s
         credentials.parent.mkdir(parents=True)
         saved = json.dumps({'origin': 'chrome-extension://' + 'a' * 32, 'token': 'synthetic-saved-token'})
         credentials.write_text(saved)
-        server = Server(('127.0.0.1', 0), self.runtime, self.data)
+        timer = threading.Timer
+        with patch('local.server.threading.Timer', side_effect=lambda _, callback: timer(0.03, callback)):
+            server = Server(('127.0.0.1', 0), self.runtime, self.data)
         code = server.pair_code
-        server.pair_deadline = time.monotonic() + 0.03
         thread = threading.Thread(target=lambda: server.serve_forever(poll_interval=0.01), daemon=True)
         thread.start()
         try:

@@ -6,15 +6,29 @@ import vm from "node:vm";
 const source = readFileSync(new URL("./hook.js", import.meta.url), "utf8");
 const settle = async () => { for (let i = 0; i < 10; i++) await new Promise(resolve => setImmediate(resolve)); };
 function locks() {
-  const held = new Set();
-  return { async request(key, _options, fn) {
-    if (held.has(key)) return fn(null);
-    held.add(key); try { return await fn({ name: key }); } finally { held.delete(key); }
+  const queues = new Map();
+  return { request(key, options, fn) {
+    return new Promise((resolve, reject) => {
+      if (!queues.has(key)) queues.set(key, []);
+      const queue = queues.get(key);
+      const entry = { start() {
+        entry.started = true;
+        options.signal.removeEventListener('abort', abort);
+        Promise.resolve().then(() => fn({ name: key })).then(resolve, reject).finally(() => {
+          queue.shift(); if (queue.length) queue[0].start(); else queues.delete(key);
+        });
+      } };
+      const abort = () => { if (!entry.started) { queue.splice(queue.indexOf(entry), 1); reject(new Error('Aborted')); } };
+      options.signal.addEventListener('abort', abort, { once: true });
+      queue.push(entry); if (queue.length === 1) entry.start();
+    });
   } };
 }
+
 function fixture({ manager = locks(), action, failPost = false, removeEyes } = {}) {
   const calls = [], sockets = [], timers = new Map(), messages = [], listeners = new Map();
   let serial = 0, token = 'fixture', user = 'UTEST';
+  const intervals = new Map();
   class Socket {
     readyState = 1;
     constructor(url) { this.url = url; sockets.push(this); }
@@ -45,8 +59,8 @@ function fixture({ manager = locks(), action, failPost = false, removeEyes } = {
     },
     setTimeout: fn => { const id = ++serial; timers.set(id, fn); return id; },
     clearTimeout: id => timers.delete(id),
-    setInterval: fn => { const id = ++serial; timers.set(id, fn); return id; },
-    clearInterval: id => timers.delete(id),
+    setInterval: (fn, ms) => { const id = ++serial; timers.set(id, fn); intervals.set(id, ms); return id; },
+    clearInterval: id => { timers.delete(id); intervals.delete(id); },
     addEventListener(name, fn) { if (!listeners.has(name)) listeners.set(name, new Set()); listeners.get(name).add(fn); },
     removeEventListener(name, fn) { listeners.get(name)?.delete(fn); },
     postMessage(data) {
@@ -61,7 +75,8 @@ function fixture({ manager = locks(), action, failPost = false, removeEyes } = {
   };
   function respond(id, value) { for (const fn of listeners.get('message') || []) fn({ source: page, origin: page.location.origin, data: { source: 'browser-hooks-extension', type: 'response', id, ok: true, value } }); }
   vm.runInNewContext(source, { window: page, URLSearchParams, AbortController, AbortSignal, Date: { now: () => 2000000000000 } });
-  return { page, calls, sockets, messages, timers, respond,
+  return { page, calls, sockets, messages, timers, intervals, respond,
+    event: (name, value = {}) => { for (const fn of listeners.get(name) || []) fn(value); },
     configure: (options = {}) => page.agentHooks.configure({ keywords: ['hook'], ...options }),
     tick: () => { for (const fn of [...timers.values()]) fn(); },
     token: value => { token = value; }, user: value => { user = value; },
@@ -139,7 +154,7 @@ test('one workspace leader prevents duplicate replies across tabs; another tab t
   a.configure(); b.configure(); await settle();
   assert.equal(a.sockets.length + b.sockets.length, 1);
   assert.equal(b.page.agentHooks.status().standby, true);
-  a.page.agentHooks.dispose(); await settle(); b.tick(); await settle();
+  a.page.agentHooks.dispose(); await settle();
   assert.equal(b.sockets.length, 1);
   b.page.agentHooks.dispose();
 });
@@ -148,7 +163,7 @@ test('reload/dispose and account changes cancel queued sends and release the soc
   let finish;
   const f = fixture({ action: () => new Promise(resolve => { finish = resolve; }) });
   f.configure(); await settle(); f.sockets[0].event(message()); await settle();
-  f.token('changed'); f.tick(); await settle();
+  f.token('changed'); f.event('storage', { key: 'localConfig_v2' }); await settle();
   finish({ job: 'one', answer: 'must not send' }); await settle();
   assert.equal(f.posts().length, 0);
   assert.equal(f.sockets[0].readyState, 3);
@@ -188,4 +203,51 @@ test('CLI failures post one actionable diagnostic with warning, never a success 
   assert.equal(f.page.agentHooks.status().error, messageText);
   assert.ok(f.calls.some(c => c.method === 'reactions.add' && c.values.name === 'warning'));
   assert.ok(!f.calls.some(c => c.method === 'reactions.add' && c.values.name === 'white_check_mark'));
+});
+
+test('healthy listeners have no account polling and queued tabs take over without a timer', async () => {
+  const manager = locks(), a = fixture({ manager }), b = fixture({ manager });
+  a.configure(); b.configure(); await settle();
+  assert.deepEqual([...a.intervals.values()], [15000]);
+  assert.equal(b.timers.size, 0);
+  a.page.agentHooks.dispose(); await settle();
+  assert.equal(b.sockets.length, 1);
+  b.page.agentHooks.dispose();
+});
+
+test('same-page storage writes and navigation events attach without polling', async () => {
+  const f = fixture();
+  // Real Storage methods are wrapped once and restored on disposal.
+  class Storage { setItem() {} removeItem() {} clear() {} }
+  const original = Storage.prototype.setItem;
+  f.page.agentHooks.dispose();
+  f.page.Storage = Storage;
+  f.page.localStorage = new Storage();
+  let loggedIn = false;
+  f.page.localStorage.getItem = () => JSON.stringify({ teams: loggedIn ? { ETEST: { token: ['xoxc', 'fixture'].join('-') } } : {} });
+  vm.runInNewContext(source, { window: f.page, URLSearchParams, AbortController, AbortSignal, Date: { now: () => 2000000000000 } });
+  f.configure(); await settle(); assert.equal(f.sockets.length, 0);
+  loggedIn = true; f.page.localStorage.setItem('localConfig_v2', 'fixture');
+  await settle(); assert.equal(f.sockets.length, 1);
+  f.page.location.pathname = '/client/EOTHER/COTHER'; f.event('popstate'); await settle();
+  assert.equal(f.sockets[0].readyState, 3);
+  f.page.agentHooks.dispose(); assert.equal(Storage.prototype.setItem, original);
+});
+
+test('bridge reconnection preserves the Slack listener and pending work, then clears its error', async () => {
+  let finish;
+  const f = fixture({ action: d => d.action === 'run'
+    ? new Promise(resolve => { finish = resolve; })
+    : d.action === 'claim' ? { claimed: true } : { ok: true } });
+  f.configure(); await settle(); f.sockets[0].event({ type: 'hello' });
+  f.sockets[0].event(message()); await settle();
+  f.configure({ error: 'Local bridge disconnected. Reconnecting automatically…' });
+  assert.equal(f.page.agentHooks.status().pending, 1);
+  assert.equal(f.sockets[0].readyState, 1);
+  assert.ok(!f.messages.some(value => value.type === 'cancel'));
+  f.configure();
+  assert.equal(f.page.agentHooks.status().error, null);
+  finish({ job: 'test', answer: 'finished after reconnect' }); await settle();
+  assert.equal(f.posts().length, 1);
+  f.page.agentHooks.dispose();
 });
