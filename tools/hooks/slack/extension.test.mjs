@@ -157,10 +157,19 @@ test('a completion arriving during the initial snapshot cannot be lost', async (
     ? new Promise(resolve => { release = () => resolve({ ok: true, json: async () => ({ job, status: 'queued' }) }); })
     : { ok: true, json: async () => ({ job, status: 'queued' }) });
   page.send({ type: 'request', id: 'race', action: 'run', payload: {} }); await settle();
-  socket.event({ type: 'job', job });
   w.override(async () => ({ ok: true, json: async () => ({ job, status: 'ready', answer: 'not lost' }) }));
-  release(); await settle();
+  socket.event({ type: 'job', job }); await settle();
   assert.equal(page.sent.find(value => value.id === 'race').value.answer, 'not lost');
+  release(); await settle();
+  assert.equal(page.sent.filter(value => value.id === 'race').length, 1);
+});
+
+test('overlapping completion events answer each request only once', async () => {
+  const w = worker(), page = port(); w.connectPort(page); const socket = await w.ready();
+  page.send({ type: 'request', id: 'once', action: 'run', payload: {} }); await settle();
+  w.state({ status: 'ready', answer: 'one answer' });
+  socket.event({ type: 'job', job }); socket.event({ type: 'job', job }); await settle();
+  assert.equal(page.sent.filter(value => value.id === 'once').length, 1);
 });
 
 test('bridge reconnect takes pending job snapshots without rerunning commands', async () => {
@@ -180,6 +189,30 @@ test('closing a page cancels its pending job and releases the push connection', 
   page.disconnect(); await settle();
   assert.equal(w.calls.filter(c => c.url.endsWith('/cancel')).length, 1);
   assert.equal(w.timers.size, 0);
+});
+
+test('closing one owner preserves another pending request for the same job', async () => {
+  const w = worker(), first = port(), second = port();
+  w.connectPort(first); w.connectPort(second); const socket = await w.ready();
+  first.send({ type: 'request', id: 'first', action: 'run', payload: {} });
+  second.send({ type: 'request', id: 'second', action: 'run', payload: {} }); await settle();
+  first.disconnect(); await settle();
+  assert.equal(w.calls.filter(c => c.url.endsWith('/cancel')).length, 0);
+  w.state({ status: 'ready', answer: 'still wanted' }); socket.event({ type: 'job', job }); await settle();
+  assert.equal(second.sent.find(value => value.id === 'second').value.answer, 'still wanted');
+  assert.ok(!first.sent.some(value => value.type === 'response'));
+});
+
+test('cancelling before run acknowledgement cancels the accepted job without replying', async () => {
+  const w = worker(), page = port(); w.connectPort(page); await w.ready();
+  let release;
+  w.override(async url => url.endsWith('/run') ? new Promise(resolve => {
+    release = () => resolve({ ok: true, json: async () => ({ job, status: 'queued' }) });
+  }) : { ok: true, json: async () => ({ ok: true }) });
+  page.send({ type: 'request', id: 'cancel-early', action: 'run', payload: {} }); await settle();
+  page.send({ type: 'cancel', id: 'cancel-early' }); release(); await settle();
+  assert.equal(w.calls.filter(c => c.url.endsWith('/cancel')).length, 1);
+  assert.ok(!page.sent.some(value => value.type === 'response'));
 });
 
 test('relay forwards events without idle timers and disconnects on page close', async () => {

@@ -100,7 +100,6 @@ def stream(handler):
     handler.end_headers()
     handler.wfile.flush()
     peer = Peer(handler)
-    registered = False
     try:
         # Tokens never enter URLs, page messages, or unauthenticated event data.
         handler.connection.settimeout(5)
@@ -113,7 +112,6 @@ def stream(handler):
                 return
             peer.unsubscribe = server.runtime.subscribe(peer.publish)
             server.peers.add(peer)
-            registered = True
         peer.publish({'type': 'settings', 'keywords': list(server.runtime.config['commands'])})
         writer = threading.Thread(target=peer.write, daemon=True)
         writer.start()
@@ -128,11 +126,10 @@ def stream(handler):
                 if json.loads(payload) != {'type': 'ping'}:
                     break
                 peer.publish({'type': 'pong'})
-    except (OSError, ValueError, ConnectionError, queue.Full):
+    except (OSError, ValueError, queue.Full):
         pass
     finally:
         peer.close()
-        if registered:
-            with server.peers_lock:
-                server.peers.discard(peer)
+        with server.peers_lock:
+            server.peers.discard(peer)
         handler.close_connection = True

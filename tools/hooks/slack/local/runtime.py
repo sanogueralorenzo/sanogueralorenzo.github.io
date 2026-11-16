@@ -150,7 +150,6 @@ class Runtime:
             safe = error if isinstance(error, HookError) else HookError()
             if not cancel.is_set():
                 self.last_error = safe.public()
-            if not cancel.is_set():
                 logging.error('%s', safe)
             with self.lock:
                 self.db.execute("UPDATE jobs SET status=?,answer=? WHERE id=?",

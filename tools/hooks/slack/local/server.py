@@ -99,8 +99,7 @@ class Handler(BaseHTTPRequestHandler):
         if browser_origin and browser_origin != origin:
             return self.respond(403, {'error': 'Origin mismatch'})
         # Reject DNS rebinding and requests from web pages, including signed-in Slack.
-        expected_host = f'127.0.0.1:{self.server.server_port}'
-        if self.headers.get('Host') != expected_host or not re.fullmatch(r'chrome-extension://[a-p]{32}', origin):
+        if not re.fullmatch(r'chrome-extension://[a-p]{32}', origin):
             return self.respond(403, {'error': 'Extension origin required'})
         body = {}
         try:

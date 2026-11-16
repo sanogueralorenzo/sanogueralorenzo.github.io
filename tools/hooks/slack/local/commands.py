@@ -18,7 +18,8 @@ def serve(home):
         try:
             print(f'Slack browser bridge listening on 127.0.0.1:{server.server_port}', flush=True)
             print('Keywords: ' + ', '.join(config['commands']), flush=True)
-            server.serve_forever(poll_interval=0.2)
+            # SIGTERM/KeyboardInterrupt wake the blocking selector; no idle shutdown polling.
+            server.serve_forever(poll_interval=None)
         except KeyboardInterrupt:
             pass
         finally:

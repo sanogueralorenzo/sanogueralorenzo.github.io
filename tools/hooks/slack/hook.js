@@ -88,17 +88,16 @@
     } while (cursor);
     return messages;
   }
-  function parse(event, s) {
+  function accepts(event, s) {
     if (!current(s) || event.type !== "message" || event.user !== s.user
       || event.subtype && event.subtype !== "thread_broadcast" || event.bot_id || event.app_id
       || !/^[CDG][A-Z0-9]+$/.test(event.channel || "") || !/^\d+\.\d+$/.test(event.ts || "")
       || Number(event.ts) < s.started || typeof event.text !== "string" || event.text.length > 12000
-      || s.sent.has(event.client_msg_id) || s.seen.has(`${event.channel}:${event.ts}`)) return null;
+      || s.sent.has(event.client_msg_id) || s.seen.has(`${event.channel}:${event.ts}`)) return false;
     const match = event.text.match(/^(\S+)\s+([\s\S]*\S)\s*$/);
-    if (!match || !settings.keywords.includes(match[1].toLowerCase())) return null;
-    return { keyword: match[1].toLowerCase(), text: match[2] };
+    return !!match && settings.keywords.includes(match[1].toLowerCase());
   }
-  async function process(s, event, request) {
+  async function process(s, event) {
     assertCurrent(s);
     let completion;
     try {
@@ -132,14 +131,13 @@
   }
   function receive(s, event) {
     sync();
-    const request = parse(event, s);
-    if (!request) return;
+    if (!accepts(event, s)) return;
     s.seen.add(`${event.channel}:${event.ts}`);
     if (state.pending >= 100) { state.error = "Queue full. Send the command again later."; publishStatus(); return; }
     state.received++; state.pending++;
     const key = `${event.channel}:${event.thread_ts || event.ts}`;
     const acknowledged = reaction(s, event, "eyes");
-    const work = (s.threads.get(key) || Promise.resolve()).then(async () => { await acknowledged; return process(s, event, request); })
+    const work = (s.threads.get(key) || Promise.resolve()).then(async () => { await acknowledged; return process(s, event); })
       .catch(error => { if (current(s)) { state.error = errorMessage(error); void reaction(s, event, "warning"); } })
       .finally(() => {
         if (session === s) state.pending--;

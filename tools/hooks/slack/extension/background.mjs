@@ -59,16 +59,7 @@ async function read(response) {
   try { return await response.json(); } catch { throw new Error("Local bridge returned an invalid response. Rerun the installer."); }
 }
 
-async function settings() {
-  await trusted;
-  try {
-    const config = await request("/config");
-    if (!Array.isArray(config.keywords) || !config.keywords.every(k => typeof k === "string" && /^\S{1,40}$/.test(k))) throw new Error();
-    return { keywords: config.keywords };
-  } catch (error) { return { keywords: [], error: error.message }; }
-}
-
-const clients = new Set(), jobs = new Map(), updating = new Set(), dirty = new Set();
+const clients = new Set();
 let config = { keywords: [], error: "Connecting to the local bridge…" };
 let socket, opening = false, generation = 0, retry, heartbeat, handshake, attempts = 0;
 
@@ -86,30 +77,30 @@ function publish() {
   const status = popupStatus();
   for (const client of clients) post(client, client.popup ? status : { type: "settings", settings: config });
 }
-function finish(client, id, value, error) {
+function pendingRequests() {
+  return [...clients].flatMap(client => [...client.requests.values()]);
+}
+function finish(entry, value, error) {
+  const { client, id } = entry;
+  if (client.requests.get(id) !== entry) return;
   client.requests.delete(id);
   post(client, { type: "response", id, ok: !error, ...(error ? { error } : { value }) });
 }
 async function update(job) {
-  if (!jobs.has(job)) return;
-  if (updating.has(job)) { dirty.add(job); return; }
-  updating.add(job);
+  const waiting = pendingRequests().filter(entry => entry.job === job);
+  if (!waiting.length) return;
+  const connection = socket;
   try {
     const value = await request(`/jobs/${job}`);
     if (["queued", "running"].includes(value.status)) return;
-    const waiting = jobs.get(job);
-    jobs.delete(job);
-    for (const entry of waiting || []) {
-      const answer = value.status === "ready" ? { job, answer: value.answer }
-        : value.status === "failed" && value.error ? { job, error: value.error } : { skip: true };
-      finish(entry.client, entry.id, answer);
-    }
+    const answer = value.status === "ready" ? { job, answer: value.answer }
+      : value.status === "failed" && value.error ? { job, error: value.error } : { skip: true };
+    for (const entry of waiting) finish(entry, answer);
   } catch (error) {
     // A reconnect takes a fresh snapshot; never replay the original run request.
-    if (!socket || socket.readyState !== WebSocket.OPEN) return;
-    const waiting = jobs.get(job); jobs.delete(job);
-    for (const entry of waiting || []) finish(entry.client, entry.id, undefined, error.message);
-  } finally { updating.delete(job); if (dirty.delete(job)) void update(job); }
+    if (!connection || socket !== connection || connection.readyState !== WebSocket.OPEN) return;
+    for (const entry of waiting) finish(entry, undefined, error.message);
+  }
 }
 function stopConnection() {
   generation++; opening = false;
@@ -125,9 +116,7 @@ async function connect() {
   opening = true;
   const version = generation;
   try {
-    const initial = await settings();
-    if (version !== generation || !clients.size) return;
-    if (initial.error) throw new Error(initial.error);
+    await request("/config");
     const { bridgeToken } = await chrome.storage.local.get("bridgeToken");
     if (version !== generation || !clients.size) return;
     const stream = socket = new WebSocket("ws://127.0.0.1:19736/events");
@@ -142,7 +131,7 @@ async function connect() {
         if (!Array.isArray(value.keywords) || !value.keywords.every(k => typeof k === "string" && /^\S{1,40}$/.test(k))) { stream.close(); return; }
         clearTimeout(handshake); clearInterval(heartbeat); attempts = 0;
         config = { keywords: value.keywords }; publish();
-        for (const job of jobs.keys()) void update(job);
+        for (const job of new Set(pendingRequests().map(entry => entry.job).filter(Boolean))) void update(job);
         // Transport keepalive, not a settings/status request. Chrome requires socket activity.
         heartbeat = setInterval(() => {
           if (Date.now() - lastMessage > 40000) stream.close();
@@ -160,14 +149,14 @@ async function connect() {
     if (version === generation) { config = { ...config, error: error.message }; publish(); reconnect(); }
   } finally { if (version === generation) opening = false; }
 }
+function cancelJob(job) {
+  if (!pendingRequests().some(entry => entry.job === job)) void request("/cancel", { job }).catch(() => {});
+}
 function cancel(client, id) {
   const entry = client.requests.get(id);
   if (!entry) return;
-  entry.cancelled = true; client.requests.delete(id);
-  if (entry.job) {
-    const waiting = jobs.get(entry.job); waiting?.delete(entry);
-    if (!waiting?.size) { jobs.delete(entry.job); void request("/cancel", { job: entry.job }).catch(() => {}); }
-  }
+  client.requests.delete(id);
+  if (entry.job) cancelJob(entry.job);
 }
 async function dispatch(client, message) {
   if (client.popup) return;
@@ -180,21 +169,19 @@ async function dispatch(client, message) {
   if (typeof message?.id !== "string" || message.id.length > 100) return;
   if (message.type === "cancel") { cancel(client, message.id); return; }
   if (message.type !== "request" || client.requests.has(message.id) || client.requests.size >= 100) return;
-  const entry = { client, id: message.id, cancelled: false, job: null };
+  const entry = { client, id: message.id, job: null };
   client.requests.set(message.id, entry);
   try {
     const { action, payload } = message;
     if (!["run", "claim", "delivered"].includes(action) || action !== "run" && !/^[a-f0-9]{64}$/.test(payload?.job)) throw new Error("Invalid Slack operation");
     const value = await request(`/${action}`, payload);
-    if (action !== "run") { if (!entry.cancelled) finish(client, message.id, value); return; }
+    if (action !== "run") { finish(entry, value); return; }
     if (!/^[a-f0-9]{64}$/.test(value.job)) throw new Error("Invalid bridge job");
     entry.job = value.job;
-    if (entry.cancelled) { void request("/cancel", { job: entry.job }).catch(() => {}); return; }
-    if (!jobs.has(entry.job)) jobs.set(entry.job, new Set());
-    jobs.get(entry.job).add(entry);
+    if (client.requests.get(message.id) !== entry) { cancelJob(entry.job); return; }
     // Snapshot closes the race where completion arrived before the run response.
     void update(entry.job);
-  } catch (error) { if (!entry.cancelled) finish(client, message.id, undefined, error.message || "Bridge request failed."); }
+  } catch (error) { finish(entry, undefined, error.message || "Bridge request failed."); }
 }
 export function connectPort(port) {
   const sender = port.sender || {};
