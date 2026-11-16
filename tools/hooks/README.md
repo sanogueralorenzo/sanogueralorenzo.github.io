@@ -2,12 +2,14 @@
 
 Automatic hooks for websites you are signed into. The [Slack hook](slack/README.md)
 connects your keyword-prefixed messages to Codex, Claude, or another CLI and replies
-as you in the same thread. Listening is automatic and invisible.
+as you in the same thread. Listening is automatic and invisible. The resident
+bridge runs in Rust; Python handles setup and the Codex/Claude adapters.
 
 ## Install or update
 
-1. Install Git, Python 3.11+, Edge or Chrome, and Codex or Claude CLI on macOS or
-   Linux with systemd. Sign in with `codex login` or `claude auth login`.
+1. Install Git, stable Rust/Cargo with a C compiler, Python 3.11+, Edge or Chrome,
+   and Codex or Claude CLI on macOS or Linux with systemd. Sign in with
+   `codex login` or `claude auth login`.
 2. Run:
 
    ```sh
@@ -20,6 +22,9 @@ as you in the same thread. Listening is automatic and invisible.
 4. Open or reload Slack, then send `chat Reply with hello` or
    `claude Reply with hello` in your self-DM. Keep your computer awake and one Slack
    tab open. No Slack app or workspace approval is required.
+
+The installer builds the Rust bridge locally with SQLite included and starts it
+automatically at login.
 
 To update code, rerun the download installer or update your source checkout, then
 run `browser-hooks install`. Reload Browser Hooks on the Extensions page, then
@@ -41,6 +46,8 @@ The launcher lives at `~/.local/bin/browser-hooks`. All application files live i
 
 ```text
 browser-hooks/
+├── bin/slack-bridge        # installed Rust executable
+├── build/                  # Cargo build cache and build log
 ├── extension/
 ├── source/                 # download installer's managed checkout
 └── hooks/
@@ -60,6 +67,7 @@ connection dot for details; run `browser-hooks slack status` for diagnostics.
 Checks from the repository root:
 
 ```sh
-node --test tools/hooks/slack/*.test.mjs
+cargo test --locked --manifest-path tools/hooks/slack/bridge/Cargo.toml
 python3 -m unittest discover -s tools/hooks/slack/tests
+node --test tools/hooks/slack/*.test.mjs
 ```

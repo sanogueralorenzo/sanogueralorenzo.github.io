@@ -17,6 +17,8 @@ for candidate in python3 python3.14 python3.13 python3.12 python3.11; do
 done
 [ -n "$python_bin" ] || { echo 'Install Python 3.11 or newer, then rerun this installer.' >&2; exit 1; }
 
+command -v cargo >/dev/null || { echo 'Install Rust/Cargo and a C compiler first, then rerun this installer.' >&2; exit 1; }
+
 install_dir="${BROWSER_HOOKS_HOME:-$HOME/.local/share/browser-hooks}"
 case "$install_dir" in
   /*) ;;

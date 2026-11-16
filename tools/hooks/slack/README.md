@@ -8,7 +8,7 @@ sent from your phone. Replies appear as you in the same thread; follow-ups resum
 the agent session. **👀** queued/running · **✅** answered · **⚠️** failed.
 
 Follow [Browser Hooks setup](../README.md#install-or-update) to install the shared
-extension and local service. The popup shows Slack and a green/gray connection
+extension and Rust bridge service. The popup shows Slack and a green/gray connection
 dot. Listening runs automatically and invisibly; no toggle or on-page UI.
 Messages, job results and connection status arrive as events, without idle
 polling. Socket keepalives maintain the connections; failures reconnect automatically.
@@ -31,7 +31,8 @@ sets the per-command limit, up to 600 seconds.
 ## Troubleshoot
 
 Run `browser-hooks slack status` to check the bridge, pairing, keywords and last
-error. Failed requests show an actionable message in their Slack thread and the
+error. The installer builds the bridge; rerun it after updating Rust source.
+Failed requests show an actionable message in their Slack thread and the
 popup tooltip. For an expired login, run `codex login` or `claude auth login`,
 then send a new request. Raw command output and credentials are never posted.
 

@@ -21,3 +21,4 @@ ekkzo/cli/codex-*/target/
 ekkzo/cli/*/target/
 harness/target/
 harness/.state/
+tools/hooks/slack/bridge/target/

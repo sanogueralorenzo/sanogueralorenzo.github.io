@@ -11,121 +11,199 @@ from unittest.mock import patch, Mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from installation import install as install_hooks, launcher
 from paths import app_home
-from slack.local.config import load
-from slack.local.setup import configure
-from slack.local.service import install_linux, linux_unit
+from slack.setup import configure, validate
+from slack.service import install_linux, linux_unit, specification
+from support import bridge_binary
 
 
 class SetupTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name).resolve()
-        self.home = self.root / 'app'
-        self.folder = self.home / 'hooks/slack'
-        self.path = self.folder / 'config.json'
+        self.home = self.root / "app"
+        self.folder = self.home / "hooks/slack"
+        self.path = self.folder / "config.json"
         self.checkout = Path(__file__).resolve().parents[2]
+        self.binary = bridge_binary()
 
     def tearDown(self):
         self.temp.cleanup()
 
     def configure(self):
-        with patch('slack.local.setup.shutil.which', return_value=sys.executable):
-            return configure(self.path, self.checkout / 'slack', self.root)
+        with patch("slack.setup.shutil.which", return_value=sys.executable):
+            return configure(self.home, self.checkout / "slack", self.root, self.binary)
 
     def test_first_install_discovers_both_clis_and_defaults_to_chat_and_claude(self):
-        config = self.configure()
-        self.assertEqual(set(config['commands']), {'chat', 'claude'})
-        self.assertTrue(config['commands']['chat']['start'][1].endswith('/slack/agents/codex.py'))
-        self.assertEqual(config['commands']['claude']['resume'][-1], '{session_id}')
+        self.assertEqual(set(self.configure()), {"chat", "claude"})
+        config = json.loads(self.path.read_text())
+        self.assertTrue(
+            config["commands"]["chat"]["start"][1].endswith("/slack/agents/codex.py")
+        )
+        self.assertEqual(config["commands"]["claude"]["resume"][-1], "{session_id}")
         self.assertEqual(self.path.stat().st_mode & 0o777, 0o600)
 
-    def test_rerun_preserves_custom_keywords_projects_pairing_and_sessions(self):
+    def test_update_preserves_config_pairing_and_database_and_installs_native_service(
+        self,
+    ):
         self.configure()
         config = json.loads(self.path.read_text())
-        config['commands']['custom'] = config['commands'].pop('chat')
-        config['projects'] = {'demo': str(self.root)}
+        config["commands"]["custom"] = config["commands"].pop("chat")
+        config["projects"] = {"demo": str(self.root)}
         self.path.write_text(json.dumps(config))
-        before = self.path.read_bytes()
-        sessions = self.folder / 'sessions.sqlite3'
-        sessions.write_bytes(b'existing sessions')
-        saved_key = self.folder / 'pairing.json'
-        saved_key.write_text('synthetic-current-key')
-        with patch('installation.launcher', return_value=self.root / 'browser-hooks'), patch('slack.local.setup.install') as install, patch('slack.local.setup.health', return_value={'paired': True}), contextlib.redirect_stdout(io.StringIO()):
+        files = {
+            "config.json": self.path.read_bytes(),
+            "pairing.json": b"synthetic-saved-key",
+            "sessions.sqlite3": b"existing database bytes",
+        }
+        for name, data in files.items():
+            (self.folder / name).write_bytes(data)
+        with (
+            patch("installation.build", return_value=self.binary),
+            patch("installation.launcher", return_value=self.root / "browser-hooks"),
+            patch("slack.setup.install") as service,
+            patch("slack.setup.health", return_value={"paired": True}),
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
             install_hooks(self.home, self.checkout, self.root)
-        install.assert_called_once_with(self.checkout / 'cli.py', self.home)
-        self.assertEqual(saved_key.read_text(), 'synthetic-current-key')
-        self.assertEqual(self.path.read_bytes(), before)
-        self.assertEqual(sessions.read_bytes(), b'existing sessions')
+        service.assert_called_once_with(self.binary, self.home)
+        for name, data in files.items():
+            self.assertEqual((self.folder / name).read_bytes(), data)
+        self.assertEqual(
+            specification(self.binary, self.home)["ProgramArguments"],
+            [str(self.binary), "serve", "--home", str(self.home)],
+        )
 
-    def test_first_install_builds_private_extension_without_printing_a_secret(self):
-        with patch('slack.local.setup.shutil.which', return_value=sys.executable), patch('installation.launcher', return_value=self.root / 'browser-hooks'), patch('slack.local.setup.install'), patch('slack.local.setup.health', return_value={'paired': False}), contextlib.redirect_stdout(io.StringIO()) as output:
+    def test_private_extension_contains_only_browser_runtime_files(self):
+        with (
+            patch("slack.setup.shutil.which", return_value=sys.executable),
+            patch("installation.build", return_value=self.binary),
+            patch("installation.launcher", return_value=self.root / "browser-hooks"),
+            patch("slack.setup.install"),
+            patch("slack.setup.health", return_value={"paired": False}),
+            contextlib.redirect_stdout(io.StringIO()) as output,
+        ):
             install_hooks(self.home, self.checkout, self.root)
-        self.assertIn('Load unpacked', output.getvalue())
-        self.assertIn('no code to copy', output.getvalue())
-        extension = self.home / 'extension'
-        self.assertIn(str(extension), output.getvalue())
-        self.assertFalse(extension.is_relative_to(self.checkout.parents[1]))
-        self.assertTrue((extension / 'manifest.json').is_file())
-        self.assertTrue((extension / 'slack/extension/background.mjs').is_file())
-        self.assertFalse((extension / 'slack/local').exists())
-        self.assertFalse((extension / 'slack/tests').exists())
+        self.assertIn("Load unpacked", output.getvalue())
+        self.assertIn("no code to copy", output.getvalue())
+        extension = self.home / "extension"
+        self.assertTrue((extension / "manifest.json").is_file())
+        self.assertTrue((extension / "slack/extension/background.mjs").is_file())
+        self.assertFalse((extension / "slack/bridge").exists())
+        self.assertFalse((extension / "slack/tests").exists())
         self.assertEqual(extension.stat().st_mode & 0o777, 0o700)
-        self.assertEqual((extension / 'manifest.json').stat().st_mode & 0o777, 0o600)
+        self.assertEqual((extension / "manifest.json").stat().st_mode & 0o777, 0o600)
 
-    def test_private_home_inside_the_repository_is_rejected_before_writing(self):
-        result = subprocess.run([sys.executable, str(self.checkout / 'cli.py'), 'install', '--home', str(self.checkout / 'private-state')], capture_output=True, text=True)
+    def test_private_home_inside_repository_is_rejected_before_writing(self):
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(self.checkout / "cli.py"),
+                "install",
+                "--home",
+                str(self.checkout / "private-state"),
+            ],
+            capture_output=True,
+            text=True,
+        )
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn('outside the public repository', result.stderr)
-        self.assertFalse((self.checkout / 'private-state').exists())
+        self.assertIn("outside the public repository", result.stderr)
+        self.assertFalse((self.checkout / "private-state").exists())
 
-    def test_launcher_executes_from_any_directory_with_one_private_home(self):
-        with patch('installation.Path.home', return_value=self.root / 'home with spaces'):
+    def test_launcher_executes_from_any_directory_and_serve_executes_native_binary(
+        self,
+    ):
+        with patch(
+            "installation.Path.home", return_value=self.root / "home with spaces"
+        ):
             path = launcher(self.home, self.checkout)
-        result = subprocess.run([str(path), 'slack', '--help'], cwd=self.root, capture_output=True, text=True)
+        result = subprocess.run(
+            [str(path), "slack", "--help"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+        )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('status,serve', result.stdout)
-        self.assertEqual(path.name, 'browser-hooks')
+        self.assertIn("status,serve", result.stdout)
         self.assertEqual(path.stat().st_mode & 0o777, 0o700)
-        self.assertIn(str(self.home), path.read_text())
-        self.assertNotIn('--config', path.read_text())
+        binary = self.home / "bin/slack-bridge"
+        binary.parent.mkdir(parents=True)
+        binary.write_text(
+            "#!"
+            + sys.executable
+            + "\nimport json,sys\nprint(json.dumps(sys.argv[1:]))\n"
+        )
+        binary.chmod(0o700)
+        result = subprocess.run(
+            [str(path), "slack", "serve"], cwd=self.root, capture_output=True, text=True
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), ["serve", "--home", str(self.home)])
 
-    def test_one_home_override_replaces_separate_config_state_and_data_overrides(self):
-        with patch.dict('os.environ', {'BROWSER_HOOKS_HOME': str(self.home)}):
+    def test_one_private_home_override(self):
+        with patch.dict("os.environ", {"BROWSER_HOOKS_HOME": str(self.home)}):
             self.assertEqual(app_home(), self.home)
-        with patch.dict('os.environ', {'BROWSER_HOOKS_HOME': '', 'XDG_CONFIG_HOME': '/unused', 'XDG_DATA_HOME': '/unused', 'XDG_STATE_HOME': '/unused'}), patch('paths.Path.home', return_value=self.root):
-            self.assertEqual(app_home(), self.root / '.local/share/browser-hooks')
+        with (
+            patch.dict("os.environ", {"BROWSER_HOOKS_HOME": ""}),
+            patch("paths.Path.home", return_value=self.root),
+        ):
+            self.assertEqual(app_home(), self.root / ".local/share/browser-hooks")
 
-    def test_missing_clis_and_bad_config_have_actionable_errors_without_overwriting(self):
-        with patch('slack.local.setup.shutil.which', return_value=None), self.assertRaisesRegex(ValueError, 'Install and sign in'):
-            configure(self.path, self.checkout / 'slack', self.root)
+    def test_bad_config_and_missing_clis_leave_existing_data_untouched(self):
+        with (
+            patch("slack.setup.shutil.which", return_value=None),
+            self.assertRaisesRegex(ValueError, "Install and sign in"),
+        ):
+            configure(self.home, self.checkout / "slack", self.root, self.binary)
         self.assertFalse(self.path.exists())
         self.path.parent.mkdir(parents=True)
-        self.path.write_text('{broken')
-        with self.assertRaisesRegex(ValueError, 'valid JSON'):
-            configure(self.path, self.checkout / 'slack', self.root)
-        self.assertEqual(self.path.read_text(), '{broken')
-        self.path.write_text('{}')
-        with self.assertRaisesRegex(ValueError, 'workspace and commands'):
-            load(self.path)
+        for contents in ("{broken", "{}"):
+            self.path.write_text(contents)
+            with self.assertRaisesRegex(ValueError, "configuration"):
+                validate(self.home, self.binary)
+            self.assertEqual(self.path.read_text(), contents)
 
-    def test_macos_update_waits_for_launchd_to_release_the_previous_service(self):
-        from slack.local.service import install
+    def test_macos_update_waits_for_previous_service_to_exit(self):
+        from slack.service import install
+
         completed = lambda code: Mock(returncode=code)
-        with patch('slack.local.service.sys.platform', 'darwin'), patch('slack.local.service.Path.home', return_value=self.root), patch('slack.local.service.time.sleep'), patch('slack.local.service.subprocess.run', side_effect=[completed(0), completed(0), completed(5), completed(0)]) as run, contextlib.redirect_stdout(io.StringIO()):
-            install(self.checkout / 'cli.py', self.home)
-        self.assertEqual(sum(c.args[0][1] == 'bootstrap' for c in run.call_args_list), 2)
+        with (
+            patch("slack.service.sys.platform", "darwin"),
+            patch("slack.service.Path.home", return_value=self.root),
+            patch("slack.service.time.sleep"),
+            patch(
+                "slack.service.subprocess.run",
+                side_effect=[completed(0), completed(0), completed(5), completed(0)],
+            ) as run,
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            install(self.binary, self.home)
+        self.assertEqual(
+            sum(c.args[0][1] == "bootstrap" for c in run.call_args_list), 2
+        )
 
-    def test_linux_user_service_quotes_paths_and_does_not_export_credentials(self):
-        unit = linux_unit(Path(sys.executable), self.root / 'with spaces' / 'cli.py', self.home)
-        self.assertIn('with spaces/cli.py" "slack" "serve"', unit)
-        self.assertIn('UMask=0077', unit)
-        self.assertNotIn('SLACK_', unit)
-        with patch('slack.local.service.Path.home', return_value=self.root), patch('slack.local.service.subprocess.run') as run, contextlib.redirect_stdout(io.StringIO()):
+    def test_linux_service_uses_native_binary_and_only_explicit_path(self):
+        unit = linux_unit(self.root / "with spaces/slack-bridge", self.home)
+        self.assertIn('with spaces/slack-bridge" "serve" "--home"', unit)
+        self.assertIn("UMask=0077", unit)
+        self.assertNotIn("SLACK_", unit)
+        self.assertEqual(
+            set(specification(self.binary, self.home)["EnvironmentVariables"]), {"PATH"}
+        )
+        with (
+            patch("slack.service.Path.home", return_value=self.root),
+            patch("slack.service.subprocess.run") as run,
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
             run.return_value.returncode = 0
-            install_linux(self.checkout / 'cli.py', self.home)
-        self.assertEqual([c.args[0][2] for c in run.call_args_list], ['daemon-reload', 'enable', 'restart'])
-        self.assertEqual((self.folder / 'logs/bridge.log').stat().st_mode & 0o777, 0o600)
+            install_linux(self.binary, self.home)
+        self.assertEqual(
+            [c.args[0][2] for c in run.call_args_list],
+            ["daemon-reload", "enable", "restart"],
+        )
+        self.assertEqual(
+            (self.folder / "logs/bridge.log").stat().st_mode & 0o777, 0o600
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

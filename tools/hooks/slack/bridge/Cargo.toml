@@ -1,0 +1,25 @@
+[package]
+name = "slack-bridge"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+axum = { version = "=0.8.9", default-features = false, features = ["http1", "tokio", "ws", "json"] }
+tokio = { version = "1", features = ["rt", "macros", "net", "time", "sync", "process", "io-util", "signal"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+serde = { version = "1", features = ["derive"] }
+regex = "1"
+unicode-casefold = "0.2"
+tempfile = "3"
+libc = "0.2"
+base64 = "0.22"
+getrandom = "0.3"
+subtle = "2"
+rusqlite = { version = "=0.43.0", features = ["bundled"] }
+sha2 = "0.10"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
