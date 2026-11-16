@@ -1,33 +1,12 @@
-"""Configure providers, install the native service, and report its health."""
+"""Configure Slack providers and report hook status."""
 
 import json
 from pathlib import Path
 import shutil
 import subprocess
 import sys
-import time
-from http.client import HTTPConnection, HTTPException
 
-from service import install
-
-
-def health():
-    connection = HTTPConnection("127.0.0.1", 19736, timeout=1)
-    try:
-        connection.request("GET", "/health")
-        response = connection.getresponse()
-        value = json.loads(response.read())
-        return (
-            value
-            if response.status == 200
-            and value.get("service") == "browser-hooks"
-            and value.get("implementation") == "rust"
-            else None
-        )
-    except (OSError, ValueError, HTTPException):
-        return None
-    finally:
-        connection.close()
+from service import health
 
 
 def validate(home, binary):
@@ -37,7 +16,7 @@ def validate(home, binary):
     if result.returncode:
         raise ValueError(
             result.stderr.strip()
-            or "Invalid Slack configuration. Edit config.json and rerun the installer."
+            or "Invalid Slack configuration. Edit config.json and run browser-hooks install."
         )
     return json.loads(result.stdout)["hooks"]["slack"]["keywords"]
 
@@ -55,7 +34,7 @@ def configure(home, checkout, workspace, binary):
                 }
         if not commands:
             raise ValueError(
-                "Install and sign in to Codex or Claude first, then rerun the installer."
+                "Install and sign in to Codex or Claude first, then run browser-hooks install."
             )
         workspace = workspace.expanduser().resolve()
         if not workspace.is_dir():
@@ -79,22 +58,6 @@ def configure(home, checkout, workspace, binary):
     return validate(home, binary)
 
 
-def start(home, binary, keywords):
-    install(binary, home)
-    deadline = time.monotonic() + 8
-    while time.monotonic() < deadline:
-        if health():
-            break
-        time.sleep(0.1)
-    else:
-        raise RuntimeError(
-            f"Bridge did not start. Check {home / 'logs/bridge.log'}"
-        )
-    print("Slack is ready. Keywords: " + " / ".join(keywords))
-    print(f"Configuration: {home / 'hooks/slack/config.json'}")
-    print("Slack attaches automatically. Keep one Slack tab open; no listening toggle.")
-
-
 def status(home):
     binary = home / "bin/browser-hooks-bridge"
     if not binary.is_file():
@@ -104,14 +67,14 @@ def status(home):
     result = health()
     print(
         "Browser Hooks bridge (Rust): "
-        + ("running" if result else "not running; rerun the installer")
+        + ("running" if result else "not running; run browser-hooks install")
     )
     print(
         "Browser: "
         + (
             "paired"
             if result and result["paired"]
-            else "not paired; rerun the installer, then reload the extension"
+            else "not paired; run browser-hooks install, then reload the extension"
         )
     )
     print("Keywords: " + " / ".join(keywords))
@@ -131,7 +94,7 @@ def status(home):
                 + (
                     "installed (login checked when a request runs)"
                     if shutil.which(name)
-                    else "not found; install the CLI and rerun the installer"
+                    else "not found; install the CLI and run browser-hooks install"
                 )
             )
     if result and result["hooks"]["slack"].get("error"):

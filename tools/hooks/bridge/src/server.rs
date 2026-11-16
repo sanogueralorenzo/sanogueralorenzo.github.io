@@ -193,7 +193,7 @@ impl App {
         }) {
             return Err((
                 StatusCode::FORBIDDEN,
-                "Browser pairing expired. Rerun the installer, then reload Browser Hooks.",
+                "Browser pairing expired. Run browser-hooks install, then reload Browser Hooks.",
             ));
         }
         Ok(())
@@ -208,7 +208,7 @@ impl App {
         {
             return Err((
                 StatusCode::FORBIDDEN,
-                "Automatic pairing expired. Rerun the installer, then reload Browser Hooks.",
+                "Automatic pairing expired. Run browser-hooks install, then reload Browser Hooks.",
             ));
         }
         let saved = Credentials {

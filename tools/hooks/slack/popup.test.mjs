@@ -21,4 +21,6 @@ test('popup contains only the Slack icon, label and connection status', () => {
   const html = readFileSync(new URL('../popup/index.html', import.meta.url), 'utf8');
   assert.ok(!/<input|<form|<button|<details/.test(html));
   assert.match(html, /slack\/icon.png/); assert.match(html, />Slack</); assert.match(html, /id="dot"/);
+  const script = html.match(/<script type="module" src="([^"]+)"/)[1];
+  assert.equal(readFileSync(new URL(script, new URL('../popup/index.html', import.meta.url)), 'utf8'), source);
 });

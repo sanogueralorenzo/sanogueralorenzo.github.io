@@ -1,13 +1,46 @@
-"""Run the command bridge at login on macOS or Linux."""
+"""Install, start, and inspect the shared bridge on macOS or Linux."""
 
+import json
 import os
 from pathlib import Path
 import plistlib
 import subprocess
 import sys
 import time
+from http.client import HTTPConnection, HTTPException
 
 LABEL = "dev.browser-hooks.bridge"
+
+
+def health():
+    connection = HTTPConnection("127.0.0.1", 19736, timeout=1)
+    try:
+        connection.request("GET", "/health")
+        response = connection.getresponse()
+        value = json.loads(response.read())
+        return (
+            value
+            if response.status == 200
+            and value.get("service") == "browser-hooks"
+            and value.get("implementation") == "rust"
+            else None
+        )
+    except (OSError, ValueError, HTTPException):
+        return None
+    finally:
+        connection.close()
+
+
+def start(home, binary):
+    install(binary, home)
+    deadline = time.monotonic() + 8
+    while time.monotonic() < deadline:
+        if health():
+            return
+        time.sleep(0.1)
+    raise RuntimeError(
+        f"Bridge did not start. Run browser-hooks status; check {home / 'logs/bridge.log'}."
+    )
 
 
 def specification(binary, home):
@@ -28,16 +61,22 @@ def specification(binary, home):
 def install(binary, home):
     if sys.platform not in ("darwin", "linux"):
         raise ValueError("Installation supports macOS and Linux")
-    if sys.platform == "linux":
-        return install_linux(binary, home)
-    folder = Path.home() / "Library" / "LaunchAgents"
-    folder.mkdir(parents=True, exist_ok=True)
     logs = home / "logs"
     logs.mkdir(parents=True, exist_ok=True, mode=0o700)
     logs.chmod(0o700)
     log = home / "logs/bridge.log"
     log.touch(mode=0o600, exist_ok=True)
     log.chmod(0o600)
+    if sys.platform == "linux":
+        install_linux(binary, home)
+    else:
+        install_macos(binary, home)
+    print(f"Installed {LABEL}; starts automatically at login.")
+
+
+def install_macos(binary, home):
+    folder = Path.home() / "Library" / "LaunchAgents"
+    folder.mkdir(parents=True, exist_ok=True)
     path = folder / f"{LABEL}.plist"
     target = f"gui/{os.getuid()}/{LABEL}"
     loaded = (
@@ -67,7 +106,6 @@ def install(binary, home):
                 f"Could not start bridge service (launchctl exit {result.returncode}). Check the private bridge log."
             )
         time.sleep(0.2)
-    print(f"Installed {LABEL}; starts automatically at login.")
 
 
 def unit_value(value):
@@ -107,12 +145,6 @@ def linux_unit(binary, home):
 
 
 def install_linux(binary, home):
-    logs = home / "logs"
-    logs.mkdir(parents=True, exist_ok=True, mode=0o700)
-    logs.chmod(0o700)
-    log = home / "logs/bridge.log"
-    log.touch(mode=0o600, exist_ok=True)
-    log.chmod(0o600)
     path = Path.home() / ".config" / "systemd/user" / f"{LABEL}.service"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(linux_unit(binary, home))
@@ -128,4 +160,3 @@ def install_linux(binary, home):
                 "Could not start the user service. Check systemctl --user status "
                 + LABEL
             )
-    print(f"Installed {LABEL}; starts automatically at login.")

@@ -6,7 +6,8 @@ import sys
 
 from extension import prepare
 from build import build
-from slack.setup import configure, start
+from service import start
+from slack.setup import configure
 
 
 def launcher(home, checkout):
@@ -30,8 +31,11 @@ def install(home, checkout, workspace):
     binary = build(home, checkout)
     keywords = configure(home, checkout / "slack", workspace, binary)
     extension = prepare(checkout, home)
-    start(home, binary, keywords)
+    start(home, binary)
     executable = launcher(home, checkout)
+    print("Slack is ready. Keywords: " + " / ".join(keywords))
+    print(f"Configuration: {home / 'hooks/slack/config.json'}")
+    print("Slack attaches automatically. Keep one Slack tab open; no listening toggle.")
     print(f"Extension folder: {extension}")
     print("Load this folder unpacked in Edge/Chrome (Developer mode → Load unpacked).")
     print(

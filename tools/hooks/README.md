@@ -65,7 +65,7 @@ Use `BROWSER_HOOKS_HOME` or `--home /absolute/path` to choose another applicatio
 folder. The temporary pairing file in `extension/` is deleted after pairing,
 after ten minutes, or when the bridge stops. If pairing expires, rerun
 `browser-hooks install`, then reload the extension. Hover over the popup's
-connection dot for details; run `browser-hooks slack status` for diagnostics.
+connection dot for details; run `browser-hooks status` for diagnostics.
 
 Checks from the repository root:
 

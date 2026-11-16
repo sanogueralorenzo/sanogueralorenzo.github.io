@@ -62,7 +62,7 @@
       const timer = page.setTimeout(cancel, 660000);
       pending.set(id, {
         resolve(value) { page.clearTimeout(timer); s.abort.signal.removeEventListener("abort", cancel); resolve(value); },
-        reject(message) { page.clearTimeout(timer); s.abort.signal.removeEventListener("abort", cancel); reject(failure(typeof message === "string" ? message.slice(0, 500) : "Local bridge request failed. Rerun the installer.")); },
+        reject(message) { page.clearTimeout(timer); s.abort.signal.removeEventListener("abort", cancel); reject(failure(typeof message === "string" ? message.slice(0, 500) : "Local bridge request failed. Run browser-hooks status.")); },
       });
       emit("request", { id, action, payload });
     });

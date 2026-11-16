@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from installation import install as install_hooks, launcher
 from paths import app_home
 from slack.setup import configure, validate
-from service import install_linux, linux_unit, specification
+from service import install as install_service, linux_unit, specification
 from support import bridge_binary
 
 
@@ -61,8 +61,8 @@ class SetupTests(unittest.TestCase):
         with (
             patch("installation.build", return_value=self.binary),
             patch("installation.launcher", return_value=self.root / "browser-hooks"),
-            patch("slack.setup.install") as service,
-            patch("slack.setup.health", return_value={"paired": True}),
+            patch("service.install") as service,
+            patch("service.health", return_value={"paired": True}),
             contextlib.redirect_stdout(io.StringIO()),
         ):
             install_hooks(self.home, self.checkout, self.root)
@@ -80,8 +80,8 @@ class SetupTests(unittest.TestCase):
             patch("slack.setup.shutil.which", return_value=sys.executable),
             patch("installation.build", return_value=self.binary),
             patch("installation.launcher", return_value=self.root / "browser-hooks"),
-            patch("slack.setup.install"),
-            patch("slack.setup.health", return_value={"paired": False}),
+            patch("service.install"),
+            patch("service.health", return_value={"paired": False}),
             contextlib.redirect_stdout(io.StringIO()) as output,
         ):
             install_hooks(self.home, self.checkout, self.root)
@@ -91,6 +91,7 @@ class SetupTests(unittest.TestCase):
         self.assertTrue((extension / "manifest.json").is_file())
         self.assertTrue((extension / "background.mjs").is_file())
         self.assertTrue((extension / "bridge.mjs").is_file())
+        self.assertFalse((extension / "popup/index.js").exists())
         self.assertFalse((extension / "bridge").exists())
         self.assertFalse((extension / "slack/tests").exists())
         self.assertEqual(extension.stat().st_mode & 0o777, 0o700)
@@ -194,12 +195,13 @@ class SetupTests(unittest.TestCase):
             set(specification(self.binary, self.home)["EnvironmentVariables"]), {"PATH"}
         )
         with (
+            patch("service.sys.platform", "linux"),
             patch("service.Path.home", return_value=self.root),
             patch("service.subprocess.run") as run,
             contextlib.redirect_stdout(io.StringIO()),
         ):
             run.return_value.returncode = 0
-            install_linux(self.binary, self.home)
+            install_service(self.binary, self.home)
         self.assertEqual(
             [c.args[0][2] for c in run.call_args_list],
             ["daemon-reload", "enable", "restart"],

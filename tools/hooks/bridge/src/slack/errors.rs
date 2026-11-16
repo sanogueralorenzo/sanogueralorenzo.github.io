@@ -51,14 +51,14 @@ impl HookError {
             "auth_required" => format!("{provider} login expired or is missing. Run `{login}` on your computer, then send a new request."),
             "usage_limit" => format!("{provider} reached a usage or rate limit. Check your CLI account and retry later."),
             "permission_required" => format!("{provider} needs approval. Open the CLI on your computer to approve the operation, then send a new request."),
-            "missing_cli" => format!("{provider} CLI was not found. Install it and rerun the Slack browser installer."),
+            "missing_cli" => format!("{provider} CLI was not found. Install it and run `browser-hooks install`."),
             "timeout" => format!("{provider} exceeded the command time limit. Try a smaller request or adjust timeout_seconds."),
             "cancelled" => "The request was cancelled. Send a new request when the bridge is running.".into(),
             "invalid_response" => format!("{provider} returned an invalid response. The adapter must return session_id and answer as JSON."),
             "session_invalid" => format!("{provider} could not resume this session. Start a new Slack thread."),
             "output_limit" => format!("{provider} produced too much output. Try a smaller request."),
             "context_limit" => "This thread is too large to send to the agent. Start a new Slack thread.".into(),
-            "workspace_missing" => "The configured project directory no longer exists. Update workspace/projects and rerun the installer.".into(),
+            "workspace_missing" => "The configured project directory no longer exists. Update workspace/projects and run `browser-hooks install`.".into(),
             _ => format!("{provider} failed. Run the CLI directly on your computer, then send a new request."),
         };
         json!({"code":self.code,"provider":provider,"message":message})

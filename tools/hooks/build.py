@@ -10,7 +10,7 @@ import tempfile
 def build(home, checkout):
     if not shutil.which("cargo"):
         raise ValueError(
-            "Install Rust/Cargo and a C compiler, then rerun the installer."
+            "Install Rust/Cargo and a C compiler, then run browser-hooks install."
         )
     target = home / "build/bridge"
     target.mkdir(parents=True, exist_ok=True, mode=0o700)
