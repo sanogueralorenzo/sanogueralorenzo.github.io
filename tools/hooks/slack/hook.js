@@ -67,8 +67,8 @@
       emit("request", { id, action, payload });
     });
   }
-  async function reaction(s, event, name, remove = false) {
-    try { await api(s, `reactions.${remove ? "remove" : "add"}`, { channel: event.channel, timestamp: event.ts, name }); }
+  async function reaction(s, event, name) {
+    try { await api(s, "reactions.add", { channel: event.channel, timestamp: event.ts, name }); }
     catch { /* Reactions must not prevent command execution or delivery. */ }
   }
   async function history(s, event) {
@@ -99,35 +99,30 @@
   }
   async function process(s, event) {
     assertCurrent(s);
-    let completion;
-    try {
-      const context = await history(s, event);
-      const result = await bridge(s, "run", {
-        team: s.team, user: s.user, channel: event.channel, ts: event.ts,
-        thread_ts: event.thread_ts || event.ts, text: event.text, messages: context,
-      });
-      assertCurrent(s);
-      if (result.skip) return;
-      const diagnostic = result.error?.message;
-      if (diagnostic) result.answer = `⚠️ ${diagnostic}`;
-      if (typeof result.answer !== "string" || !result.answer.trim() || result.answer.length > 12000) throw failure("Command returned an invalid answer.");
-      // Claim delivery durably before the non-idempotent Slack request. Unknown sends are never retried.
-      if (!(await bridge(s, "claim", { job: result.job })).claimed) return;
-      assertCurrent(s);
-      const clientId = page.crypto.randomUUID();
-      s.sent.add(clientId);
-      const posted = await api(s, "chat.postMessage", {
-        channel: event.channel, thread_ts: event.thread_ts || event.ts, markdown_text: result.answer,
-        client_msg_id: clientId, unfurl_links: "false", unfurl_media: "false",
-      });
-      s.seen.add(`${event.channel}:${posted.ts}`);
-      await bridge(s, "delivered", { job: result.job, ts: posted.ts });
-      state.replies++;
-      await reaction(s, { channel: event.channel, ts: posted.ts }, "robot_face");
-      completion = diagnostic ? "warning" : "white_check_mark";
-      state.error = diagnostic || null;
-    } finally { await reaction(s, event, "eyes", true); }
-    await reaction(s, event, completion);
+    const context = await history(s, event);
+    const result = await bridge(s, "run", {
+      team: s.team, user: s.user, channel: event.channel, ts: event.ts,
+      thread_ts: event.thread_ts || event.ts, text: event.text, messages: context,
+    });
+    assertCurrent(s);
+    if (result.skip) return;
+    const diagnostic = result.error?.message;
+    if (diagnostic) result.answer = `⚠️ ${diagnostic}`;
+    if (typeof result.answer !== "string" || !result.answer.trim() || result.answer.length > 12000) throw failure("Command returned an invalid answer.");
+    // Claim delivery durably before the non-idempotent Slack request. Unknown sends are never retried.
+    if (!(await bridge(s, "claim", { job: result.job })).claimed) return;
+    assertCurrent(s);
+    const clientId = page.crypto.randomUUID();
+    s.sent.add(clientId);
+    const posted = await api(s, "chat.postMessage", {
+      channel: event.channel, thread_ts: event.thread_ts || event.ts, markdown_text: result.answer,
+      client_msg_id: clientId, unfurl_links: "false", unfurl_media: "false",
+    });
+    s.seen.add(`${event.channel}:${posted.ts}`);
+    await bridge(s, "delivered", { job: result.job, ts: posted.ts });
+    state.replies++;
+    await reaction(s, { channel: event.channel, ts: posted.ts }, "robot_face");
+    state.error = diagnostic || null;
   }
   function receive(s, event) {
     sync();
@@ -138,7 +133,7 @@
     const key = `${event.channel}:${event.thread_ts || event.ts}`;
     const acknowledged = reaction(s, event, "eyes");
     const work = (s.threads.get(key) || Promise.resolve()).then(async () => { await acknowledged; return process(s, event); })
-      .catch(error => { if (current(s)) { state.error = errorMessage(error); void reaction(s, event, "warning"); } })
+      .catch(error => { if (current(s)) state.error = errorMessage(error); })
       .finally(() => {
         if (session === s) state.pending--;
         if (s.threads.get(key) === work) s.threads.delete(key);

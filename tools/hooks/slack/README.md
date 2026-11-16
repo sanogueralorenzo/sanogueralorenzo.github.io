@@ -5,7 +5,8 @@
 Send `chat your request` for Codex or `claude your request` for Claude. Your own
 keyword-prefixed messages trigger work in channels and DMs, including messages
 sent from your phone. Replies appear as you in the same thread; follow-ups resume
-the agent session. **👀** queued/running · **✅** answered · **⚠️** failed.
+the agent session. **👀** acknowledges receipt and stays on the request; the thread
+reply gives the answer or explains the failure.
 
 Follow [Browser Hooks setup](../README.md#install-or-update) to install the shared
 extension and Rust bridge service. The popup shows Slack and a green/gray connection
@@ -36,8 +37,9 @@ Failed requests show an actionable message in their Slack thread and the
 popup tooltip. For an expired login, run `codex login` or `claude auth login`,
 then send a new request. Raw command output and credentials are never posted.
 
-Slack's configuration, saved browser key, sessions and private logs live together
-under `hooks/slack/` in the [application folder](../README.md#commands-and-files).
+Slack's configuration and sessions live under `hooks/slack/` in the
+[application folder](../README.md#commands-and-files). Browser pairing and service
+logs are shared at the application level.
 Authentication stays in the Slack page. Uncertain sends are never retried
 automatically; messages missed while offline are not replayed. Slack's browser
 authentication and event protocol are unofficial and may change.

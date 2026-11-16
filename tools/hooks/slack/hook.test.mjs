@@ -25,7 +25,7 @@ function locks() {
   } };
 }
 
-function fixture({ manager = locks(), action, failPost = false, removeEyes } = {}) {
+function fixture({ manager = locks(), action, failPost = false } = {}) {
   const calls = [], sockets = [], timers = new Map(), messages = [], listeners = new Map();
   let serial = 0, token = 'fixture', user = 'UTEST';
   const intervals = new Map();
@@ -45,7 +45,6 @@ function fixture({ manager = locks(), action, failPost = false, removeEyes } = {
     async fetch(url, options) {
       const method = url.split('/').at(-1), values = Object.fromEntries(options.body);
       calls.push({ method, values, options });
-      if (method === 'reactions.remove' && values.name === 'eyes' && removeEyes) await removeEyes();
       if (method === 'chat.postMessage' && failPost) throw new Error('Unknown network delivery');
       let result = {};
       if (method === 'auth.test') result = { user_id: user };
@@ -83,6 +82,8 @@ function fixture({ manager = locks(), action, failPost = false, removeEyes } = {
     posts: () => calls.filter(c => c.method === 'chat.postMessage') };
 }
 const message = (extra = {}) => ({ type: 'message', channel: 'DSELF', user: 'UTEST', ts: '2000000002.000001', text: 'hook ping', ...extra });
+const requestReactions = f => f.calls.filter(c => c.method.startsWith('reactions.') && c.values.timestamp === message().ts)
+  .map(c => `${c.method}:${c.values.name}`);
 
 test('starts from any Slack view and replies in public/private channels, DMs and group DMs', async () => {
   const f = fixture(); f.configure(); await settle();
@@ -107,23 +108,17 @@ test('only own new keyword-prefixed messages trigger; ignores duplicates, edits,
   await settle(); assert.equal(f.posts().length, 1);
 });
 
-test('completion reactions wait until removing the eyes reaction finishes', async () => {
+test('requests keep only the eyes acknowledgement after success or a diagnostic reply', async () => {
   for (const diagnostic of [false, true]) {
-    let finishRemoval;
     const f = fixture({
-      removeEyes: () => new Promise(resolve => { finishRemoval = resolve; }),
       action: d => d.action === 'run'
         ? { job: 'test', ...(diagnostic ? { error: { message: 'Sign in again.' } } : { answer: 'Done' }) }
         : d.action === 'claim' ? { claimed: true } : { ok: true },
     });
     f.configure(); await settle();
     f.sockets[0].event(message()); await settle();
-    const reactions = () => f.calls.filter(c => c.method.startsWith('reactions.') && c.values.timestamp === message().ts)
-      .map(c => `${c.method}:${c.values.name}`);
-    assert.deepEqual(reactions(), ['reactions.add:eyes', 'reactions.remove:eyes']);
-    assert.equal(f.page.agentHooks.status().pending, 1);
-    finishRemoval(); await settle();
-    assert.deepEqual(reactions(), ['reactions.add:eyes', 'reactions.remove:eyes', `reactions.add:${diagnostic ? 'warning' : 'white_check_mark'}`]);
+    assert.equal(f.posts().length, 1);
+    assert.deepEqual(requestReactions(f), ['reactions.add:eyes']);
     assert.equal(f.page.agentHooks.status().pending, 0);
     f.page.agentHooks.dispose();
   }
@@ -174,7 +169,7 @@ test('uncertain Slack delivery is not retried and later duplicate events do not 
   const f = fixture({ failPost: true }); f.configure(); await settle();
   f.sockets[0].event(message()); await settle(); f.sockets[0].event(message()); await settle();
   assert.equal(f.posts().length, 1);
-  assert.ok(f.calls.some(c => c.method === 'reactions.remove'));
+  assert.deepEqual(requestReactions(f), ['reactions.add:eyes']);
 });
 
 test('a delivery claim denied by the bridge prevents sending', async () => {
@@ -191,7 +186,7 @@ test('reconnect preserves admission state and uses only Slack fixed socket origi
   socket.event(message()); await settle(); assert.equal(f.posts().length, 1);
 });
 
-test('CLI failures post one actionable diagnostic with warning, never a success reaction', async () => {
+test('CLI failures post one actionable diagnostic and keep the eyes acknowledgement', async () => {
   const messageText = 'Claude login expired. Run `claude auth login` on your computer.';
   const f = fixture({ action: d => d.action === 'run'
     ? { job: 'test', error: { code: 'auth_required', message: messageText } }
@@ -201,8 +196,7 @@ test('CLI failures post one actionable diagnostic with warning, never a success 
   assert.equal(f.posts().length, 1);
   assert.equal(f.posts()[0].values.markdown_text, `⚠️ ${messageText}`);
   assert.equal(f.page.agentHooks.status().error, messageText);
-  assert.ok(f.calls.some(c => c.method === 'reactions.add' && c.values.name === 'warning'));
-  assert.ok(!f.calls.some(c => c.method === 'reactions.add' && c.values.name === 'white_check_mark'));
+  assert.deepEqual(requestReactions(f), ['reactions.add:eyes']);
 });
 
 test('healthy listeners have no account polling and queued tabs take over without a timer', async () => {
