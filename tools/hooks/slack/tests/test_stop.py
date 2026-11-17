@@ -27,6 +27,12 @@ class StopTests(unittest.TestCase):
     def test_stop_kills_running_descendants_clears_queue_and_preserves_session_and_project(self):
         project = self.home / "project"
         project.mkdir()
+        (self.home / "child.py").write_text('''import json,os,subprocess,sys,time
+from pathlib import Path
+child=subprocess.Popen([sys.executable,'-c','import time;time.sleep(30)'],start_new_session=True)
+(Path(__file__).parent/'pids.json').write_text(json.dumps([os.getppid(),os.getpid(),child.pid]))
+time.sleep(30)
+''')
         script = self.home / "agent.py"
         script.write_text('''import json,os,subprocess,sys,time
 from pathlib import Path
@@ -37,8 +43,7 @@ print(json.dumps({'type':'session','session_id':session}),flush=True)
 with (root/'runs.jsonl').open('a') as log:
  log.write(json.dumps({'session':session,'cwd':os.getcwd(),'prompt':prompt,'resumed':len(sys.argv)>1})+'\\n')
 if prompt.endswith('hold'):
- child=subprocess.Popen([sys.executable,'-c','import time;time.sleep(30)'])
- (root/'pids.json').write_text(json.dumps([os.getpid(),child.pid]))
+ subprocess.Popen([sys.executable,str(root/'child.py')],start_new_session=True)
  time.sleep(30)
 print(json.dumps({'session_id':session,'answer':'completed','chat_url':'codex://threads/00000000-0000-4000-8000-000000000001'}))
 ''')

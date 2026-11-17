@@ -30,6 +30,36 @@ struct Group(Option<u32>);
 impl Group {
     fn kill(&mut self) {
         if let Some(pid) = self.0.take() {
+            // CLI tools can create their own sessions, outside our process group.
+            if let Ok(output) = std::process::Command::new("ps")
+                .args(["-axo", "pid=,ppid="])
+                .output()
+            {
+                let parents: Vec<(u32, u32)> = String::from_utf8_lossy(&output.stdout)
+                    .lines()
+                    .filter_map(|line| {
+                        let mut fields = line.split_whitespace();
+                        Some((fields.next()?.parse().ok()?, fields.next()?.parse().ok()?))
+                    })
+                    .collect();
+                let mut descendants = vec![pid];
+                let mut index = 0;
+                while index < descendants.len() {
+                    let parent = descendants[index];
+                    descendants.extend(
+                        parents
+                            .iter()
+                            .filter(|(_, p)| *p == parent)
+                            .map(|(p, _)| *p),
+                    );
+                    index += 1;
+                }
+                for child in descendants.into_iter().skip(1).rev() {
+                    unsafe {
+                        libc::kill(child as i32, libc::SIGKILL);
+                    }
+                }
+            }
             unsafe {
                 libc::kill(-(pid as i32), libc::SIGKILL);
             }
