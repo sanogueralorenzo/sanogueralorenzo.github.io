@@ -5,6 +5,8 @@
 A native macOS browser with separate Spaces for work and personal browsing.
 Built with SwiftUI, AppKit, and WebKit.
 
+[itsbrowser.com](https://itsbrowser.com)
+
 - **Spaces** keep website sessions separate. Private Spaces stay in memory.
 - **Sidebar** keeps pins, saved tabs, folders, GitHub live folders, and media controls together.
 - **Browsing** includes split views, translation, Reader Mode, downloads, history, Archive, and browser import/export.

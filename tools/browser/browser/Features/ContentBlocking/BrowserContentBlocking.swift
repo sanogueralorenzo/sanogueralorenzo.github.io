@@ -58,7 +58,7 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
             }
             let webExtension = try await Self.extensionTask!.value
             let context = WKWebExtensionContext(for: webExtension)
-            context.uniqueIdentifier = "dev.thebrowser.ubol"
+            context.uniqueIdentifier = "com.itsbrowser.ubol"
             context.baseURL = URL(string: "webkit-extension://browser-ubol/")!
             context.hasAccessToPrivateData = privateSpace
             for permission in webExtension.requestedPermissions {
@@ -116,7 +116,7 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
         toApplicationWithIdentifier applicationIdentifier: String?, for extensionContext: WKWebExtensionContext,
         replyHandler: @escaping (Any?, (any Error)?) -> Void
     ) {
-        guard extensionContext === context, applicationIdentifier == "dev.thebrowser",
+        guard extensionContext === context, applicationIdentifier == "com.itsbrowser",
             let message = message as? [String: String]
         else {
             replyHandler(nil, BlockingError("Unknown content blocking message."))

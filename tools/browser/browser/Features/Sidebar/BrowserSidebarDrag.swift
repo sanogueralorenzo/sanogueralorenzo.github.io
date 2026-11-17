@@ -11,7 +11,7 @@ struct BrowserDragPayload {
     var folderIDs: [UUID] = []
     var activeTabID: UUID?
     var sourceID: UUID?
-    static let type = UTType(exportedAs: "dev.thebrowser.organization", conformingTo: .data).identifier
+    static let type = UTType(exportedAs: "com.itsbrowser.organization", conformingTo: .data).identifier
 }
 
 extension BrowserStore {

@@ -39,9 +39,9 @@ def package(archive):
         "        await setDefaultFilteringMode(3); // Browser uses uBOL Complete filtering.\n" +
         "        await registerContentScripts();\n" +
         "    }\n" +
-        "    browser.runtime.sendNativeMessage('dev.thebrowser', { event: 'ready' }).catch(() => {});")
+        "    browser.runtime.sendNativeMessage('com.itsbrowser', { event: 'ready' }).catch(() => {});")
     background = background.replace(failure, "}).catch(reason => {\n" +
-        "    browser.runtime.sendNativeMessage('dev.thebrowser', { event: 'error', message: String(reason) }).catch(() => {});\n" +
+        "    browser.runtime.sendNativeMessage('com.itsbrowser', { event: 'error', message: String(reason) }).catch(() => {});\n" +
         "    ubolErr(reason);")
     replacements = {
         "manifest.json": (json.dumps(manifest, indent=2) + "\n").encode(),

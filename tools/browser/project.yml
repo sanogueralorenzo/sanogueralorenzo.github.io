@@ -48,7 +48,7 @@ targets:
       - sdk: libcompression.tbd
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.thebrowser.Browser
+        PRODUCT_BUNDLE_IDENTIFIER: com.itsbrowser.Browser
         PRODUCT_NAME: Browser
         PRODUCT_MODULE_NAME: Browser
         INFOPLIST_FILE: Config/Info.plist

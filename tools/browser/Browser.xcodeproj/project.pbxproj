@@ -1066,7 +1066,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.thebrowser.Browser;
+				PRODUCT_BUNDLE_IDENTIFIER = com.itsbrowser.Browser;
 				PRODUCT_MODULE_NAME = Browser;
 				PRODUCT_NAME = Browser;
 				SDKROOT = macosx;
@@ -1158,7 +1158,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.thebrowser.Browser;
+				PRODUCT_BUNDLE_IDENTIFIER = com.itsbrowser.Browser;
 				PRODUCT_MODULE_NAME = Browser;
 				PRODUCT_NAME = Browser;
 				SDKROOT = macosx;
