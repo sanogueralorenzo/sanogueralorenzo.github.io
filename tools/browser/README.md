@@ -1,48 +1,42 @@
 # Lean
 
-A native macOS browser built with SwiftUI, AppKit, and WebKit.
-[leanbrowser.dev](https://leanbrowser.dev)
-Spaces have separate website sessions; private Spaces stay in memory.
-The hover sidebar contains pins, saved tabs, folders, GitHub live folders,
-and compact media controls. Split views, translation, content blocking,
-Reader Mode, downloads, history, Archive, and browser import/export are included.
+![Lean — open sidebar, tabs, and abstract split browsing illustration](docs/banner.png)
 
-## Build
+A native macOS browser with separate Spaces for work and personal browsing.
+Built with SwiftUI, AppKit, and WebKit.
 
-Requires Apple silicon, macOS 26.1+, Xcode, and XcodeGen (`brew install xcodegen`).
+- **Spaces** keep website sessions separate. Private Spaces stay in memory.
+- **Sidebar** keeps pins, saved tabs, folders, GitHub live folders, and media controls together.
+- **Browsing** includes split views, translation, Reader Mode, downloads, history, Archive, and browser import/export.
+- **Content blocking** uses bundled uBlock Origin Lite, with settings for each Space.
+
+**Build and run** (Apple silicon, macOS 26.1+, Xcode, and [XcodeGen](https://github.com/yonaskolb/XcodeGen)):
 
 ```sh
+cd tools/browser
+brew install xcodegen
 xcodegen generate
 xcodebuild -project Lean.xcodeproj -scheme Lean -configuration Release build
 ```
 
-Open `Lean.xcodeproj` to build and run in Xcode.
-Local builds use ad hoc signing and require no .NET, package downloads, or engine build.
-Passkeys require an Apple-authorized browser signing profile and
-`CODE_SIGN_ENTITLEMENTS=Config/Browser.entitlements`; local builds show their availability in Settings.
+Open `Lean.xcodeproj` in Xcode to run the app. Local builds use ad hoc signing.
+Passkeys require an Apple-authorized browser signing profile with
+`CODE_SIGN_ENTITLEMENTS=Config/Browser.entitlements`.
 
-## Browsing
+## Everyday use
 
-Without a selected tab, the screen follows the theme background and the sidebar stays visible.
-Otherwise, reveal the sidebar within 16 points of the left edge.
-Drag its right edge to resize it. Settings includes default page zoom, per-Space
-content blocking with bundled uBlock Origin Lite in Complete mode, EasyList Spanish,
-and data retention.
-Use ⌘L for addresses and commands, ⌘T for a new tab, ⌃Tab for recent tabs,
-and ⌥⌘←/→ to switch Spaces. On saved tabs, ⌘W returns to the saved address,
-then sleeps the page and selects another loaded tab.
-Swipe horizontally over a page for back/forward history, or over the sidebar to switch Spaces.
-Sidebar swipes follow your fingers; swipe back before releasing to cancel.
-With no selected tab, ⌘W keeps the window open; ⇧⌘W closes the window.
-Background pages unload after five idle minutes, protecting media and unsaved edits.
+Move to the left edge to reveal the sidebar; drag its right edge to resize it.
+Use **⌘L** for addresses and commands, **⌘T** for a new tab, **⌃Tab** for recent tabs,
+and **⌥⌘←/→** to switch Spaces. Swipe over a page to go back or forward,
+or over the sidebar to switch Spaces.
 
-Session checkpoints live in `~/Library/Application Support/Lean/SwiftSession`.
-A validated previous checkpoint supports recovery from a damaged write.
-For isolated review builds, set `LEAN_REVIEW_DATA_DIRECTORY` to a disposable directory
-and use a distinct bundle identifier; never launch fixtures against a personal session.
+Settings controls page zoom, content blocking, and data retention.
+Sessions are saved in `~/Library/Application Support/Lean/SwiftSession`, with a previous
+checkpoint for recovery. For isolated review builds, set `LEAN_REVIEW_DATA_DIRECTORY`
+to a disposable directory and use a distinct bundle identifier.
+
+To update the bundled blocker, run `python3 scripts/update-ublock-origin-lite.py VERSION`
+from this directory with an upstream Safari release tag, then rebuild.
 
 Source is [MPL-2.0](LICENSE), derived from [Crest](https://github.com/pauljoda/Crest).
 See [third-party notices](THIRD_PARTY_NOTICES.md) and [trademark terms](TRADEMARKS.md).
-
-To update the bundled blocker, run `python3 scripts/update-ublock-origin-lite.py VERSION`
-with an upstream Safari release tag, then rebuild. App builds need no downloads.
