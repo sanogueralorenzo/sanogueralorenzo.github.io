@@ -1,4 +1,4 @@
-name: Lean
+name: Browser
 configs:
   Debug: debug
   Release: release
@@ -21,11 +21,11 @@ settings:
     DEVELOPMENT_TEAM: ''
     ENABLE_HARDENED_RUNTIME: YES
 targets:
-  Lean:
+  Browser:
     type: application
     platform: macOS
     sources:
-      - path: Lean
+      - path: browser
       - path: Resources
       - path: Documentation/ReleaseNotes.json
         buildPhase: resources
@@ -48,15 +48,15 @@ targets:
       - sdk: libcompression.tbd
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.leanbrowser.Lean
-        PRODUCT_NAME: Lean
-        PRODUCT_MODULE_NAME: Lean
+        PRODUCT_BUNDLE_IDENTIFIER: dev.thebrowser.Browser
+        PRODUCT_NAME: Browser
+        PRODUCT_MODULE_NAME: Browser
         INFOPLIST_FILE: Config/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: Config/Local.entitlements
-        ASSETCATALOG_COMPILER_APPICON_NAME: Lean
+        ASSETCATALOG_COMPILER_APPICON_NAME: Browser
 schemes:
-  Lean:
+  Browser:
     build:
       targets:
-        Lean: all
+        Browser: all

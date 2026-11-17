@@ -25,23 +25,23 @@ def package(archive):
     failure = "}).catch(reason => {\n    ubolErr(reason);"
     bootstrap = "async function start() {\n    await loadRulesetConfig();"
     if background.count(success) != 1 or background.count(failure) != 1 or background.count(bootstrap) != 1:
-        raise ValueError("Upstream startup changed; review the Lean handshake before updating")
+        raise ValueError("Upstream startup changed; review the Browser handshake before updating")
     background = background.replace(bootstrap, bootstrap + "\n" +
-        "    const leanRulesets = rulesetConfig.enabledRulesets.filter(id => id !== 'spa-1');\n" +
-        "    if ( leanRulesets.includes('spa-0') === false ) { leanRulesets.push('spa-0'); }\n" +
-        "    if ( JSON.stringify(leanRulesets) !== JSON.stringify(rulesetConfig.enabledRulesets) || rulesetConfig.strictBlockMode !== false ) {\n" +
-        "        rulesetConfig.enabledRulesets = leanRulesets;\n" +
+        "    const browserRulesets = rulesetConfig.enabledRulesets.filter(id => id !== 'spa-1');\n" +
+        "    if ( browserRulesets.includes('spa-0') === false ) { browserRulesets.push('spa-0'); }\n" +
+        "    if ( JSON.stringify(browserRulesets) !== JSON.stringify(rulesetConfig.enabledRulesets) || rulesetConfig.strictBlockMode !== false ) {\n" +
+        "        rulesetConfig.enabledRulesets = browserRulesets;\n" +
         "        rulesetConfig.strictBlockMode = false; // Match the upstream Safari default.\n" +
         "        await saveRulesetConfig();\n" +
         "    }\n")
     background = background.replace(success, "const isFullyInitialized = start().then(async () => {\n" +
         "    if ( await getDefaultFilteringMode() !== 3 ) {\n" +
-        "        await setDefaultFilteringMode(3); // Lean uses uBOL Complete filtering.\n" +
+        "        await setDefaultFilteringMode(3); // Browser uses uBOL Complete filtering.\n" +
         "        await registerContentScripts();\n" +
         "    }\n" +
-        "    browser.runtime.sendNativeMessage('dev.leanbrowser', { event: 'ready' }).catch(() => {});")
+        "    browser.runtime.sendNativeMessage('dev.thebrowser', { event: 'ready' }).catch(() => {});")
     background = background.replace(failure, "}).catch(reason => {\n" +
-        "    browser.runtime.sendNativeMessage('dev.leanbrowser', { event: 'error', message: String(reason) }).catch(() => {});\n" +
+        "    browser.runtime.sendNativeMessage('dev.thebrowser', { event: 'error', message: String(reason) }).catch(() => {});\n" +
         "    ubolErr(reason);")
     replacements = {
         "manifest.json": (json.dumps(manifest, indent=2) + "\n").encode(),

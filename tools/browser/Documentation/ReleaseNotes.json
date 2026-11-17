@@ -8,7 +8,7 @@
   "entries": {
     "2026-10-27-easylist-spanish": {
       "category": "improved",
-      "message": "Enable EasyList Spanish and use uBlock Origin Lite's Safari behavior in Lean's WebKit host"
+      "message": "Enable EasyList Spanish and use uBlock Origin Lite's Safari behavior in Browser's WebKit host"
     },
     "2026-10-27-ublock-origin-lite": {
       "category": "improved",
@@ -4662,83 +4662,83 @@
       "category": "improved",
       "message": "A smaller native WebKit browser keeps Spaces, saved tabs, split views, live folders, recovery, and browsing tools without the separate browser core."
     },
-    "fork-lean-browser-branding": {
+    "fork-browser-branding": {
       "category": "improved",
-      "message": "Rename the native browser to Lean, including its app identity, project, assets, and data paths"
+      "message": "Rename the native browser to Browser, including its app identity, project, assets, and data paths"
     },
-    "lean-now-playing-artwork-concurrency": {
+    "browser-now-playing-artwork-concurrency": {
       "category": "fixed",
       "message": "Prevent crashes when macOS requests Now Playing artwork or media commands on background queues"
     },
-    "lean-callback-threading-audit": {
+    "browser-callback-threading-audit": {
       "category": "fixed",
       "message": "Fix the screen-capture shutdown callback lifetime and make content-blocking completions independent of the main actor"
     },
-    "lean-version-1-0-0": {
+    "browser-version-1-0-0": {
       "category": "internal",
-      "message": "Set Lean’s release version to 1.0.0"
+      "message": "Set Browser’s release version to 1.0.0"
     },
-    "lean-swept-ribbon-icon": {
+    "browser-swept-ribbon-icon": {
       "category": "improved",
       "message": "Adopt a centered blue and cyan folded-ribbon icon with a red inner edge"
     },
-    "lean-broad-soft-fold-icon": {
+    "browser-broad-soft-fold-icon": {
       "category": "improved",
       "message": "Use the selected Broad Soft Fold ribbon icon, centered within its white square"
     },
-    "lean-webkit-feature-flags": {
+    "browser-webkit-feature-flags": {
       "category": "new",
       "message": "Match Crest’s WebKit feature flags, saved overrides, 120 FPS control, and background scheduling preferences"
     },
-    "lean-webkit-fixed-defaults": {
+    "browser-webkit-fixed-defaults": {
       "category": "improved",
       "message": "Apply Crest’s WebKit defaults automatically and remove feature-flag settings and saved overrides"
     },
-    "lean-sidebar-settings-organization": {
+    "browser-sidebar-settings-organization": {
       "category": "improved",
       "message": "Resize the hover sidebar, organize nested folders and split views, and manage default zoom and per-Space privacy in grouped Settings."
     },
-    "lean-durable-github-live-folders": {
+    "browser-durable-github-live-folders": {
       "category": "fixed",
       "message": "Keep GitHub live-folder tabs and their names across refreshes and relaunches without collecting private Spaces."
     },
-    "lean-sidebar-media-playback-state": {
+    "browser-sidebar-media-playback-state": {
       "category": "fixed",
       "message": "Keep Now Playing controls in sync with paused media, with track controls, mute and hide actions, and private playback kept out of the system media card."
     },
-    "lean-floating-sidebar-chrome-alignment": {
+    "browser-floating-sidebar-chrome-alignment": {
       "category": "improved",
       "message": "Keep a seven-point gap around the floating sidebar, follow the window’s corners, and align native window controls with Spaces."
     },
-    "lean-native-window-control-positions": {
+    "browser-native-window-control-positions": {
       "category": "fixed",
       "message": "Keep native window controls at their original AppKit positions to avoid refresh glitches."
     },
-    "lean-system-titlebar-controls": {
+    "browser-system-titlebar-controls": {
       "category": "improved",
       "message": "Use AppKit’s unified titlebar to align window controls with Spaces without overriding native button positions."
     },
-    "lean-crest-window-corners": {
+    "browser-crest-window-corners": {
       "category": "fixed",
       "message": "Restore Crest’s smaller titlebar-only window corners while preserving the seven-point floating sidebar gap."
     },
-    "lean-crest-sidebar-hover-dismissal": {
+    "browser-crest-sidebar-hover-dismissal": {
       "category": "fixed",
       "message": "Use Crest’s separate native edge and sidebar hover trackers so leaving the sidebar dismisses it and menu holds release correctly."
     },
-    "lean-youtube-system-appearance": {
+    "browser-youtube-system-appearance": {
       "category": "fixed",
       "message": "Use Crest’s native Safari-compatible browser identification so YouTube follows the system’s dark appearance."
     },
-    "lean-aligned-controls-small-corners": {
+    "browser-aligned-controls-small-corners": {
       "category": "fixed",
       "message": "Keep standard AppKit window controls aligned with Spaces through refreshes without enlarging the window corners."
     },
-    "lean-sidebar-header-window-drag": {
+    "browser-sidebar-header-window-drag": {
       "category": "fixed",
       "message": "Let the empty header beside window and Space controls drag the window and follow the system’s titlebar double-click action."
     },
-    "lean-crest-sidebar-slide-animation": {
+    "browser-crest-sidebar-slide-animation": {
       "category": "improved",
       "message": "Use Crest’s smooth sidebar slide when revealing and dismissing the floating card, preserving its content and respecting Reduce Motion."
     }

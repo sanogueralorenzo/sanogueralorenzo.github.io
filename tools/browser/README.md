@@ -1,6 +1,6 @@
-# Lean
+# Browser
 
-![Lean — open sidebar, tabs, and abstract split browsing illustration](docs/banner.png)
+![Browser — open sidebar, tabs, and abstract split browsing illustration](docs/banner.png)
 
 A native macOS browser with separate Spaces for work and personal browsing.
 Built with SwiftUI, AppKit, and WebKit.
@@ -16,10 +16,10 @@ Built with SwiftUI, AppKit, and WebKit.
 cd tools/browser
 brew install xcodegen
 xcodegen generate
-xcodebuild -project Lean.xcodeproj -scheme Lean -configuration Release build
+xcodebuild -project Browser.xcodeproj -scheme Browser -configuration Release build
 ```
 
-Open `Lean.xcodeproj` in Xcode to run the app. Local builds use ad hoc signing.
+Open `Browser.xcodeproj` in Xcode to run the app. Local builds use ad hoc signing.
 Passkeys require an Apple-authorized browser signing profile with
 `CODE_SIGN_ENTITLEMENTS=Config/Browser.entitlements`.
 
@@ -31,8 +31,8 @@ and **⌥⌘←/→** to switch Spaces. Swipe over a page to go back or forward,
 or over the sidebar to switch Spaces.
 
 Settings controls page zoom, content blocking, and data retention.
-Sessions are saved in `~/Library/Application Support/Lean/SwiftSession`, with a previous
-checkpoint for recovery. For isolated review builds, set `LEAN_REVIEW_DATA_DIRECTORY`
+Sessions are saved in `~/Library/Application Support/Browser/SwiftSession`, with a previous
+checkpoint for recovery. For isolated review builds, set `BROWSER_REVIEW_DATA_DIRECTORY`
 to a disposable directory and use a distinct bundle identifier.
 
 To update the bundled blocker, run `python3 scripts/update-ublock-origin-lite.py VERSION`

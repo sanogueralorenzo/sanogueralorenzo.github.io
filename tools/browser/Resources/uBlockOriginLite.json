@@ -3,6 +3,6 @@
   "source": "https://github.com/uBlockOrigin/uBOL-home/releases/tag/2026.1026.1812",
   "archive": "https://github.com/uBlockOrigin/uBOL-home/releases/download/2026.1026.1812/uBOLite_2026.1026.1812.safari.zip",
   "upstreamSHA256": "f56b42e7e753143b1da4f64e12baf67724d48cef055eb46f9d49eddb4665f5b3",
-  "bundledSHA256": "bab74c41891fa183ce654df76628e82b4ccbdf970f41b6e11523f37943fbd0c1",
+  "bundledSHA256": "f3048bf862c6b6e54133a5669745639a4ac40f717da561cd12df7cdf2e1002e1",
   "changes": "Recognize WebKit's extension scheme as the Safari runtime, enable Complete filtering and EasyList Spanish (spa-0), exclude Spanish/Portuguese (spa-1), and add nativeMessaging startup messages; filtering algorithms and rules are unchanged."
 }
