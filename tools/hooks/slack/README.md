@@ -34,6 +34,8 @@ Set `workspace` for the default directory and `projects` for aliases mapped to
 project directories. The first alias in a request selects the project; follow-ups
 inherit it. Native CLI models and permissions are preserved. Requests have no
 overall time limit; short connection and control-call timeouts still apply.
+Up to 32 Slack threads execute concurrently across all providers; requests within
+each thread run sequentially.
 
 Codex starts a private stdio app-server for each request and exits it before
 returning the answer. The saved chat remains available in the Codex app. Follow-ups

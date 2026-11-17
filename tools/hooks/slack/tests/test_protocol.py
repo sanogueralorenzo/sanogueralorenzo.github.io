@@ -429,20 +429,32 @@ class NativeProtocolTests(unittest.TestCase):
             finally:
                 c.close()
 
-    def test_concurrency_is_bounded_at_eight(self):
+    def test_concurrency_is_bounded_at_thirty_two(self):
         log = self.home / "concurrency.jsonl"
-        script = (
-            "import json,os,sys,time;sys.stdin.read();f=open("
-            + repr(str(log))
-            + ',"a");f.write(json.dumps(["start",os.getpid()])+"\\n");f.flush();time.sleep(.2);f.write(json.dumps(["end",os.getpid()])+"\\n");f.flush();print(json.dumps({"session_id":"s","answer":"answer"}))'
-        )
+        release = self.home / "release"
+        script = f'''import json,os,sys,time
+from pathlib import Path
+sys.stdin.read()
+with open({str(log)!r},"a") as f:
+ f.write(json.dumps(["start",os.getpid()])+"\\n");f.flush()
+ while not Path({str(release)!r}).exists(): time.sleep(.01)
+ f.write(json.dumps(["end",os.getpid()])+"\\n");f.flush()
+print(json.dumps({{"session_id":"s","answer":"answer"}}))
+'''
         b = self.start(config=configuration(self.home, script))
         jobs = [
             b.request("POST", "/slack/run", event(channel=f"C{n}", ts=f"2000000001.{n:06}"))[
                 "job"
             ]
-            for n in range(12)
+            for n in range(36)
         ]
+        try:
+            wait_until(lambda: log.exists() and len(log.read_text().splitlines()) == 32, seconds=10)
+            statuses = [b.request("GET", "/slack/jobs/" + job)["status"] for job in jobs]
+            self.assertEqual(statuses.count("running"), 32)
+            self.assertEqual(statuses.count("queued"), 4)
+        finally:
+            release.touch()
         for job in jobs:
             b.wait(job)
         active = peak = 0
@@ -451,8 +463,7 @@ class NativeProtocolTests(unittest.TestCase):
             active += 1 if kind == "start" else -1
             peak = max(peak, active)
         self.assertEqual(active, 0)
-        self.assertLessEqual(peak, 8)
-        self.assertGreaterEqual(peak, 2)
+        self.assertEqual(peak, 32)
 
 
 if __name__ == "__main__":

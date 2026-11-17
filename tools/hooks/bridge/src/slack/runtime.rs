@@ -60,7 +60,7 @@ impl Runtime {
                 last_error: None,
             }),
             events,
-            limit: Semaphore::new(8),
+            limit: Semaphore::new(32),
             idle: Notify::new(),
             _owner: owner,
         }))
