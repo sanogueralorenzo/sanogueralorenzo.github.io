@@ -71,22 +71,26 @@
     try { await api(s, "reactions.add", { channel: event.channel, timestamp: event.ts, name }); }
     catch { /* Reactions must not prevent command execution or delivery. */ }
   }
-  async function history(s, event) {
+  async function history(s, event, after) {
     if (!event.thread_ts || event.thread_ts === event.ts) return [];
-    const messages = [], visited = new Set();
+    if (after && Number(after) >= Number(event.ts)) return [];
+    const messages = new Map(), visited = new Set();
     let cursor = "";
     do {
       const result = await api(s, "conversations.replies", {
-        channel: event.channel, ts: event.thread_ts, latest: event.ts, inclusive: "true", limit: "200", ...(cursor ? { cursor } : {}),
+        channel: event.channel, ts: event.thread_ts, latest: event.ts, inclusive: "true", limit: "200",
+        ...(after ? { oldest: after } : {}), ...(cursor ? { cursor } : {}),
       });
       for (const m of result.messages || []) {
-        if (typeof m.ts === "string" && Number(m.ts) <= Number(event.ts)) messages.push({ ts: m.ts, user: m.user || m.bot_id || "unknown", text: (m.text || "").slice(0, 12000) });
+        if (typeof m.ts === "string" && Number(m.ts) <= Number(event.ts) && (!after || Number(m.ts) > Number(after))) {
+          messages.set(m.ts, { ts: m.ts, user: m.user || m.bot_id || "unknown", text: (m.text || "").slice(0, 12000) });
+        }
       }
       cursor = result.response_metadata?.next_cursor || "";
-      if (messages.length > 1000 || visited.has(cursor) && cursor) throw failure("Thread too large. Start a new thread.");
+      if (messages.size > 1000 || visited.has(cursor) && cursor) throw failure("Thread too large. Start a new thread.");
       visited.add(cursor);
     } while (cursor);
-    return messages;
+    return [...messages.values()].sort((a, b) => Number(a.ts) - Number(b.ts));
   }
   function accepts(event, s) {
     if (!current(s) || event.type !== "message" || event.user !== s.user
@@ -162,11 +166,13 @@
     const acknowledged = reaction(s, event, "eyes");
     track(s, event, async () => {
       await acknowledged;
-      const messages = await history(s, event);
-      return (await bridge(s, "run", {
+      const payload = {
         team: s.team, user: s.user, channel: event.channel, ts: event.ts,
-        thread_ts: event.thread_ts || event.ts, text: event.text, messages,
-      })).job;
+        thread_ts: event.thread_ts || event.ts, text: event.text, messages: [],
+      };
+      const after = payload.thread_ts !== event.ts ? (await bridge(s, "history", payload)).after : null;
+      const messages = await history(s, event, after);
+      return (await bridge(s, "run", { ...payload, messages, history_after: after })).job;
     });
   }
   function disconnect(s) {

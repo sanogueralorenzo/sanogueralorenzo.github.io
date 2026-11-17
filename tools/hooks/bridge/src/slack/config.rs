@@ -211,6 +211,7 @@ pub struct Event {
     pub thread_ts: String,
     pub text: String,
     pub messages: Vec<Message>,
+    pub history_after: Option<String>,
 }
 pub fn timestamp(text: &str) -> bool {
     static TS: LazyLock<Regex> =
@@ -230,6 +231,7 @@ impl Event {
             || !CHANNEL.is_match(&self.channel)
             || !timestamp(&self.ts)
             || !timestamp(&self.thread_ts)
+            || self.history_after.as_ref().is_some_and(|ts| !timestamp(ts))
             || self.messages.len() > 1000
             || self
                 .messages

@@ -63,6 +63,8 @@ impl Slack {
             self.runtime.submit(body)
         } else if method == Method::POST && path == "/recover" {
             self.runtime.recover(body)
+        } else if method == Method::POST && path == "/history" {
+            self.runtime.history(body)
         } else if method == Method::POST && ["/claim", "/cancel", "/delivered"].contains(&path) {
             static JOB: LazyLock<Regex> =
                 LazyLock::new(|| Regex::new(r"\A[a-f0-9]{64}\z").unwrap());

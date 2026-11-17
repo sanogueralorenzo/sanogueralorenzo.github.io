@@ -36,7 +36,7 @@
     if (data.type === "ready") { if (port) port.postMessage({ type: "ready" }); else connect(); }
     if (data.type === "status") { status = data.status; port?.postMessage({ type: "status", status }); }
     if (data.type === "request" && typeof data.id === "string" && data.id.length <= 100 && !active.has(data.id)
-      && active.size < 128 && ["run", "wait", "recover", "claim", "delivered"].includes(data.action)) {
+      && active.size < 128 && ["run", "wait", "recover", "history", "claim", "delivered"].includes(data.action)) {
       if (!port) { send("response", { id: data.id, ok: false, error: "Extension disconnected. Reload this Slack tab." }); return; }
       active.add(data.id);
       port.postMessage({ type: "request", id: data.id, action: data.action, payload: data.payload });

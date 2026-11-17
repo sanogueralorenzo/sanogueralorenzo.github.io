@@ -17,6 +17,39 @@ use std::{
 use tokio::sync::{Notify, Semaphore, broadcast, watch};
 
 type Saved = (String, String, String, String, bool);
+struct Selection {
+    saved: Option<Saved>,
+    workspace: PathBuf,
+    command: String,
+}
+impl Selection {
+    fn load(
+        db: &Connection,
+        thread: &str,
+        command: &Command,
+        project: Option<&Path>,
+        default: &Path,
+    ) -> rusqlite::Result<Self> {
+        let saved: Option<Saved> = db.query_row(
+            "SELECT command,workspace,session,context_ts,answered FROM sessions WHERE thread=?1",
+            [thread], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?)),
+        ).optional()?;
+        let workspace = project
+            .map(Path::to_path_buf)
+            .or_else(|| saved.as_ref().map(|s| PathBuf::from(&s.1)))
+            .unwrap_or_else(|| default.to_path_buf());
+        Ok(Self {
+            saved,
+            workspace,
+            command: storage_json(&serde_json::to_value(command).unwrap()),
+        })
+    }
+    fn resume(&self) -> Option<&Saved> {
+        self.saved
+            .as_ref()
+            .filter(|s| s.0 == self.command && s.1 == self.workspace.to_string_lossy())
+    }
+}
 #[derive(Deserialize, Serialize)]
 struct Request {
     event: Event,
@@ -142,6 +175,50 @@ impl Runtime {
             jobs.push(json!({"job":job,"event":{"channel":input.event.channel,"ts":input.event.ts,"thread_ts":input.event.thread_ts}}));
         }
         Ok(json!({"jobs":jobs}))
+    }
+    pub fn history(&self, value: Value) -> Result<Value, String> {
+        let event: Event = serde_json::from_value(value).map_err(|_| "Invalid message envelope")?;
+        event.validate()?;
+        let (command, project, _) = self.config.route(&event.text)?;
+        let thread = storage_json(&json!([
+            event.team,
+            event.user,
+            event.channel,
+            event.thread_ts
+        ]));
+        let inner = self.inner.lock().unwrap();
+        let selected = Selection::load(
+            &inner.db,
+            &thread,
+            &command,
+            project.as_deref(),
+            &self.config.workspace,
+        )
+        .map_err(storage_error)?;
+        let Some(saved) = selected.resume().filter(|s| super::config::timestamp(&s.3)) else {
+            return Ok(json!({"after":null}));
+        };
+        // Earlier accepted turns can replace the native session before this request executes.
+        let mut statement = inner
+            .db
+            .prepare("SELECT request FROM jobs WHERE thread=?1 AND status IN ('queued','running')")
+            .map_err(storage_error)?;
+        let pending = statement
+            .query_map([thread], |r| r.get::<_, String>(0))
+            .map_err(storage_error)?;
+        for row in pending {
+            let input: Request = serde_json::from_str(&row.map_err(storage_error)?)
+                .map_err(|_| "Local bridge saved request is invalid")?;
+            if storage_json(&serde_json::to_value(&input.command).unwrap()) != selected.command
+                || input
+                    .project
+                    .as_ref()
+                    .is_some_and(|p| p != &selected.workspace)
+            {
+                return Ok(json!({"after":null}));
+            }
+        }
+        Ok(json!({"after":saved.3}))
     }
     fn state(db: &Connection, job: &str) -> Result<Option<Value>, String> {
         let row = db
@@ -284,7 +361,7 @@ impl Runtime {
         if *item.cancel.borrow() {
             return Ok(());
         }
-        let saved: Option<Saved> = {
+        let selected = {
             let inner = self.inner.lock().unwrap();
             if inner.closed {
                 return Ok(());
@@ -299,31 +376,32 @@ impl Runtime {
             if claimed == 0 {
                 return Ok(());
             }
-            inner
-                .db
-                .query_row(
-                    "SELECT command,workspace,session,context_ts,answered FROM sessions WHERE thread=?1",
-                    [&item.thread],
-                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
-                )
-                .optional()
-                .map_err(|_| HookError::new("command_failed"))?
+            Selection::load(
+                &inner.db,
+                &item.thread,
+                &item.input.command,
+                item.input.project.as_deref(),
+                &item.input.workspace,
+            )
+            .map_err(|_| HookError::new("command_failed"))?
         };
-        let workspace = item
-            .input
-            .project
-            .clone()
-            .or_else(|| saved.as_ref().map(|s| PathBuf::from(&s.1)))
-            .unwrap_or_else(|| item.input.workspace.clone());
+        let workspace = &selected.workspace;
         if !workspace.is_dir() {
             return Err(HookError::new("workspace_missing"));
         }
-        let command_key = storage_json(&serde_json::to_value(&item.input.command).unwrap());
-        let resume = saved
-            .as_ref()
-            .filter(|s| s.0 == command_key && s.1 == workspace.to_string_lossy());
+        let command_key = &selected.command;
+        let resume = selected.resume();
         let session = resume.map(|s| s.2.as_str());
         let after = resume.and_then(|s| s.3.parse::<f64>().ok()).unwrap_or(0.0);
+        if item
+            .input
+            .event
+            .history_after
+            .as_ref()
+            .is_some_and(|s| s.parse::<f64>().unwrap() > after)
+        {
+            return Err(HookError::new("context_changed"));
+        }
         let known: HashSet<String> = {
             let inner = self.inner.lock().unwrap();
             let mut statement = inner
@@ -357,12 +435,17 @@ impl Runtime {
         if prompt.len() > 256 * 1024 {
             return Err(HookError::new("context_limit"));
         }
-        let answered = saved.as_ref().is_some_and(|s| s.4);
+        let answered = selected.saved.as_ref().is_some_and(|s| s.4);
         let checkpoint_ts = resume.map(|s| s.3.as_str()).unwrap_or("0");
+        let context_ts = if after > end {
+            checkpoint_ts
+        } else {
+            item.input.event.ts.as_str()
+        };
         let reply = process::execute(
             &item.input.command,
             &prompt,
-            &workspace,
+            workspace,
             session,
             &item.cancel,
             |returned| {
@@ -406,7 +489,7 @@ impl Runtime {
                     command_key,
                     workspace.to_string_lossy(),
                     reply.session,
-                    item.input.event.ts
+                    context_ts
                 ],
             )
             .map_err(|_| HookError::new("command_failed"))?;

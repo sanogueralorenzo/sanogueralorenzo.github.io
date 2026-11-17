@@ -25,7 +25,7 @@ function locks() {
   } };
 }
 
-function fixture({ manager = locks(), action, failPost = false, recovery = [] } = {}) {
+function fixture({ manager = locks(), action, failPost = false, recovery = [], threadPage } = {}) {
   const calls = [], sockets = [], timers = new Map(), timeouts = new Map(), messages = [], listeners = new Map();
   let serial = 0, token = 'fixture', user = 'UTEST';
   const intervals = new Map();
@@ -50,7 +50,7 @@ function fixture({ manager = locks(), action, failPost = false, recovery = [] } 
       let result = {};
       if (method === 'auth.test') result = { user_id: user };
       if (method === 'team.info') result = { team: { id: 'ETEST' } };
-      if (method === 'conversations.replies') result = { messages: [message({ ts: '2000000001.000001', text: 'Earlier context' })] };
+      if (method === 'conversations.replies') result = threadPage ? threadPage(values) : { messages: [message({ ts: '2000000001.000001', text: 'Earlier context' })] };
       if (method === 'chat.postMessage') {
         result = { ts: `2000000099.${String(++serial).padStart(6, '0')}` };
         sockets.at(-1).event(message({ ts: result.ts, text: values.markdown_text, channel: values.channel, client_msg_id: values.client_msg_id }));
@@ -69,6 +69,7 @@ function fixture({ manager = locks(), action, failPost = false, recovery = [] } 
         const fallback = data.action === 'run' ? { job: `job-${data.id}`, status: 'queued' }
           : data.action === 'wait' ? { job: data.payload.job, answer: 'Test agent answer' }
           : data.action === 'recover' ? { jobs: typeof recovery === 'function' ? recovery() : recovery }
+          : data.action === 'history' ? { after: null }
           : data.action === 'claim' ? { claimed: !claimed.has(data.payload.job) } : { ok: true };
         if (data.action === 'claim' && fallback.claimed) claimed.add(data.payload.job);
         const value = action?.(data) ?? fallback;
@@ -89,6 +90,54 @@ function fixture({ manager = locks(), action, failPost = false, recovery = [] } 
 const message = (extra = {}) => ({ type: 'message', channel: 'DSELF', user: 'UTEST', ts: '2000000002.000001', text: 'hook ping', ...extra });
 const requestReactions = f => f.calls.filter(c => c.method.startsWith('reactions.') && c.values.timestamp === message().ts)
   .map(c => `${c.method}:${c.values.name}`);
+
+test('long-thread continuation fetches only messages after the completed checkpoint', async () => {
+  const after = '2000000001.000000';
+  const older = Array.from({ length: 1500 }, (_, i) => message({ ts: `1999999999.${String(i).padStart(6, '0')}`, text: 'Old context' }));
+  const all = [...older, message({ ts: after, text: 'Already completed' }), message({ ts: '2000000001.000001', text: 'Fresh context' }), message()];
+  const f = fixture({ action: d => d.action === 'history' ? { after } : undefined,
+    threadPage(values) {
+      const eligible = all.filter(m => !values.oldest || Number(m.ts) >= Number(values.oldest));
+      const offset = Number(values.cursor || 0), next = offset + 200;
+      return { messages: eligible.slice(offset, next), response_metadata: { next_cursor: next < eligible.length ? String(next) : '' } };
+    } });
+  f.configure(); await settle();
+  f.sockets[0].event(message({ thread_ts: '1999999999.000001' })); await settle();
+  const calls = f.calls.filter(c => c.method === 'conversations.replies');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].values.oldest, after);
+  const accepted = f.messages.find(m => m.action === 'run').payload;
+  assert.equal(accepted.history_after, after);
+  assert.deepEqual(Array.from(accepted.messages, m => m.text), ['Fresh context', 'hook ping']);
+  assert.equal(f.posts().length, 1);
+  f.page.agentHooks.dispose();
+});
+
+test('full thread context is deduplicated and sorted across pages and excludes future messages', async () => {
+  const pages = [
+    [message({ ts: '2000000001.000003', text: 'Last' }), message({ ts: '2000000001.000001', text: 'First' })],
+    [message({ ts: '2000000001.000001', text: 'First, latest copy' }), message({ ts: '2000000001.000002', text: 'Middle' }), message({ ts: '2000000003.000001', text: 'Future' })],
+  ];
+  const f = fixture({ threadPage: values => ({ messages: pages[Number(values.cursor || 0)], response_metadata: { next_cursor: values.cursor ? '' : '1' } }) });
+  f.configure(); await settle();
+  f.sockets[0].event(message({ thread_ts: '1999999999.000001' })); await settle();
+  const calls = f.calls.filter(c => c.method === 'conversations.replies');
+  assert.equal(calls.length, 2);
+  assert.ok(calls.every(c => !('oldest' in c.values)));
+  const accepted = f.messages.find(m => m.action === 'run').payload;
+  assert.equal(accepted.history_after, null);
+  assert.deepEqual(Array.from(accepted.messages, m => m.text), ['First, latest copy', 'Middle', 'Last']);
+  f.page.agentHooks.dispose();
+});
+
+test('the context limit still applies when a new session needs full history', async () => {
+  const f = fixture({ threadPage: () => ({ messages: Array.from({ length: 1001 }, (_, i) => message({ ts: `1999999999.${String(i).padStart(6, '0')}` })) }) });
+  f.configure(); await settle();
+  f.sockets[0].event(message({ thread_ts: '1999999999.000001' })); await settle();
+  assert.ok(!f.messages.some(m => m.action === 'run'));
+  assert.match(f.page.agentHooks.status().error, /Thread too large/);
+  f.page.agentHooks.dispose();
+});
 
 test('a reloaded page recovers accepted jobs without admitting or reacting to them again', async () => {
   let finish;

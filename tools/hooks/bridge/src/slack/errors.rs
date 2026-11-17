@@ -23,6 +23,7 @@ impl HookError {
             "session_busy" => "session_busy",
             "output_limit" => "output_limit",
             "context_limit" => "context_limit",
+            "context_changed" => "context_changed",
             "workspace_missing" => "workspace_missing",
             _ => "command_failed",
         };
@@ -62,6 +63,7 @@ impl HookError {
             "session_busy" => format!("This chat is open in another {provider} client. Continue there, or release it there before retrying from Slack."),
             "output_limit" => format!("{provider} produced too much output. Try a smaller request."),
             "context_limit" => "This thread is too large to send to the agent. Start a new Slack thread.".into(),
+            "context_changed" => "The agent session changed while thread history was loading. Send the request again to refresh its context.".into(),
             "workspace_missing" => "The configured project directory no longer exists. Update workspace/projects and run `browser-hooks install`.".into(),
             _ => format!("{provider} failed. Run the CLI directly on your computer, then send a new request."),
         };

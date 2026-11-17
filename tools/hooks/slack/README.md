@@ -29,6 +29,8 @@ contract.
 Adapters can first flush `{"type":"session","session_id":"<id>"}` on its own
 line to save the session before work finishes. Codex emits this as soon as its chat
 is created or resumed. Only a completed answer advances the saved thread context.
+Follow-ups fetch only newer Slack messages. New sessions and provider/project
+switches fetch full context; paginated history is deduplicated and sorted by timestamp.
 
 Set `workspace` for the default directory and `projects` for aliases mapped to
 project directories. The first alias in a request selects the project; follow-ups

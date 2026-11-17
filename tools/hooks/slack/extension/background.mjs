@@ -74,7 +74,7 @@ async function dispatch(client, message) {
   client.requests.set(message.id, entry);
   try {
     const { action, payload } = message;
-    if (!["run", "wait", "recover", "claim", "delivered"].includes(action)
+    if (!["run", "wait", "recover", "history", "claim", "delivered"].includes(action)
       || ["wait", "claim", "delivered"].includes(action) && !/^[a-f0-9]{64}$/.test(payload?.job)) throw new Error("Invalid Slack operation");
     if (action === "wait") { entry.job = payload.job; void update(entry.job); return; }
     const value = await request(`/slack/${action}`, payload);

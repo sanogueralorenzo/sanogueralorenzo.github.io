@@ -50,6 +50,7 @@ function worker({ token, bootstrap, pairStatus = 200 } = {}) {
       if (url.endsWith('/config')) return { hooks: {slack: {keywords: ['chat', 'claude']}} };
       if (url.includes('/slack/jobs/')) return state;
       if (url.endsWith('/slack/run')) return { job, status: 'queued' };
+      if (url.endsWith('/slack/history')) return { after: '2000000001.000001' };
       return { ok: true };
     } };
   };
@@ -68,6 +69,14 @@ function worker({ token, bootstrap, pairStatus = 200 } = {}) {
   };
 }
 const popup = () => port('popup', { url: `${origin}/popup/index.html` });
+
+test('history lookups return a checkpoint without starting or waiting for a command', async () => {
+  const w = worker(), page = port(); w.connectPort(page); await w.ready();
+  page.send({ type: 'request', id: 'history', action: 'history', payload: { text: 'chat follow-up' } }); await settle();
+  assert.equal(page.sent.find(value => value.id === 'history').value.after, '2000000001.000001');
+  assert.equal(w.calls.filter(c => c.url.endsWith('/slack/history')).length, 1);
+  assert.ok(!w.calls.some(c => c.url.endsWith('/slack/run') || c.url.includes('/slack/jobs/')));
+});
 
 test('manifest registers automatic scripts without new permissions or exposed pairing files', () => {
   const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url)));
