@@ -126,15 +126,17 @@
   function track(s, event, admit) {
     state.pending++;
     const key = `${event.channel}:${event.thread_ts || event.ts}`;
-    // Admit every request durably while earlier turns are running; serialize only Slack delivery.
+    // Persist requests without waiting for earlier agent turns; serialize Slack delivery.
     let job;
+    const stopped = () => Number(event.ts) < (s.stops.get(key) || 0);
     const accepted = (s.admissions.get(key) || Promise.resolve()).then(async () => {
-      job = await admit(); s.jobs.add(job); return job;
+      if (stopped()) return;
+      job = await admit(stopped); if (job) s.jobs.add(job); return job;
     });
     const admission = accepted.then(() => {}, () => {});
     s.admissions.set(key, admission);
     void admission.then(() => { if (s.admissions.get(key) === admission) s.admissions.delete(key); });
-    const work = (s.threads.get(key) || Promise.resolve()).then(async () => deliver(s, event, await accepted))
+    const work = (s.threads.get(key) || Promise.resolve()).then(async () => { const job = await accepted; if (job) await deliver(s, event, job); })
       .catch(error => { if (current(s)) state.error = errorMessage(error); })
       .finally(() => {
         s.jobs.delete(job);
@@ -161,17 +163,24 @@
     sync();
     if (!accepts(event, s)) return;
     s.seen.add(`${event.channel}:${event.ts}`);
-    if (state.pending >= 100) { state.error = "Queue full. Send the command again later."; publishStatus(); return; }
+    const stop = /^\S+\s+stop\s*$/i.test(event.text);
+    if (!stop && state.pending >= 100) { state.error = "Queue full. Send the command again later."; publishStatus(); return; }
+    if (stop) {
+      const key = `${event.channel}:${event.thread_ts || event.ts}`;
+      s.stops.set(key, Math.max(s.stops.get(key) || 0, Number(event.ts)));
+    }
     state.received++;
     const acknowledged = reaction(s, event, "eyes");
-    track(s, event, async () => {
+    track(s, event, async stopped => {
       await acknowledged;
+      if (stopped()) return;
       const payload = {
         team: s.team, user: s.user, channel: event.channel, ts: event.ts,
         thread_ts: event.thread_ts || event.ts, text: event.text, messages: [],
       };
-      const after = payload.thread_ts !== event.ts ? (await bridge(s, "history", payload)).after : null;
-      const messages = await history(s, event, after);
+      const after = !stop && payload.thread_ts !== event.ts ? (await bridge(s, "history", payload)).after : null;
+      const messages = stop || stopped() ? [] : await history(s, event, after);
+      if (stopped()) return;
       return (await bridge(s, "run", { ...payload, messages, history_after: after })).job;
     });
   }
@@ -228,7 +237,7 @@
       if (disposed || candidate.abort.signal.aborted || !settings.keywords.length
         || credential()?.team !== auth.team || credential()?.token !== auth.token) return;
       const s = session = { ...auth, abort: candidate.abort, started: Date.now() / 1000,
-        seen: new Set(), sent: new Set(), jobs: new Set(), threads: new Map(), admissions: new Map(), attempts: 0, sequence: 0 };
+        seen: new Set(), sent: new Set(), jobs: new Set(), threads: new Map(), admissions: new Map(), stops: new Map(), attempts: 0, sequence: 0 };
       const held = new Promise(resolve => { s.release = resolve; });
       state.running = true; state.standby = false; state.error = null; publishStatus();
       try {

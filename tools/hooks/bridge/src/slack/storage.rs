@@ -195,6 +195,36 @@ impl Storage {
             .map_err(error)?;
         Ok(())
     }
+    pub fn stop(
+        &mut self,
+        job: &str,
+        thread: &str,
+        input: &Request,
+    ) -> Result<Vec<String>, String> {
+        let tx = self.db.transaction().map_err(error)?;
+        let stopped = tx
+            .prepare("SELECT id FROM jobs WHERE thread=?1 AND status IN ('queued','running','ready','failed')")
+            .map_err(error)?
+            .query_map([thread], |r| r.get::<_, String>(0))
+            .map_err(error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(error)?;
+        tx.execute(
+            "UPDATE jobs SET status='cancelled',answer=NULL,request=NULL WHERE thread=?1 AND status IN ('queued','running','ready','failed')",
+            [thread],
+        ).map_err(error)?;
+        let answer = if stopped.is_empty() {
+            "No pending work in this thread."
+        } else {
+            "Stopping work in this thread."
+        };
+        tx.execute(
+            "INSERT INTO jobs (id,thread,status,answer,request,session) VALUES (?1,?2,'ready',?3,?4,(SELECT session FROM sessions WHERE thread=?2))",
+            params![job,thread,answer,serde_json::to_string(input).unwrap()],
+        ).map_err(error)?;
+        tx.commit().map_err(error)?;
+        Ok(stopped)
+    }
     pub fn start(&self, job: &str) -> Result<bool, String> {
         self.db
             .execute(

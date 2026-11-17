@@ -8,8 +8,14 @@ keyword-prefixed messages trigger work in channels and DMs, including messages
 sent from your phone. Listening is automatic and invisible while Slack is open.
 
 **👀** stays on the request. Replies appear as you in the same thread; the first
-successful reply includes a `chat` link when available. Follow-ups resume the
+successful agent reply includes a `chat` link when available. Follow-ups resume the
 native session and include newer thread context.
+
+Send `chat stop` or `claude stop` in that thread to stop its running and queued
+requests and discard replies that have not started sending. Either command stops
+all providers in that thread. The saved session and project remain available for
+follow-ups; stopping does not undo changes already made. Other request text,
+such as `chat stop using polling`, goes to the agent normally.
 
 ## Configure
 

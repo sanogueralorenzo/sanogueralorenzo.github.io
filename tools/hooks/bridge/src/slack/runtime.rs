@@ -145,6 +145,19 @@ impl Runtime {
             request,
             workspace: self.config.workspace.clone(),
         };
+        if input.request.eq_ignore_ascii_case("stop") {
+            let stopped = inner.storage.stop(&id, &thread, &input)?;
+            for job in stopped {
+                if let Some(cancel) = inner.cancels.get(&job) {
+                    cancel.send_replace(true);
+                }
+                let _ = self.events.send(json!({"type":"job","job":job}));
+            }
+            return inner
+                .storage
+                .status(&id)?
+                .ok_or("Stop receipt is missing".into());
+        }
         inner.storage.admit(&id, &thread, &input)?;
         let new = Self::queue(
             &mut inner,
@@ -181,10 +194,12 @@ impl Runtime {
                 } else {
                     error
                 };
-                eprintln!("{}", error.public()["message"].as_str().unwrap());
-                inner.last_error = Some(error.clone());
-                if let Err(message) = inner.storage.fail(&item.job.id, &error) {
-                    eprintln!("{message}");
+                if !*item.cancel.borrow() || inner.closed {
+                    eprintln!("{}", error.public()["message"].as_str().unwrap());
+                    inner.last_error = Some(error.clone());
+                    if let Err(message) = inner.storage.fail(&item.job.id, &error) {
+                        eprintln!("{message}");
+                    }
                 }
             }
             self.inner.lock().unwrap().cancels.remove(&item.job.id);

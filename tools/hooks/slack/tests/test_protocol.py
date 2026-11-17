@@ -1,26 +1,8 @@
 import contextlib, hashlib, json, os, sys, tempfile, time, unittest
 from pathlib import Path
-from support import Backend, configuration, event, ROOT, ORIGIN, Client
+from support import Backend, configuration, event, ROOT, ORIGIN, Client, wait_until, dead
 
 REPO = ROOT.parents[1]
-
-
-def wait_until(predicate, seconds=4):
-    end = time.monotonic() + seconds
-    while time.monotonic() < end:
-        if predicate():
-            return
-        time.sleep(0.01)
-    raise AssertionError("Condition did not become true")
-
-
-def dead(pid):
-    import subprocess
-
-    result = subprocess.run(
-        ["ps", "-p", str(pid), "-o", "stat="], capture_output=True, text=True
-    )
-    return not result.stdout.strip() or result.stdout.strip().startswith("Z")
 
 
 class NativeProtocolTests(unittest.TestCase):
