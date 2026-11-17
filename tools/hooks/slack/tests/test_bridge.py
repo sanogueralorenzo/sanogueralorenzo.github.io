@@ -169,7 +169,7 @@ print(json.dumps({'session_id': sys.argv[2] if len(sys.argv)>2 else 'synthetic-s
         self.assertIn("SLOW", same[0]["prompt"])
         self.assertEqual(same[1]["args"], ["synthetic-session"])
 
-    def test_failed_or_cancelled_commands_never_produce_answers(self):
+    def test_failed_or_interrupted_commands_never_produce_answers(self):
         with self.assertLogs(level="ERROR"):
             failed = self.runtime.submit(self.event(text="hook FAIL"))["job"]
             self.wait(failed, "failed")
@@ -177,9 +177,12 @@ print(json.dumps({'session_id': sys.argv[2] if len(sys.argv)>2 else 'synthetic-s
             self.event(ts="2000000002.000001", text="hook HANG")
         )["job"]
         self.wait(hung, "running")
-        self.runtime.cancel(hung)
-        self.assertFalse(self.runtime.claim(hung)["claimed"])
-        self.assertNotIn("answer", self.runtime.status(hung))
+        self.runtime.close()
+        self.runtime = Runtime(self.config, self.root / "state")
+        with self.assertLogs(level="ERROR"):
+            result = self.wait(hung, "failed")
+        self.assertEqual(result["error"]["code"], "interrupted")
+        self.assertNotIn("answer", result)
 
     def test_failed_requests_expose_safe_errors_and_claim_delivery_once_without_a_session(
         self,

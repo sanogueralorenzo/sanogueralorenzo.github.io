@@ -13,8 +13,8 @@ from support import Backend, configuration, event
 
 
 class StorageTests(unittest.TestCase):
-    def test_pending_session_survives_cancel_or_restart_and_resumes_in_its_project(self):
-        for outcome in ('cancel', 'restart', 'failure'):
+    def test_pending_session_survives_shutdown_or_failure_and_resumes_in_its_project(self):
+        for outcome in ('shutdown', 'failure'):
             with self.subTest(outcome=outcome), tempfile.TemporaryDirectory() as directory:
                 home = Path(directory).resolve()
                 project = home / 'project with spaces'
@@ -49,10 +49,7 @@ print(json.dumps({'session_id':session,'answer':'resumed','chat_url':'codex://th
                         time.sleep(.01)
                     self.assertEqual(saved, ('early-session', str(project), '0', 0))
                     self.assertEqual(backend.request('GET', '/slack/jobs/'+job)['status'], 'running')
-                    if outcome == 'cancel':
-                        backend.request('POST', '/slack/cancel', {'job':job})
-                        backend.wait(job, 'cancelled')
-                    elif outcome == 'failure':
+                    if outcome == 'failure':
                         (home/'fail').touch()
                         backend.wait(job, 'failed')
                     backend.stop()

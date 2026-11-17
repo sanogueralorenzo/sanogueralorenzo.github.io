@@ -196,13 +196,14 @@ class NativeProtocolTests(unittest.TestCase):
             )[0],
             413,
         )
-        for name in ("claim", "delivered", "cancel"):
+        for name in ("claim", "delivered"):
             self.assertEqual(b.call("POST", "/slack/" + name, {"job": "../config"})[0], 400)
+        self.assertEqual(b.call("POST", "/slack/cancel", {"job": "a" * 64})[0], 404)
         self.assertEqual(
             b.call("POST", "/slack/delivered", {"job": "a" * 64, "ts": "bad"})[0], 400
         )
 
-    def test_cancellation_and_shutdown_kill_descendant_processes(self):
+    def test_shutdown_kills_descendant_processes(self):
         pids = self.home / "pids.json"
         script = (
             'import json,os,subprocess,sys,time;sys.stdin.read();p=subprocess.Popen([sys.executable,"-c","import time;time.sleep(30)"]);open('
@@ -210,14 +211,7 @@ class NativeProtocolTests(unittest.TestCase):
             + ',"w").write(json.dumps([os.getpid(),p.pid]));time.sleep(30)'
         )
         b = self.start(config=configuration(self.home, script))
-        job = b.request("POST", "/slack/run", event())["job"]
-        wait_until(pids.exists)
-        parent, child = json.loads(pids.read_text())
-        b.request("POST", "/slack/cancel", {"job": job})
-        b.wait(job, "cancelled")
-        wait_until(lambda: dead(parent) and dead(child))
-        pids.unlink()
-        b.request("POST", "/slack/run", event(ts="2000000002.000001"))
+        b.request("POST", "/slack/run", event())
         wait_until(pids.exists)
         parent, child = json.loads(pids.read_text())
         b.stop()
@@ -261,7 +255,7 @@ class NativeProtocolTests(unittest.TestCase):
             self.assertEqual(b.wait(job, "failed")["error"]["code"], code)
             b.stop()
 
-    def test_requests_outlive_an_old_configured_deadline_and_can_still_be_cancelled(self):
+    def test_requests_outlive_an_old_configured_deadline_until_shutdown(self):
         cfg = configuration(self.home, 'import time;time.sleep(30)')
         cfg['timeout_seconds'] = 1
         b = self.start(config=cfg)
@@ -269,8 +263,7 @@ class NativeProtocolTests(unittest.TestCase):
         b.wait(job, 'running')
         time.sleep(1.2)
         self.assertEqual(b.request('GET', '/slack/jobs/'+job)['status'], 'running')
-        b.request('POST', '/slack/cancel', {'job':job})
-        b.wait(job, 'cancelled')
+        b.stop()
 
     def test_announced_session_cannot_be_replaced_by_the_final_result(self):
         script = 'import json;print(json.dumps({"type":"session","session_id":"first"}),flush=True);print(json.dumps({"session_id":"changed","answer":"answer"}))'

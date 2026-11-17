@@ -210,9 +210,6 @@ class RuntimeProxy:
             logging.error("%s", value["error"]["message"])
         return value
 
-    def cancel(self, job):
-        return self.backend.request("POST", "/slack/cancel", {"job": job})
-
     def claim(self, job):
         return self.backend.request("POST", "/slack/claim", {"job": job})
 

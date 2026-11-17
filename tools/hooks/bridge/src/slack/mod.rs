@@ -1,4 +1,5 @@
 pub mod config;
+mod conversation;
 mod errors;
 mod process;
 mod runtime;
@@ -65,20 +66,20 @@ impl Slack {
             self.runtime.recover(body)
         } else if method == Method::POST && path == "/history" {
             self.runtime.history(body)
-        } else if method == Method::POST && ["/claim", "/cancel", "/delivered"].contains(&path) {
+        } else if method == Method::POST && ["/claim", "/delivered"].contains(&path) {
             static JOB: LazyLock<Regex> =
                 LazyLock::new(|| Regex::new(r"\A[a-f0-9]{64}\z").unwrap());
             let job = body["job"]
                 .as_str()
                 .filter(|j| JOB.is_match(j))
                 .ok_or(fail("Invalid job"))?;
-            match path {
-                "/claim" => self.runtime.claim(job),
-                "/cancel" => self.runtime.cancel(job),
-                _ => self.runtime.delivered(
+            if path == "/claim" {
+                self.runtime.claim(job)
+            } else {
+                self.runtime.delivered(
                     job,
                     body["ts"].as_str().ok_or(fail("Invalid reply timestamp"))?,
-                ),
+                )
             }
         } else {
             return Err((StatusCode::NOT_FOUND, "Unknown endpoint"));

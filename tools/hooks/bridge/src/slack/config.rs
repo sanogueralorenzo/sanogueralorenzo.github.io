@@ -1,6 +1,5 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::{
     collections::BTreeMap,
     env, fs,
@@ -12,50 +11,6 @@ use unicode_casefold::UnicodeCaseFold;
 
 pub fn folded(text: &str) -> String {
     text.case_fold().collect()
-}
-pub fn storage_json(value: &Value) -> String {
-    match value {
-        Value::String(s) => {
-            let escaped = serde_json::to_string(s).unwrap();
-            escaped
-                .chars()
-                .map(|c| {
-                    if c as u32 >= 127 {
-                        c.encode_utf16(&mut [0; 2])
-                            .iter()
-                            .map(|u| format!("\\u{u:04x}"))
-                            .collect::<String>()
-                    } else {
-                        c.to_string()
-                    }
-                })
-                .collect()
-        }
-        Value::Array(items) => format!(
-            "[{}]",
-            items
-                .iter()
-                .map(storage_json)
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
-        Value::Object(items) => {
-            let mut keys: Vec<_> = items.keys().collect();
-            keys.sort();
-            format!(
-                "{{{}}}",
-                keys.into_iter()
-                    .map(|k| format!(
-                        "{}: {}",
-                        storage_json(&Value::String(k.clone())),
-                        storage_json(&items[k])
-                    ))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
-        }
-        _ => value.to_string(),
-    }
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -241,23 +196,5 @@ impl Event {
             return Err("Invalid message envelope".into());
         }
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn storage_identifiers_keep_the_persisted_json_format() {
-        assert_eq!(
-            storage_json(&json!(["ETEST", "🧪", "\u{7f}"])),
-            r#"["ETEST", "\ud83e\uddea", "\u007f"]"#
-        );
-        assert_eq!(
-            storage_json(&json!({"start":["cli"],"resume":["cli","{session_id}"]})),
-            r#"{"resume": ["cli", "{session_id}"], "start": ["cli"]}"#
-        );
     }
 }
