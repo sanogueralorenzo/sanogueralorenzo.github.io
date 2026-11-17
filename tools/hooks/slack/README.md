@@ -11,11 +11,12 @@ sent from your phone. Listening is automatic and invisible while Slack is open.
 successful agent reply includes a `chat` link when available. Follow-ups resume the
 native session and include newer thread context.
 
-Send `chat stop` or `claude stop` in that thread to stop its running and queued
-requests and discard replies that have not started sending. Either command stops
-all providers in that thread. The saved session and project remain available for
-follow-ups; stopping does not undo changes already made. Other request text,
-such as `chat stop using polling`, goes to the agent normally.
+Send `<keyword> stop` in that thread to stop requests submitted with that keyword,
+including queued work and replies that have not started sending. `chat stop`
+stops Codex; `claude stop` stops Claude. Other keywords are unaffected. The saved
+session and project remain available for follow-ups; stopping does not undo
+changes already made. Longer text such as `chat stop using polling` goes to the
+agent normally.
 
 ## Configure
 

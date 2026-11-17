@@ -98,8 +98,8 @@ impl Storage {
         let (db, owner) = open_db(folder)?;
         Ok(Self { db, _owner: owner })
     }
-    fn jobs(&self, sql: &str, args: impl Params) -> Result<Vec<Job>, String> {
-        let mut statement = self.db.prepare(sql).map_err(error)?;
+    fn jobs(db: &Connection, sql: &str, args: impl Params) -> Result<Vec<Job>, String> {
+        let mut statement = db.prepare(sql).map_err(error)?;
         let rows = statement
             .query_map(args, |r| {
                 Ok((
@@ -118,19 +118,25 @@ impl Storage {
         .collect()
     }
     pub fn queued(&self) -> Result<Vec<Job>, String> {
-        self.jobs(
+        Self::jobs(
+            &self.db,
             "SELECT id,thread,request FROM jobs WHERE status='queued' ORDER BY rowid",
             [],
         )
     }
     pub fn pending(&self, thread: &str) -> Result<Vec<Job>, String> {
-        self.jobs(
+        Self::jobs(
+            &self.db,
             "SELECT id,thread,request FROM jobs WHERE thread=?1 AND status IN ('queued','running')",
             [thread],
         )
     }
     pub fn recover(&self, team: &str, user: &str) -> Result<Vec<Job>, String> {
-        self.jobs("SELECT id,thread,request FROM jobs WHERE request IS NOT NULL AND status IN ('queued','running','ready','failed') AND json_extract(thread,'$[0]')=?1 AND json_extract(thread,'$[1]')=?2 ORDER BY rowid", [team,user])
+        Self::jobs(
+            &self.db,
+            "SELECT id,thread,request FROM jobs WHERE request IS NOT NULL AND status IN ('queued','running','ready','failed') AND json_extract(thread,'$[0]')=?1 AND json_extract(thread,'$[1]')=?2 ORDER BY rowid",
+            [team, user],
+        )
     }
     pub fn session(&self, thread: &str) -> Result<Option<Session>, String> {
         self.db.query_row(
@@ -201,22 +207,24 @@ impl Storage {
         thread: &str,
         input: &Request,
     ) -> Result<Vec<String>, String> {
+        let keyword = input.event.keyword();
         let tx = self.db.transaction().map_err(error)?;
-        let stopped = tx
-            .prepare("SELECT id FROM jobs WHERE thread=?1 AND status IN ('queued','running','ready','failed')")
-            .map_err(error)?
-            .query_map([thread], |r| r.get::<_, String>(0))
-            .map_err(error)?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(error)?;
-        tx.execute(
-            "UPDATE jobs SET status='cancelled',answer=NULL,request=NULL WHERE thread=?1 AND status IN ('queued','running','ready','failed')",
+        let stopped: Vec<_> = Self::jobs(
+            &tx,
+            "SELECT id,thread,request FROM jobs WHERE thread=?1 AND request IS NOT NULL AND status IN ('queued','running','ready','failed')",
             [thread],
-        ).map_err(error)?;
+        )?.into_iter().filter(|job| job.input.event.keyword() == keyword).map(|job| job.id).collect();
+        for id in &stopped {
+            tx.execute(
+                "UPDATE jobs SET status='cancelled',answer=NULL,request=NULL WHERE id=?1",
+                [id],
+            )
+            .map_err(error)?;
+        }
         let answer = if stopped.is_empty() {
-            "No pending work in this thread."
+            format!("No pending {keyword} requests in this thread.")
         } else {
-            "Stopping work in this thread."
+            format!("Stopping {keyword} requests in this thread.")
         };
         tx.execute(
             "INSERT INTO jobs (id,thread,status,answer,request,session) VALUES (?1,?2,'ready',?3,?4,(SELECT session FROM sessions WHERE thread=?2))",

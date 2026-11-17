@@ -174,6 +174,9 @@ pub fn timestamp(text: &str) -> bool {
     TS.is_match(text)
 }
 impl Event {
+    pub fn keyword(&self) -> String {
+        folded(self.text.split_whitespace().next().unwrap_or_default())
+    }
     pub fn validate(&self) -> Result<(), String> {
         static TEAM: LazyLock<Regex> =
             LazyLock::new(|| Regex::new(r"\A[A-Z][A-Z0-9]{1,30}\z").unwrap());

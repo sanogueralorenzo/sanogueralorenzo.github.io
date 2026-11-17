@@ -94,6 +94,7 @@ impl Runtime {
         let jobs = self.inner.lock().unwrap().storage.recover(&scope.team,&scope.user)?
             .into_iter().map(|job| json!({
                 "job":job.id,
+                "stop":job.input.request.eq_ignore_ascii_case("stop"),
                 "event":{"channel":job.input.event.channel,"ts":job.input.event.ts,"thread_ts":job.input.event.thread_ts},
             })).collect::<Vec<_>>();
         Ok(json!({"jobs":jobs}))

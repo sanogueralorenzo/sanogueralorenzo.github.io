@@ -123,12 +123,16 @@
     await reaction(s, { channel: event.channel, ts: posted.ts }, "robot_face");
     state.error = diagnostic || null;
   }
-  function track(s, event, admit) {
+  function stopKey(event) {
+    const keyword = event.text?.match(/^\S+/)?.[0].toLowerCase();
+    return keyword ? `${event.channel}:${event.thread_ts || event.ts}:${keyword}` : null;
+  }
+  function track(s, event, admit, stop = false) {
     state.pending++;
     const key = `${event.channel}:${event.thread_ts || event.ts}`;
     // Persist requests without waiting for earlier agent turns; serialize Slack delivery.
     let job;
-    const stopped = () => Number(event.ts) < (s.stops.get(key) || 0);
+    const stopped = () => Number(event.ts) < (s.stops.get(stopKey(event)) || 0);
     const accepted = (s.admissions.get(key) || Promise.resolve()).then(async () => {
       if (stopped()) return;
       job = await admit(stopped); if (job) s.jobs.add(job); return job;
@@ -136,7 +140,7 @@
     const admission = accepted.then(() => {}, () => {});
     s.admissions.set(key, admission);
     void admission.then(() => { if (s.admissions.get(key) === admission) s.admissions.delete(key); });
-    const work = (s.threads.get(key) || Promise.resolve()).then(async () => { const job = await accepted; if (job) await deliver(s, event, job); })
+    const work = (!stop && s.threads.get(key) || Promise.resolve()).then(async () => { const job = await accepted; if (job) await deliver(s, event, job); })
       .catch(error => { if (current(s)) state.error = errorMessage(error); })
       .finally(() => {
         s.jobs.delete(job);
@@ -144,18 +148,19 @@
         if (s.threads.get(key) === work) s.threads.delete(key);
         publishStatus();
       });
-    s.threads.set(key, work); publishStatus();
+    if (!stop) s.threads.set(key, work);
+    publishStatus();
   }
   async function recover(s) {
     try {
       const result = await bridge(s, "recover", { team: s.team, user: s.user });
       assertCurrent(s);
-      for (const { job, event } of result.jobs) {
+      for (const { job, event, stop } of result.jobs) {
         const key = `${event.channel}:${event.ts}`;
         if (s.jobs.has(job)) continue;
         s.jobs.add(job);
         s.seen.add(key);
-        track(s, event, () => job);
+        track(s, event, () => job, stop);
       }
     } catch (error) { if (current(s)) { state.error = errorMessage(error); publishStatus(); } }
   }
@@ -166,7 +171,7 @@
     const stop = /^\S+\s+stop\s*$/i.test(event.text);
     if (!stop && state.pending >= 100) { state.error = "Queue full. Send the command again later."; publishStatus(); return; }
     if (stop) {
-      const key = `${event.channel}:${event.thread_ts || event.ts}`;
+      const key = stopKey(event);
       s.stops.set(key, Math.max(s.stops.get(key) || 0, Number(event.ts)));
     }
     state.received++;
@@ -182,7 +187,7 @@
       const messages = stop || stopped() ? [] : await history(s, event, after);
       if (stopped()) return;
       return (await bridge(s, "run", { ...payload, messages, history_after: after })).job;
-    });
+    }, stop);
   }
   function disconnect(s) {
     page.clearTimeout(s.reconnect); page.clearInterval(s.heartbeat); page.clearTimeout(s.helloTimeout);

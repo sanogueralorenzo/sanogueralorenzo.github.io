@@ -252,18 +252,18 @@ test('admits queued turns before earlier answers finish and delivers each thread
   assert.equal(f.page.agentHooks.status().pending, 0);
 });
 
-test('stop bypasses a full queue and history fetch, then acknowledges after cancelled deliveries drain', async () => {
+test('stop bypasses a full queue and history fetch, then acknowledges cancellation', async () => {
   const jobs = new Set(), cancelled = new Set(), waiting = new Map();
   const f = fixture({ action(data) {
     if (data.action === 'run') {
-      if (/^claude\s+stop\s*$/i.test(data.payload.text)) {
+      if (/^chat\s+stop\s*$/i.test(data.payload.text)) {
         for (const job of jobs) { cancelled.add(job); waiting.get(job)?.({ skip: true }); }
         return { job: 'stop-receipt', status: 'ready' };
       }
       const job = `job-${data.id}`; jobs.add(job); return { job, status: 'queued' };
     }
     if (data.action === 'wait') {
-      if (data.payload.job === 'stop-receipt') return { job: 'stop-receipt', answer: 'Stopping work in this thread.' };
+      if (data.payload.job === 'stop-receipt') return { job: 'stop-receipt', answer: 'Stopping chat requests in this thread.' };
       if (cancelled.has(data.payload.job)) return { skip: true };
       return new Promise(resolve => waiting.set(data.payload.job, resolve));
     }
@@ -275,13 +275,13 @@ test('stop bypasses a full queue and history fetch, then acknowledges after canc
   assert.equal(jobs.size, 100);
   const historyCalls = f.calls.filter(c => c.method === 'conversations.replies').length;
   const preflights = f.messages.filter(m => m.action === 'history').length;
-  f.sockets[0].event(message({ ts: '2000000003.000001', thread_ts: message().ts, text: 'ClAuDe\tSTOP ' }));
+  f.sockets[0].event(message({ ts: '2000000003.000001', thread_ts: message().ts, text: 'ChAt\tSTOP ' }));
   await settle();
   assert.equal(cancelled.size, 100);
   assert.equal(f.calls.filter(c => c.method === 'conversations.replies').length, historyCalls);
   assert.equal(f.messages.filter(m => m.action === 'history').length, preflights);
   assert.equal(f.posts().length, 1);
-  assert.equal(f.posts()[0].values.markdown_text, 'Stopping work in this thread.');
+  assert.equal(f.posts()[0].values.markdown_text, 'Stopping chat requests in this thread.');
   assert.equal(f.posts()[0].values.thread_ts, message().ts);
   assert.equal(f.page.agentHooks.status().pending, 0);
   assert.equal(f.page.agentHooks.status().error, null);
@@ -303,24 +303,48 @@ test('stop still requires an own configured command and longer stop requests rem
   f.page.agentHooks.dispose();
 });
 
-test('stop skips older requests still gathering context and allows a later follow-up', async () => {
-  let release;
-  const f = fixture({ action: data => data.action === 'history'
-    ? new Promise(resolve => { release = resolve; }) : undefined });
-  f.configure({ keywords: ['chat'] }); await settle();
+test('stop skips only its keyword while gathering context and acknowledges before another provider finishes', async () => {
+  let release, finishClaude, preflights = 0;
+  const f = fixture({ action(data) {
+    if (data.action === 'history' && ++preflights === 1) return new Promise(resolve => { release = resolve; });
+    if (data.action === 'run' && data.payload.text === 'claude queued') return { job: 'claude-running' };
+    if (data.action === 'run' && data.payload.text === 'chat stop') return { job: 'stop-receipt' };
+    if (data.action === 'wait' && data.payload.job === 'claude-running') return new Promise(resolve => { finishClaude = resolve; });
+    if (data.action === 'wait' && data.payload.job === 'stop-receipt') return { job: 'stop-receipt', answer: 'Stopping chat requests in this thread.' };
+  } });
+  f.configure({ keywords: ['chat', 'claude'] }); await settle();
   const thread_ts = '2000000001.000001';
   f.sockets[0].event(message({ thread_ts, text: 'chat first' })); await settle();
   f.sockets[0].event(message({ ts: '2000000003.000001', thread_ts, text: 'chat queued' }));
+  f.sockets[0].event(message({ ts: '2000000003.000002', thread_ts, text: 'claude queued' }));
   f.sockets[0].event(message({ ts: '2000000004.000001', thread_ts, text: 'chat stop' }));
   release({ after: null }); await settle();
-  const runs = f.messages.filter(m => m.action === 'run');
-  assert.deepEqual(runs.map(m => m.payload.text), ['chat stop']);
-  assert.equal(f.messages.filter(m => m.action === 'history').length, 1);
-  assert.equal(f.calls.filter(c => c.method === 'conversations.replies').length, 0);
-  assert.equal(f.page.agentHooks.status().pending, 0);
+  assert.deepEqual(f.messages.filter(m => m.action === 'run').map(m => m.payload.text), ['claude queued', 'chat stop']);
+  assert.equal(f.messages.filter(m => m.action === 'history').length, 2);
+  assert.equal(f.calls.filter(c => c.method === 'conversations.replies').length, 1);
+  assert.equal(f.page.agentHooks.status().pending, 1);
+  assert.deepEqual(f.posts().map(p => p.values.markdown_text), ['Stopping chat requests in this thread.']);
   f.sockets[0].event(message({ ts: '2000000005.000001', thread_ts, text: 'chat continue' })); await settle();
-  release({ after: null }); await settle();
-  assert.deepEqual(f.messages.filter(m => m.action === 'run').map(m => m.payload.text), ['chat stop', 'chat continue']);
+  assert.deepEqual(f.messages.filter(m => m.action === 'run').map(m => m.payload.text), ['claude queued', 'chat stop', 'chat continue']);
+  finishClaude({ job: 'claude-running', answer: 'Claude completed' }); await settle();
+  assert.deepEqual(f.posts().map(p => p.values.markdown_text), ['Stopping chat requests in this thread.', 'Claude completed', 'Test agent answer']);
+  assert.equal(f.page.agentHooks.status().pending, 0);
+  f.page.agentHooks.dispose();
+});
+
+test('recovered stop acknowledgements do not wait for another provider in the thread', async () => {
+  let finish;
+  const f = fixture({ recovery: [
+    { job: 'running', stop: false, event: { channel: 'DSELF', ts: '2000000002.000001', thread_ts: '2000000002.000001' } },
+    { job: 'stop', stop: true, event: { channel: 'DSELF', ts: '2000000003.000001', thread_ts: '2000000002.000001' } },
+  ], action(data) {
+    if (data.action === 'wait' && data.payload.job === 'running') return new Promise(resolve => { finish = resolve; });
+    if (data.action === 'wait' && data.payload.job === 'stop') return { job: 'stop', answer: 'Stopping claude requests in this thread.' };
+  } });
+  f.configure(); await settle();
+  assert.deepEqual(f.posts().map(p => p.values.markdown_text), ['Stopping claude requests in this thread.']);
+  finish({ job: 'running', answer: 'Codex completed' }); await settle();
+  assert.deepEqual(f.posts().map(p => p.values.markdown_text), ['Stopping claude requests in this thread.', 'Codex completed']);
   f.page.agentHooks.dispose();
 });
 

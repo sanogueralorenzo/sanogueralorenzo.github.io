@@ -60,16 +60,16 @@ print(json.dumps({'session_id':session,'answer':'completed','chat_url':'codex://
         with sqlite3.connect(self.home / "hooks/slack/sessions.sqlite3") as db:
             wait_until(lambda: db.execute("SELECT count(*) FROM sessions").fetchone()[0] == 1)
             saved = db.execute("SELECT * FROM sessions").fetchone()
-            queued = self.submit(b, ts="2000000002.000001", text="claude must not run")
+            queued = self.submit(b, ts="2000000002.000001", text="chat must not run")
             self.assertEqual(b.wait(queued, "queued")["status"], "queued")
             other = self.submit(b, channel="DOTHER", text="chat independent")
             b.wait(other)
             events = b.socket()
             self.addCleanup(events.close)
-            stop_event = event(ts="2000000003.000001", text="ClAuDe\tSTOP ")
+            stop_event = event(ts="2000000003.000001", text="ChAt\tSTOP ")
             stopped = b.request("POST", "/slack/run", stop_event)["job"]
             self.assertEqual({events.receive()["job"], events.receive()["job"]}, {running, queued})
-            self.assertEqual(b.wait(stopped)["answer"], "Stopping work in this thread.")
+            self.assertEqual(b.wait(stopped)["answer"], "Stopping chat requests in this thread.")
             for job in (running, queued):
                 result = b.wait(job, "cancelled")
                 self.assertNotIn("answer", result)
@@ -100,6 +100,7 @@ print(json.dumps({'session_id':session,'answer':'completed','chat_url':'codex://
 
     def test_stop_withholds_unsent_answers_but_preserves_claimed_sends_and_other_scopes(self):
         config = configuration(self.home)
+        config["commands"]["claude"] = config["commands"]["hook"]
         b = self.start(config)
         unsent = self.submit(b)
         b.wait(unsent)
@@ -109,6 +110,7 @@ print(json.dumps({'session_id':session,'answer':'completed','chat_url':'codex://
         others = [self.submit(b, **extra) for extra in (
             {"channel":"DOTHER"}, {"user":"UOTHER"}, {"team":"EOTHER"},
             {"ts":"2000000002.000002","thread_ts":"2000000002.000002"},
+            {"ts":"2000000002.000003","text":"claude independent"},
         )]
         for job in others:
             b.wait(job)
@@ -125,9 +127,43 @@ print(json.dumps({'session_id':session,'answer':'completed','chat_url':'codex://
         self.assertFalse(b.request("POST", "/slack/claim", {"job": stopped})["claimed"])
         self.assertTrue(b.request("POST", "/slack/delivered", {"job":stopped,"ts":"2000000004.000001"})["ok"])
         idle = self.submit(b, ts="2000000005.000001", text="hook stop")
-        self.assertEqual(b.wait(idle)["answer"], "No pending work in this thread.")
+        self.assertEqual(b.wait(idle)["answer"], "No pending hook requests in this thread.")
         ordinary = self.submit(b, ts="2000000006.000001", text="hook stop using polling")
         self.assertEqual(b.wait(ordinary)["answer"], "synthetic answer")
+
+    def test_stop_leaves_other_keywords_running_or_queued_in_the_same_thread(self):
+        config = configuration(self.home, '''import json,sys,time
+prompt=sys.stdin.read()
+print(json.dumps({'type':'session','session_id':'synthetic-session'}),flush=True)
+if prompt.endswith('hold'): time.sleep(30)
+print(json.dumps({'session_id':'synthetic-session','answer':'completed'}))
+''')
+        # Identical adapter arguments still represent independently stoppable keywords.
+        config["commands"] = {key: config["commands"]["hook"] for key in ("chat", "claude")}
+        b = self.start(config)
+        running = self.submit(b, text="CHAT hold")
+        b.wait(running, "running")
+        queued = self.submit(b, ts="2000000002.000001", text="chat queued")
+        other = self.submit(b, ts="2000000003.000001", text="claude queued")
+        stopped_claude = self.submit(b, ts="2000000004.000001", text="ClAuDe\tSTOP")
+        b.wait(other, "cancelled")
+        b.wait(running, "running")
+        b.wait(queued, "queued")
+        self.assertEqual(b.wait(stopped_claude)["answer"], "Stopping claude requests in this thread.")
+        remaining = self.submit(b, ts="2000000005.000001", text="claude hold")
+        b.wait(remaining, "queued")
+        stopped_chat = self.submit(b, ts="2000000006.000001", text="chat stop")
+        b.wait(running, "cancelled")
+        b.wait(queued, "cancelled")
+        b.wait(remaining, "running")
+        self.assertEqual(b.wait(stopped_chat)["answer"], "Stopping chat requests in this thread.")
+        # A second chat stop cannot interrupt the now-running Claude request.
+        self.submit(b, ts="2000000007.000001", text="chat stop")
+        b.wait(remaining, "running")
+        self.submit(b, ts="2000000008.000001", text="claude stop")
+        b.wait(remaining, "cancelled")
+        recovered = b.request("POST", "/slack/recover", {"team":"ETEST","user":"UTEST"})["jobs"]
+        self.assertTrue(all(item["stop"] for item in recovered))
 
     def test_stop_bypasses_a_full_queue_and_frees_capacity(self):
         b = self.start(configuration(self.home, "import time;time.sleep(30)"))
