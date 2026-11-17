@@ -20,21 +20,27 @@ Edit `~/.local/share/browser-hooks/hooks/slack/config.json`, then run
 `browser-hooks install`. Initial setup detects installed CLIs and creates the
 `chat` and/or `claude` keywords. Each key in `commands` is a trigger keyword.
 Each command has `start` and `resume` argument arrays; only `resume` includes
-`{session_id}`. Commands read the prompt from stdin and return JSON with
+`{session_id}`. Commands read the prompt from stdin and return one JSON line with
 `session_id` and `answer`, plus an optional `chat_url`. The first successful reply
 in a new thread appends a lowercase `chat` link when the adapter supplies one;
 follow-ups omit it. Codex/Claude adapters are included; other CLIs can use the same
 contract.
 
+Adapters can first flush `{"type":"session","session_id":"<id>"}` on its own
+line to save the session before work finishes. Codex emits this as soon as its chat
+is created or resumed. Only a completed answer advances the saved thread context.
+
 Set `workspace` for the default directory and `projects` for aliases mapped to
 project directories. The first alias in a request selects the project; follow-ups
-inherit it. Native CLI models and permissions are preserved. `timeout_seconds`
-sets the per-command limit, up to 600 seconds.
+inherit it. Native CLI models and permissions are preserved. Requests have no
+overall time limit; short connection and control-call timeouts still apply.
 
 Codex starts a private stdio app-server for each request and exits it before
 returning the answer. The saved chat remains available in the Codex app. Follow-ups
 reuse its ID and project directory. If another Codex client owns the chat, continue
 there or release it there before retrying from Slack.
+Closing or reloading the owning Slack page, or stopping the bridge, cancels its
+requests. The saved Codex chat remains available for the next follow-up.
 
 ## Troubleshoot
 

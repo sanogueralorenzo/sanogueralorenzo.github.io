@@ -48,7 +48,6 @@ def configure(home, checkout, workspace, binary):
                     "workspace": str(workspace),
                     "projects": {},
                     "commands": commands,
-                    "timeout_seconds": 600,
                 },
                 file,
                 indent=2,

@@ -26,7 +26,7 @@ function locks() {
 }
 
 function fixture({ manager = locks(), action, failPost = false } = {}) {
-  const calls = [], sockets = [], timers = new Map(), messages = [], listeners = new Map();
+  const calls = [], sockets = [], timers = new Map(), timeouts = new Map(), messages = [], listeners = new Map();
   let serial = 0, token = 'fixture', user = 'UTEST';
   const intervals = new Map();
   class Socket {
@@ -56,8 +56,8 @@ function fixture({ manager = locks(), action, failPost = false } = {}) {
       }
       return { ok: true, json: async () => ({ ok: true, ...result }) };
     },
-    setTimeout: fn => { const id = ++serial; timers.set(id, fn); return id; },
-    clearTimeout: id => timers.delete(id),
+    setTimeout: (fn, ms) => { const id = ++serial; timers.set(id, fn); timeouts.set(id, ms); return id; },
+    clearTimeout: id => { timers.delete(id); timeouts.delete(id); },
     setInterval: (fn, ms) => { const id = ++serial; timers.set(id, fn); intervals.set(id, ms); return id; },
     clearInterval: id => { timers.delete(id); intervals.delete(id); },
     addEventListener(name, fn) { if (!listeners.has(name)) listeners.set(name, new Set()); listeners.get(name).add(fn); },
@@ -78,12 +78,29 @@ function fixture({ manager = locks(), action, failPost = false } = {}) {
     event: (name, value = {}) => { for (const fn of listeners.get(name) || []) fn(value); },
     configure: (options = {}) => page.agentHooks.configure({ keywords: ['hook'], ...options }),
     tick: () => { for (const fn of [...timers.values()]) fn(); },
+    elapse: ms => { for (const [id, delay] of [...timeouts]) if (delay <= ms) { const fn = timers.get(id); timers.delete(id); timeouts.delete(id); fn(); } },
     token: value => { token = value; }, user: value => { user = value; },
     posts: () => calls.filter(c => c.method === 'chat.postMessage') };
 }
 const message = (extra = {}) => ({ type: 'message', channel: 'DSELF', user: 'UTEST', ts: '2000000002.000001', text: 'hook ping', ...extra });
 const requestReactions = f => f.calls.filter(c => c.method.startsWith('reactions.') && c.values.timestamp === message().ts)
   .map(c => `${c.method}:${c.values.name}`);
+
+test('a pending run survives beyond the former eleven-minute watchdog', async () => {
+  let finish;
+  const f = fixture({ action: d => d.action === 'run'
+    ? new Promise(resolve => { finish = resolve; })
+    : d.action === 'claim' ? { claimed: true } : { ok: true } });
+  f.configure(); await settle();
+  f.sockets[0].event({ type: 'hello' });
+  f.sockets[0].event(message()); await settle();
+  f.elapse(15 * 60 * 1000); await settle();
+  assert.equal(f.page.agentHooks.status().pending, 1);
+  assert.ok(!f.messages.some(m => m.type === 'cancel'));
+  finish({ job: 'long-running', answer: 'Finished' }); await settle();
+  assert.equal(f.posts().length, 1);
+  assert.equal(f.posts()[0].values.markdown_text, 'Finished');
+});
 
 test('starts from any Slack view and replies in public/private channels, DMs and group DMs', async () => {
   const f = fixture(); f.configure(); await settle();

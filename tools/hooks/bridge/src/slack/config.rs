@@ -69,18 +69,12 @@ struct Raw {
     #[serde(default)]
     projects: BTreeMap<String, String>,
     commands: BTreeMap<String, Command>,
-    #[serde(default = "default_timeout")]
-    timeout_seconds: f64,
-}
-fn default_timeout() -> f64 {
-    600.0
 }
 #[derive(Clone)]
 pub struct Config {
     pub workspace: PathBuf,
     pub projects: Vec<(Regex, PathBuf)>,
     pub commands: BTreeMap<String, Command>,
-    pub timeout: f64,
 }
 fn path(text: &str) -> Result<PathBuf, String> {
     let p = if text == "~" || text.starts_with("~/") {
@@ -122,8 +116,8 @@ impl Config {
         static KEYWORD: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[\s\pC\pZ]").unwrap());
         static ALIAS: LazyLock<Regex> =
             LazyLock::new(|| Regex::new(r"\A[a-z][a-z0-9_-]*\z").unwrap());
-        if !(1.0..=600.0).contains(&raw.timeout_seconds) || raw.commands.is_empty() {
-            return Err("Invalid timeout or commands".into());
+        if raw.commands.is_empty() {
+            return Err("Commands must not be empty".into());
         }
         let workspace = path(&raw.workspace)?;
         let mut commands = BTreeMap::new();
@@ -159,7 +153,6 @@ impl Config {
             workspace,
             commands,
             projects,
-            timeout: raw.timeout_seconds,
         })
     }
     pub fn route(&self, text: &str) -> Result<(Command, Option<PathBuf>, String), String> {

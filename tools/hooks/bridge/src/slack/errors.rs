@@ -53,7 +53,7 @@ impl HookError {
             "usage_limit" => format!("{provider} reached a usage or rate limit. Check your CLI account and retry later."),
             "permission_required" => format!("{provider} needs approval. Open the CLI on your computer to approve the operation, then send a new request."),
             "missing_cli" => format!("{provider} CLI was not found. Install it and run `browser-hooks install`."),
-            "timeout" => format!("{provider} exceeded the command time limit. Try a smaller request or adjust timeout_seconds."),
+            "timeout" => format!("{provider} did not respond to a control request. Check the CLI and local bridge, then retry."),
             "cancelled" => "The request was cancelled. Send a new request when the bridge is running.".into(),
             "invalid_response" => format!("{provider} returned an invalid response. The adapter must return session_id and answer as JSON."),
             "session_invalid" => format!("{provider} could not resume this session. Start a new Slack thread."),

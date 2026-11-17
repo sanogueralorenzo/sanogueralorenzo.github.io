@@ -235,35 +235,51 @@ class NativeProtocolTests(unittest.TestCase):
         self.assertEqual(b.wait(job)["answer"], "answer")
         wait_until(lambda: dead(int(pid_file.read_text())))
 
-    def test_timeout_output_limits_and_response_validation(self):
+    def test_output_limits_and_response_validation(self):
         scripts = [
-            ("import time;time.sleep(30)", "timeout", 1),
             (
                 'import sys,time;sys.stdin.read();sys.stdout.write("x"*2097152);sys.stdout.flush();time.sleep(.2)',
                 "output_limit",
-                2,
             ),
             (
                 'import sys,time;sys.stdin.read();sys.stderr.write("x"*2097152);sys.stderr.flush();time.sleep(.2)',
                 "output_limit",
-                2,
             ),
-            ('print("invalid")', "invalid_response", 2),
+            ('print("invalid")', "invalid_response"),
             (
                 'import json;print(json.dumps({"session_id":"x","answer":"x"*12001}))',
                 "invalid_response",
-                2,
             ),
         ]
-        for index, (script, code, limit) in enumerate(scripts):
+        for index, (script, code) in enumerate(scripts):
             # Each subcase uses a separate private home and service.
             sub = self.home / str(index)
             sub.mkdir()
-            b = Backend(sub, configuration(sub, script, limit))
+            b = Backend(sub, configuration(sub, script))
             self.backends.append(b)
             job = b.request("POST", "/slack/run", event())["job"]
             self.assertEqual(b.wait(job, "failed")["error"]["code"], code)
             b.stop()
+
+    def test_requests_outlive_an_old_configured_deadline_and_can_still_be_cancelled(self):
+        cfg = configuration(self.home, 'import time;time.sleep(30)')
+        cfg['timeout_seconds'] = 1
+        b = self.start(config=cfg)
+        job = b.request('POST', '/slack/run', event())['job']
+        b.wait(job, 'running')
+        time.sleep(1.2)
+        self.assertEqual(b.request('GET', '/slack/jobs/'+job)['status'], 'running')
+        b.request('POST', '/slack/cancel', {'job':job})
+        b.wait(job, 'cancelled')
+
+    def test_announced_session_cannot_be_replaced_by_the_final_result(self):
+        script = 'import json;print(json.dumps({"type":"session","session_id":"first"}),flush=True);print(json.dumps({"session_id":"changed","answer":"answer"}))'
+        b = self.start(config=configuration(self.home, script))
+        job = b.request('POST', '/slack/run', event())['job']
+        self.assertEqual(b.wait(job, 'failed')['error']['code'], 'session_invalid')
+        import sqlite3
+        with sqlite3.connect(self.home/'hooks/slack/sessions.sqlite3') as db:
+            self.assertEqual(db.execute('select session,context_ts,answered from sessions').fetchone(), ('first','0',0))
 
     def test_child_environment_excludes_bridge_and_slack_credentials(self):
         script = 'import json,os,sys;sys.stdin.read();print(json.dumps({"session_id":"s","answer":json.dumps({k:v for k,v in os.environ.items() if k.endswith("_PARITY")})}))'
@@ -301,7 +317,7 @@ class NativeProtocolTests(unittest.TestCase):
 
     def test_queue_admission_is_bounded(self):
         b = self.start(
-            config=configuration(self.home, "import time;time.sleep(30)", 600)
+            config=configuration(self.home, "import time;time.sleep(30)")
         )
         for n in range(100):
             self.assertEqual(
@@ -372,8 +388,6 @@ class NativeProtocolTests(unittest.TestCase):
         bad = [
             {},
             dict(good, workspace="/path-that-does-not-exist"),
-            dict(good, timeout_seconds=0),
-            dict(good, timeout_seconds=601),
             dict(good, projects={"Invalid Alias": str(self.home)}),
             dict(
                 good,
@@ -422,7 +436,7 @@ class NativeProtocolTests(unittest.TestCase):
             + repr(str(log))
             + ',"a");f.write(json.dumps(["start",os.getpid()])+"\\n");f.flush();time.sleep(.2);f.write(json.dumps(["end",os.getpid()])+"\\n");f.flush();print(json.dumps({"session_id":"s","answer":"answer"}))'
         )
-        b = self.start(config=configuration(self.home, script, 4))
+        b = self.start(config=configuration(self.home, script))
         jobs = [
             b.request("POST", "/slack/run", event(channel=f"C{n}", ts=f"2000000001.{n:06}"))[
                 "job"

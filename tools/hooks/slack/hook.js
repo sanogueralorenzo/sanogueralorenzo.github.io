@@ -59,7 +59,7 @@
     return new Promise((resolve, reject) => {
       const cancel = () => { page.clearTimeout(timer); s.abort.signal.removeEventListener("abort", cancel); pending.delete(id); emit("cancel", { id }); reject(failure("Listener stopped.")); };
       s.abort.signal.addEventListener("abort", cancel, { once: true });
-      const timer = page.setTimeout(cancel, 660000);
+      const timer = action === "run" ? undefined : page.setTimeout(cancel, 20000);
       pending.set(id, {
         resolve(value) { page.clearTimeout(timer); s.abort.signal.removeEventListener("abort", cancel); resolve(value); },
         reject(message) { page.clearTimeout(timer); s.abort.signal.removeEventListener("abort", cancel); reject(failure(typeof message === "string" ? message.slice(0, 500) : "Local bridge request failed. Run browser-hooks status.")); },

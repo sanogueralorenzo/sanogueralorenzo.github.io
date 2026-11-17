@@ -18,7 +18,6 @@ def load(path):
         "workspace": Path(data["workspace"]),
         "projects": {k: Path(v) for k, v in data.get("projects", {}).items()},
         "commands": data["commands"],
-        "timeout": data.get("timeout_seconds", 600),
     }
 
 
@@ -63,7 +62,6 @@ print(json.dumps({'session_id': sys.argv[2] if len(sys.argv)>2 else 'synthetic-s
                             ],
                         }
                     },
-                    "timeout_seconds": 2,
                 }
             )
         )

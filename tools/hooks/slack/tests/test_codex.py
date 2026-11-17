@@ -10,7 +10,7 @@ import unittest
 ADAPTER = Path(__file__).resolve().parents[1] / "agents/codex.py"
 SESSION = "00000000-0000-4000-8000-000000000001"
 FAKE = r'''
-import json, os, sys
+import json, os, sys, time
 from pathlib import Path
 root = Path(__file__).parent
 session = "00000000-0000-4000-8000-000000000001"
@@ -32,6 +32,9 @@ for line in sys.stdin:
             continue
         result = {"thread": {"id": session}}
     elif method == "turn/start":
+        if mode == "slow":
+            while not (root / "release").exists():
+                time.sleep(.01)
         result = {"turn": {"id": "test-turn"}}
         send({"id": message["id"], "result": result})
         if mode == "approval":
@@ -71,7 +74,10 @@ class CodexTests(unittest.TestCase):
         with self.assertRaises(ProcessLookupError):
             os.kill(int((self.root / "closed").read_text()), 0)
         self.assertNotIn("fixture-private-secret", result.stdout + result.stderr)
-        return result, json.loads(result.stdout)
+        output = [json.loads(line) for line in result.stdout.splitlines()]
+        if mode != "busy":
+            self.assertEqual(output[0], {"type": "session", "session_id": SESSION})
+        return result, output[-1]
 
     def test_start_and_resume_keep_cwd_identity_and_only_the_final_answer(self):
         for session in (None, SESSION):
@@ -96,6 +102,32 @@ class CodexTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertEqual(reply["error"], {"code": "session_busy", "provider": "Codex"})
         self.assertNotIn("turn/start", (self.root / "requests.jsonl").read_text())
+
+    def test_session_is_flushed_while_turn_start_is_still_pending(self):
+        import select
+        (self.root / "mode").write_text("slow")
+        process = subprocess.Popen(
+            [sys.executable, str(ADAPTER)], stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            cwd=self.workspace, env=self.env,
+        )
+        try:
+            process.stdin.write("fixture request")
+            process.stdin.close()
+            process.stdin = None
+            self.assertTrue(select.select([process.stdout], [], [], 5)[0])
+            self.assertEqual(json.loads(process.stdout.readline()), {"type": "session", "session_id": SESSION})
+            self.assertIsNone(process.poll())
+            self.assertFalse((self.root / "closed").exists())
+            (self.root / "release").touch()
+            stdout, stderr = process.communicate(timeout=10)
+            self.assertEqual(process.returncode, 0, stderr)
+            self.assertEqual(json.loads(stdout)["answer"], "fixture answer")
+        finally:
+            (self.root / "release").touch()
+            if process.poll() is None:
+                process.kill()
+            process.communicate(timeout=10)
 
     def test_approval_request_stops_runner_without_auto_approving(self):
         result, reply = self.run_adapter(mode="approval")

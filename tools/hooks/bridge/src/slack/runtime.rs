@@ -15,13 +15,13 @@ use tokio::sync::{Notify, Semaphore, broadcast, watch};
 
 pub const SCHEMA:&str="
 CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, thread TEXT, status TEXT, answer TEXT);
-CREATE TABLE IF NOT EXISTS sessions (thread TEXT PRIMARY KEY, command TEXT, workspace TEXT, session TEXT, context_ts TEXT);
+CREATE TABLE IF NOT EXISTS sessions (thread TEXT PRIMARY KEY, command TEXT, workspace TEXT, session TEXT, context_ts TEXT, answered INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS replies (thread TEXT, ts TEXT, session TEXT, PRIMARY KEY(thread, ts));
 UPDATE jobs SET status='interrupted',answer=NULL WHERE status IN ('queued','running','ready');";
 fn storage(_: rusqlite::Error) -> String {
     "Local bridge storage failed".into()
 }
-type Saved = (String, String, String, String);
+type Saved = (String, String, String, String, bool);
 struct Item {
     job: String,
     thread: String,
@@ -50,6 +50,24 @@ impl Runtime {
         std::fs::create_dir_all(folder).map_err(|_| "Cannot create private state")?;
         let db = Connection::open(folder.join("sessions.sqlite3")).map_err(storage)?;
         db.execute_batch(SCHEMA).map_err(storage)?;
+        let has_answered = {
+            let mut statement = db.prepare("PRAGMA table_info(sessions)").map_err(storage)?;
+            let columns = statement
+                .query_map([], |r| r.get::<_, String>(1))
+                .map_err(storage)?;
+            columns
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(storage)?
+                .iter()
+                .any(|name| name == "answered")
+        };
+        if !has_answered {
+            db.execute(
+                "ALTER TABLE sessions ADD COLUMN answered INTEGER NOT NULL DEFAULT 1",
+                [],
+            )
+            .map_err(storage)?;
+        }
         let (events, _) = broadcast::channel(128);
         Ok(Arc::new(Self {
             config,
@@ -220,9 +238,9 @@ impl Runtime {
             inner
                 .db
                 .query_row(
-                    "SELECT command,workspace,session,context_ts FROM sessions WHERE thread=?1",
+                    "SELECT command,workspace,session,context_ts,answered FROM sessions WHERE thread=?1",
                     [&item.thread],
-                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
                 )
                 .optional()
                 .map_err(|_| HookError::new("command_failed"))?
@@ -273,16 +291,24 @@ impl Runtime {
         if prompt.len() > 256 * 1024 {
             return Err(HookError::new("context_limit"));
         }
+        let answered = saved.as_ref().is_some_and(|s| s.4);
+        let checkpoint_ts = resume.map(|s| s.3.as_str()).unwrap_or("0");
         let reply = process::execute(
             &item.command,
             &prompt,
             &workspace,
             session,
-            self.config.timeout,
             &item.cancel,
+            |returned| {
+                self.inner.lock().unwrap().db.execute(
+                    "INSERT OR REPLACE INTO sessions (thread,command,workspace,session,context_ts,answered) VALUES (?1,?2,?3,?4,?5,?6)",
+                    params![item.thread, command_key, workspace.to_string_lossy(), returned, checkpoint_ts, answered],
+                ).map_err(|_| HookError::new("command_failed"))?;
+                Ok(())
+            },
         )
         .await?;
-        let answer = match reply.chat_url.filter(|_| saved.is_none()) {
+        let answer = match reply.chat_url.filter(|_| !answered) {
             Some(url) => {
                 let footer = format!("\n\n[chat]({url})");
                 let answer: String = reply
@@ -304,7 +330,7 @@ impl Runtime {
             .map_err(|_| HookError::new("command_failed"))?;
         transaction
             .execute(
-                "INSERT OR REPLACE INTO sessions VALUES (?1,?2,?3,?4,?5)",
+                "INSERT OR REPLACE INTO sessions (thread,command,workspace,session,context_ts,answered) VALUES (?1,?2,?3,?4,?5,1)",
                 params![
                     item.thread,
                     command_key,

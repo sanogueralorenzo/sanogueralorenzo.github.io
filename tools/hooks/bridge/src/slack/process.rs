@@ -7,10 +7,9 @@ use std::{
     io::{Seek, Write},
     path::Path,
     process::Stdio,
-    time::Duration,
 };
 use tokio::{
-    io::{AsyncRead, AsyncReadExt},
+    io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, BufReader},
     process::Command as Process,
     sync::watch,
 };
@@ -59,13 +58,63 @@ async fn bounded(mut stream: impl AsyncRead + Unpin) -> WorkResult<Vec<u8>> {
         bytes.extend_from_slice(&chunk[..n]);
     }
 }
+fn session_id(value: &Value, expected: Option<&str>) -> WorkResult<String> {
+    let session = value["session_id"]
+        .as_str()
+        .filter(|s| (1..=200).contains(&s.chars().count()) && !s.trim().is_empty())
+        .ok_or_else(|| HookError::new("invalid_response"))?;
+    if expected.is_some_and(|s| s != session) {
+        return Err(HookError::new("session_invalid"));
+    }
+    Ok(session.into())
+}
+async fn output(
+    stream: impl AsyncRead + Unpin,
+    expected: Option<&str>,
+    checkpoint: &mut impl FnMut(&str) -> WorkResult<()>,
+) -> WorkResult<Option<Value>> {
+    let mut reader = BufReader::new(stream.take(1024 * 1024 + 1));
+    let mut total = 0;
+    let mut announced = expected.map(str::to_owned);
+    let mut result = None;
+    loop {
+        let mut line = Vec::new();
+        let n = reader
+            .read_until(b'\n', &mut line)
+            .await
+            .map_err(|_| HookError::new("command_failed"))?;
+        if n == 0 {
+            return Ok(result);
+        }
+        total += n;
+        if total > 1024 * 1024 {
+            return Err(HookError::new("output_limit"));
+        }
+        let value: Value =
+            serde_json::from_slice(&line).map_err(|_| HookError::new("invalid_response"))?;
+        if result.is_some() {
+            return Err(HookError::new("invalid_response"));
+        }
+        if value["type"] == "session" {
+            let session = session_id(&value, announced.as_deref())?;
+            checkpoint(&session)?;
+            announced = Some(session);
+        } else {
+            if HookError::from_value(&value).is_none() {
+                let reply = parse_reply(&value, announced.as_deref())?;
+                checkpoint(&reply.session)?;
+            }
+            result = Some(value);
+        }
+    }
+}
 pub async fn execute(
     command: &Command,
     prompt: &str,
     workspace: &Path,
     session: Option<&str>,
-    seconds: f64,
     cancel: &Cancel,
+    mut checkpoint: impl FnMut(&str) -> WorkResult<()>,
 ) -> WorkResult<Reply> {
     let args = if session.is_some() {
         &command.resume
@@ -136,21 +185,24 @@ pub async fn execute(
                 group.kill();
                 result
             };
-            let (stdout, _stderr, status) =
-                tokio::try_join!(bounded(stdout), bounded(stderr), wait)?;
+            let (stdout, _stderr, status) = tokio::try_join!(
+                output(stdout, session, &mut checkpoint),
+                bounded(stderr),
+                wait
+            )?;
             Ok::<_, HookError>((stdout, status))
         };
         tokio::select! {
             biased;
             _=cancelled(cancel)=>Err(HookError::new("cancelled")),
-            result=tokio::time::timeout(Duration::from_secs_f64(seconds),work)=>result.unwrap_or_else(|_|Err(HookError::new("timeout"))),
+            result=work=>result,
         }
     };
     // Kill descendants on every outcome, including when the group leader exits first.
     drop(group);
     let _ = child.wait().await;
     let (stdout, status) = result?;
-    let value: Value = serde_json::from_slice(&stdout).map_err(|_| {
+    let value = stdout.ok_or_else(|| {
         HookError::new(if status.success() {
             "invalid_response"
         } else {
@@ -163,21 +215,15 @@ pub async fn execute(
     if !status.success() {
         return Err(HookError::new("command_failed"));
     }
-    let returned = value["session_id"]
-        .as_str()
-        .ok_or_else(|| HookError::new("invalid_response"))?;
+    parse_reply(&value, session)
+}
+fn parse_reply(value: &Value, expected: Option<&str>) -> WorkResult<Reply> {
+    let returned = session_id(value, expected)?;
     let answer = value["answer"]
         .as_str()
         .ok_or_else(|| HookError::new("invalid_response"))?;
-    if !(1..=200).contains(&returned.chars().count())
-        || returned.trim().is_empty()
-        || answer.trim().is_empty()
-        || answer.chars().count() > 12000
-    {
+    if answer.trim().is_empty() || answer.chars().count() > 12000 {
         return Err(HookError::new("invalid_response"));
-    }
-    if session.is_some_and(|s| s != returned) {
-        return Err(HookError::new("session_invalid"));
     }
     let chat_url = match value.get("chat_url") {
         None => None,
@@ -196,7 +242,7 @@ pub async fn execute(
         _ => return Err(HookError::new("invalid_response")),
     };
     Ok(Reply {
-        session: returned.into(),
+        session: returned,
         answer: answer.trim().into(),
         chat_url,
     })

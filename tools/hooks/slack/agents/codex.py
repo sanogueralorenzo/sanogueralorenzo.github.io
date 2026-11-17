@@ -130,6 +130,7 @@ def run():
         UUID(thread)
         if len(sys.argv) == 2 and thread != sys.argv[1]:
             raise HookError("session_invalid", "Codex")
+        print(json.dumps({"type": "session", "session_id": thread}), flush=True)
         turn = server.request(
             "turn/start",
             {

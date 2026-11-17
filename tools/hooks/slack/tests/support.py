@@ -194,7 +194,6 @@ class RuntimeProxy:
             "workspace": str(config["workspace"]),
             "projects": {k: str(v) for k, v in config["projects"].items()},
             "commands": config["commands"],
-            "timeout_seconds": config["timeout"],
         }
         self.backend = Backend(home, raw)
         self.db = sqlite3.connect(state_dir / "sessions.sqlite3")
@@ -241,7 +240,7 @@ def event(**extra):
     }
 
 
-def configuration(home, script=None, timeout=2):
+def configuration(home, script=None):
     script = (
         script
         or 'import json,sys;sys.stdin.read();print(json.dumps({"session_id":sys.argv[1] if len(sys.argv)>1 else "synthetic-session","answer":"synthetic answer"}))'
@@ -251,5 +250,4 @@ def configuration(home, script=None, timeout=2):
         "workspace": str(home),
         "projects": {},
         "commands": {"hook": {"start": args, "resume": args + ["{session_id}"]}},
-        "timeout_seconds": timeout,
     }
