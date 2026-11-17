@@ -19,6 +19,7 @@ class ErrorTests(unittest.TestCase):
             ("429 rate limit", "usage_limit"),
             ("approval required", "permission_required"),
             ("session not found", "session_invalid"),
+            ("thread already has an active writer", "session_busy"),
             ("unexpected failure", "command_failed"),
         ]:
             error = classify(text + " " + private, "Claude")
@@ -33,7 +34,7 @@ class ErrorTests(unittest.TestCase):
                 executable.write_text(
                     "#!"
                     + sys.executable
-                    + '\nimport json\nprint(json.dumps({"is_error":True,"result":"OAuth token has expired fixture-private-secret"}))\nraise SystemExit(1)\n'
+                    + '\nimport json,sys\nprint("OAuth token has expired fixture-private-secret",file=sys.stderr)\nprint(json.dumps({"is_error":True,"result":"OAuth token has expired fixture-private-secret"}))\nraise SystemExit(1)\n'
                 )
                 executable.chmod(0o700)
                 wrapper = (

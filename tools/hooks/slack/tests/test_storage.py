@@ -8,10 +8,43 @@ import sys
 import tempfile
 import unittest
 
-from support import Backend, event
+from support import Backend, configuration, event
 
 
 class StorageTests(unittest.TestCase):
+    def test_chat_footer_rejects_unsafe_urls(self):
+        for url in ('javascript://example', 'https://example.test/) [injected](https://other.test'):
+            with self.subTest(url=url), tempfile.TemporaryDirectory() as directory:
+                home = Path(directory).resolve()
+                output = {"session_id": "synthetic-session", "answer": "answer", "chat_url": url}
+                config = configuration(home, script=f'import sys;sys.stdin.read();print({json.dumps(output)!r})')
+                backend = Backend(home, config)
+                try:
+                    job = backend.request("POST", "/slack/run", event())["job"]
+                    self.assertEqual(backend.wait(job, "failed")["error"]["code"], "invalid_response")
+                finally:
+                    backend.stop()
+
+    def test_chat_footer_is_only_on_first_reply_even_with_queued_requests_and_project_change(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory).resolve()
+            project = home / "project with spaces"
+            project.mkdir()
+            config = configuration(home, script='import json,sys;sys.stdin.read();print(json.dumps({"session_id":"synthetic-session","answer":"x"*12000,"chat_url":"codex://threads/00000000-0000-4000-8000-000000000001"}))')
+            config["projects"] = {"demo": str(project)}
+            backend = Backend(home, config)
+            try:
+                first = backend.request("POST", "/slack/run", event())["job"]
+                second = backend.request("POST", "/slack/run", event(ts="2000000002.000001"))["job"]
+                reply = backend.wait(first)["answer"]
+                self.assertEqual(len(reply), 12000)
+                self.assertTrue(reply.endswith("\n\n[chat](codex://threads/00000000-0000-4000-8000-000000000001)"))
+                self.assertEqual(backend.wait(second)["answer"], "x"*12000)
+                changed = backend.request("POST", "/slack/run", event(ts="2000000003.000001", text="hook demo"))["job"]
+                self.assertEqual(backend.wait(changed)["answer"], "x"*12000)
+            finally:
+                backend.stop()
+
     def test_existing_json_keys_and_sessions_resume_without_rewriting_history(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory).resolve()

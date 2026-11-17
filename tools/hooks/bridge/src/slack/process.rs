@@ -16,6 +16,11 @@ use tokio::{
 };
 
 pub type Cancel = watch::Sender<bool>;
+pub struct Reply {
+    pub session: String,
+    pub answer: String,
+    pub chat_url: Option<String>,
+}
 pub async fn cancelled(cancel: &Cancel) {
     let mut receiver = cancel.subscribe();
     if !*receiver.borrow_and_update() {
@@ -61,7 +66,7 @@ pub async fn execute(
     session: Option<&str>,
     seconds: f64,
     cancel: &Cancel,
-) -> WorkResult<(String, String)> {
+) -> WorkResult<Reply> {
     let args = if session.is_some() {
         &command.resume
     } else {
@@ -174,5 +179,25 @@ pub async fn execute(
     if session.is_some_and(|s| s != returned) {
         return Err(HookError::new("session_invalid"));
     }
-    Ok((returned.into(), answer.trim().into()))
+    let chat_url = match value.get("chat_url") {
+        None => None,
+        Some(Value::String(url))
+            if url.len() <= 2048
+                && !url
+                    .chars()
+                    .any(|c| c.is_whitespace() || c.is_control() || "()[]<>\\\"".contains(c))
+                && url.parse::<axum::http::Uri>().is_ok_and(|uri| {
+                    matches!(uri.scheme_str(), Some("http" | "https" | "codex"))
+                        && uri.authority().is_some()
+                }) =>
+        {
+            Some(url.clone())
+        }
+        _ => return Err(HookError::new("invalid_response")),
+    };
+    Ok(Reply {
+        session: returned.into(),
+        answer: answer.trim().into(),
+        chat_url,
+    })
 }

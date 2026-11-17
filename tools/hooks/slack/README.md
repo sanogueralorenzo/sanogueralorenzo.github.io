@@ -21,13 +21,20 @@ Edit `~/.local/share/browser-hooks/hooks/slack/config.json`, then run
 `chat` and/or `claude` keywords. Each key in `commands` is a trigger keyword.
 Each command has `start` and `resume` argument arrays; only `resume` includes
 `{session_id}`. Commands read the prompt from stdin and return JSON with
-`session_id` and `answer`. Codex/Claude adapters are included; other CLIs can use
-the same contract.
+`session_id` and `answer`, plus an optional `chat_url`. The first successful reply
+in a new thread appends a lowercase `chat` link when the adapter supplies one;
+follow-ups omit it. Codex/Claude adapters are included; other CLIs can use the same
+contract.
 
 Set `workspace` for the default directory and `projects` for aliases mapped to
 project directories. The first alias in a request selects the project; follow-ups
 inherit it. Native CLI models and permissions are preserved. `timeout_seconds`
 sets the per-command limit, up to 600 seconds.
+
+Codex starts a private stdio app-server for each request and exits it before
+returning the answer. The saved chat remains available in the Codex app. Follow-ups
+reuse its ID and project directory. If another Codex client owns the chat, continue
+there or release it there before retrying from Slack.
 
 ## Troubleshoot
 

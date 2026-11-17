@@ -273,7 +273,7 @@ impl Runtime {
         if prompt.len() > 256 * 1024 {
             return Err(HookError::new("context_limit"));
         }
-        let (returned, answer) = process::execute(
+        let reply = process::execute(
             &item.command,
             &prompt,
             &workspace,
@@ -282,6 +282,18 @@ impl Runtime {
             &item.cancel,
         )
         .await?;
+        let answer = match reply.chat_url.filter(|_| saved.is_none()) {
+            Some(url) => {
+                let footer = format!("\n\n[chat]({url})");
+                let answer: String = reply
+                    .answer
+                    .chars()
+                    .take(12000 - footer.chars().count())
+                    .collect();
+                format!("{}{footer}", answer.trim_end())
+            }
+            None => reply.answer,
+        };
         let mut inner = self.inner.lock().unwrap();
         if *item.cancel.borrow() {
             return Ok(());
@@ -297,7 +309,7 @@ impl Runtime {
                     item.thread,
                     command_key,
                     workspace.to_string_lossy(),
-                    returned,
+                    reply.session,
                     item.event.ts
                 ],
             )

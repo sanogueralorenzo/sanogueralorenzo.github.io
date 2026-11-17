@@ -336,7 +336,8 @@ class NativeProtocolTests(unittest.TestCase):
                 chr(10).join(
                     [
                         "#!" + sys.executable,
-                        "import json",
+                        "import json,sys",
+                        'print("OAuth token has expired fixture-private-secret",file=sys.stderr)',
                         'print(json.dumps({"is_error":True,"result":"OAuth token has expired fixture-private-secret"}))',
                         "raise SystemExit(1)",
                         "",

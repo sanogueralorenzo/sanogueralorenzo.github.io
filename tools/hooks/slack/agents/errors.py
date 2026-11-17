@@ -14,6 +14,10 @@ def classify(output, provider):
     text = output.lower()
     for code, markers in [
         (
+            "session_busy",
+            ("already has an active writer", "conversation is open in another"),
+        ),
+        (
             "auth_required",
             (
                 "token has expired",
