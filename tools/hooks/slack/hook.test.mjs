@@ -25,10 +25,11 @@ function locks() {
   } };
 }
 
-function fixture({ manager = locks(), action, failPost = false } = {}) {
+function fixture({ manager = locks(), action, failPost = false, recovery = [] } = {}) {
   const calls = [], sockets = [], timers = new Map(), timeouts = new Map(), messages = [], listeners = new Map();
   let serial = 0, token = 'fixture', user = 'UTEST';
   const intervals = new Map();
+  const claimed = new Set();
   class Socket {
     readyState = 1;
     constructor(url) { this.url = url; sockets.push(this); }
@@ -65,9 +66,12 @@ function fixture({ manager = locks(), action, failPost = false } = {}) {
     postMessage(data) {
       messages.push(data);
       if (data.type === 'request') {
-        const value = action ? action(data) : data.action === 'run'
-          ? { job: `job-${data.id}`, answer: 'Test agent answer' }
-          : data.action === 'claim' ? { claimed: true } : { ok: true };
+        const fallback = data.action === 'run' ? { job: `job-${data.id}`, status: 'queued' }
+          : data.action === 'wait' ? { job: data.payload.job, answer: 'Test agent answer' }
+          : data.action === 'recover' ? { jobs: typeof recovery === 'function' ? recovery() : recovery }
+          : data.action === 'claim' ? { claimed: !claimed.has(data.payload.job) } : { ok: true };
+        if (data.action === 'claim' && fallback.claimed) claimed.add(data.payload.job);
+        const value = action?.(data) ?? fallback;
         Promise.resolve(value).then(result => respond(data.id, result));
       }
     },
@@ -86,11 +90,46 @@ const message = (extra = {}) => ({ type: 'message', channel: 'DSELF', user: 'UTE
 const requestReactions = f => f.calls.filter(c => c.method.startsWith('reactions.') && c.values.timestamp === message().ts)
   .map(c => `${c.method}:${c.values.name}`);
 
+test('a reloaded page recovers accepted jobs without admitting or reacting to them again', async () => {
+  let finish;
+  const first = fixture({ action: d => d.action === 'wait' ? new Promise(resolve => { finish = resolve; }) : undefined });
+  first.configure(); await settle();
+  first.sockets[0].event(message()); await settle();
+  const job = first.messages.find(m => m.action === 'run').id;
+  first.page.agentHooks.dispose();
+  const recovered = { job: `job-${job}`, event: { channel: 'DSELF', ts: message().ts, thread_ts: message().ts } };
+  const next = fixture({ recovery: [recovered], action: d => d.action === 'wait'
+    ? { job: recovered.job, answer: 'Finished while page was closed' } : undefined });
+  next.configure(); await settle();
+  assert.equal(next.posts().length, 1);
+  assert.equal(next.posts()[0].values.markdown_text, 'Finished while page was closed');
+  assert.equal(next.messages.filter(m => m.action === 'run').length, 0);
+  assert.deepEqual(requestReactions(next), []);
+  finish({ job: recovered.job, answer: 'Old page must not send' }); await settle();
+  assert.equal(first.posts().length, 0);
+  next.page.agentHooks.dispose();
+});
+
+test('bridge reconnection recovers an accepted request whose admission response was lost', async () => {
+  let lost;
+  const recovered = { job: 'accepted', event: { channel: 'DSELF', ts: message().ts, thread_ts: message().ts } };
+  const f = fixture({ recovery: () => lost ? [recovered] : [], action: d => d.action === 'run'
+    ? new Promise(resolve => { lost = resolve; }) : undefined });
+  f.configure(); await settle();
+  f.sockets[0].event(message()); await settle();
+  f.configure({ error: 'Local bridge disconnected' }); f.configure(); await settle();
+  // Recovery joins the accepted job even though its original request is already in the seen set.
+  lost({ job: recovered.job }); await settle();
+  assert.equal(f.posts().length, 1);
+  assert.equal(f.messages.filter(m => m.action === 'run').length, 1);
+  f.page.agentHooks.dispose();
+});
+
 test('a pending run survives beyond the former eleven-minute watchdog', async () => {
   let finish;
-  const f = fixture({ action: d => d.action === 'run'
+  const f = fixture({ action: d => d.action === 'wait'
     ? new Promise(resolve => { finish = resolve; })
-    : d.action === 'claim' ? { claimed: true } : { ok: true } });
+    : d.action === 'claim' ? { claimed: true } : undefined });
   f.configure(); await settle();
   f.sockets[0].event({ type: 'hello' });
   f.sockets[0].event(message()); await settle();
@@ -128,9 +167,9 @@ test('only own new keyword-prefixed messages trigger; ignores duplicates, edits,
 test('requests keep only the eyes acknowledgement after success or a diagnostic reply', async () => {
   for (const diagnostic of [false, true]) {
     const f = fixture({
-      action: d => d.action === 'run'
+      action: d => d.action === 'wait'
         ? { job: 'test', ...(diagnostic ? { error: { message: 'Sign in again.' } } : { answer: 'Done' }) }
-        : d.action === 'claim' ? { claimed: true } : { ok: true },
+        : d.action === 'claim' ? { claimed: true } : undefined,
     });
     f.configure(); await settle();
     f.sockets[0].event(message()); await settle();
@@ -141,23 +180,26 @@ test('requests keep only the eyes acknowledgement after success or a diagnostic 
   }
 });
 
-test('queues each channel/thread in order while different conversations run concurrently', async () => {
-  const waits = [], requests = [];
+test('admits queued turns before earlier answers finish and delivers each thread in order', async () => {
+  const waits = [];
   const f = fixture({ action(data) {
-    if (data.action === 'run') { requests.push(data.payload); return new Promise(resolve => waits.push(resolve)); }
-    if (data.action === 'claim') return { claimed: true };
-    return { ok: true };
+    if (data.action === 'wait') return new Promise(resolve => waits.push(resolve));
   } });
   f.configure(); await settle();
   f.sockets[0].event(message());
   f.sockets[0].event(message({ ts: '2000000003.000001', thread_ts: '2000000002.000001' }));
   f.sockets[0].event(message({ channel: 'COTHER' }));
-  await settle(); assert.equal(requests.length, 2);
-  waits[0]({ job: 'one', answer: 'hook answer with a keyword must not loop' });
-  await settle(); assert.equal(requests.length, 3);
-  assert.equal(requests[2].messages.length, 1);
-  waits[1]({ job: 'two', answer: 'second channel' }); waits[2]({ job: 'three', answer: 'same thread' });
-  await settle(); assert.equal(f.posts().length, 3);
+  await settle();
+  const requests = f.messages.filter(m => m.action === 'run');
+  assert.equal(requests.length, 3);
+  assert.equal(waits.length, 2);
+  assert.equal(requests.find(m => m.payload.ts === '2000000003.000001').payload.messages.length, 1);
+  waits[0]({ job: 'one', answer: 'first' }); await settle();
+  assert.equal(waits.length, 3);
+  waits[1]({ job: 'two', answer: 'other channel' });
+  waits[2]({ job: 'three', answer: 'same thread' }); await settle();
+  assert.equal(f.posts().length, 3);
+  assert.ok(f.posts().findIndex(p => p.values.markdown_text === 'first') < f.posts().findIndex(p => p.values.markdown_text === 'same thread'));
   assert.equal(f.page.agentHooks.status().pending, 0);
 });
 
@@ -173,7 +215,7 @@ test('one workspace leader prevents duplicate replies across tabs; another tab t
 
 test('reload/dispose and account changes cancel queued sends and release the socket', async () => {
   let finish;
-  const f = fixture({ action: () => new Promise(resolve => { finish = resolve; }) });
+  const f = fixture({ action: d => d.action === 'wait' ? new Promise(resolve => { finish = resolve; }) : undefined });
   f.configure(); await settle(); f.sockets[0].event(message()); await settle();
   f.token('changed'); f.event('storage', { key: 'localConfig_v2' }); await settle();
   finish({ job: 'one', answer: 'must not send' }); await settle();
@@ -190,7 +232,7 @@ test('uncertain Slack delivery is not retried and later duplicate events do not 
 });
 
 test('a delivery claim denied by the bridge prevents sending', async () => {
-  const f = fixture({ action: d => d.action === 'run' ? { job: 'test', answer: 'answer' } : { claimed: false } });
+  const f = fixture({ action: d => d.action === 'wait' ? { job: 'test', answer: 'answer' } : d.action === 'claim' ? { claimed: false } : undefined });
   f.configure(); await settle(); f.sockets[0].event(message()); await settle();
   assert.equal(f.posts().length, 0);
 });
@@ -205,9 +247,9 @@ test('reconnect preserves admission state and uses only Slack fixed socket origi
 
 test('CLI failures post one actionable diagnostic and keep the eyes acknowledgement', async () => {
   const messageText = 'Claude login expired. Run `claude auth login` on your computer.';
-  const f = fixture({ action: d => d.action === 'run'
+  const f = fixture({ action: d => d.action === 'wait'
     ? { job: 'test', error: { code: 'auth_required', message: messageText } }
-    : d.action === 'claim' ? { claimed: true } : { ok: true } });
+    : d.action === 'claim' ? { claimed: true } : undefined });
   f.configure(); await settle();
   f.sockets[0].event(message()); f.sockets[0].event(message()); await settle();
   assert.equal(f.posts().length, 1);
@@ -247,9 +289,9 @@ test('same-page storage writes and navigation events attach without polling', as
 
 test('bridge reconnection preserves the Slack listener and pending work, then clears its error', async () => {
   let finish;
-  const f = fixture({ action: d => d.action === 'run'
+  const f = fixture({ action: d => d.action === 'wait'
     ? new Promise(resolve => { finish = resolve; })
-    : d.action === 'claim' ? { claimed: true } : { ok: true } });
+    : d.action === 'claim' ? { claimed: true } : undefined });
   f.configure(); await settle(); f.sockets[0].event({ type: 'hello' });
   f.sockets[0].event(message()); await settle();
   f.configure({ error: 'Local bridge disconnected. Reconnecting automatically…' });

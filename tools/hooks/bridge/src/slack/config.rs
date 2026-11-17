@@ -194,14 +194,14 @@ impl Config {
         Ok((command, project, request.to_owned()))
     }
 }
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Message {
     pub ts: String,
     pub user: String,
     pub text: String,
 }
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Event {
     pub team: String,

@@ -2,6 +2,7 @@ pub mod config;
 mod errors;
 mod process;
 mod runtime;
+mod storage;
 
 use crate::server::{ApiResult, fail};
 use axum::http::{Method, StatusCode};
@@ -40,6 +41,9 @@ impl Slack {
     pub fn events(&self) -> broadcast::Receiver<Value> {
         self.runtime.events.subscribe()
     }
+    pub fn resume(&self) -> Result<(), String> {
+        self.runtime.resume()
+    }
     pub async fn close(&self) {
         self.runtime.close().await;
     }
@@ -57,6 +61,8 @@ impl Slack {
                 .ok_or((StatusCode::NOT_FOUND, "Unknown job"));
         } else if method == Method::POST && path == "/run" {
             self.runtime.submit(body)
+        } else if method == Method::POST && path == "/recover" {
+            self.runtime.recover(body)
         } else if method == Method::POST && ["/claim", "/cancel", "/delivered"].contains(&path) {
             static JOB: LazyLock<Regex> =
                 LazyLock::new(|| Regex::new(r"\A[a-f0-9]{64}\z").unwrap());

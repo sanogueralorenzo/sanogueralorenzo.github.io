@@ -23,7 +23,9 @@ pairing and a single local event connection. Slack is the available adapter.
    Slack and localhost access. Pairing happens automatically; no code to copy.
 4. Open or reload Slack, then send `chat Reply with hello` or
    `claude Reply with hello` in your self-DM. Keep your computer awake and one Slack
-   tab open. No Slack app or workspace approval is required.
+   tab open to receive new commands. Accepted work survives closing/reloading the
+   tab; pending replies reconnect when Slack opens again. No Slack app or workspace
+   approval is required.
 
 The installer builds the Rust bridge locally with SQLite included and starts it
 automatically at login.
@@ -58,6 +60,7 @@ browser-hooks/
 └── hooks/
     └── slack/
         ├── config.json
+        ├── sessions.lock      # one bridge owns request execution
         └── sessions.sqlite3
 ```
 

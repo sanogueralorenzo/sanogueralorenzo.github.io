@@ -149,6 +149,7 @@ impl App {
             rotated,
             closing,
         });
+        app.slack.resume()?;
         let expire = app.clone();
         let mut changed = app.rotated.subscribe();
         let mut shutdown = app.closing.subscribe();

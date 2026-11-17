@@ -59,7 +59,7 @@
     return new Promise((resolve, reject) => {
       const cancel = () => { page.clearTimeout(timer); s.abort.signal.removeEventListener("abort", cancel); pending.delete(id); emit("cancel", { id }); reject(failure("Listener stopped.")); };
       s.abort.signal.addEventListener("abort", cancel, { once: true });
-      const timer = action === "run" ? undefined : page.setTimeout(cancel, 20000);
+      const timer = action === "wait" ? undefined : page.setTimeout(cancel, 20000);
       pending.set(id, {
         resolve(value) { page.clearTimeout(timer); s.abort.signal.removeEventListener("abort", cancel); resolve(value); },
         reject(message) { page.clearTimeout(timer); s.abort.signal.removeEventListener("abort", cancel); reject(failure(typeof message === "string" ? message.slice(0, 500) : "Local bridge request failed. Run browser-hooks status.")); },
@@ -97,13 +97,8 @@
     const match = event.text.match(/^(\S+)\s+([\s\S]*\S)\s*$/);
     return !!match && settings.keywords.includes(match[1].toLowerCase());
   }
-  async function process(s, event) {
-    assertCurrent(s);
-    const context = await history(s, event);
-    const result = await bridge(s, "run", {
-      team: s.team, user: s.user, channel: event.channel, ts: event.ts,
-      thread_ts: event.thread_ts || event.ts, text: event.text, messages: context,
-    });
+  async function deliver(s, event, job) {
+    const result = await bridge(s, "wait", { job });
     assertCurrent(s);
     if (result.skip) return;
     const diagnostic = result.error?.message;
@@ -124,22 +119,55 @@
     await reaction(s, { channel: event.channel, ts: posted.ts }, "robot_face");
     state.error = diagnostic || null;
   }
-  function receive(s, event) {
-    sync();
-    if (!accepts(event, s)) return;
-    s.seen.add(`${event.channel}:${event.ts}`);
-    if (state.pending >= 100) { state.error = "Queue full. Send the command again later."; publishStatus(); return; }
-    state.received++; state.pending++;
+  function track(s, event, admit) {
+    state.pending++;
     const key = `${event.channel}:${event.thread_ts || event.ts}`;
-    const acknowledged = reaction(s, event, "eyes");
-    const work = (s.threads.get(key) || Promise.resolve()).then(async () => { await acknowledged; return process(s, event); })
+    // Admit every request durably while earlier turns are running; serialize only Slack delivery.
+    let job;
+    const accepted = (s.admissions.get(key) || Promise.resolve()).then(async () => {
+      job = await admit(); s.jobs.add(job); return job;
+    });
+    const admission = accepted.then(() => {}, () => {});
+    s.admissions.set(key, admission);
+    void admission.then(() => { if (s.admissions.get(key) === admission) s.admissions.delete(key); });
+    const work = (s.threads.get(key) || Promise.resolve()).then(async () => deliver(s, event, await accepted))
       .catch(error => { if (current(s)) state.error = errorMessage(error); })
       .finally(() => {
+        s.jobs.delete(job);
         if (session === s) state.pending--;
         if (s.threads.get(key) === work) s.threads.delete(key);
         publishStatus();
       });
     s.threads.set(key, work); publishStatus();
+  }
+  async function recover(s) {
+    try {
+      const result = await bridge(s, "recover", { team: s.team, user: s.user });
+      assertCurrent(s);
+      for (const { job, event } of result.jobs) {
+        const key = `${event.channel}:${event.ts}`;
+        if (s.jobs.has(job)) continue;
+        s.jobs.add(job);
+        s.seen.add(key);
+        track(s, event, () => job);
+      }
+    } catch (error) { if (current(s)) { state.error = errorMessage(error); publishStatus(); } }
+  }
+  function receive(s, event) {
+    sync();
+    if (!accepts(event, s)) return;
+    s.seen.add(`${event.channel}:${event.ts}`);
+    if (state.pending >= 100) { state.error = "Queue full. Send the command again later."; publishStatus(); return; }
+    state.received++;
+    const acknowledged = reaction(s, event, "eyes");
+    track(s, event, async () => {
+      await acknowledged;
+      const messages = await history(s, event);
+      return (await bridge(s, "run", {
+        team: s.team, user: s.user, channel: event.channel, ts: event.ts,
+        thread_ts: event.thread_ts || event.ts, text: event.text, messages,
+      })).job;
+    });
   }
   function disconnect(s) {
     page.clearTimeout(s.reconnect); page.clearInterval(s.heartbeat); page.clearTimeout(s.helloTimeout);
@@ -194,7 +222,7 @@
       if (disposed || candidate.abort.signal.aborted || !settings.keywords.length
         || credential()?.team !== auth.team || credential()?.token !== auth.token) return;
       const s = session = { ...auth, abort: candidate.abort, started: Date.now() / 1000,
-        seen: new Set(), sent: new Set(), threads: new Map(), attempts: 0, sequence: 0 };
+        seen: new Set(), sent: new Set(), jobs: new Set(), threads: new Map(), admissions: new Map(), attempts: 0, sequence: 0 };
       const held = new Promise(resolve => { s.release = resolve; });
       state.running = true; state.standby = false; state.error = null; publishStatus();
       try {
@@ -202,6 +230,7 @@
         if (identity.bot_id || !identity.user_id) throw failure("A signed-in human Slack account is required.");
         s.user = identity.user_id;
         s.gateway = (await api(s, "team.info")).team.id;
+        await recover(s);
         await connect(s);
         await held;
       } catch (error) {
@@ -228,9 +257,11 @@
     const next = { keywords, error: value.error || null };
     if (JSON.stringify(next) === JSON.stringify(settings)) return;
     const changed = JSON.stringify(keywords) !== JSON.stringify(settings.keywords);
+    const reconnected = settings.error && !next.error;
     if (changed) end();
     settings = next; state.error = next.error;
     if (changed) sync();
+    else if (reconnected && session?.user) void recover(session);
     publishStatus();
   }
   function onMessage(event) {

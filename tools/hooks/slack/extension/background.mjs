@@ -56,14 +56,8 @@ function connect() {
     config = { ...config, error }; publish();
   });
 }
-function cancelJob(job) {
-  if (!pendingRequests().some(entry => entry.job === job)) void request("/slack/cancel", { job }).catch(() => {});
-}
 function cancel(client, id) {
-  const entry = client.requests.get(id);
-  if (!entry) return;
   client.requests.delete(id);
-  if (entry.job) cancelJob(entry.job);
 }
 async function dispatch(client, message) {
   if (client.popup) return;
@@ -75,19 +69,17 @@ async function dispatch(client, message) {
   }
   if (typeof message?.id !== "string" || message.id.length > 100) return;
   if (message.type === "cancel") { cancel(client, message.id); return; }
-  if (message.type !== "request" || client.requests.has(message.id) || client.requests.size >= 100) return;
+  if (message.type !== "request" || client.requests.has(message.id) || client.requests.size >= 128) return;
   const entry = { client, id: message.id, job: null };
   client.requests.set(message.id, entry);
   try {
     const { action, payload } = message;
-    if (!["run", "claim", "delivered"].includes(action) || action !== "run" && !/^[a-f0-9]{64}$/.test(payload?.job)) throw new Error("Invalid Slack operation");
+    if (!["run", "wait", "recover", "claim", "delivered"].includes(action)
+      || ["wait", "claim", "delivered"].includes(action) && !/^[a-f0-9]{64}$/.test(payload?.job)) throw new Error("Invalid Slack operation");
+    if (action === "wait") { entry.job = payload.job; void update(entry.job); return; }
     const value = await request(`/slack/${action}`, payload);
-    if (action !== "run") { finish(entry, value); return; }
-    if (!/^[a-f0-9]{64}$/.test(value.job)) throw new Error("Invalid bridge job");
-    entry.job = value.job;
-    if (client.requests.get(message.id) !== entry) { cancelJob(entry.job); return; }
-    // Snapshot closes the race where completion arrived before the run response.
-    void update(entry.job);
+    if (action === "run" && !/^[a-f0-9]{64}$/.test(value.job)) throw new Error("Invalid bridge job");
+    finish(entry, value);
   } catch (error) { finish(entry, undefined, error.message || "Bridge request failed."); }
 }
 export function connectPort(port) {

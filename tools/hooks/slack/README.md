@@ -39,8 +39,14 @@ Codex starts a private stdio app-server for each request and exits it before
 returning the answer. The saved chat remains available in the Codex app. Follow-ups
 reuse its ID and project directory. If another Codex client owns the chat, continue
 there or release it there before retrying from Slack.
-Closing or reloading the owning Slack page, or stopping the bridge, cancels its
-requests. The saved Codex chat remains available for the next follow-up.
+
+Accepted requests, their command/project settings, and unsent answers are saved
+privately in SQLite. Closing or reloading Slack detaches the page; work continues.
+Opening the same Slack workspace/account reconnects to its pending requests and
+delivers unsent answers. Delivery confirmation clears the saved request and answer.
+Bridge restarts resume queued requests and preserve unsent answers. A native CLI
+turn interrupted by shutdown or a crash is reported instead of rerun; send a
+follow-up in its Slack thread to continue the saved session. No Pi runtime is needed.
 
 ## Troubleshoot
 
