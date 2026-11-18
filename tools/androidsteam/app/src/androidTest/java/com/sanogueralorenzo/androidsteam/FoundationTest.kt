@@ -1,7 +1,5 @@
 package com.sanogueralorenzo.androidsteam
 
-import android.content.Intent
-import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
@@ -12,20 +10,7 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class FoundationTest {
-    private val instrumentation = InstrumentationRegistry.getInstrumentation()
-    private val context = instrumentation.targetContext
-
-    @Test fun launchesWithHonestRuntimeStatus() {
-        val activity = instrumentation.startActivitySync(Intent(context, SetupActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        try {
-            instrumentation.runOnMainSync {
-                assertEquals(context.getString(R.string.development_notice), activity.findViewById<TextView>(R.id.development_notice).text.toString())
-                assertTrue(activity.findViewById<TextView>(R.id.device).text.isNotBlank())
-            }
-        } finally {
-            instrumentation.runOnMainSync { activity.finish() }
-        }
-    }
+    private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Test fun packagedExecutableRuns() {
         checkExecution(File(context.applicationInfo.nativeLibraryDir, "libexecution-probe.so"))

@@ -27,7 +27,8 @@ foreach (float scale in new[] { .5f, 2f })
 var keys = (from y in Enumerable.Range(10, 9) from x in Enumerable.Range(10, 9) select new ChunkKey(x, y)).ToArray();
 var world = new OceanWorld(147);
 var forward = keys.ToDictionary(k => k, k => world.Generate(k).Places);
-var reverse = keys.Reverse().ToDictionary(k => k, k => new OceanWorld(147).Generate(k).Places);
+var reverseWorld = new OceanWorld(147);
+var reverse = keys.Reverse().ToDictionary(k => k, k => reverseWorld.Generate(k).Places);
 foreach (var key in keys)
 {
     // Compare world data, excluding each instance's lazily cached IslandShape object.
@@ -51,6 +52,11 @@ foreach (var vortex in whirlpools)
         Check(Vector2.Distance(vortex.Position, obstacle.Position) > vortex.Radius + obstacle.Radius,
             "The whirlpool funnel must stay clear of land and solid scenery.");
     world.Stream(vortex.Position);
+    Check(world.Places.Any(p => p.Id == vortex.Id), "The whirlpool must be loaded for the flow check.");
     Check(world.FlowAt(vortex.Position).LengthSquared() < .001f, "A visual whirlpool must not pull the boat.");
 }
+var current = places.First(p => p.Kind == PlaceKind.Current);
+world.Stream(current.Position);
+Check(Vector2.Dot(world.FlowAt(current.Position), OceanWorld.FlowDirection(current)) > 0,
+    "A current must push the boat in its flow direction.");
 Console.WriteLine($"Passed open-water whirlpool spacing and visual-only behavior checks ({whirlpools.Length} whirlpools).");

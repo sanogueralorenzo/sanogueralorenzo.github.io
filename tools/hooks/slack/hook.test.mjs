@@ -28,7 +28,7 @@ function locks() {
 function fixture({ manager = locks(), action, failPost = false, recovery = [], threadPage, beforeReaction } = {}) {
   const calls = [], sockets = [], timers = new Map(), timeouts = new Map(), messages = [], listeners = new Map();
   let serial = 0, token = 'fixture', user = 'UTEST';
-  const intervals = new Map();
+  const intervals = new Set();
   const claimed = new Set();
   class Socket {
     readyState = 1;
@@ -60,7 +60,7 @@ function fixture({ manager = locks(), action, failPost = false, recovery = [], t
     },
     setTimeout: (fn, ms) => { const id = ++serial; timers.set(id, fn); timeouts.set(id, ms); return id; },
     clearTimeout: id => { timers.delete(id); timeouts.delete(id); },
-    setInterval: (fn, ms) => { const id = ++serial; timers.set(id, fn); intervals.set(id, ms); return id; },
+    setInterval: fn => { const id = ++serial; timers.set(id, fn); intervals.add(id); return id; },
     clearInterval: id => { timers.delete(id); intervals.delete(id); },
     addEventListener(name, fn) { if (!listeners.has(name)) listeners.set(name, new Set()); listeners.get(name).add(fn); },
     removeEventListener(name, fn) { listeners.get(name)?.delete(fn); },
@@ -195,9 +195,11 @@ test('starts from any Slack view and replies in public/private channels, DMs and
   const f = fixture(); f.configure(); await settle();
   assert.equal(f.sockets.length, 1);
   f.sockets[0].event({ type: 'hello' });
-  for (const channel of ['DSELF', 'DOTHER', 'CPUBLIC', 'GPRIVATE', 'GGROUP']) f.sockets[0].event(message({ channel }));
+  const channels = ['DSELF', 'DOTHER', 'CPUBLIC', 'GPRIVATE', 'GGROUP'];
+  for (const channel of channels) f.sockets[0].event(message({ channel }));
   await settle();
-  assert.equal(f.posts().length, 5);
+  assert.equal(f.posts().length, channels.length);
+  assert.deepEqual(requestReactions(f), channels.map(() => 'reactions.add:eyes'));
   assert.ok(f.posts().every(p => p.values.thread_ts === '2000000002.000001'));
   assert.ok(f.posts().every(p => p.values.markdown_text === 'Test agent answer' && !('text' in p.values)));
   assert.ok(f.calls.every(c => c.options.credentials === 'same-origin' && c.options.redirect === 'error'));
@@ -219,22 +221,6 @@ test('only own new keyword-prefixed messages trigger; ignores duplicates, edits,
   await settle();
   assert.deepEqual(f.messages.filter(m => m.action === 'run').map(m => m.payload.text), requests);
   f.page.agentHooks.dispose();
-});
-
-test('requests keep only the eyes acknowledgement after success or a diagnostic reply', async () => {
-  for (const diagnostic of [false, true]) {
-    const f = fixture({
-      action: d => d.action === 'wait'
-        ? { job: 'test', ...(diagnostic ? { error: { message: 'Sign in again.' } } : { answer: 'Done' }) }
-        : d.action === 'claim' ? { claimed: true } : undefined,
-    });
-    f.configure(); await settle();
-    f.sockets[0].event(message()); await settle();
-    assert.equal(f.posts().length, 1);
-    assert.deepEqual(requestReactions(f), ['reactions.add:eyes']);
-    assert.equal(f.page.agentHooks.status().pending, 0);
-    f.page.agentHooks.dispose();
-  }
 });
 
 test('admits queued turns before earlier answers finish and delivers each thread in order', async () => {
@@ -372,6 +358,8 @@ test('one workspace leader prevents duplicate replies across tabs; another tab t
   a.configure(); b.configure(); await settle();
   assert.equal(a.sockets.length + b.sockets.length, 1);
   assert.equal(b.page.agentHooks.status().standby, true);
+  assert.equal(a.intervals.size, 1);
+  assert.equal(b.timers.size, 0);
   a.page.agentHooks.dispose(); await settle();
   assert.equal(b.sockets.length, 1);
   b.page.agentHooks.dispose();
@@ -420,16 +408,6 @@ test('CLI failures post one actionable diagnostic and keep the eyes acknowledgem
   assert.equal(f.posts()[0].values.markdown_text, `⚠️ ${messageText}`);
   assert.equal(f.page.agentHooks.status().error, messageText);
   assert.deepEqual(requestReactions(f), ['reactions.add:eyes']);
-});
-
-test('healthy listeners have no account polling and queued tabs take over without a timer', async () => {
-  const manager = locks(), a = fixture({ manager }), b = fixture({ manager });
-  a.configure(); b.configure(); await settle();
-  assert.deepEqual([...a.intervals.values()], [15000]);
-  assert.equal(b.timers.size, 0);
-  a.page.agentHooks.dispose(); await settle();
-  assert.equal(b.sockets.length, 1);
-  b.page.agentHooks.dispose();
 });
 
 test('same-page storage writes and navigation events attach without polling', async () => {

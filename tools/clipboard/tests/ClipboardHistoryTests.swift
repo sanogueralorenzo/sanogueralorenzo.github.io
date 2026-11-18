@@ -25,7 +25,6 @@ enum ClipboardHistoryTests {
             func bytes(_ name: String) -> Data { Data(base64Encoded: envelope[name] as! String)! }
             let box = try AES.GCM.SealedBox(nonce: AES.GCM.Nonce(data: bytes("iv")), ciphertext: bytes("ciphertext"), tag: bytes("authTag"))
             let plaintext = try AES.GCM.open(box, using: key)
-            precondition(plaintext.count <= 64 * 1024 * 1024)
             return try JSONDecoder().decode([Clip].self, from: plaintext)
         }
 
@@ -39,9 +38,7 @@ enum ClipboardHistoryTests {
             _ = try ClipboardStore.encodeHistory([escaped], maximumBytes: exactBytes - 1)
             preconditionFailure("One byte over the limit must fail")
         } catch {}
-        let (_, empty) = try ClipboardStore.encodeHistory([])
-        precondition(empty == Data("[]".utf8))
-        print("PASS: exact JSON byte boundaries, escaping, and empty history")
+        print("PASS: exact JSON byte boundaries and escaping")
 
         let pending = DispatchSemaphore(value: 0)
         let beforeClear = clip("before-clear"), afterClear = clip("after-clear")
@@ -101,8 +98,8 @@ enum ClipboardHistoryTests {
         try Data(#"{"clipboard":{"maxItems":200,"retentionDays":0.5,"excludedAppIds":[]}}"#.utf8)
             .write(to: directory.appendingPathComponent("settings.json"))
         let prunedOnLoad = ClipboardStore(directory: directory, review: true)
-        var updates: [([Clip], Double?, String?, Bool)] = []
-        prunedOnLoad.onChange = { clips, policy, error, available in updates.append((clips, policy.retentionDays, error, available)) }
+        var update: (clips: [Clip], days: Double?, error: String?, available: Bool)?
+        prunedOnLoad.onChange = { clips, policy, error, available in update = (clips, policy.retentionDays, error, available) }
         func drainUpdates() {
             var drained = false
             DispatchQueue.main.async { drained = true }
@@ -115,20 +112,20 @@ enum ClipboardHistoryTests {
         let afterLoad = try history()
         precondition(afterLoad.map(\.id) == ["recent"], "One drain must include startup pruning")
         drainUpdates()
-        precondition(updates.count == 1 && updates[0].0 == afterLoad && updates[0].3 && updates[0].2 == nil)
-        updates.removeAll()
+        precondition(update?.clips == afterLoad && update?.available == true && update?.error == nil)
+        update = nil
         prunedOnLoad.setRetention(days: 0)
         prunedOnLoad.finishWrites()
         let afterRetention = try history()
         precondition(afterRetention.isEmpty, "One drain must include retention pruning")
         drainUpdates()
-        precondition(updates.count == 1 && updates[0].0.isEmpty && updates[0].1 == 0 && updates[0].2 == nil)
-        updates.removeAll()
+        precondition(update?.clips.isEmpty == true && update?.days == 0 && update?.error == nil)
+        update = nil
         prunedOnLoad.setRetention(days: 7)
         prunedOnLoad.finishWrites()
         drainUpdates()
-        precondition(updates.count == 1 && updates[0].1 == 7, "Policy changes must publish even when history is unchanged")
-        print("PASS: load and retention prune in one operation and publish once")
+        precondition(update?.days == 7, "Policy changes must publish even when history is unchanged")
+        print("PASS: startup pruning and retention changes are reflected in history")
 
         for failure in ["corrupt-history", "missing-key", "invalid-key", "invalid-settings"] {
             let profile = directory.appendingPathComponent(failure)

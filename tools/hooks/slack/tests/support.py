@@ -1,6 +1,6 @@
 """Run the real Rust bridge against disposable, synthetic data."""
 
-import base64, functools, http.client, json, logging, os, select, signal, socket, sqlite3, struct, subprocess, sys, tempfile, time
+import base64, functools, http.client, json, os, select, signal, socket, struct, subprocess, sys, time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -196,50 +196,6 @@ class Backend:
                 raise
             self.process = None
             self.stderr.close()
-
-
-class RuntimeProxy:
-    def __init__(self, config, state_dir):
-        state_dir = Path(state_dir)
-        state_dir.mkdir(parents=True, exist_ok=True)
-        self.temp = tempfile.TemporaryDirectory(
-            prefix="rust-runtime-", dir=state_dir.parent
-        )
-        home = Path(self.temp.name)
-        (home / "hooks").mkdir()
-        (home / "hooks/slack").symlink_to(state_dir, target_is_directory=True)
-        raw = {
-            "workspace": str(config["workspace"]),
-            "projects": {k: str(v) for k, v in config["projects"].items()},
-            "commands": config["commands"],
-        }
-        self.backend = Backend(home, raw)
-        self.db = sqlite3.connect(state_dir / "sessions.sqlite3")
-        self.closed = False
-
-    def submit(self, event):
-        return self.backend.request("POST", "/slack/run", event)
-
-    def status(self, job):
-        status, value, _ = self.backend.call("GET", "/slack/jobs/" + job)
-        if status == 404:
-            return None
-        if value.get("status") == "failed":
-            logging.error("%s", value["error"]["message"])
-        return value
-
-    def claim(self, job):
-        return self.backend.request("POST", "/slack/claim", {"job": job})
-
-    def delivered(self, job, ts):
-        return self.backend.request("POST", "/slack/delivered", {"job": job, "ts": ts})
-
-    def close(self):
-        if not self.closed:
-            self.backend.stop()
-            self.db.close()
-            self.temp.cleanup()
-            self.closed = True
 
 
 def event(**extra):

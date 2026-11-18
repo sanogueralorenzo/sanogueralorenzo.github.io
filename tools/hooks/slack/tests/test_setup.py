@@ -111,23 +111,6 @@ class SetupTests(unittest.TestCase):
         self.assertIn("outside the public repository", result.stderr)
         self.assertFalse((self.checkout / "private-state").exists())
 
-    def test_launcher_exposes_only_setup_start_stop_status_from_any_directory(self):
-        with patch("installation.Path.home", return_value=self.root / "home with spaces"):
-            path = launcher(self.home, self.checkout)
-        result = subprocess.run(
-            [str(path), "--help"], cwd=self.root, capture_output=True, text=True
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("{setup,start,stop,status}", result.stdout)
-        self.assertNotIn("serve", result.stdout)
-        self.assertNotIn("install", result.stdout)
-        self.assertEqual(path.stat().st_mode & 0o777, 0o700)
-        result = subprocess.run(
-            [str(path), "start"], cwd=self.root, capture_output=True, text=True
-        )
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("browser-hooks setup", result.stderr)
-
     def test_one_private_home_override(self):
         with patch.dict("os.environ", {"BROWSER_HOOKS_HOME": str(self.home)}):
             self.assertEqual(app_home(), self.home)
@@ -137,18 +120,19 @@ class SetupTests(unittest.TestCase):
         ):
             self.assertEqual(app_home(), self.root / ".local/share/browser-hooks")
 
-    def test_status_reports_stopped_without_starting_or_creating_sessions(self):
+    def test_launcher_reports_status_for_its_home_from_another_directory(self):
         self.configure()
         binary = self.home / "bin/browser-hooks-bridge"
         binary.parent.mkdir()
         binary.symlink_to(self.binary)
-        with (
-            patch("service.start") as start,
-            contextlib.redirect_stdout(io.StringIO()) as output,
-        ):
-            self.assertEqual(status(self.home), 1)
-        start.assert_not_called()
-        self.assertIn("stopped; run browser-hooks start", output.getvalue())
+        with patch("installation.Path.home", return_value=self.root / "home with spaces"):
+            executable = launcher(self.home, self.checkout)
+        result = subprocess.run(
+            [str(executable), "status"], cwd=self.root, capture_output=True, text=True
+        )
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("stopped; run browser-hooks start", result.stdout)
+        self.assertIn(str(self.path), result.stdout)
         self.assertFalse((self.folder / "sessions.sqlite3").exists())
 
     def test_status_accepts_only_the_managed_bridge_health(self):

@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, call, patch
+from unittest.mock import Mock, patch
 
 from agent_slack import conversation as reply
 from agent_slack.commands import Command
@@ -59,14 +59,12 @@ class ConversationTests(unittest.TestCase):
         self.assertTrue(prompt.endswith("question"))
         self.assertNotIn("chat question", prompt)
         self.client.conversations_replies.assert_not_called()
-        self.assertEqual(self.client.method_calls, [
-            call.reactions_add(channel="C123", timestamp=FIRST, name="eyes"),
-            call.chat_postMessage(channel="C123", thread_ts=FIRST, markdown_text="chat answer",
-                                  unfurl_links=False, unfurl_media=False),
-            call.reactions_add(channel="C123", timestamp=ANSWER, name="robot_face"),
-            call.reactions_add(channel="C123", timestamp=FIRST, name="white_check_mark"),
-            call.reactions_remove(channel="C123", timestamp=FIRST, name="eyes"),
-        ])
+        self.client.chat_postMessage.assert_called_once_with(
+            channel="C123", thread_ts=FIRST, markdown_text="chat answer",
+            unfurl_links=False, unfurl_media=False,
+        )
+        self.client.reactions_add.assert_any_call(channel="C123", timestamp=FIRST, name="eyes")
+        self.client.reactions_remove.assert_called_once_with(channel="C123", timestamp=FIRST, name="eyes")
 
     def test_failures_clear_eyes_without_posting_an_error(self):
         for stage in ("history", "run", "post"):

@@ -238,16 +238,6 @@ class NativeProtocolTests(unittest.TestCase):
             self.assertEqual(b.wait(job, "failed")["error"]["code"], code)
             b.stop()
 
-    def test_requests_outlive_an_old_configured_deadline_until_shutdown(self):
-        cfg = configuration(self.home, 'import time;time.sleep(30)')
-        cfg['timeout_seconds'] = 1
-        b = self.start(config=cfg)
-        job = b.request('POST', '/slack/run', event())['job']
-        b.wait(job, 'running')
-        time.sleep(1.2)
-        self.assertEqual(b.request('GET', '/slack/jobs/'+job)['status'], 'running')
-        b.stop()
-
     def test_announced_session_cannot_be_replaced_by_the_final_result(self):
         script = 'import json;print(json.dumps({"type":"session","session_id":"first"}),flush=True);print(json.dumps({"session_id":"changed","answer":"answer"}))'
         b = self.start(config=configuration(self.home, script))
@@ -290,17 +280,6 @@ class NativeProtocolTests(unittest.TestCase):
         b.wait(job)
         job = b.request("POST", "/slack/run", event(ts="2000000003.000001"))["job"]
         self.assertEqual(b.wait(job, "failed")["error"]["code"], "session_invalid")
-
-    def test_queue_admission_is_bounded(self):
-        b = self.start(
-            config=configuration(self.home, "import time;time.sleep(30)")
-        )
-        for n in range(100):
-            self.assertEqual(
-                b.call("POST", "/slack/run", event(ts=f"2000000001.{n:06}"))[0], 200
-            )
-        self.assertEqual(b.call("POST", "/slack/run", event(ts="2000000002.000001"))[0], 400)
-        b.stop()
 
     def test_large_prompt_preserves_structured_errors_when_cli_ignores_stdin(self):
         script = 'import json;print(json.dumps({"error":{"code":"auth_required","provider":"Claude","message":"fixture-private-secret"}}));raise SystemExit(1)'

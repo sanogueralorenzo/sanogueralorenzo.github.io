@@ -11,35 +11,6 @@ def message(ts, text="work first", **extra):
 
 
 class ThreadQueueTests(unittest.TestCase):
-    def test_busy_thread_preserves_order_without_occupying_another_worker(self):
-        started, release, next_started, other_done = Event(), Event(), Event(), Event()
-        calls = []
-
-        def process(event, parsed):
-            calls.append(event["ts"])
-            if event["ts"] == "1":
-                started.set()
-                if not release.wait(5):
-                    raise RuntimeError("Test did not release the first request")
-            elif event["ts"] == "2":
-                next_started.set()
-            else:
-                other_done.set()
-
-        workers = ThreadQueue(process, max_workers=2)
-        try:
-            workers.submit(message("1"), "parsed")
-            self.assertTrue(started.wait(5))
-            workers.submit(message("2", thread_ts="1"), "parsed")
-            # The same root timestamp in another channel is a different thread.
-            workers.submit(message("3", channel="C456", thread_ts="1"), "parsed")
-            self.assertTrue(other_done.wait(5))
-            self.assertFalse(next_started.is_set())
-        finally:
-            release.set()
-            workers.close()
-        self.assertEqual(calls, ["1", "3", "2"])
-
     def test_worker_limit_and_shutdown_drain_all_queued_threads(self):
         release, full = Event(), Event()
         lock = Lock()

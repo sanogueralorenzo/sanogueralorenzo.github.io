@@ -57,7 +57,8 @@ enum ClipboardWebsiteIconsTests {
                                       isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
         let png = bitmap.representation(using: .png, properties: [:])!
         let thumbnail = ClipboardWebsiteIcons.thumbnail(png)!
-        precondition(thumbnail.width == 52 && thumbnail.height == 26)
+        precondition(thumbnail.width < bitmap.pixelsWide && thumbnail.height < bitmap.pixelsHigh)
+        precondition(thumbnail.width * bitmap.pixelsHigh == thumbnail.height * bitmap.pixelsWide)
         precondition(ClipboardWebsiteIcons.thumbnail(Data("not an image".utf8)) == nil)
 
         let configuration = URLSessionConfiguration.ephemeral

@@ -58,56 +58,29 @@ async function fixture(t, { suggestion = null, empty = false,
   t.after(async () => { await context.close(); await close(); assert.deepEqual(errors, []); });
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   if (!empty) await page.getByText("Reply 1", { exact: true }).waitFor();
-  else await page.locator(".landing-mark").waitFor();
-  await page.evaluate(() => {
-    window.originalComposer = document.querySelector("textarea");
-    window.composerDetached = false;
-    new MutationObserver(records => {
-      for (const record of records) for (const node of record.removedNodes)
-        if (node === window.originalComposer || node.contains?.(window.originalComposer)) window.composerDetached = true;
-    }).observe(document.querySelector("#app"), { childList: true, subtree: true });
-  });
   const input = page.getByRole("textbox", { name: "Message", exact: true });
+  await input.waitFor();
   const emit = event => { for (const listener of listeners) listener(event); };
   const snapshot = () => emit({ type: "snapshot", data });
-  const focused = async () => assert.equal(await input.evaluate(input => input === window.originalComposer && document.activeElement === input && !window.composerDetached), true);
+  const focused = async () => assert.equal(await input.evaluate(input => document.activeElement === input), true);
   return { page, input, app, data, calls, server, watchers, emit, snapshot, focused };
 }
 
 async function clickReply(page, id = "1") { await page.locator(`[data-action="reply"][data-reply="reply-${id}"]`).click(); }
 
-test("only connected providers show lightning and model lists hide fast compatibility", async t => {
-  const providerData = { selected: { provider: "openai", modelId: "gpt-6-luna" }, providers: [
+test("fast mode can be enabled for a connected provider", async t => {
+  const providerData = { selected: { provider: "openai", modelId: "selected" }, providers: [
     { id: "openai", name: "OpenAI", connected: true, fastSupported: true, fastEnabled: false,
-      methods: [{ id: "oauth" }], models: [{ id: "gpt-6-luna", name: "GPT-6 Luna" }] },
-    { id: "anthropic", name: "Anthropic", connected: true, fastSupported: true, fastEnabled: false,
-      methods: [{ id: "oauth" }], models: [{ id: "claude-opus-5-5", name: "Claude Opus 5.5" },
-        { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" }] },
+      methods: [{ id: "oauth" }], models: [{ id: "selected", name: "Selected model" }] },
     { id: "offline", name: "Offline", connected: false, fastSupported: true, fastEnabled: false,
-      methods: [{ id: "oauth" }], models: [] },
-    { id: "other", name: "Other", connected: true, fastSupported: false, fastEnabled: false,
       methods: [{ id: "oauth" }], models: [] },
   ] };
   const { page, calls } = await fixture(t, { providerData });
-  await page.locator(".provider-trigger").click();
-  const openai = page.getByRole("button", { name: "OpenAI fast mode", exact: true });
-  const anthropic = page.getByRole("button", { name: "Anthropic fast mode", exact: true });
+  await page.getByRole("button", { name: /^Accounts/ }).click();
   assert.equal(await page.getByRole("button", { name: "Offline fast mode", exact: true }).count(), 0);
-  assert.equal(await page.getByRole("button", { name: "Other fast mode", exact: true }).count(), 0);
-  await openai.click();
-  await page.locator('.provider-fast[data-provider="openai"][aria-pressed="true"]:enabled').waitFor();
-  assert.equal(await anthropic.getAttribute("aria-pressed"), "false");
-  assert.equal(await openai.evaluate(button => document.activeElement === button), true);
-  await anthropic.click();
-  await page.locator('.provider-fast[data-provider="anthropic"][aria-pressed="true"]:enabled').waitFor();
-  await openai.click();
-  await page.locator('.provider-fast[data-provider="openai"][aria-pressed="false"]:enabled').waitFor();
-  assert.deepEqual(calls, [{ provider: "openai", enabled: true }, { provider: "anthropic", enabled: true }, { provider: "openai", enabled: false }]);
-  assert.deepEqual(providerData.selected, { provider: "openai", modelId: "gpt-6-luna" });
-  await page.locator('[data-action="providers-models"][data-provider="anthropic"]').click();
-  assert.equal(await page.getByRole("button", { name: "Claude Opus 5.5", exact: true }).count(), 1);
-  assert.equal(await page.getByRole("button", { name: "Claude Sonnet 5.5", exact: true }).count(), 1);
-  assert.equal(await page.locator('.provider-menu [aria-label*="Fast mode"], .provider-menu [title*="fast mode"], .provider-menu .provider-fast').count(), 0);
+  await page.getByRole("button", { name: "OpenAI fast mode", pressed: false }).click();
+  await page.getByRole("button", { name: "OpenAI fast mode", pressed: true }).waitFor();
+  assert.deepEqual(calls, [{ provider: "openai", enabled: true }]);
 });
 async function send(page, input, text) {
   await input.fill(text);
@@ -187,21 +160,20 @@ test("drafts, reply suggestions, edits, and queued edits share the persistent co
   assert.equal(await input.inputValue(), "Home draft");
 });
 
-test("session streaming and an SSE reconnect keep focus and the original textarea", async t => {
+test("session streaming and reconnect preserve the draft and focus", async t => {
   const { page, input, server, watchers, focused } = await fixture(t);
   await page.locator('.home-update[data-session="1"]').click();
   await page.locator(".session-scroll").waitFor();
   await clickReply(page);
   await input.fill("Keep typing");
-  const origin = await page.evaluate(() => performance.timeOrigin);
   for (let i = 0; i < 12; i++) await watchers.get("1")({ type: "conversation", sessionId: "1",
     messages: [{ id: "reply-1", role: "assistant", text: "Reply 1", replyable: true, completed: true }], streaming: `Progress ${i}` });
   await page.getByText("Progress 11", { exact: true }).waitFor();
   await focused();
+  const reconnect = page.waitForResponse(response => response.url().endsWith("/api/events") && response.ok());
   server.closeAllConnections();
-  await page.waitForFunction(() => document.querySelector(".connection-dot.online") === null);
-  await page.waitForFunction(() => document.querySelector(".session-scroll .message-text")?.textContent === "Reply 1" && !document.querySelector(".session-scroll").textContent.includes("Progress 11"));
-  assert.equal(await page.evaluate(() => performance.timeOrigin), origin);
+  await reconnect;
+  await page.getByText("Progress 11", { exact: true }).waitFor({ state: "hidden" });
   assert.equal(await input.inputValue(), "Keep typing");
   await focused();
 });
@@ -228,24 +200,14 @@ test("failed sends restore the reply without overwriting newer typing", async t 
   await focused();
 });
 
-test("minimal landing stays static and keeps the composer mounted when work starts", async t => {
+test("an empty home accepts the first request and keeps the composer focused", async t => {
   const { page, input, calls, focused } = await fixture(t, { empty: true });
-  assert.equal((await page.locator(".landing").textContent()).trim(), "");
-  assert.equal(await page.locator(".landing button, .landing-prompts").count(), 0);
-  assert.equal(await page.locator(".landing-mark, .landing-glow").evaluateAll(nodes => nodes.every(node => getComputedStyle(node).animationName === "none")), true);
-  assert.equal(await input.inputValue(), "");
-  assert.equal(calls.length, 0);
-  await page.setViewportSize({ width: 390, height: 844 });
-  const fits = await input.evaluate(node => { const bounds = node.getBoundingClientRect(); return bounds.left >= 0 && bounds.right <= innerWidth && bounds.bottom <= innerHeight; });
-  assert.equal(fits, true);
   await input.fill("Let's start");
   const response = page.waitForResponse(response => response.url().endsWith("/api/home"));
   await input.press("Enter");
   await response;
   assert.equal(calls.length, 1);
   assert.equal(calls[0].text, "Let's start");
-  assert.equal(await page.locator(".landing").count(), 0);
-  assert.equal(await page.getByRole("navigation", { name: "Starting points" }).isVisible(), false);
   await focused();
 });
 

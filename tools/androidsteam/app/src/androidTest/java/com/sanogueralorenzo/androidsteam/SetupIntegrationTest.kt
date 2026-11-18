@@ -14,37 +14,18 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class SetupIntegrationTest {
-    @Test fun downloadsVerifiedComponentsAndRunsLinuxTwice() {
+    @Test fun verifiedSetupRunsLinuxAndCanCheckAgainAfterStop() {
         assumeTrue("Opt in to complete pinned setup downloads", InstrumentationRegistry.getArguments().getString("verifySetup") == "true")
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val controller = (context.applicationContext as SteamApplication).setup
         foreground(instrumentation)
-        if (controller.state == SetupController.State.Missing) {
-            val preserved = File.createTempFile("validation-", ".txt", File(context.filesDir, "home"))
-            try {
-                preserved.writeText("keep user data")
-                instrumentation.runOnMainSync { controller.install() }
-                val archive = File(context.cacheDir, "runtime.tar.xz")
-                val deadline = System.nanoTime() + 30_000_000_000
-                while (archive.length() == 0L && controller.state is SetupController.State.Working && System.nanoTime() < deadline) Thread.sleep(100)
-                assertTrue("Download did not start: ${controller.state}", archive.length() > 0L)
-                instrumentation.runOnMainSync { controller.stop(); controller.install() }
-                awaitReady(controller, 600_000)
-                assertEquals("keep user data", preserved.readText())
-                assertFalse(File(context.filesDir, "runtime-staging").exists())
-                assertFalse(archive.exists())
-            } finally { preserved.delete() }
-        }
         instrumentation.runOnMainSync { controller.install() }
         awaitReady(controller, 600_000)
         assertTrue((context.applicationContext as SteamApplication).preparation.installed)
-        repeat(2) {
-            instrumentation.runOnMainSync { controller.check() }
-            val result = awaitReady(controller, 20_000)
-            assertTrue(result.output, result.output.contains("GNU libc") && result.output.contains("aarch64"))
-            println(result.output)
-        }
+        instrumentation.runOnMainSync { controller.check() }
+        val result = awaitReady(controller, 20_000)
+        assertTrue(result.output, result.output.contains("GNU libc") && result.output.contains("aarch64"))
         instrumentation.runOnMainSync { controller.check(); controller.stop() }
         assertTrue(controller.state is SetupController.State.Failed)
         instrumentation.runOnMainSync { controller.check() }

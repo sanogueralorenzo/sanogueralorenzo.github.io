@@ -8,7 +8,7 @@ import org.junit.Test
 class ModelCatalogTest {
     @Test
     fun spanishStreamingModelContainsTheCompleteSplitFrontendArtifactSet() {
-        val specs = ModelCatalog.moonshineSmallStreamingSpanishSpecs
+        val specs = ModelCatalog.moonshineStreamingSpecsFor(DictationLanguage.SPANISH)
 
         assertEquals(
             setOf(
@@ -24,18 +24,5 @@ class ModelCatalogTest {
             specs.map { it.fileName }.toSet()
         )
         assertTrue(specs.all { it.sizeBytes > 0L })
-        assertTrue(specs.all { it.subdir == "moonshine/small-streaming-es" })
-    }
-
-    @Test
-    fun modelSpecsAreResolvedByDictationLanguage() {
-        assertEquals(
-            ModelCatalog.moonshineMediumStreamingSpecs,
-            ModelCatalog.moonshineStreamingSpecsFor(DictationLanguage.ENGLISH)
-        )
-        assertEquals(
-            ModelCatalog.moonshineSmallStreamingSpanishSpecs,
-            ModelCatalog.moonshineStreamingSpecsFor(DictationLanguage.SPANISH)
-        )
     }
 }

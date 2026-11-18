@@ -23,7 +23,7 @@ class BridgeTests(unittest.TestCase):
             for ts, text, extra in (("1700000001.000001", "first", {}),
                                     ("1700000001.000001", "first", {}),  # Duplicate delivery.
                                     ("1700000002.000001", "followup", {"thread_ts": "1700000001.000001"}),
-                                    ("1700000003.000001", "independent", {}))
+                                    ("1700000001.000001", "independent", {"channel": "C456"}))
         ]
         independent, delivered = Event(), Event()
         lock, calls, posts = Lock(), [], []
@@ -97,7 +97,10 @@ class BridgeTests(unittest.TestCase):
             finally:
                 state.close()
         self.assertCountEqual(calls, [("first", None), ("independent", None), ("followup", "session-first")])
-        self.assertEqual(len(posts), 3)
+        self.assertCountEqual(
+            [(post["channel"], post["thread_ts"]) for post in posts],
+            [("C123", events[0]["ts"])] * 2 + [("C456", events[3]["ts"])],
+        )
         self.assertEqual(socket.send_socket_mode_response.call_count, 5)
         socket.close.assert_called_once()
 
