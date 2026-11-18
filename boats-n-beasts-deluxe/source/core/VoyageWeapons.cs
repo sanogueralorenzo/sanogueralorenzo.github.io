@@ -47,7 +47,14 @@ public sealed partial class Voyage
                 else if (w == 4)
                 {
                     Events.Add(new("aura", Position, range));
-                    foreach (var e in Enemies) if (e.Health > 0 && Vector2.Distance(e.Position,Position) < range + e.Radius) Hit(e,damage);
+                    bool marks = IsFitted(WeaponCombo.Riptide);
+                    foreach (var enemy in Enemies)
+                    {
+                        if (enemy.Health <= 0 || enemy.Emerging ||
+                            Vector2.DistanceSquared(enemy.Position, Position) > (range + enemy.Radius) * (range + enemy.Radius)) continue;
+                        if (marks) enemy.Drenched = 1.35f;
+                        Hit(enemy, damage);
+                    }
                 }
                 else if (w == 3)
                 {
@@ -88,7 +95,7 @@ public sealed partial class Voyage
             if (s.Life<=0) continue;
             if (s.Kind == WeaponKind.Arcane && !s.Hostile)
             {
-                var target = Enemies.Where(e=>e.Health>0 && !e.Emerging && !s.Hit.Contains(e.Id) && Vector2.DistanceSquared(e.Position,s.Position)<650*650).OrderBy(e=>Vector2.DistanceSquared(e.Position,s.Position)).FirstOrDefault();
+                var target = Enemies.Where(e=>e.Health>0 && !e.Emerging && !s.Hit.Contains(e.Id) && Vector2.DistanceSquared(e.Position,s.Position)<650*650).OrderByDescending(e => !s.ComboSpent && e.Drenched > 0).ThenBy(e=>Vector2.DistanceSquared(e.Position,s.Position)).FirstOrDefault();
                 if (target != null) s.Velocity = OceanWorld.Unit(Vector2.Lerp(s.Velocity/400,OceanWorld.Unit(target.Position-s.Position),1-MathF.Exp(-dt*7)))*400;
             }
             s.Previous=s.Position; s.Position+=s.Velocity*dt; s.Life-=dt; s.Age+=dt;
@@ -125,7 +132,7 @@ public sealed partial class Voyage
                 if(s.Kind==WeaponKind.Cannon && s.Bounces>0)
                 {
                     OceanWorld.Overlap(obstacle,s.Position,2,out var normal,out _);
-                    s.Velocity=Vector2.Reflect(s.Velocity,normal); s.Position=s.Previous+normal*3; s.Bounces--;
+                    s.Velocity=Vector2.Reflect(s.Velocity,normal); s.Position=s.Previous+normal*3; s.Bounces--; s.Ricocheted = true;
                     CannonRicochets++; Events.Add(new("ricochet",s.Position));
                 }
                 else s.Life=0;
@@ -134,19 +141,17 @@ public sealed partial class Voyage
             foreach(var e in Enemies)
             {
                 if(e.Health<=0 || e.Emerging || s.Hit.Contains(e.Id) || SegmentDistance(e.Position,s.Previous,s.Position)>e.Radius+s.Radius) continue;
-                s.Hit.Add(e.Id); Hit(e,s.Damage);
-                if(s.Kind==WeaponKind.Harpoon && e.Health>0)
-                {
-                    e.Pull=.4f; HarpoonPulls++; Events.Add(new("pull",Position,Weapons[1],e.Position));
-                }
+                s.Hit.Add(e.Id);
+                StrikeWithShot(s, e);
+                if (BossSlain) break;
                 if(s.Kind==WeaponKind.Cannon && s.Bounces>0)
                 {
-                    var next=Enemies.Where(other=>other.Health>0 && !s.Hit.Contains(other.Id) && Vector2.DistanceSquared(other.Position,e.Position)<320*320).OrderBy(other=>Vector2.DistanceSquared(other.Position,e.Position)).FirstOrDefault();
+                    var next=Enemies.Where(other=>other.Health>0 && !other.Emerging && !s.Hit.Contains(other.Id) && Vector2.DistanceSquared(other.Position,e.Position)<320*320).OrderBy(other=>Vector2.DistanceSquared(other.Position,e.Position)).FirstOrDefault();
                     // An isolated hit ends here; reversing looks like the monster firing back.
                     if(next==null) { s.Life=0; break; }
                     s.Position=e.Position;
                     s.Velocity=OceanWorld.Unit(next.Position-e.Position)*650;
-                    s.Bounces--; CannonRicochets++; Events.Add(new("ricochet",s.Position)); break;
+                    s.Bounces--; s.Ricocheted = true; CannonRicochets++; Events.Add(new("ricochet",s.Position)); break;
                 }
                 if(s.Pierce--<=0) { s.Life=0; break; }
             }

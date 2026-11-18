@@ -11,7 +11,8 @@ public sealed class Enemy
     public float Health, MaxHealth, Time, AttackClock, Telegraph, Dash, HitFlash, Pull, Fuse;
     public float SpeedMultiplier = 1;
     public bool ChargeNext;
-    public float Exposed;
+    public float Exposed, Drenched;
+    public Shot? PullMine;
     public Vector2? GuardAnchor;
     public const float PufferFuseDuration = 1.05f, PufferTriggerRadius = 125, PufferBlastRadius = 155;
     public const float EmergenceDuration = .45f;
@@ -25,6 +26,7 @@ public sealed class Shot
     public Vector2 Position, Previous, Velocity, Target;
     public float Damage, Life, Radius, Age, FlightDuration; public bool Hostile;
     public WeaponKind Kind; public int Pierce, Bounces;
+    public bool Ricocheted, ComboSpent;
     public HashSet<int> Hit = new();
 }
 public readonly record struct GameEvent(string Kind, Vector2 Position, float Value = 0, Vector2 End = default);
@@ -166,6 +168,7 @@ public sealed partial class Voyage
             e.Time += dt;
             if (e.Emerging) continue;
             e.AttackClock -= dt; e.HitFlash = Math.Max(0, e.HitFlash - dt);
+            e.Drenched = Math.Max(0, e.Drenched - dt);
             Vector2 d = Position - e.Position; float distance = d.Length(); Vector2 dir = OceanWorld.Unit(d, Vector2.UnitY);
             float speed = e.SwimSpeed;
             Vector2 motion = dir;
@@ -272,12 +275,7 @@ public sealed partial class Voyage
                     float span = separation.Length();
                     if (span > .1f && span < e.Radius + other.Radius) motion += separation / span * .65f;
                 }
-                if (e.Pull > 0)
-                {
-                    e.Pull = Math.Max(0, e.Pull - dt);
-                    if (distance > 110)
-                        motion += dir * ((320 + (Weapons[1] - 1) * 160) / speed) * (e.Kind == EnemyKind.Leviathan ? .25f : 1);
-                }
+                if (e.Pull > 0) motion += HarpoonForce(e, dt) / speed;
                 motion = World.Avoid(e.Position, motion, e.Radius, e.Id);
                 e.Position = World.Slide(e.Position, e.Position + motion * speed * dt, e.Radius);
             }
@@ -382,9 +380,16 @@ public sealed partial class Voyage
             return;
         }
         var available = Enumerable.Range(0, UpgradeNames.Length).Where(CanUpgrade).ToList();
+        bool IsNewWeapon(int option) => option < Weapons.Length && Rank(option) == 0;
+        int refitLevel = Level - PendingUpgrades + 1;
+        bool pairingDraft = ActiveCombo == null && WeaponCount < WeaponSlots && refitLevel is 2 or 6;
+        if (pairingDraft)
+            AddChoice(available, option => IsNewWeapon(option) &&
+                WeaponCombo.ForUpgrade(option) is { } combo && Rank(combo.Partner(option)) > 0);
+
         AddChoice(available, option => option < Weapons.Length && Rank(option) > 0);
-        AddChoice(available, option => option < Weapons.Length && Rank(option) == 0);
-        AddChoice(available, option => option >= Weapons.Length);
+        AddChoice(available, IsNewWeapon);
+        if (UpgradeChoices.Count < 3) AddChoice(available, option => option >= Weapons.Length);
         while (UpgradeChoices.Count < 3 && available.Count > 0) AddChoice(available, _ => true);
     }
     void AddChoice(List<int> available, Func<int, bool> matches)
@@ -413,7 +418,13 @@ public sealed partial class Voyage
     public bool Upgrade(int option)
     {
         if (Mode != VoyageMode.Upgrade || PendingUpgrades == 0 || !UpgradeChoices.Contains(option) || !CanUpgrade(option)) return false;
-        if (option < 6) Weapons[option]++;
+        if (option < 6)
+        {
+            Weapons[option]++;
+            var combo = WeaponCombo.ForUpgrade(option);
+            if (Weapons[option] == 1 && combo != null && IsFitted(combo))
+                Events.Add(new("comboFitted", Position));
+        }
         else if (option == 6) { HullRank++; Heal(25); }
         else if (option == 7) EngineRank++;
         else if (option == 8) ReloadRank++;

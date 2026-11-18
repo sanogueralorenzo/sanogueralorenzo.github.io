@@ -88,6 +88,7 @@ public partial class Game : Node2D
             switch (e.Kind)
             {
                 case "beacon": Toast($"Beacon lit · +{e.Value:0} XP"); break;
+                case "comboFitted": Toast($"{Run.ActiveCombo!.Name} fitted"); break;
                 case "towHooked": Toast("Tow secured · take the cargo to any beacon"); break;
                 case "towSnapped": Toast("Towline snapped · sail back to the cargo"); break;
                 case "towDelivered": Toast("Salvage delivered · refit earned"); break;

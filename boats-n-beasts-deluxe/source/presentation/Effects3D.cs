@@ -82,12 +82,21 @@ public partial class Effects3D : Node3D
             DrawEmergence(enemy);
             if (enemy.GuardAnchor.HasValue && !enemy.Emerging)
                 foam.Arc(World(enemy.Position), .79f, time * 2, 4.8f, .027f, Fade(Cream, .67f), 26);
+            if (enemy.Drenched > 0)
+            {
+                var marked = World(enemy.Position, .069f);
+                for (int arm = 0; arm < 2; arm++)
+                    foam.Arc(marked, .13f + enemy.Radius * .01f, time * -2 + arm * Mathf.Pi,
+                        1.75f, .025f, Fade(Magic, .72f), 9);
+            }
             if (enemy.Fuse > 0)
                 DrawWarning(enemy.Position, Enemy.PufferBlastRadius, 1 - enemy.Fuse / Enemy.PufferFuseDuration);
             if (enemy.Telegraph > 0)
                 DrawCharge(enemy);
         }
-        foreach (var shot in voyage.Shots) if (shot.Life > 0) DrawShot(shot);
+        bool stormshot = voyage.ActiveCombo == WeaponCombo.Stormshot;
+        foreach (var shot in voyage.Shots)
+            if (shot.Life > 0) DrawShot(shot, stormshot);
         foreach (var b in bursts) DrawBurst(b);
         foreach (var p in sparks) Ball(p.P, Vector3.One * p.Size * (1 - p.Age / p.Life), p.Color);
         DrawEncounters(voyage);
@@ -239,7 +248,7 @@ public partial class Effects3D : Node3D
             }
         }
     }
-    void DrawShot(Shot s)
+    void DrawShot(Shot s, bool stormshot)
     {
         var p = World(s.Position, s.Kind == WeaponKind.Mine ? .1f : .24f);
         var dir = World(OceanWorld.Unit(s.Velocity),0)*100;
@@ -276,8 +285,11 @@ public partial class Effects3D : Node3D
         }
         else if (s.Kind == WeaponKind.Cannon)
         {
-            Ball(p,Vector3.One*.12f,new("303e40")); Ball(p+new Vector3(-.022f,.033f,-.017f),Vector3.One*.045f,new("a8b1a6"));
-            foam.Ribbon(p-dir*.25f,p-dir*.06f,.01f,.016f,Fade(Cream,.2f));
+            bool charged = stormshot && s.Ricocheted && !s.ComboSpent;
+            Ball(p, Vector3.One * .12f, charged ? Aqua : new Color("303e40"));
+            Ball(p + new Vector3(-.022f, .033f, -.017f), Vector3.One * .045f, charged ? Cream : new Color("a8b1a6"));
+            foam.Ribbon(p - dir * (charged ? .43f : .25f), p - dir * .06f, .01f, .016f,
+                charged ? Fade(Aqua, .76f) : Fade(Cream, .2f));
         }
         else if (s.Kind == WeaponKind.Harpoon)
         {
@@ -323,11 +335,25 @@ public partial class Effects3D : Node3D
     {
         if (ev.Kind == "barrel" && bursts.Count < 192)
             bursts.Add(new() { Kind = "barrel", P = World(ev.Position, .06f), Life = .55f });
-        if(ev.Kind is "arc" or "pull" or "aura" or "bulwark" or "explosion" or "calm" or "pufferExplosion" or "bossExplosion" or "beacon" or "broadside" or "blink")
+        bool link = ev.Kind is "arc" or "pull" or "tripwire";
+        if (bursts.Count < 192 && (link || ev.Kind is "aura" or "bulwark" or "explosion" or "calm"
+            or "pufferExplosion" or "bossExplosion" or "beacon" or "broadside" or "blink" or "stormshot" or "riptide"))
         {
-            if(bursts.Count<192) bursts.Add(new() {Kind=ev.Kind,P=World(ev.Position,ev.Kind is "arc" or "pull"?.3f:.05f),End=World(ev.End,.3f),Life=ev.Kind is "arc" or "pull"?.2f:ev.Kind=="calm"?1.3f:ev.Kind is "pufferExplosion" or "bossExplosion"?.6f:.48f,Size=ev.Kind == "beacon" ? Beacon.Radius * .01f : ev.Value*.01f});
+            float life = ev.Kind switch
+            {
+                "arc" or "pull" => .2f,
+                "tripwire" => .34f,
+                "calm" => 1.3f,
+                "pufferExplosion" or "bossExplosion" => .6f,
+                _ => .48f
+            };
+            bursts.Add(new()
+            {
+                Kind = ev.Kind, P = World(ev.Position, link ? .26f : .05f), End = World(ev.End, .26f),
+                Life = life, Size = (ev.Kind == "beacon" ? Beacon.Radius : ev.Value) * .01f
+            });
         }
-        int count=ev.Kind switch {"hit"=>2,"kill"=>7,"explosion"=>15,"hurt"=>5,"shot"=>3,"ricochet"=>4,"barrel"=>3,"heal" or "treasure" or "silver"=>6,"boostStart"=>9,"beacon" or "towDelivered"=>26,"towHooked" or "towSnapped"=>8,"chain"=>13,"broadside"=>20,"blink"=>16,_=>0};
+        int count=ev.Kind switch {"hit"=>2,"kill"=>7,"explosion"=>15,"hurt"=>5,"shot"=>3,"ricochet"=>4,"barrel"=>3,"heal" or "treasure" or "silver"=>6,"boostStart"=>9,"beacon" or "towDelivered"=>26,"towHooked" or "towSnapped"=>8,"chain"=>13,"broadside"=>20,"blink"=>16,"stormshot"=>14,"riptide"=>7,_=>0};
         for(int i=0;i<count && sparks.Count<512;i++)
         {
             float a=random.RandfRange(0,Mathf.Tau), speed=random.RandfRange(.25f,ev.Kind=="explosion"?2.5f:1.2f);
@@ -373,7 +399,7 @@ public partial class Effects3D : Node3D
                 }
             return;
         }
-        if(b.Kind is "arc" or "pull")
+        if(b.Kind is "arc" or "pull" or "tripwire")
         {
             var delta=b.End-b.P; var side=new Vector3(-delta.Z,0,delta.X).Normalized(); var last=b.P;
             int segments=b.Kind=="arc"?7:4;
@@ -381,7 +407,7 @@ public partial class Effects3D : Node3D
             {
                 var p=b.P.Lerp(b.End,i/(float)segments);
                 if(i<segments) p+=side*(b.Kind=="arc"?(i%2==0?-.12f:.12f):.025f);
-                foam.Ribbon(last,p,b.Kind=="arc"?.021f:.012f,b.Kind=="arc"?.021f:.012f,Fade(b.Kind=="arc"?Aqua:Cream,alpha*.85f)); last=p;
+                foam.Ribbon(last,p,b.Kind=="arc"?.021f:.012f,b.Kind=="arc"?.021f:.012f,Fade(b.Kind == "arc" ? Aqua : b.Kind == "tripwire" ? NauticalPalette.Gold : Cream, alpha * .85f)); last=p;
             }
             return;
         }
@@ -393,7 +419,12 @@ public partial class Effects3D : Node3D
         }
         float radius=b.Size>0?b.Size:1.3f;
         bool aura=b.Kind=="aura"; float r=radius*(aura?.82f+t*.18f:.3f+t*.7f);
-        var color=b.Kind is "explosion" or "beacon" or "broadside" ? Cream : Aqua;
+        var color = b.Kind switch
+        {
+            "explosion" or "beacon" or "broadside" or "stormshot" => Cream,
+            "riptide" => Magic,
+            _ => Aqua
+        };
         int arms=aura?3:5;
         for(int i=0;i<arms;i++)
         {

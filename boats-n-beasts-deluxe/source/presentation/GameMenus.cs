@@ -231,7 +231,8 @@ public partial class Game : Node2D
     void AddUpgradeRow(VBoxContainer column, int option)
     {
         var button = Button("", () => { if (Run.Upgrade(option)) BuildMenu(); });
-        button.CustomMinimumSize = new(0, 91);
+        var combo = WeaponCombo.ForUpgrade(option);
+        button.CustomMinimumSize = new(0, combo == null ? 91 : 114);
         button.TooltipText = Voyage.UpgradeNames[option];
         // Child content stays readable while the entire row handles mouse and keyboard input.
         button.AddThemeStyleboxOverride("hover", Box(new Color("194454"), 9, NauticalPalette.Aqua));
@@ -247,6 +248,14 @@ public partial class Game : Node2D
         string rank = Run.Rank(option) == 0 ? "New" : $"Level {Run.Rank(option)} → {Run.Rank(option) + 1}";
         text.AddChild(Label(option >= Voyage.FirstSpecialtyOption ? Voyage.UpgradeNames[option] : $"{Voyage.UpgradeNames[option]} · {rank}", 23, true));
         text.AddChild(Label(Run.UpgradeBenefit(option), 18));
+        if (combo != null)
+        {
+            int partner = combo.Partner(option);
+            bool completesPair = Run.Rank(partner) > 0;
+            string pairing = completesPair ? $"{combo.Name} · {combo.Description}"
+                : $"Pair with {Voyage.UpgradeNames[partner]} for {combo.Name}";
+            text.AddChild(Label(pairing, 14, color: completesPair ? NauticalPalette.Gold : new Color(NauticalPalette.Cream, .68f)));
+        }
         ReleaseMenuInput(row);
     }
     void ControlsMenu()
@@ -254,7 +263,7 @@ public partial class Game : Node2D
         var col = Panel(680, "Captain’s handbook", "Your crew aims and fires. You steer, dodge and time the boat’s maneuver.");
         col.AddChild(Label("WASD / arrows   Steer\nLeft-click   Sail to a point\nSpace / Shift   Hold to boost\nE   Boat maneuver\nEsc   Pause\n\nController   Left stick to steer · RB to boost · X for maneuver · Start to pause", 19));
         col.AddChild(Label("Hold Breakwater, patrol Gull Shoal, and defeat the keeper at Smuggler’s Light. Light all three to summon Crownclaw early, or meet it at 8:00. Red water marks incoming bombs and charges. Crownclaw’s shell opens after it attacks.", 18));
-        col.AddChild(Label("Defeat beasts and find beach chests to level up. Chain four kills within successive five-second windows for XP, boost and silver. Bait puffers near other beasts and boost clear. Floating barrels repair your hull.", 18));
+        col.AddChild(Label("Defeat beasts and find beach chests to level up. Fit a weapon’s listed partner to unlock their combination. Chain four kills within successive five-second windows for XP, boost and silver. Bait puffers near other beasts and boost clear. Floating barrels repair your hull.", 18));
         col.AddChild(Label("Follow the red flag on the compass to salvage a wreck. Sail close to hook the cargo and tow it to any beacon for a refit. Long boosts can snap the line.", 18));
         col.AddChild(Button("Back", () => { controls = false; BuildMenu(); }, true));
     }

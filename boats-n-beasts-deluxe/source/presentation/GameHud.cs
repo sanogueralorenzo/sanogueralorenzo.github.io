@@ -67,15 +67,27 @@ public partial class Game : Node2D
                     Text(boostAt + new Vector2(-46, 36), "Release boost", 13);
                 }
             }
+            var combo = r.ActiveCombo;
+            if (combo != null)
+            {
+                float width = TitleFont.GetStringSize(combo.Name, fontSize: 15).X;
+                var at = new Vector2((size.X - width) / 2, size.Y - 77);
+                DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .88f), 6),
+                    new(at - new Vector2(10, 17), new Vector2(width + 20, 23)));
+                Text(at, combo.Name, 15, true, NauticalPalette.Gold);
+            }
             var equipped = Enumerable.Range(0, Voyage.UpgradeNames.Length).Where(i => r.Rank(i) > 0).ToArray();
             for (int slot = 0; slot < equipped.Length; slot++)
             {
                 int item = equipped[slot];
                 var bounds = EquipmentBounds(slot, equipped.Length);
                 var p = bounds.Position;
-                DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .65f), 6), bounds);
+                bool paired = combo != null && (item == (int)combo.First || item == (int)combo.Second);
+                Color symbol = paired ? NauticalPalette.Gold : NauticalPalette.Aqua;
+                Color? border = paired ? new Color(NauticalPalette.Gold, .48f) : null;
+                DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .65f), 6, border), bounds);
                 DrawSetTransform(p + new Vector2(4, 2));
-                UpgradeSymbol.DrawSymbol(this, item, NauticalPalette.Aqua);
+                UpgradeSymbol.DrawSymbol(this, item, symbol);
                 DrawSetTransform(Vector2.Zero);
                 DrawCircle(p + new Vector2(42, 40), 10, NauticalPalette.Navy);
                 Text(p + new Vector2(38, 45), r.Rank(item).ToString(), 13, true);
@@ -83,11 +95,17 @@ public partial class Game : Node2D
                 {
                     string name = $"{Voyage.UpgradeNames[item]} · Rank {r.Rank(item)}";
                     string detail = Voyage.UpgradeDescriptions[item];
-                    float width = Math.Max(BodyFont.GetStringSize(detail, fontSize: 16).X, 220) + 28;
-                    var at = new Vector2(Math.Clamp(p.X + 24 - width / 2, 12, size.X - width - 12), p.Y - 75);
-                    DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .95f), 8), new(at, new Vector2(width, 64)));
+                    string pairing = paired ? $"{combo!.Name} · {combo.Description}" : "";
+                    float content = Math.Max(BodyFont.GetStringSize(detail, fontSize: 16).X,
+                        BodyFont.GetStringSize(pairing, fontSize: 14).X);
+                    float width = Math.Max(content, 220) + 28;
+                    float height = paired ? 83 : 63;
+                    var at = new Vector2(Math.Clamp(p.X + 24 - width / 2, 12, Math.Max(12, size.X - width - 12)),
+                        p.Y - height - 34);
+                    DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .95f), 8), new(at, new Vector2(width, height)));
                     Text(at + new Vector2(14, 24), name, 17, true);
-                    Text(at + new Vector2(14, 48), detail, 16);
+                    Text(at + new Vector2(14, 47), detail, 16);
+                    if (paired) Text(at + new Vector2(14, 69), pairing, 14, color: NauticalPalette.Gold);
                 }
             }
             Bar(Vector2.Zero, new(size.X, 8), r.Xp / (float)r.NextXp, NauticalPalette.Aqua);

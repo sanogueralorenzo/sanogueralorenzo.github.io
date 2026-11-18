@@ -52,6 +52,10 @@ public partial class SeaAudio : Node
         AddCue("treasure", Chime(.55f, [440, 554, 659], .58f));
         AddCue("heal", Chime(.46f, [330, 495], .42f));
         AddCue("level", Chime(.35f, [370, 494], .45f));
+        AddCue("comboFitted", Chime(.68f, [370, 494, 740], .62f));
+        AddCue("stormshot", Thump(.19f, 227, .63f));
+        AddCue("tripwire", Chime(.22f, [263, 210], .47f));
+        AddCue("riptide", Chime(.25f, [587, 784], .40f));
         AddCue("upgrade", Chime(.31f, [494, 659], .48f));
         AddCue("beaconStart", Chime(.4f, [262, 330], .37f));
         AddCue("beacon", Chime(.85f, [294, 440, 587, 740], .68f));
