@@ -21,6 +21,7 @@ struct AddressPaletteBackdrop: View {
                     startPoint: .top, endPoint: .bottom
                 )
                 .background { AddressFocusMaterial().allowsHitTesting(false) }
+                .opacity(0.8)
             }
         }
         .contentShape(Rectangle())
