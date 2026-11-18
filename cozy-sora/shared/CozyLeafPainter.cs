@@ -29,8 +29,14 @@ public static class CozyLeafPainter
                     if (Mathf.Abs(v) >= 1) continue;
                     float halfWidth = width * .5f * Mathf.Pow(1 - v * v, .8f);
                     if (Mathf.Abs(point.X) > halfWidth) continue;
-                    float ink = shade - (outline && Mathf.Abs(point.X) > halfWidth - .9f ? .27f : 0);
-                    image.SetPixel(x, y, new Color(ink, ink, ink, 1));
+                    float across = point.X / halfWidth;
+                    float rib = Mathf.Exp(-Mathf.Abs(point.X) * 1.55f);
+                    float veins = Mathf.Abs(Mathf.Sin((v - Mathf.Abs(across) * .38f) * 16));
+                    float relief = .89f + across * .09f + rib * .17f;
+                    relief += .045f * (1 - Mathf.SmoothStep(.06f, .30f, veins));
+                    if (outline) relief -= .08f * Mathf.SmoothStep(.82f, 1, Mathf.Abs(across));
+                    float ink = shade * relief;
+                    image.SetPixel(x, y, new Color(ink * .96f, ink, ink * .91f, 1));
                 }
                 else
                 {

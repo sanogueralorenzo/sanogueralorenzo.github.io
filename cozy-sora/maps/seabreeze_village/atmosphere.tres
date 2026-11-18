@@ -4,5 +4,8 @@
 script = ExtResource("1")
 AmbientColor = Color(0.64, 0.70, 0.75, 1)
 FogColor = Color(0.7882353, 0.8392157, 0.87058824, 1)
+FogBegin = 65.0
+FogEnd = 540.0
+FogCurve = 1.4
 SunColor = Color(1, 0.88, 0.73, 1)
 FillColor = Color(0.7882353, 0.8392157, 0.9254902, 1)

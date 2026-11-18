@@ -20,8 +20,14 @@ public partial class HarborTransit : Node3D
         var geometry = new HarborGeometry(car, true);
         geometry.Box(new Vector3(0, .55f, 0), new Vector3(2.25f, .38f, 6.3f), "756f52", true);
         geometry.Box(new Vector3(0, 1.2f, 0), new Vector3(2.1f, .9f, 3.2f), "a57353", true);
-        geometry.Box(new Vector3(0, 2.75f, 0), new Vector3(2.55f, .22f, 6.7f), "59736b");
-        geometry.Box(new Vector3(0, 2.91f, 0), new Vector3(2.1f, .14f, 4.4f), "687970");
+        BuildRoof(geometry);
+        var glass = new StandardMaterial3D
+        {
+            AlbedoColor = new Color(.43f, .59f, .57f, .54f),
+            Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+            CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+            Roughness = .16f
+        };
         foreach (var side in new[] { -1, 1 })
         {
             foreach (var z in new[] { -2.6f, -1.4f, 0, 1.4f, 2.6f })
@@ -30,7 +36,9 @@ public partial class HarborTransit : Node3D
             }
             foreach (var z in new[] { -1.0f, 0, 1.0f })
             {
-                geometry.Box(new Vector3(side * 1.07f, 2.03f, z), new Vector3(.035f, .91f, .85f), "8ca5a0");
+                CozyPrimitives.Box(car, new(side * 1.07f, 2.03f, z), new(.025f, .91f, .85f), glass);
+                geometry.Box(new(side * .79f, 1.08f, z), new(.42f, .13f, .86f), "815934", finish: "varnished_board");
+                geometry.Box(new(side * .95f, 1.26f, z), new(.08f, .33f, .86f), "815934", finish: "varnished_board");
             }
             geometry.Box(new Vector3(side * .7f, .91f, 2.3f), new Vector3(.46f, .15f, 1.3f), "a9946a");
             geometry.Box(new Vector3(side * 1.01f, 1.24f, 2.3f), new Vector3(.09f, .65f, 1.4f), "a9946a");
@@ -59,11 +67,12 @@ public partial class HarborTransit : Node3D
                 {
                     geometry.Box(new Vector3(side * 1.11f, y, z), new Vector3(.09f, .065f, .96f), "e0cfa5");
                 }
-                geometry.Box(new Vector3(side * 1.13f, 2.2f, z - .27f), new Vector3(.03f, .51f, .11f), "c0d2c8");
+                geometry.Box(new(side * 1.105f, 2.08f, z), new(.05f, .028f, .88f), "cbb789");
             }
             for (int z = 0; z < 13; z += 1)
             {
-                geometry.Box(new Vector3(side * 1.065f, 1.2f, -1.45f + z * .24f), new Vector3(.035f, .71f, .025f), "cfad78");
+                string stain = z % 3 == 0 ? "90503b" : "9f6345";
+                geometry.Box(new(side * 1.056f, 1.2f, -1.44f + z * .24f), new(.04f, .73f, .222f), stain, finish: "varnished_board");
             }
             geometry.Box(new Vector3(side * 1.13f, 1.59f, 0), new Vector3(.18f, .12f, 3.35f), "ddc18b");
             geometry.Box(new Vector3(side * 1.23f, .58f, 0), new Vector3(.34f, .12f, 5.7f), "a48b60");
@@ -89,7 +98,13 @@ public partial class HarborTransit : Node3D
             foreach (var z in new[] { -2.0f, 2.0f })
             {
                 geometry.Box(new Vector3(side * .84f, .33f, z), new Vector3(.24f, .27f, 1.03f), "3f514d");
-                geometry.Add("cylinder", new Vector3(side * 1.09f, .36f, z), new Vector3(.24f, .045f, .24f), "b0ac8c", new Vector3(0, 0, Mathf.Pi * .5f));
+                geometry.Add("cylinder", new Vector3(side * 1.09f, .36f, z), new Vector3(.24f, .045f, .24f), "b0ac8c", new Vector3(0, 0, Mathf.Pi * .5f), finish: "metal");
+                for (int i = 0; i < 6; i++)
+                {
+                    float angle = i * Mathf.Tau / 6;
+                    geometry.Add("sphere", new(side * 1.114f, .36f + .083f * Mathf.Cos(angle), z + .083f * Mathf.Sin(angle)),
+                        Vector3.One * .029f, "736c53", finish: "metal");
+                }
             }
         }
         foreach (var end in new[] { -1, 1 })
@@ -144,6 +159,54 @@ public partial class HarborTransit : Node3D
         }
         UpdatePositions();
     }
+    private void BuildRoof(HarborGeometry geometry)
+    {
+        const float halfWidth = 1.33f;
+        const float halfLength = 3.42f;
+        const float eave = 2.72f;
+        const float rise = .28f;
+        static float Height(float fraction) => eave + rise * (1 - fraction * fraction);
+        geometry.Box(new(0, eave - .022f, 0), new(halfWidth * 2, .045f, halfLength * 2), "635842", finish: "varnished_board");
+        var surface = new SurfaceTool();
+        surface.Begin(Mesh.PrimitiveType.Triangles);
+        const int segments = 24;
+        void Vertex(int segment, float z)
+        {
+            float across = (2f * segment / segments - 1);
+            float y = Height(across);
+            surface.SetNormal(new Vector3(.44f * across, 1, 0).Normalized());
+            surface.SetUV(new((across + 1) * .5f, (z + halfLength) / (halfLength * 2)));
+            surface.AddVertex(new(across * halfWidth, y, z));
+        }
+        for (int i = 0; i < segments; i++)
+        {
+            Vertex(i, -halfLength); Vertex(i + 1, -halfLength); Vertex(i, halfLength);
+            Vertex(i, halfLength); Vertex(i + 1, -halfLength); Vertex(i + 1, halfLength);
+        }
+        for (int end = -1; end <= 1; end += 2)
+        {
+            for (int i = 0; i < 12; i++)
+            {
+                float a = (i - 6) / 6f, b = (i - 5) / 6f;
+                var first = new Vector3(halfWidth * a, Height(a), end * halfLength);
+                var second = new Vector3(halfWidth * b, Height(b), end * halfLength);
+                var lowerFirst = new Vector3(first.X, eave, first.Z);
+                var lowerSecond = new Vector3(second.X, eave, second.Z);
+                Vector3[] cap = end > 0
+                    ? [lowerFirst, first, second, lowerFirst, second, lowerSecond]
+                    : [lowerFirst, second, first, lowerFirst, lowerSecond, second];
+                foreach (var point in cap)
+                {
+                    surface.SetNormal(Vector3.Back * end);
+                    surface.SetUV(new(point.X / (halfWidth * 2) + .5f, (point.Y - eave) / rise));
+                    surface.AddVertex(point);
+                }
+                geometry.Beam(first, second, .028f, "b9a576");
+            }
+        }
+        CozyPrimitives.Instance(car, surface.Commit(), Vector3.Zero, geometry.Material("47635d", "roof"));
+    }
+
     private void BuildBell()
     {
         bells = new AudioStreamPlayer3D { Name = "Cable car bell", MaxDistance = 48, UnitSize = 7, VolumeDb = -17 };

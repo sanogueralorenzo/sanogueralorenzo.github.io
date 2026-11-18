@@ -7,9 +7,9 @@ Map generators compose these components. Layout coordinates, placement exclusion
 | `CozyPrimitives.cs` | Box, sphere and cylinder meshes; mesh instances; beams | Dimensions, tessellation, transforms and materials; Harbor batches unit meshes while Seabreeze builds then merges props |
 | `CozyCollision.cs` | Box, capsule-limb and triangle-mesh collision shapes | Existing static or animatable body, shape size and rotation; independent prop bodies where needed |
 | `CozyMeshBatches.cs` | Stable spatial grouping, local instance transforms, draw distance and shadow batches; static mesh merging | Seabreeze foliage uses 24 m cells, architecture 32 m; Harbor primitives use 40 m cells and grass 32 m; separate draw/shadow distances remain explicit |
-| `CozySolidMaterials.cs` | Per-owner toon material cache | Palette colors remain with the owning map or character; mutable materials are not global singletons |
+| `CozySolidMaterials.cs` | Per-owner material cache | Palette colors remain with the owning map or character; mutable materials are not global singletons |
 | `CozyLeafPainter.cs` | Bounded image rasterization for rounded and pointed leaf silhouettes | Profile, center, dimensions, orientation, shade and outline; distributions and random draws remain map-owned |
-| `CozyAtmosphere.cs` | Sky, ambient light, sun, optional fill, depth fog, ocean and screen paint | Each map's `atmosphere.tres` supplies its palette, lighting, fog, ocean extent and paint radius |
+| `CozyAtmosphere.cs` | HDR cloud panorama, ambient light, sun, fill, depth fog and ocean | Each map's `atmosphere.tres` supplies its palette, lighting, fog and ocean extent |
 | `CozyAirParticles.cs` | Box emitters and procedural particle mesh/material | Each map's `air.tres` supplies quantity, motion, scale, shape and color; emitter positions stay in the map |
 | `CozySceneCache.cs` | Source signatures, recursive scene ownership, saving and restoring generated branches | Map folder and cache namespace; each map decides which content is static |
 
@@ -21,7 +21,7 @@ Cache signatures include sorted paths and contents for generation sources (`cs`,
 
 ## Change map content
 
-Summer lighting, two blended shadow cascades, restrained contact occlusion and the painterly post effect live in `CozyAtmosphere.cs` and the map profiles. Medium PCF filtering and FXAA keep broad pavement shadows smooth without temporal accumulation or contact-distance dithering. Keep the depth bias high enough to avoid self-shadow interference between thin paving and terrain; tune normal bias per map before changing material patterns. `surface_noise.gdshaderinc` supplies continuous, derivative-filtered variation and integrated paving joints, retaining detail near the camera without distant shimmer. Foliage normals use the normal matrix so stretched instances keep their intended crown lighting. `CozyCollision.Limb` aligns capsule support with tapered or bent wooden segments.
+Summer lighting, two blended shadow cascades and contact occlusion live in `CozyAtmosphere.cs` and the map profiles. Medium PCF filtering and FXAA keep broad pavement shadows smooth without temporal accumulation or contact-distance dithering. Keep the depth bias high enough to avoid self-shadow interference between thin paving and terrain; tune normal bias per map before changing material patterns. `surface_noise.gdshaderinc` supplies derivative-filtered variation, surface relief and integrated paving joints, retaining detail near the camera without distant shimmer. Foliage normals use the normal matrix so stretched instances keep their intended crown lighting. `CozyCollision.Limb` aligns capsule support with tapered or bent wooden segments.
 
 Edit that map's generator or profile. The maps intentionally retain different terrain algorithms, plant shapes, grass topology, texture recipes and building styles. Harbor's shader-based building finishes and Seabreeze's image-based finishes are different artistic systems; forcing them into a shared material would change the result. Vehicles, buildings, parks, paddies, shrine, railway and route animation likewise remain local and use common construction mechanisms.
 

@@ -10,22 +10,31 @@ public static class SeabreezeTextures
         random.Seed = (uint)seed_value;
         var image = Image.CreateEmpty(256, 256, false, Image.Format.Rgba8);
         image.Fill(Colors.Transparent);
-        for (int pass_index = 0; pass_index < 2; pass_index += 1)
+        for (int stem = 0; stem < 12; stem++)
         {
-            int count = (pass_index == 0 ? ((small ? 70 : 30)) : ((small ? 154 : 48)));
-            for (int i = 0; i < count; i += 1)
+            float angle = stem * Mathf.Tau / 12 + random.RandfRange(-.19f, .19f);
+            var direction = Vector2.Right.Rotated(angle);
+            var start = new Vector2(128, 128) + direction * random.RandfRange(1, 14);
+            var end = start + direction * random.RandfRange(70, 101);
+            var bow = direction.Orthogonal() * random.RandfRange(-19, 19);
+            for (int pair = 0; pair < 8; pair++)
             {
-                float angle = (float)random.Randf() * Mathf.Tau;
-                float radius = Mathf.Sqrt((float)random.Randf()) * ((pass_index == 0 ? 56 : 77));
-                var p = new Vector2(128 + Mathf.Cos(angle) * radius, 128 + Mathf.Sin(angle) * radius * 0.9f);
-                float factor = (small ? 0.45f : .62f);
-                float length = random.RandfRange(40, 75) * factor;
-                float width = random.RandfRange(22, 40) * factor;
-                float rotation = (float)random.Randf() * Mathf.Tau;
-                float shade = ((pass_index == 0 ? random.RandfRange(0.47f, 0.67f) : random.RandfRange(0.63f, 1) - radius / 77 * 0.10f));
-                CozyLeafPainter.Paint(image, p, length, width, rotation, shade, CozyLeafPainter.Profile.Rounded, pass_index == 1);
+                float t = (pair + 1) / 9f;
+                float previous = pair / 9f;
+                var node = start.Lerp(end, t) + bow * Mathf.Sin(t * Mathf.Pi);
+                var last = start.Lerp(end, previous) + bow * Mathf.Sin(previous * Mathf.Pi);
+                PaintStroke(image, last, node, 1, new Color(.37f, .35f, .28f));
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    float length = (small ? 21 : 30) * (1 - t * .4f) * random.RandfRange(.78f, 1.3f);
+                    var blade = direction.Rotated(side * random.RandfRange(.65f, 1.26f));
+                    float shade = random.RandfRange(.54f, .94f);
+                    CozyLeafPainter.Paint(image, node + blade * length * .38f, length, length * .57f,
+                        blade.Angle() - Mathf.Pi / 2, shade, CozyLeafPainter.Profile.Rounded);
+                }
             }
         }
+        image.FixAlphaEdges();
         image.GenerateMipmaps();
         return ImageTexture.CreateFromImage(image);
     }
@@ -64,23 +73,20 @@ public static class SeabreezeTextures
                     image.SetPixel(Math.Clamp(x + sx + (int)(Mathf.Sin(sy * 0.025f + i) * 5), 0, 255), sy, new Color("5b7c32"));
                 }
             }
-            int petalCount = random.RandiRange(5, 9);
-            for (int petal = 0; petal < petalCount; petal += 1)
-            {
-                int px = x + random.RandiRange(-14, 14);
-                int py = y + random.RandiRange(-12, 12);
-                int radius = random.RandiRange(5, 9);
-                for (int dy = -radius; dy < radius + 1; dy += 1)
+            int petalCount = random.RandiRange(6, 9);
+            float turn = random.RandfRange(0, Mathf.Tau);
+            float length = random.RandfRange(11, 16);
+            for (int dy = -17; dy <= 17; dy++)
+                for (int dx = -17; dx <= 17; dx++)
                 {
-                    for (int dx = -radius; dx < radius + 1; dx += 1)
-                    {
-                        if (dx * dx + dy * dy <= radius * radius)
-                        {
-                            image.SetPixel(px + dx, py + dy, color);
-                        }
-                    }
+                    float angle = Mathf.Atan2(dy * 1.18f, dx) + turn;
+                    float radius = Mathf.Sqrt(dx * dx + dy * dy * 1.39f);
+                    float lobe = .5f + .5f * Mathf.Cos(angle * petalCount);
+                    float edge = length * (.35f + .65f * Mathf.Pow(lobe, .38f));
+                    if (radius > edge) continue;
+                    float fold = (.58f + .42f * lobe) * Mathf.Lerp(.73f, 1, radius / length);
+                    image.SetPixel(x + dx, y + dy, new Color(color.R * fold, color.G * fold, color.B * fold));
                 }
-            }
             for (int dy = -3; dy < 4; dy += 1)
             {
                 for (int dx = -3; dx < 4; dx += 1)

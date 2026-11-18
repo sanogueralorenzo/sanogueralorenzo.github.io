@@ -41,6 +41,8 @@ void fragment() {
 }
 void light() {
     float raw = dot(NORMAL,LIGHT);
-    float band = (smoothstep(-0.40,0.15,raw)*0.50 + smoothstep(0.20,0.70,raw)*0.40)*band_scale + band_lift;
-    DIFFUSE_LIGHT += band * ATTENUATION * LIGHT_COLOR / PI;
+    float wrap = max(0.0, (raw + 0.28) / 1.28);
+    float transmission = max(-raw, 0.0) * pow(max(dot(-LIGHT, VIEW), 0.0), 2.0);
+    DIFFUSE_LIGHT += (wrap * band_scale + band_lift + transmission * vec3(0.42, 0.53, 0.17))
+        * ATTENUATION * LIGHT_COLOR / PI;
 }

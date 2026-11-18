@@ -34,6 +34,7 @@ public partial class SeabreezeWorld : CozyMap
         ScenicViews = new()
         {
             ["coast"] = [-8, -9.3f, 1.05f, -1.2f, -.06f],
+            ["hydrangeas"] = [-4.8f, -6.5f, HeightAt(-4.8f, -6.5f) - .42f, -.88f, -.12f],
             ["paddy"] = [55.2f, -2.6f, .25f, -2.31f, .29f],
             ["farm"] = [53.6f, 60.2f, 3, 2.98f, .1f],
             ["rail"] = [19.2f, 80, 2.7f, -3.02f, .41f],
@@ -49,7 +50,7 @@ public partial class SeabreezeWorld : CozyMap
         await NextFrame();
         BuildRoads();
         var atmosphere = GD.Load<CozyAtmosphere>("res://maps/seabreeze_village/atmosphere.tres");
-        atmosphere.Install(this);
+        await atmosphere.Install(this);
         ReportProgress("Shaping fields and shoreline…", .14f);
         await NextFrame();
         await BuildTerrain();
@@ -67,7 +68,6 @@ public partial class SeabreezeWorld : CozyMap
         var life = new SeabreezeSummerLife();
         AddChild(life);
         life.Build(this);
-        atmosphere.InstallPost(this);
         ReportProgress("The coast is ready.", .98f);
     }
 

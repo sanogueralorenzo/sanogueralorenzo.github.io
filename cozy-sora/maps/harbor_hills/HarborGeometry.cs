@@ -53,6 +53,8 @@ public sealed class HarborGeometry
                 "roof" => 3,
                 "asphalt" => 4,
                 "paving" => 5,
+                "varnished_board" => 6,
+                "metal" => 7,
                 _ => 0
             });
         }

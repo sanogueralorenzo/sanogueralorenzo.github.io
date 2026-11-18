@@ -10,8 +10,6 @@ public partial class HarborWorld : CozyMap
     public Node3D StaticContent { get; private set; } = null!;
     private HarborGeometry _geometry = null!;
     private HarborTransit? _transit;
-    private readonly List<MeshInstance3D> _fogBanks = new();
-    private double _time;
     private sealed record Terrace(Vector2 Center, float Yaw, float HalfWidth, float Back, float Front, float Level);
     private readonly Dictionary<Vector2I, List<Terrace>> _terraceCells = new();
     private readonly List<(Vector2 Center, Vector2 Forward)> _streetEnds = new();
@@ -57,7 +55,7 @@ public partial class HarborWorld : CozyMap
             ["commercial"] = [8, -68, 5, 1.57f, .02f],
             ["residential"] = [77, 39.7f, 29, 1.57f, -.04f],
             ["park"] = [-105, 96, 58, -.2f, -.19f],
-            ["cable_car"] = [16, -98, 32, 1.32f, -.02f],
+            ["cable_car"] = [15, -106, 32, 2.24f, -.025f],
             ["stairs"] = [-39, 49, 38, 3.14f, .23f],
             ["garden"] = [-34, -68, 29, 1.75f, -.03f],
             ["rooftops"] = [51, -10, 45, 1.8f, -.28f],
@@ -71,7 +69,7 @@ public partial class HarborWorld : CozyMap
             view[2] = HeightAt(view[0], view[1]) + (key == "park" ? 2 : key is "residential" or "garden" or "cable_car" ? 0 : 1);
         }
         var atmosphere = GD.Load<CozyAtmosphere>("res://maps/harbor_hills/atmosphere.tres");
-        atmosphere.Install(this);
+        await atmosphere.Install(this);
         ReportProgress("Finding the way to Harbor Hills…", .08f);
         await NextFrame();
         string cache = "user://harbor_hills_" + GenerationSignature + ".scn";
@@ -106,10 +104,8 @@ public partial class HarborWorld : CozyMap
         _transit = new HarborTransit();
         AddChild(_transit);
         _transit.Build(this);
-        FogBanks();
         var air = GD.Load<CozyAirParticles>("res://maps/harbor_hills/air.tres");
         foreach (var at in new Vector2[] { new(-53, 106), new(-108, 78), new(-40, -68), new(52, 7) }) air.Install(this, Point(at.X, at.Y, 1.5f));
-        atmosphere.InstallPost(this);
         ReportProgress("The bay is waiting.", 1);
     }
 
@@ -322,34 +318,5 @@ public partial class HarborWorld : CozyMap
             path.Add(vertical ? Point(fixedCoordinate, coordinate, lift) : Point(coordinate, fixedCoordinate, lift));
         }
         if (path.Count > 1) _geometry.Ribbon(path, 2.8f, "b9b7a5", true, true, "paving");
-    }
-
-    private void FogBanks()
-    {
-        for (int i = 0; i < 9; i++)
-        {
-            var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://maps/harbor_hills/fog.gdshader") };
-            material.SetShaderParameter("phase", i * 1.7f);
-            var fog = new MeshInstance3D
-            {
-                Mesh = new QuadMesh { Size = new(150 + i * 9, 20 + i * 2) },
-                MaterialOverride = material,
-                Position = new(-260 + i * 72, 6 + i % 3 * 4, -170 - i % 3 * 75),
-                Rotation = new(-.13f, 0, 0),
-                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off
-            };
-            AddChild(fog);
-            _fogBanks.Add(fog);
-        }
-    }
-
-    public override void _Process(double delta)
-    {
-        _time += delta;
-        for (int i = 0; i < _fogBanks.Count; i++)
-        {
-            var fog = _fogBanks[i];
-            fog.Position = new(-260 + i * 72 + (float)Math.Sin(_time * .013 + i) * 33, fog.Position.Y, fog.Position.Z);
-        }
     }
 }

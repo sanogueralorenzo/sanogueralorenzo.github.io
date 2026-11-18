@@ -1,36 +1,54 @@
-shader_type sky;
-float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-float noise(vec2 p){vec2 q=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(q),hash(q+vec2(1,0)),f.x),mix(hash(q+vec2(0,1)),hash(q+vec2(1,1)),f.x),f.y);}
-float fbm(vec2 p){return noise(p)*.5+noise(p*2.)*.25+noise(p*4.)*.125+noise(p*8.)*.0625;}
-float billow(vec2 p){float n=abs(2.*noise(p)-1.);return n*n*(3.-2.*n);}
-float cloud(vec2 q,float cover,float curl){float mass=fbm(q*.5);float lobes=billow(q*3.2+vec2(0,4))*.5+billow(q*6.4+vec2(0,8))*.275;float detail=billow(q*8.+vec2(0,11))*.5+billow(q*16.+vec2(0,22))*.275;return cover+(mass-cover)*2.2+smoothstep(-.02,.08,mass-cover)*((lobes-.5)*.22+(detail-.5)*curl);}
-void sky(){
- vec3 d=normalize(EYEDIR);float h=d.y;
- vec3 horizon=vec3(.76,.81,.86);
- vec3 col=mix(horizon,vec3(.46,.64,.8),smoothstep(0.,.22,h));
- col=mix(col,vec3(.22,.46,.71),smoothstep(.2,.75,h));
- vec3 sun=normalize(vec3(-.55,.7,-.38));
- float sunlight=max(dot(d,sun),0.);
- col+=vec3(.2,.17,.12)*pow(sunlight,24.)+vec3(1.,.95,.85)*pow(sunlight,400.)*.8;
- if(h>-.02){
- float inland=smoothstep(-.4,.6,d.z)*.55+smoothstep(0.,.8,d.x)*.45;
- float top=.32+.46*inland;
- vec2 q=vec2((atan(d.x,d.z)/6.283185+.5)*16.+TIME*.006,asin(clamp(h,-1.,1.))/6.283185*16.);
- q+=(vec2(fbm(q*.5+vec2(0,3)),fbm(q*.5+vec2(0,9)))-.5)*.8;
- float cover=.29+.30*pow(max(h,0.)/top,2.)+.34*(1.-inland);
- float field=cloud(q,cover,.10);float mass=fbm(q*.5);
- float mask=smoothstep(cover-.004,cover+.004,field)*smoothstep(cover-.04,cover-.015,mass)*smoothstep(-.01,.04,h);
- float dx=cloud(q+vec2(.025,0),cover,0.)-cloud(q-vec2(.025,0),cover,0.);
- float dy=cloud(q+vec2(0,.025),cover,0.)-cloud(q-vec2(0,.025),cover,0.);
- vec3 normal=normalize(vec3(-dx/.05,-dy/.05,1.6));
- float side=clamp(sin(atan(sun.x,sun.z)-atan(d.x,d.z))*2.,-1.,1.);
- float lit=dot(normal,normalize(vec3(side*.55,.8,.45)));
- float bulk=clamp((fbm((q+vec2(side*.18,.30))*.5)-mass)*3.,0.,1.);
- float shade=(1.-smoothstep(.1,.5,lit))*.65+bulk*.35*smoothstep(cover,cover+.2,field)+smoothstep(cover,cover+.2,field)*(1.-smoothstep(.02,.55*top,h))*.4;
- shade=mix(shade,floor(shade*4.+.5)/4.,.3);
- vec3 cc=mix(vec3(1.,.98,.94),vec3(.58,.65,.77),smoothstep(.15,.45,shade));
- cc=mix(cc,vec3(.50,.58,.70),smoothstep(.50,.85,shade));
- col=mix(col,cc,mask);
- }
- COLOR=pow(col,vec3(2.2));
+shader_type canvas_item;
+render_mode unshaded, blend_disabled;
+
+uniform sampler3D cloud_noise : repeat_enable, filter_linear;
+uniform vec3 sun_direction = vec3(-0.568, 0.723, -0.393);
+
+float density(vec3 p) {
+    float body = texture(cloud_noise, p * vec3(0.072, 0.095, 0.072)).r;
+    float wisps = texture(cloud_noise, p * 0.39 + vec3(0.31, 0.15, 0.82)).r;
+    float height = clamp((p.y - 1.0) / 1.8, 0.0, 1.0);
+    float envelope = smoothstep(0.0, 0.14, height) * (1.0 - smoothstep(0.42, 1.0, height));
+    float opening = exp(-dot(p.xz, p.xz) * 0.055);
+    return max(0.0, (body - 0.558) * 2.75 + (wisps - 0.5) * 0.58 - 0.25 * opening - (1.0 - envelope) * 0.56);
+}
+
+vec3 daylight(vec3 ray) {
+    float elevation = max(ray.y, 0.0);
+    float air = exp(-elevation * 4.7);
+    float alignment = max(dot(ray, sun_direction), 0.0);
+    vec3 clear_sky = mix(vec3(0.039, 0.118, 0.29), vec3(0.32, 0.47, 0.61), air);
+    clear_sky += vec3(0.45, 0.33, 0.18) * pow(alignment, 12.0);
+    clear_sky += vec3(7.0, 5.8, 4.3) * smoothstep(0.99997, 0.999995, alignment);
+    if (ray.y <= 0.012) { return clear_sky; }
+    float rise = sqrt(elevation * elevation + 0.004);
+    float travel = 1.0 / rise;
+    float step_length = min(1.8 / rise, 24.0) / 80.0;
+    float offset = fract(52.9829189 * fract(dot(ray.xz, vec2(721.23, 419.45))));
+    float transmission = 1.0;
+    vec3 scattered = vec3(0.0);
+    for (int i = 0; i < 80; i++) {
+        vec3 p = vec3(ray.x, rise, ray.z) * (travel + (float(i) + offset) * step_length);
+        float cloud = density(p);
+        if (cloud > 0.001) {
+            float overburden = density(p + sun_direction * 0.23) * 0.48
+                + density(p + sun_direction * 0.70) * 0.78
+                + density(p + sun_direction * 1.55) * 0.85;
+            float direct = exp(-overburden * 4.8);
+            vec3 irradiance = vec3(0.19, 0.25, 0.34) + direct * vec3(0.90, 0.86, 0.76);
+            float opacity = 1.0 - exp(-cloud * step_length * 7.0);
+            scattered += transmission * opacity * irradiance;
+            transmission *= 1.0 - opacity;
+            if (transmission < 0.012) { break; }
+        }
+    }
+    vec3 result = scattered + transmission * clear_sky;
+    return mix(clear_sky, result, smoothstep(0.012, 0.095, elevation));
+}
+
+void fragment() {
+    float longitude = UV.x * TAU;
+    float latitude = UV.y * PI;
+    vec3 ray = vec3(sin(longitude) * sin(latitude), cos(latitude), -cos(longitude) * sin(latitude));
+    COLOR = vec4(daylight(ray), 1.0);
 }

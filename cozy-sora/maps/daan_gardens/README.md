@@ -17,8 +17,8 @@ Movement uses the shared keyboard, gamepad and touch controls. The seagull can p
 - `DaanPlanting.cs` paints leaf sprays into generated image textures, builds varied tapered branching and roots, distributes crowns and understory, and creates bamboo, fern fronds, reeds, lilies and short lawn grass. Major wooden limbs have oriented capsule collisions. Grass and small leaves bend near the player through the shared shaders.
 - `DaanNeighborhood.cs` owns tiled apartment composition, accessible cafés, façade details, courtyards, scooters and muted skyline buildings.
 - `DaanFurnishings.cs` owns slatted benches, lamps, bins, signs, stone banks, the deck and the pavilion's tiled hip roof and wooden underside.
-- `ground.gdshader`, `surface.gdshader` and `pond.gdshader` provide smooth ground variation, correctly oriented finish patterns and calm moving pond reflections. Screen-space reflections are enabled only for this map.
-- `atmosphere.tres` and `air.tres` configure the shared summer lighting, haze, painterly post effect and drifting seed particles. The shared player synthesizes local wind, cicadas and birds; no audio files are used.
+- `ground.gdshader`, `surface.gdshader` and `pond.gdshader` provide ground variation, bark and paving relief, and rippled pond reflections. Screen-space reflections are enabled only for this map.
+- `atmosphere.tres` and `air.tres` configure the shared summer lighting, haze and drifting seed particles. The shared player synthesizes local wind, cicadas and birds; no audio files are used.
 
 Static meshes, generated textures and collision shapes are packed into `user://daan_gardens_<signature>.scn`. Source changes in this map or shared components invalidate that cache. Environment, particles and animated birds are recreated for each visit. No player, camera, UI, audio stream or live map instance is cached.
 

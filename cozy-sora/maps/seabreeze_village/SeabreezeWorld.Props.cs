@@ -17,22 +17,49 @@ public partial class SeabreezeWorld
     }
     private void Guardrail(List<Vector2> points)
     {
-        var previous = Vector3.Zero;
-        for (int i = 0; i < points.Count; i += 1)
+        Vector2[] profile = [new(.00f, .00f), new(.014f, .021f), new(.069f, .063f),
+            new(.069f, .091f), new(.016f, .145f), new(.016f, .165f), new(.069f, .219f),
+            new(.069f, .247f), new(.014f, .289f), new(.00f, .31f)];
+        var steel = new ShaderMaterial { Shader = GD.Load<Shader>("res://maps/seabreeze_village/guardrail.gdshader") };
+        var hardware = new StandardMaterial3D { AlbedoColor = new("9ca4a5"), Metallic = .77f, Roughness = .47f };
+        var bolts = new List<Transform3D>();
+        var strip = new SurfaceTool();
+        strip.Begin(Mesh.PrimitiveType.Triangles);
+        var collision = new StaticBody3D();
+        AddChild(collision);
+        float along = 0;
+        for (int i = 0; i < points.Count; i++)
         {
             var p = new Vector3(points[i].X, HeightAt(points[i].X, points[i].Y), points[i].Y);
-            CozyPrimitives.Box(this, p + new Vector3(0, .5f, 0), new Vector3(.12f, 1, .12f), Palette.Color("828986"), true);
-            if (i > 0)
+            CozyPrimitives.Cylinder(this, p + Vector3.Up * .46f, .074f, .074f, .92f, hardware);
+            CozyCollision.Box(collision, p + Vector3.Up * .46f, new(.15f, .92f, .15f));
+            if (i == 0) continue;
+            var last = points[i - 1];
+            var a = new Vector3(last.X, HeightAt(last.X, last.Y), last.Y);
+            var side = (p - a).Cross(Vector3.Up).Normalized();
+            float length = a.DistanceTo(p);
+            for (int fold = 1; fold < profile.Length; fold++)
             {
-                var a = previous + Vector3.Up * .7f;
-                var b = p + Vector3.Up * .7f;
-                var n = CozyPrimitives.Box(this, (a + b) / 2, new Vector3(.1f, .25f, a.DistanceTo(b)), Palette.Color("a3a9a4"));
-                n.LookAtFromPosition((a + b) / 2, b);
-                // The low guardrail has a matching collision ribbon.
-                CozyCollision.StaticBox(n, Vector3.Zero, new Vector3(.14f, .7f, a.DistanceTo(b)));
+                var lower = profile[fold - 1];
+                var upper = profile[fold];
+                var normal = (side * (upper.Y - lower.Y) - Vector3.Up * (upper.X - lower.X)).Normalized();
+                void Vertex(Vector3 post, Vector2 section, float distance)
+                {
+                    strip.SetNormal(normal);
+                    strip.SetUV(new(distance, section.Y));
+                    strip.AddVertex(post + side * (.075f + section.X) + Vector3.Up * (.56f + section.Y));
+                }
+                Vertex(a, lower, along); Vertex(a, upper, along); Vertex(p, lower, along + length);
+                Vertex(p, lower, along + length); Vertex(a, upper, along); Vertex(p, upper, along + length);
             }
-            previous = p;
+            var rotation = Basis.LookingAt(p - a, Vector3.Up);
+            CozyCollision.Box(collision, (a + p) * .5f + Vector3.Up * .7f, new(.14f, .7f, length), rotation.GetEuler());
+            foreach (float height in new[] { .635f, .791f })
+                bolts.Add(new(new Basis(new Quaternion(Vector3.Up, side)), p + Vector3.Up * height + side * .15f));
+            along += length;
         }
+        CozyPrimitives.Instance(this, strip.Commit(), Vector3.Zero, steel);
+        CozyMeshBatches.Spatial(this, CozyPrimitives.CylinderMesh(.019f, .017f, .012f, 6), hardware, bolts, "Rail fasteners", 24);
     }
     private void Sign(Vector3 pos, string text, string color, Vector2 size, float yaw = 0)
     {
@@ -83,15 +110,25 @@ public partial class SeabreezeWorld
             points.Add(new Vector2(x, -17.5f + Curve(x)));
         }
         Guardrail(points);
+        var concrete = new ShaderMaterial { Shader = GD.Load<Shader>("res://maps/seabreeze_village/pole.gdshader") };
+        var collar = new StandardMaterial3D { AlbedoColor = new("636768"), Metallic = .68f, Roughness = .49f };
+        var porcelain = new StandardMaterial3D { AlbedoColor = new("d8d9c7"), Roughness = .23f };
         var tops = new List<Vector3>();
         foreach (var p in new[] { new Vector2(-34, -6.3f + Curve(-34)), new Vector2(-10.5f, -17.3f + Curve(-10.5f)), new Vector2(16, -17.3f + Curve(16)), new Vector2(42, -17.3f + Curve(42)), new Vector2(64, -17.3f + Curve(64)) })
         {
             var y = HeightAt(p.X, p.Y);
-            CozyPrimitives.Cylinder(this, new Vector3(p.X, y + 5, p.Y), .19f, .12f, 10.5f, Palette.Color("9c9478"));
+            CozyPrimitives.Cylinder(this, new Vector3(p.X, y + 5, p.Y), .19f, .12f, 10.5f, concrete);
+            foreach (float height in new[] { 2.32f, 2.73f, 7.15f, 8.86f })
+            {
+                float radius = .19f - height / 10.5f * .07f + .006f;
+                CozyPrimitives.Cylinder(this, new(p.X, y + height, p.Y), radius, radius, .042f, collar);
+            }
             CozyPrimitives.Box(this, new Vector3(p.X, y + 9, p.Y), new Vector3(2, .12f, .18f), Palette.Color("5c6358"));
             foreach (var dx in new[] { -.85f, 0, .85f })
             {
-                CozyPrimitives.Cylinder(this, new Vector3(p.X + dx, y + 9.2f, p.Y), .085f, .08f, .3f, Palette.Color("d9d9c8"));
+                CozyPrimitives.Cylinder(this, new(p.X + dx, y + 9.2f, p.Y), .043f, .043f, .3f, porcelain);
+                for (int rib = 0; rib < 3; rib++)
+                    CozyPrimitives.Cylinder(this, new(p.X + dx, y + 9.13f + rib * .065f, p.Y), .091f, .054f, .045f, porcelain);
             }
             tops.Add(new Vector3(p.X, y + 9.35f, p.Y));
             CozyCollision.StaticBox(this, new Vector3(p.X, y + 5, p.Y), new Vector3(.35f, 10, .35f));
@@ -108,7 +145,7 @@ public partial class SeabreezeWorld
         var ground = HeightAt(8, gantry_z);
         foreach (var x in new[] { 7.4f, 8.6f })
         {
-            CozyPrimitives.Cylinder(this, new Vector3(x, ground + 5.1f, gantry_z), .16f, .13f, 10.5f, Palette.Color("9c9478"));
+            CozyPrimitives.Cylinder(this, new Vector3(x, ground + 5.1f, gantry_z), .16f, .13f, 10.5f, concrete);
         }
         foreach (var y in new[] { 6.9f, 9.8f })
         {

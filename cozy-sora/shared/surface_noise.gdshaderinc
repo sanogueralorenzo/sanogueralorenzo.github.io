@@ -15,3 +15,13 @@ float seam(float value,float width) {
  float x=value+width;
  return clamp((joint_integral(x+footprint*.5,width*2.)-joint_integral(x-footprint*.5,width*2.))/footprint,0.,1.);
 }
+
+vec3 relief_normal(vec3 eye_position, vec3 normal, float height) {
+    vec3 dx = dFdx(eye_position);
+    vec3 dy = dFdy(eye_position);
+    vec3 across = cross(dy, normal);
+    vec3 along = cross(normal, dx);
+    float orientation = dot(dx, across);
+    vec3 slope = sign(orientation) * (dFdx(height) * across + dFdy(height) * along);
+    return normalize(max(abs(orientation), 1e-10) * normal - slope);
+}

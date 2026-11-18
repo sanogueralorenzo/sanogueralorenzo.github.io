@@ -13,9 +13,8 @@ public sealed class CozySolidMaterials
         var material = new StandardMaterial3D
         {
             AlbedoColor = new Color(hex),
-            Roughness = 1,
-            DiffuseMode = BaseMaterial3D.DiffuseModeEnum.Toon,
-            SpecularMode = BaseMaterial3D.SpecularModeEnum.Disabled
+            Roughness = .82f,
+            MetallicSpecular = .28f
         };
         _materials.Add(hex, material);
         return material;

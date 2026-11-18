@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode diffuse_toon, specular_disabled;
+render_mode diffuse_burley, specular_schlick_ggx;
 #include "res://shared/surface_noise.gdshaderinc"
 uniform sampler2D layout_map : filter_linear, repeat_disable;
 varying vec3 world_pos;
@@ -25,12 +25,27 @@ void fragment(){
  ground=mix(ground,soil,dirt);
  float shoulder=(1.-smoothstep(0.,.9,abs(distance-4.)));
  ground=mix(ground,vec3(.44,.39,.32),shoulder*.7);
- vec3 asphalt=mix(vec3(.40,.36,.33),vec3(.48,.43,.39),fbm(p*.32+40.)*.55+noise(p*6.)*.035);
- float edge=1.-smoothstep(.055,.13,abs(distance-3.65));
- float center=(1.-smoothstep(.04,.10,distance))*step(.45,layout.g);
- float wear=smoothstep(.3,.55,fbm(p*2.5+9.));
- asphalt=mix(asphalt,vec3(.80,.79,.74),clamp(edge+center,0.,1.)*wear);
- ground=mix(ground,asphalt,1.-smoothstep(3.85,4.15,distance));
+ float road = 1.0 - smoothstep(3.85, 4.15, distance);
+ float wheel_track = 1.0 - smoothstep(0.16, 0.56, abs(abs(distance - 1.95) - 0.69));
+ float stone = noise(p * 64.0);
+ float grit = noise(p * 22.0 + 9.0);
+ float weathering = fbm(p * 0.68);
+ vec3 asphalt = mix(vec3(0.235, 0.245, 0.25), vec3(0.365, 0.36, 0.342), weathering);
+ asphalt += vec3((grit - 0.5) * 0.105 + (stone - 0.5) * 0.18);
+ float fracture = abs(noise(p * 0.72 + vec2(noise(p * 3.1), noise(p * 2.8 + 17.0)) * 0.15) - 0.5);
+ float crack = (1.0 - smoothstep(0.002, max(0.012, fwidth(fracture)), fracture))
+     * smoothstep(0.5, 0.67, noise(p * 0.53 + 13.0));
+ asphalt *= 1.0 - crack * 0.4 - wheel_track * 0.08;
+ float wet = smoothstep(0.575, 0.70, weathering + 0.03 * wheel_track + 0.07 * smoothstep(2.9, 3.9, distance));
+ float edge = 1.0 - smoothstep(0.055, 0.13, abs(distance - 3.65));
+ float center = (1.0 - smoothstep(0.055, 0.12, distance)) * step(0.45, layout.g);
+ float paint = clamp(edge + center, 0.0, 1.0) * smoothstep(0.19, 0.57, 0.5 * grit + 0.5 * weathering);
+ asphalt = mix(asphalt, vec3(0.79, 0.79, 0.73) * (0.90 + 0.20 * grit), paint);
+ ground = mix(ground, asphalt * (1.0 - wet * 0.28), road);
  if(world_pos.y< -2.) ground=mix(ground,vec3(.24,.22,.20)*(.7+.5*patch),smoothstep(2.,8.,-world_pos.y));
- ALBEDO=pow(ground,vec3(2.2));ROUGHNESS=1.;
+ ALBEDO = pow(ground, vec3(2.2));
+ float height = road * (grit * 0.0026 + stone * 0.0009 - crack * 0.0028) * (1.0 - wet * 0.84);
+ NORMAL = relief_normal(VERTEX, NORMAL, height);
+ ROUGHNESS = mix(0.96, mix(0.84, 0.18, wet), road);
+ SPECULAR = mix(0.24, 0.35, wet * road);
 }

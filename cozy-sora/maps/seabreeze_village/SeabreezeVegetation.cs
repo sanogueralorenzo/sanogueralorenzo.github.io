@@ -89,6 +89,7 @@ public partial class SeabreezeVegetation : Node3D
         await GrassFields();
         Flowers();
         Rosettes();
+        SeabreezeHydrangeas.Plant(this, world);
         _world.EmitSignal(CozyMap.SignalName.LoadProgress, "Adding the last summer details…", .90f);
         await NextFrame();
         AreaFlora();

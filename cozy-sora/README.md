@@ -14,7 +14,7 @@ On macOS, a user-installed SDK needs `DOTNET_ROOT` pointing to its installation 
 
 Choose **Seabreeze Village**, **Harbor Hills**, or **Daan Gardens** on the destination screen and press **Play**. Wander Japanese coastal lanes and fields, follow a cable car through a hillside district above the bay, or explore a living pond and café street beneath subtropical trees. Explore as a cat or take flight as a seagull. Destination previews are in-game captures made by this project.
 
-C# owns gameplay and procedural construction; authored Godot shaders retain the existing Forward+ rendering. The migration preserves the current appearance and rendering settings. C# does not by itself improve GPU rendering or guarantee faster frames. First entry generates terrain and vegetation; subsequent visits reuse generated resources in Godot's application user-data directory. The loading screen reports the current stage. After the initial SDK/package setup, gameplay needs no network connection. The selector itself builds immediately without generating the world.
+C# builds the world and characters. Godot Forward+ renders the generated cloud panorama, animated water, and procedural surface materials. First entry generates terrain and vegetation. Subsequent visits reuse generated resources in Godot's application user-data directory. The loading screen reports the current stage. After the initial SDK/package setup, gameplay needs no network connection. The selector itself builds immediately without generating the world.
 
 ## Controls
 
@@ -40,7 +40,7 @@ The seagull glides without input and can settle on the ground. Harbor Hills and 
 - `scripts/CozyApplication.cs` and its Settings/Captures partials own navigation, transitions, settings, loading, pause state, screenshot capture, and one disposable gameplay session.
 - `maps/registry.tres` lists `CozyMapDefinition` resources. Each contains a stable ID, title, subtitle, description, scene path, project-owned preview, and spawn position / camera angles / character.
 - `scripts/CozyMap.cs` is the small `CozyMap` scene contract. A map builds its own content, reports progress, and exposes ground height, walkable space, flight bounds, ambience parameters, and optional scenic viewpoints.
-- `maps/seabreeze_village/map.tscn` owns the existing terrain, roads, coast, farm, paddies, village, shrine, vending areas, railway, train, vegetation, lighting, fog, particles, and world post-processing. Its generators, plant meshes, texture recipes and artistic profiles live alongside the scene. See [its map notes](maps/seabreeze_village/README.md).
+- `maps/seabreeze_village/map.tscn` owns the existing terrain, roads, coast, farm, paddies, village, shrine, vending areas, railway, train, vegetation, lighting, fog and particles. Its generators, plant meshes, texture recipes and artistic profiles live alongside the scene. See [its map notes](maps/seabreeze_village/README.md).
 - `maps/harbor_hills/` owns the second district: sloping streets, row houses, shops, courtyards, cypress park, waterfront, moving cable car, local bell, vehicles, distant city, bridge and fog. See [its map notes](maps/harbor_hills/README.md).
 - `maps/daan_gardens/` owns the third destination: connected park loops, ecological pond, bird island, banyan court, bamboo groves, pavilion, apartment cafés and surrounding city. See [its map notes](maps/daan_gardens/README.md).
 - `shared/` owns common procedural meshes, collisions, batching, leaf rasterization, material caching, atmosphere, particles and source-aware caches. See [component ownership and update guidance](shared/README.md).
@@ -61,7 +61,7 @@ The normal launch always opens destination selection. These explicit development
 ./cozy-sora/run.sh -- --shot --capture-dir=/tmp/cozy-sora-views --quit-after-capture
 ```
 
-`--shot` hides shared UI. Available Seabreeze Village views: `coast`, `paddy`, `farm`, `rail`, `village`, `alley`, `vending`, `viaduct`, `shrine`, `top`. Omitting `--view` uses the normal cat camera. `--gull` chooses the seagull for a direct map launch. `--capture=/tmp/landing.png` without a map or shot option captures the selector. `--touch` enables touch controls for a native pointer walkthrough.
+`--shot` hides shared UI. Available Seabreeze Village views: `coast`, `hydrangeas`, `paddy`, `farm`, `rail`, `village`, `alley`, `vending`, `viaduct`, `shrine`, `top`. Omitting `--view` uses the normal cat camera. `--gull` chooses the seagull for a direct map launch. `--capture=/tmp/landing.png` without a map or shot option captures the selector. `--touch` enables touch controls for a native pointer walkthrough.
 
 `--pose=x,z,height_offset,yaw,pitch` stages a repeatable position through the normal character camera and ground-height contract. Angles are radians; `--gull` adds its usual 3 m takeoff clearance. This is useful for paired gameplay captures and focused native traversal without editing the registered spawn. For example, `--map=daan_gardens --shot --pose=-6,-44,.05,2.39,.09 --capture=/tmp/pond-cat.png --quit-after-capture` shows the pond from the cat camera.
 

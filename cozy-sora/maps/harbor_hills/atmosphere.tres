@@ -16,4 +16,3 @@ AimSunAtOrigin = false
 FillEnergy = 0.10
 OceanSize = Vector2(3000, 3000)
 OceanPosition = Vector3(0, -1, -1200)
-BrushRadius = 2.0

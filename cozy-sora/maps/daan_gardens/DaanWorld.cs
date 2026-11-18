@@ -49,7 +49,7 @@ public partial class DaanWorld : CozyMap
             ["top"] = [0, 2, 190, 0, -1.57f]
         };
         var atmosphere = GD.Load<CozyAtmosphere>("res://maps/daan_gardens/atmosphere.tres");
-        atmosphere.Install(this);
+        await atmosphere.Install(this);
         foreach (Node child in GetChildren())
             if (child is WorldEnvironment environment)
             {
@@ -82,7 +82,6 @@ public partial class DaanWorld : CozyMap
         BirdLife();
         var air = GD.Load<CozyAirParticles>("res://maps/daan_gardens/air.tres");
         foreach (var at in new Vector2[] { new(5, 42), new(-70, 44), new(47, -45) }) air.Install(this, Point(at.X, at.Y, 3));
-        atmosphere.InstallPost(this);
         ReportProgress("A quiet afternoon is waiting.", 1);
     }
 
