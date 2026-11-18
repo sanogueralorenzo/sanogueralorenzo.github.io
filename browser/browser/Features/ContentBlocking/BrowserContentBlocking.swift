@@ -14,6 +14,9 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
     private var startup: CheckedContinuation<Void, Error>?
     private var timeout: Task<Void, Never>?
 
+    private static let rulePermissions: [WKWebExtension.Permission] = [
+        .declarativeNetRequest, .declarativeNetRequestWithHostAccess,
+    ]
     private static var extensionTask: Task<WKWebExtension, Error>?
 
     init(spaceID: UUID, owner: BrowserSessionOwner, dataStore: WKWebsiteDataStore) {
@@ -61,7 +64,7 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
             context.uniqueIdentifier = "com.itsbrowser.ubol"
             context.baseURL = URL(string: "webkit-extension://browser-ubol/")!
             context.hasAccessToPrivateData = privateSpace
-            for permission in webExtension.requestedPermissions {
+            for permission in webExtension.requestedPermissions where !Self.rulePermissions.contains(permission) {
                 context.setPermissionStatus(.grantedExplicitly, for: permission)
             }
             for pattern in webExtension.requestedPermissionMatchPatterns {
@@ -70,9 +73,10 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
             self.context = context
         }
         guard let context else { return }
+        for permission in Self.rulePermissions {
+            context.setPermissionStatus(.deniedExplicitly, for: permission)
+        }
         do {
-            // Loading the background page alone does not await uBOL's asynchronous
-            // rule/script registration. The bundled startup handshake does.
             try await withCheckedThrowingContinuation { continuation in
                 startup = continuation
                 timeout = Task { [weak self] in
@@ -122,10 +126,20 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
             replyHandler(nil, BlockingError("Unknown content blocking message."))
             return
         }
-        if message["event"] == "ready" {
+        switch message["event"] {
+        case "prepare":
+            for permission in Self.rulePermissions {
+                extensionContext.setPermissionStatus(.grantedExplicitly, for: permission)
+            }
+            replyHandler(["starting": startup != nil], nil)
+            return
+        case "ready":
             finishStartup(.success(()))
-        } else if message["event"] == "error" {
+        case "error":
             finishStartup(.failure(BlockingError(message["message"] ?? "uBlock Origin Lite could not start.")))
+        default:
+            replyHandler(nil, BlockingError("Unknown content blocking message."))
+            return
         }
         replyHandler(true, nil)
     }
