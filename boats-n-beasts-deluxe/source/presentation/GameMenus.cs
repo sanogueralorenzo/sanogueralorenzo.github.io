@@ -244,6 +244,7 @@ public partial class Game : Node2D
     string VoyageSummary() => $"{Run.Rules.Name}  ·  {ClockText(Run.CombatTime)}  ·  Level {Run.Level}\n" +
         $"{Run.BeaconsLit}/{Run.Beacons.Count} beacons  ·  {Run.Kills} beasts  ·  Longest chain {Run.LongestChain}  ·  +{Run.SilverEarned} silver" +
         (Run.CloseCalls > 0 ? $"\nClose calls {Run.CloseCalls}" : "") +
+        (Run.FloatingCacheClaimed ? "\nDrifting cache secured" : "") +
         (Run.Salvage.Delivered ? "\nWreck salvage delivered" : "") + DailyResult() + SailUnlockResult();
 
     void UpgradeMenu()

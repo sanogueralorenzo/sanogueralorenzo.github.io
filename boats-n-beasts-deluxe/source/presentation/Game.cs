@@ -106,6 +106,7 @@ public partial class Game : Node2D
                 case "enraged": Toast("Crownclaw is enraged · watch for charges"); break;
                 case "repairInterrupted": Toast("Repairs interrupted · berth still available"); break;
                 case "repairDone": Toast("Harbor repairs complete"); break;
+                case "cacheCaught": Toast($"Cache secured · +{e.Value:0} XP"); break;
                 case "hurt": hitNotice = .46f; break;
                 case "closeCall":
                     LootNotice(e, e.Value >= 1 ? $"Close call · +{e.Value:0} boost" : "Close call", NauticalPalette.Gold,

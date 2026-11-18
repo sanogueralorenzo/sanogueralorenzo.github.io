@@ -3,7 +3,7 @@ using Godot;
 using V2 = System.Numerics.Vector2;
 namespace BoatsNBeasts;
 
-internal readonly record struct ChartOrder(V2 Point, Beacon? Patrol = null, Place? Supply = null, string? Label = null);
+internal readonly record struct ChartOrder(V2 Point, Beacon? Patrol = null, Place? Supply = null, string? Label = null, DriftingCache? Cache = null);
 
 public partial class Game
 {
@@ -94,6 +94,7 @@ public partial class Game
     {
         if (order.Patrol is { } beacon) return course.Plot(Run, beacon);
         if (order.Supply is { } place) return course.Plot(Run, place);
+        if (order.Cache is { } cache) return course.Plot(Run, cache);
         return course.Plot(Run, order.Point);
     }
 
@@ -168,6 +169,15 @@ public partial class Game
             }
 
             var boat = Plot(run.Position);
+            if (run.FloatingCache is { } cache)
+            {
+                var at = Plot(cache.Position);
+                if (area.Grow(-12).HasPoint(at))
+                {
+                    DrawCacheChartMark(at, cache, ChartPaper, ChartGold);
+                    Text(at + new Vector2(13, 5), $"Drifting cache · {Math.Ceiling(cache.Remaining):0}s", 15, true, ChartInk);
+                }
+            }
             var berth = Plot(StartingArea.RepairBerth);
             if (run.RepairsAvailable && area.Grow(-12).HasPoint(berth))
             {

@@ -9,6 +9,8 @@ public sealed class SailCourse
     int patrolStart;
     bool continuing;
     Place? supply;
+    DriftingCache? pursuit;
+    float pursuitRefresh;
 
     public Vector2? Destination { get; private set; }
     public Beacon? Patrol { get; private set; }
@@ -22,6 +24,7 @@ public sealed class SailCourse
         next = patrolStart = 0;
         Patrol = null;
         supply = null;
+        pursuit = null;
         continuing = false;
     }
 
@@ -41,6 +44,18 @@ public sealed class SailCourse
         waypoints = plan;
         next = 0;
         Destination = continuing ? destination : plan[^1];
+        return true;
+    }
+
+    public bool Plot(Voyage run, DriftingCache cache)
+    {
+        if (run.FloatingCache != cache) return false;
+        float intercept = Math.Clamp(Vector2.Distance(run.Position, cache.Position) / run.Speed, .28f, 2.4f);
+        var aim = cache.Position + cache.Velocity * intercept;
+        if (!run.World.IsWater(aim, CoursePlanner.Clearance)) aim = cache.Position;
+        if (!Plot(run, aim)) return false;
+        pursuit = cache;
+        pursuitRefresh = run.CombatTime + .48f;
         return true;
     }
 
@@ -127,7 +142,17 @@ public sealed class SailCourse
             Clear();
             return input;
         }
-        if (Patrol is { } beacon)
+        if (pursuit is { } cache)
+        {
+            if (run.FloatingCache != cache)
+            {
+                Clear();
+                return input;
+            }
+            if ((run.CombatTime >= pursuitRefresh || !ReferenceEquals(chart, run.World.Places)) && !Plot(run, cache))
+                return input;
+        }
+        else if (Patrol is { } beacon)
         {
             if (beacon.Lit || run.BossSpawned)
             {
@@ -170,6 +195,11 @@ public sealed class SailCourse
             if (circling && next == waypoints.Length) next = patrolStart;
         }
 
+        if (pursuit is { } approaching)
+        {
+            Plot(run, approaching);
+            return input;
+        }
         if (Patrol is { } pendingPatrol)
         {
             Plot(run, pendingPatrol);

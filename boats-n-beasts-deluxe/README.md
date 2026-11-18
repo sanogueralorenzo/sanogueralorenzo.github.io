@@ -17,7 +17,7 @@ Pilot a pirate ship through a procedural archipelago. Defend Breakwater, patrol 
 
 Level-ups fit up to three weapons and improve the hull, engine, reload, and reach. Choose a specialty at level 5. Every third level can offer a weapon swap when the deck is full. Swaps keep the slot’s rank and the boat’s starting weapon. Pair Cannon with Lightning for Stormshot, Harpoon with Mines for Tripwire, or Whirlpool with Arcane Orbs for Riptide.
 
-Tow wreck cargo to a beacon for a refit and repairs. Beach chests grant XP, barrels repair hull, and every four consecutive kills earn chain rewards. A last-second blast escape recovers boost and extends an active chain. Tie up at the harbor berth once for up to 50 hull. Moving or taking a hit interrupts repairs.
+Tow wreck cargo to a beacon for a refit and repairs. Intercept the drifting cache before it sinks for XP, silver, and boost. Beach chests grant XP, barrels repair hull, and every four consecutive kills earn chain rewards. A last-second blast escape recovers boost and extends an active chain. Tie up at the harbor berth once for up to 50 hull. Moving or taking a hit interrupts repairs.
 
 The Captain’s Log tracks your fastest win for each boat and charter. Spend silver from beacons, chains, and victories on the Salvager and Stormchaser charters. The Sail Locker lets you preview and equip sails earned through salvage, a three-beacon victory, and a daily clear. The daily challenge rotates the boat, chart, and objective at midnight UTC and pays a first-clear silver bonus.
 

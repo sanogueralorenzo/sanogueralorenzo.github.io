@@ -4,12 +4,17 @@ namespace BoatsNBeasts;
 
 static class SalvageArt
 {
-    public static Node3D Build()
+    public static Node3D Build(bool adrift = false)
     {
         var root = new Node3D();
         var geometry = new ActorGeometry();
         Color floatWood = new("6f4931"), lid = new("b87a43"), iron = new("383c38"),
             gold = new("ecc16c"), pennant = new("df6c47");
+        if (adrift)
+        {
+            lid = new("3d806c");
+            pennant = gold;
+        }
         foreach (float z in new[] { -.24f, .24f })
         {
             geometry.Tube([new(-.54f, .075f, z), new(.54f, .075f, z)], .10f, floatWood, 8);

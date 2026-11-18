@@ -109,6 +109,7 @@ public partial class Effects3D : Node3D
             DrawBeacons(voyage);
             if (voyage.SalvageAvailable) DrawSalvage(voyage);
             if (voyage.RepairsAvailable && voyage.Health < voyage.MaxHealth) DrawRepairBerth(voyage);
+            if (voyage.FloatingCache is { } cache) DrawFloatingCache(cache);
         }
         if (Course is { Destination: { } destination } course)
             DrawCourse(voyage.Position, course.Ahead, destination);
@@ -190,6 +191,21 @@ public partial class Effects3D : Node3D
         if (voyage.DeliveryBeacon is { } beacon)
             foam.Arc(World(beacon.Position, .06f), SalvageCargo.DeliveryRadius * .01f,
                 0, Mathf.Tau, .035f, Fade(Aqua, .77f), 48);
+    }
+
+    void DrawFloatingCache(DriftingCache cache)
+    {
+        var at = World(cache.Position, .064f);
+        float left = cache.Remaining / DriftingCache.Lifetime;
+        var ring = left < .25f ? Coral : Aqua;
+        foam.Arc(at, 1.03f, 0, Mathf.Tau, .023f, Fade(Foam, .30f), 28);
+        foam.Arc(at, 1.03f, -Mathf.Pi / 2, Mathf.Tau * left, .033f, Fade(ring, .85f), 34);
+        if (cache.Velocity.LengthSquared() < 18 * 18) return;
+        var direction = World(OceanWorld.Unit(cache.Velocity), 0) * 100;
+        var side = new Vector3(-direction.Z, 0, direction.X);
+        var from = at - direction * .50f;
+        foam.Ribbon(from + side * .22f, from - direction * .66f + side * .44f, .022f, .009f, Fade(Foam, .55f));
+        foam.Ribbon(from - side * .22f, from - direction * .66f - side * .44f, .022f, .009f, Fade(Foam, .55f));
     }
 
     void DrawRepairBerth(Voyage voyage)
@@ -437,7 +453,8 @@ public partial class Effects3D : Node3D
             bursts.Add(new() { Kind = "barrel", P = World(ev.Position, .06f), Life = .55f });
         bool link = ev.Kind is "arc" or "pull" or "tripwire";
         if (bursts.Count < 192 && (link || ev.Kind is "aura" or "bulwark" or "explosion" or "calm"
-            or "pufferExplosion" or "bossExplosion" or "crownclawGrounded" or "closeCall" or "repairDone" or "beacon" or "broadside" or "blink" or "stormshot" or "riptide"))
+            or "pufferExplosion" or "bossExplosion" or "crownclawGrounded" or "closeCall" or "repairDone" or "cacheCaught" or "cacheSank"
+            or "beacon" or "broadside" or "blink" or "stormshot" or "riptide"))
         {
             float life = ev.Kind switch
             {
@@ -450,7 +467,12 @@ public partial class Effects3D : Node3D
             bursts.Add(new()
             {
                 Kind = ev.Kind, P = World(ev.Position, link ? .26f : .05f), End = World(ev.End, .26f),
-                Life = life, Size = ev.Kind == "closeCall" ? 1.25f : (ev.Kind == "beacon" ? Beacon.Radius : ev.Value) * .01f
+                Life = life, Size = ev.Kind switch
+                {
+                    "closeCall" or "cacheCaught" or "cacheSank" => 1.25f,
+                    "beacon" => Beacon.Radius * .01f,
+                    _ => ev.Value * .01f
+                }
             });
         }
         int count=ev.Kind switch {"hit"=>2,"kill"=>7,"explosion"=>15,"hurt"=>5,"shot"=>3,"ricochet"=>4,"barrel"=>3,"heal" or "treasure" or "silver"=>6,"boostStart"=>9,"beacon" or "towDelivered" or "crownclawGrounded"=>26,"towHooked" or "towSnapped"=>8,"chain"=>13,"broadside"=>20,"blink"=>16,"stormshot"=>14,"riptide"=>7,_=>0};
@@ -518,7 +540,7 @@ public partial class Effects3D : Node3D
         bool aura=b.Kind=="aura"; float r=radius*(aura?.82f+t*.18f:.3f+t*.7f);
         var color = b.Kind switch
         {
-            "closeCall" => NauticalPalette.Gold,
+            "closeCall" or "cacheCaught" => NauticalPalette.Gold,
             "explosion" or "beacon" or "broadside" or "stormshot" => Cream,
             "riptide" => Magic,
             _ => Aqua

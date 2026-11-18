@@ -123,6 +123,14 @@ public partial class Game : Node2D
             Bar(Vector2.Zero, new(size.X, 8), r.Xp / (float)r.NextXp, NauticalPalette.Aqua);
             DrawCompass(size);
             DrawCourseGuide(r, size, statusInset);
+            if (r.IsActive && r.FloatingCache is { } cache)
+            {
+                var cacheScreen = Game.ocean.ElevatedScreen(cache.Position, .42f);
+                if (GetViewportRect().Grow(-15).HasPoint(cacheScreen))
+                    courses.Add((new(cacheScreen - Vector2.One * 22, Vector2.One * 44), new(cache.Position, Cache: cache)));
+                DrawCourseMarker(cache.Position, "Drifting cache", $"{Math.Ceiling(cache.Remaining):0}s left",
+                    NauticalPalette.Aqua, size, cache: cache);
+            }
             DrawHarborGuide(r, size, statusInset);
             var boss = r.Enemies.FirstOrDefault(e => e.Kind == EnemyKind.Leviathan && e.Health > 0);
             if (boss != null) DrawCrownclaw(boss, size.X / 2);
@@ -262,7 +270,7 @@ public partial class Game : Node2D
         }
 
         void DrawCourseMarker(V2 world, string name, string detail, Color accent, Vector2 size, bool allowOffscreen = true,
-            float? progress = null, Beacon? patrol = null)
+            float? progress = null, Beacon? patrol = null, DriftingCache? cache = null)
         {
             var center = size / 2;
             var projected = Game.ocean.Screen(world);
@@ -281,9 +289,11 @@ public partial class Game : Node2D
             }
 
             var bounds = new Rect2(at + new Vector2(-86, -20), new Vector2(172, 48));
-            courses.Add((bounds, new(world, patrol)));
+            courses.Add((bounds, new(world, patrol, Cache: cache)));
             if (patrol != null && bounds.HasPoint(Game.uiPointer) && Game.course.Patrol != patrol)
                 detail = "Click to plot patrol";
+            if (cache != null && bounds.HasPoint(Game.uiPointer))
+                detail = $"Intercept · {Math.Ceiling(cache.Remaining):0}s";
             DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .91f), 7), bounds);
             Text(at + new Vector2(-TitleFont.GetStringSize(name, fontSize: 16).X / 2, -1), name, 16, true, accent);
             Text(at + new Vector2(-BodyFont.GetStringSize(detail, fontSize: 13).X / 2, 18), detail, 13);
@@ -390,6 +400,12 @@ public partial class Game : Node2D
             var berth = NauticalPalette.G(StartingArea.RepairBerth - r.Position) / 17;
             if (r.RepairsAvailable && r.Health < r.MaxHealth && berth.LengthSquared() < 56 * 56 && berth.LengthSquared() > 10 * 10)
                 DrawRepairChartMark(center + berth, paper, new("296f69"));
+            if (r.FloatingCache is { } cache)
+            {
+                var offset = NauticalPalette.G(cache.Position - r.Position) / 17;
+                if (offset.LengthSquared() > 57 * 57) offset = offset.Normalized() * 57;
+                DrawCacheChartMark(center + offset, cache, paper, new("967047"));
+            }
             DrawColoredPolygon(pointer.Select(p => center + p.Rotated(r.Heading)).ToArray(), NauticalPalette.Navy);
             if (r.IsActive)
             {
@@ -400,6 +416,15 @@ public partial class Game : Node2D
                     CourseAt(Game.uiPointer)?.Label is { } label)
                     Text(center + new Vector2(-BodyFont.GetStringSize(label, fontSize: 14).X / 2, 138), label, 14, color: NauticalPalette.Cream);
             }
+        }
+
+        void DrawCacheChartMark(Vector2 at, DriftingCache cache, Color paper, Color ink)
+        {
+            var bounds = new Rect2(at - Vector2.One * 9, Vector2.One * 18);
+            DrawCircle(at, 8, paper);
+            DrawRect(new(at - new Vector2(5, 4), new Vector2(10, 8)), ink);
+            DrawLine(at - new Vector2(4, 1), at + new Vector2(4, -1), paper, 1, true);
+            courses.Add((bounds, new(cache.Position, Label: "Intercept drifting cache", Cache: cache)));
         }
         void ChartAnchor(Vector2 at, Color ink)
         {

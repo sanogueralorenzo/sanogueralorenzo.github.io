@@ -23,7 +23,7 @@ public partial class OceanView3D : Node3D
     readonly Dictionary<Beacon, Node3D> beacons = new();
     NativeStage3D stage = null!;
     Effects3D effects = null!;
-    Node3D? boat, cargo;
+    Node3D? boat, cargo, driftingCache;
     string boatSignature = "";
     float lastHeading, heel;
     public override void _Ready()
@@ -41,6 +41,7 @@ public partial class OceanView3D : Node3D
         foreach (var root in creatures.Values) root.QueueFree(); creatures.Clear();
         ClearBeacons();
         cargo?.QueueFree(); cargo = null;
+        driftingCache?.QueueFree(); driftingCache = null;
         boat?.QueueFree(); boat = null; boatSignature = "";
         lastHeading = Voyage.Heading; heel = 0;
         ActorArt3D.ResetCache();
@@ -81,6 +82,21 @@ public partial class OceanView3D : Node3D
                 cargo.Visible = Voyage.SalvageAvailable;
                 var tow = Voyage.Salvage.Towing ? Voyage.TowHook - Voyage.Salvage.Position : V2.Zero;
                 SalvageArt.Advance(cargo, Voyage.Salvage.Position, Clock, tow);
+            }
+            if (Voyage.FloatingCache is { } cache)
+            {
+                if (driftingCache == null)
+                {
+                    driftingCache = SalvageArt.Build(adrift: true);
+                    driftingCache.Name = "DriftingCache";
+                    AddChild(driftingCache);
+                }
+                SalvageArt.Advance(driftingCache, cache.Position, Clock, cache.Velocity);
+            }
+            else if (driftingCache != null)
+            {
+                driftingCache.QueueFree();
+                driftingCache = null;
             }
         }
         SyncScenery(); SyncActors(dt);
