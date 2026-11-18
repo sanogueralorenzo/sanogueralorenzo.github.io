@@ -1,7 +1,5 @@
 # Slack browser hook
 
-![Agent Slack banner](docs/banner.png)
-
 Follow [Browser Hooks setup](../README.md#setup-or-update), then send
 `chat your request` for Codex or `claude your request` for Claude. Your own
 keyword-prefixed messages trigger work in channels and DMs, including messages

@@ -1,5 +1,0 @@
-<resources>
-    <declare-styleable name="SteamSurface">
-        <attr name="fitSteamAspect" format="boolean" />
-    </declare-styleable>
-</resources>
