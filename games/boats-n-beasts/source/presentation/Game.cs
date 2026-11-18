@@ -43,7 +43,7 @@ public partial class Game : Node2D
     public override void _Process(double delta)
     {
         float dt = (float)Math.Min(delta, .05); elapsed += dt; toastTime = Math.Max(0, toastTime - dt);
-        if (Run.IsActive) lootNoticeTime = Math.Max(0, lootNoticeTime - dt);
+        lootNoticeTime = Math.Max(0, lootNoticeTime - dt);
         // Repeat bounded simulation steps so faster time preserves collision and combat cadence.
         for (int step = 0; step < (title ? 1 : gameSpeed); step++)
         {
@@ -59,15 +59,9 @@ public partial class Game : Node2D
             {
                 ocean.Effect(e);
                 if (e.Kind == "silver") Toast("+1 silver");
-                if (e.Kind is "treasure" or "heal" or "ram")
+                if (e.Kind is "treasure" or "heal")
                 {
-                    lootNotice = e.Kind switch
-                    {
-                        "ram" => e.Value > 0 ? $"Ram finish  +{e.Value:0} XP" : "Ram hit",
-                        "heal" => $"+{e.Value:0} health",
-                        _ => $"+{e.Value:0} XP"
-                    };
-                    lootNoticePosition = e.Position; lootNoticeTime = 1.2f;
+                    lootNotice = $"+{e.Value:0} {(e.Kind == "heal" ? "health" : "XP")}"; lootNoticePosition = e.Position; lootNoticeTime = 1.2f;
                 }
                 if (e.Kind == "bulwark" && !bulwarkExplained) { bulwarkExplained = true; SaveProgress(); Toast("BULWARK · shots cleared, nearby beasts pushed away"); }
                 if (e.Kind == "boss") Toast("THE CROWNCLAW RISES  •  Keep moving.");
@@ -290,7 +284,7 @@ public partial class Game : Node2D
     }
     void BoatMenu()
     {
-        var col = Panel(520, "New voyage", "Choose your boat", $"One starting weapon. One open slot. Each boost can ram one beast bow-first. Finish it for {Voyage.RamKillXp} XP.");
+        var col = Panel(520, "New voyage", "Choose your boat", "One starting weapon. One open slot.");
         var choices = new HBoxContainer(); choices.AddThemeConstantOverride("separation", 10); col.AddChild(choices);
         foreach (var boat in Enum.GetValues<BoatKind>())
         {
@@ -336,7 +330,7 @@ public partial class Game : Node2D
     {
         var col = Panel(900, "Handbook", "A life on the water", "Weapons aim automatically. Choose guns, homing magic or a close-range aura.");
         col.AddThemeConstantOverride("separation", 8);
-        col.AddChild(Label("WASD / arrows     Sail in any direction\nLeft-click                 Sail to a point and stop\nSpace / Shift          Boost while moving · aim the bow to ram\nEsc                            Pause or resume", 19));
+        col.AddChild(Label("WASD / arrows     Sail in any direction\nLeft-click                 Sail to a point and stop\nSpace / Shift          Hold to boost while moving\nEsc                            Pause or resume", 19));
         col.AddChild(Label("Your voyage", 25, true, NauticalPalette.Aqua));
         col.AddChild(Label($"Survive until {SpawnDirector.BossArrivalSeconds / 60:0}:00, then defeat the Crownclaw to win. Enemy numbers and variety build gradually with time. Menus pause combat.\n\nDefeat beasts for XP. Each level pauses sailing for up to three choices from one category: weapons or boat upgrades. Categories alternate, starting with weapons; a maxed category is skipped. All boats have two weapon slots, including their starter. Once everything is maxed, level-ups offer 25 health instead.\n\nSail into marked floating barrels to restore up to 25 health; they stay available while your hull is full. Rare beach chests grant 12 XP when approached from the water. Pickups stay collected on revisits. The starting harbor is scenery, with no interaction.\n\nGunboat fires 65% faster while boosting. Mage starts with homing magic. Aura clears nearby shots and pushes beasts away every 6 seconds. Follow turquoise currents for a lift. Release boost after exhaustion to recharge. Hover equipment icons for details. Upgrades reset each voyage.", 19));
         col.AddChild(Button("Understood", () => { controls = false; BuildMenu(); }, true));
@@ -375,7 +369,7 @@ public partial class Game : Node2D
         public override void _Draw()
         {
             if (Game.title) return; var r = Game.Run; var size = GetViewportRect().Size;
-            string level = $"LVL {r.Level}   {r.Xp}/{r.NextXp} XP";
+            string level = $"LVL {r.Level}";
             var levelPosition = new Vector2(size.X - 14 - TitleFont.GetStringSize(level, fontSize: 20).X, 30);
             Text(levelPosition, level, 20, true, NauticalPalette.Cream);
             int seconds = (int)r.CombatTime;
@@ -399,9 +393,9 @@ public partial class Game : Node2D
             if (Game.lootNoticeTime > 0 && r.IsActive)
             {
                 float alpha = Math.Min(1, Game.lootNoticeTime / .4f);
-                float width = TitleFont.GetStringSize(Game.lootNotice, fontSize: 21).X;
-                var at = Game.ocean.Screen(Game.lootNoticePosition) + new Vector2(-width / 2, -50 - (1.2f - Game.lootNoticeTime) * 24);
-                DrawStringOutline(TitleFont, at, Game.lootNotice, HorizontalAlignment.Left, -1, 21, 4, new Color(NauticalPalette.Navy, alpha));
+                float width = BodyFont.GetStringSize(Game.lootNotice, fontSize: 21).X;
+                var at = Game.ocean.Screen(Game.lootNoticePosition) + new Vector2(-width / 2, -35 - (1.2f - Game.lootNoticeTime) * 24);
+                Text(at + Vector2.One, Game.lootNotice, 21, true, new Color(NauticalPalette.Navy, alpha));
                 Text(at, Game.lootNotice, 21, true, new Color(NauticalPalette.Cream, alpha));
             }
             if (r.IsBoosting || r.Boost < 100)

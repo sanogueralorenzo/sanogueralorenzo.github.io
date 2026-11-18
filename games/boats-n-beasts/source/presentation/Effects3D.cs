@@ -73,14 +73,12 @@ public partial class Effects3D : Node3D
         SyncEncounters(voyage);
         foam.Begin(); solid.Begin(); ballCount = 0;
         DrawWake(wake, .34f, 1.9f, 1);
-        if (voyage.RamReady) DrawBowWave(voyage);
         DrawWhirlpool(voyage);
         foreach (var enemy in voyage.Enemies)
         {
             if (enemy.Health <= 0) continue;
             if (creatureWakes.TryGetValue(enemy.Id, out var history)) DrawWake(history, enemy.Radius * .006f, .85f, .38f);
             DrawEmergence(enemy);
-            if (enemy.Fuse > 0) DrawPufferFuse(enemy);
         }
         foreach (var shot in voyage.Shots) if (shot.Life > 0) DrawShot(shot);
         foreach (var b in bursts) DrawBurst(b);
@@ -157,34 +155,6 @@ public partial class Effects3D : Node3D
                 foam.Triangle(pa+sideA*wa,pb+sideB*wb,pb-sideB*wb,color);
                 foam.Triangle(pa+sideA*wa,pb-sideB*wb,pa-sideA*wa,color);
             }
-        }
-    }
-    void DrawPufferFuse(Enemy enemy)
-    {
-        var center = World(enemy.Position, .075f);
-        float radius = Enemy.PufferBlastRadius * NativeStage3D.Unit;
-        float armed = 1 - enemy.Fuse / Enemy.PufferFuseDuration;
-        for (int i = 0; i < 8; i++)
-        {
-            float angle = i * Mathf.Tau / 8;
-            foam.Arc(center, radius, angle, .60f, .022f, Fade(Coral, .75f), 6);
-            foam.Arc(center, radius * (.22f + .78f * armed), angle, .60f, .028f, Fade(Cream, .45f + .5f * armed), 6);
-        }
-    }
-    void DrawBowWave(Voyage voyage)
-    {
-        var forward = new Vector3(Mathf.Sin(voyage.Heading), 0, -Mathf.Cos(voyage.Heading));
-        var side = new Vector3(-forward.Z, 0, forward.X);
-        var bow = World(voyage.Position, .10f) + forward * .98f;
-        for (int sign = -1; sign <= 1; sign += 2)
-        {
-            var shoulder = bow - forward * .42f + side * (.34f * sign);
-            var tail = bow - forward * 1.12f + side * (.57f * sign);
-            foam.Ribbon(bow, shoulder, .014f, .065f, Fade(Foam, .95f));
-            foam.Ribbon(shoulder, tail, .065f, .008f, Fade(Aqua, .8f));
-            float phase = (time * 2.8f) % 1;
-            var spray = shoulder.Lerp(tail, phase) + side * (.12f * sign) + Vector3.Up * (.12f * Mathf.Sin(phase * Mathf.Pi));
-            Ball(spray, Vector3.One * (.075f * (1 - phase)), Foam);
         }
     }
     void DrawShot(Shot s)
@@ -268,8 +238,6 @@ public partial class Effects3D : Node3D
     }
     public void Effect(GameEvent ev)
     {
-        if (ev.Kind == "ram" && bursts.Count < 192)
-            bursts.Add(new() { Kind = "ram", P = World(ev.Position, .08f), Life = .46f });
         if (ev.Kind == "barrel" && bursts.Count < 192)
             bursts.Add(new() { Kind = "barrel", P = World(ev.Position, .06f), Life = .55f });
         if(ev.Kind is "arc" or "pull" or "aura" or "bulwark" or "explosion" or "calm" or "pufferExplosion" or "bossExplosion")
@@ -286,21 +254,6 @@ public partial class Effects3D : Node3D
     void DrawBurst(Burst b)
     {
         float t=b.Age/b.Life, alpha=1-t;
-        if (b.Kind == "ram")
-        {
-            float spread = Mathf.Sqrt(t);
-            for (int i = 0; i < 7; i++)
-            {
-                float angle = i * Mathf.Tau / 7;
-                var outward = new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle));
-                var basePoint = b.P + outward * (.12f + spread * .48f);
-                var crest = basePoint + outward * (.20f * alpha) + Vector3.Up * ((.4f + .15f * (i % 2)) * alpha);
-                var edge = new Vector3(-outward.Z, 0, outward.X) * (.08f * alpha);
-                foam.Triangle(basePoint - edge, basePoint + edge, crest, Fade(Foam, alpha));
-                foam.Arc(b.P, .24f + spread * .7f, angle, .53f, .025f * alpha, Fade(Cream, alpha));
-            }
-            return;
-        }
         if (b.Kind == "barrel")
         {
             for (int i = 0; i < 6; i++)

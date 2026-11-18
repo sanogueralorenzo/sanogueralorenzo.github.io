@@ -25,7 +25,6 @@ Run the focused sea-wreck collision and generation checks with `dotnet run --pro
 ## Current gameplay
 
 - Steer with WASD/arrows or click a destination; Space/Shift boosts and Escape pauses.
-- Each boost can ram one ordinary beast bow-first for 30 damage. A finishing ram grants 3 XP.
 - Choose Gunboat, Aura or Mage. Weapons fire automatically; two weapon slots are available.
 - Level-ups offer weapon or boat upgrades. Beach chests grant XP; floating barrels restore health.
 - Survive to defeat Crownclaw. The harbor is currently scenery.

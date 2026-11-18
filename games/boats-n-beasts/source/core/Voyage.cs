@@ -63,7 +63,7 @@ public sealed partial class Voyage
     public float Speed => Spec.Speed * (1 + EngineRank * .1f);
     public int PendingUpgrades { get; private set; }
     public float WhirlpoolRadius => (138 + Math.Max(0, Weapons[4] - 1) * 30) * Area;
-    public int NextXp => Level == 1 ? 8 : 7 + Level * 5;
+    public int NextXp => 7 + Level * 5;
     public float Area => 1 + AreaRank * .15f;
     public Voyage(uint seed, BoatKind boat, int extraWeaponSlots = 0)
     {
@@ -226,11 +226,11 @@ public sealed partial class Voyage
         if (Invulnerable > 0 || !IsActive) return;
         Health -= damage; Invulnerable = .8f; Events.Add(new("hurt", Position, damage));
     }
-    void Hit(Enemy e, float damage, int killXp = 1)
+    void Hit(Enemy e, float damage)
     {
         e.Health -= damage; e.HitFlash = .12f; Events.Add(new("hit", e.Position, damage));
         if (e.Health > 0) return;
-        Kills++; Xp += e.Kind == EnemyKind.Leviathan ? 25 : killXp;
+        Kills++; Xp += e.Kind == EnemyKind.Leviathan ? 25 : 1;
         // Schedule from this award so idle time cannot bank silver drops.
         if (CombatTime >= NextSilverTime)
         {

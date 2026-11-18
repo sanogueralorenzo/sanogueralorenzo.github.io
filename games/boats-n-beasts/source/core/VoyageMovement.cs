@@ -4,15 +4,13 @@ namespace BoatsNBeasts.Core;
 public sealed partial class Voyage
 {
     public bool IsBoosting { get; private set; }
-    public bool RamReady { get; private set; }
-    public const int RamKillXp = 3;
     public Vector2 CurrentFlow { get; private set; }
     public int BoostStarts { get; private set; }
     public int TreasureCollected { get; private set; }
     public int BarrelsBroken { get; private set; }
     public float CurrentRideTime { get; private set; }
 
-    void UpdateMovement(float dt, SailInput input)
+    bool UpdateMovement(float dt, SailInput input)
     {
         var direction = OceanWorld.Unit(input.Move);
         if (!input.Boost) BoostExhausted = false;
@@ -22,7 +20,6 @@ public sealed partial class Voyage
         var forward = new Vector2(MathF.Sin(Heading), -MathF.Cos(Heading));
         if (boosting && !IsBoosting)
         {
-            RamReady = true;
             Boost = Math.Max(0, Boost - 8);
             Velocity = Vector2.Lerp(Velocity, forward * Speed * 2.05f, .65f);
             BoostStarts++; Events.Add(new("boostStart", Position));
@@ -30,7 +27,6 @@ public sealed partial class Voyage
         Boost = Math.Clamp(Boost + dt * (boosting ? -38 : input.Boost && BoostExhausted ? 0 : 23), 0, 100);
         if (boosting && Boost <= 0) { BoostExhausted = true; boosting = false; }
         IsBoosting = boosting;
-        if (!boosting) RamReady = false;
         CurrentFlow = World.FlowAt(Position);
         if (CurrentFlow.LengthSquared() > 100) CurrentRideTime += dt;
         // The bow responds first; a short velocity lag lets the stern drift through the turn.
@@ -47,30 +43,8 @@ public sealed partial class Voyage
         }
         Distance += Vector2.Distance(old, Position); MaxDistance = Math.Max(MaxDistance, Position.Length());
         World.Stream(Position);
-        if (RamReady && Vector2.Dot(Position - old, forward) > Speed * dt * .6f)
-            StrikeWithBow(old, forward);
         foreach (var p in World.Places) if (Vector2.Distance(Position, p.Position) < 680) World.Discovered.Add(p.Id);
-    }
-    void StrikeWithBow(Vector2 old, Vector2 forward)
-    {
-        var start = old + forward * 45;
-        var tip = Position + forward * 95;
-        Enemy? target = null;
-        float nearest = float.MaxValue;
-        foreach (var enemy in Enemies)
-        {
-            if (enemy.Health <= 0 || enemy.Emerging || enemy.Kind == EnemyKind.Leviathan) continue;
-            float ahead = Vector2.Dot(enemy.Position - old, forward);
-            if (ahead < 35 || ahead >= nearest || SegmentDistance(enemy.Position, start, tip) > enemy.Radius + 10) continue;
-            nearest = ahead;
-            target = enemy;
-        }
-        if (target == null) return;
-        RamReady = false;
-        Hit(target, 30, RamKillXp);
-        Events.Add(new("ram", target.Position, target.Health <= 0 ? RamKillXp : 0));
-        if (target.Health > 0)
-            target.Position = World.Slide(target.Position, target.Position + forward * 80, target.Radius);
+        return boosting;
     }
     void CollectEncounters()
     {
