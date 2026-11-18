@@ -58,6 +58,23 @@ def patch_background(background):
     )
     background = replace_once(
         background,
+        "        rulesetConfig.version = currentVersion;\n        await patchDefaultRulesets();\n        saveRulesetConfig();",
+        """        if ( rulesetConfig.version !== '' ) { await reapplyBrowserRulesets(); }
+        await patchDefaultRulesets();""",
+    )
+    background = replace_once(
+        background,
+        "    await processDeferredTasks();\n\n    // Required to ensure",
+        """    await processDeferredTasks();
+    if ( isNewVersion ) {
+        rulesetConfig.version = currentVersion;
+        await saveRulesetConfig();
+    }
+
+    // Required to ensure""",
+    )
+    background = replace_once(
+        background,
         """    if ( isNewVersion ) {
         updateDynamicAndSessionRules();
     } else {
@@ -66,15 +83,7 @@ def patch_background(background):
         """    if ( !stockUpdated ) {
         const result = await (isNewVersion ? updateDynamicAndSessionRules() : updateSessionRules());
         if ( result?.error ) { throw new Error(result.error); }
-        if ( result === undefined ) {
-            const ids = await dnr.getEnabledRulesets();
-            if ( ids.length !== 0 ) {
-                await dnr.updateEnabledRulesets({
-                    enableRulesetIds: ids,
-                    disableRulesetIds: ids,
-                });
-            }
-        }
+        if ( result === undefined ) { await reapplyBrowserRulesets(); }
     }""",
     )
     background = replace_once(
@@ -100,6 +109,13 @@ def patch_background(background):
     ubolErr(reason);""",
     )
     return background + """
+
+async function reapplyBrowserRulesets() {
+    const ids = await dnr.getEnabledRulesets();
+    if ( ids.length !== 0 ) {
+        await dnr.updateEnabledRulesets({ enableRulesetIds: ids, disableRulesetIds: ids });
+    }
+}
 
 async function browserCacheableRulesets(scripts) {
     if ( self.browserCachedRulesets || scripts.includes('css-generic-all') === false ||

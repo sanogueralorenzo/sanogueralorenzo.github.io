@@ -1,8 +1,8 @@
 {
-  "version": "2026.1026.1812",
-  "source": "https://github.com/uBlockOrigin/uBOL-home/releases/tag/2026.1026.1812",
-  "archive": "https://github.com/uBlockOrigin/uBOL-home/releases/download/2026.1026.1812/uBOLite_2026.1026.1812.safari.zip",
-  "upstreamSHA256": "f56b42e7e753143b1da4f64e12baf67724d48cef055eb46f9d49eddb4665f5b3",
-  "bundledSHA256": "2b34cfdbc1d4c09f96a9a11268640d671a68f2c563c1293ae891067da0381c98",
+  "version": "2026.1116.1650",
+  "source": "https://github.com/uBlockOrigin/uBOL-home/releases/tag/2026.1116.1650",
+  "archive": "https://github.com/uBlockOrigin/uBOL-home/releases/download/2026.1116.1650/uBOLite_2026.1116.1650.safari.zip",
+  "upstreamSHA256": "eed328928569264b321d9fc162c19a68167db54e36c1be51328d5739439907b4",
+  "bundledSHA256": "a1edcef89245edb3bbe79003313458a7e84c959bf2d820c2be8f89f370bd8b83",
   "changes": "Recognize WebKit's extension scheme, use Complete filtering and EasyList Spanish, and support Browser's precompiled rules and startup handshake. Filter lists match the upstream release."
 }
