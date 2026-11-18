@@ -1,0 +1,6 @@
+.godot/
+**/bin/
+**/obj/
+*.log
+build/*
+!build/.gdignore
