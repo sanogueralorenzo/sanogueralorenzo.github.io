@@ -60,6 +60,7 @@ public partial class Game : Node2D
             if (choosingBoat)
             {
                 if (daily is { } challenge) DailyMenu(challenge);
+                else if (replayingHunt is { } hunt) HuntReplayMenu(hunt);
                 else BoatMenu();
                 return;
             }
@@ -123,42 +124,6 @@ public partial class Game : Node2D
         column.AddChild(MenuAction("Daily challenge", MenuGlyph.Chart, OpenDaily));
         column.AddChild(MenuAction("Captain’s log", MenuGlyph.Book, () => { journal = true; BuildMenu(); }));
         column.AddChild(MenuAction("How to sail", MenuGlyph.Chart, () => { controls = true; BuildMenu(); }));
-    }
-
-    void JournalMenu()
-    {
-        var col = Panel(640, "Captain’s log",
-            $"{log.Silver} silver  ·  {log.Wins} wins in {log.Voyages} voyages\nBest haul {log.BestKills} beasts  ·  Longest chain {log.BestChain}\nDaily clears {log.DailyClears}  ·  Streak {log.DailyStreak(DailyChallenge.Today.Day)}");
-        col.AddChild(Label("Fastest hunts", 22, true));
-        var times = new GridContainer { Columns = 4 };
-        times.AddThemeConstantOverride("h_separation", 15);
-        times.AddThemeConstantOverride("v_separation", 6);
-        col.AddChild(times);
-        times.AddChild(new Control());
-        foreach (var charter in Enum.GetValues<Charter>())
-        {
-            var label = Label(CharterRules.For(charter).Name, 15, false, NauticalPalette.Gold);
-            label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-            times.AddChild(label);
-        }
-        foreach (var boat in Enum.GetValues<BoatKind>())
-        {
-            times.AddChild(Label(BoatSpec.For(boat).Name, 16));
-            foreach (var charter in Enum.GetValues<Charter>())
-            {
-                double time = log.BestTime(boat, charter);
-                times.AddChild(Label(time > 0 ? HuntTimeText(time) : "—", 16, color: time > 0 ? NauticalPalette.Aqua : new Color(NauticalPalette.Cream, .52f)));
-            }
-        }
-
-        var actions = new HBoxContainer();
-        actions.AddThemeConstantOverride("separation", 8);
-        col.AddChild(actions);
-        var locker = Button("Sail locker", OpenSailLocker);
-        locker.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        actions.AddChild(locker);
-        AddMuteButton(actions);
-        col.AddChild(Button("Back", () => { journal = false; BuildMenu(); }, true));
     }
 
     void AddMuteButton(Container parent) => parent.AddChild(Button(log.Muted ? "Sound off · turn on" : "Sound on · mute",

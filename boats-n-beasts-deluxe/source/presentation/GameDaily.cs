@@ -16,13 +16,6 @@ public partial class Game
         BuildMenu();
     }
 
-    void RestoreOpenChart()
-    {
-        if (!daily.HasValue) return;
-        daily = null;
-        PreviewRun(selectedSeed, selectedBoat, selectedCharter);
-    }
-
     void DailyMenu(DailyChallenge challenge)
     {
         var col = Panel(620, challenge.Name, $"{challenge.Day:MMM d} UTC  ·  {Run.Spec.Name}");

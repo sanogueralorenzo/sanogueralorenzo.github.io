@@ -125,15 +125,23 @@ public partial class Game
         col.AddChild(actions);
         actions.AddChild(Button("Back", () =>
         {
-            choosingBoat = false;
-            previewCharter = null;
-            RestoreOpenChart();
+            CloseDeparture();
             BuildMenu();
         }));
         var action = primary ?? Button("Set sail", Start, true);
         action.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         actions.AddChild(action);
         if (!action.Disabled) action.GrabFocus();
+    }
+
+    void CloseDeparture()
+    {
+        choosingBoat = false;
+        previewCharter = null;
+        if (!daily.HasValue && !replayingHunt.HasValue) return;
+        daily = null;
+        replayingHunt = null;
+        PreviewRun(selectedSeed, selectedBoat, selectedCharter);
     }
 
     string? CharterProgress()

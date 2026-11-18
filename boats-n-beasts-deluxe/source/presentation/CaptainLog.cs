@@ -3,6 +3,8 @@ using System.Globalization;
 using Godot;
 namespace BoatsNBeasts;
 
+readonly record struct HuntRecord(double Time, uint Seed);
+
 sealed class CaptainLog
 {
     const string Path = "user://captain.cfg";
@@ -10,6 +12,8 @@ sealed class CaptainLog
     const string Section = "log";
     const string DailySection = "daily";
     const string SailSection = "sails";
+    const string ChartSection = "charts";
+    const string SeedSection = "record_seeds";
     public int Silver { get; private set; }
     public int Voyages { get; private set; }
     public int Wins { get; private set; }
@@ -20,11 +24,12 @@ sealed class CaptainLog
     public SailLivery Livery { get; private set; }
     int charters = 1;
     int sails = 1;
-    readonly Dictionary<(BoatKind Boat, Charter Charter), double> bestTimes = new();
+    readonly Dictionary<(BoatKind Boat, Charter Charter), HuntRecord> hunts = new();
 
     readonly Dictionary<int, double> dailyTimes = new();
 
-    public double BestTime(BoatKind boat, Charter charter) => bestTimes.GetValueOrDefault((boat, charter));
+    public HuntRecord BestHunt(BoatKind boat, Charter charter) => hunts.GetValueOrDefault((boat, charter));
+    public double BestTime(BoatKind boat, Charter charter) => BestHunt(boat, charter).Time;
     public double DailyTime(DateOnly day) => dailyTimes.GetValueOrDefault(day.DayNumber);
     public int DailyClears => dailyTimes.Count;
 
@@ -89,8 +94,12 @@ sealed class CaptainLog
         if (run.BossSlain)
         {
             Wins++;
-            var key = (run.Boat, run.Charter);
-            bestTimes[key] = Faster(bestTimes.GetValueOrDefault(key), run.CombatTime);
+            if (!daily.HasValue)
+            {
+                var record = BestHunt(run.Boat, run.Charter);
+                if (record.Time <= 0 || run.CombatTime < record.Time)
+                    hunts[(run.Boat, run.Charter)] = new(run.CombatTime, run.World.Seed);
+            }
         }
         int bonus = 0;
         if (daily is { } challenge && challenge.Qualifies(run))
@@ -133,8 +142,10 @@ sealed class CaptainLog
         foreach (var boat in Enum.GetValues<BoatKind>())
         foreach (var charter in Enum.GetValues<Charter>())
         {
-            double time = (double)config.GetValue("charts", ChartKey(boat, charter), 0);
-            if (time > 0) bestTimes[(boat, charter)] = time;
+            string key = ChartKey(boat, charter);
+            double time = (double)config.GetValue(ChartSection, key, 0);
+            long seed = (long)config.GetValue(SeedSection, key, 0);
+            if (time > 0) hunts[(boat, charter)] = new(time, (uint)Math.Clamp(seed, 0, uint.MaxValue));
         }
         if (!config.HasSection(DailySection)) return;
         foreach (string key in config.GetSectionKeys(DailySection))
@@ -161,8 +172,12 @@ sealed class CaptainLog
         config.SetValue(Section, "lit_beacon", HasLitBeacon);
         config.SetValue(SailSection, "owned", sails);
         config.SetValue(SailSection, "equipped", (int)Livery);
-        foreach (var entry in bestTimes)
-            config.SetValue("charts", ChartKey(entry.Key.Boat, entry.Key.Charter), entry.Value);
+        foreach (var entry in hunts)
+        {
+            string key = ChartKey(entry.Key.Boat, entry.Key.Charter);
+            config.SetValue(ChartSection, key, entry.Value.Time);
+            if (entry.Value.Seed != 0) config.SetValue(SeedSection, key, (long)entry.Value.Seed);
+        }
         foreach (var entry in dailyTimes)
             config.SetValue(DailySection, entry.Key.ToString(CultureInfo.InvariantCulture), entry.Value);
         var error = config.Save(PendingPath);

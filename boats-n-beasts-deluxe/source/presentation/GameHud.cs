@@ -47,9 +47,10 @@ public partial class Game : Node2D
                 DrawRect(new Rect2(3, 3, size.X - 6, size.Y - 6), new Color(NauticalPalette.Coral, Game.hitNotice * .77f), false, 6);
             var keeper = r.Enemies.FirstOrDefault(enemy => enemy.GuardAnchor.HasValue && enemy.Health > 0 &&
                 !enemy.Emerging && V2.DistanceSquared(enemy.Position, r.Position) <= 600 * 600);
-            string? openingHint = keeper == null ? OpeningHint(r) : null;
-            int statusInset = (Game.daily.HasValue ? 27 : 0) + (openingHint == null ? 0 : 34);
-            DrawVoyageStatus(r, openingHint, statusInset);
+            double targetTime = Game.RecordTarget(r);
+            string? openingHint = keeper == null && targetTime <= 0 ? OpeningHint(r) : null;
+            int statusInset = (Game.daily.HasValue || targetTime > 0 ? 27 : 0) + (openingHint == null ? 0 : 34);
+            DrawVoyageStatus(r, openingHint, statusInset, targetTime);
             DrawManeuver(r, size);
             if (keeper != null) DrawKeeper(keeper);
             var healthPosition = Game.ocean.ElevatedScreen(r.Position, ActorArt3D.BoatHudHeight) + new Vector2(-24, -12);
@@ -225,7 +226,7 @@ public partial class Game : Node2D
             return Game.usingController ? "RB · Boost away from beasts" : "Space · Boost away from beasts";
         }
 
-        void DrawVoyageStatus(Voyage run, string? openingHint, int statusInset)
+        void DrawVoyageStatus(Voyage run, string? openingHint, int statusInset, double targetTime)
         {
             var at = new Vector2(24, 24);
             string task = run.BossSlain ? "The sea is calm" : run.BossSpawned ? "Defeat Crownclaw"
@@ -248,6 +249,13 @@ public partial class Game : Node2D
             {
                 Color dailyColor = challenge.ObjectiveMet(run) ? NauticalPalette.Aqua : NauticalPalette.Gold;
                 Text(at + new Vector2(15, 151), $"Daily · {challenge.Progress(run)}", 15, color: dailyColor);
+            }
+            else if (targetTime > 0)
+            {
+                double over = run.CombatTime - targetTime;
+                string pace = over >= .05 ? $"Record {HuntTimeText(targetTime)}  ·  +{over:0.0}s"
+                    : $"Record chart  ·  {HuntTimeText(targetTime)} to beat";
+                Text(at + new Vector2(15, 151), pace, 15, color: over >= .05 ? NauticalPalette.Gold : NauticalPalette.Aqua);
             }
             if (openingHint != null)
             {

@@ -233,9 +233,8 @@ public partial class Game : Node2D
         else if (sailLocker) CloseSailLocker();
         else if (title)
         {
-            choosingBoat = journal = false;
-            previewCharter = null;
-            RestoreOpenChart();
+            if (choosingBoat) CloseDeparture();
+            else journal = false;
         }
         else if (pendingSwap.HasValue) pendingSwap = null;
         else if (Run.Mode == VoyageMode.Paused) Run.Mode = beforePause;
@@ -265,6 +264,7 @@ public partial class Game : Node2D
         lootNoticeTime = hitNotice = pairingFlash = 0;
         pendingSwap = null;
         previewCharter = null;
+        replayingHunt = null;
         chartOpen = false;
         dailyBonus = earnedSails = 0;
         previousBest = 0;
@@ -282,7 +282,7 @@ public partial class Game : Node2D
         {
             Run = new(Run.World.Seed, Run.Boat, Run.Charter); ocean.Voyage = Run; ocean.Reset();
         }
-        title = choosingBoat = runRecorded = controls = false;
+        title = choosingBoat = runRecorded = controls = journal = false;
         ocean.BeginSailing();
         BuildMenu();
     }
