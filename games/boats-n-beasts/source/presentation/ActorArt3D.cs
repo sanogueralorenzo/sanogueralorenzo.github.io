@@ -234,9 +234,9 @@ public static partial class ActorArt3D
         b.Sphere(new(0, .395f, -.727f), new(.065f, .044f, .045f), new("f5e5be"));
         foreach (int side in new[] { -1, 1 })
         {
-            b.Sphere(new(side * .07f, .44f, -.635f), new(.044f, .046f, .028f), Brass);
-            b.Sphere(new(side * .087f, .441f, -.65f), new(.020f, .025f, .014f), DarkWood);
-            b.Sphere(new(side * .091f, .43f, -.657f), new(.016f, .015f, .015f), Cream);
+            b.Tube([new(side * .052f, .45f, -.67f), new(side * .096f, .48f, -.63f),
+                new(side * .117f, .44f, -.59f), new(side * .112f, .398f, -.62f),
+                new(side * .102f, .414f, -.65f)], [.029f, .034f, .027f, .017f, .005f], Brass, 7);
             b.Sphere(new(side * .05f, .431f, -.721f), new(.010f, .012f, .007f), Pupil);
         }
     }

@@ -5,7 +5,7 @@ public sealed class SpawnDirector
 {
     public const float BossArrivalSeconds = 22 * 60;
     public const int BossEscortCount = 8;
-    public float Credits, Clock;
+    public float Credits = 1, Clock;
     static readonly (float Seconds, float Count, float Income)[] Stages =
     [ (0, 3, .18f), (300, 10, .45f), (600, 20, 1.2f),
       (900, 34, 2.4f), (1200, 50, 3.6f), (1500, 64, 4.8f) ];
@@ -26,7 +26,7 @@ public sealed class SpawnDirector
     public EnemyKind Kind(float seconds, float roll)
     {
         // Introduce each new species over two minutes, without replacing half a wave at once.
-        float puffer = .8f * Math.Clamp((seconds - 120) / 120, 0, 1);
+        float puffer = .8f * Math.Clamp((seconds - 45) / 120, 0, 1);
         float serpent = .65f * Math.Clamp((seconds - 360) / 120, 0, 1);
         float ray = .55f * Math.Clamp((seconds - 600) / 120, 0, 1);
         float choice = roll * (1 + puffer + serpent + ray);
