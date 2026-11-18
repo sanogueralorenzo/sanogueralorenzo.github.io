@@ -32,4 +32,4 @@ Requires .NET 10 SDK and Godot 4.7.2 .NET. The live preview watcher also require
 dotnet run --project tests/WorldChecks.csproj
 ```
 
-Set `GODOT_BIN` to the Godot .NET executable if it is outside the standard location, and `DOTNET_ROOT` if needed. Add `--import` to refresh resources. The preview lists its shortcuts in the window. Art and audio are generated in code. The Deluxe project stores its progress and art-preview preferences in its own Godot user directory.
+Set `GODOT_BIN` to the Godot .NET executable if it is outside the standard location, and `DOTNET_ROOT` if needed. Add `--import` to refresh resources. The preview lists its shortcuts in the window. Art and audio are generated in code. The score adds layers as beasts close in and Crownclaw rises. The Deluxe project stores its progress and art-preview preferences in its own Godot user directory.

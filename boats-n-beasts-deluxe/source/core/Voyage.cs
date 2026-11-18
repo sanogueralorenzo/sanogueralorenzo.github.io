@@ -213,6 +213,7 @@ public sealed partial class Voyage
                 else if (distance <= Enemy.PufferTriggerRadius)
                 {
                     e.Fuse = Enemy.PufferFuseDuration;
+                    Events.Add(new("pufferFuse", e.Position));
                     continue;
                 }
             }

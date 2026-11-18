@@ -119,7 +119,8 @@ public partial class Game : Node2D
         }
         Run.Events.Clear();
         if (!chartOpen) ocean.Advance(dt);
-        audio.InBattle = !title && Run.BossSpawned && !Run.BossSlain && Run.IsActive;
+        audio.Voyage = title ? null : Run;
+        audio.Ducked = !title && (chartOpen || controls || !Run.IsActive);
 
         if (!title && Run.SilverEarned > creditedSilver)
         {

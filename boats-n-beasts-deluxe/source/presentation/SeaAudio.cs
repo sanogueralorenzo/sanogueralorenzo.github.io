@@ -1,12 +1,17 @@
 using Godot;
+using BoatsNBeasts.Core;
 namespace BoatsNBeasts;
 
 public partial class SeaAudio : Node
 {
-    const int Rate = 22050;
+    internal const int Rate = 22050;
     readonly Dictionary<string, AudioStreamPlayer> cues = new();
     AudioStreamPlayer sea = null!, music = null!;
-    public bool InBattle { get; set; }
+    AudioStreamSynchronized score = null!;
+    AudioStreamWav[] layers = [];
+    public Voyage? Voyage { get; set; }
+    public bool Ducked { get; set; }
+    float rhythm, hunt, underway;
     bool muted;
 
     public bool Muted
@@ -29,8 +34,15 @@ public partial class SeaAudio : Node
     public override void _Ready()
     {
         if (DisplayServer.GetName() == "headless") return;
-        sea = new() { Stream = SeaLoop(), VolumeDb = -24 };
-        music = new() { Stream = MusicLoop(), VolumeDb = -21 };
+        sea = new() { Name = "Sea", Stream = SeaLoop(), VolumeDb = -25 };
+        layers = VoyageScore.Build();
+        score = new() { StreamCount = layers.Length };
+        for (int i = 0; i < layers.Length; i++)
+        {
+            score.SetSyncStream(i, layers[i]);
+            score.SetSyncStreamVolume(i, i == 0 ? -18 : -60);
+        }
+        music = new() { Name = "VoyageScore", Stream = score };
         AddChild(sea);
         AddChild(music);
 
@@ -42,6 +54,11 @@ public partial class SeaAudio : Node
         AddCue("broadside", Thump(.46f, 66, .93f));
         AddCue("bulwark", Chime(.34f, [110, 165, 220], .56f));
         AddCue("blink", Chime(.42f, [392, 587, 784], .58f));
+        AddCue("mineDrop", Thump(.12f, 147, .23f));
+        AddCue("coilCast", Chime(.18f, [196, 406, 883], .31f));
+        AddCue("arcaneCast", Chime(.22f, [294, 440], .30f));
+        AddCue("pufferFuse", Chime(.34f, [293, 322, 384], .64f));
+        AddCue("bossVolley", Thump(.36f, 115, .58f));
         AddCue("pufferExplosion", Thump(.38f, 77, .68f));
         AddCue("bossExplosion", Thump(.44f, 58, .8f));
         AddCue("closeCall", Chime(.54f, [494, 659, 880], .68f));
@@ -73,15 +90,42 @@ public partial class SeaAudio : Node
 
     public override void _Process(double delta)
     {
-        if (music == null) return;
-        music.VolumeDb = Mathf.Lerp(music.VolumeDb, InBattle ? -15 : -21, 1 - Mathf.Exp(-(float)delta * 1.8f));
+        if (music == null || Muted) return;
+        float motion = 0, pressure = 0, crownclaw = 0;
+        if (Voyage is { Mode: not (VoyageMode.Victory or VoyageMode.Defeat) } voyage)
+        {
+            motion = Mathf.Clamp(voyage.Velocity.Length() / voyage.Speed, 0, 1.45f);
+            foreach (var beast in voyage.Enemies)
+            {
+                if (beast.Health <= 0 || beast.Emerging) continue;
+                float distance = System.Numerics.Vector2.Distance(voyage.Position, beast.Position);
+                float nearness = Mathf.Clamp((690 - distance) / 570, 0, 1);
+                if (beast.Kind == EnemyKind.Leviathan)
+                    crownclaw = beast.Health < beast.MaxHealth * .5f ? 1 : .77f;
+                else pressure += nearness * (beast.Fuse > 0 ? .52f : .25f);
+            }
+        }
+
+        float blend = 1 - Mathf.Exp(-(float)delta * 2.15f);
+        rhythm = Mathf.Lerp(rhythm, Math.Min(1, pressure + crownclaw * .83f), blend);
+        hunt = Mathf.Lerp(hunt, crownclaw, blend);
+        underway = Mathf.Lerp(underway, motion, blend);
+        float damp = Ducked ? -8 : 0;
+        music.VolumeDb = Mathf.Lerp(music.VolumeDb, damp, blend);
+        sea.VolumeDb = -25 + underway * 4 + hunt * 2 + music.VolumeDb * .48f;
+        score.SetSyncStreamVolume(0, -18 - hunt * 3);
+        score.SetSyncStreamVolume(1, LayerVolume(rhythm, -15));
+        score.SetSyncStreamVolume(2, LayerVolume(hunt, -14));
     }
+
+    static float LayerVolume(float mix, float peak) => Math.Max(-60, peak + Mathf.LinearToDb(Math.Max(.001f, mix)));
 
     public override void _ExitTree()
     {
         if (sea == null) return;
         Release(sea);
         Release(music);
+        foreach (var layer in layers) layer.Dispose();
         foreach (var player in cues.Values) Release(player);
         cues.Clear();
     }
@@ -101,7 +145,7 @@ public partial class SeaAudio : Node
 
     void AddCue(string name, AudioStreamWav wave)
     {
-        var player = new AudioStreamPlayer { Stream = wave, MaxPolyphony = 3, VolumeDb = -14 };
+        var player = new AudioStreamPlayer { Name = name, Stream = wave, MaxPolyphony = 3, VolumeDb = -14 };
         cues.Add(name, player);
         AddChild(player);
     }
@@ -150,43 +194,7 @@ public partial class SeaAudio : Node
         }, true);
     }
 
-    static AudioStreamWav MusicLoop()
-    {
-        const float beat = .58f;
-        int[][] chords = [[50, 57, 65], [46, 53, 62], [53, 60, 69], [48, 55, 67],
-            [43, 50, 58], [46, 53, 65], [45, 52, 61], [50, 57, 65]];
-        int[] tune = [74, 77, 81, 79, 77, 74, 72, 69, 72, 76, 77, 81, 79, 76, 72, 67,
-            70, 74, 77, 74, 72, 74, 77, 82, 81, 79, 76, 73, 74, 69, 65, 62];
-        var bass = chords.Select(chord => Frequency(chord[0] - 12)).ToArray();
-        var harmony = chords.Select(chord => chord.Select(Frequency).ToArray()).ToArray();
-        var melody = tune.Select(Frequency).ToArray();
-        const float duration = 32 * beat;
-        return Wave(duration, (frame, _) =>
-        {
-            float time = frame / (float)Rate;
-            int note = Math.Min(31, (int)(time / beat));
-            int bar = note / 4;
-            float barTime = time - bar * 4 * beat;
-            float noteTime = time - note * beat;
-            float sound = .22f * Pluck(bass[bar], barTime, 1.35f);
-            sound += .14f * Pluck(harmony[bar][note % 3], noteTime, 3);
-            sound += .12f * Pluck(melody[note], noteTime, 4.6f);
-            if (note > 0)
-                sound += .038f * Pluck(melody[note - 1], noteTime + beat, 2.4f);
-            return sound * Math.Clamp(Math.Min(time, duration - time) * 4, 0, 1);
-        }, true);
-    }
-
-    static float Frequency(int note) => 440 * MathF.Pow(2, (note - 69) / 12f);
-
-    static float Pluck(float frequency, float time, float decay)
-    {
-        float phase = Mathf.Tau * frequency * time;
-        float envelope = Math.Min(1, time * 95) * MathF.Exp(-time * decay);
-        return (Mathf.Sin(phase) + .25f * Mathf.Sin(phase * 2.006f) + .09f * Mathf.Sin(phase * 3)) * envelope;
-    }
-
-    static AudioStreamWav Wave(float duration, Func<int, float, float> sample, bool loop = false)
+    internal static AudioStreamWav Wave(float duration, Func<int, float, float> sample, bool loop = false)
     {
         int frames = (int)(duration * Rate);
         var data = new byte[frames * 2];

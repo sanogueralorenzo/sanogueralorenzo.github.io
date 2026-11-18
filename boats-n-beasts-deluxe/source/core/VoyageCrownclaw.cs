@@ -105,6 +105,7 @@ public sealed partial class Voyage
 
     void ThrowBossBombs(Enemy boss)
     {
+        int before = BossBombsThrown;
         var ahead = OceanWorld.Unit(Velocity, OceanWorld.Unit(Position - boss.Position));
         var across = new Vector2(-ahead.Y, ahead.X);
         int count = boss.Health < boss.MaxHealth * .5f ? 5 : 3;
@@ -130,5 +131,6 @@ public sealed partial class Voyage
                 Damage = 29, Life = flight, Radius = 153 });
             BossBombsThrown++;
         }
+        if (BossBombsThrown > before) Events.Add(new("bossVolley", boss.Position));
     }
 }

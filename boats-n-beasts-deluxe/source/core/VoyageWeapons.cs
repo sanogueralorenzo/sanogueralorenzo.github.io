@@ -58,6 +58,7 @@ public sealed partial class Voyage
                             Damage = stats.Damage, Life = 2.4f * Area, Radius = 9, Pierce = stats.Targets - 1 });
                     }
                     ArcaneCasts++;
+                    Events.Add(new("arcaneCast", Position));
                 }
                 else if (kind == WeaponKind.Undertow)
                 {
@@ -73,6 +74,7 @@ public sealed partial class Voyage
                 }
                 else if (kind == WeaponKind.Coil)
                 {
+                    Events.Add(new("coilCast", Position));
                     Vector2 from = Position; var chain = new HashSet<int>(); Enemy? hit = target;
                     for (int i = 0; i < stats.Targets && hit != null; i++)
                     {
