@@ -166,7 +166,11 @@ public partial class Game : Node2D
     void ToggleMenu()
     {
         if (controls) controls = false;
-        else if (title) choosingBoat = journal = false;
+        else if (title)
+        {
+            choosingBoat = journal = false;
+            RestoreOpenChart();
+        }
         else if (Run.Mode == VoyageMode.Paused) Run.Mode = beforePause;
         else if (Run.Mode == VoyageMode.Sailing)
         {
@@ -186,6 +190,7 @@ public partial class Game : Node2D
     void Start()
     {
         lootNoticeTime = hitNotice = 0;
+        dailyBonus = 0;
         creditedSilver = 0; destination = null; toastTime = 0; maneuverRequested = false;
         if (title)
         {
@@ -198,7 +203,7 @@ public partial class Game : Node2D
         }
         else
         {
-            Run = new(selectedSeed, selectedBoat, selectedCharter); ocean.Voyage = Run; ocean.Reset();
+            Run = new(Run.World.Seed, Run.Boat, Run.Charter); ocean.Voyage = Run; ocean.Reset();
         }
         title = choosingBoat = runRecorded = controls = false;
         ocean.BeginSailing();
@@ -211,16 +216,25 @@ public partial class Game : Node2D
         if (node is Control control) { control.MouseFilter = Control.MouseFilterEnum.Ignore; control.FocusMode = Control.FocusModeEnum.None; }
         foreach (var child in node.GetChildren()) ReleaseMenuInput(child);
     }
+    void PreviewRun(uint seed, BoatKind boat, Charter charter)
+    {
+        bool newGeography = seed != Run.World.Seed;
+        Run = new(seed, boat, charter);
+        ocean.Voyage = Run;
+        if (newGeography) ocean.Reset();
+    }
+
     void BackToTitle()
     {
         Record(); title = true; choosingBoat = controls = journal = false; destination = null; ocean.Menu = true;
+        daily = null;
         selectedSeed = (uint)Random.Shared.NextInt64(1, 1L << 32);
         Run = new(selectedSeed, selectedBoat, selectedCharter); ocean.Voyage = Run; ocean.Reset(); BuildMenu();
     }
     void Record()
     {
         if (title || runRecorded) return;
-        log.Record(Run);
+        dailyBonus = log.Record(Run, daily);
         runRecorded = true;
     }
     void Toast(string text) { toast = text; toastTime = 5; }

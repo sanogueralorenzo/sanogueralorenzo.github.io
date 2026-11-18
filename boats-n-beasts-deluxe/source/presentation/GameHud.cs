@@ -125,13 +125,15 @@ public partial class Game : Node2D
                 Text(new((size.X - BodyFont.GetStringSize(defense, fontSize: 14).X) / 2, 108), defense, 14, color: phase);
             }
         }
+        int DailyInset => Game.daily.HasValue ? 27 : 0;
+
         void DrawVoyageStatus(Voyage run)
         {
             var at = new Vector2(24, 24);
             string task = run.BossSlain ? "The sea is calm" : run.BossSpawned ? "Defeat Crownclaw" : "Light the beacons";
             string detail = run.BossSlain ? "Voyage won" : run.BossSpawned ? "Dodge the marked attacks"
                 : $"{run.BeaconsLit} / {run.Beacons.Count} lit    ·    Crownclaw in {ClockText(Math.Max(0, SpawnDirector.BossArrivalSeconds - run.CombatTime))}";
-            DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .91f), 9), new(at, new Vector2(297, 143)));
+            DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .91f), 9), new(at, new Vector2(297, 143 + DailyInset)));
             DrawLine(at + new Vector2(15, 78), at + new Vector2(282, 78), new Color(NauticalPalette.Gold, .35f), 1, true);
             Text(at + new Vector2(15, 32), task, 26, true);
             Text(at + new Vector2(15, 61), detail, 16, color: NauticalPalette.Gold);
@@ -141,11 +143,17 @@ public partial class Game : Node2D
             Color hullColor = hull < .35f ? NauticalPalette.Coral : NauticalPalette.Aqua;
             Text(at + new Vector2(15, 127), $"Hull {Math.Ceiling(run.Health):0}/{run.MaxHealth:0}", 14, color: hullColor);
             Bar(at + new Vector2(126, 116), new(153, 9), hull, hullColor);
+            if (Game.daily is { } challenge)
+            {
+                Color dailyColor = challenge.ObjectiveMet(run) ? NauticalPalette.Aqua : NauticalPalette.Gold;
+                Text(at + new Vector2(15, 151), $"Daily · {challenge.Progress(run)}", 15, color: dailyColor);
+            }
             if (run.Chain >= 2 && run.IsActive)
             {
-                DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .88f), 7), new(at + new Vector2(0, 152), new Vector2(139, 36)));
-                Text(at + new Vector2(12, 176), $"×{run.Chain} chain", 17, true, NauticalPalette.Gold);
-                Bar(at + new Vector2(12, 182), new(115, 3), run.ChainTime / run.ChainDuration, NauticalPalette.Gold);
+                var chainAt = at + new Vector2(0, 152 + DailyInset);
+                DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .88f), 7), new(chainAt, new Vector2(139, 36)));
+                Text(chainAt + new Vector2(12, 24), $"×{run.Chain} chain", 17, true, NauticalPalette.Gold);
+                Bar(chainAt + new Vector2(12, 30), new(115, 3), run.ChainTime / run.ChainDuration, NauticalPalette.Gold);
             }
         }
 
@@ -168,7 +176,7 @@ public partial class Game : Node2D
             if (!run.IsActive || run.BossSpawned) return;
             if (run.DeliveryBeacon is { } delivery)
             {
-                var at = new Vector2(24, 224);
+                var at = new Vector2(24, 224 + DailyInset);
                 var color = run.TowTension > .72f ? NauticalPalette.Coral : NauticalPalette.Aqua;
                 DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .91f), 7), new(at, new Vector2(168, 43)));
                 Text(at + new Vector2(12, 21), run.TowTension > .72f ? "Towline strained" : "Towline", 15, true, color);

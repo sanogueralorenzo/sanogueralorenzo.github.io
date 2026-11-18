@@ -1,4 +1,5 @@
 using BoatsNBeasts.Core;
+using System.Globalization;
 using Godot;
 namespace BoatsNBeasts;
 
@@ -7,6 +8,7 @@ sealed class CaptainLog
     const string Path = "user://captain.cfg";
     const string PendingPath = "user://captain.pending";
     const string Section = "log";
+    const string DailySection = "daily";
     public int Silver { get; private set; }
     public int Voyages { get; private set; }
     public int Wins { get; private set; }
@@ -16,7 +18,20 @@ sealed class CaptainLog
     int charters = 1;
     readonly Dictionary<(BoatKind Boat, Charter Charter), double> bestTimes = new();
 
+    readonly Dictionary<int, double> dailyTimes = new();
+
     public double BestTime(BoatKind boat, Charter charter) => bestTimes.GetValueOrDefault((boat, charter));
+    public double DailyTime(DateOnly day) => dailyTimes.GetValueOrDefault(day.DayNumber);
+    public int DailyClears => dailyTimes.Count;
+
+    public int DailyStreak(DateOnly day)
+    {
+        int latest = day.DayNumber;
+        if (!dailyTimes.ContainsKey(latest)) latest--;
+        int count = 0;
+        while (dailyTimes.ContainsKey(latest - count)) count++;
+        return count;
+    }
 
     public bool Owns(Charter charter) => (charters & (1 << (int)charter)) != 0;
 
@@ -36,7 +51,7 @@ sealed class CaptainLog
         Save();
     }
 
-    public void Record(Voyage run)
+    public int Record(Voyage run, DailyChallenge? daily)
     {
         Voyages++;
         BestKills = Math.Max(BestKills, run.Kills);
@@ -47,7 +62,19 @@ sealed class CaptainLog
             var key = (run.Boat, run.Charter);
             bestTimes[key] = Faster(bestTimes.GetValueOrDefault(key), run.CombatTime);
         }
+        int bonus = 0;
+        if (daily is { } challenge && challenge.Qualifies(run))
+        {
+            int day = challenge.Day.DayNumber;
+            if (dailyTimes.TryAdd(day, run.CombatTime))
+            {
+                bonus = DailyChallenge.Reward;
+                Silver += bonus;
+            }
+            else dailyTimes[day] = Faster(dailyTimes[day], run.CombatTime);
+        }
         Save();
+        return bonus;
     }
 
     public void ToggleMute()
@@ -73,6 +100,13 @@ sealed class CaptainLog
             double time = (double)config.GetValue("charts", ChartKey(boat, charter), 0);
             if (time > 0) bestTimes[(boat, charter)] = time;
         }
+        if (!config.HasSection(DailySection)) return;
+        foreach (string key in config.GetSectionKeys(DailySection))
+        {
+            if (!int.TryParse(key, NumberStyles.None, CultureInfo.InvariantCulture, out int day)) continue;
+            double time = (double)config.GetValue(DailySection, key, 0);
+            if (time > 0) dailyTimes[day] = time;
+        }
     }
 
     static double Faster(double oldTime, double newTime) => oldTime > 0 ? Math.Min(oldTime, newTime) : newTime;
@@ -90,6 +124,8 @@ sealed class CaptainLog
         config.SetValue(Section, "muted", Muted);
         foreach (var entry in bestTimes)
             config.SetValue("charts", ChartKey(entry.Key.Boat, entry.Key.Charter), entry.Value);
+        foreach (var entry in dailyTimes)
+            config.SetValue(DailySection, entry.Key.ToString(CultureInfo.InvariantCulture), entry.Value);
         var error = config.Save(PendingPath);
         if (error == Error.Ok) error = DirAccess.RenameAbsolute(PendingPath, Path);
         if (error != Error.Ok) GD.PushWarning($"Captain’s log could not be saved ({error}).");

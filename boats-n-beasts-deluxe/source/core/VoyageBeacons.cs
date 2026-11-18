@@ -49,11 +49,23 @@ public sealed partial class Voyage
             return fallback;
         }
 
+        Vector2[] sites =
+        [
+            FindWater(new(1250 + chart.Range(0, 210), -235 + chart.Range(-110, 65)), new(1050, -135)),
+            FindWater(new(70 + chart.Range(-260, 260), 1350 + chart.Range(0, 280)), new(230, 800)),
+            FindWater(new(-1330 - chart.Range(0, 250), 245 + chart.Range(-130, 140)), new(-785, 110))
+        ];
+        for (int i = sites.Length - 1; i > 0; i--)
+        {
+            int j = chart.Index(i + 1);
+            (sites[i], sites[j]) = (sites[j], sites[i]);
+        }
+
         return
         [
-            new("Breakwater", FindWater(new(1250 + chart.Range(0, 210), -235 + chart.Range(-110, 65)), new(1050, -135)), EnemyKind.Puffer, BeaconObjective.Defend),
-            new("Gull Shoal", FindWater(new(70 + chart.Range(-260, 260), 1350 + chart.Range(0, 280)), new(230, 800)), EnemyKind.Ray, BeaconObjective.Patrol),
-            new("Smuggler’s Light", FindWater(new(-1330 - chart.Range(0, 250), 245 + chart.Range(-130, 140)), new(-785, 110)), EnemyKind.Serpent, BeaconObjective.Duel)
+            new("Breakwater", sites[0], EnemyKind.Puffer, BeaconObjective.Defend),
+            new("Gull Shoal", sites[1], EnemyKind.Ray, BeaconObjective.Patrol),
+            new("Smuggler’s Light", sites[2], EnemyKind.Serpent, BeaconObjective.Duel)
         ];
     }
 

@@ -62,7 +62,12 @@ public partial class Game : Node2D
         if (controls) { ControlsMenu(); FocusFirst(menuRoot); return; }
         if (title)
         {
-            if (choosingBoat) { BoatMenu(); return; }
+            if (choosingBoat)
+            {
+                if (daily is { } challenge) DailyMenu(challenge);
+                else BoatMenu();
+                return;
+            }
             if (journal) JournalMenu();
             else TitleMenu();
             FocusFirst(menuRoot);
@@ -82,10 +87,13 @@ public partial class Game : Node2D
             case VoyageMode.Upgrade: UpgradeMenu(); break;
             case VoyageMode.Defeat:
                 Record(); col = Panel(570, "Lost to the deep", VoyageSummary());
-                col.AddChild(Button("Sail again", Start, true)); col.AddChild(Button("Choose another boat", BackToTitle)); break;
+                col.AddChild(Button("Sail again", Start, true));
+                col.AddChild(Button(daily.HasValue ? "Return to harbor" : "Choose another boat", BackToTitle)); break;
             case VoyageMode.Victory:
                 Record(); col = Panel(570, "Crownclaw defeated", VoyageSummary());
-                col.AddChild(Button("Keep exploring", () => { Run.Mode = VoyageMode.Sailing; BuildMenu(); }, true)); col.AddChild(Button("A new voyage", BackToTitle)); break;
+                col.AddChild(daily.HasValue ? Button("Sail again", Start, true)
+                    : Button("Keep exploring", () => { Run.Mode = VoyageMode.Sailing; BuildMenu(); }, true));
+                col.AddChild(Button("A new voyage", BackToTitle)); break;
         }
         FocusFirst(menuRoot);
     }
@@ -114,13 +122,14 @@ public partial class Game : Node2D
         column.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.CenterLeft);
         column.OffsetLeft = 76;
         column.OffsetRight = 475;
-        column.OffsetTop = -225;
+        column.OffsetTop = -258;
         column.AddThemeConstantOverride("separation", 11);
         menuRoot.AddChild(column);
         column.AddChild(Label("Boats ’n’\nBeasts", 79, true));
         column.AddChild(Label("DELUXE", 17, false, NauticalPalette.Gold));
         column.AddChild(new Control { CustomMinimumSize = new(0, 8), MouseFilter = Control.MouseFilterEnum.Ignore });
         column.AddChild(MenuAction("Chart a voyage", MenuGlyph.Sail, () => { choosingBoat = true; BuildMenu(); }, true));
+        column.AddChild(MenuAction("Daily challenge", MenuGlyph.Chart, OpenDaily));
         column.AddChild(MenuAction("Captain’s log", MenuGlyph.Book, () => { journal = true; BuildMenu(); }));
         column.AddChild(MenuAction("How to sail", MenuGlyph.Chart, () => { controls = true; BuildMenu(); }));
     }
@@ -134,8 +143,7 @@ public partial class Game : Node2D
             choices.AddChild(Button(BoatSpec.For(boat).Name, () =>
             {
                 selectedBoat = boat;
-                Run = new(selectedSeed, selectedBoat, selectedCharter);
-                ocean.Voyage = Run;
+                PreviewRun(selectedSeed, selectedBoat, selectedCharter);
                 BuildMenu();
             }, selectedBoat == boat));
         }
@@ -152,15 +160,24 @@ public partial class Game : Node2D
             charters.AddChild(Button(CharterRules.For(charter).Name, () =>
             {
                 selectedCharter = charter;
-                Run = new(selectedSeed, selectedBoat, selectedCharter);
-                ocean.Voyage = Run;
+                PreviewRun(selectedSeed, selectedBoat, selectedCharter);
                 BuildMenu();
             }, selectedCharter == charter));
         }
         col.AddChild(Label(Run.Rules.Description, 17));
+        AddDepartureButtons(col);
+    }
+
+    void AddDepartureButtons(VBoxContainer col)
+    {
 
         var actions = new HBoxContainer(); actions.AddThemeConstantOverride("separation", 8); col.AddChild(actions);
-        actions.AddChild(Button("Back", () => { choosingBoat = false; BuildMenu(); }));
+        actions.AddChild(Button("Back", () =>
+        {
+            choosingBoat = false;
+            RestoreOpenChart();
+            BuildMenu();
+        }));
         var sail = Button("Set sail", Start, true);
         sail.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         actions.AddChild(sail);
@@ -170,7 +187,7 @@ public partial class Game : Node2D
     void JournalMenu()
     {
         var col = Panel(640, "Captain’s log",
-            $"{log.Silver} silver  ·  {log.Wins} wins in {log.Voyages} voyages\nBest haul {log.BestKills} beasts  ·  Longest chain {log.BestChain}");
+            $"{log.Silver} silver  ·  {log.Wins} wins in {log.Voyages} voyages\nBest haul {log.BestKills} beasts  ·  Longest chain {log.BestChain}\nDaily clears {log.DailyClears}  ·  Streak {log.DailyStreak(DailyChallenge.Today.Day)}");
         foreach (var charter in new[] { Charter.Salvager, Charter.Stormchaser })
         {
             var rules = CharterRules.For(charter);
@@ -217,7 +234,7 @@ public partial class Game : Node2D
 
     string VoyageSummary() => $"{Run.Rules.Name}  ·  {ClockText(Run.CombatTime)}  ·  Level {Run.Level}\n" +
         $"{Run.BeaconsLit}/{Run.Beacons.Count} beacons  ·  {Run.Kills} beasts  ·  Longest chain {Run.LongestChain}  ·  +{Run.SilverEarned} silver" +
-        (Run.Salvage.Delivered ? "\nWreck salvage delivered" : "");
+        (Run.Salvage.Delivered ? "\nWreck salvage delivered" : "") + DailyResult();
 
     void UpgradeMenu()
     {
