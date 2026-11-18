@@ -107,14 +107,19 @@ private struct BrowserPageLoadingBar: View {
                 width = 0
                 opacity = 0
             case .loading(let startedAt):
-                width = Self.estimate(after: max(0, time - startedAt))
+                width = Self.estimate(after: max(0, time - startedAt)).width
                 opacity = 1
             case .revealed(let startedAt, let revealedAt):
                 let elapsed = max(0, time - revealedAt)
                 let estimate = Self.estimate(after: revealedAt - startedAt)
-                let completion = UnitCurve.easeOut.value(at: min(1, elapsed / Self.sweepDuration))
+                let progress = min(1, elapsed / Self.sweepDuration)
+                let remaining = 1 - estimate.width
+                let tangent = min(Self.sweepDuration * estimate.velocity, 3 * remaining)
+                let remainingTime = 1 - progress
                 let fade = min(1, max(0, (elapsed - Self.fadeDelay) / Self.fadeDuration))
-                width = estimate + (1 - estimate) * completion
+                let sweep = remaining * progress * progress * (3 - 2 * progress)
+                    + tangent * progress * remainingTime * remainingTime
+                width = min(1, estimate.width + sweep)
                 opacity = 1 - UnitCurve.easeOut.value(at: fade)
             }
         }
@@ -127,14 +132,20 @@ private struct BrowserPageLoadingBar: View {
             }
         }
 
-        private static func estimate(after elapsed: TimeInterval) -> Double {
-            min(0.99, 1 - 0.72 * exp(-3.9 * elapsed) - 0.28 * exp(-0.42 * elapsed))
+        private static func estimate(after elapsed: TimeInterval) -> (width: Double, velocity: Double) {
+            let fastRate = 3.9
+            let slowRate = 0.42
+            let fastRemainder = 0.72 * exp(-fastRate * elapsed)
+            let slowRemainder = 0.28 * exp(-slowRate * elapsed)
+            let width = 1 - fastRemainder - slowRemainder
+            if width >= 0.99 { return (0.99, 0) }
+            return (width, fastRate * fastRemainder + slowRate * slowRemainder)
         }
     }
 
     let indicator: BrowserPage.LoadingIndicator
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var animatedIndicator = BrowserPage.LoadingIndicator.hidden
+    @State private var settledIndicator = BrowserPage.LoadingIndicator.hidden
 
     private var reducedMotionWidth: Double {
         if case .loading = indicator { return 0.25 }
@@ -143,30 +154,24 @@ private struct BrowserPageLoadingBar: View {
 
     var body: some View {
         let staticWidth = reduceMotion ? reducedMotionWidth : nil
-        let phase = animatedIndicator
-        Rectangle().fill(.primary)
-            .frame(height: 2)
-            .keyframeAnimator(initialValue: ProcessInfo.processInfo.systemUptime, trigger: phase) { content, time in
-                let motion = Motion(phase, at: time)
-                content.scaleEffect(x: staticWidth ?? motion.width, y: 1, anchor: .leading)
-                    .opacity(staticWidth == nil ? motion.opacity : 1)
-            } keyframes: { _ in
-                let now = ProcessInfo.processInfo.systemUptime
-                let end = Motion.end(of: phase)
-                KeyframeTrack {
-                    if end > now {
-                        MoveKeyframe(now)
-                        LinearKeyframe(end, duration: end - now)
-                    } else {
-                        MoveKeyframe(now)
-                    }
-                }
+        let phase = reduceMotion ? .hidden : indicator
+        let end = Motion.end(of: phase)
+        TimelineView(.animation(paused: settledIndicator == phase || end <= ProcessInfo.processInfo.systemUptime)) { _ in
+            let motion = Motion(phase, at: ProcessInfo.processInfo.systemUptime)
+            Rectangle().fill(.primary)
+                .frame(height: 2)
+                .scaleEffect(x: staticWidth ?? motion.width, y: 1, anchor: .leading)
+                .opacity(staticWidth == nil ? motion.opacity : 1)
+        }
+        .task(id: phase) {
+            let remaining = end - ProcessInfo.processInfo.systemUptime
+            if remaining > 0 {
+                do { try await Task.sleep(for: .seconds(remaining)) } catch { return }
             }
-            .onChange(of: reduceMotion ? .hidden : indicator, initial: true) { _, phase in
-                animatedIndicator = phase
-            }
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+            if !Task.isCancelled { settledIndicator = phase }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
