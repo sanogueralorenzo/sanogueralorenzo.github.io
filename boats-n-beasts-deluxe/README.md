@@ -15,6 +15,8 @@ Pilot a pirate ship through a procedural archipelago. Defend Breakwater, patrol 
 | Tab or controller Y | Pause at the voyage chart to review discoveries and plot a course |
 | Esc or Start | Pause |
 
+Click a current’s arrow on the chart to plot a downstream passage. Sailing with the flow recharges boost faster and makes it last longer.
+
 Level-ups fit up to three weapons and improve the hull, engine, reload, and reach. Choose a specialty at level 5. Every third level can offer a weapon swap when the deck is full. Swaps keep the slot’s rank and the boat’s starting weapon. Pair Cannon with Lightning for Stormshot, Harpoon with Mines for Tripwire, or Whirlpool with Arcane Orbs for Riptide.
 
 Tow wreck cargo to a beacon for a refit and repairs. Choose a beacon to reserve that buyer, or right-click to clear the choice. Salvagers can tow farther for 4 extra silver at the marked beacon. Intercept the drifting cache before it sinks for XP, silver, and boost. Beach chests grant XP, barrels repair hull, and every four consecutive kills earn chain rewards. A last-second blast escape recovers boost and extends an active chain. Tie up at the harbor berth once for up to 50 hull. Moving or taking a hit interrupts repairs.

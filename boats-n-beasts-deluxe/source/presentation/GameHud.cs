@@ -52,6 +52,14 @@ public partial class Game : Node2D
             int statusInset = (Game.daily.HasValue || targetTime > 0 ? 27 : 0) + (openingHint == null ? 0 : 34);
             DrawVoyageStatus(r, openingHint, statusInset, targetTime);
             DrawManeuver(r, size);
+            if (r.IsActive && r.RidingCurrent)
+            {
+                var badge = new Vector2(24, size.Y - 126);
+                DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .93f), 7),
+                    new(badge, new Vector2(226, 31)));
+                Text(badge + new Vector2(10, 21), r.IsBoosting ? "Current · Boost lasts longer" : "Current · Faster recharge",
+                    14, color: NauticalPalette.Aqua);
+            }
             if (keeper != null) DrawKeeper(keeper);
             var healthPosition = Game.ocean.ElevatedScreen(r.Position, ActorArt3D.BoatHudHeight) + new Vector2(-24, -12);
             Bar(healthPosition, new(48, 6), r.Health / r.MaxHealth, new Color("ed4b55"));
@@ -405,7 +413,11 @@ public partial class Game : Node2D
                     DrawRect(new(at - new Vector2(3, 3), new(6, 6)), new Color("b38943"));
                     courses.Add((new(at - Vector2.One * 7, Vector2.One * 14), new(place.Position, Supply: place, Label: "Beach cache")));
                 }
-                else if (place.Kind == PlaceKind.Current) { var d=NauticalPalette.G(OceanWorld.FlowDirection(place)); DrawLine(at-d*5,at+d*5,ink,1.5f); DrawLine(at+d*5,at+d.Orthogonal()*3,ink,1.5f); }
+                else if (place.Kind == PlaceKind.Current)
+                {
+                    DrawCurrentArrow(at, NauticalPalette.G(OceanWorld.FlowDirection(place)), 6, new Color("296f69"));
+                    courses.Add((new(at - Vector2.One * 9, Vector2.One * 18), new(place.Position, Supply: place, Label: "Ride the current")));
+                }
                 else
                 {
                     float radius = Math.Clamp(place.Radius / 17, 3, 11);

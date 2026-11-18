@@ -43,6 +43,7 @@ public sealed class OceanWorld(uint seed)
     public const int ChartTileSize = 300;
     public const float BarrelChance = .20f;
     public const float BarrelSpacing = 900;
+    public const float CurrentWidthFactor = .30f;
     public uint Seed { get; } = seed;
     public Place SalvageWreck { get; } = ChartedWreck(seed);
 
@@ -239,7 +240,7 @@ public sealed class OceanWorld(uint seed)
             if(current.Kind!=PlaceKind.Current) continue;
             var direction=FlowDirection(current); var offset=position-current.Position;
             float along=Vector2.Dot(offset,direction)/current.Radius;
-            float across=Vector2.Dot(offset,new(-direction.Y,direction.X))/(current.Radius*.3f);
+            float across=Vector2.Dot(offset,new(-direction.Y,direction.X))/(current.Radius*CurrentWidthFactor);
             float weight=1-along*along-across*across;
             if(weight>0) flow+=direction*125*Math.Min(1,weight*2);
         }

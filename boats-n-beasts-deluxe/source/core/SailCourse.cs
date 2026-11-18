@@ -78,8 +78,44 @@ public sealed class SailCourse
                 Destination = pickup;
             }
         }
+        else if (place.Kind == PlaceKind.Current)
+        {
+            if (!PlotCurrent(run, place)) return false;
+        }
         else if (!Plot(run, place.Position)) return false;
         supply = place;
+        return true;
+    }
+
+    bool PlotCurrent(Voyage run, Place current)
+    {
+        var flow = OceanWorld.FlowDirection(current);
+        float reach = current.Radius;
+        while (!run.World.OpenApproach(current.Position - flow * reach, current.Position + flow * reach, CoursePlanner.Clearance))
+        {
+            reach *= .75f;
+            if (reach < current.Radius * .5f) return false;
+        }
+
+        var offset = run.Position - current.Position;
+        float along = Vector2.Dot(offset, flow);
+        float across = MathF.Abs(Vector2.Dot(offset, new(-flow.Y, flow.X)));
+        var exit = current.Position + flow * reach;
+        if (along >= -reach && along < reach &&
+            across <= current.Radius * OceanWorld.CurrentWidthFactor &&
+            run.World.OpenApproach(run.Position, exit, CoursePlanner.Clearance))
+            return Plot(run, exit);
+
+        var entrance = current.Position - flow * reach;
+        if (!Plot(run, entrance)) return false;
+        if (continuing) return true;
+        if (!run.World.OpenApproach(waypoints[^1], exit, CoursePlanner.Clearance))
+        {
+            Clear();
+            return false;
+        }
+        waypoints = [..waypoints, exit];
+        Destination = exit;
         return true;
     }
 

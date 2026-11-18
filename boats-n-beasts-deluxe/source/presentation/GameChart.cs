@@ -238,9 +238,15 @@ public partial class Game
                     break;
                 case PlaceKind.Current:
                     var current = NauticalPalette.G(OceanWorld.FlowDirection(place));
-                    DrawLine(at - current * 10, at + current * 10, ChartTeal, 2, true);
-                    DrawLine(at + current * 10, at + current * 4 + current.Orthogonal() * 4, ChartTeal, 2, true);
-                    DrawLine(at + current * 10, at + current * 4 - current.Orthogonal() * 4, ChartTeal, 2, true);
+                    float length = Math.Clamp(place.Radius * scale * .82f, 11, 65);
+                    var extent = current.Abs() * length + Vector2.One * 9;
+                    var currentBounds = new Rect2(at - extent, extent * 2);
+                    if (area.HasPoint(currentBounds.Position) && area.HasPoint(currentBounds.End))
+                    {
+                        bool pointed = currentBounds.HasPoint(Game.usingController ? area.GetCenter() : Game.uiPointer);
+                        DrawCurrentArrow(at, current, length, pointed ? ChartInk : ChartTeal);
+                        courses.Add((currentBounds, new(place.Position, Supply: place, Label: "Ride the current")));
+                    }
                     break;
                 case PlaceKind.Whirlpool:
                     DrawArc(at, 7, .4f, 5, 19, ChartTeal, 2, true);
@@ -263,6 +269,16 @@ public partial class Game
                     courses.Add((new(at - Vector2.One * 11, Vector2.One * 22), new(place.Position, Supply: place, Label: "Repair barrel · +25 hull")));
                     break;
             }
+        }
+
+        void DrawCurrentArrow(Vector2 center, Vector2 direction, float length, Color color)
+        {
+            var tip = center + direction * length;
+            var tail = tip - direction * Math.Min(8, length * .65f);
+            var wing = direction.Orthogonal() * Math.Min(5, length * .45f);
+            DrawLine(center - direction * length, tip, color, 2, true);
+            DrawLine(tail + wing, tip, color, 2, true);
+            DrawLine(tail - wing, tip, color, 2, true);
         }
 
         void DrawChartRoute(Voyage run, Func<V2, Vector2> plot)

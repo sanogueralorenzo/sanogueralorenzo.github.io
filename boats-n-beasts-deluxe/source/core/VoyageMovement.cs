@@ -5,6 +5,7 @@ public sealed partial class Voyage
 {
     public bool IsBoosting { get; private set; }
     public Vector2 CurrentFlow { get; private set; }
+    public bool RidingCurrent { get; private set; }
     public int BoostStarts { get; private set; }
     public int TreasureCollected { get; private set; }
     public int BarrelsBroken { get; private set; }
@@ -19,17 +20,24 @@ public sealed partial class Voyage
         if (direction != Vector2.Zero)
             Heading = ApproachAngle(Heading, MathF.Atan2(direction.X, -direction.Y), 1 - MathF.Exp(-dt * (boosting ? 15 : 13)));
         var forward = Forward;
+        CurrentFlow = World.FlowAt(Position);
+        float flowSpeed = CurrentFlow.Length();
+        RidingCurrent = flowSpeed >= 45 && throttle >= .45f &&
+            Vector2.Dot(direction, CurrentFlow) >= flowSpeed * .8f &&
+            Vector2.Dot(forward, CurrentFlow) >= flowSpeed * .8f;
+        float currentRecovery = RidingCurrent ? 24 : 0;
+        if (RidingCurrent) CurrentRideTime += dt;
         if (boosting && !IsBoosting)
         {
             Boost = Math.Max(0, Boost - 8);
             Velocity = Vector2.Lerp(Velocity, forward * Speed * 2.05f, .65f);
             BoostStarts++; Events.Add(new("boostStart", Position));
         }
-        Boost = Math.Clamp(Boost + dt * (boosting ? -34 : input.Boost && BoostExhausted ? 0 : BoostRecovery), 0, 100);
+        float boostChange = boosting ? -34 + currentRecovery
+            : input.Boost && BoostExhausted ? 0 : BoostRecovery + currentRecovery;
+        Boost = Math.Clamp(Boost + dt * boostChange, 0, 100);
         if (boosting && Boost <= 0) { BoostExhausted = true; boosting = false; }
         IsBoosting = boosting;
-        CurrentFlow = World.FlowAt(Position);
-        if (CurrentFlow.LengthSquared() > 100) CurrentRideTime += dt;
         // The bow responds first; a short velocity lag lets the stern drift through the turn.
         var wanted = forward * Speed * (boosting ? 2.05f : throttle) + CurrentFlow;
         Velocity = Vector2.Lerp(Velocity, wanted, 1 - MathF.Exp(-dt * (direction == Vector2.Zero ? 7 : boosting ? 10 : 7)));

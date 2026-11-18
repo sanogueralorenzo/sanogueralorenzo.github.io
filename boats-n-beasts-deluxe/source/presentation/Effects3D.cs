@@ -73,7 +73,8 @@ public partial class Effects3D : Node3D
         }
         SyncEncounters(voyage);
         foam.Begin(); solid.Begin(); ballCount = 0;
-        DrawWake(wake, voyage.IsBoosting ? .43f : .34f, 1.9f, voyage.IsBoosting ? 1.32f : 1);
+        bool strongWake = voyage.IsBoosting || voyage.RidingCurrent;
+        DrawWake(wake, strongWake ? .43f : .34f, 1.9f, strongWake ? 1.32f : 1);
         DrawWhirlpool(voyage);
         foreach (var enemy in voyage.Enemies)
         {
@@ -725,31 +726,39 @@ public partial class Effects3D : Node3D
         var along = World(OceanWorld.FlowDirection(place), 0) / NativeStage3D.Unit;
         var across = new Vector3(-along.Z, 0, along.X);
         float radius = place.Radius * NativeStage3D.Unit;
+        float bank = radius * OceanWorld.CurrentWidthFactor;
+        for (int i = 0; i < 16; i++)
+        {
+            float a = i / 16f, b = (i + 1) / 16f;
+            var start = center + along * Mathf.Lerp(-radius, radius, a);
+            var end = center + along * Mathf.Lerp(-radius, radius, b);
+            foam.Ribbon(start, end, bank * Mathf.Sin(a * Mathf.Pi), bank * Mathf.Sin(b * Mathf.Pi), Fade(Aqua, .12f));
+        }
         for (int lane = -1; lane <= 1; lane++)
         {
             float offset = lane * .145f * radius;
             float span = radius * (lane == 0 ? .92f : .75f);
-            for (int streak = 0; streak < 2; streak++)
+            for (int streak = 0; streak < 3; streak++)
             {
-                float phase = (1 + time * .29f + lane * .13f + streak * .5f) % 1;
+                float phase = (1 + time * .34f + lane * .13f + streak / 3f) % 1;
                 float start = Mathf.Lerp(-span, span, phase);
-                Color color = Fade(new("9edfcc"), Mathf.Sin(phase * Mathf.Pi) * .40f);
+                Color color = Fade(lane == 0 ? Cream : Foam, Mathf.Sin(phase * Mathf.Pi) * (lane == 0 ? .91f : .59f));
                 Vector3 Point(float s) => center + along * s + across * (offset + Mathf.Sin(s * 1.7f + lane) * .065f);
                 var last = Point(start - .45f);
                 for (int i = 1; i <= 7; i++)
                 {
                     float t = i / 7f;
                     var next = Point(start - .45f + t * .68f);
-                    float width = .005f + Mathf.Sin(t * Mathf.Pi) * .018f;
+                    float width = .008f + Mathf.Sin(t * Mathf.Pi) * .025f;
                     foam.Ribbon(last, next, width, width, color);
                     last = next;
                 }
                 if (lane == 0)
                 {
-                    var shoulder = Point(start + .055f);
+                    var shoulder = Point(start - .03f);
                     var tip = Point(start + .242f);
-                    foam.Ribbon(shoulder + across * .12f, tip, .013f, .010f, color);
-                    foam.Ribbon(shoulder - across * .12f, tip, .013f, .010f, color);
+                    foam.Ribbon(shoulder + across * .17f, tip, .025f, .018f, color);
+                    foam.Ribbon(shoulder - across * .17f, tip, .025f, .018f, color);
                 }
             }
         }
