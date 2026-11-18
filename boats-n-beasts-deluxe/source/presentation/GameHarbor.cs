@@ -5,13 +5,6 @@ namespace BoatsNBeasts;
 
 public partial class Game
 {
-    bool CanUseHarborControls => !title && !controls && Run.IsActive && Run.AtRepairBerth;
-
-    void UseHarborRepair()
-    {
-        if (Run.ToggleHarborRepairs()) course.Clear();
-    }
-
     public partial class Hud
     {
         public Rect2 RepairControl { get; private set; }

@@ -33,9 +33,44 @@ public readonly record struct CrownclawCharge(Vector2 Start, Vector2 End, float 
 
 public sealed partial class Voyage
 {
+    public const float HuntSignalDuration = 2.6f;
     public const float BombOpening = 1.8f;
     public const float ChargeOpening = 2.25f;
     public const float GroundedOpening = 3.75f;
+
+    public Beacon? HuntSignalBeacon { get; private set; }
+    public float HuntSignalRemaining { get; private set; }
+    public bool HuntSignalReady => BeaconsLit == 2 && !BossSpawned && HuntSignalBeacon == null && !Salvage.Towing;
+    public bool CrownclawArmorWeakened => BeaconsLit == Beacons.Count;
+    public Beacon? NearbySignalBeacon => HuntSignalReady ? Beacons.FirstOrDefault(beacon =>
+        beacon.Lit && Vector2.DistanceSquared(Position, beacon.Position) <= Beacon.Radius * Beacon.Radius) : null;
+
+    public bool TrySignalCrownclaw()
+    {
+        if (!IsActive || NearbySignalBeacon is not { } beacon) return false;
+        HuntSignalBeacon = beacon;
+        HuntSignalRemaining = HuntSignalDuration;
+        Events.Add(new("huntSignal", beacon.Position));
+        return true;
+    }
+
+    void UpdateCrownclawArrival(float dt)
+    {
+        if (BossSpawned) return;
+        HuntSignalRemaining = Math.Max(0, HuntSignalRemaining - dt);
+        bool signalFinished = HuntSignalBeacon != null && HuntSignalRemaining <= 0;
+        if (!signalFinished && !CrownclawArmorWeakened && CombatTime < SpawnDirector.BossArrivalSeconds) return;
+        if (!Spawn(EnemyKind.Leviathan)) return;
+
+        BossSpawned = true;
+        HuntSignalRemaining = 0;
+        Salvage.Towing = false;
+        FloatingCache = null;
+        foreach (var escort in Enemies.Where(enemy => enemy.Kind != EnemyKind.Leviathan && enemy.Health > 0)
+            .OrderBy(enemy => Vector2.DistanceSquared(enemy.Position, Position)).Skip(SpawnDirector.BossEscortCount))
+            escort.Health = 0;
+        Events.Add(new("boss", Enemies[^1].Position));
+    }
 
     bool UpdateCrownclaw(Enemy boss, float dt, float distance, Vector2 toward, ref Vector2 motion, ref float speed)
     {

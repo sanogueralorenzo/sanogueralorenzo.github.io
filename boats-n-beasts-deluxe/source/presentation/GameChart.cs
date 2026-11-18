@@ -142,7 +142,7 @@ public partial class Game
                     DrawColoredPolygon([at + new Vector2(0, -7), at + new Vector2(7, 0), at + new Vector2(0, 7), at + new Vector2(-7, 0)], color);
                     var order = new ChartOrder(beacon.Position,
                         !beacon.Lit && !run.Salvage.Towing && beacon.Objective == BeaconObjective.Patrol ? beacon : null,
-                        Label: beacon.Name);
+                        Label: run.HuntSignalReady && beacon.Lit ? $"{beacon.Name} · Hunt signal available" : beacon.Name);
                     courses.Add((new(at - Vector2.One * 11, Vector2.One * 22), order));
                     Text(at + new Vector2(13, -4), beacon.Name, 15, true, ChartInk);
                 }

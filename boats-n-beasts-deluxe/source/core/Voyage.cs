@@ -126,17 +126,7 @@ public sealed partial class Voyage
         UpdateBeacons(dt);
         int spawn = Director.Tick(dt, CombatTime, Enemies.Count(e => e.Kind != EnemyKind.Leviathan), BossSpawned);
         for (int i = 0; i < spawn; i++) Spawn();
-        if (!BossSpawned && (CombatTime >= SpawnDirector.BossArrivalSeconds || BeaconsLit == Beacons.Count))
-        {
-            if (Spawn(EnemyKind.Leviathan))
-            {
-                BossSpawned = true;
-                Salvage.Towing = false;
-                FloatingCache = null;
-                foreach (var escort in Enemies.Where(e => e.Kind != EnemyKind.Leviathan && e.Health > 0).OrderBy(e => Vector2.DistanceSquared(e.Position, Position)).Skip(SpawnDirector.BossEscortCount)) escort.Health = 0;
-                Events.Add(new("boss", Enemies[^1].Position));
-            }
-        }
+        UpdateCrownclawArrival(dt);
         UpdateEnemies(dt);
         if (BossSlain) return;
         UpdateWeapons(dt);
@@ -162,7 +152,7 @@ public sealed partial class Voyage
     }
     Enemy AddEnemy(EnemyKind kind, Vector2 position)
     {
-        float hp = kind == EnemyKind.Leviathan ? 820 + 65 * BeaconsLit + Math.Min(300, CombatTime * .38f) : kind == EnemyKind.Crab ? 27 : kind == EnemyKind.Puffer ? 38 : kind == EnemyKind.Ray ? 43 : 52;
+        float hp = kind == EnemyKind.Leviathan ? 820 + 65 * Math.Min(2, BeaconsLit) + Math.Min(300, CombatTime * .38f) : kind == EnemyKind.Crab ? 27 : kind == EnemyKind.Puffer ? 38 : kind == EnemyKind.Ray ? 43 : 52;
         hp *= Rules.EnemyHull;
         var enemy = new Enemy
         {
@@ -287,7 +277,7 @@ public sealed partial class Voyage
     {
         if (e.Kind == EnemyKind.Leviathan)
         {
-            damage *= e.Grounded ? 1.55f : e.Exposed > 0 ? 1.22f : .50f;
+            damage *= e.Grounded ? 1.55f : e.Exposed > 0 ? 1.22f : CrownclawArmorWeakened ? .75f : .50f;
             if (e.Health >= e.MaxHealth * .5f && e.Health - damage < e.MaxHealth * .5f)
             {
                 if (e.Charge == null && !e.Grounded)

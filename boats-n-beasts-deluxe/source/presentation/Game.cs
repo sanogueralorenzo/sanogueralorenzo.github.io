@@ -164,8 +164,9 @@ public partial class Game : Node2D
             }
             else if (click.ButtonIndex == MouseButton.Left)
             {
-                if (hud.RepairControl.HasPoint(click.Position) && CanUseHarborControls) UseHarborRepair();
-                else if (!PlotChartOrder(hud.CourseAt(click.Position) ?? new(ocean.WorldPoint(click.Position))))
+                bool interacted = (hud.HuntSignalControl.HasPoint(click.Position) || hud.RepairControl.HasPoint(click.Position)) &&
+                    TryVoyageInteraction();
+                if (!interacted && !PlotChartOrder(hud.CourseAt(click.Position) ?? new(ocean.WorldPoint(click.Position))))
                     Toast("Choose a course through open water");
                 usingController = false;
                 GetViewport().SetInputAsHandled();
@@ -175,7 +176,10 @@ public partial class Game : Node2D
         if (chartOpen) HandleChartButton(button.ButtonIndex);
         else if (button.ButtonIndex == JoyButton.B && pendingSwap.HasValue) ToggleMenu();
         else if (button.ButtonIndex == JoyButton.Y && CanOpenChart) ToggleChart();
-        else if (button.ButtonIndex == JoyButton.A && CanUseHarborControls) UseHarborRepair();
+        else if (button.ButtonIndex == JoyButton.A)
+        {
+            if (!TryVoyageInteraction()) return;
+        }
         else if (button.ButtonIndex == JoyButton.X && !title && !controls && Run.IsActive)
             maneuverRequested = true;
         else if (button.ButtonIndex == JoyButton.Start)
@@ -201,15 +205,22 @@ public partial class Game : Node2D
             GetViewport().SetInputAsHandled();
             return;
         }
-        if (key.PhysicalKeycode == Key.F && CanUseHarborControls)
+        if (key.PhysicalKeycode == Key.F && TryVoyageInteraction())
         {
-            UseHarborRepair();
             GetViewport().SetInputAsHandled();
             return;
         }
         if (key.Keycode != Key.Escape) return;
         ToggleMenu();
         GetViewport().SetInputAsHandled();
+    }
+
+    bool TryVoyageInteraction()
+    {
+        if (title || controls || !Run.IsActive) return false;
+        if (!Run.TrySignalCrownclaw() && !(Run.AtRepairBerth && Run.ToggleHarborRepairs())) return false;
+        course.Clear();
+        return true;
     }
 
     void ToggleMenu()

@@ -36,6 +36,7 @@ public partial class Game : Node2D
         {
             courses.Clear();
             RepairControl = default;
+            HuntSignalControl = default;
             if (Game.title) return; var r = Game.Run; var size = GetViewportRect().Size;
             if (Game.chartOpen)
             {
@@ -132,8 +133,9 @@ public partial class Game : Node2D
                     NauticalPalette.Aqua, size, cache: cache);
             }
             DrawHarborGuide(r, size, statusInset);
+            DrawHuntSignal(r, statusInset);
             var boss = r.Enemies.FirstOrDefault(e => e.Kind == EnemyKind.Leviathan && e.Health > 0);
-            if (boss != null) DrawCrownclaw(boss, size.X / 2);
+            if (boss != null) DrawCrownclaw(boss, size.X / 2, r.CrownclawArmorWeakened);
             if (Game.toastTime > 0 && r.IsActive)
             {
                 float y = boss == null ? 113 : 125;
@@ -165,7 +167,25 @@ public partial class Game : Node2D
             if (paired) Text(at + new Vector2(14, 91), pairing, 14, color: NauticalPalette.Gold);
         }
 
-        void DrawCrownclaw(Enemy boss, float center)
+        public Rect2 HuntSignalControl { get; private set; }
+
+        void DrawHuntSignal(Voyage run, int statusInset)
+        {
+            if (!run.IsActive || run.NearbySignalBeacon == null) return;
+            var at = new Vector2(24, 280 + statusInset);
+            DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .94f), 8, new Color(NauticalPalette.Gold, .50f)),
+                new(at, new Vector2(297, 103)));
+            Text(at + new Vector2(13, 26), "Hunt signal", 20, true, NauticalPalette.Gold);
+            Text(at + new Vector2(13, 48), "The third beacon weakens its shell.", 14);
+            HuntSignalControl = new(at + new Vector2(12, 59), new Vector2(273, 32));
+            bool hover = HuntSignalControl.HasPoint(Game.uiPointer);
+            DrawStyleBox(Game.Box(hover ? NauticalPalette.Gold : new Color("63492f"), 6), HuntSignalControl);
+            string input = Game.usingController ? "A" : "F";
+            Text(HuntSignalControl.Position + new Vector2(10, 22), $"{input} · Signal Crownclaw now", 15,
+                color: hover ? NauticalPalette.Navy : NauticalPalette.Cream);
+        }
+
+        void DrawCrownclaw(Enemy boss, float center, bool armorWeakened)
         {
             const string name = "Crownclaw";
             float titleWidth = TitleFont.GetStringSize(name, fontSize: 29).X;
@@ -178,13 +198,13 @@ public partial class Game : Node2D
                 : boss.Telegraph > 0 ? "Winding up · cross the marked lane"
                 : boss.Dash > 0 ? "Charging"
                 : boss.Exposed > 0 ? $"Shell exposed · {boss.Exposed:0.0}s"
-                : "Armored";
+                : armorWeakened ? "Armor weakened by the beacons" : "Armored";
             Text(new(center - BodyFont.GetStringSize(defense, fontSize: 16).X / 2, 98), defense, 16, color: phase);
         }
 
         string? OpeningHint(Voyage run)
         {
-            if (Game.daily.HasValue || Game.log.HasLitBeacon || run.BossSpawned) return null;
+            if (Game.daily.HasValue || Game.log.HasLitBeacon || run.BeaconsLit > 0 || run.BossSpawned) return null;
             if (run.Distance < 75 && Game.course.Destination == null)
                 return Game.usingController ? "Left stick · Sail to a gold beacon" : "WASD · Steer   /   Click a beacon";
             if (run.Kills == 0) return "Your crew fires automatically";
@@ -194,8 +214,11 @@ public partial class Game : Node2D
         void DrawVoyageStatus(Voyage run, string? openingHint, int statusInset)
         {
             var at = new Vector2(24, 24);
-            string task = run.BossSlain ? "The sea is calm" : run.BossSpawned ? "Defeat Crownclaw" : "Light the beacons";
+            string task = run.BossSlain ? "The sea is calm" : run.BossSpawned ? "Defeat Crownclaw"
+                : run.HuntSignalBeacon != null ? "Crownclaw stirs" : "Light the beacons";
             string detail = run.BossSlain ? "Voyage won" : run.BossSpawned ? "Dodge the marked attacks"
+                : run.HuntSignalBeacon != null ? $"Rises in {Math.Ceiling(run.HuntSignalRemaining):0}s"
+                : run.HuntSignalReady ? "2 / 3 lit  ·  Signal at a lit beacon"
                 : $"{run.BeaconsLit} / {run.Beacons.Count} lit    ·    Crownclaw in {ClockText(Math.Max(0, SpawnDirector.BossArrivalSeconds - run.CombatTime))}";
             DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .91f), 9), new(at, new Vector2(297, 143 + statusInset)));
             DrawLine(at + new Vector2(15, 78), at + new Vector2(282, 78), new Color(NauticalPalette.Gold, .35f), 1, true);
@@ -242,7 +265,7 @@ public partial class Game : Node2D
 
         void DrawCourseGuide(Voyage run, Vector2 size, int statusInset)
         {
-            if (!run.IsActive || run.BossSpawned) return;
+            if (!run.IsActive || run.BossSpawned || run.HuntSignalBeacon != null) return;
             if (run.DeliveryBeacon is { } delivery)
             {
                 var at = new Vector2(24, 224 + statusInset);

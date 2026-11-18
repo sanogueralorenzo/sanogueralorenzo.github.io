@@ -163,7 +163,32 @@ public partial class Effects3D : Node3D
                 foam.Arc(center, radius - .08f, -Mathf.Pi / 2, Mathf.Tau * charge, .04f, Fade(color, .83f), 56);
             float wave = time * .36f % 1;
             foam.Arc(center, .34f + wave * 1.15f, 0, Mathf.Tau, .025f, Fade(color, .5f * (1 - wave)), 28);
+            if (beacon == voyage.HuntSignalBeacon && voyage.HuntSignalRemaining > 0)
+                DrawHuntFlare(center, 1 - voyage.HuntSignalRemaining / Voyage.HuntSignalDuration);
         }
+    }
+
+    void DrawHuntFlare(Vector3 center, float progress)
+    {
+        var launch = center + Vector3.Up * 1.3f;
+        for (int i = 0; i < 3; i++)
+        {
+            float rise = Math.Max(0, progress * 1.32f - i * .16f);
+            if (rise <= 0) continue;
+            float arc = Mathf.Sin(rise * 1.9f);
+            var tip = launch + new Vector3((i - 1) * rise * 1.45f, arc * 2.7f + rise * .3f, rise * (i * .7f - .7f));
+            float glow = Mathf.Clamp((1 - progress) * 2.8f, 0, 1);
+            var tail = tip.Lerp(launch, .34f);
+            var wing = Vector3.Right * (.075f * glow);
+            foam.Triangle(tail, tip - wing, tip + wing, Fade(Coral, .82f * glow));
+            tail = tail.Lerp(tip, .53f);
+            wing *= .48f;
+            foam.Triangle(tail, tip - wing, tip + wing, Fade(Cream, glow));
+            Ball(tip, Vector3.One * (.12f * glow), Cream);
+        }
+        float wave = progress * 2 % 1;
+        foam.Arc(center, .28f + wave * Beacon.Radius * .01f, 0, Mathf.Tau,
+            .055f, Fade(NauticalPalette.Gold, .78f * (1 - wave)), 42);
     }
 
     void DrawSalvage(Voyage voyage)

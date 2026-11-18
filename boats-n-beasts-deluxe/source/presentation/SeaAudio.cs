@@ -81,6 +81,7 @@ public partial class SeaAudio : Node
         AddCue("upgrade", Chime(.31f, [494, 659], .48f));
         AddCue("beaconStart", Chime(.4f, [262, 330], .37f));
         AddCue("beacon", Chime(.85f, [294, 440, 587, 740], .68f));
+        AddCue("huntSignal", Chime(.89f, [196, 294, 392], .68f));
         AddCue("boss", Chime(1.25f, [98, 139, 147], .75f));
         AddCue("crownclawWindup", Chime(.44f, [108, 114, 156], .76f));
         AddCue("crownclawGrounded", Thump(.61f, 51, .90f));

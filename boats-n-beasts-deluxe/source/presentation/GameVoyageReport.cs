@@ -28,6 +28,7 @@ public partial class Game
         if (Run.CloseCalls > 0) detail.Add($"Close calls {Run.CloseCalls}");
         if (Run.Salvage.Delivered) detail.Add("Wreck salvage delivered");
         if (Run.FloatingCacheClaimed) detail.Add("Drifting cache secured");
+        if (Run.HuntSignalBeacon != null) detail.Add("Hunt signal fired");
         if (detail.Count > 0) column.AddChild(Label(string.Join("  ·  ", detail), 16));
         if (DailyResult() is { } dailyResult) column.AddChild(Label(dailyResult, 16, color: NauticalPalette.Aqua));
         if (SailUnlockResult() is { } sail) column.AddChild(Label(sail, 16, color: NauticalPalette.Gold));
