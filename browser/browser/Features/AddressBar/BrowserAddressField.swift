@@ -16,8 +16,9 @@ struct BrowserAddressField: NSViewRepresentable {
         let field = Field()
         field.delegate = context.coordinator
         field.placeholderString = prompt
-        field.font = .systemFont(ofSize: 18)
+        field.font = .systemFont(ofSize: 16)
         field.isBordered = false
+        field.focusRingType = .none
         field.drawsBackground = false
         field.lineBreakMode = .byTruncatingTail
         field.stringValue = text

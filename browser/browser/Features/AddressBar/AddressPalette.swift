@@ -1,10 +1,14 @@
+import AppKit
 import SwiftUI
 
 struct AddressPalette: View {
     let store: BrowserStore
+    let cornerRadius: CGFloat
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var text: String
-    init(store: BrowserStore) {
+    init(store: BrowserStore, cornerRadius: CGFloat) {
         self.store = store
+        self.cornerRadius = cornerRadius
         _text = State(initialValue: store.addressText)
     }
     @State private var suggestions: [String] = []
@@ -27,29 +31,59 @@ struct AddressPalette: View {
         let results = results
         let completion = completionURL
         let selection = selectedIndex(resultCount: results.count)
-        VStack(spacing: 0) {
-            editor
-            if siteSearch == nil && (!results.isEmpty || !suggestions.isEmpty) {
-                Divider()
-                resultList(results, selection: selection)
+        ZStack(alignment: .top) {
+            backdrop
+            VStack(spacing: 5) {
+                editor
+                if siteSearch == nil && (!results.isEmpty || !suggestions.isEmpty) {
+                    resultsPanel(results, selection: selection)
+                }
             }
-        }.frame(width: 580)
-            .background(BrowserBrandTheme.surface, in: RoundedRectangle(cornerRadius: 20))
-            .overlay {
-                RoundedRectangle(cornerRadius: 20).stroke(BrowserBrandTheme.line, lineWidth: 0.5)
-            }
+            .frame(maxWidth: 525)
+            .padding(.horizontal, 16)
+            .padding(.top, 48)
+            .padding(.bottom, 16)
+        }
+        .onChange(of: text) { selected = nil }
+        .onChange(of: store.activeSpace.id) {
+            if siteSearch != nil { cancel() }
+        }
+        .task(id: completion) { await loadSuggestions(from: completion) }
+        .onExitCommand(perform: cancel)
+    }
 
-            .onChange(of: text) { selected = nil }
-            .onChange(of: store.activeSpace.id) {
-                if siteSearch != nil { cancel() }
+    private var backdrop: some View {
+        let canvas = BrowserBrandTheme.canvas
+        return Group {
+            if reduceTransparency {
+                canvas
+            } else {
+                LinearGradient(
+                    stops: [
+                        .init(color: canvas.opacity(0.95), location: 0),
+                        .init(color: canvas.opacity(0.93), location: 0.61),
+                        .init(color: canvas.opacity(0.86), location: 0.82),
+                        .init(color: canvas.opacity(0.71), location: 1),
+                    ],
+                    startPoint: .top, endPoint: .bottom
+                )
+                .background { AddressFocusMaterial().allowsHitTesting(false) }
             }
-            .task(id: completion) { await loadSuggestions(from: completion) }
-            .onExitCommand(perform: cancel)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: store.dismissAddress)
+        .accessibilityHidden(true)
+    }
+
+    private var panelShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
     }
 
     private var editor: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
             if let siteSearch {
                 Text("Search \(siteSearch.search.name)")
                     .fontWeight(.medium)
@@ -62,12 +96,44 @@ struct AddressPalette: View {
                 text: $text, prompt: siteSearch == nil ? "Search or Enter URL…" : "Search Terms…",
                 submit: submit, cancel: cancel, moveSelection: move, tab: tab
             ).frame(height: 28)
-            Button {
-                store.dismissAddress()
-            } label: {
-                Image(systemName: "xmark")
-            }.buttonStyle(BrowserChromeButtonStyle())
-        }.padding(18)
+            Button(action: cancel) {
+                Text("Esc")
+                    .font(.system(size: 11, weight: .medium))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 3)
+                    .overlay { RoundedRectangle(cornerRadius: 5).strokeBorder(BrowserBrandTheme.line) }
+            }
+            .buttonStyle(BrowserChromeButtonStyle(controlSize: CGSize(width: 34, height: 28)))
+            .accessibilityLabel("Cancel")
+        }
+        .padding(.leading, 15)
+        .padding(.trailing, 9)
+        .frame(height: 46)
+        .background {
+            panelShape.fill(BrowserBrandTheme.surface)
+                .shadow(color: .black.opacity(reduceTransparency ? 0 : 0.20), radius: 10, y: 3)
+        }
+        .overlay { panelShape.strokeBorder(BrowserBrandTheme.textDisplay.opacity(0.56), lineWidth: 1.25) }
+    }
+
+    private func resultsPanel(_ results: [BrowserPaletteResult], selection: Int?) -> some View {
+        ViewThatFits(in: .vertical) {
+            resultList(results, selection: selection)
+                .fixedSize(horizontal: false, vertical: true)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    resultList(results, selection: selection)
+                }
+                .onChange(of: selection, initial: true) { _, index in
+                    if let index { proxy.scrollTo(index) }
+                }
+            }
+        }
+        .background {
+            panelShape.fill(BrowserBrandTheme.surface)
+                .shadow(color: .black.opacity(reduceTransparency ? 0 : 0.20), radius: 14, y: 5)
+        }
+        .overlay { panelShape.strokeBorder(BrowserBrandTheme.line, lineWidth: 0.5) }
     }
 
     private func resultList(_ results: [BrowserPaletteResult], selection: Int?) -> some View {
@@ -81,6 +147,7 @@ struct AddressPalette: View {
                         title: result.title, subtitle: result.subtitle, symbol: result.symbol, spaceColor: result.spaceColor,
                         showsSearchHint: index == tabSelection && knownSearch(for: result) != nil)
                 }
+                .id(index)
             }
             ForEach(Array(suggestions.enumerated()), id: \.offset) { index, suggestion in
                 resultButton(selected: results.count + index == selection) {
@@ -88,6 +155,7 @@ struct AddressPalette: View {
                 } label: {
                     row(title: suggestion, subtitle: store.preferences.searchProvider.rawValue, symbol: "magnifyingglass")
                 }
+                .id(results.count + index)
             }
         }.padding(8)
     }
@@ -208,6 +276,18 @@ struct AddressPalette: View {
             if showsSearchHint {
                 Text("Tab to search").font(.caption).foregroundStyle(.secondary)
             }
-        }.padding(10).frame(maxWidth: .infinity, alignment: .leading)
+        }.padding(.horizontal, 10).padding(.vertical, 7).frame(maxWidth: .infinity, alignment: .leading)
     }
+}
+
+private struct AddressFocusMaterial: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.blendingMode = .withinWindow
+        view.material = .popover
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {}
 }

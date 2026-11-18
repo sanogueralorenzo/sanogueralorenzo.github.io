@@ -3,6 +3,7 @@ import SwiftUI
 enum SidebarGeometry {
     static let width = CGFloat(289)
     static let widthRange: ClosedRange<CGFloat> = 280...380
+    static let defaultWindowRadius: CGFloat = 13
     static let inset: CGFloat = 6
     static let revealWidth: CGFloat = 16
     static let hoverMargin: CGFloat = 32
@@ -23,7 +24,7 @@ enum SidebarGeometry {
     }
 
     static func radius(windowCornerRadius: CGFloat?) -> CGFloat {
-        max(0, (windowCornerRadius ?? 13) - inset)
+        max(0, (windowCornerRadius ?? defaultWindowRadius) - inset)
     }
 
     static func clampedWidth(_ width: CGFloat) -> CGFloat {

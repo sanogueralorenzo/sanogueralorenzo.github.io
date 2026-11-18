@@ -34,8 +34,8 @@ struct BrowserRoot: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 }
                 if store.addressPresented {
-                    BrowserBrandTheme.canvas.opacity(0.3).onTapGesture { store.dismissAddress() }
-                    AddressPalette(store: store).id(store.addressPresentationID)
+                    AddressPalette(store: store, cornerRadius: windowCornerRadius ?? SidebarGeometry.defaultWindowRadius)
+                        .id(store.addressPresentationID)
                 }
                 if store.recentSwitcherPresented { BrowserRecentSwitcher(store: store) }
                 if let notice = store.notice ?? store.owner.storageError {
