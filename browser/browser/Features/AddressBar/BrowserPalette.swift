@@ -16,13 +16,14 @@ extension BrowserStore {
     func paletteResults(_ input: String) -> [BrowserPaletteResult] {
         let commandOnly = input.hasPrefix(">")
         let query = (commandOnly ? String(input.dropFirst()) : input).trimmingCharacters(in: .whitespacesAndNewlines)
+        let match = Self.folded(query)
         var results: [BrowserPaletteResult] = []
         let visibleSpaces = session.spaces.filter { $0.isPrivate == activeSpace.isPrivate }
         if !commandOnly {
             for space in visibleSpaces {
                 for tab in space.tabs where !tab.isSettings {
                     let title = tab.customTitle ?? tab.title
-                    if let score = Self.matchScore(query, in: title + " " + (tab.url?.absoluteString ?? "")) {
+                    if let score = Self.pageMatchScore(match, title: title, address: tab.url) {
                         let bonus = tab.placement == .current ? 20.0 : 35.0
                         results.append(
                             .init(
@@ -38,7 +39,7 @@ extension BrowserStore {
                                 }))
                     }
                 }
-                if let score = Self.matchScore(query, in: space.name), !query.isEmpty {
+                if let score = Self.matchScore(match, in: space.name), !query.isEmpty {
                     results.append(
                         .init(
                             id: "space-\(space.id)", title: space.name, subtitle: "Switch Space", symbol: "capsule.fill",
@@ -46,7 +47,7 @@ extension BrowserStore {
                             score: score + 10, perform: { $0.selectSpace(space.id) }))
                 }
                 for folder in space.folders {
-                    if let score = Self.matchScore(query, in: folder.title), !query.isEmpty {
+                    if let score = Self.matchScore(match, in: folder.title), !query.isEmpty {
                         results.append(
                             .init(
                                 id: "folder-\(folder.id)", title: folder.title, subtitle: space.name + " · Folder",
@@ -59,7 +60,7 @@ extension BrowserStore {
                 }
             }
             for visit in session.history where visit.spaceID == activeSpace.id {
-                if let score = Self.matchScore(query, in: visit.title + " " + visit.url.absoluteString) {
+                if let score = Self.pageMatchScore(match, title: visit.title, address: visit.url) {
                     let age = max(0, Date().timeIntervalSince(visit.date) / 86400)
                     results.append(
                         .init(
@@ -80,7 +81,7 @@ extension BrowserStore {
             }
         }
         for command in BrowserPaletteCommand.all {
-            if let score = Self.matchScore(query, in: command.title + " " + command.aliases) {
+            if let score = Self.matchScore(match, in: command.title + " " + command.aliases, allowsFuzzy: commandOnly) {
                 results.append(
                     .init(
                         id: "command-" + command.title, title: command.title, subtitle: command.shortcut,
@@ -102,25 +103,47 @@ extension BrowserStore {
     }
 
     private static func hasHostCompletion(_ query: String, for url: URL, in results: [BrowserPaletteResult]) -> Bool {
-        guard let typedHost = url.host()?.lowercased(), query.lowercased() == typedHost else { return false }
-        let prefix = typedHost.hasPrefix("www.") ? String(typedHost.dropFirst(4)) : typedHost
+        guard query.lowercased() == url.host()?.lowercased(), let prefix = addressHost(url) else { return false }
         return results.contains { result in
-            guard let host = result.address?.host()?.lowercased() else { return false }
-            let hostname = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
-            guard hostname.hasPrefix(prefix), hostname != prefix else { return false }
-            return hostname.dropFirst(prefix.count).first != "."
+            guard let host = addressHost(result.address), host.hasPrefix(prefix), host != prefix else { return false }
+            return host.dropFirst(prefix.count).first != "."
         }
     }
 
-    static func matchScore(_ query: String, in text: String) -> Double? {
+    private static func addressHost(_ address: URL?) -> String? {
+        guard let host = address?.host()?.lowercased() else { return nil }
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+    }
+
+    private static func pageMatchScore(_ query: String, title: String, address: URL?) -> Double? {
         guard !query.isEmpty else { return 0 }
-        let query = query.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-        let text = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+        if let host = addressHost(address).map(folded) {
+            if host == query { return 280 }
+            if host.hasPrefix(query) { return 260 }
+            if host.split(separator: ".").dropLast().contains(where: { $0.hasPrefix(query) }) { return 250 }
+        }
+        return [matchScore(query, in: title), address.flatMap { matchScore(query, in: $0.absoluteString) }]
+            .compactMap { $0 }.max()
+    }
+
+    private static func folded(_ text: String) -> String {
+        text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+    }
+
+    private static func matchScore(_ query: String, in text: String, allowsFuzzy: Bool = false) -> Double? {
+        guard !query.isEmpty else { return 0 }
+        let text = folded(text)
         if text == query { return 200 }
         if text.hasPrefix(query) { return 150 - Double(text.count - query.count) * 0.05 }
-        if let range = text.range(of: query) {
-            return 100 - Double(text.distance(from: text.startIndex, to: range.lowerBound)) * 0.3
+        var start = text.startIndex
+        while let range = text.range(of: query, range: start..<text.endIndex) {
+            let preceding = range.lowerBound == text.startIndex ? nil : text[text.index(before: range.lowerBound)]
+            if allowsFuzzy || preceding.map({ !$0.isLetter && !$0.isNumber }) != false {
+                return 100 - Double(text.distance(from: text.startIndex, to: range.lowerBound)) * 0.3
+            }
+            start = text.index(after: range.lowerBound)
         }
+        guard allowsFuzzy else { return nil }
         var cursor = text.startIndex
         var gap = 0
         for character in query {
