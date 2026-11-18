@@ -68,7 +68,7 @@ public sealed partial class Voyage
     public float MaxHealth => Spec.Hull * Rules.HullFactor + HullRank * 25;
     public float Speed => Spec.Speed * (1 + EngineRank * .1f);
     public int PendingUpgrades { get; private set; }
-    public float WhirlpoolRadius => (154 + Math.Max(0, Weapons[4] - 1) * 30) * Area;
+    public float WhirlpoolRadius => WeaponPerformance(WeaponKind.Undertow, Math.Max(1, Weapons[4])).Reach;
     public int NextXp => 5 + Level * 3;
     public float Area => 1 + AreaRank * .15f;
     public Voyage(uint seed, BoatKind boat, Charter charter = Charter.Coastguard)
@@ -405,18 +405,13 @@ public sealed partial class Voyage
     {
         int rank = Rank(option);
         if (rank >= 5) return "Max level.";
+        if (option < Weapons.Length) return WeaponRefit((WeaponKind)option, rank);
         return option switch
         {
-            0 => rank == 0 ? "Fires a bouncing cannonball." : rank == 4 ? "Five cannonballs. Each can ricochet twice." : $"Another cannonball. {rank + 1} per shot.",
-            1 => rank == 0 ? "Hooks enemies and pulls them closer." : rank == 4 ? "Pierces three beasts and pulls harder." : "Harpoon pulls harder and deals more damage.",
-            2 => rank == 0 ? "Leaves explosive mines in your wake." : rank == 4 ? "Bigger blasts and faster mine deployment." : "Bigger mine blasts. +30 blast radius.",
-            3 => rank == 0 ? "Lightning hits up to 3 enemies." : $"{rank + 3} targets and more damage.",
-            4 => rank == 0 ? "Hits nearby enemies in every direction." : "Larger whirlpool and more damage.",
-            5 => rank == 0 ? "Fires a homing magic orb." : rank == 4 ? "Five homing orbs. Each can strike twice." : $"Another magic orb. {rank + 1} per cast.",
-            6 => "+25 max health and repairs 25 hull.",
-            7 => "+10% sailing speed.",
-            8 => "+12% fire rate for every weapon.",
-            9 => "+15% attack area.",
+            6 => $"{MaxHealth:0} → {MaxHealth + 25:0} max hull · Repairs 25 hull",
+            7 => $"{Speed:0} → {Spec.Speed * (1 + (EngineRank + 1) * .1f):0} m/s sailing speed",
+            8 => $"{ReloadRank * 12}% → {(ReloadRank + 1) * 12}% reload speed bonus",
+            9 => $"{AreaRank * 15}% → {(AreaRank + 1) * 15}% weapon range and radius bonus",
             _ => UpgradeDescriptions[option]
         };
     }

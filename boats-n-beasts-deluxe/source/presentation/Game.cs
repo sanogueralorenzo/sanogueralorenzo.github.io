@@ -27,6 +27,7 @@ public partial class Game : Node2D
     float toastTime;
     string toast = "";
     float lootNoticeTime, hitNotice;
+    float pairingFlash;
     string lootNotice = "";
     V2 lootNoticePosition;
 
@@ -54,6 +55,7 @@ public partial class Game : Node2D
         toastTime = Math.Max(0, toastTime - dt);
         lootNoticeTime = Math.Max(0, lootNoticeTime - dt);
         hitNotice = Math.Max(0, hitNotice - dt);
+        pairingFlash = Math.Max(0, pairingFlash - dt);
         if (chartOpen) PanChart(dt);
         if (!title && !controls && !chartOpen && Run.IsActive)
         {
@@ -83,6 +85,11 @@ public partial class Game : Node2D
             {
                 case "beacon": Toast($"Beacon lit · +{e.Value:0} XP"); break;
                 case "comboFitted": Toast($"{Run.ActiveCombo!.Name} fitted"); break;
+                case "stormshot":
+                case "tripwire":
+                case "riptide":
+                    pairingFlash = .9f;
+                    break;
                 case "towHooked": Toast("Tow secured · take the cargo to any beacon"); break;
                 case "towSnapped": Toast("Towline snapped · sail back to the cargo"); break;
                 case "towDelivered":
@@ -220,7 +227,7 @@ public partial class Game : Node2D
     }
     void Start()
     {
-        lootNoticeTime = hitNotice = 0;
+        lootNoticeTime = hitNotice = pairingFlash = 0;
         chartOpen = false;
         dailyBonus = earnedSails = 0;
         creditedSilver = 0; course.Clear(); toastTime = 0; maneuverRequested = false;

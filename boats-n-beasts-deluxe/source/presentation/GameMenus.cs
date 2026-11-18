@@ -76,6 +76,7 @@ public partial class Game : Node2D
             return;
         }
         if (Run.Mode == VoyageMode.Sailing) return;
+        departingMenu?.Hide();
         var shade = new ColorRect { Color = new(0.015f, .06f, .16f, .66f), MouseFilter = Control.MouseFilterEnum.Stop }; shade.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); menuRoot.AddChild(shade);
         VBoxContainer col;
         switch (Run.Mode)
@@ -270,7 +271,7 @@ public partial class Game : Node2D
         row.AddChild(new UpgradeSymbol { Kind = option, CustomMinimumSize = new(40, 40), SizeFlagsVertical = Control.SizeFlags.ShrinkCenter });
         var text = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
         text.AddThemeConstantOverride("separation", 6); row.AddChild(text);
-        string rank = Run.Rank(option) == 0 ? "New" : $"Level {Run.Rank(option)} → {Run.Rank(option) + 1}";
+        string rank = Run.Rank(option) == 0 ? "New" : $"Rank {Run.Rank(option)} → {Run.Rank(option) + 1}";
         text.AddChild(Label(option >= Voyage.FirstSpecialtyOption ? Voyage.UpgradeNames[option] : $"{Voyage.UpgradeNames[option]} · {rank}", 23, true));
         text.AddChild(Label(Run.UpgradeBenefit(option), 18));
         if (combo != null)

@@ -75,15 +75,20 @@ public partial class Game : Node2D
                 }
             }
             var combo = r.ActiveCombo;
+            float pairingGlow = Mathf.SmoothStep(0, 1, Game.pairingFlash / .9f);
             if (combo != null)
             {
                 float width = TitleFont.GetStringSize(combo.Name, fontSize: 15).X;
                 var at = new Vector2((size.X - width) / 2, size.Y - 77);
-                DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .88f), 6),
+                var fill = new Color(NauticalPalette.Navy, .88f).Lerp(new Color("574125"), pairingGlow);
+                Color? edge = pairingGlow > 0 ? new Color(NauticalPalette.Gold, pairingGlow) : null;
+                DrawStyleBox(Game.Box(fill, 6, edge),
                     new(at - new Vector2(10, 17), new Vector2(width + 20, 23)));
-                Text(at, combo.Name, 15, true, NauticalPalette.Gold);
+                Text(at, combo.Name, 15, true, NauticalPalette.Gold.Lerp(NauticalPalette.Cream, pairingGlow));
             }
             var equipped = Enumerable.Range(0, Voyage.UpgradeNames.Length).Where(i => r.Rank(i) > 0).ToArray();
+            int hovered = -1;
+            Rect2 hoveredBounds = default;
             for (int slot = 0; slot < equipped.Length; slot++)
             {
                 int item = equipped[slot];
@@ -91,28 +96,26 @@ public partial class Game : Node2D
                 var p = bounds.Position;
                 bool paired = combo != null && (item == (int)combo.First || item == (int)combo.Second);
                 Color symbol = paired ? NauticalPalette.Gold : NauticalPalette.Aqua;
-                Color? border = paired ? new Color(NauticalPalette.Gold, .48f) : null;
+                Color? border = paired ? new Color(NauticalPalette.Gold, .48f + pairingGlow * .52f) : null;
                 DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .65f), 6, border), bounds);
                 DrawSetTransform(p + new Vector2(4, 2));
                 UpgradeSymbol.DrawSymbol(this, item, symbol);
                 DrawSetTransform(Vector2.Zero);
                 DrawCircle(p + new Vector2(42, 40), 10, NauticalPalette.Navy);
                 Text(p + new Vector2(38, 45), r.Rank(item).ToString(), 13, true);
+                bool weapon = item < r.Weapons.Length;
+                if (weapon)
+                {
+                    float reload = r.WeaponPerformance((WeaponKind)item, r.Rank(item)).ReloadSeconds;
+                    float readiness = Math.Clamp(1 - r.Cooldowns[item] / reload, 0, 1);
+                    var rail = p + new Vector2(5, 42);
+                    DrawRect(new(rail, new Vector2(27, 2)), new Color(symbol, .23f));
+                    DrawRect(new(rail, new Vector2(27 * readiness, 2)), symbol);
+                }
                 if (bounds.HasPoint(Game.uiPointer))
                 {
-                    string name = $"{Voyage.UpgradeNames[item]} · Rank {r.Rank(item)}";
-                    string detail = Voyage.UpgradeDescriptions[item];
-                    string pairing = paired ? $"{combo!.Name} · {combo.Description}" : "";
-                    float content = Math.Max(BodyFont.GetStringSize(detail, fontSize: 16).X,
-                        BodyFont.GetStringSize(pairing, fontSize: 14).X);
-                    float width = Math.Max(content, 220) + 28;
-                    float height = paired ? 83 : 63;
-                    var at = new Vector2(Math.Clamp(p.X + 24 - width / 2, 12, Math.Max(12, size.X - width - 12)),
-                        p.Y - height - 34);
-                    DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .95f), 8), new(at, new Vector2(width, height)));
-                    Text(at + new Vector2(14, 24), name, 17, true);
-                    Text(at + new Vector2(14, 47), detail, 16);
-                    if (paired) Text(at + new Vector2(14, 69), pairing, 14, color: NauticalPalette.Gold);
+                    hovered = item;
+                    hoveredBounds = bounds;
                 }
             }
             Bar(Vector2.Zero, new(size.X, 8), r.Xp / (float)r.NextXp, NauticalPalette.Aqua);
@@ -127,6 +130,28 @@ public partial class Game : Node2D
                 DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .9f), 10), new(x - 20, y, size.X - x * 2 + 40, 45));
                 Text(new(x, y + 30), Game.toast, 20);
             }
+            if (hovered >= 0 && r.IsActive) DrawEquipmentTooltip(r, hovered, hoveredBounds, combo, size.X);
+        }
+
+        void DrawEquipmentTooltip(Voyage run, int item, Rect2 bounds, WeaponCombo? combo, float viewWidth)
+        {
+            bool weapon = item < run.Weapons.Length;
+            bool paired = combo != null && (item == (int)combo.First || item == (int)combo.Second);
+            string name = $"{Voyage.UpgradeNames[item]} · Rank {run.Rank(item)}";
+            string detail = Voyage.UpgradeDescriptions[item];
+            string readout = weapon ? run.WeaponReadout((WeaponKind)item) : "";
+            string pairing = paired ? $"{combo!.Name} · {combo.Description}" : "";
+            float content = Math.Max(BodyFont.GetStringSize(detail, fontSize: 16).X,
+                Math.Max(BodyFont.GetStringSize(pairing, fontSize: 14).X, BodyFont.GetStringSize(readout, fontSize: 15).X));
+            float width = Math.Max(content, 220) + 28;
+            float height = 63 + (weapon ? 22 : 0) + (paired ? 22 : 0);
+            var at = new Vector2(Math.Clamp(bounds.GetCenter().X - width / 2, 12, Math.Max(12, viewWidth - width - 12)),
+                bounds.Position.Y - height - 34);
+            DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .97f), 8), new(at, new Vector2(width, height)));
+            Text(at + new Vector2(14, 24), name, 17, true);
+            Text(at + new Vector2(14, 47), detail, 16);
+            if (weapon) Text(at + new Vector2(14, 69), readout, 15, color: NauticalPalette.Aqua);
+            if (paired) Text(at + new Vector2(14, 91), pairing, 14, color: NauticalPalette.Gold);
         }
 
         void DrawCrownclaw(Enemy boss, float center)
