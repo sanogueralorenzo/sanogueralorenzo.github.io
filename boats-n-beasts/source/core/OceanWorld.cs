@@ -16,7 +16,7 @@ public struct SeedRandom
     }
 }
 public readonly record struct ChunkKey(int X, int Y);
-public enum PlaceKind { Island, Rock, Harbor, Treasure, Current, Barrel, Shipwreck, Whirlpool }
+public enum PlaceKind { Island, Rock, Harbor, Treasure, Current, Barrel, Whirlpool }
 public sealed record Place(string Id, PlaceKind Kind, Vector2 Position, float Radius, uint Style, float Heading = 0)
 {
     IslandShape? shape;
@@ -28,9 +28,6 @@ public sealed record OceanChunk(ChunkKey Key, Place[] Places);
 public sealed class OceanWorld(uint seed)
 {
     public const int ChunkSize = 1200;
-    // Shared normalization for the procedural sea-wreck mesh and its hull collision.
-    public const float ShipwreckUnitRadius = 165;
-    public const float ShipwreckHeading = -.55f;
     public const float MaxRegularIslandRadius = 720;
     public const float PrisonIslandRadius = 1200;
     public const float MaxIslandRadius = PrisonIslandRadius;
@@ -197,11 +194,10 @@ public sealed class OceanWorld(uint seed)
             position=default; return false;
         }
         if(rng.Unit()<.35f && TryPosition(150,out var current)) Add(PlaceKind.Current,current,245);
-        if(rng.Unit()<.20f && TryPosition(380,out var wreck)) Add(PlaceKind.Shipwreck,wreck,220);
         // Visual open-water landmark; it adds no collision, damage or current forces.
         if(rng.Unit()<.18f && TryPosition(340,out var whirlpool)) Add(PlaceKind.Whirlpool,whirlpool,260);
     }
-    public static bool IsSolid(Place place) => place.Kind is PlaceKind.Island or PlaceKind.Rock or PlaceKind.Harbor or PlaceKind.Shipwreck;
+    public static bool IsSolid(Place place) => place.Kind is PlaceKind.Island or PlaceKind.Rock or PlaceKind.Harbor;
     public static Vector2 FlowDirection(Place current)
     {
         float angle = current.Style % 16 * MathF.Tau / 16;
@@ -240,17 +236,6 @@ public sealed class OceanWorld(uint seed)
     {
         var offset = position - place.Position;
         if (place.Shape is { } shape) return shape.Overlap(offset, clearance, out normal, out depth);
-        if (place.Kind == PlaceKind.Shipwreck)
-        {
-            // Capsule follows the surviving hull, not its mast or scattered floating planks.
-            float scale = place.Radius / ShipwreckUnitRadius * 100;
-            var axis = new Vector2(MathF.Cos(ShipwreckHeading), -MathF.Sin(ShipwreckHeading));
-            var nearest = axis * Math.Clamp(Vector2.Dot(offset, axis), -.82f * scale, .67f * scale);
-            var away = offset - nearest;
-            normal = Unit(away, new(-axis.Y, axis.X));
-            depth = .50f * scale + clearance - away.Length();
-            return depth > 0;
-        }
         float distance = offset.Length();
         normal = Unit(offset, Vector2.UnitX); depth = place.Radius + clearance - distance;
         return depth > 0;

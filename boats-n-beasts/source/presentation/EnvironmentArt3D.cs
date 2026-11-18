@@ -15,13 +15,7 @@ public static partial class EnvironmentArt3D
         var art = new Sculptor { Sizes = landmarkSizes ?? new LandmarkSizes() };
         var rng = new SeedRandom(place.Style);
         float r = place.Radius * .01f;
-        if (place.Kind == PlaceKind.Shipwreck)
-        {
-            float scale = place.Radius / OceanWorld.ShipwreckUnitRadius;
-            art.Transform = new Transform3D(Basis.FromEuler(new(0, OceanWorld.ShipwreckHeading, 0)).Scaled(Vector3.One * scale), new(0, -.12f * scale, 0));
-            Shipwreck(art, afloat: true);
-        }
-        else if (place.Kind == PlaceKind.Rock)
+        if (place.Kind == PlaceKind.Rock)
         {
             Land(art, r * .88f, place.Style, true);
             Rock(art, new(0, .04f, 0), new(r * 1.7f, r * 1.65f, r * 1.5f), place.Style);

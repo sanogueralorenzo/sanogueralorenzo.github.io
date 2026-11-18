@@ -11,7 +11,6 @@ public static partial class EnvironmentArt3D
         0 when OceanWorld.IsPrisonIsland(r * 100, seed) => 0,
         1 when r >= 1.4f => 1,
         2 when r >= 2.0f => 2,
-        3 when r >= 2.0f => 3,
         4 when r >= 2.0f => 4,
         5 when r >= 2.0f => 5,
         6 when r >= 2.0f && seed % 3 != 0 => seed % 2 == 0 ? 6 : 7,
@@ -21,7 +20,7 @@ public static partial class EnvironmentArt3D
 
     public static string IslandScenery(float radius, uint seed) => SettlementKind(radius * .01f, seed) switch
     {
-        0 => "Prison", 1 => "Watchtower", 2 => "Pirate tavern", 3 => "Shipwreck", 4 => "Sea cave", 5 => "Ancient arch", 6 => "Lighthouse", 7 => "Market stall", 8 => "Windmill", _ => (seed % 3) switch { 0 => "Ruins", 1 => "Grove", _ => "Cliffs" }
+        0 => "Prison", 1 => "Watchtower", 2 => "Pirate tavern", 4 => "Sea cave", 5 => "Ancient arch", 6 => "Lighthouse", 7 => "Market stall", 8 => "Windmill", _ => (seed % 3) switch { 0 => "Ruins", 1 => "Grove", _ => "Cliffs" }
     };
 
     private static bool SettlementInterior(Sculptor art, float r, uint seed)
@@ -47,7 +46,7 @@ public static partial class EnvironmentArt3D
         // New landmarks include visible floors; keep them above the terrain's .20 cap.
         if (kind >= 2) anchor.Y = .205f;
         // Include the projecting gate, wall buttresses and steps in the fitted footprint.
-        float footprint = kind switch { 0 => 1.70f, 1 => .82f, 2 => 1.65f, 3 => 1.65f, 4 => 1.50f, 5 => 1.20f, 6 => .85f, 7 => 1.10f, 8 => 1.55f, _ => 1.0f };
+        float footprint = kind switch { 0 => 1.70f, 1 => .82f, 2 => 1.65f, 4 => 1.50f, 5 => 1.20f, 6 => .85f, 7 => 1.10f, 8 => 1.55f, _ => 1.0f };
         // The former prison could reach at most 1.245 world scale. Scale 4
         // gives over 10x its footprint area; never shrink a destination into a prop.
         const float prisonScale = 4f;
@@ -64,7 +63,6 @@ public static partial class EnvironmentArt3D
             case 0: Prison(art); break;
             case 1: Watchtower(art); break;
             case 2: PirateTavern(art); break;
-            case 3: Shipwreck(art); break;
             case 4: SeaCave(art, seed); break;
             case 5: AncientArch(art, seed); break;
             case 6: Lighthouse(art); break;

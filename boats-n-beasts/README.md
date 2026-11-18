@@ -18,9 +18,9 @@ Saving C# rebuilds and restarts the preview; shader edits refresh without a buil
 
 Preview shortcuts follow keyboard order: **Q–P** islands and landmarks, **A–L** scenery and size/crew controls, **Z/X** turn the boat, **C** view, **V** refresh. The preview shows every binding; **Q** cycles island samples.
 
-Select **1** lighthouse, **2** tavern, **3** market stall, **6** windmill, **7** shipwreck, **8** sea cave or **9** ancient arch; **+ / −** adjusts that model's size independently and remembers it across preview restarts. **O** toggles the selected wreck between land and water. Sizes fit the available land; sea wreck size follows its place radius. Production defaults and per-build overrides live in `LandmarkSizes` in `source/presentation/EnvironmentLandmarks3D.cs` (`EnvironmentArt3D.Build(place, new LandmarkSizes(Tavern: 1.6f))`).
+Select **R** lighthouse, **T** tavern, **Y** market stall, **U** windmill, **O** sea cave or **P** ancient arch. **H/J** adjusts the selected model’s size and remembers it across preview restarts. Production defaults and per-build overrides live in `LandmarkSizes` in `source/presentation/EnvironmentLandmarks3D.cs` (`EnvironmentArt3D.Build(place, new LandmarkSizes(Tavern: 1.6f))`).
 
-Run the focused sea-wreck collision and generation checks with `dotnet run --project tests/WorldChecks.csproj`.
+Run the focused world-generation checks with `dotnet run --project tests/WorldChecks.csproj`.
 
 ## Current gameplay
 
@@ -32,7 +32,7 @@ Run the focused sea-wreck collision and generation checks with `dotnet run --pro
 
 ## Visual style
 
-Use broad matte shapes, warm light, quiet teal water, irregular sandy islands and readable wooden pirate ships. Prisons occupy rare large island destinations; watchtowers, taverns, lighthouses, market stalls, windmills, shipwrecks, sea caves and ancient arches join the existing ruins, groves and cliffs. Island landmarks are decorative; sea wrecks are solid obstacles with hull-shaped collision. Generate all gameplay art in code.
+Use broad matte shapes, warm light, quiet teal water, irregular sandy islands and readable wooden pirate ships. Prisons occupy rare large island destinations; watchtowers, taverns, lighthouses, market stalls, windmills, sea caves and ancient arches join the existing ruins, groves and cliffs. Island landmarks are decorative. Generate all gameplay art in code.
 
 ## Install on macOS
 
