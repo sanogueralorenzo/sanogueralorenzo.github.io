@@ -1,9 +1,10 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, depth_draw_never;
+#include "res://source/presentation/sea-palette.gdshaderinc"
 uniform float clock = 0.0;
+uniform vec2 weather = vec2(0.0);
 varying vec3 world;
 
-vec3 linear_color(vec3 c) { return mix(c/12.92,pow((c+vec3(.055))/1.055,vec3(2.4)),step(vec3(.04045),c)); }
 float hash(vec2 p) { return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float noise(vec2 p) {
     vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
@@ -33,6 +34,8 @@ void fragment() {
     float shoal=noise(world.xz*1.7)*.65+noise(world.xz*.65)*.35;
     float foam=clamp(wash+edge+lace,0.0,1.0)*(.75+.25*shoal);
     float shelf_alpha=(1.0-smoothstep(.35,1.0,depth+(.5-shoal)*.18))*(.82+.10*shoal);
-    ALBEDO=linear_color(mix(shallow,vec3(.91,.96,.84),foam));
+    vec3 foam_color = mix(vec3(.90,.96,.85), vec3(.91,.85,.67), weather.x * (1.0 - weather.y));
+    foam_color = mix(foam_color, vec3(.65,.78,.90), weather.y);
+    ALBEDO=linear_color(mix(sea_weather(shallow, weather), foam_color, foam));
     ALPHA=max(foam*.84,shelf_alpha);
 }

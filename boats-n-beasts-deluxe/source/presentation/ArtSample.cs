@@ -14,8 +14,10 @@ public partial class ArtSample : Node3D
     bool beachReference = true;
     bool seaWreck;
     bool whirlpool;
+    int light;
     const string SettingsPath = "user://art-preview.cfg";
     Label status = null!;
+    string sampleSummary = "";
     Node3D rocky = null!;
     Node3D? cargo;
     System.Numerics.Vector2 cargoPosition;
@@ -73,7 +75,8 @@ public partial class ArtSample : Node3D
             var deck = boat.ToGlobal(new Vector3(0, 0, .18f));
             center = new Vector2(deck.X, deck.Z - .4f) * 100;
         }
-        stage.Follow(center, boatDetail ? 1.7f : close ? detailSize : 0); stage.Advance(clock);
+        stage.Follow(center, boatDetail ? 1.7f : close ? detailSize : 0);
+        stage.Advance(clock, (float)delta, amber: light == 1 ? 1 : 0, storm: light == 2 ? 1 : 0);
         ActorArt3D.AnimateBoat(boat, clock, 0, 0);
         if (cargo != null) SalvageArt.Advance(cargo, cargoPosition, clock, default);
     }
@@ -106,13 +109,27 @@ public partial class ArtSample : Node3D
         string scenery = whirlpool ? "Whirlpool" : seaWreck ? "Shipwreck" : EnvironmentArt3D.IslandScenery(place.Radius, place.Style);
         float size = scenery switch { "Pirate tavern" => landmarkSizes.Tavern, "Shipwreck" => landmarkSizes.Shipwreck, "Sea cave" => landmarkSizes.SeaCave, "Ancient arch" => landmarkSizes.AncientArch, "Lighthouse" => landmarkSizes.Lighthouse, "Market stall" => landmarkSizes.MarketStall, "Windmill" => landmarkSizes.Windmill, _ => 0 };
         string sizeLabel = size > 0 ? $" · model size {size:0.00}" : "";
-        status.Text = $"{scenery}{sizeLabel} · {place.Shape?.Profile.ToString() ?? "Open water"} · radius {place.Radius:0.#} · seed {place.Style} · {(close ? "detail" : "gameplay scale")}\n"
-            + "Q islands · W prison · E tower · R lighthouse · T tavern · Y market · U mill · I wreck · O cave · P arch\nA reference · S whirlpool · D land/sea wreck · F island size · G seed · H smaller · J larger · K crew · L boat\nZ turn left · X turn right · C view · V refresh";
+        sampleSummary = $"{scenery}{sizeLabel} · {place.Shape?.Profile.ToString() ?? "Open water"} · radius {place.Radius:0.#} · seed {place.Style} · {(close ? "detail" : "gameplay scale")}";
+        UpdateStatus();
         GD.Print($"ISLAND SAMPLE scenery={scenery} profile={place.Shape?.Profile.ToString() ?? "Open water"} radius={place.Radius} style={place.Style}");
     }
+
+    void UpdateStatus()
+    {
+        string lighting = light switch { 1 => "golden hour", 2 => "storm", _ => "daylight" };
+        status.Text = $"{sampleSummary} · {lighting}\n"
+            + "Q islands · W prison · E tower · R lighthouse · T tavern · Y market · U mill · I wreck · O cave · P arch\nA reference · S whirlpool · D land/sea wreck · F island size · G seed · H smaller · J larger · K crew · L boat\nZ turn left · X turn right · C view · V refresh · M light";
+    }
+
     public override void _UnhandledKeyInput(InputEvent ev)
     {
         if (ev is not InputEventKey { Pressed: true, Echo: false } key) return;
+        if (key.Keycode == Key.M)
+        {
+            light = (light + 1) % 3;
+            UpdateStatus();
+            return;
+        }
         if (key.Keycode == Key.K) { boatDetail = !boatDetail; return; }
         if (boatDetail && key.Keycode is Key.Z or Key.X)
         {

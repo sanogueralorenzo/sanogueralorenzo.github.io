@@ -380,23 +380,18 @@ public partial class Effects3D : Node3D
         }
         if (b.Kind is "pufferExplosion" or "bossExplosion")
         {
-            float blastRadius = b.Size;
-            const int rings = 6, sides = 24;
-            Vector3 Point(int ring, int side)
+            float blastRadius = b.Size * Mathf.Lerp(.48f, 1, Mathf.SmoothStep(0, 1, Math.Min(1, t * 2.6f)));
+            foam.Arc(b.P, blastRadius, 0, Mathf.Tau, .045f * alpha + .01f, Fade(Coral, alpha * .83f), 52);
+            for (int i = 0; i < 10; i++)
             {
-                float latitude = ring * Mathf.Pi * .5f / rings, longitude = side * Mathf.Tau / sides;
-                return b.P + new Vector3(Mathf.Cos(latitude) * Mathf.Cos(longitude), Mathf.Sin(latitude), Mathf.Cos(latitude) * Mathf.Sin(longitude)) * blastRadius;
+                float angle = i * Mathf.Tau / 10 + .22f;
+                var direction = new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle));
+                var basePoint = b.P + direction * (blastRadius * .70f);
+                float height = Mathf.Sin(t * Mathf.Pi) * (.18f + (i % 3) * .09f);
+                var crest = b.P + direction * (blastRadius * .94f) + Vector3.Up * height;
+                foam.Ribbon(basePoint, crest, .046f * alpha, .012f, Fade(Cream, alpha * .74f));
+                foam.Arc(b.P, blastRadius * .77f, angle, .41f, .021f, Fade(Coral, alpha * .46f), 7);
             }
-            for (int ring = 0; ring < rings; ring++)
-                for (int side = 0; side < sides; side++)
-                {
-                    var a = Point(ring, side); var c = Point(ring + 1, side + 1);
-                    var normal = ((a + c) * .5f - b.P).Normalized();
-                    float light = .68f + .32f * Mathf.Max(0, normal.Dot(new Vector3(-.45f, .8f, -.4f).Normalized()));
-                    var blastColor = Fade(new Color("ed4939") * light, alpha * .52f);
-                    foam.Triangle(a, Point(ring, side + 1), c, blastColor);
-                    foam.Triangle(a, c, Point(ring + 1, side), blastColor);
-                }
             return;
         }
         if(b.Kind is "arc" or "pull" or "tripwire")
@@ -557,24 +552,47 @@ public partial class Effects3D : Node3D
             foam.Arc(p,radius,time*.3f+e.Place.Style%13,.95f,.009f,Fade(Foam,.24f));
             foam.Arc(p,radius*1.1f,time*.3f+e.Place.Style%13+3.2f,.65f,.008f,Fade(Foam,.2f));
         }
-        foreach(var place in v.World.Places)
+        foreach (var place in v.World.Places)
         {
-            if(place.Kind!=PlaceKind.Current || V2.DistanceSquared(v.Position,place.Position)>1500*1500) continue;
-            var center=World(place.Position,.028f);var dir=World(OceanWorld.FlowDirection(place),0)*100;var side=new Vector3(-dir.Z,0,dir.X);
-            for(int lane=-1;lane<=1;lane++) for(int i=0;i<2;i++)
+            if (place.Kind != PlaceKind.Current || V2.DistanceSquared(v.Position, place.Position) > 1500 * 1500) continue;
+            DrawCurrent(place);
+        }
+    }
+
+    void DrawCurrent(Place place)
+    {
+        var center = World(place.Position, .036f);
+        var along = World(OceanWorld.FlowDirection(place), 0) / NativeStage3D.Unit;
+        var across = new Vector3(-along.Z, 0, along.X);
+        float radius = place.Radius * NativeStage3D.Unit;
+        for (int lane = -1; lane <= 1; lane++)
+        {
+            float offset = lane * .145f * radius;
+            float span = radius * (lane == 0 ? .92f : .75f);
+            for (int streak = 0; streak < 2; streak++)
             {
-                float x=((i*2.31f+time*.65f+lane*.57f+4.5f)%4.5f)-2.25f;
-                float alpha=(1-Mathf.Abs(x)/2.25f)*.16f;
-                Vector3 Point(float along)=>center+dir*along+side*(lane*.37f+Mathf.Sin(along*1.7f+lane)*.085f);
-                var last=Point(x-.36f);
-                // Sparse curved, tapered streaks travel with the current rather than making a dash grid.
-                for(int segment=1;segment<=7;segment++)
+                float phase = (1 + time * .29f + lane * .13f + streak * .5f) % 1;
+                float start = Mathf.Lerp(-span, span, phase);
+                Color color = Fade(new("9edfcc"), Mathf.Sin(phase * Mathf.Pi) * .40f);
+                Vector3 Point(float s) => center + along * s + across * (offset + Mathf.Sin(s * 1.7f + lane) * .065f);
+                var last = Point(start - .45f);
+                for (int i = 1; i <= 7; i++)
                 {
-                    float t=segment/7f;var next=Point(x-.36f+t*.45f);
-                    float width=.002f+Mathf.Sin(t*Mathf.Pi)*.008f;
-                    foam.Ribbon(last,next,width,width,Fade(Aqua,alpha));last=next;
+                    float t = i / 7f;
+                    var next = Point(start - .45f + t * .68f);
+                    float width = .005f + Mathf.Sin(t * Mathf.Pi) * .018f;
+                    foam.Ribbon(last, next, width, width, color);
+                    last = next;
+                }
+                if (lane == 0)
+                {
+                    var shoulder = Point(start + .055f);
+                    var tip = Point(start + .242f);
+                    foam.Ribbon(shoulder + across * .12f, tip, .013f, .010f, color);
+                    foam.Ribbon(shoulder - across * .12f, tip, .013f, .010f, color);
                 }
             }
         }
     }
+
 }

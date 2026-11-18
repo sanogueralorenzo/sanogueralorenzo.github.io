@@ -1,6 +1,8 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, depth_prepass_alpha;
+#include "res://source/presentation/sea-palette.gdshaderinc"
 uniform float clock = 0.0;
+uniform vec2 weather = vec2(0.0);
 const float current_twist = 7.0;
 // Angle, length, radius, width: three loose groups beside the outer currents,
 // with short connecting accents and open water between them. All rotate with turn.
@@ -10,7 +12,6 @@ const vec4 foam_layout[8] = vec4[8](
     vec4(3.24, .26, .976, .004), vec4(4.22, .56, .944, .007),
     vec4(4.80, .25, .917, .004), vec4(5.67, .28, .950, .004)
 );
-vec3 linear_color(vec3 c) { return mix(c/12.92,pow((c+vec3(.055))/1.055,vec3(2.4)),step(vec3(.04045),c)); }
 float hash(float p) { return fract(sin(p*127.1)*43758.5453); }
 // Smooth, unequal bends establish the flow; finer facets remain inside each water mass.
 float edge(float t, float seed) {
@@ -142,6 +143,6 @@ void fragment() {
     vec3 foam_color=mix(vec3(.55,.80,.75),vec3(.88,.87,.73),smoothstep(.72,.93,tone)*.45);
     foam_color=mix(vec3(.28,.62,.60),foam_color,smoothstep(.86,.99,r));
     color=mix(color,foam_color,foam/max(alpha,.0001));
-    ALBEDO=linear_color(color);
+    ALBEDO=linear_color(sea_weather(color, weather));
     ALPHA=alpha;
 }

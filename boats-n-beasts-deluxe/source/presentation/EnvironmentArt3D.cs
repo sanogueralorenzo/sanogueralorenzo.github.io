@@ -328,10 +328,13 @@ public static partial class EnvironmentArt3D
         }
     }
 
-    public static void Advance(float clock)
+    public static void Advance(float clock, Vector2 weather)
     {
         if (Materials.TryGetValue("shelf", out var material) && material is ShaderMaterial shader)
+        {
             shader.SetShaderParameter("clock", clock);
+            shader.SetShaderParameter("weather", weather);
+        }
     }
 
     private static void Rock(Sculptor art, Vector3 at, Vector3 size, uint seed, bool moss = false)

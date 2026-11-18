@@ -20,7 +20,12 @@ public partial class Whirlpool3D : Node3D
         return root;
     }
 
-    public static void Advance(float clock) => material?.SetShaderParameter("clock", clock);
+    public static void Advance(float clock, Vector2 weather)
+    {
+        if (material == null) return;
+        material.SetShaderParameter("clock", clock);
+        material.SetShaderParameter("weather", weather);
+    }
 
     static ArrayMesh BuildMesh()
     {
