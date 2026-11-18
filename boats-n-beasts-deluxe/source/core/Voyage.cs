@@ -5,7 +5,7 @@ public enum VoyageMode { Sailing, Upgrade, Paused, Defeat, Victory }
 public enum BoatKind { Cutter, Trawler, Mage }
 public enum EnemyKind { Crab, Puffer, Serpent, Ray, Leviathan }
 public enum WeaponKind { Cannon, Harpoon, Mine, Coil, Undertow, Arcane }
-public enum HullHit { None, Crab, PufferBlast, Serpent, Ray, Keeper, Crownclaw, CrownclawCharge, CrownclawBomb }
+public enum HullHit { None, Crab, PufferBlast, Serpent, Ray, Keeper, Crownclaw, CrownclawCharge, CrownclawBomb, Lightning }
 public sealed class Enemy
 {
     public int Id; public EnemyKind Kind; public Vector2 Position, Direction, Velocity;
@@ -129,6 +129,7 @@ public sealed partial class Voyage
         UpdateCrownclawArrival(dt);
         UpdateEnemies(dt);
         if (BossSlain) return;
+        UpdateStorm(dt);
         UpdateWeapons(dt);
         if (BossSlain) return;
         UpdateShots(dt);
@@ -153,7 +154,6 @@ public sealed partial class Voyage
     Enemy AddEnemy(EnemyKind kind, Vector2 position)
     {
         float hp = kind == EnemyKind.Leviathan ? 820 + 65 * Math.Min(2, BeaconsLit) + Math.Min(300, CombatTime * .38f) : kind == EnemyKind.Crab ? 27 : kind == EnemyKind.Puffer ? 38 : kind == EnemyKind.Ray ? 43 : 52;
-        hp *= Rules.EnemyHull;
         var enemy = new Enemy
         {
             Id = ++NextEnemyId, Kind = kind, Position = position, Health = hp, MaxHealth = hp,
@@ -288,6 +288,7 @@ public sealed partial class Voyage
         e.Health -= damage; e.HitFlash = .12f; Events.Add(new("hit", e.Position, damage));
         if (e.Health > 0) return;
         Kills++;
+        CreditStormKill(e);
         Xp += e.Kind switch { EnemyKind.Leviathan => 25, EnemyKind.Crab => 2, _ => 3 };
         ExtendChain(e.Position);
         if (Specialty == Specialty.Gunner) ManeuverCooldown = Math.Max(0, ManeuverCooldown - .8f);

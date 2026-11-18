@@ -29,6 +29,9 @@ public partial class Game
         if (Run.Salvage.Delivered) detail.Add("Wreck salvage delivered");
         if (Run.FloatingCacheClaimed) detail.Add("Drifting cache secured");
         if (Run.HuntSignalBeacon != null) detail.Add("Hunt signal fired");
+        if (Run.Charter == Charter.Stormchaser)
+            detail.Add(log.Owns(SailDesign.For(SailLivery.Thunderhead)) ? $"Storm kills {Run.StormKills}"
+                : $"Storm kills {Run.StormKills}/{SailDesign.ThunderheadKills} for Thunderhead");
         if (detail.Count > 0) column.AddChild(Label(string.Join("  ·  ", detail), 16));
         if (DailyResult() is { } dailyResult) column.AddChild(Label(dailyResult, 16, color: NauticalPalette.Aqua));
         if (SailUnlockResult() is { } sail) column.AddChild(Label(sail, 16, color: NauticalPalette.Gold));
@@ -108,6 +111,7 @@ public partial class Game
         HullHit.PufferBlast => "Final hit from a puffer blast",
         HullHit.CrownclawBomb => "Final hit from a Crownclaw bomb",
         HullHit.CrownclawCharge => "Final hit from Crownclaw’s charge",
+        HullHit.Lightning => "Final hit from lightning",
         HullHit.Crownclaw => "Final hit from Crownclaw",
         HullHit.Keeper => "Final hit from Smuggler’s Light’s keeper",
         HullHit.Ray => "Final hit from a ray",

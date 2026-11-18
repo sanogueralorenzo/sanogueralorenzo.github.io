@@ -37,6 +37,12 @@ float sail_emblem(vec2 p) {
         float beam=sail_stroke(vec2(x,p.y),vec2(.094,.066),vec2(.156,.100),.009);
         return min(min(tower,balcony),min(roof,beam));
     }
+    if(sail_crest==4) {
+        float crown=sail_stroke(p,vec2(.061,.151),vec2(-.066,.002),.025);
+        float fork=sail_stroke(p,vec2(-.066,.002),vec2(.064,.021),.024);
+        float point=sail_stroke(p,vec2(.064,.021),vec2(-.058,-.145),.018);
+        return min(min(crown,fork),point);
+    }
     float upper=max(max(-.085+.56*p.y-p.x,p.x-(.028+.23*p.y)),sail_band(p.y,-.015,.133));
     float middle=max(max(-.093-p.x,p.x-.081),sail_band(p.y,-.035,.013));
     float lower=max(max(-.013+.17*p.y-p.x,p.x-(.092+.96*p.y)),sail_band(p.y,-.126,-.020));

@@ -103,6 +103,7 @@ public partial class Effects3D : Node3D
         foreach (var b in bursts) DrawBurst(b);
         foreach (var p in sparks) Ball(p.P, Vector3.One * p.Size * (1 - p.Age / p.Life), p.Color);
         DrawEncounters(voyage);
+        if (voyage.StormStrike is { } strike) DrawStormMark(strike);
         if (ShowBeacons)
         {
             DrawBeacons(voyage);
@@ -479,13 +480,14 @@ public partial class Effects3D : Node3D
         bool link = ev.Kind is "arc" or "pull" or "tripwire";
         if (bursts.Count < 192 && (link || ev.Kind is "aura" or "bulwark" or "explosion" or "calm"
             or "pufferExplosion" or "bossExplosion" or "crownclawGrounded" or "closeCall" or "repairDone" or "cacheCaught" or "cacheSank"
-            or "beacon" or "broadside" or "blink" or "stormshot" or "riptide"))
+            or "beacon" or "broadside" or "blink" or "stormshot" or "riptide" or "stormStrike"))
         {
             float life = ev.Kind switch
             {
                 "arc" or "pull" => .2f,
                 "tripwire" => .34f,
                 "calm" => 1.3f,
+                "stormStrike" => .66f,
                 "pufferExplosion" or "bossExplosion" or "crownclawGrounded" => .6f,
                 _ => .48f
             };
@@ -511,6 +513,11 @@ public partial class Effects3D : Node3D
     void DrawBurst(Burst b)
     {
         float t=b.Age/b.Life, alpha=1-t;
+        if (b.Kind == "stormStrike")
+        {
+            DrawStormBolt(b.P, t);
+            return;
+        }
         if (b.Kind == "barrel")
         {
             for (int i = 0; i < 6; i++)

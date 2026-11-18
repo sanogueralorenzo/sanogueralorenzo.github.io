@@ -136,6 +136,7 @@ public partial class Game : Node2D
             }
             DrawHarborGuide(r, size, statusInset);
             DrawHuntSignal(r, statusInset);
+            if (r.IsActive && r.StormStrike is { } strike) DrawStormWarning(strike, size);
             var boss = r.Enemies.FirstOrDefault(e => e.Kind == EnemyKind.Leviathan && e.Health > 0);
             if (boss != null) DrawCrownclaw(boss, size.X / 2, r.CrownclawArmorWeakened);
             if (Game.toastTime > 0 && r.IsActive)
@@ -170,6 +171,16 @@ public partial class Game : Node2D
         }
 
         public Rect2 HuntSignalControl { get; private set; }
+
+        void DrawStormWarning(LightningStrike strike, Vector2 size)
+        {
+            var at = new Vector2(size.X - 192, 276);
+            var accent = NauticalPalette.Lightning;
+            DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .94f), 8, new Color(accent, .47f)),
+                new(at, new Vector2(175, 46)));
+            Text(at + new Vector2(12, 25), $"Lightning · {Math.Max(.1f, strike.Remaining):0.0}s", 17, true, accent);
+            Bar(at + new Vector2(12, 34), new(151, 4), strike.Remaining / LightningStrike.Windup, accent);
+        }
 
         void DrawHuntSignal(Voyage run, int statusInset)
         {

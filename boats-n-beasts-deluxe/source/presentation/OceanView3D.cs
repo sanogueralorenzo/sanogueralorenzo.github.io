@@ -67,6 +67,8 @@ public partial class OceanView3D : Node3D
         stage.Follow(Camera);
         float storm = Voyage.BossSpawned && !Voyage.BossSlain ? 1
             : !Menu && Voyage.Charter == Charter.Stormchaser && !Voyage.BossSlain ? .49f : 0;
+        if (Voyage.StormStrike is { } strike)
+            storm = Mathf.Lerp(.55f, .86f, 1 - strike.Remaining / LightningStrike.Windup);
         float amber = Menu ? 0 : Math.Clamp(Math.Max(Voyage.BeaconsLit * .34f, (Voyage.CombatTime - 30) / 125), 0, 1);
         stage.Advance(Clock, dt, amber, storm);
         if (!Menu)

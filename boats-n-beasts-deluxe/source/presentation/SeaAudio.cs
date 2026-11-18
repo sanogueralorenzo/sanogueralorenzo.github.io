@@ -76,6 +76,8 @@ public partial class SeaAudio : Node
         AddCue("level", Chime(.35f, [370, 494], .45f));
         AddCue("comboFitted", Chime(.68f, [370, 494, 740], .62f));
         AddCue("stormshot", Thump(.19f, 227, .63f));
+        AddCue("stormWarning", Chime(.59f, [151, 222, 299], .63f));
+        AddCue("stormStrike", Thump(.75f, 53, .91f));
         AddCue("tripwire", Chime(.22f, [263, 210], .47f));
         AddCue("riptide", Chime(.25f, [587, 784], .40f));
         AddCue("upgrade", Chime(.31f, [494, 659], .48f));

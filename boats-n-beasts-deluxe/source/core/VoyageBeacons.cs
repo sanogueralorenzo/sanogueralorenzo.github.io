@@ -90,7 +90,7 @@ public sealed partial class Voyage
                     if (!World.IsWater(anchor, 48)) anchor = beacon.Position;
                     var keeper = AddEnemy(beacon.Guard, anchor);
                     keeper.GuardAnchor = beacon.Position;
-                    keeper.Health = keeper.MaxHealth = (138 + 62 * BeaconsLit) * Rules.EnemyHull;
+                    keeper.Health = keeper.MaxHealth = 138 + 62 * BeaconsLit;
                     keeper.AttackClock = 1.65f;
                     beacon.Keeper = keeper;
                 }

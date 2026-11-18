@@ -107,6 +107,8 @@ public partial class Game : Node2D
                 case "repairInterrupted": Toast("Repairs interrupted · berth still available"); break;
                 case "repairDone": Toast("Harbor repairs complete"); break;
                 case "cacheCaught": Toast($"Cache secured · +{e.Value:0} XP"); break;
+                case "stormKills": Toast(e.Value == 1 ? "Lightning took a beast" : $"Lightning took {e.Value:0} beasts"); break;
+                case "stormCrewKill": LootNotice(e, "Storm kill", NauticalPalette.Lightning, .6f); break;
                 case "hurt": hitNotice = .46f; break;
                 case "closeCall":
                     LootNotice(e, e.Value >= 1 ? $"Close call · +{e.Value:0} boost" : "Close call", NauticalPalette.Gold,
