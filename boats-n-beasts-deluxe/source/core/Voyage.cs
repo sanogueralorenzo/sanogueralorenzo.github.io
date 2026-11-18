@@ -5,6 +5,7 @@ public enum VoyageMode { Sailing, Upgrade, Paused, Defeat, Victory }
 public enum BoatKind { Cutter, Trawler, Mage }
 public enum EnemyKind { Crab, Puffer, Serpent, Ray, Leviathan }
 public enum WeaponKind { Cannon, Harpoon, Mine, Coil, Undertow, Arcane }
+public enum HullHit { None, Crab, PufferBlast, Serpent, Ray, Keeper, Crownclaw, CrownclawCharge, CrownclawBomb }
 public sealed class Enemy
 {
     public int Id; public EnemyKind Kind; public Vector2 Position, Direction, Velocity;
@@ -55,6 +56,7 @@ public sealed partial class Voyage
     public float FireRateMultiplier => Boat == BoatKind.Cutter && IsBoosting ? 1.65f : 1;
     public readonly List<int> UpgradeChoices = new();
     public bool BossSpawned, BossSlain;
+    public HullHit LastHullHit { get; private set; }
     public bool BoostExhausted { get; private set; }
     public const int WeaponSlots = 3;
     public int WeaponCount => Weapons.Count(rank => rank > 0);
@@ -208,7 +210,8 @@ public sealed partial class Voyage
                         PufferExplosions++;
                         Events.Add(new("pufferExplosion", e.Position, Enemy.PufferBlastRadius));
                         SplashEnemies(e.Position, Enemy.PufferBlastRadius, 24);
-                        if (ResolveBlast(e.Position, Enemy.PufferBlastRadius, 22, e.BlastThreatened)) PufferBlastHits++;
+                        if (ResolveBlast(e.Position, Enemy.PufferBlastRadius, 22, e.BlastThreatened, HullHit.PufferBlast))
+                            PufferBlastHits++;
                     }
                     continue;
                 }
@@ -237,7 +240,7 @@ public sealed partial class Voyage
             {
                 e.Velocity = (e.Position - beforeMove) / dt;
                 if ((!e.Grounded || rushing) && SegmentDistance(Position, beforeMove, e.Position) < e.ContactRadius)
-                    DamagePlayer(24);
+                    DamagePlayer(24, rushing ? HullHit.CrownclawCharge : HullHit.Crownclaw);
                 continue;
             }
             if (e.Dash > 0)
@@ -261,13 +264,22 @@ public sealed partial class Voyage
             }
             e.Velocity = (e.Position - beforeMove) / dt;
             if (e.Kind != EnemyKind.Puffer && Vector2.DistanceSquared(e.Position, Position) < e.ContactRadius * e.ContactRadius)
-                DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : e.GuardAnchor.HasValue ? 17 : 11);
+                DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : e.GuardAnchor.HasValue ? 17 : 11, ContactHit(e));
         }
     }
-    void DamagePlayer(float damage)
+    static HullHit ContactHit(Enemy enemy) => enemy.GuardAnchor.HasValue ? HullHit.Keeper : enemy.Kind switch
+    {
+        EnemyKind.Leviathan => HullHit.Crownclaw,
+        EnemyKind.Serpent => HullHit.Serpent,
+        EnemyKind.Ray => HullHit.Ray,
+        _ => HullHit.Crab
+    };
+
+    void DamagePlayer(float damage, HullHit source)
     {
         if (Invulnerable > 0 || !IsActive) return;
         damagedThisTick = true;
+        LastHullHit = source;
         Health -= damage; Invulnerable = .8f; Events.Add(new("hurt", Position, damage));
         InterruptHarborRepairs();
     }

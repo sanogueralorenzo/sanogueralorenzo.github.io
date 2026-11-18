@@ -114,7 +114,7 @@ public sealed partial class Voyage
                     s.Position = s.Target;
                     BossExplosions++;
                     Events.Add(new("bossExplosion", s.Target, s.Radius));
-                    if (ResolveBlast(s.Target, s.Radius, s.Damage, s.BlastThreatened)) BossBlastHits++;
+                    if (ResolveBlast(s.Target, s.Radius, s.Damage, s.BlastThreatened, HullHit.CrownclawBomb)) BossBlastHits++;
                 }
                 continue;
             }

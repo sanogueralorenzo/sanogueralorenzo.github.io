@@ -53,6 +53,6 @@ public partial class Game
         selected?.GrabFocus();
     }
 
-    string SailUnlockResult() => earnedSails == 0 ? "" : "\nSails unlocked · " + string.Join(", ",
+    string? SailUnlockResult() => earnedSails == 0 ? null : "Sails unlocked · " + string.Join(", ",
         SailDesign.All.Where(design => (earnedSails & design.Flag) != 0).Select(design => design.Name));
 }

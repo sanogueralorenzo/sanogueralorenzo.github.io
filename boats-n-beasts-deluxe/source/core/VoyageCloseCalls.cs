@@ -26,7 +26,7 @@ public sealed partial class Voyage
             Vector2.DistanceSquared(Position, center) < reach * reach;
     }
 
-    bool ResolveBlast(Vector2 center, float radius, float damage, bool threatened)
+    bool ResolveBlast(Vector2 center, float radius, float damage, bool threatened, HullHit source)
     {
         float reach = radius + BlastHullMargin;
         if (Vector2.DistanceSquared(Position, center) >= reach * reach)
@@ -36,7 +36,7 @@ public sealed partial class Voyage
         }
 
         float before = Health;
-        DamagePlayer(damage);
+        DamagePlayer(damage, source);
         return Health < before;
     }
 

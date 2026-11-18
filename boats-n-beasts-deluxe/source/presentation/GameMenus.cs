@@ -89,14 +89,8 @@ public partial class Game : Node2D
                 col.AddChild(MenuAction("Return to harbor", MenuGlyph.Harbor, BackToTitle)); break;
             case VoyageMode.Upgrade: UpgradeMenu(); break;
             case VoyageMode.Defeat:
-                Record(); col = Panel(570, "Lost to the deep", VoyageSummary());
-                col.AddChild(Button("Sail again", Start, true));
-                col.AddChild(Button(daily.HasValue ? "Return to harbor" : "Choose another boat", BackToTitle)); break;
             case VoyageMode.Victory:
-                Record(); col = Panel(570, "Crownclaw defeated", VoyageSummary());
-                col.AddChild(daily.HasValue ? Button("Sail again", Start, true)
-                    : Button("Keep exploring", () => { Run.Mode = VoyageMode.Sailing; BuildMenu(); }, true));
-                col.AddChild(Button("A new voyage", BackToTitle)); break;
+                VoyageReport(); break;
         }
         FocusFirst(menuRoot);
     }
@@ -240,12 +234,6 @@ public partial class Game : Node2D
         int time = (int)seconds;
         return $"{time / 60}:{time % 60:00}";
     }
-
-    string VoyageSummary() => $"{Run.Rules.Name}  ·  {ClockText(Run.CombatTime)}  ·  Level {Run.Level}\n" +
-        $"{Run.BeaconsLit}/{Run.Beacons.Count} beacons  ·  {Run.Kills} beasts  ·  Longest chain {Run.LongestChain}  ·  +{Run.SilverEarned} silver" +
-        (Run.CloseCalls > 0 ? $"\nClose calls {Run.CloseCalls}" : "") +
-        (Run.FloatingCacheClaimed ? "\nDrifting cache secured" : "") +
-        (Run.Salvage.Delivered ? "\nWreck salvage delivered" : "") + DailyResult() + SailUnlockResult();
 
     void UpgradeMenu()
     {

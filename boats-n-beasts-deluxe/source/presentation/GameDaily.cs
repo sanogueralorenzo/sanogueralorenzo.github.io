@@ -35,14 +35,12 @@ public partial class Game
         AddDepartureButtons(col);
     }
 
-    string DailyResult()
+    string? DailyResult()
     {
-        if (daily is not { } challenge) return "";
+        if (daily is not { } challenge) return null;
         if (!challenge.Qualifies(Run))
-            return $"\n{(Run.BossSlain ? "Daily goal missed" : "Daily")} · {challenge.Progress(Run)}";
-        string best = $"Daily clear · Personal best {DailyTimeText(log.DailyTime(challenge.Day))}";
-        if (dailyBonus > 0) best += $" · +{dailyBonus} silver";
-        return $"\n{best}";
+            return $"{(Run.BossSlain ? "Daily goal missed" : challenge.Name)} · {challenge.Progress(Run)}";
+        return dailyBonus > 0 ? $"Daily clear · +{dailyBonus} silver bonus" : $"Daily clear · {challenge.Name}";
     }
 
     static string DailyTimeText(double seconds)

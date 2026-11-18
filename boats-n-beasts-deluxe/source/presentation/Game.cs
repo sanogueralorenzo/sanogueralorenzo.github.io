@@ -250,6 +250,7 @@ public partial class Game : Node2D
         pendingSwap = null;
         chartOpen = false;
         dailyBonus = earnedSails = 0;
+        previousBest = 0;
         creditedSilver = 0; course.Clear(); toastTime = 0; maneuverRequested = false;
         if (title)
         {
@@ -281,9 +282,11 @@ public partial class Game : Node2D
         if (newGeography) ocean.Reset();
     }
 
-    void BackToTitle()
+    void BackToTitle() => ReturnToHarbor(false);
+
+    void ReturnToHarbor(bool chooseBoat)
     {
-        Record(); title = true; choosingBoat = controls = journal = false; course.Clear(); ocean.Menu = true;
+        Record(); title = true; choosingBoat = chooseBoat; controls = journal = false; course.Clear(); ocean.Menu = true;
         daily = null;
         selectedSeed = (uint)Random.Shared.NextInt64(1, 1L << 32);
         Run = new(selectedSeed, selectedBoat, selectedCharter); ocean.Voyage = Run; ocean.Reset(); BuildMenu();
@@ -291,6 +294,7 @@ public partial class Game : Node2D
     void Record()
     {
         if (title || runRecorded) return;
+        previousBest = daily is { } challenge ? log.DailyTime(challenge.Day) : log.BestTime(Run.Boat, Run.Charter);
         var result = log.Record(Run, daily);
         dailyBonus = result.DailyBonus;
         earnedSails |= result.NewSails;
