@@ -19,7 +19,7 @@ Level-ups fit up to three weapons and improve the hull, engine, reload, and reac
 
 Tow wreck cargo to a beacon for a refit and repairs. Intercept the drifting cache before it sinks for XP, silver, and boost. Beach chests grant XP, barrels repair hull, and every four consecutive kills earn chain rewards. A last-second blast escape recovers boost and extends an active chain. Tie up at the harbor berth once for up to 50 hull. Moving or taking a hit interrupts repairs.
 
-The voyage report shows your final loadout, the last hit on a lost ship, and how a win compares with your best time. The Captain’s Log tracks your fastest win for each boat and charter. Spend silver on the Salvager and Stormchaser charters. The Sail Locker holds sails earned through salvage, a three-beacon victory, and a daily clear. The daily challenge rotates the boat, chart, and objective at midnight UTC and pays a first-clear silver bonus.
+The voyage report shows your final build, personal best, and progress toward the next charter. Preview and unlock Salvager and Stormchaser with silver when charting a voyage. The Captain’s Log tracks your fastest win for each boat and charter. The Sail Locker holds sails earned through salvage, a three-beacon victory, and a daily clear. The daily challenge rotates at midnight UTC and pays a first-clear silver bonus.
 
 ## Run and preview
 

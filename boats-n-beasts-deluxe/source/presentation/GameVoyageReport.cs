@@ -18,7 +18,7 @@ public partial class Game
         var stats = new HBoxContainer();
         stats.AddThemeConstantOverride("separation", 8);
         column.AddChild(stats);
-        AddReportStat(stats, DailyTimeText(Run.CombatTime), "Voyage time");
+        AddReportStat(stats, HuntTimeText(Run.CombatTime), "Voyage time");
         AddReportStat(stats, $"{Run.BeaconsLit}/{Run.Beacons.Count}", "Beacons lit");
         AddReportStat(stats, $"{Run.Kills}", "Beasts defeated");
         AddReportStat(stats, $"+{Run.SilverEarned + dailyBonus}", "Silver earned");
@@ -32,6 +32,7 @@ public partial class Game
         if (detail.Count > 0) column.AddChild(Label(string.Join("  ·  ", detail), 16));
         if (DailyResult() is { } dailyResult) column.AddChild(Label(dailyResult, 16, color: NauticalPalette.Aqua));
         if (SailUnlockResult() is { } sail) column.AddChild(Label(sail, 16, color: NauticalPalette.Gold));
+        if (CharterProgress() is { } progress) column.AddChild(Label(progress, 16, color: NauticalPalette.Gold));
 
         DrawReportLoadout(column);
         var actions = new HBoxContainer();
@@ -97,9 +98,9 @@ public partial class Game
         if (daily is { } challenge && !challenge.Qualifies(Run)) return null;
         if (previousBest <= 0) return daily.HasValue ? "First daily clear" : "First win with this boat and charter";
         double difference = Run.CombatTime - previousBest;
-        if (Math.Abs(difference) < .05) return $"Matched personal best of {DailyTimeText(previousBest)}";
+        if (Math.Abs(difference) < .05) return $"Matched personal best of {HuntTimeText(previousBest)}";
         return difference < 0 ? $"New personal best · {Math.Abs(difference):0.0}s faster"
-            : $"Personal best {DailyTimeText(previousBest)} · {difference:0.0}s behind";
+            : $"Personal best {HuntTimeText(previousBest)} · {difference:0.0}s behind";
     }
 
     static string HullLossText(HullHit source) => source switch

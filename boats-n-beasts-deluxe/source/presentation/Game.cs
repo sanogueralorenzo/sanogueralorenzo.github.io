@@ -230,6 +230,7 @@ public partial class Game : Node2D
         else if (title)
         {
             choosingBoat = journal = false;
+            previewCharter = null;
             RestoreOpenChart();
         }
         else if (pendingSwap.HasValue) pendingSwap = null;
@@ -259,6 +260,7 @@ public partial class Game : Node2D
     {
         lootNoticeTime = hitNotice = pairingFlash = 0;
         pendingSwap = null;
+        previewCharter = null;
         chartOpen = false;
         dailyBonus = earnedSails = 0;
         previousBest = 0;

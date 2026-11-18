@@ -1,6 +1,5 @@
 using Godot;
 using BoatsNBeasts.Core;
-using V2 = System.Numerics.Vector2;
 namespace BoatsNBeasts;
 
 public partial class Game : Node2D
@@ -15,18 +14,13 @@ public partial class Game : Node2D
         var l = new Label { Text = text, AutowrapMode = TextServer.AutowrapMode.WordSmart };
         l.AddThemeFontOverride("font", heading ? titleFont : bodyFont); l.AddThemeFontSizeOverride("font_size", size); l.AddThemeColorOverride("font_color", color ?? NauticalPalette.Cream); return l;
     }
-    Button Button(string text, Action action, bool primary = false, bool disabled = false, bool purchase = false)
+    Button Button(string text, Action action, bool primary = false, bool disabled = false)
     {
         var b = new Button { Text = text, CustomMinimumSize = new(0, 46), Disabled = disabled, MouseDefaultCursorShape = Control.CursorShape.PointingHand };
         b.AddThemeFontOverride("font", bodyFont); b.AddThemeFontSizeOverride("font_size", 19);
         b.AddThemeColorOverride("font_color", primary ? NauticalPalette.Navy : NauticalPalette.Cream); b.AddThemeColorOverride("font_hover_color", NauticalPalette.Navy); b.AddThemeColorOverride("font_focus_color", primary ? NauticalPalette.Navy : NauticalPalette.Cream); b.AddThemeColorOverride("font_pressed_color", NauticalPalette.Navy); b.AddThemeColorOverride("font_disabled_color", new Color(NauticalPalette.Cream, .34f));
         b.AddThemeStyleboxOverride("normal", Box(primary ? NauticalPalette.Aqua : new Color("102e43"), 9, primary ? null : new Color("345064")));
         b.AddThemeStyleboxOverride("hover", Box(NauticalPalette.Aqua, 9)); b.AddThemeStyleboxOverride("pressed", Box(NauticalPalette.Aqua, 9)); b.AddThemeStyleboxOverride("focus", Box(new Color(0, 0, 0, 0), 9, NauticalPalette.Aqua)); b.AddThemeStyleboxOverride("disabled", Box(new Color("102838"), 9));
-        if (purchase)
-        {
-            b.AddThemeColorOverride("font_color", new Color("edc77e"));
-            b.AddThemeStyleboxOverride("normal", Box(new Color("102e43"), 9, new Color("8c784e")));
-        }
         Tween? hover = null;
         void AnimateHover(float scale)
         {
@@ -131,69 +125,10 @@ public partial class Game : Node2D
         column.AddChild(MenuAction("How to sail", MenuGlyph.Chart, () => { controls = true; BuildMenu(); }));
     }
 
-    void BoatMenu()
-    {
-        var col = Panel(630, "Chart a voyage", "Choose a boat and a charter.");
-        var choices = new HBoxContainer(); choices.AddThemeConstantOverride("separation", 8); col.AddChild(choices);
-        foreach (var boat in Enum.GetValues<BoatKind>())
-        {
-            choices.AddChild(Button(BoatSpec.For(boat).Name, () =>
-            {
-                selectedBoat = boat;
-                PreviewRun(selectedSeed, selectedBoat, selectedCharter);
-                BuildMenu();
-            }, selectedBoat == boat));
-        }
-
-        var spec = BoatSpec.For(selectedBoat);
-        col.AddChild(Label($"{spec.Hull * Run.Rules.HullFactor:0} hull  ·  {spec.Speed:0} sailing speed", 16, false, NauticalPalette.Gold));
-        col.AddChild(Label($"{spec.Maneuver} · {spec.ManeuverSeconds}s recharge", 23, true));
-        col.AddChild(Label(spec.Description, 18));
-
-        var charters = new HBoxContainer(); charters.AddThemeConstantOverride("separation", 8); col.AddChild(charters);
-        foreach (var charter in Enum.GetValues<Charter>())
-        {
-            if (!log.Owns(charter)) continue;
-            charters.AddChild(Button(CharterRules.For(charter).Name, () =>
-            {
-                selectedCharter = charter;
-                PreviewRun(selectedSeed, selectedBoat, selectedCharter);
-                BuildMenu();
-            }, selectedCharter == charter));
-        }
-        col.AddChild(Label(Run.Rules.Description, 17));
-        AddDepartureButtons(col);
-    }
-
-    void AddDepartureButtons(VBoxContainer col)
-    {
-
-        var actions = new HBoxContainer(); actions.AddThemeConstantOverride("separation", 8); col.AddChild(actions);
-        actions.AddChild(Button("Back", () =>
-        {
-            choosingBoat = false;
-            RestoreOpenChart();
-            BuildMenu();
-        }));
-        var sail = Button("Set sail", Start, true);
-        sail.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        actions.AddChild(sail);
-        sail.GrabFocus();
-    }
-
     void JournalMenu()
     {
         var col = Panel(640, "Captain’s log",
             $"{log.Silver} silver  ·  {log.Wins} wins in {log.Voyages} voyages\nBest haul {log.BestKills} beasts  ·  Longest chain {log.BestChain}\nDaily clears {log.DailyClears}  ·  Streak {log.DailyStreak(DailyChallenge.Today.Day)}");
-        foreach (var charter in new[] { Charter.Salvager, Charter.Stormchaser })
-        {
-            var rules = CharterRules.For(charter);
-            bool owned = log.Owns(charter);
-            col.AddChild(Label(rules.Description, 17));
-            col.AddChild(Button(owned ? $"{rules.Name} charter unlocked" : $"Unlock {rules.Name} · {rules.Price} silver",
-                () => { if (log.Unlock(charter)) { audio.Play("upgrade"); BuildMenu(); } },
-                disabled: owned || log.Silver < rules.Price, purchase: !owned));
-        }
         col.AddChild(Label("Fastest hunts", 22, true));
         var times = new GridContainer { Columns = 4 };
         times.AddThemeConstantOverride("h_separation", 15);
@@ -211,8 +146,8 @@ public partial class Game : Node2D
             times.AddChild(Label(BoatSpec.For(boat).Name, 16));
             foreach (var charter in Enum.GetValues<Charter>())
             {
-                float time = (float)log.BestTime(boat, charter);
-                times.AddChild(Label(time > 0 ? ClockText(time) : "—", 16, color: time > 0 ? NauticalPalette.Aqua : new Color(NauticalPalette.Cream, .52f)));
+                double time = log.BestTime(boat, charter);
+                times.AddChild(Label(time > 0 ? HuntTimeText(time) : "—", 16, color: time > 0 ? NauticalPalette.Aqua : new Color(NauticalPalette.Cream, .52f)));
             }
         }
 

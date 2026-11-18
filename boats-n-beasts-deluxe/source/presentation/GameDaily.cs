@@ -30,7 +30,7 @@ public partial class Game
         col.AddChild(Label($"{Run.Spec.Maneuver} · {Run.Spec.ManeuverSeconds}s recharge", 17, color: NauticalPalette.Gold));
         col.AddChild(Label(Run.Spec.Description, 17));
         double best = log.DailyTime(challenge.Day);
-        string reward = best > 0 ? $"Personal best {DailyTimeText(best)}" : $"First clear earns {DailyChallenge.Reward} silver.";
+        string reward = best > 0 ? $"Personal best {HuntTimeText(best)}" : $"First clear earns {DailyChallenge.Reward} silver.";
         col.AddChild(Label(reward, 17, color: NauticalPalette.Aqua));
         AddDepartureButtons(col);
     }
@@ -43,7 +43,7 @@ public partial class Game
         return dailyBonus > 0 ? $"Daily clear · +{dailyBonus} silver bonus" : $"Daily clear · {challenge.Name}";
     }
 
-    static string DailyTimeText(double seconds)
+    static string HuntTimeText(double seconds)
     {
         int tenths = Math.Max(0, (int)(seconds * 10));
         return $"{tenths / 600}:{tenths / 10 % 60:00}.{tenths % 10}";
