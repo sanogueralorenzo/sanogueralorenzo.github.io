@@ -103,7 +103,7 @@ public partial class Game : Node2D
 
         if (!title && Run.SilverEarned > creditedSilver)
         {
-            log.Earn(Run.SilverEarned - creditedSilver);
+            log.Earn(Run.SilverEarned - creditedSilver, Run.BeaconsLit > 0);
             creditedSilver = Run.SilverEarned;
         }
         hud.QueueRedraw();
@@ -135,8 +135,10 @@ public partial class Game : Node2D
             }
             else if (click.ButtonIndex == MouseButton.Left)
             {
-                var point = hud.CourseAt(click.Position) ?? ocean.WorldPoint(click.Position);
-                if (!course.Plot(Run, point)) Toast("Choose a course through open water");
+                var order = hud.CourseAt(click.Position);
+                bool plotted = order?.Patrol is { } beacon ? course.Plot(Run, beacon)
+                    : course.Plot(Run, order?.Point ?? ocean.WorldPoint(click.Position));
+                if (!plotted) Toast("Choose a course through open water");
                 usingController = false;
                 GetViewport().SetInputAsHandled();
             }
@@ -208,8 +210,6 @@ public partial class Game : Node2D
         }
         title = choosingBoat = runRecorded = controls = false;
         ocean.BeginSailing();
-        if (log.Voyages == 0)
-            Toast(usingController ? "Left stick to steer · RB to boost" : "WASD or click to steer · Space to boost");
         BuildMenu();
     }
     static void ReleaseMenuInput(Node node)

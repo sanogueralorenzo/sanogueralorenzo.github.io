@@ -6,9 +6,11 @@ public sealed class SailCourse
     Vector2[] waypoints = [];
     IReadOnlyList<Place>? chart;
     int next;
+    int patrolStart;
     bool continuing;
 
     public Vector2? Destination { get; private set; }
+    public Beacon? Patrol { get; private set; }
     public ReadOnlySpan<Vector2> Ahead => waypoints.AsSpan(next);
 
     public void Clear()
@@ -16,12 +18,14 @@ public sealed class SailCourse
         Destination = null;
         waypoints = [];
         chart = null;
-        next = 0;
+        next = patrolStart = 0;
+        Patrol = null;
         continuing = false;
     }
 
     public bool Plot(Voyage run, Vector2 destination)
     {
+        Clear();
         var world = run.World;
         var offset = destination - run.Position;
         continuing = offset.LengthSquared() > CoursePlanner.LegLength * CoursePlanner.LegLength;
@@ -35,6 +39,33 @@ public sealed class SailCourse
         waypoints = plan;
         next = 0;
         Destination = continuing ? destination : plan[^1];
+        return true;
+    }
+
+    public bool Plot(Voyage run, Beacon beacon)
+    {
+        if (beacon.Lit || beacon.Objective != BeaconObjective.Patrol || run.BossSpawned)
+            return Plot(run, beacon.Position);
+
+        const int legs = 8;
+        const float radius = Beacon.Radius * .68f;
+        float step = MathF.Tau / legs;
+        var from = OceanWorld.Unit(run.Position - beacon.Position, Vector2.UnitY);
+        var entry = beacon.Position + from * radius;
+        if (!Plot(run, entry)) return false;
+        Patrol = beacon;
+        Destination = beacon.Position;
+        if (continuing) return true;
+
+        float angle = MathF.Atan2(from.Y, from.X);
+        var loop = new Vector2[legs];
+        for (int i = 0; i < legs; i++)
+        {
+            float turn = angle + step * (i + 1);
+            loop[i] = beacon.Position + new Vector2(MathF.Cos(turn), MathF.Sin(turn)) * radius;
+        }
+        patrolStart = waypoints.Length;
+        waypoints = [..waypoints, ..loop];
         return true;
     }
 
@@ -66,13 +97,24 @@ public sealed class SailCourse
             return input;
         }
         if (Destination is not { } destination) return input;
-        if (!ReferenceEquals(chart, run.World.Places) && !Plot(run, destination)) return input;
+        if (Patrol is { } beacon)
+        {
+            if (beacon.Lit || run.BossSpawned)
+            {
+                Clear();
+                return input;
+            }
+            if ((continuing || next < patrolStart) && !ReferenceEquals(chart, run.World.Places) &&
+                !Plot(run, beacon)) return input;
+        }
+        else if (!ReferenceEquals(chart, run.World.Places) && !Plot(run, destination)) return input;
 
         while (next < waypoints.Length)
         {
             var offset = waypoints[next] - run.Position;
-            bool last = next == waypoints.Length - 1;
-            float reach = last ? 29 : 42;
+            bool circling = Patrol != null && !continuing && next >= patrolStart;
+            bool last = !circling && next == waypoints.Length - 1;
+            float reach = last ? 29 : circling ? 49 : 42;
             bool reached = offset.LengthSquared() <= reach * reach;
             if (reached && !last && offset.LengthSquared() > 12 * 12)
                 reached = run.World.IsWater(run.Position, CoursePlanner.Clearance);
@@ -80,8 +122,8 @@ public sealed class SailCourse
             {
                 float distance = offset.Length();
                 var direction = offset / distance;
-                float throttle = Math.Clamp(distance / (last ? 164 : 125), .20f, 1);
-                bool boost = input.Boost && distance > 205 && Vector2.Dot(run.Forward, direction) > .86f;
+                float throttle = circling ? .86f : Math.Clamp(distance / (last ? 164 : 125), .20f, 1);
+                bool boost = !circling && input.Boost && distance > 205 && Vector2.Dot(run.Forward, direction) > .86f;
                 bool sprint = boost && !run.BoostExhausted && (run.IsBoosting ? run.Boost > 0 : run.Boost >= 8);
                 var flow = run.World.FlowAt(run.Position);
                 var drift = flow - direction * Math.Max(0, Vector2.Dot(flow, direction));
@@ -89,8 +131,14 @@ public sealed class SailCourse
                 return input with { Move = move, Boost = boost };
             }
             next++;
+            if (circling && next == waypoints.Length) next = patrolStart;
         }
 
+        if (Patrol is { } pendingPatrol)
+        {
+            Plot(run, pendingPatrol);
+            return input;
+        }
         if (continuing && Vector2.DistanceSquared(run.Position, destination) > 58 * 58)
         {
             Plot(run, destination);

@@ -18,7 +18,7 @@ public sealed class Beacon(string name, Vector2 position, EnemyKind guard, Beaco
         : Charge / ChargeSeconds;
     public string Order => Objective switch
     {
-        BeaconObjective.Patrol => "Sail inside the ring",
+        BeaconObjective.Patrol => "Keep moving in the ring",
         BeaconObjective.Duel => "Defeat the keeper",
         _ => "Hold the ring"
     };

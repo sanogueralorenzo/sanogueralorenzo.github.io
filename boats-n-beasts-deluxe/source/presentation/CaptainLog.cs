@@ -15,6 +15,7 @@ sealed class CaptainLog
     public int BestChain { get; private set; }
     public int BestKills { get; private set; }
     public bool Muted { get; private set; }
+    public bool HasLitBeacon { get; private set; }
     int charters = 1;
     readonly Dictionary<(BoatKind Boat, Charter Charter), double> bestTimes = new();
 
@@ -45,9 +46,10 @@ sealed class CaptainLog
         return true;
     }
 
-    public void Earn(int amount)
+    public void Earn(int amount, bool litBeacon)
     {
         Silver += amount;
+        HasLitBeacon |= litBeacon;
         Save();
     }
 
@@ -94,6 +96,7 @@ sealed class CaptainLog
         BestKills = (int)config.GetValue(Section, "kills", 0);
         charters = (int)config.GetValue(Section, "charters", 1);
         Muted = (bool)config.GetValue(Section, "muted", false);
+        HasLitBeacon = (bool)config.GetValue(Section, "lit_beacon", false);
         foreach (var boat in Enum.GetValues<BoatKind>())
         foreach (var charter in Enum.GetValues<Charter>())
         {
@@ -122,6 +125,7 @@ sealed class CaptainLog
         config.SetValue(Section, "kills", BestKills);
         config.SetValue(Section, "charters", charters);
         config.SetValue(Section, "muted", Muted);
+        config.SetValue(Section, "lit_beacon", HasLitBeacon);
         foreach (var entry in bestTimes)
             config.SetValue("charts", ChartKey(entry.Key.Boat, entry.Key.Charter), entry.Value);
         foreach (var entry in dailyTimes)
