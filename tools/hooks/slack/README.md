@@ -21,9 +21,10 @@ agent normally.
 ## Configure
 
 Edit `~/.local/share/browser-hooks/hooks/slack/config.json`, then run
-`browser-hooks stop` followed by `browser-hooks start`. Each key in `commands` is a trigger keyword. Setup creates
-`chat` and/or `claude` for installed CLIs; see [custom adapters](docs/adapters.md)
-for other commands.
+`browser-hooks stop` followed by `browser-hooks start`. The keys in `commands`
+are case-insensitive ASCII keywords with no spaces. For example, `chat`, `Chat`,
+and `CHAT` are equivalent. Setup creates `chat` and/or `claude` for installed
+CLIs. See [custom adapters](docs/adapters.md) for other commands.
 
 Set `workspace` for the default directory and `projects` for aliases mapped to
 project directories. The first alias in a request selects the project; follow-ups

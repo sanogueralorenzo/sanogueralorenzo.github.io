@@ -48,7 +48,7 @@ function connect() {
   unsubscribe = subscribe(value => {
     if (value.type === "settings") {
       const settings = value.hooks?.slack;
-      if (!Array.isArray(settings?.keywords) || !settings.keywords.every(k => typeof k === "string" && /^\S{1,40}$/.test(k))) throw new Error("Invalid Slack settings");
+      if (!Array.isArray(settings?.keywords) || !settings.keywords.every(k => typeof k === "string" && /^[!-~]{1,40}$/.test(k))) throw new Error("Invalid Slack settings");
       config = { keywords: settings.keywords }; publish();
       for (const job of new Set(pendingRequests().map(entry => entry.job).filter(Boolean))) void update(job);
     } else if (value.type === "job" && value.hook === "slack" && /^[a-f0-9]{64}$/.test(value.job)) void update(value.job);

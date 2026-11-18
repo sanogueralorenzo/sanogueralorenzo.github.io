@@ -214,6 +214,19 @@ test('only own new keyword-prefixed messages trigger; ignores duplicates, edits,
   await settle(); assert.equal(f.posts().length, 1);
 });
 
+test('matches ASCII keyword case and preserves the rest of the message', async () => {
+  const f = fixture();
+  f.configure({ keywords: ['chat', 'claude', 'hook'] });
+  await settle();
+  const requests = ['chat', 'Chat', 'CHAT', 'claude', 'Claude', 'CLAUDE'].map(word => `${word} réponds 🐈`);
+  [...requests, 'hooK ping'].forEach((text, i) => {
+    f.sockets[0].event(message({ ts: `200000000${i + 2}.000001`, text }));
+  });
+  await settle();
+  assert.deepEqual(f.messages.filter(m => m.action === 'run').map(m => m.payload.text), requests);
+  f.page.agentHooks.dispose();
+});
+
 test('requests keep only the eyes acknowledgement after success or a diagnostic reply', async () => {
   for (const diagnostic of [false, true]) {
     const f = fixture({

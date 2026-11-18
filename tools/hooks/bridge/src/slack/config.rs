@@ -7,11 +7,7 @@ use std::{
     path::{Path, PathBuf},
     sync::LazyLock,
 };
-use unicode_casefold::UnicodeCaseFold;
 
-pub fn folded(text: &str) -> String {
-    text.case_fold().collect()
-}
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Command {
@@ -68,7 +64,6 @@ impl Config {
         let raw: Raw =
             serde_json::from_slice(&fs::read(file).map_err(|_| "Configuration is missing")?)
                 .map_err(|_| "Invalid configuration JSON")?;
-        static KEYWORD: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[\s\pC\pZ]").unwrap());
         static ALIAS: LazyLock<Regex> =
             LazyLock::new(|| Regex::new(r"\A[a-z][a-z0-9_-]*\z").unwrap());
         if raw.commands.is_empty() {
@@ -77,10 +72,12 @@ impl Config {
         let workspace = path(&raw.workspace)?;
         let mut commands = BTreeMap::new();
         for (key, mut command) in raw.commands {
-            if !(1..=40).contains(&key.chars().count()) || KEYWORD.is_match(&key) {
-                return Err("Keywords must be printable words".into());
+            if !(1..=40).contains(&key.len()) || !key.bytes().all(|byte| byte.is_ascii_graphic()) {
+                return Err(
+                    "Keywords must be 1 to 40 printable ASCII characters without spaces".into(),
+                );
             }
-            let key = folded(&key);
+            let key = key.to_ascii_lowercase();
             for (args, resume) in [(&mut command.start, false), (&mut command.resume, true)] {
                 if args.is_empty()
                     || args.iter().any(|arg| arg.contains('\0'))
@@ -124,7 +121,7 @@ impl Config {
         }
         let command = self
             .commands
-            .get(&folded(key))
+            .get(&key.to_ascii_lowercase())
             .ok_or("Unknown keyword")?
             .clone();
         static WORD: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[\w-]").unwrap());
@@ -175,7 +172,11 @@ pub fn timestamp(text: &str) -> bool {
 }
 impl Event {
     pub fn keyword(&self) -> String {
-        folded(self.text.split_whitespace().next().unwrap_or_default())
+        self.text
+            .split_whitespace()
+            .next()
+            .unwrap_or_default()
+            .to_ascii_lowercase()
     }
     pub fn validate(&self) -> Result<(), String> {
         static TEAM: LazyLock<Regex> =

@@ -92,14 +92,14 @@
     } while (cursor);
     return [...messages.values()].sort((a, b) => Number(a.ts) - Number(b.ts));
   }
-  function accepts(event, s) {
+  function acceptedKeyword(event, s) {
     if (!current(s) || event.type !== "message" || event.user !== s.user
       || event.subtype && event.subtype !== "thread_broadcast" || event.bot_id || event.app_id
       || !/^[CDG][A-Z0-9]+$/.test(event.channel || "") || !/^\d+\.\d+$/.test(event.ts || "")
       || Number(event.ts) < s.started || typeof event.text !== "string" || event.text.length > 12000
-      || s.sent.has(event.client_msg_id) || s.seen.has(`${event.channel}:${event.ts}`)) return false;
-    const match = event.text.match(/^(\S+)\s+([\s\S]*\S)\s*$/);
-    return !!match && settings.keywords.includes(match[1].toLowerCase());
+      || s.sent.has(event.client_msg_id) || s.seen.has(`${event.channel}:${event.ts}`)) return;
+    const keyword = event.text.match(/^([!-~]{1,40})\s+[\s\S]*\S\s*$/)?.[1].toLowerCase();
+    if (settings.keywords.includes(keyword)) return keyword;
   }
   async function deliver(s, event, job) {
     const result = await bridge(s, "wait", { job });
@@ -123,18 +123,12 @@
     await reaction(s, { channel: event.channel, ts: posted.ts }, "robot_face");
     state.error = diagnostic || null;
   }
-  function stopKey(event) {
-    const keyword = event.text?.match(/^\S+/)?.[0].toLowerCase();
-    return keyword ? `${event.channel}:${event.thread_ts || event.ts}:${keyword}` : null;
-  }
   function track(s, event, admit, stop = false) {
     state.pending++;
     const key = `${event.channel}:${event.thread_ts || event.ts}`;
     let job;
-    const stopped = () => Number(event.ts) < (s.stops.get(stopKey(event)) || 0);
     const submit = async () => {
-      if (!stop && stopped()) return;
-      job = await admit(stopped);
+      job = await admit();
       if (job) s.jobs.add(job);
       return job;
     };
@@ -171,7 +165,8 @@
   }
   function receive(s, event) {
     sync();
-    if (!accepts(event, s)) return;
+    const keyword = acceptedKeyword(event, s);
+    if (!keyword) return;
     s.seen.add(`${event.channel}:${event.ts}`);
     const stop = /^\S+\s+stop\s*$/i.test(event.text);
     if (!stop && state.pending >= 100) { state.error = "Queue full. Send the command again later."; publishStatus(); return; }
@@ -180,15 +175,17 @@
       team: s.team, user: s.user, channel: event.channel, ts: event.ts,
       thread_ts: event.thread_ts || event.ts, text: event.text, messages: [],
     };
+    const scope = `${event.channel}:${payload.thread_ts}:${keyword}`;
     if (stop) {
-      const key = stopKey(event);
-      s.stops.set(key, Math.max(s.stops.get(key) || 0, Number(event.ts)));
+      s.stops.set(scope, Math.max(s.stops.get(scope) || 0, Number(event.ts)));
       track(s, event, async () => (await bridge(s, "run", payload)).job, true);
       void reaction(s, event, "eyes");
       return;
     }
     const acknowledged = reaction(s, event, "eyes");
-    track(s, event, async stopped => {
+    const stopped = () => Number(event.ts) < (s.stops.get(scope) || 0);
+    track(s, event, async () => {
+      if (stopped()) return;
       await acknowledged;
       if (stopped()) return;
       const after = payload.thread_ts !== event.ts ? (await bridge(s, "history", payload)).after : null;
@@ -281,11 +278,11 @@
     if (!session && !waiting && auth && !retry) attach(auth);
   }
   function configure(value) {
-    const keywords = [...new Set((value.keywords || []).map(k => String(k).toLowerCase()))];
-    if (!keywords.every(k => k.length <= 40 && /^\S+$/.test(k))) throw failure("Keywords must be nonempty words.");
-    const next = { keywords, error: value.error || null };
+    const { keywords } = value;
+    if (!Array.isArray(keywords) || !keywords.every(k => typeof k === "string" && /^[!-~]{1,40}$/.test(k))) throw failure("Invalid hook keywords.");
+    const next = { keywords: keywords.map(k => k.toLowerCase()), error: value.error || null };
     if (JSON.stringify(next) === JSON.stringify(settings)) return;
-    const changed = JSON.stringify(keywords) !== JSON.stringify(settings.keywords);
+    const changed = JSON.stringify(next.keywords) !== JSON.stringify(settings.keywords);
     const reconnected = settings.error && !next.error;
     if (changed) end();
     settings = next; state.error = next.error;

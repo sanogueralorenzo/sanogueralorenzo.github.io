@@ -139,6 +139,23 @@ class NativeProtocolTests(unittest.TestCase):
         self.assertFalse((self.home / "extension/bridge-pairing.json").exists())
         self.assertIsNone(c.receive())
 
+    def test_keywords_match_ascii_case(self):
+        config = configuration(self.home)
+        config["commands"]["Chat"] = config["commands"]["hook"]
+        config["commands"]["CLAUDE"] = config["commands"]["hook"]
+        b = self.start(config=config)
+        self.assertEqual(
+            b.request("GET", "/config")["hooks"]["slack"]["keywords"],
+            ["chat", "claude", "hook"],
+        )
+        for index, keyword in enumerate(("chat", "Chat", "CHAT", "claude", "Claude", "CLAUDE")):
+            accepted = b.request(
+                "POST", "/slack/run",
+                event(ts=f"2000000002.{index:06d}", text=f"{keyword} réponds 🐈"),
+            )
+            self.assertEqual(b.wait(accepted["job"])["answer"], "synthetic answer")
+        self.assertEqual(b.call("POST", "/slack/run", event(text="hooK ping"))[0], 400)
+
     def test_input_validation_and_http_limits(self):
         b = self.start()
         invalid = [
