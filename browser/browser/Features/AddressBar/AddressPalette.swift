@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 struct AddressPalette: View {
@@ -32,11 +31,15 @@ struct AddressPalette: View {
         let completion = completionURL
         let selection = selectedIndex(resultCount: results.count)
         ZStack(alignment: .top) {
-            backdrop
+            AddressPaletteBackdrop(dismiss: store.dismissAddress)
             VStack(spacing: 5) {
                 editor
                 if siteSearch == nil && (!results.isEmpty || !suggestions.isEmpty) {
-                    resultsPanel(results, selection: selection)
+                    AddressPaletteResults(
+                        results: results, suggestions: suggestions, searchProvider: store.preferences.searchProvider,
+                        selection: selection, siteSearchHint: siteSearchHint(in: results, selection: selection),
+                        cornerRadius: cornerRadius, activateResult: perform, activateSuggestion: store.submitAddress
+                    )
                 }
             }
             .frame(maxWidth: 525)
@@ -50,29 +53,6 @@ struct AddressPalette: View {
         }
         .task(id: completion) { await loadSuggestions(from: completion) }
         .onExitCommand(perform: cancel)
-    }
-
-    private var backdrop: some View {
-        let canvas = BrowserBrandTheme.canvas
-        return Group {
-            if reduceTransparency {
-                canvas
-            } else {
-                LinearGradient(
-                    stops: [
-                        .init(color: canvas.opacity(0.95), location: 0),
-                        .init(color: canvas.opacity(0.93), location: 0.61),
-                        .init(color: canvas.opacity(0.86), location: 0.82),
-                        .init(color: canvas.opacity(0.71), location: 1),
-                    ],
-                    startPoint: .top, endPoint: .bottom
-                )
-                .background { AddressFocusMaterial().allowsHitTesting(false) }
-            }
-        }
-        .contentShape(Rectangle())
-        .onTapGesture(perform: store.dismissAddress)
-        .accessibilityHidden(true)
     }
 
     private var panelShape: RoundedRectangle {
@@ -114,58 +94,6 @@ struct AddressPalette: View {
                 .shadow(color: .black.opacity(reduceTransparency ? 0 : 0.20), radius: 10, y: 3)
         }
         .overlay { panelShape.strokeBorder(BrowserBrandTheme.textDisplay.opacity(0.56), lineWidth: 1.25) }
-    }
-
-    private func resultsPanel(_ results: [BrowserPaletteResult], selection: Int?) -> some View {
-        ViewThatFits(in: .vertical) {
-            resultList(results, selection: selection)
-                .fixedSize(horizontal: false, vertical: true)
-            ScrollViewReader { proxy in
-                ScrollView {
-                    resultList(results, selection: selection)
-                }
-                .onChange(of: selection, initial: true) { _, index in
-                    if let index { proxy.scrollTo(index) }
-                }
-            }
-        }
-        .background {
-            panelShape.fill(BrowserBrandTheme.surface)
-                .shadow(color: .black.opacity(reduceTransparency ? 0 : 0.20), radius: 14, y: 5)
-        }
-        .overlay { panelShape.strokeBorder(BrowserBrandTheme.line, lineWidth: 0.5) }
-    }
-
-    private func resultList(_ results: [BrowserPaletteResult], selection: Int?) -> some View {
-        let tabSelection = tabIndex(in: results, selection: selection)
-        return VStack(spacing: 3) {
-            ForEach(Array(results.enumerated()), id: \.element.id) { index, result in
-                resultButton(selected: index == selection) {
-                    perform(result)
-                } label: {
-                    row(
-                        title: result.title, subtitle: result.subtitle, symbol: result.symbol, spaceColor: result.spaceColor,
-                        showsSearchHint: index == tabSelection && knownSearch(for: result) != nil)
-                }
-                .id(index)
-            }
-            ForEach(Array(suggestions.enumerated()), id: \.offset) { index, suggestion in
-                resultButton(selected: results.count + index == selection) {
-                    store.submitAddress(suggestion)
-                } label: {
-                    row(title: suggestion, subtitle: store.preferences.searchProvider.rawValue, symbol: "magnifyingglass")
-                }
-                .id(results.count + index)
-            }
-        }.padding(8)
-    }
-
-    private func resultButton<Label: View>(
-        selected: Bool, action: @escaping () -> Void, @ViewBuilder label: () -> Label
-    ) -> some View {
-        Button(action: action, label: label)
-            .buttonStyle(BrowserChromeButtonStyle(controlSize: nil, cornerRadius: 12))
-            .background(selected ? BrowserBrandTheme.line : .clear, in: RoundedRectangle(cornerRadius: 12))
     }
 
     private func loadSuggestions(from url: URL?) async {
@@ -227,11 +155,16 @@ struct AddressPalette: View {
     }
     private func tabIndex(in results: [BrowserPaletteResult], selection: Int?) -> Int? {
         guard let selection, results.indices.contains(selection) else { return nil }
-        if selected == nil, results[selection].id == BrowserPaletteResult.webSearchID {
+        if selected == nil, results[selection].isWebSearch {
             return results.indices.dropFirst().first
         }
         return selection
     }
+    private func siteSearchHint(in results: [BrowserPaletteResult], selection: Int?) -> Int? {
+        guard let index = tabIndex(in: results, selection: selection), knownSearch(for: results[index]) != nil else { return nil }
+        return index
+    }
+
     private func knownSearch(for result: BrowserPaletteResult) -> BrowserSiteSearch? {
         guard let address = result.address else { return nil }
         return store.siteSearch(for: address, in: store.activeSpace.id)
@@ -257,37 +190,4 @@ struct AddressPalette: View {
             store.pendingSplitSourceID = nil
         }
     }
-    private func row(
-        title: String, subtitle: String, symbol: String, spaceColor: Int? = nil, showsSearchHint: Bool = false
-    ) -> some View {
-        HStack(spacing: 12) {
-            Group {
-                if let spaceColor {
-                    BrowserSpacePill(color: spaceColor)
-                } else {
-                    Image(systemName: symbol).foregroundStyle(.secondary)
-                }
-            }.frame(width: 22)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).lineLimit(1)
-                Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-            }
-            Spacer(minLength: 0)
-            if showsSearchHint {
-                Text("Tab to search").font(.caption).foregroundStyle(.secondary)
-            }
-        }.padding(.horizontal, 10).padding(.vertical, 7).frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-private struct AddressFocusMaterial: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.blendingMode = .withinWindow
-        view.material = .popover
-        view.state = .active
-        return view
-    }
-
-    func updateNSView(_ view: NSVisualEffectView, context: Context) {}
 }
