@@ -1,19 +1,29 @@
-"""Install, start, and inspect the shared bridge on macOS or Linux."""
+"""Explicitly start and stop the shared bridge; never register automatic startup."""
 
+from contextlib import contextmanager
+import fcntl
+from http.client import HTTPConnection, HTTPException
 import json
 import os
 from pathlib import Path
-import plistlib
+import signal
 import subprocess
 import sys
 import time
-from http.client import HTTPConnection, HTTPException
 
+PORT = 19736
 LABEL = "dev.browser-hooks.bridge"
 
 
+def command(home):
+    return [
+        str(home / "bin/browser-hooks-bridge"), "serve", "--home", str(home),
+        "--port", str(PORT),
+    ]
+
+
 def health():
-    connection = HTTPConnection("127.0.0.1", 19736, timeout=1)
+    connection = HTTPConnection("127.0.0.1", PORT, timeout=1)
     try:
         connection.request("GET", "/health")
         response = connection.getresponse()
@@ -21,6 +31,7 @@ def health():
         return (
             value
             if response.status == 200
+            and isinstance(value, dict)
             and value.get("service") == "browser-hooks"
             and value.get("implementation") == "rust"
             else None
@@ -31,132 +42,123 @@ def health():
         connection.close()
 
 
-def start(home, binary):
-    install(binary, home)
-    deadline = time.monotonic() + 8
-    while time.monotonic() < deadline:
-        if health():
+@contextmanager
+def control(home):
+    with (home / "bridge.lock").open("a", encoding="utf-8") as lock:
+        os.chmod(lock.name, 0o600)
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
+def running(home):
+    path = home / "bridge.pid"
+    if not path.exists():
+        return None
+    try:
+        pid = int(path.read_text().strip())
+        if pid <= 1:
+            raise ValueError()
+    except ValueError:
+        raise ValueError(f"Invalid process record: {path}") from None
+    # Never signal an unrelated process if a stale PID has been reused.
+    result = subprocess.run(
+        ["ps", "-ww", "-p", str(pid), "-o", "args="], capture_output=True, text=True
+    )
+    if result.returncode == 0 and result.stdout.strip() == " ".join(command(home)).strip():
+        return pid
+    return None
+
+
+def start(home):
+    binary = home / "bin/browser-hooks-bridge"
+    if not binary.is_file() or not (home / "hooks/slack/config.json").is_file():
+        raise ValueError("Browser Hooks is not set up. Run browser-hooks setup.")
+    with control(home):
+        if running(home):
+            print("Browser Hooks is already running. Run browser-hooks status for details.")
             return
-        time.sleep(0.1)
-    raise RuntimeError(
-        f"Bridge did not start. Run browser-hooks status; check {home / 'logs/bridge.log'}."
-    )
-
-
-def specification(binary, home):
-    return {
-        "Label": LABEL,
-        "ProgramArguments": [str(binary), "serve", "--home", str(home)],
-        "RunAtLoad": True,
-        "KeepAlive": True,
-        "WorkingDirectory": str(home),
-        "EnvironmentVariables": {"PATH": os.environ.get("PATH", "/usr/bin:/bin")},
-        "StandardOutPath": str(home / "logs/bridge.log"),
-        "StandardErrorPath": str(home / "logs/bridge.log"),
-        "Umask": 0o077,
-        "ThrottleInterval": 10,
-    }
-
-
-def install(binary, home):
-    if sys.platform not in ("darwin", "linux"):
-        raise ValueError("Installation supports macOS and Linux")
-    logs = home / "logs"
-    logs.mkdir(parents=True, exist_ok=True, mode=0o700)
-    logs.chmod(0o700)
-    log = home / "logs/bridge.log"
-    log.touch(mode=0o600, exist_ok=True)
-    log.chmod(0o600)
-    if sys.platform == "linux":
-        install_linux(binary, home)
-    else:
-        install_macos(binary, home)
-    print(f"Installed {LABEL}; starts automatically at login.")
-
-
-def install_macos(binary, home):
-    folder = Path.home() / "Library" / "LaunchAgents"
-    folder.mkdir(parents=True, exist_ok=True)
-    path = folder / f"{LABEL}.plist"
-    target = f"gui/{os.getuid()}/{LABEL}"
-    loaded = (
-        subprocess.run(["launchctl", "print", target], capture_output=True).returncode
-        == 0
-    )
-    if loaded:
-        result = subprocess.run(["launchctl", "bootout", target], capture_output=True)
-        if result.returncode:
+        if health():
             raise RuntimeError(
-                "Could not stop the previous bridge service. Check launchctl for "
-                + LABEL
+                f"Another bridge is using port {PORT}. Stop it before starting this one."
             )
-    path.write_bytes(plistlib.dumps(specification(binary, home)))
-    path.chmod(0o600)
-    deadline = time.monotonic() + 5
-    while True:
-        result = subprocess.run(
-            ["launchctl", "bootstrap", f"gui/{os.getuid()}", str(path)],
-            capture_output=True,
+        logs = home / "logs"
+        logs.mkdir(parents=True, exist_ok=True, mode=0o700)
+        logs.chmod(0o700)
+        log = logs / "bridge.log"
+        with log.open("a") as output:
+            log.chmod(0o600)
+            process = subprocess.Popen(
+                command(home), cwd=home, stdin=subprocess.DEVNULL,
+                stdout=output, stderr=subprocess.STDOUT, start_new_session=True,
+            )
+        record = home / "bridge.pid"
+        try:
+            record.write_text(str(process.pid) + "\n")
+            record.chmod(0o600)
+            deadline = time.monotonic() + 8
+            while process.poll() is None and time.monotonic() < deadline:
+                result = health()
+                if result and result.get("pid") == process.pid:
+                    print("Browser Hooks started. Run browser-hooks stop to turn it off.")
+                    return
+                time.sleep(0.1)
+            raise RuntimeError(f"Bridge did not start. Check {log}; run browser-hooks status.")
+        except BaseException:
+            if process.poll() is None:
+                process.terminate()
+            process.wait(timeout=10)
+            record.unlink(missing_ok=True)
+            raise
+
+
+def stop(home):
+    if not home.is_dir():
+        print("Browser Hooks is stopped.")
+        return
+    with control(home):
+        pid = running(home)
+        if pid:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            deadline = time.monotonic() + 10
+            while running(home):
+                if time.monotonic() >= deadline:
+                    raise RuntimeError("Bridge is still stopping. Check its log, then run browser-hooks stop again.")
+                time.sleep(0.1)
+        (home / "bridge.pid").unlink(missing_ok=True)
+        print("Browser Hooks is stopped.")
+
+
+def remove_autostart():
+    """Remove the replaced login service during setup without enabling anything."""
+    if sys.platform == "darwin":
+        path = Path.home() / "Library/LaunchAgents" / f"{LABEL}.plist"
+        if not path.exists():
+            return
+        target = f"gui/{os.getuid()}/{LABEL}"
+        if subprocess.run(["launchctl", "print", target], capture_output=True).returncode == 0:
+            subprocess.run(
+                ["launchctl", "bootout", target], capture_output=True, check=True
+            )
+            deadline = time.monotonic() + 10
+            while subprocess.run(["launchctl", "print", target], capture_output=True).returncode == 0:
+                if time.monotonic() >= deadline:
+                    raise RuntimeError("Previous login service is still stopping. Rerun browser-hooks setup.")
+                time.sleep(0.1)
+        path.unlink()
+    elif sys.platform == "linux":
+        path = Path.home() / ".config/systemd/user" / f"{LABEL}.service"
+        if not path.exists():
+            return
+        subprocess.run(
+            ["systemctl", "--user", "disable", "--now", f"{LABEL}.service"],
+            capture_output=True, check=True,
         )
-        if not result.returncode:
-            break
-        # launchd can return EIO briefly while a booted-out job finishes exiting.
-        if not loaded or result.returncode != 5 or time.monotonic() >= deadline:
-            raise RuntimeError(
-                f"Could not start bridge service (launchctl exit {result.returncode}). Check the private bridge log."
-            )
-        time.sleep(0.2)
-
-
-def unit_value(value):
-    return (
-        '"'
-        + str(value)
-        .replace("\\", "\\\\")
-        .replace('"', '\\"')
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-        .replace("%", "%%")
-        + '"'
-    )
-
-
-def linux_unit(binary, home):
-    args = specification(binary, home)["ProgramArguments"]
-    return (
-        "[Unit]\nDescription=Browser Hooks bridge\n\n[Service]\n"
-        + "ExecStart="
-        + " ".join(unit_value(arg) for arg in args)
-        + "\n"
-        + "WorkingDirectory="
-        + unit_value(home)
-        + "\n"
-        + "Environment="
-        + unit_value("PATH=" + os.environ.get("PATH", os.defpath))
-        + "\n"
-        + "UMask=0077\nRestart=on-failure\nRestartSec=10\nKillMode=mixed\nTimeoutStopSec=10\n"
-        + "StandardOutput="
-        + unit_value("append:" + str(home / "logs/bridge.log"))
-        + "\n"
-        + "StandardError="
-        + unit_value("append:" + str(home / "logs/bridge.log"))
-        + "\n\n[Install]\nWantedBy=default.target\n"
-    )
-
-
-def install_linux(binary, home):
-    path = Path.home() / ".config" / "systemd/user" / f"{LABEL}.service"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(linux_unit(binary, home))
-    path.chmod(0o600)
-    for args in [
-        ["daemon-reload"],
-        ["enable", f"{LABEL}.service"],
-        ["restart", f"{LABEL}.service"],
-    ]:
-        result = subprocess.run(["systemctl", "--user", *args], capture_output=True)
-        if result.returncode:
-            raise RuntimeError(
-                "Could not start the user service. Check systemctl --user status "
-                + LABEL
-            )
+        path.unlink()
+        subprocess.run(
+            ["systemctl", "--user", "daemon-reload"], capture_output=True, check=True
+        )
+    else:
+        raise ValueError("Browser Hooks supports macOS and Linux")

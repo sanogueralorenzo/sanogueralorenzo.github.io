@@ -1,7 +1,7 @@
 const BASE = "http://127.0.0.1:19736";
 const trusted = chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
 
-const REPAIR = "Automatic pairing is unavailable or expired. Run browser-hooks install, then reload Browser Hooks.";
+const REPAIR = "Automatic pairing is unavailable or expired. Run browser-hooks stop, then browser-hooks start, then reload Browser Hooks.";
 let pairing;
 
 async function exchange(path, body, token) {
@@ -12,7 +12,7 @@ async function exchange(path, body, token) {
     headers: { "Content-Type": "application/json", "X-Browser-Hooks-Origin": chrome.runtime.getURL("").replace(/\/$/, ""),
       ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  }); } catch { throw new Error("Local bridge is not running. Run browser-hooks install."); }
+  }); } catch { throw new Error("Local bridge is not running. Run browser-hooks start."); }
   return response;
 }
 
@@ -56,7 +56,7 @@ export async function request(path, body) {
 async function read(response) {
   if (response.status === 403) throw new Error(REPAIR);
   if (!response.ok) throw new Error("Local bridge rejected the request. Run browser-hooks status on your computer.");
-  try { return await response.json(); } catch { throw new Error("Local bridge returned an invalid response. Run browser-hooks install."); }
+  try { return await response.json(); } catch { throw new Error("Local bridge returned an invalid response. Run browser-hooks status."); }
 }
 
 const subscribers = new Set();

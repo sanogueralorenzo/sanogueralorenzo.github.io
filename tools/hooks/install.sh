@@ -9,7 +9,7 @@ esac
 
 command -v git >/dev/null || { echo 'Install Git first, then rerun this installer.' >&2; exit 1; }
 python_bin=''
-for candidate in python3 python3.14 python3.13 python3.12 python3.11; do
+for candidate in python3 python3.15 python3.14 python3.13 python3.12 python3.11; do
   if command -v "$candidate" >/dev/null && "$candidate" -c 'import sys; sys.exit(sys.version_info < (3, 11))' 2>/dev/null; then
     python_bin=$(command -v "$candidate")
     break
@@ -34,4 +34,4 @@ else
     https://github.com/sanogueralorenzo/sanogueralorenzo.github.io.git "$source_dir"
   git -C "$source_dir" sparse-checkout set tools/hooks
 fi
-"$python_bin" "$source_dir/tools/hooks/cli.py" install --home "$install_dir" "$@"
+"$python_bin" "$source_dir/tools/hooks/cli.py" setup --home "$install_dir" "$@"

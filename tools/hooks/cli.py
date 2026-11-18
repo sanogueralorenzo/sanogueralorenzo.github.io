@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Install and inspect Browser Hooks and its website adapters."""
+"""Set up and manually control Browser Hooks."""
 
 import argparse
 import os
 from pathlib import Path
+import subprocess
 import sys
 
 from paths import app_home
@@ -13,18 +14,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     shared = argparse.ArgumentParser(add_help=False)
-    shared.add_argument(
-        "--home", type=Path, default=app_home(), help="Private Browser Hooks directory"
-    )
-    install = commands.add_parser(
-        "install", parents=[shared], help="Install the extension and available hooks"
-    )
-    install.add_argument("--workspace", type=Path, default=Path.cwd())
-    commands.add_parser("status", parents=[shared], help="Show hook status")
-    commands.add_parser("serve", parents=[shared], help="Run the shared local bridge")
-    slack = commands.add_parser("slack", help="Slack hook")
-    actions = slack.add_subparsers(dest="action", required=True)
-    actions.add_parser("status", parents=[shared], help="Show Slack status")
+    shared.add_argument("--home", type=Path, default=app_home(), help="Private Browser Hooks directory")
+    setup = commands.add_parser("setup", parents=[shared], help="Install/configure without starting")
+    setup.add_argument("--workspace", type=Path, default=Path.cwd())
+    commands.add_parser("start", parents=[shared], help="Start the bridge in the background")
+    commands.add_parser("stop", parents=[shared], help="Stop the bridge and active requests")
+    commands.add_parser("status", parents=[shared], help="Show bridge and hook status")
     args = parser.parse_args()
     os.umask(0o077)
     home = args.home.expanduser().resolve()
@@ -34,27 +29,24 @@ def main():
         or checkout.is_relative_to(home / "extension")
         or checkout.is_relative_to(home / "hooks")
     ):
-        raise ValueError(
-            "Keep private Browser Hooks files outside the public repository"
-        )
-    if args.command == "install":
-        from installation import install
+        raise ValueError("Keep private Browser Hooks files outside the public repository")
+    if args.command == "setup":
+        from installation import setup
 
-        install(home, checkout, args.workspace)
-    elif args.command == "status" or args.command == "slack":
+        setup(home, checkout, args.workspace)
+    elif args.command == "status":
         from slack.setup import status
 
         raise SystemExit(status(home))
     else:
-        binary = home / "bin/browser-hooks-bridge"
-        if not binary.is_file():
-            raise ValueError("Rust bridge is missing. Run browser-hooks install.")
-        os.execv(binary, [str(binary), "serve", "--home", str(home)])
+        from service import start, stop
+
+        (start if args.command == "start" else stop)(home)
 
 
 if __name__ == "__main__":
     try:
         main()
-    except (OSError, ValueError, KeyError, RuntimeError) as error:
+    except (OSError, ValueError, KeyError, RuntimeError, subprocess.SubprocessError) as error:
         print(f"Browser Hooks: {error}", file=sys.stderr)
         raise SystemExit(1)

@@ -26,7 +26,7 @@ with (root/'git-calls').open('a') as out: out.write(json.dumps(args)+'\\n')
 if args[0]=='clone':
  source=Path(args[-1]);(source/'.git').mkdir(parents=True)
  bridge=source/'tools/hooks/cli.py';bridge.parent.mkdir(parents=True)
- bridge.write_text('import sys\\nargs=sys.argv[1:]; assert args[:2]==["install","--home"]; assert __import__("pathlib").Path(args[2]).resolve()==__import__("pathlib").Path(__file__).resolve().parents[3]; assert args[3:]==["--workspace","/fixture/project"]\\nprint("INSTALL_OK")\\n')
+ bridge.write_text('import sys\\nargs=sys.argv[1:]; assert args[:2]==["setup","--home"]; assert __import__("pathlib").Path(args[2]).resolve()==__import__("pathlib").Path(__file__).resolve().parents[3]; assert args[3:]==["--workspace","/fixture/project"]\\nprint("INSTALL_OK")\\n')
 """
             )
             git.chmod(0o700)

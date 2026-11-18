@@ -194,7 +194,7 @@ impl App {
         }) {
             return Err((
                 StatusCode::FORBIDDEN,
-                "Browser pairing expired. Run browser-hooks install, then reload Browser Hooks.",
+                "Browser pairing expired. Run browser-hooks stop, then browser-hooks start, then reload Browser Hooks.",
             ));
         }
         Ok(())
@@ -209,7 +209,7 @@ impl App {
         {
             return Err((
                 StatusCode::FORBIDDEN,
-                "Automatic pairing expired. Run browser-hooks install, then reload Browser Hooks.",
+                "Automatic pairing expired. Run browser-hooks stop, then browser-hooks start, then reload Browser Hooks.",
             ));
         }
         let saved = Credentials {
@@ -254,7 +254,7 @@ async fn dispatch(app: &Arc<App>, request: Request<Body>) -> ApiResult<Value> {
     app.check_host(&headers)?;
     if path == "/health" && method == Method::GET {
         return Ok(
-            json!({"service":"browser-hooks","implementation":"rust","paired":app.pair.lock().unwrap().saved.is_some(),"hooks":{"slack":{"error":app.slack.error()}}}),
+            json!({"service":"browser-hooks","implementation":"rust","pid":std::process::id(),"paired":app.pair.lock().unwrap().saved.is_some(),"hooks":{"slack":{"error":app.slack.error()}}}),
         );
     }
     let origin = app.check_origin(&headers)?;

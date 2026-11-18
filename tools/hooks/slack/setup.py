@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import sys
 
-from service import health
+from service import health, running
 
 
 def validate(home, binary):
@@ -16,7 +16,7 @@ def validate(home, binary):
     if result.returncode:
         raise ValueError(
             result.stderr.strip()
-            or "Invalid Slack configuration. Edit config.json and run browser-hooks install."
+            or "Invalid Slack configuration. Edit config.json and run browser-hooks setup."
         )
     return json.loads(result.stdout)["hooks"]["slack"]["keywords"]
 
@@ -34,7 +34,7 @@ def configure(home, checkout, workspace, binary):
                 }
         if not commands:
             raise ValueError(
-                "Install and sign in to Codex or Claude first, then run browser-hooks install."
+                "Install and sign in to Codex or Claude first, then run browser-hooks setup."
             )
         workspace = workspace.expanduser().resolve()
         if not workspace.is_dir():
@@ -60,22 +60,26 @@ def configure(home, checkout, workspace, binary):
 def status(home):
     binary = home / "bin/browser-hooks-bridge"
     if not binary.is_file():
-        raise ValueError("Rust bridge is missing. Run browser-hooks install.")
+        raise ValueError("Rust bridge is missing. Run browser-hooks setup.")
+    if not (home / "hooks/slack/config.json").is_file():
+        raise ValueError("Slack is not configured. Run browser-hooks setup.")
     keywords = validate(home, binary)
     folder = home / "hooks/slack"
-    result = health()
-    print(
-        "Browser Hooks bridge (Rust): "
-        + ("running" if result else "not running; run browser-hooks install")
-    )
-    print(
-        "Browser: "
-        + (
-            "paired"
-            if result and result["paired"]
-            else "not paired; run browser-hooks install, then reload the extension"
-        )
-    )
+    pid = running(home)
+    result = health() if pid else None
+    if result and result.get("pid") != pid:
+        result = None
+    if not pid:
+        bridge = "stopped; run browser-hooks start"
+        browser = "unavailable while the bridge is stopped"
+    elif not result:
+        bridge = "running but unresponsive; check the log"
+        browser = "unavailable; run browser-hooks stop, then browser-hooks start"
+    else:
+        bridge = "running"
+        browser = "paired" if result["paired"] else "not paired; reload the extension"
+    print("Browser Hooks bridge (Rust): " + bridge)
+    print("Browser: " + browser)
     print("Keywords: " + " / ".join(keywords))
     print(f"Configuration: {folder / 'config.json'}")
     print(f"Logs: {home / 'logs/bridge.log'}")
@@ -93,7 +97,7 @@ def status(home):
                 + (
                     "installed (login checked when a request runs)"
                     if shutil.which(name)
-                    else "not found; install the CLI and run browser-hooks install"
+                    else "not found; install the CLI and run browser-hooks setup"
                 )
             )
     if result and result["hooks"]["slack"].get("error"):

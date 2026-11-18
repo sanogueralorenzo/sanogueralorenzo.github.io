@@ -54,7 +54,7 @@ impl HookError {
             "auth_required" => format!("{provider} login expired or is missing. Run `{login}` on your computer, then send a new request."),
             "usage_limit" => format!("{provider} reached a usage or rate limit. Check your CLI account and retry later."),
             "permission_required" => format!("{provider} needs approval. Open the CLI on your computer to approve the operation, then send a new request."),
-            "missing_cli" => format!("{provider} CLI was not found. Install it and run `browser-hooks install`."),
+            "missing_cli" => format!("{provider} CLI was not found. Install it and run `browser-hooks setup`."),
             "timeout" => format!("{provider} did not respond to a control request. Check the CLI and local bridge, then retry."),
             "cancelled" => "The request was cancelled. Send a new request when the bridge is running.".into(),
             "interrupted" => "The bridge stopped during this request. It was not rerun automatically. Check the saved agent session, then send a follow-up in this thread to continue.".into(),
@@ -64,7 +64,7 @@ impl HookError {
             "output_limit" => format!("{provider} produced too much output. Try a smaller request."),
             "context_limit" => "This thread is too large to send to the agent. Start a new Slack thread.".into(),
             "context_changed" => "The agent session changed while thread history was loading. Send the request again to refresh its context.".into(),
-            "workspace_missing" => "The configured project directory no longer exists. Update workspace/projects and run `browser-hooks install`.".into(),
+            "workspace_missing" => "The configured project directory no longer exists. Update workspace/projects and run `browser-hooks setup`.".into(),
             _ => format!("{provider} failed. Run the CLI directly on your computer, then send a new request."),
         };
         json!({"code":self.code,"provider":provider,"message":message})

@@ -15,7 +15,7 @@
     emit("status", { status: { ...state } });
   }
   function failure(message) { return Object.assign(new Error(message), { publicMessage: message }); }
-  function errorMessage(error) { return error?.publicMessage || "Request failed. Run browser-hooks slack status on your computer."; }
+  function errorMessage(error) { return error?.publicMessage || "Request failed. Run browser-hooks status on your computer."; }
   function credential() {
     const team = page.location.pathname.match(/^\/client\/([A-Z0-9]+)(?:\/|$)/)?.[1];
     let config;

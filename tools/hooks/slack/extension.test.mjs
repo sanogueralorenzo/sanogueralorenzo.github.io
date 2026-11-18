@@ -111,7 +111,7 @@ test('persisted and stale credentials reconnect or repair without user input', a
 test('expired and malformed pairing files show a safe repair and retry only on failure', async () => {
   for (const bootstrap of [null, { code: 'synthetic-private-secret', expiresAt: Date.now() - 1 }]) {
     const w = worker({ bootstrap }), page = port(); w.connectPort(page); await settle();
-    assert.match(page.sent.at(-1).settings.error, /browser-hooks install/);
+    assert.match(page.sent.at(-1).settings.error, /browser-hooks stop/);
     assert.ok(!JSON.stringify(page.sent).includes('synthetic-private-secret'));
     assert.equal(w.sockets.length, 0);
     assert.ok([...w.timers.values()].some(timer => !timer.interval));

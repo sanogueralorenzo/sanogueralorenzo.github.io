@@ -2,10 +2,10 @@
 
 ![Agent Slack banner](docs/banner.png)
 
-Follow [Browser Hooks setup](../README.md#install-or-update), then send
+Follow [Browser Hooks setup](../README.md#setup-or-update), then send
 `chat your request` for Codex or `claude your request` for Claude. Your own
 keyword-prefixed messages trigger work in channels and DMs, including messages
-sent from your phone. Listening is automatic and invisible while Slack is open.
+sent from your phone. Listening is automatic and invisible while the bridge and Slack are open.
 
 **👀** stays on the request. Replies appear as you in the same thread; the first
 successful agent reply includes a `chat` link when available. Follow-ups resume the
@@ -21,7 +21,7 @@ agent normally.
 ## Configure
 
 Edit `~/.local/share/browser-hooks/hooks/slack/config.json`, then run
-`browser-hooks install`. Each key in `commands` is a trigger keyword. Setup creates
+`browser-hooks stop` followed by `browser-hooks start`. Each key in `commands` is a trigger keyword. Setup creates
 `chat` and/or `claude` for installed CLIs; see [custom adapters](docs/adapters.md)
 for other commands.
 
@@ -39,7 +39,7 @@ unsent replies and session IDs. Interrupted turns are reported; send a follow-up
 in the thread to continue. Uncertain sends are never retried automatically;
 messages missed while offline are not replayed.
 
-Run `browser-hooks slack status` for connection details and the last error.
+Run `browser-hooks status` for connection details and the last error.
 Failures also explain the next step in the Slack thread and popup tooltip. For an
 expired login, run `codex login` or `claude auth login`. If another Codex client
 owns the chat, finish or release its turn there before retrying from Slack.

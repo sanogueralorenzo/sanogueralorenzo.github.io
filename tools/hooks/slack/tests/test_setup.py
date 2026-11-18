@@ -6,13 +6,12 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from installation import install as install_hooks, launcher
+from installation import setup as setup_hooks, launcher
 from paths import app_home
-from slack.setup import configure, validate
-from service import install as install_service, linux_unit, specification
+from slack.setup import configure, status, validate
 from support import bridge_binary
 
 
@@ -42,7 +41,7 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(config["commands"]["claude"]["resume"][-1], "{session_id}")
         self.assertEqual(self.path.stat().st_mode & 0o777, 0o600)
 
-    def test_update_preserves_config_pairing_and_database_and_installs_native_service(
+    def test_setup_preserves_config_pairing_and_database_without_starting(
         self,
     ):
         self.configure()
@@ -61,30 +60,29 @@ class SetupTests(unittest.TestCase):
         with (
             patch("installation.build", return_value=self.binary),
             patch("installation.launcher", return_value=self.root / "browser-hooks"),
-            patch("service.install") as service,
-            patch("service.health", return_value={"paired": True}),
+            patch("installation.remove_autostart") as remove_autostart,
+            patch("installation.stop") as stop,
+            patch("service.start") as start,
             contextlib.redirect_stdout(io.StringIO()),
         ):
-            install_hooks(self.home, self.checkout, self.root)
-        service.assert_called_once_with(self.binary, self.home)
+            setup_hooks(self.home, self.checkout, self.root)
+        remove_autostart.assert_called_once_with()
+        stop.assert_called_once_with(self.home)
+        start.assert_not_called()
         self.assertEqual(pairing.read_bytes(), b"synthetic-saved-key")
         for name, data in files.items():
             self.assertEqual((self.folder / name).read_bytes(), data)
-        self.assertEqual(
-            specification(self.binary, self.home)["ProgramArguments"],
-            [str(self.binary), "serve", "--home", str(self.home)],
-        )
 
     def test_private_extension_contains_only_browser_runtime_files(self):
         with (
             patch("slack.setup.shutil.which", return_value=sys.executable),
             patch("installation.build", return_value=self.binary),
             patch("installation.launcher", return_value=self.root / "browser-hooks"),
-            patch("service.install"),
-            patch("service.health", return_value={"paired": False}),
+            patch("installation.remove_autostart"),
+            patch("installation.stop"),
             contextlib.redirect_stdout(io.StringIO()) as output,
         ):
-            install_hooks(self.home, self.checkout, self.root)
+            setup_hooks(self.home, self.checkout, self.root)
         self.assertIn("Load unpacked", output.getvalue())
         self.assertIn("no code to copy", output.getvalue())
         extension = self.home / "extension"
@@ -102,7 +100,7 @@ class SetupTests(unittest.TestCase):
             [
                 sys.executable,
                 str(self.checkout / "cli.py"),
-                "install",
+                "setup",
                 "--home",
                 str(self.checkout / "private-state"),
             ],
@@ -113,36 +111,22 @@ class SetupTests(unittest.TestCase):
         self.assertIn("outside the public repository", result.stderr)
         self.assertFalse((self.checkout / "private-state").exists())
 
-    def test_launcher_executes_from_any_directory_and_serve_executes_native_binary(
-        self,
-    ):
-        with patch(
-            "installation.Path.home", return_value=self.root / "home with spaces"
-        ):
+    def test_launcher_exposes_only_setup_start_stop_status_from_any_directory(self):
+        with patch("installation.Path.home", return_value=self.root / "home with spaces"):
             path = launcher(self.home, self.checkout)
         result = subprocess.run(
-            [str(path), "slack", "--help"],
-            cwd=self.root,
-            capture_output=True,
-            text=True,
+            [str(path), "--help"], cwd=self.root, capture_output=True, text=True
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("status", result.stdout)
+        self.assertIn("{setup,start,stop,status}", result.stdout)
         self.assertNotIn("serve", result.stdout)
+        self.assertNotIn("install", result.stdout)
         self.assertEqual(path.stat().st_mode & 0o777, 0o700)
-        binary = self.home / "bin/browser-hooks-bridge"
-        binary.parent.mkdir(parents=True)
-        binary.write_text(
-            "#!"
-            + sys.executable
-            + "\nimport json,sys\nprint(json.dumps(sys.argv[1:]))\n"
-        )
-        binary.chmod(0o700)
         result = subprocess.run(
-            [str(path), "serve"], cwd=self.root, capture_output=True, text=True
+            [str(path), "start"], cwd=self.root, capture_output=True, text=True
         )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(json.loads(result.stdout), ["serve", "--home", str(self.home)])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("browser-hooks setup", result.stderr)
 
     def test_one_private_home_override(self):
         with patch.dict("os.environ", {"BROWSER_HOOKS_HOME": str(self.home)}):
@@ -152,6 +136,41 @@ class SetupTests(unittest.TestCase):
             patch("paths.Path.home", return_value=self.root),
         ):
             self.assertEqual(app_home(), self.root / ".local/share/browser-hooks")
+
+    def test_status_reports_stopped_without_starting_or_creating_sessions(self):
+        self.configure()
+        binary = self.home / "bin/browser-hooks-bridge"
+        binary.parent.mkdir()
+        binary.symlink_to(self.binary)
+        with (
+            patch("service.start") as start,
+            contextlib.redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(status(self.home), 1)
+        start.assert_not_called()
+        self.assertIn("stopped; run browser-hooks start", output.getvalue())
+        self.assertFalse((self.folder / "sessions.sqlite3").exists())
+
+    def test_status_accepts_only_the_managed_bridge_health(self):
+        self.configure()
+        binary = self.home / "bin/browser-hooks-bridge"
+        binary.parent.mkdir()
+        binary.symlink_to(self.binary)
+        healthy = {"pid": 123, "paired": True, "hooks": {"slack": {"error": None}}}
+        with (
+            patch("slack.setup.running", return_value=123),
+            patch("slack.setup.health", return_value=healthy),
+            contextlib.redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(status(self.home), 0)
+        self.assertIn("Browser: paired", output.getvalue())
+        with (
+            patch("slack.setup.running", return_value=456),
+            patch("slack.setup.health", return_value=healthy),
+            contextlib.redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(status(self.home), 1)
+        self.assertNotIn("Browser: paired", output.getvalue())
 
     def test_bad_config_and_missing_clis_leave_existing_data_untouched(self):
         with (
@@ -166,49 +185,6 @@ class SetupTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "configuration"):
                 validate(self.home, self.binary)
             self.assertEqual(self.path.read_text(), contents)
-
-    def test_macos_update_waits_for_previous_service_to_exit(self):
-        from service import install
-
-        completed = lambda code: Mock(returncode=code)
-        with (
-            patch("service.sys.platform", "darwin"),
-            patch("service.Path.home", return_value=self.root),
-            patch("service.time.sleep"),
-            patch(
-                "service.subprocess.run",
-                side_effect=[completed(0), completed(0), completed(5), completed(0)],
-            ) as run,
-            contextlib.redirect_stdout(io.StringIO()),
-        ):
-            install(self.binary, self.home)
-        self.assertEqual(
-            sum(c.args[0][1] == "bootstrap" for c in run.call_args_list), 2
-        )
-
-    def test_linux_service_uses_native_binary_and_only_explicit_path(self):
-        unit = linux_unit(self.root / "with spaces/browser-hooks-bridge", self.home)
-        self.assertIn('with spaces/browser-hooks-bridge" "serve" "--home"', unit)
-        self.assertIn("UMask=0077", unit)
-        self.assertNotIn("SLACK_", unit)
-        self.assertEqual(
-            set(specification(self.binary, self.home)["EnvironmentVariables"]), {"PATH"}
-        )
-        with (
-            patch("service.sys.platform", "linux"),
-            patch("service.Path.home", return_value=self.root),
-            patch("service.subprocess.run") as run,
-            contextlib.redirect_stdout(io.StringIO()),
-        ):
-            run.return_value.returncode = 0
-            install_service(self.binary, self.home)
-        self.assertEqual(
-            [c.args[0][2] for c in run.call_args_list],
-            ["daemon-reload", "enable", "restart"],
-        )
-        self.assertEqual(
-            (self.home / "logs/bridge.log").stat().st_mode & 0o777, 0o600
-        )
 
 
 if __name__ == "__main__":
