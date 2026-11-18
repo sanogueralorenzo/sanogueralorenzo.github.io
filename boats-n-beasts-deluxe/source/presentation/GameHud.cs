@@ -59,10 +59,11 @@ public partial class Game : Node2D
             if (Game.lootNoticeTime > 0 && r.IsActive)
             {
                 float alpha = Math.Min(1, Game.lootNoticeTime / .4f);
-                float width = BodyFont.GetStringSize(Game.lootNotice, fontSize: 21).X;
-                var at = Game.ocean.Screen(Game.lootNoticePosition) + new Vector2(-width / 2, -35 - (1.2f - Game.lootNoticeTime) * 24);
+                float width = TitleFont.GetStringSize(Game.lootNotice, fontSize: 21).X;
+                var anchor = Game.ocean.ElevatedScreen(Game.lootNoticePosition, Game.lootNoticeAltitude);
+                var at = anchor + new Vector2(-width / 2, -35 - (1.2f - Game.lootNoticeTime) * 24);
                 Text(at + Vector2.One, Game.lootNotice, 21, true, new Color(NauticalPalette.Navy, alpha));
-                Text(at, Game.lootNotice, 21, true, new Color(NauticalPalette.Cream, alpha));
+                Text(at, Game.lootNotice, 21, true, new Color(Game.lootNoticeColor, alpha));
             }
             if (r.IsBoosting || r.Boost < 100)
             {

@@ -90,7 +90,7 @@ public partial class Effects3D : Node3D
                         1.75f, .025f, Fade(Magic, .72f), 9);
             }
             if (enemy.Fuse > 0)
-                DrawWarning(enemy.Position, Enemy.PufferBlastRadius, 1 - enemy.Fuse / Enemy.PufferFuseDuration);
+                DrawWarning(enemy.Position, Enemy.PufferBlastRadius, enemy.Fuse, Enemy.PufferFuseDuration);
             if (enemy.Charge is { } charge)
                 DrawCrownclawCharge(enemy, charge);
             else if (enemy.Telegraph > 0)
@@ -211,11 +211,14 @@ public partial class Effects3D : Node3D
         foam.Ribbon(slack, attachment, .017f, .017f, Fade(Cream, .9f));
     }
 
-    void DrawWarning(V2 position, float radius, float progress)
+    void DrawWarning(V2 position, float radius, float remaining, float duration)
     {
         var center = World(position, .075f);
-        foam.Arc(center, radius * .01f, 0, Mathf.Tau, .041f, Fade(Coral, .72f), 48);
-        foam.Arc(center, radius * .01f * Math.Max(.08f, progress), 0, Mathf.Tau, .023f, Fade(Cream, .62f), 32);
+        float edge = (radius + Voyage.BlastHullMargin) * NativeStage3D.Unit;
+        float progress = 1 - Mathf.Clamp(remaining / duration, 0, 1);
+        float urgency = 1 - Mathf.Clamp(remaining / Voyage.CloseCallWindow, 0, 1);
+        foam.Arc(center, edge, 0, Mathf.Tau, .042f + urgency * .021f, Fade(Coral, .73f + urgency * .2f), 52);
+        foam.Arc(center, edge * Math.Max(.08f, progress), 0, Mathf.Tau, .023f, Fade(Cream, .62f), 36);
     }
 
     void DrawCharge(Enemy enemy)
@@ -352,7 +355,7 @@ public partial class Effects3D : Node3D
         if (s.Hostile)
         {
             float flight = Mathf.Clamp(s.Age / s.FlightDuration, 0, 1);
-            DrawWarning(s.Target, s.Radius, flight);
+            DrawWarning(s.Target, s.Radius, s.Life, s.FlightDuration);
             p.Y = .12f + .4f * (1 - flight) + Mathf.Sin(flight * Mathf.Pi) * 1.8f;
             Ball(p, Vector3.One * .27f, new("733b3c"));
             Ball(p + new Vector3(-.025f, .07f, -.025f), Vector3.One * .20f, Coral);
@@ -434,7 +437,7 @@ public partial class Effects3D : Node3D
             bursts.Add(new() { Kind = "barrel", P = World(ev.Position, .06f), Life = .55f });
         bool link = ev.Kind is "arc" or "pull" or "tripwire";
         if (bursts.Count < 192 && (link || ev.Kind is "aura" or "bulwark" or "explosion" or "calm"
-            or "pufferExplosion" or "bossExplosion" or "crownclawGrounded" or "repairDone" or "beacon" or "broadside" or "blink" or "stormshot" or "riptide"))
+            or "pufferExplosion" or "bossExplosion" or "crownclawGrounded" or "closeCall" or "repairDone" or "beacon" or "broadside" or "blink" or "stormshot" or "riptide"))
         {
             float life = ev.Kind switch
             {
@@ -447,7 +450,7 @@ public partial class Effects3D : Node3D
             bursts.Add(new()
             {
                 Kind = ev.Kind, P = World(ev.Position, link ? .26f : .05f), End = World(ev.End, .26f),
-                Life = life, Size = (ev.Kind == "beacon" ? Beacon.Radius : ev.Value) * .01f
+                Life = life, Size = ev.Kind == "closeCall" ? 1.25f : (ev.Kind == "beacon" ? Beacon.Radius : ev.Value) * .01f
             });
         }
         int count=ev.Kind switch {"hit"=>2,"kill"=>7,"explosion"=>15,"hurt"=>5,"shot"=>3,"ricochet"=>4,"barrel"=>3,"heal" or "treasure" or "silver"=>6,"boostStart"=>9,"beacon" or "towDelivered" or "crownclawGrounded"=>26,"towHooked" or "towSnapped"=>8,"chain"=>13,"broadside"=>20,"blink"=>16,"stormshot"=>14,"riptide"=>7,_=>0};
@@ -515,6 +518,7 @@ public partial class Effects3D : Node3D
         bool aura=b.Kind=="aura"; float r=radius*(aura?.82f+t*.18f:.3f+t*.7f);
         var color = b.Kind switch
         {
+            "closeCall" => NauticalPalette.Gold,
             "explosion" or "beacon" or "broadside" or "stormshot" => Cream,
             "riptide" => Magic,
             _ => Aqua

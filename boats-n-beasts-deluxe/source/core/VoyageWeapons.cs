@@ -102,6 +102,7 @@ public sealed partial class Voyage
                 var target = Enemies.Where(e=>e.Health>0 && !e.Emerging && !s.Hit.Contains(e.Id) && Vector2.DistanceSquared(e.Position,s.Position)<pursuit*pursuit).OrderByDescending(e => !s.ComboSpent && e.Drenched > 0).ThenBy(e=>Vector2.DistanceSquared(e.Position,s.Position)).FirstOrDefault(e => World.OpenShot(s.Position, e.Position));
                 if (target != null) s.Velocity = OceanWorld.Unit(Vector2.Lerp(s.Velocity/400,OceanWorld.Unit(target.Position-s.Position),1-MathF.Exp(-dt*7)))*400;
             }
+            if (s.Hostile) s.BlastThreatened |= WasInLateBlast(s.Target, s.Radius, s.Life);
             s.Previous=s.Position; s.Position+=s.Velocity*dt; s.Life-=dt; s.Age+=dt;
             if (s.Hostile)
             {
@@ -111,12 +112,7 @@ public sealed partial class Voyage
                     s.Position = s.Target;
                     BossExplosions++;
                     Events.Add(new("bossExplosion", s.Target, s.Radius));
-                    if (Vector2.Distance(Position, s.Target) < s.Radius + 23)
-                    {
-                        float before = Health;
-                        DamagePlayer(s.Damage);
-                        if (Health < before) BossBlastHits++;
-                    }
+                    if (ResolveBlast(s.Target, s.Radius, s.Damage, s.BlastThreatened)) BossBlastHits++;
                 }
                 continue;
             }

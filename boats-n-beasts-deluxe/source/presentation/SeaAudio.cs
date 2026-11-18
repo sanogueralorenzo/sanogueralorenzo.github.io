@@ -44,6 +44,7 @@ public partial class SeaAudio : Node
         AddCue("blink", Chime(.42f, [392, 587, 784], .58f));
         AddCue("pufferExplosion", Thump(.38f, 77, .68f));
         AddCue("bossExplosion", Thump(.44f, 58, .8f));
+        AddCue("closeCall", Chime(.54f, [494, 659, 880], .68f));
         AddCue("explosion", Thump(.26f, 85, .51f));
         AddCue("chain", Chime(.46f, [440, 587, 660], .58f));
         AddCue("towHooked", Chime(.32f, [220, 330], .56f));

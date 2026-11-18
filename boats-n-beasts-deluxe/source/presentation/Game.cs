@@ -27,9 +27,11 @@ public partial class Game : Node2D
     float toastTime;
     string toast = "";
     float lootNoticeTime, hitNotice;
+    float lootNoticeAltitude;
     float pairingFlash;
     string lootNotice = "";
     V2 lootNoticePosition;
+    Color lootNoticeColor = NauticalPalette.Cream;
 
 
     public override void _Ready()
@@ -105,11 +107,13 @@ public partial class Game : Node2D
                 case "repairInterrupted": Toast("Repairs interrupted · berth still available"); break;
                 case "repairDone": Toast("Harbor repairs complete"); break;
                 case "hurt": hitNotice = .46f; break;
+                case "closeCall":
+                    LootNotice(e, e.Value >= 1 ? $"Close call · +{e.Value:0} boost" : "Close call", NauticalPalette.Gold,
+                        ActorArt3D.BoatHudHeight);
+                    break;
                 case "treasure":
                 case "heal":
-                    lootNotice = $"+{e.Value:0} {(e.Kind == "heal" ? "hull" : "XP")}";
-                    lootNoticePosition = e.Position;
-                    lootNoticeTime = 1.2f;
+                    LootNotice(e, $"+{e.Value:0} {(e.Kind == "heal" ? "hull" : "XP")}", NauticalPalette.Cream);
                     break;
             }
         }
@@ -291,4 +295,13 @@ public partial class Game : Node2D
         runRecorded = true;
     }
     void Toast(string text) { toast = text; toastTime = 5; }
+
+    void LootNotice(GameEvent ev, string text, Color color, float altitude = 0)
+    {
+        lootNotice = text;
+        lootNoticePosition = ev.Position;
+        lootNoticeColor = color;
+        lootNoticeAltitude = altitude;
+        lootNoticeTime = 1.2f;
+    }
 }

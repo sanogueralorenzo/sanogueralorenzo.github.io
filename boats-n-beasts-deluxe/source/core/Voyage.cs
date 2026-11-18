@@ -11,6 +11,7 @@ public sealed class Enemy
     public float Health, MaxHealth, Time, AttackClock, Telegraph, Dash, HitFlash, Pull, Fuse;
     public float SpeedMultiplier = 1;
     public bool ChargeNext;
+    public bool BlastThreatened;
     public float Exposed, Drenched;
     public CrownclawCharge? Charge { get; internal set; }
     public bool Grounded { get; internal set; }
@@ -30,6 +31,7 @@ public sealed class Shot
     public float Damage, Life, Radius, Age, FlightDuration, LaunchHeight; public bool Hostile;
     public WeaponKind Kind; public int Pierce, Bounces;
     public bool Ricocheted, ComboSpent;
+    public bool BlastThreatened;
     public HashSet<int> Hit = new();
 }
 public readonly record struct GameEvent(string Kind, Vector2 Position, float Value = 0, Vector2 End = default);
@@ -94,6 +96,7 @@ public sealed partial class Voyage
         if (!IsActive || dt <= 0) return;
         if (!BossSlain) CombatTime += dt;
         Invulnerable = Math.Max(0, Invulnerable - dt);
+        BeginCloseCallTick(dt);
         UpdateMovement(dt, input);
         if (BossSlain) return;
         UpdateHarborRepairs(dt, input);
@@ -104,6 +107,7 @@ public sealed partial class Voyage
         Enemies.RemoveAll(e => e.Health <= 0 || (e.Kind != EnemyKind.Leviathan && e.GuardAnchor == null && Vector2.DistanceSquared(e.Position, Position) > 1600 * 1600));
         Shots.RemoveAll(s => s.Life <= 0);
         if (Mode == VoyageMode.Victory) return;
+        RewardCloseCall();
         if (Health <= 0) { Health = 0; Mode = VoyageMode.Defeat; Events.Add(new("defeat", Position)); }
         else
         {
@@ -194,6 +198,7 @@ public sealed partial class Voyage
                 // Once armed, hold still and commit to the blast; sailing away avoids it.
                 if (e.Fuse > 0)
                 {
+                    e.BlastThreatened |= WasInLateBlast(e.Position, Enemy.PufferBlastRadius, e.Fuse);
                     e.Fuse = Math.Max(0, e.Fuse - dt);
                     if (e.Fuse <= 0)
                     {
@@ -201,12 +206,7 @@ public sealed partial class Voyage
                         PufferExplosions++;
                         Events.Add(new("pufferExplosion", e.Position, Enemy.PufferBlastRadius));
                         SplashEnemies(e.Position, Enemy.PufferBlastRadius, 24);
-                        if (distance < Enemy.PufferBlastRadius + 23)
-                        {
-                            float before = Health;
-                            DamagePlayer(22);
-                            if (Health < before) PufferBlastHits++;
-                        }
+                        if (ResolveBlast(e.Position, Enemy.PufferBlastRadius, 22, e.BlastThreatened)) PufferBlastHits++;
                     }
                     continue;
                 }
@@ -264,6 +264,7 @@ public sealed partial class Voyage
     void DamagePlayer(float damage)
     {
         if (Invulnerable > 0 || !IsActive) return;
+        damagedThisTick = true;
         Health -= damage; Invulnerable = .8f; Events.Add(new("hurt", Position, damage));
         InterruptHarborRepairs();
     }
