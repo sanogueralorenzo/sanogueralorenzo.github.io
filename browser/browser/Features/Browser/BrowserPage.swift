@@ -74,7 +74,6 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     @ObservationIgnored private var pendingNavigation: (@MainActor (BrowserPage) -> Void)?
     @ObservationIgnored private var pendingPagePaint: (navigation: WKNavigation?, id: UUID)?
     @ObservationIgnored private var loadingIndicatorNavigation: WKNavigation?
-    @ObservationIgnored private var loadingIndicatorDelay: Task<Void, Never>?
     @ObservationIgnored private(set) var isRetired = false
     @ObservationIgnored var refreshingPageState = false
 
@@ -238,14 +237,9 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-        resetLoadingIndicator()
+        guard !isRetired else { return }
         loadingIndicatorNavigation = navigation
-        loadingIndicatorDelay = Task { [weak self] in
-            do { try await Task.sleep(for: .milliseconds(120)) } catch { return }
-            guard let self, !Task.isCancelled, !isRetired else { return }
-            loadingIndicatorDelay = nil
-            loadingIndicator = .loading(since: ProcessInfo.processInfo.systemUptime)
-        }
+        loadingIndicator = .loading(since: ProcessInfo.processInfo.systemUptime)
         failure = nil
         (webView as? BrowserNativeWebView)?.contextSelection = ""
         siteController?.navigationStarted()
@@ -317,8 +311,6 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     }
 
     private func resetLoadingIndicator() {
-        loadingIndicatorDelay?.cancel()
-        loadingIndicatorDelay = nil
         loadingIndicatorNavigation = nil
         loadingIndicator = .hidden
     }
@@ -328,8 +320,6 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         pendingPagePaint = nil
         showsLoadingBackground = false
         if loadingIndicatorNavigation === paint.navigation {
-            loadingIndicatorDelay?.cancel()
-            loadingIndicatorDelay = nil
             loadingIndicatorNavigation = nil
             if case .loading(let startedAt) = loadingIndicator {
                 loadingIndicator = .revealed(loadingSince: startedAt, at: ProcessInfo.processInfo.systemUptime)
