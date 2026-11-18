@@ -15,7 +15,7 @@ available website adapter.
 2. Run:
 
    ```sh
-   curl -fsSL https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.github.io/main/tools/hooks/install.sh | sh
+   curl -fsSL https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.github.io/main/hooks/install.sh | sh
    ```
 
 3. Run `browser-hooks start`. Open `edge://extensions` or `chrome://extensions`,
@@ -32,10 +32,10 @@ removes the previous login service. Nothing starts at login or restarts after a
 crash or reboot. Start the bridge explicitly whenever you want to use it.
 
 To update, rerun the download installer or update your checkout and run
-`browser-hooks setup`. Then run `browser-hooks start`, reload Browser Hooks on the
-Extensions page, and reload Slack. From a local checkout, run
-`python3 tools/hooks/cli.py setup` instead; add `--workspace /path/to/project` to
-choose the initial workspace.
+`python3 hooks/cli.py setup`. If the checkout moved, update any absolute adapter
+paths in `config.json`. Then run `browser-hooks start`, reload Browser Hooks on
+the Extensions page, and reload Slack. Add `--workspace /path/to/project` to
+setup to choose the initial workspace.
 
 ## Commands and files
 
@@ -77,7 +77,7 @@ for details; run `browser-hooks status` for diagnostics.
 Checks from the repository root:
 
 ```sh
-cargo test --locked --manifest-path tools/hooks/bridge/Cargo.toml
-python3 -m unittest discover -s tools/hooks/slack/tests
-node --test tools/hooks/slack/*.test.mjs
+cargo test --locked --manifest-path hooks/bridge/Cargo.toml
+python3 -m unittest discover -s hooks/slack/tests
+node --test hooks/slack/*.test.mjs
 ```

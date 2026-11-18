@@ -9,11 +9,12 @@ A small collection of things I'm building and experimenting with.
 
 ## Tools
 
-- [Agent](./tools/agent/README.md) — a local AI agent with durable tasks, delegation, and a browser UI.
-- [Browser](./tools/browser/README.md) — a native macOS browser derived from Crest, maintained separately from Agent; [MPL-2.0](./tools/browser/LICENSE).
-- [Clipboard](./tools/clipboard/README.md) — encrypted clipboard history for macOS.
-- [Overlay](./tools/overlay/README.md) — an Android screen overlay for background audio.
-- [Voice](./tools/voice/README.md) — private, local dictation.
+- [Agent](./agent/README.md) — a local AI agent with durable tasks, delegation, and a browser UI.
+- [Browser](./browser/README.md) — a native macOS browser derived from Crest, maintained separately from Agent; [MPL-2.0](./browser/LICENSE).
+- [Clipboard](./clipboard/README.md) — encrypted clipboard history for macOS.
+- [Browser Hooks](./hooks/README.md) — connect signed-in websites to local CLI agents.
+- [Overlay](./overlay/README.md) — an Android screen overlay for background audio.
+- [Voice](./voice/README.md) — private, local dictation.
 
 ## Site
 

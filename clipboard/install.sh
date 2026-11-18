@@ -25,14 +25,14 @@ trap 'exit 1' HUP INT TERM
 
 git clone --quiet --depth 1 --filter=blob:none --sparse --branch main \
   https://github.com/sanogueralorenzo/sanogueralorenzo.github.io.git "$checkout_dir/repo"
-git -C "$checkout_dir/repo" sparse-checkout set tools/clipboard
+git -C "$checkout_dir/repo" sparse-checkout set clipboard
 revision=$(git -C "$checkout_dir/repo" rev-parse --short HEAD)
-"$checkout_dir/repo/tools/clipboard/build.sh"
+"$checkout_dir/repo/clipboard/build.sh"
 
 mkdir -p "$HOME/Applications"
 installed_app="$HOME/Applications/Clipboard.app"
 install_stage=$(mktemp -d "$HOME/Applications/.clipboard-install.XXXXXX")
-ditto "$checkout_dir/repo/tools/clipboard/build/Clipboard.app" "$install_stage/new.app"
+ditto "$checkout_dir/repo/clipboard/build/Clipboard.app" "$install_stage/new.app"
 codesign --verify --deep --strict "$install_stage/new.app"
 
 pkill -TERM -x ClipboardHost 2>/dev/null || true

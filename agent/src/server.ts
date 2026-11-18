@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { Agent } from "./agent.ts";
 import { createAgentServer } from "./http-server.ts";
 
-const workspace = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const workspace = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const app = await Agent.open(join(homedir(), ".agent"), workspace);
 const { server, close } = createAgentServer(app);
 server.listen(4180, "127.0.0.1", () => console.log("Agent is available at http://127.0.0.1:4180"));

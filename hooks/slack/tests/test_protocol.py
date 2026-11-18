@@ -2,7 +2,6 @@ import contextlib, hashlib, json, os, sys, tempfile, time, unittest
 from pathlib import Path
 from support import Backend, configuration, event, ROOT, ORIGIN, Client, wait_until, dead
 
-REPO = ROOT.parents[1]
 
 
 class NativeProtocolTests(unittest.TestCase):
@@ -316,7 +315,7 @@ class NativeProtocolTests(unittest.TestCase):
                 )
             )
             executable.chmod(0o700)
-            wrapper = REPO / "tools/hooks/slack/agents" / (name + ".py")
+            wrapper = ROOT / "slack/agents" / (name + ".py")
             cfg = configuration(home)
             cfg["commands"]["hook"] = {
                 "start": [sys.executable, str(wrapper)],

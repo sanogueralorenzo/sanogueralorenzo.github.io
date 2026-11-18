@@ -7,7 +7,7 @@ A local assistant that runs independent tasks in parallel, waits for dependencie
 **Start** (Node 26+):
 
 ```bash
-cd tools/agent
+cd agent
 npm ci --ignore-scripts
 npm start
 ```

@@ -3,7 +3,7 @@
 On a headless Linux host with Node 26+, install dependencies and log in from the terminal before starting Agent:
 
 ```bash
-cd tools/agent
+cd agent
 npm ci --ignore-scripts
 npm run login -- openai
 npm start

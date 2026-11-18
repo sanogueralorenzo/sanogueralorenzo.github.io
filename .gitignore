@@ -16,9 +16,9 @@ Desktop.ini
 .precedent/
 .jury/
 __pycache__/
-tools/voice/.cache/
+voice/.cache/
 ekkzo/cli/codex-*/target/
 ekkzo/cli/*/target/
 harness/target/
 harness/.state/
-tools/hooks/bridge/target/
+hooks/bridge/target/

@@ -24,6 +24,6 @@ Android is the first supported platform. iOS, macOS, Linux, and Windows versions
 ## Development
 
 ```shell
-cd tools/voice/android
+cd voice/android
 ./gradlew :app:installDebug
 ```

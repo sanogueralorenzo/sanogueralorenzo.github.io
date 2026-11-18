@@ -59,7 +59,7 @@ struct BrowserAdditionalSettings: View {
                         "GitHub",
                         destination: URL(
                             string:
-                                "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/tree/main/tools/browser"
+                                "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/tree/main/browser"
                         )!)
                 }
             default: EmptyView()

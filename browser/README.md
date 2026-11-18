@@ -15,7 +15,7 @@ Built with SwiftUI, AppKit, and WebKit.
 **Build and run** (Apple silicon, macOS 26.1+, Xcode, and [XcodeGen](https://github.com/yonaskolb/XcodeGen)):
 
 ```sh
-cd tools/browser
+cd browser
 brew install xcodegen
 xcodegen generate
 xcodebuild -project Browser.xcodeproj -scheme Browser -configuration Release build

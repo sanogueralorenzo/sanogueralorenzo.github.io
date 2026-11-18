@@ -7,7 +7,7 @@ A small macOS clipboard menu for text, links, images, and files. History stays e
 **Install or update** from the latest `main` (macOS 13+ and Xcode Command Line Tools):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.github.io/main/tools/clipboard/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.github.io/main/clipboard/install.sh | sh
 ```
 
 Installs in `~/Applications` and preserves your history and settings.

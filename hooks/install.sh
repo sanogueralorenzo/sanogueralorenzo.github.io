@@ -32,6 +32,6 @@ else
   mkdir -p "$(dirname "$source_dir")"
   git clone --quiet --depth 1 --filter=blob:none --sparse --branch main \
     https://github.com/sanogueralorenzo/sanogueralorenzo.github.io.git "$source_dir"
-  git -C "$source_dir" sparse-checkout set tools/hooks
 fi
-"$python_bin" "$source_dir/tools/hooks/cli.py" setup --home "$install_dir" "$@"
+git -C "$source_dir" sparse-checkout set hooks
+"$python_bin" "$source_dir/hooks/cli.py" setup --home "$install_dir" "$@"

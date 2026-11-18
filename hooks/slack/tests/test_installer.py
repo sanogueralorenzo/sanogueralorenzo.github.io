@@ -24,9 +24,10 @@ args=sys.argv[1:]
 root=Path(__file__).parent.parent
 with (root/'git-calls').open('a') as out: out.write(json.dumps(args)+'\\n')
 if args[0]=='clone':
- source=Path(args[-1]);(source/'.git').mkdir(parents=True)
- bridge=source/'tools/hooks/cli.py';bridge.parent.mkdir(parents=True)
- bridge.write_text('import sys\\nargs=sys.argv[1:]; assert args[:2]==["setup","--home"]; assert __import__("pathlib").Path(args[2]).resolve()==__import__("pathlib").Path(__file__).resolve().parents[3]; assert args[3:]==["--workspace","/fixture/project"]\\nprint("INSTALL_OK")\\n')
+ (Path(args[-1])/'.git').mkdir(parents=True)
+if args[0]=='-C' and args[2:]==['sparse-checkout','set','hooks']:
+ bridge=Path(args[1])/'hooks/cli.py';bridge.parent.mkdir(exist_ok=True)
+ bridge.write_text('import os,sys\\nassert sys.argv[1:]==["setup","--home",os.environ["BROWSER_HOOKS_HOME"],"--workspace","/fixture/project"]\\nprint("INSTALL_OK")\\n')
 """
             )
             git.chmod(0o700)
@@ -54,9 +55,7 @@ if args[0]=='clone':
             ]
             self.assertEqual(sum(c[0] == "clone" for c in calls), 1)
             self.assertTrue(any("pull" in c and "--ff-only" in c for c in calls))
-            self.assertTrue(
-                any("sparse-checkout" in c and "tools/hooks" in c for c in calls)
-            )
+            self.assertEqual(sum(c[2:] == ["sparse-checkout", "set", "hooks"] for c in calls), 2)
 
 
 if __name__ == "__main__":

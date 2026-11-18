@@ -1,6 +1,6 @@
 # Development
 
-Agent is built on Pi Durable. Run commands from `tools/agent` with Node 26+.
+Agent is built on Pi Durable. Run commands from `agent` with Node 26+.
 
 ## Checks
 

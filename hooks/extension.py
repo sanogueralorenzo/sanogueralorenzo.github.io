@@ -7,7 +7,7 @@ import tempfile
 
 def prepare(checkout, data):
     target = data / 'extension'
-    if target.resolve().is_relative_to(checkout.parents[1].resolve()):
+    if target.resolve().is_relative_to(checkout.parent.resolve()):
         raise ValueError('Keep the generated extension outside the public repository')
     data.mkdir(parents=True, exist_ok=True, mode=0o700)
     data.chmod(0o700)

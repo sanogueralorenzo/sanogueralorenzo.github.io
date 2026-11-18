@@ -25,7 +25,7 @@ def main():
     home = args.home.expanduser().resolve()
     checkout = Path(__file__).resolve().parent
     if (
-        home.is_relative_to(checkout.parents[1])
+        home.is_relative_to(checkout.parent)
         or checkout.is_relative_to(home / "extension")
         or checkout.is_relative_to(home / "hooks")
     ):
