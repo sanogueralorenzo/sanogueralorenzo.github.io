@@ -45,8 +45,9 @@ public sealed partial class Voyage
             {
                 if (enemy.Health <= 0 || Vector2.Distance(enemy.Position, Position) > radius + enemy.Radius) continue;
                 Hit(enemy, 26 + Weapons[4] * 4);
-                enemy.Position = World.Slide(enemy.Position, enemy.Position +
-                    OceanWorld.Unit(enemy.Position - Position) * 145, enemy.Radius);
+                if (enemy.Charge == null && !enemy.Grounded)
+                    enemy.Position = World.Slide(enemy.Position, enemy.Position +
+                        OceanWorld.Unit(enemy.Position - Position) * 145, enemy.Radius);
             }
             Invulnerable = Math.Max(Invulnerable, .65f);
             return;

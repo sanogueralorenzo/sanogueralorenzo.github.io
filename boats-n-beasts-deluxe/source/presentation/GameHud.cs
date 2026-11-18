@@ -113,20 +113,34 @@ public partial class Game : Node2D
             Bar(Vector2.Zero, new(size.X, 8), r.Xp / (float)r.NextXp, NauticalPalette.Aqua);
             DrawCompass(size);
             DrawCourseGuide(r, size, statusInset);
-            if (Game.toastTime > 0 && r.IsActive) { float width = BodyFont.GetStringSize(Game.toast, fontSize: 20).X; DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .9f), 10), new((size.X - width) / 2 - 20, 113, width + 40, 45)); Text(new((size.X - width) / 2, 143), Game.toast, 20); }
             var boss = r.Enemies.FirstOrDefault(e => e.Kind == EnemyKind.Leviathan && e.Health > 0);
-            if (boss != null)
+            if (boss != null) DrawCrownclaw(boss, size.X / 2);
+            if (Game.toastTime > 0 && r.IsActive)
             {
-                const string name = "Crownclaw";
-                float width = TitleFont.GetStringSize(name, fontSize: 29).X;
-                DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .92f), 10), new(size.X / 2 - 207, 23, 414, 66));
-                Text(new((size.X - width) / 2, 55), name, 29, true, NauticalPalette.Cream);
-                Color phase = boss.Exposed > 0 ? NauticalPalette.Gold : NauticalPalette.Coral;
-                Bar(new(size.X / 2 - 180, 67), new(360, 7), boss.Health / boss.MaxHealth, phase);
-                string defense = boss.Exposed > 0 ? "Exposed" : "Armored";
-                Text(new((size.X - BodyFont.GetStringSize(defense, fontSize: 14).X) / 2, 108), defense, 14, color: phase);
+                float y = boss == null ? 113 : 125;
+                float x = (size.X - BodyFont.GetStringSize(Game.toast, fontSize: 20).X) / 2;
+                DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .9f), 10), new(x - 20, y, size.X - x * 2 + 40, 45));
+                Text(new(x, y + 30), Game.toast, 20);
             }
         }
+
+        void DrawCrownclaw(Enemy boss, float center)
+        {
+            const string name = "Crownclaw";
+            float titleWidth = TitleFont.GetStringSize(name, fontSize: 29).X;
+            DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .92f), 10), new(center - 207, 23, 414, 91));
+            Text(new(center - titleWidth / 2, 55), name, 29, true);
+            Color phase = boss.Grounded ? NauticalPalette.Aqua : boss.Exposed > 0 ? NauticalPalette.Gold : NauticalPalette.Coral;
+            Bar(new(center - 180, 67), new(360, 7), boss.Health / boss.MaxHealth, phase);
+            string defense = boss.Grounded ? $"Grounded · exposed for {boss.Exposed:0.0}s"
+                : boss.Telegraph > 0 && boss.Charge is { HitsCoast: true } ? "Winding up · lane ends at cover"
+                : boss.Telegraph > 0 ? "Winding up · cross the marked lane"
+                : boss.Dash > 0 ? "Charging"
+                : boss.Exposed > 0 ? $"Shell exposed · {boss.Exposed:0.0}s"
+                : "Armored";
+            Text(new(center - BodyFont.GetStringSize(defense, fontSize: 16).X / 2, 98), defense, 16, color: phase);
+        }
+
         string? OpeningHint(Voyage run)
         {
             if (Game.daily.HasValue || Game.log.HasLitBeacon || run.BossSpawned) return null;

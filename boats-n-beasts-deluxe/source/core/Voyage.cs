@@ -12,12 +12,15 @@ public sealed class Enemy
     public float SpeedMultiplier = 1;
     public bool ChargeNext;
     public float Exposed, Drenched;
+    public CrownclawCharge? Charge { get; internal set; }
+    public bool Grounded { get; internal set; }
     public Shot? PullMine;
     public Vector2? GuardAnchor;
     public const float PufferFuseDuration = 1.05f, PufferTriggerRadius = 125, PufferBlastRadius = 155;
     public const float EmergenceDuration = .45f;
     public bool Emerging => Time < EmergenceDuration;
     public float Radius => Kind == EnemyKind.Leviathan ? 74 : GuardAnchor.HasValue ? 43 : Kind == EnemyKind.Serpent ? 31 : 27;
+    public float ContactRadius => Radius + 23;
     public float SwimSpeed => (Kind == EnemyKind.Crab ? 83 : Kind == EnemyKind.Puffer ? 105
         : Kind == EnemyKind.Serpent ? 111 : Kind == EnemyKind.Ray ? 135 : 73) * SpeedMultiplier;
 }
@@ -223,51 +226,20 @@ public sealed partial class Voyage
                 var side = new Vector2(-dir.Y, dir.X);
                 motion = OceanWorld.Unit(dir + side * (.4f * MathF.Sin(e.Time * 2 + e.Id)));
             }
-            if (e.Kind == EnemyKind.Leviathan)
+            bool rushing = e.Kind == EnemyKind.Leviathan && e.Dash > 0;
+            if (e.Kind == EnemyKind.Leviathan &&
+                UpdateCrownclaw(e, dt, distance, dir, ref motion, ref speed))
             {
-                bool enraged = e.Health < e.MaxHealth * .5f;
-                e.Exposed = Math.Max(0, e.Exposed - dt);
-                if (e.Telegraph > 0)
-                {
-                    e.Telegraph = Math.Max(0, e.Telegraph - dt);
-                    motion = Vector2.Zero;
-                    if (e.Telegraph == 0) e.Dash = .78f;
-                }
-                else if (e.Dash > 0)
-                {
-                    e.Dash = Math.Max(0, e.Dash - dt);
-                    motion = e.Direction;
-                    speed = 565;
-                    if (e.Dash == 0) e.Exposed = 2.4f;
-                }
-                else if (e.AttackClock <= 0 && distance < 600)
-                {
-                    if (enraged && e.ChargeNext)
-                    {
-                        e.Telegraph = .9f;
-                        e.Direction = dir;
-                        motion = Vector2.Zero;
-                    }
-                    else
-                    {
-                        ThrowBossBombs(e);
-                        e.Exposed = 1.8f;
-                    }
-                    e.ChargeNext = !e.ChargeNext;
-                    e.AttackClock = enraged ? 3.6f : 4.6f;
-                }
-                else if (distance < 165) motion *= .25f;
-                else if (distance > 430) speed *= 2.6f;
+                e.Velocity = (e.Position - beforeMove) / dt;
+                if ((!e.Grounded || rushing) && SegmentDistance(Position, beforeMove, e.Position) < e.ContactRadius)
+                    DamagePlayer(24);
+                continue;
             }
             if (e.Dash > 0)
             {
                 var next = e.Position + e.Direction * speed * dt;
                 if (World.IsWater(next, e.Radius)) e.Position = next;
-                else
-                {
-                    e.Dash = 0;
-                    if (e.Kind == EnemyKind.Leviathan) e.Exposed = 2.4f;
-                }
+                else e.Dash = 0;
             }
             else
             {
@@ -283,35 +255,8 @@ public sealed partial class Voyage
                 e.Position = World.Slide(e.Position, e.Position + motion * speed * dt, e.Radius);
             }
             e.Velocity = (e.Position - beforeMove) / dt;
-            if (e.Kind != EnemyKind.Puffer && Vector2.DistanceSquared(e.Position, Position) < MathF.Pow(e.Radius + 23, 2)) DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : e.GuardAnchor.HasValue ? 17 : 11);
-        }
-    }
-    void ThrowBossBombs(Enemy boss)
-    {
-        var ahead = OceanWorld.Unit(Velocity, OceanWorld.Unit(Position - boss.Position));
-        var across = new Vector2(-ahead.Y, ahead.X);
-        int count = boss.Health < boss.MaxHealth * .5f ? 5 : 3;
-        float sign = Random.Unit() < .5f ? -1 : 1;
-        for (int i = 0; i < count && Shots.Count < 360; i++)
-        {
-            float flight = 1.05f + i * .15f;
-            Vector2 target = i switch
-            {
-                0 => Position + Velocity * .72f,
-                1 => Position + ahead * 280 + across * 155 * sign,
-                2 => Position + ahead * 360 - across * 120 * sign,
-                3 => Position + ahead * 510 + across * 95 * sign,
-                _ => Position - ahead * 115 - across * 150 * sign
-            };
-            if (!World.IsWater(target, 22))
-            {
-                if (i > 0) continue;
-                target = Position;
-            }
-            Shots.Add(new() { Hostile = true, Position = boss.Position, Previous = boss.Position,
-                Target = target, Velocity = (target - boss.Position) / flight, FlightDuration = flight,
-                Damage = 29, Life = flight, Radius = 153 });
-            BossBombsThrown++;
+            if (e.Kind != EnemyKind.Puffer && Vector2.DistanceSquared(e.Position, Position) < e.ContactRadius * e.ContactRadius)
+                DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : e.GuardAnchor.HasValue ? 17 : 11);
         }
     }
     void DamagePlayer(float damage)
@@ -323,11 +268,14 @@ public sealed partial class Voyage
     {
         if (e.Kind == EnemyKind.Leviathan)
         {
-            damage *= e.Exposed > 0 ? 1.22f : .50f;
+            damage *= e.Grounded ? 1.55f : e.Exposed > 0 ? 1.22f : .50f;
             if (e.Health >= e.MaxHealth * .5f && e.Health - damage < e.MaxHealth * .5f)
             {
-                e.AttackClock = Math.Min(e.AttackClock, 1.2f);
-                e.ChargeNext = true;
+                if (e.Charge == null && !e.Grounded)
+                {
+                    e.AttackClock = Math.Min(e.AttackClock, 1.2f);
+                    e.ChargeNext = true;
+                }
                 Events.Add(new("enraged", e.Position));
             }
         }

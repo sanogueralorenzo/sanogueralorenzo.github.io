@@ -160,7 +160,7 @@ public partial class OceanView3D : Node3D
             mesh.SetInstanceShaderParameter("strike_flash", Math.Clamp(enemy.HitFlash / .12f, 0, 1));
             float emergence = Mathf.Clamp(enemy.Time / Enemy.EmergenceDuration, 0, 1);
             root.Position = NativeStage3D.Point(enemy.Position, -(1 - emergence) * (enemy.Kind == EnemyKind.Leviathan ? 1.2f : .6f));
-            var toward = enemy.Telegraph > 0 || enemy.Dash > 0 ? enemy.Direction : Voyage.Position - enemy.Position;
+            var toward = enemy.Telegraph > 0 || enemy.Dash > 0 || enemy.Grounded ? enemy.Direction : Voyage.Position - enemy.Position;
             root.Rotation = new(0, -MathF.Atan2(toward.X, -toward.Y), 0);
             ActorArt3D.Animate(root, Clock + enemy.Id * .73f, enemy.Dash > 0 ? 3 : 1);
         }

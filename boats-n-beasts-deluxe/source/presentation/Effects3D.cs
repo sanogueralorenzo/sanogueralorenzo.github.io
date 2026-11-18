@@ -91,8 +91,12 @@ public partial class Effects3D : Node3D
             }
             if (enemy.Fuse > 0)
                 DrawWarning(enemy.Position, Enemy.PufferBlastRadius, 1 - enemy.Fuse / Enemy.PufferFuseDuration);
-            if (enemy.Telegraph > 0)
+            if (enemy.Charge is { } charge)
+                DrawCrownclawCharge(enemy, charge);
+            else if (enemy.Telegraph > 0)
                 DrawCharge(enemy);
+            if (enemy.Kind == EnemyKind.Leviathan && enemy.Exposed > 0)
+                DrawCrownclawOpening(enemy);
         }
         bool stormshot = voyage.ActiveCombo == WeaponCombo.Stormshot;
         foreach (var shot in voyage.Shots)
@@ -199,7 +203,7 @@ public partial class Effects3D : Node3D
         var start = World(enemy.Position, .07f);
         var forward = new Vector3(enemy.Direction.X, 0, enemy.Direction.Y);
         var side = new Vector3(-forward.Z, 0, forward.X);
-        float length = enemy.Kind == EnemyKind.Leviathan ? 4.25f : 2.7f;
+        const float length = 2.7f;
         float width = enemy.Radius * .01f;
         for (int i = 1; i <= 4; i++)
         {
@@ -207,6 +211,51 @@ public partial class Effects3D : Node3D
             foam.Ribbon(point - side * width - forward * .30f, point, .027f, .027f, Fade(Coral, .85f));
             foam.Ribbon(point + side * width - forward * .30f, point, .027f, .027f, Fade(Coral, .85f));
         }
+    }
+
+    void DrawCrownclawCharge(Enemy enemy, CrownclawCharge charge)
+    {
+        bool windingUp = enemy.Telegraph > 0;
+        float intensity = windingUp ? 1 - enemy.Telegraph / charge.Windup : 1;
+        var start = World(windingUp ? charge.Start : enemy.Position, .085f);
+        var end = World(charge.End, .085f);
+        var forward = new Vector3(enemy.Direction.X, 0, enemy.Direction.Y);
+        var side = new Vector3(-forward.Z, 0, forward.X);
+        float width = enemy.ContactRadius * NativeStage3D.Unit;
+        float heading = Mathf.Atan2(forward.Z, forward.X);
+        var boundary = Fade(Coral, .76f + .23f * intensity);
+        var fill = Fade(Coral, .14f + .16f * intensity);
+        foam.Ribbon(start, end, width, width, fill);
+        foam.Ribbon(start - side * width, end - side * width, .027f, .027f, boundary);
+        foam.Ribbon(start + side * width, end + side * width, .027f, .027f, boundary);
+        for (int i = 0; i < 20; i++)
+        {
+            float angle = heading - Mathf.Pi / 2 + i * Mathf.Pi / 20;
+            float next = angle + Mathf.Pi / 20;
+            var a = new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)) * width;
+            var b = new Vector3(Mathf.Cos(next), 0, Mathf.Sin(next)) * width;
+            foam.Triangle(end, end + a, end + b, fill);
+            foam.Triangle(start, start - a, start - b, fill);
+            foam.Ribbon(end + a, end + b, .028f, .028f, boundary);
+            foam.Ribbon(start - a, start - b, .028f, .028f, boundary);
+        }
+        float length = start.DistanceTo(end);
+        for (float along = .56f; along < length; along += .87f)
+        {
+            var tip = start + forward * along;
+            var tail = tip - forward * .28f;
+            foam.Ribbon(tail - side * .34f, tip, .035f, .035f, Fade(Cream, .68f + .28f * intensity));
+            foam.Ribbon(tail + side * .34f, tip, .035f, .035f, Fade(Cream, .68f + .28f * intensity));
+        }
+    }
+
+    void DrawCrownclawOpening(Enemy enemy)
+    {
+        var center = World(enemy.Position, .083f);
+        var color = enemy.Grounded ? NauticalPalette.Aqua : NauticalPalette.Gold;
+        float opacity = Mathf.Clamp(enemy.Exposed * 2.8f, 0, 1);
+        for (int i = 0; i < 5; i++)
+            foam.Arc(center, 1.12f, i * Mathf.Tau / 5 + time * .34f, .72f, .042f, Fade(color, opacity * .88f), 9);
     }
 
     void SampleTrails(Voyage v, float dt)
@@ -365,14 +414,14 @@ public partial class Effects3D : Node3D
             bursts.Add(new() { Kind = "barrel", P = World(ev.Position, .06f), Life = .55f });
         bool link = ev.Kind is "arc" or "pull" or "tripwire";
         if (bursts.Count < 192 && (link || ev.Kind is "aura" or "bulwark" or "explosion" or "calm"
-            or "pufferExplosion" or "bossExplosion" or "beacon" or "broadside" or "blink" or "stormshot" or "riptide"))
+            or "pufferExplosion" or "bossExplosion" or "crownclawGrounded" or "beacon" or "broadside" or "blink" or "stormshot" or "riptide"))
         {
             float life = ev.Kind switch
             {
                 "arc" or "pull" => .2f,
                 "tripwire" => .34f,
                 "calm" => 1.3f,
-                "pufferExplosion" or "bossExplosion" => .6f,
+                "pufferExplosion" or "bossExplosion" or "crownclawGrounded" => .6f,
                 _ => .48f
             };
             bursts.Add(new()
@@ -381,7 +430,7 @@ public partial class Effects3D : Node3D
                 Life = life, Size = (ev.Kind == "beacon" ? Beacon.Radius : ev.Value) * .01f
             });
         }
-        int count=ev.Kind switch {"hit"=>2,"kill"=>7,"explosion"=>15,"hurt"=>5,"shot"=>3,"ricochet"=>4,"barrel"=>3,"heal" or "treasure" or "silver"=>6,"boostStart"=>9,"beacon" or "towDelivered"=>26,"towHooked" or "towSnapped"=>8,"chain"=>13,"broadside"=>20,"blink"=>16,"stormshot"=>14,"riptide"=>7,_=>0};
+        int count=ev.Kind switch {"hit"=>2,"kill"=>7,"explosion"=>15,"hurt"=>5,"shot"=>3,"ricochet"=>4,"barrel"=>3,"heal" or "treasure" or "silver"=>6,"boostStart"=>9,"beacon" or "towDelivered" or "crownclawGrounded"=>26,"towHooked" or "towSnapped"=>8,"chain"=>13,"broadside"=>20,"blink"=>16,"stormshot"=>14,"riptide"=>7,_=>0};
         for(int i=0;i<count && sparks.Count<512;i++)
         {
             float a=random.RandfRange(0,Mathf.Tau), speed=random.RandfRange(.25f,ev.Kind=="explosion"?2.5f:1.2f);
@@ -407,10 +456,11 @@ public partial class Effects3D : Node3D
             foam.Arc(b.P, .28f + t * .48f, .3f, 4.8f, .02f, Fade(Foam, alpha * .45f));
             return;
         }
-        if (b.Kind is "pufferExplosion" or "bossExplosion")
+        if (b.Kind is "pufferExplosion" or "bossExplosion" or "crownclawGrounded")
         {
+            var wave = b.Kind == "crownclawGrounded" ? Foam : Coral;
             float blastRadius = b.Size * Mathf.Lerp(.48f, 1, Mathf.SmoothStep(0, 1, Math.Min(1, t * 2.6f)));
-            foam.Arc(b.P, blastRadius, 0, Mathf.Tau, .045f * alpha + .01f, Fade(Coral, alpha * .83f), 52);
+            foam.Arc(b.P, blastRadius, 0, Mathf.Tau, .045f * alpha + .01f, Fade(wave, alpha * .83f), 52);
             for (int i = 0; i < 10; i++)
             {
                 float angle = i * Mathf.Tau / 10 + .22f;
@@ -419,7 +469,7 @@ public partial class Effects3D : Node3D
                 float height = Mathf.Sin(t * Mathf.Pi) * (.18f + (i % 3) * .09f);
                 var crest = b.P + direction * (blastRadius * .94f) + Vector3.Up * height;
                 foam.Ribbon(basePoint, crest, .046f * alpha, .012f, Fade(Cream, alpha * .74f));
-                foam.Arc(b.P, blastRadius * .77f, angle, .41f, .021f, Fade(Coral, alpha * .46f), 7);
+                foam.Arc(b.P, blastRadius * .77f, angle, .41f, .021f, Fade(wave, alpha * .46f), 7);
             }
             return;
         }
