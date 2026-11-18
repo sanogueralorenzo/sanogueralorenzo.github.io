@@ -167,6 +167,15 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
 }
 
 extension BrowserStore {
+    func prewarmContentBlocking() {
+        Task { [weak self] in
+            guard let self, !isClosed else { return }
+            let spaceID = activeSpace.id
+            guard spacePreferences(spaceID).blocksContent else { return }
+            try? await contentBlocker(for: spaceID).setEnabled(true)
+        }
+    }
+
     func contentBlocker(for spaceID: UUID) -> BrowserContentBlocking {
         if let blocker = owner.contentBlockers[spaceID] { return blocker }
         let blocker = BrowserContentBlocking(spaceID: spaceID, owner: owner, dataStore: profile(for: spaceID))

@@ -9,6 +9,7 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     private var approvedCloses: Set<UUID> = []
     private var preparingCloses: Set<UUID> = []
     private var preparingQuit = false
+    private var pendingLaunchURLs: [URL] = []
     private var pointerMonitor: Any?
     private var keyboardMonitor: Any?
     var store: BrowserStore? {
@@ -33,6 +34,11 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
             installMenu()
             let previous = owner.session.windows.filter(\.isOpen)
             if previous.isEmpty { createWindow() } else { for state in previous { createWindow(restoring: state) } }
+            if !pendingLaunchURLs.isEmpty {
+                let urls = pendingLaunchURLs
+                pendingLaunchURLs.removeAll()
+                openURLs(urls)
+            }
             owner.startMaintenance()
             pointerMonitor = NSEvent.addLocalMonitorForEvents(matching: [
                 .mouseMoved, .leftMouseDown, .scrollWheel,
@@ -64,6 +70,7 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     func createWindow(restoring state: BrowserWindowState? = nil) {
         guard let owner else { return }
         let store = owner.makeStore(restoring: state)
+        store.prewarmContentBlocking()
         let window = BrowserWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1440, height: 900),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered,
@@ -107,6 +114,14 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
+        guard owner != nil else {
+            pendingLaunchURLs.append(contentsOf: urls)
+            return
+        }
+        openURLs(urls)
+    }
+
+    private func openURLs(_ urls: [URL]) {
         if store == nil { createWindow() }
         window?.makeKeyAndOrderFront(nil)
         let urls = urls.filter { ["http", "https", "file"].contains($0.scheme ?? "") }
