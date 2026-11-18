@@ -248,7 +248,8 @@ public partial class Game : Node2D
             if (Game.daily is { } challenge)
             {
                 Color dailyColor = challenge.ObjectiveMet(run) ? NauticalPalette.Aqua : NauticalPalette.Gold;
-                Text(at + new Vector2(15, 151), $"Daily · {challenge.Progress(run)}", 15, color: dailyColor);
+                string mode = Game.dailyPractice ? "Practice" : "Daily";
+                Text(at + new Vector2(15, 151), $"{mode} · {challenge.Progress(run)}", 15, color: dailyColor);
             }
             else if (targetTime > 0)
             {

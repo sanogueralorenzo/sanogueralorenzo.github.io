@@ -44,8 +44,8 @@ public partial class Game
         column.AddChild(actions);
         bool canExplore = won && !daily.HasValue;
         if (canExplore) AddAction("Keep exploring", () => { Run.Mode = VoyageMode.Sailing; BuildMenu(); }, true);
-        AddAction(daily.HasValue ? "Retry daily" : "Retry this chart", Start, !canExplore);
-        if (daily.HasValue) AddAction("Return to harbor", BackToTitle);
+        AddAction("Retry this chart", Start, !canExplore);
+        if (daily is { } challenge) AddAction("Daily charts", () => ReturnToDailyBoard(challenge.Day));
         else AddAction("Chart a new voyage", () => ReturnToHarbor(true));
 
         void AddAction(string text, Action run, bool primary = false)
@@ -100,7 +100,8 @@ public partial class Game
     string? HuntRecordText()
     {
         if (daily is { } challenge && !challenge.Qualifies(Run)) return null;
-        if (previousBest <= 0) return daily.HasValue ? "First daily clear" : "First win with this boat and charter";
+        if (previousBest <= 0) return dailyPractice ? "First practice clear"
+            : daily.HasValue ? "First daily clear" : "First win with this boat and charter";
         double difference = Run.CombatTime - previousBest;
         if (Math.Abs(difference) < .05) return $"Matched personal best of {HuntTimeText(previousBest)}";
         return difference < 0 ? $"New personal best · {Math.Abs(difference):0.0}s faster"

@@ -53,6 +53,7 @@ public partial class Game : Node2D
     }
     public override void _Process(double delta)
     {
+        RefreshDailyBoard();
         float dt = (float)Math.Min(delta, .05);
         toastTime = Math.Max(0, toastTime - dt);
         lootNoticeTime = Math.Max(0, lootNoticeTime - dt);
@@ -265,6 +266,7 @@ public partial class Game : Node2D
         pendingSwap = null;
         previewCharter = null;
         replayingHunt = null;
+        dailyPractice = daily is { } challenge && challenge.Day != DailyChallenge.Today.Day;
         chartOpen = false;
         dailyBonus = earnedSails = 0;
         previousBest = 0;
@@ -301,18 +303,21 @@ public partial class Game : Node2D
 
     void BackToTitle() => ReturnToHarbor(false);
 
-    void ReturnToHarbor(bool chooseBoat)
+    void ReturnToHarbor(bool chooseBoat, DailyChallenge? challenge = null)
     {
         Record(); title = true; choosingBoat = chooseBoat; controls = journal = false; course.Clear(); ocean.Menu = true;
-        daily = null;
+        daily = challenge;
+        dailyPractice = false;
         selectedSeed = (uint)Random.Shared.NextInt64(1, 1L << 32);
-        Run = new(selectedSeed, selectedBoat, selectedCharter); ocean.Voyage = Run; ocean.Reset(); BuildMenu();
+        Run = challenge is { } next ? new(next.Seed, next.Boat, Charter.Coastguard)
+            : new(selectedSeed, selectedBoat, selectedCharter);
+        ocean.Voyage = Run; ocean.Reset(); BuildMenu();
     }
     void Record()
     {
         if (title || runRecorded) return;
-        previousBest = daily is { } challenge ? log.DailyTime(challenge.Day) : log.BestTime(Run.Boat, Run.Charter);
-        var result = log.Record(Run, daily);
+        previousBest = daily is { } challenge ? DailyTarget(challenge, dailyPractice) : log.BestTime(Run.Boat, Run.Charter);
+        var result = log.Record(Run, daily, dailyPractice);
         dailyBonus = result.DailyBonus;
         earnedSails |= result.NewSails;
         runRecorded = true;

@@ -11,6 +11,7 @@ sealed class CaptainLog
     const string PendingPath = "user://captain.pending";
     const string Section = "log";
     const string DailySection = "daily";
+    const string PracticeSection = "daily_practice";
     const string SailSection = "sails";
     const string ChartSection = "charts";
     const string SeedSection = "record_seeds";
@@ -27,10 +28,17 @@ sealed class CaptainLog
     readonly Dictionary<(BoatKind Boat, Charter Charter), HuntRecord> hunts = new();
 
     readonly Dictionary<int, double> dailyTimes = new();
+    readonly Dictionary<int, double> practiceTimes = new();
 
     public HuntRecord BestHunt(BoatKind boat, Charter charter) => hunts.GetValueOrDefault((boat, charter));
     public double BestTime(BoatKind boat, Charter charter) => BestHunt(boat, charter).Time;
     public double DailyTime(DateOnly day) => dailyTimes.GetValueOrDefault(day.DayNumber);
+    public double PracticeTime(DateOnly day)
+    {
+        double practice = practiceTimes.GetValueOrDefault(day.DayNumber);
+        return practice > 0 ? Faster(DailyTime(day), practice) : DailyTime(day);
+    }
+
     public int DailyClears => dailyTimes.Count;
 
     public int DailyStreak(DateOnly day)
@@ -86,7 +94,7 @@ sealed class CaptainLog
         return sails & ~before;
     }
 
-    public (int DailyBonus, int NewSails) Record(Voyage run, DailyChallenge? daily)
+    public (int DailyBonus, int NewSails) Record(Voyage run, DailyChallenge? daily, bool practice)
     {
         Voyages++;
         BestKills = Math.Max(BestKills, run.Kills);
@@ -105,14 +113,19 @@ sealed class CaptainLog
         if (daily is { } challenge && challenge.Qualifies(run))
         {
             int day = challenge.Day.DayNumber;
-            if (dailyTimes.TryAdd(day, run.CombatTime))
+            if (practice)
+            {
+                double best = PracticeTime(challenge.Day);
+                if (best <= 0 || run.CombatTime < best) practiceTimes[day] = run.CombatTime;
+            }
+            else if (dailyTimes.TryAdd(day, run.CombatTime))
             {
                 bonus = DailyChallenge.Reward;
                 Silver += bonus;
             }
             else dailyTimes[day] = Faster(dailyTimes[day], run.CombatTime);
         }
-        int newSails = UnlockSails(run, daily);
+        int newSails = UnlockSails(run, practice ? null : daily);
         Save();
         return (bonus, newSails);
     }
@@ -147,12 +160,18 @@ sealed class CaptainLog
             long seed = (long)config.GetValue(SeedSection, key, 0);
             if (time > 0) hunts[(boat, charter)] = new(time, (uint)Math.Clamp(seed, 0, uint.MaxValue));
         }
-        if (!config.HasSection(DailySection)) return;
-        foreach (string key in config.GetSectionKeys(DailySection))
+        LoadTimes(config, DailySection, dailyTimes);
+        LoadTimes(config, PracticeSection, practiceTimes);
+    }
+
+    static void LoadTimes(ConfigFile config, string section, Dictionary<int, double> times)
+    {
+        if (!config.HasSection(section)) return;
+        foreach (string key in config.GetSectionKeys(section))
         {
             if (!int.TryParse(key, NumberStyles.None, CultureInfo.InvariantCulture, out int day)) continue;
-            double time = (double)config.GetValue(DailySection, key, 0);
-            if (time > 0) dailyTimes[day] = time;
+            double time = (double)config.GetValue(section, key, 0);
+            if (time > 0) times[day] = time;
         }
     }
 
@@ -180,6 +199,8 @@ sealed class CaptainLog
         }
         foreach (var entry in dailyTimes)
             config.SetValue(DailySection, entry.Key.ToString(CultureInfo.InvariantCulture), entry.Value);
+        foreach (var entry in practiceTimes)
+            config.SetValue(PracticeSection, entry.Key.ToString(CultureInfo.InvariantCulture), entry.Value);
         var error = config.Save(PendingPath);
         if (error == Error.Ok) error = DirAccess.RenameAbsolute(PendingPath, Path);
         if (error != Error.Ok) GD.PushWarning($"Captain’s log could not be saved ({error}).");

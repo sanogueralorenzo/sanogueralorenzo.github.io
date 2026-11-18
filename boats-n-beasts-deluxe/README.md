@@ -19,7 +19,7 @@ Level-ups fit up to three weapons and improve the hull, engine, reload, and reac
 
 Tow wreck cargo to a beacon for a refit and repairs. Choose a beacon to reserve that buyer, or right-click to clear the choice. Salvagers can tow farther for 4 extra silver at the marked beacon. Intercept the drifting cache before it sinks for XP, silver, and boost. Beach chests grant XP, barrels repair hull, and every four consecutive kills earn chain rewards. A last-second blast escape recovers boost and extends an active chain. Tie up at the harbor berth once for up to 50 hull. Moving or taking a hit interrupts repairs.
 
-Use silver to unlock Salvager and Stormchaser when charting a voyage. In Stormchaser, dodge marked lightning or lure beasts into it. Win with three kills inside lightning marks to earn the Thunderhead sail. The voyage report shows your final build, personal best, and progress toward the next charter. Select a replayable time in the Captain’s Log to sail the same record chart. Daily challenges track their own times, rotate at midnight UTC, and pay a first-clear silver bonus.
+Use silver to unlock Salvager and Stormchaser when charting a voyage. In Stormchaser, dodge marked lightning or lure beasts into it. Win with three kills inside lightning marks to earn Thunderhead. Select a replayable time in the Captain’s Log to sail the same record chart. Daily charts rotate at midnight UTC and award 5 silver for a first daily clear. The previous six charts are available for timed practice.
 
 ## Run and preview
 

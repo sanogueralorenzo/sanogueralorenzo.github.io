@@ -140,6 +140,7 @@ public partial class Game
         previewCharter = null;
         if (!daily.HasValue && !replayingHunt.HasValue) return;
         daily = null;
+        dailyPractice = false;
         replayingHunt = null;
         PreviewRun(selectedSeed, selectedBoat, selectedCharter);
     }
