@@ -71,14 +71,15 @@ struct AddressPalette: View {
     }
 
     private func resultList(_ results: [BrowserPaletteResult], selection: Int?) -> some View {
-        VStack(spacing: 3) {
+        let tabSelection = tabIndex(in: results, selection: selection)
+        return VStack(spacing: 3) {
             ForEach(Array(results.enumerated()), id: \.element.id) { index, result in
                 resultButton(selected: index == selection) {
                     perform(result)
                 } label: {
                     row(
                         title: result.title, subtitle: result.subtitle, symbol: result.symbol, spaceColor: result.spaceColor,
-                        showsSearchHint: index == selection && knownSearch(for: result) != nil)
+                        showsSearchHint: index == tabSelection && knownSearch(for: result) != nil)
                 }
             }
             ForEach(Array(suggestions.enumerated()), id: \.offset) { index, suggestion in
@@ -143,10 +144,10 @@ struct AddressPalette: View {
     private func tab() -> Bool {
         guard siteSearch == nil else { return false }
         let results = results
-        guard let selected = selectedIndex(resultCount: results.count), results.indices.contains(selected),
-            results[selected].address != nil
+        guard let index = tabIndex(in: results, selection: selectedIndex(resultCount: results.count)),
+            results[index].address != nil
         else { return false }
-        let result = results[selected]
+        let result = results[index]
         if let search = knownSearch(for: result) {
             siteSearch = SiteSearchMode(search: search, previousText: text, spaceID: store.activeSpace.id)
             text = ""
@@ -155,6 +156,13 @@ struct AddressPalette: View {
             perform(result)
         }
         return true
+    }
+    private func tabIndex(in results: [BrowserPaletteResult], selection: Int?) -> Int? {
+        guard let selection, results.indices.contains(selection) else { return nil }
+        if selected == nil, results[selection].id == BrowserPaletteResult.webSearchID {
+            return results.indices.dropFirst().first
+        }
+        return selection
     }
     private func knownSearch(for result: BrowserPaletteResult) -> BrowserSiteSearch? {
         guard let address = result.address else { return nil }

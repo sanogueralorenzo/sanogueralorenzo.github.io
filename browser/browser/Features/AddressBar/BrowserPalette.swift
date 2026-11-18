@@ -2,6 +2,8 @@ import AppKit
 import Foundation
 
 @MainActor struct BrowserPaletteResult: Identifiable {
+    static let webSearchID = "web-search"
+
     let id: String
     let title: String
     let subtitle: String
@@ -13,6 +15,8 @@ import Foundation
 }
 
 extension BrowserStore {
+    private static let webSearchScore = 245.0
+
     func paletteResults(_ input: String) -> [BrowserPaletteResult] {
         let commandOnly = input.hasPrefix(">")
         let query = (commandOnly ? String(input.dropFirst()) : input).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -89,9 +93,8 @@ extension BrowserStore {
                         score: score + (commandOnly ? 100 : -30), perform: command.action))
             }
         }
-        if !commandOnly, let url = SearchProvider.explicitAddress(query),
-            !Self.hasHostCompletion(query, for: url, in: results)
-        {
+        let explicitAddress = commandOnly ? nil : SearchProvider.explicitAddress(query)
+        if let url = explicitAddress, !Self.hasHostCompletion(query, for: url, in: results) {
             results.removeAll { BrowserURLs.same($0.address, url) }
             results.append(
                 .init(
@@ -99,7 +102,19 @@ extension BrowserStore {
                     symbol: "arrow.up.right", address: url, score: 500,
                     perform: { $0.submitAddress(url) }))
         }
-        return Array(results.sorted { $0.score == $1.score ? $0.title < $1.title : $0.score > $1.score }.prefix(10))
+        results.sort { $0.score == $1.score ? $0.title < $1.title : $0.score > $1.score }
+        if !commandOnly, explicitAddress == nil, (1...8).contains(query.count),
+            !query.contains(where: \.isWhitespace),
+            results.first.map({ $0.address != nil && $0.score < Self.webSearchScore }) ?? true,
+            let url = preferences.searchProvider.searchURL(query)
+        {
+            results.insert(
+                .init(
+                    id: BrowserPaletteResult.webSearchID, title: query, subtitle: preferences.searchProvider.rawValue,
+                    symbol: "magnifyingglass", score: Self.webSearchScore, perform: { $0.submitAddress(url) }),
+                at: 0)
+        }
+        return Array(results.prefix(10))
     }
 
     private static func hasHostCompletion(_ query: String, for url: URL, in results: [BrowserPaletteResult]) -> Bool {
