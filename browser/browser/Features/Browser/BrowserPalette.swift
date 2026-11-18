@@ -7,6 +7,7 @@ import Foundation
     let subtitle: String
     let symbol: String
     var spaceColor: Int? = nil
+    var address: URL? = nil
     let score: Double
     let perform: (BrowserStore) -> Void
 }
@@ -87,7 +88,7 @@ extension BrowserStore {
                         results.append(
                             .init(
                                 id: "tab-\(tab.id)", title: title, subtitle: "\(space.name) · Switch to Tab",
-                                symbol: "rectangle.on.rectangle",
+                                symbol: "rectangle.on.rectangle", address: tab.url,
                                 score: score + bonus + (space.id == activeSpace.id ? 8 : 0),
                                 perform: { store in
                                     if let source = store.pendingSplitSourceID {
@@ -124,9 +125,9 @@ extension BrowserStore {
                     results.append(
                         .init(
                             id: "history-\(visit.id)", title: visit.title, subtitle: visit.url.absoluteString,
-                            symbol: "clock",
+                            symbol: "clock", address: visit.url,
                             score: score + min(10, Double(visit.count)) + max(0, 10 - age),
-                            perform: { $0.submitAddress(visit.url.absoluteString) }))
+                            perform: { $0.submitAddress(visit.url) }))
                 }
             }
             if let number = BrowserCalculation.value(query) {
@@ -148,8 +149,30 @@ extension BrowserStore {
                         score: score + (commandOnly ? 100 : -30), perform: command.action))
             }
         }
+        if !commandOnly, let url = SearchProvider.explicitAddress(query),
+            !Self.hasHostCompletion(query, for: url, in: results)
+        {
+            results.removeAll { BrowserURLs.same($0.address, url) }
+            results.append(
+                .init(
+                    id: "address-\(url.absoluteString)", title: url.absoluteString, subtitle: "Open Address",
+                    symbol: "arrow.up.right", address: url, score: 500,
+                    perform: { $0.submitAddress(url) }))
+        }
         return Array(results.sorted { $0.score == $1.score ? $0.title < $1.title : $0.score > $1.score }.prefix(10))
     }
+
+    private static func hasHostCompletion(_ query: String, for url: URL, in results: [BrowserPaletteResult]) -> Bool {
+        guard let typedHost = url.host()?.lowercased(), query.lowercased() == typedHost else { return false }
+        let prefix = typedHost.hasPrefix("www.") ? String(typedHost.dropFirst(4)) : typedHost
+        return results.contains { result in
+            guard let host = result.address?.host()?.lowercased() else { return false }
+            let hostname = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+            guard hostname.hasPrefix(prefix), hostname != prefix else { return false }
+            return hostname.dropFirst(prefix.count).first != "."
+        }
+    }
+
     static func matchScore(_ query: String, in text: String) -> Double? {
         guard !query.isEmpty else { return 0 }
         let query = query.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)

@@ -4,16 +4,18 @@ import SwiftUI
 /// A native address editor that takes focus when it is attached, including at launch.
 struct BrowserAddressField: NSViewRepresentable {
     @Binding var text: String
+    let prompt: String
     let submit: () -> Void
     let cancel: () -> Void
     var moveSelection: ((Int) -> Void)? = nil
+    var tab: (() -> Bool)? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
     func makeNSView(context: Context) -> Field {
         let field = Field()
         field.delegate = context.coordinator
-        field.placeholderString = "Search or Enter URL…"
+        field.placeholderString = prompt
         field.font = .systemFont(ofSize: 18)
         field.isBordered = false
         field.drawsBackground = false
@@ -24,6 +26,7 @@ struct BrowserAddressField: NSViewRepresentable {
 
     func updateNSView(_ field: Field, context: Context) {
         context.coordinator.parent = self
+        field.placeholderString = prompt
         if field.stringValue != text { field.stringValue = text }
     }
 
@@ -34,9 +37,13 @@ struct BrowserAddressField: NSViewRepresentable {
             if let field = notification.object as? NSTextField { parent.text = field.stringValue }
         }
         func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+            guard !textView.hasMarkedText() else { return false }
             if selector == NSSelectorFromString("insertNewline:") {
                 parent.submit()
                 return true
+            }
+            if selector == NSSelectorFromString("insertTab:") {
+                return parent.tab?() ?? false
             }
             if selector == NSSelectorFromString("moveDown:") {
                 parent.moveSelection?(1)

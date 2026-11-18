@@ -147,6 +147,10 @@ final class BrowserStore {
 
     func submitAddress(_ text: String) {
         guard let url = preferences.searchProvider.resolve(text) else { return }
+        submitAddress(url)
+    }
+
+    func submitAddress(_ url: URL) {
         if addressCreatesTab || selectedTab == nil {
             let source = pendingSplitSourceID
             guard let id = open(url) else { return }

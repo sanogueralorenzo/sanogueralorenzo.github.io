@@ -2,7 +2,7 @@ import Foundation
 
 enum BrowserSearchSuggestionResponseParser {
     static func suggestions(from data: Data) -> [String] {
-        guard data.count <= BrowserSearchSuggestionClient.maximumResponseByteCount else {
+        guard data.count <= BrowserSearchClient.maximumResponseByteCount else {
             return []
         }
         guard
@@ -14,10 +14,9 @@ enum BrowserSearchSuggestionResponseParser {
     }
 }
 
-/// Provider-specific suggestions without cookies or caching.
-actor BrowserSearchSuggestionClient {
+actor BrowserSearchClient {
     private static let requestDelegate = RequestDelegate()
-    static let shared = BrowserSearchSuggestionClient()
+    static let shared = BrowserSearchClient()
     static let maximumResponseByteCount = 64 * 1_024
 
     nonisolated static var sessionConfiguration: URLSessionConfiguration {
@@ -38,24 +37,35 @@ actor BrowserSearchSuggestionClient {
     }
 
     func suggestions(from address: URL) async throws -> [String] {
+        BrowserSearchSuggestionResponseParser.suggestions(
+            from: try await data(from: address, accepting: "application/json"))
+    }
+
+    func siteSearch(from descriptor: URL, origin: String) async throws -> BrowserSiteSearch? {
+        let bytes = try await data(from: descriptor, accepting: "application/opensearchdescription+xml, application/xml, text/xml")
+        guard let xml = String(data: bytes, encoding: .utf8) else { return nil }
+        return BrowserOpenSearchDescription.search(in: xml, origin: origin)
+    }
+
+    private func data(from address: URL, accepting type: String) async throws -> Data {
         var request = URLRequest(url: address)
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(type, forHTTPHeaderField: "Accept")
         let (bytes, response) = try await session.bytes(for: request, delegate: Self.requestDelegate)
         guard
             let response = response as? HTTPURLResponse,
             (200...299).contains(response.statusCode),
             response.expectedContentLength <= 0
                 || response.expectedContentLength <= Self.maximumResponseByteCount
-        else { return [] }
+        else { return Data() }
 
         var data = Data()
         data.reserveCapacity(min(Self.maximumResponseByteCount, 8 * 1_024))
         for try await byte in bytes {
-            guard data.count < Self.maximumResponseByteCount else { return [] }
+            guard data.count < Self.maximumResponseByteCount else { return Data() }
             data.append(byte)
         }
-        return BrowserSearchSuggestionResponseParser.suggestions(from: data)
+        return data
     }
 
     /// Do not forward typed text to a different endpoint through redirects.

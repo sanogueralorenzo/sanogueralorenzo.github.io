@@ -33,13 +33,17 @@ enum SearchProvider: String, Codable, CaseIterable, Identifiable {
     func resolve(_ input: String) -> URL? {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
+        return Self.explicitAddress(text) ?? searchURL(text)
+    }
+
+    static func explicitAddress(_ text: String) -> URL? {
         if let url = URL(string: text), ["http", "https", "file"].contains(url.scheme?.lowercased() ?? "") {
             return url
         }
         if !text.contains(where: \.isWhitespace), text.contains(".") || text.hasPrefix("localhost") {
             return URL(string: (text.hasPrefix("localhost") ? "http://" : "https://") + text)
         }
-        return searchURL(text)
+        return nil
     }
 
     func searchURL(_ text: String) -> URL? {

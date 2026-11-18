@@ -55,6 +55,7 @@ struct BrowserSpace: Codable, Identifiable, Equatable {
     var permissions: [BrowserSitePermission] = []
     var downloadDirectory: Data?
     var browsingPreferences: BrowserSpacePreferences?
+    var siteSearches: [BrowserSiteSearch]?
 }
 
 struct BrowserSitePermission: Codable, Identifiable, Equatable {
