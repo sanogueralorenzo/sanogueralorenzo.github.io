@@ -217,7 +217,8 @@ public partial class Game : Node2D
 
         string? OpeningHint(Voyage run)
         {
-            if (Game.daily.HasValue || Game.log.HasLitBeacon || run.BeaconsLit > 0 || run.BossSpawned) return null;
+            if (Game.daily.HasValue || Game.log.HasLitBeacon || run.BeaconsLit > 0 || run.BossSpawned || run.Salvage.Towing)
+                return null;
             if (run.Distance < 75 && Game.course.Destination == null)
                 return Game.usingController ? "Left stick · Sail to a gold beacon" : "WASD · Steer   /   Click a beacon";
             if (run.Kills == 0) return "Your crew fires automatically";
@@ -281,12 +282,7 @@ public partial class Game : Node2D
             if (!run.IsActive || run.BossSpawned || run.HuntSignalBeacon != null) return;
             if (run.DeliveryBeacon is { } delivery)
             {
-                var at = new Vector2(24, 224 + statusInset);
-                var color = run.TowTension > .72f ? NauticalPalette.Coral : NauticalPalette.Aqua;
-                DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .91f), 7), new(at, new Vector2(168, 43)));
-                Text(at + new Vector2(12, 21), run.TowTension > .72f ? "Towline strained" : "Towline", 15, true, color);
-                Bar(at + new Vector2(12, 30), new(144, 4), run.TowTension, color);
-                DrawCourseMarker(delivery.Position, delivery.Name, "Deliver salvage", NauticalPalette.Aqua, size);
+                DrawSalvageGuide(run, delivery, size, statusInset);
                 return;
             }
 
@@ -327,7 +323,7 @@ public partial class Game : Node2D
 
             var bounds = new Rect2(at + new Vector2(-86, -20), new Vector2(172, 48));
             courses.Add((bounds, new(world, beacon, Cache: cache)));
-            if (beacon != null && bounds.HasPoint(Game.uiPointer) && Game.course.BeaconTarget != beacon)
+            if (beacon != null && !Game.Run.Salvage.Towing && bounds.HasPoint(Game.uiPointer) && Game.course.BeaconTarget != beacon)
                 detail = beacon.Objective switch
                 {
                     BeaconObjective.Patrol => "Click to plot patrol",

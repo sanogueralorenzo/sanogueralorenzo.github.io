@@ -10,6 +10,8 @@ public sealed class SalvageCargo(Place wreck)
     public Vector2 Position { get; internal set; } = Mooring(wreck);
     public bool Towing { get; internal set; }
     public bool Delivered { get; internal set; }
+    public bool PremiumPaid { get; internal set; }
+    public Beacon? Destination { get; internal set; }
     internal bool Disturbed { get; set; }
 
     public static Vector2 Mooring(Place wreck) => wreck.Position + Vector2.UnitY * (wreck.Radius * .92f);
@@ -17,14 +19,18 @@ public sealed class SalvageCargo(Place wreck)
 
 public sealed partial class Voyage
 {
+    public const int PremiumSalvageBonus = 4;
     public SalvageCargo Salvage { get; }
+    public Beacon? PremiumSalvageBeacon { get; }
     public bool SalvageAvailable => !Salvage.Delivered && !BossSpawned;
     public Vector2 TowHook => Position - Forward * 66;
     public float TowTension => Math.Clamp((Vector2.Distance(TowHook, Salvage.Position) - SalvageCargo.SlackLength) /
         (SalvageCargo.BreakLength - SalvageCargo.SlackLength), 0, 1);
     public Beacon? DeliveryBeacon => SalvageAvailable && Salvage.Towing
-        ? Beacons.MinBy(beacon => Vector2.DistanceSquared(beacon.Position, Salvage.Position))
+        ? Salvage.Destination ?? Beacons.MinBy(beacon => Vector2.DistanceSquared(beacon.Position, Salvage.Position))
         : null;
+
+    public void CancelSalvageDestination() => Salvage.Destination = null;
 
     void UpdateSalvage(float dt)
     {
@@ -48,6 +54,7 @@ public sealed partial class Voyage
         if (length >= SalvageCargo.BreakLength)
         {
             Salvage.Towing = false;
+            CancelSalvageDestination();
             Events.Add(new("towSnapped", Salvage.Position));
             return;
         }
@@ -65,12 +72,15 @@ public sealed partial class Voyage
 
         Salvage.Delivered = true;
         Salvage.Towing = false;
+        CancelSalvageDestination();
         bool salvager = Charter == Charter.Salvager;
+        Salvage.PremiumPaid = beacon == PremiumSalvageBeacon;
         Xp += NextXp;
         Heal(salvager ? 45 : 25);
         Boost = 100;
         silver += salvager ? 5 : 3;
-        Events.Add(new("towDelivered", Salvage.Position));
+        if (Salvage.PremiumPaid) silver += PremiumSalvageBonus;
+        Events.Add(new("towDelivered", Salvage.Position, Salvage.PremiumPaid ? PremiumSalvageBonus : 0));
     }
 
     void SpawnScavengers()

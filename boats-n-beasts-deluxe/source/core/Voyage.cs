@@ -91,6 +91,8 @@ public sealed partial class Voyage
         World.Observe(Position);
         Beacons = MakeBeacons(seed);
         Salvage = new(World.SalvageWreck);
+        if (charter == Charter.Salvager)
+            PremiumSalvageBeacon = Beacons.OrderBy(beacon => Vector2.DistanceSquared(beacon.Position, Salvage.Position)).ElementAt(1);
     }
     public void Tick(float dt, SailInput input)
     {

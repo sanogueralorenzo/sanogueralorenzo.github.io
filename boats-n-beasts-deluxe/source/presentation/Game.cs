@@ -93,12 +93,14 @@ public partial class Game : Node2D
                 case "riptide":
                     pairingFlash = .9f;
                     break;
-                case "towHooked": Toast("Tow secured · take the cargo to any beacon"); break;
+                case "towHooked": Toast(Run.PremiumSalvageBeacon != null
+                    ? "Tow secured · choose a buyer" : "Tow secured · take the cargo to any beacon"); break;
                 case "towSnapped": Toast("Towline snapped · sail back to the cargo"); break;
                 case "towDelivered":
                     int salvagerSail = log.EarnSails(Run);
                     earnedSails |= salvagerSail;
-                    Toast(salvagerSail != 0 ? $"Salvage delivered · {SailDesign.For(SailLivery.WreckDiver).Name} sail unlocked"
+                    Toast(e.Value > 0 ? $"Premium salvage · +{e.Value:0} silver bonus"
+                        : salvagerSail != 0 ? $"Salvage delivered · {SailDesign.For(SailLivery.WreckDiver).Name} sail unlocked"
                         : "Salvage delivered · refit earned");
                     break;
                 case "chain": Toast($"{e.Value:0} beast chain · boost recharged"); break;
@@ -161,7 +163,7 @@ public partial class Game : Node2D
             }
             if (click.ButtonIndex == MouseButton.Right)
             {
-                course.Clear();
+                ClearChartCourse();
                 GetViewport().SetInputAsHandled();
             }
             else if (click.ButtonIndex == MouseButton.Left)

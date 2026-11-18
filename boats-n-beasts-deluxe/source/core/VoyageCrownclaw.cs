@@ -36,6 +36,7 @@ public sealed partial class Voyage
         BossSpawned = true;
         HuntSignalRemaining = 0;
         Salvage.Towing = false;
+        CancelSalvageDestination();
         FloatingCache = null;
         foreach (var escort in Enemies.Where(enemy => enemy.Kind != EnemyKind.Leviathan && enemy.Health > 0)
             .OrderBy(enemy => Vector2.DistanceSquared(enemy.Position, Position)).Skip(SpawnDirector.BossEscortCount))

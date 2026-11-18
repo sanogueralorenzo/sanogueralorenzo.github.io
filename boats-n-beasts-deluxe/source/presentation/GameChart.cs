@@ -80,6 +80,7 @@ public partial class Game
     void ClearChartCourse()
     {
         course.Clear();
+        Run.CancelSalvageDestination();
         chartMessage = null;
     }
 
@@ -137,15 +138,18 @@ public partial class Game
                 {
                     var at = Plot(beacon.Position);
                     if (!area.Grow(-13).HasPoint(at)) continue;
-                    var color = beacon.Lit ? ChartTeal : ChartGold;
+                    bool premium = run.SalvageAvailable && beacon == run.PremiumSalvageBeacon;
+                    var color = beacon.Lit && !premium ? ChartTeal : ChartGold;
                     DrawCircle(at, 10, ChartPaper);
                     DrawColoredPolygon([at + new Vector2(0, -7), at + new Vector2(7, 0), at + new Vector2(0, 7), at + new Vector2(-7, 0)], color);
-                    string destination = run.HuntSignalReady && beacon.Lit ? $"{beacon.Name} · Hunt signal available" :
+                    string destination = premium ? $"{beacon.Name} · Premium delivery +{Voyage.PremiumSalvageBonus} silver" :
+                        run.HuntSignalReady && beacon.Lit ? $"{beacon.Name} · Hunt signal available" :
                         !beacon.Lit && !run.Salvage.Towing && beacon.Objective == BeaconObjective.Duel
                             ? $"{beacon.Name} · Approach the keeper" : beacon.Name;
                     var order = new ChartOrder(beacon.Position, beacon, Label: destination);
                     courses.Add((new(at - Vector2.One * 11, Vector2.One * 22), order));
                     Text(at + new Vector2(13, -4), beacon.Name, 15, true, ChartInk);
+                    if (premium) Text(at + new Vector2(13, 13), $"+{Voyage.PremiumSalvageBonus} silver", 13, color: ChartInk);
                 }
                 if (run.SalvageAvailable && !run.Salvage.Towing)
                 {

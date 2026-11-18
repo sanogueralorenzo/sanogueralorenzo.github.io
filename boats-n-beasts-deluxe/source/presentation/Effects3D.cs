@@ -214,8 +214,11 @@ public partial class Effects3D : Node3D
             last = next;
         }
         if (voyage.DeliveryBeacon is { } beacon)
+        {
+            var destinationColor = beacon == voyage.PremiumSalvageBeacon ? NauticalPalette.Gold : Aqua;
             foam.Arc(World(beacon.Position, .06f), SalvageCargo.DeliveryRadius * .01f,
-                0, Mathf.Tau, .035f, Fade(Aqua, .77f), 48);
+                0, Mathf.Tau, .035f, Fade(destinationColor, .77f), 48);
+        }
     }
 
     void DrawFloatingCache(DriftingCache cache)

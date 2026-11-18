@@ -21,7 +21,7 @@ public partial class Game
                 return;
             }
 
-            var at = new Vector2(24, 280 + statusInset);
+            var at = new Vector2(24, (run.Salvage.Towing ? 312 : 280) + statusInset);
             var box = new Rect2(at, new Vector2(254, 86));
             DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .94f), 8, new Color(NauticalPalette.Aqua, .50f)), box);
             Text(at + new Vector2(13, 26), "Repair berth", 20, true, NauticalPalette.Aqua);

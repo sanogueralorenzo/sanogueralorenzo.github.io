@@ -26,7 +26,8 @@ public partial class Game
         var detail = new List<string>();
         if (Run.LongestChain > 0) detail.Add($"Best chain {Run.LongestChain}");
         if (Run.CloseCalls > 0) detail.Add($"Close calls {Run.CloseCalls}");
-        if (Run.Salvage.Delivered) detail.Add("Wreck salvage delivered");
+        if (Run.Salvage.Delivered)
+            detail.Add(Run.Salvage.PremiumPaid ? $"Premium salvage · +{Voyage.PremiumSalvageBonus} silver bonus" : "Wreck salvage delivered");
         if (Run.FloatingCacheClaimed) detail.Add("Drifting cache secured");
         if (Run.HuntSignalBeacon != null) detail.Add("Hunt signal fired");
         if (Run.Charter == Charter.Stormchaser)

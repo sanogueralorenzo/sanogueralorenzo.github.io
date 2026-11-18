@@ -85,7 +85,13 @@ public sealed class SailCourse
 
     public bool Plot(Voyage run, Beacon beacon)
     {
-        if (beacon.Lit || beacon.Objective == BeaconObjective.Defend || run.BossSpawned || run.Salvage.Towing)
+        if (run.Salvage.Towing)
+        {
+            if (!Plot(run, beacon.Position)) return false;
+            run.Salvage.Destination = beacon;
+            return true;
+        }
+        if (beacon.Lit || beacon.Objective == BeaconObjective.Defend || run.BossSpawned)
             return Plot(run, beacon.Position);
 
         const float duelEntry = Beacon.Radius - 55;
@@ -198,7 +204,8 @@ public sealed class SailCourse
                 float distance = offset.Length();
                 var direction = offset / distance;
                 float throttle = circling ? .86f : Math.Clamp(distance / (last ? 164 : 125), .20f, 1);
-                bool boost = !circling && input.Boost && distance > 205 && Vector2.Dot(run.Forward, direction) > .86f;
+                bool boost = !run.Salvage.Towing && !circling && input.Boost && distance > 205 &&
+                    Vector2.Dot(run.Forward, direction) > .86f;
                 bool sprint = boost && !run.BoostExhausted && (run.IsBoosting ? run.Boost > 0 : run.Boost >= 8);
                 var flow = run.World.FlowAt(run.Position);
                 var drift = flow - direction * Math.Max(0, Vector2.Dot(flow, direction));
