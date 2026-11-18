@@ -247,18 +247,50 @@ public partial class Game : Node2D
 
     void UpgradeMenu()
     {
+        if (pendingSwap is { } incoming && Run.IsSwapOffer(incoming))
+        {
+            SwapWeaponMenu(incoming);
+            return;
+        }
+        pendingSwap = null;
         bool specialty = Run.UpgradeChoices.Any(option => option >= Voyage.FirstSpecialtyOption);
         var col = specialty
             ? Panel(660, "Choose a specialty", "This choice lasts the rest of the voyage.")
             : Panel(660, "Fit an upgrade", $"Level {Run.Level - Run.PendingUpgrades + 1}  ·  {Run.WeaponCount}/{Voyage.WeaponSlots} weapons equipped");
         foreach (int option in Run.UpgradeChoices) AddUpgradeRow(col, option);
-        if (Run.UpgradeChoices.Count == 0) col.AddChild(Button("Restore 25 health", () => { Run.TakeUpgradeHeal(); BuildMenu(); }, true));
+        if (Run.CanTakeUpgradeHeal)
+            col.AddChild(Button("Restore 25 hull", () => { Run.TakeUpgradeHeal(); BuildMenu(); }, true));
     }
     void AddUpgradeRow(VBoxContainer column, int option)
     {
-        var button = Button("", () => { if (Run.Upgrade(option)) BuildMenu(); });
+        bool swap = Run.IsSwapOffer(option);
+        int rank = Run.Rank(option);
+        string change = swap ? "Swap" : rank == 0 ? "New" : $"Rank {rank} → {rank + 1}";
+        string title = option >= Voyage.FirstSpecialtyOption ? Voyage.UpgradeNames[option] : $"{Voyage.UpgradeNames[option]} · {change}";
+        string detail = swap ? $"Replace a deck weapon. {Voyage.UpgradeNames[option]} inherits its rank." : Run.UpgradeBenefit(option);
+        string? note = null;
+        Color? noteColor = null;
         var combo = WeaponCombo.ForUpgrade(option);
-        button.CustomMinimumSize = new(0, combo == null ? 91 : 114);
+        if (combo != null)
+        {
+            int partner = combo.Partner(option);
+            bool completesPair = Run.Rank(partner) > 0;
+            note = completesPair ? $"{combo.Name} · {combo.Description}" : $"Pair with {Voyage.UpgradeNames[partner]} for {combo.Name}";
+            noteColor = completesPair ? NauticalPalette.Gold : new Color(NauticalPalette.Cream, .68f);
+        }
+        AddRefitRow(column, option, title, detail, () =>
+        {
+            if (swap) pendingSwap = option;
+            else if (!Run.Upgrade(option)) return;
+            BuildMenu();
+        }, note, noteColor);
+    }
+
+    void AddRefitRow(VBoxContainer column, int option, string title, string detail, Action action,
+        string? note = null, Color? noteColor = null)
+    {
+        var button = Button("", action);
+        button.CustomMinimumSize = new(0, note == null ? 91 : 114);
         button.TooltipText = Voyage.UpgradeNames[option];
         // Child content stays readable while the entire row handles mouse and keyboard input.
         button.AddThemeStyleboxOverride("hover", Box(new Color("194454"), 9, NauticalPalette.Aqua));
@@ -271,17 +303,9 @@ public partial class Game : Node2D
         row.AddChild(new UpgradeSymbol { Kind = option, CustomMinimumSize = new(40, 40), SizeFlagsVertical = Control.SizeFlags.ShrinkCenter });
         var text = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
         text.AddThemeConstantOverride("separation", 6); row.AddChild(text);
-        string rank = Run.Rank(option) == 0 ? "New" : $"Rank {Run.Rank(option)} → {Run.Rank(option) + 1}";
-        text.AddChild(Label(option >= Voyage.FirstSpecialtyOption ? Voyage.UpgradeNames[option] : $"{Voyage.UpgradeNames[option]} · {rank}", 23, true));
-        text.AddChild(Label(Run.UpgradeBenefit(option), 18));
-        if (combo != null)
-        {
-            int partner = combo.Partner(option);
-            bool completesPair = Run.Rank(partner) > 0;
-            string pairing = completesPair ? $"{combo.Name} · {combo.Description}"
-                : $"Pair with {Voyage.UpgradeNames[partner]} for {combo.Name}";
-            text.AddChild(Label(pairing, 14, color: completesPair ? NauticalPalette.Gold : new Color(NauticalPalette.Cream, .68f)));
-        }
+        text.AddChild(Label(title, 23, true));
+        text.AddChild(Label(detail, 18));
+        if (note != null) text.AddChild(Label(note, 14, color: noteColor));
         ReleaseMenuInput(row);
     }
     void ControlsMenu()

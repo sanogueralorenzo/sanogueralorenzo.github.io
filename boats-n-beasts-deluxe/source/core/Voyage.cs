@@ -322,9 +322,12 @@ public sealed partial class Voyage
         if (PendingUpgrades == 0) { Mode = VoyageMode.Sailing; return; }
         RollUpgrades(); Mode = VoyageMode.Upgrade;
     }
+    public bool CanTakeUpgradeHeal => Mode == VoyageMode.Upgrade && PendingUpgrades > 0 &&
+        UpgradeChoices.All(IsSwapOffer);
+
     public void TakeUpgradeHeal()
     {
-        if (Mode != VoyageMode.Upgrade || PendingUpgrades == 0 || UpgradeChoices.Count > 0) return;
+        if (!CanTakeUpgradeHeal) return;
         Heal(25); PendingUpgrades--; PrepareNextUpgrade();
     }
     void RollUpgrades()
@@ -339,12 +342,11 @@ public sealed partial class Voyage
         bool IsNewWeapon(int option) => option < Weapons.Length && Rank(option) == 0;
         int refitLevel = Level - PendingUpgrades + 1;
         bool pairingDraft = ActiveCombo == null && WeaponCount < WeaponSlots && refitLevel is 2 or 6;
-        if (pairingDraft)
-            AddChoice(available, option => IsNewWeapon(option) &&
-                WeaponCombo.ForUpgrade(option) is { } combo && Rank(combo.Partner(option)) > 0);
+        if (pairingDraft) AddChoice(available, option => IsNewWeapon(option) && CompletesWeaponPair(option));
 
         AddChoice(available, option => option < Weapons.Length && Rank(option) > 0);
-        AddChoice(available, IsNewWeapon);
+        if (WeaponCount == WeaponSlots && refitLevel % 3 == 0) AddSwapOffer();
+        else AddChoice(available, IsNewWeapon);
         if (UpgradeChoices.Count < 3) AddChoice(available, option => option >= Weapons.Length);
         while (UpgradeChoices.Count < 3 && available.Count > 0) AddChoice(available, _ => true);
     }
@@ -379,15 +381,21 @@ public sealed partial class Voyage
             Weapons[option]++;
             var combo = WeaponCombo.ForUpgrade(option);
             if (Weapons[option] == 1 && combo != null && IsFitted(combo))
-                Events.Add(new("comboFitted", Position));
+                Events.Add(new("comboFitted", Position, option));
         }
         else if (option == 6) { HullRank++; Heal(25); }
         else if (option == 7) EngineRank++;
         else if (option == 8) ReloadRank++;
         else if (option == 9) AreaRank++;
         else SelectSpecialty(option);
-        PendingUpgrades--; PrepareNextUpgrade();
-        Events.Add(new("upgrade", Position)); return true;
+        FinishUpgrade();
+        return true;
+    }
+    void FinishUpgrade()
+    {
+        PendingUpgrades--;
+        PrepareNextUpgrade();
+        Events.Add(new("upgrade", Position));
     }
     public static readonly string[] UpgradeNames = ["Cannon", "Harpoon", "Mines", "Lightning", "Whirlpool", "Arcane Orbs", "Hull", "Speed", "Reload", "Reach", "Windrunner", "Shipwright", "Master Gunner"];
     public static readonly string[] UpgradeDescriptions = [

@@ -84,7 +84,8 @@ public partial class Game : Node2D
             switch (e.Kind)
             {
                 case "beacon": Toast($"Beacon lit · +{e.Value:0} XP"); break;
-                case "comboFitted": Toast($"{Run.ActiveCombo!.Name} fitted"); break;
+                case "comboFitted": Toast($"{WeaponCombo.ForUpgrade((int)e.Value)!.Name} fitted"); break;
+                case "weaponSwapped": Toast($"{Voyage.UpgradeNames[(int)e.Value]} fitted"); break;
                 case "stormshot":
                 case "tripwire":
                 case "riptide":
@@ -166,6 +167,7 @@ public partial class Game : Node2D
         }
         if (input is not InputEventJoypadButton { Pressed: true } button) return;
         if (chartOpen) HandleChartButton(button.ButtonIndex);
+        else if (button.ButtonIndex == JoyButton.B && pendingSwap.HasValue) ToggleMenu();
         else if (button.ButtonIndex == JoyButton.Y && CanOpenChart) ToggleChart();
         else if (button.ButtonIndex == JoyButton.A && CanUseHarborControls) UseHarborRepair();
         else if (button.ButtonIndex == JoyButton.X && !title && !controls && Run.IsActive)
@@ -213,6 +215,7 @@ public partial class Game : Node2D
             choosingBoat = journal = false;
             RestoreOpenChart();
         }
+        else if (pendingSwap.HasValue) pendingSwap = null;
         else if (Run.Mode == VoyageMode.Paused) Run.Mode = beforePause;
         else if (Run.Mode == VoyageMode.Sailing)
         {
@@ -238,6 +241,7 @@ public partial class Game : Node2D
     void Start()
     {
         lootNoticeTime = hitNotice = pairingFlash = 0;
+        pendingSwap = null;
         chartOpen = false;
         dailyBonus = earnedSails = 0;
         creditedSilver = 0; course.Clear(); toastTime = 0; maneuverRequested = false;

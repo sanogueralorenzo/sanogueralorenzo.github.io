@@ -19,12 +19,13 @@ public sealed partial class Voyage
         };
     }
 
-    public string WeaponReadout(WeaponKind kind)
+    public string WeaponReadout(WeaponKind kind, int? rank = null)
     {
-        var stats = WeaponPerformance(kind, Weapons[(int)kind]);
+        var stats = WeaponPerformance(kind, rank ?? Weapons[(int)kind]);
         string area = kind is WeaponKind.Mine or WeaponKind.Undertow ? "radius" : "range";
-        string damage = stats.Projectiles > 1 ? $"{stats.Damage:0} damage each" : $"{stats.Damage:0} damage";
-        return $"{damage}  ·  {stats.Reach:0} m {area}  ·  {stats.ReloadSeconds:0.00}s reload";
+        string damage = stats.Projectiles > 1 ? $"{stats.Projectiles} × {stats.Damage:0} damage" : $"{stats.Damage:0} damage";
+        string targets = stats.Targets > 1 ? $"  ·  {stats.Targets} targets" + (stats.Projectiles > 1 ? " each" : "") : "";
+        return $"{damage}{targets}  ·  {stats.Reach:0} m {area}  ·  {stats.ReloadSeconds:0.00}s reload";
     }
 
     string WeaponRefit(WeaponKind kind, int rank)
