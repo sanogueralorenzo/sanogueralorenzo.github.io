@@ -12,7 +12,7 @@ public partial class OceanView3D : Node3D
     public float Clock;
     public float DepartureTime { get; private set; }
     public double DrawMs;
-    public V2? Destination;
+    public SailCourse? Course;
     public Vector2 Projection => new(NativeStage3D.Zoom, NativeStage3D.Zoom * NativeStage3D.Foreshortening);
     public int CachedScenery => scenery.Count;
     public int CachedEncounters => effects.CachedEncounters;
@@ -28,7 +28,7 @@ public partial class OceanView3D : Node3D
     public override void _Ready()
     {
         stage = new(); AddChild(stage);
-        effects = new(); AddChild(effects);
+        effects = new() { Course = Course }; AddChild(effects);
         Reset();
     }
     public Vector2 Screen(V2 p) => stage.Screen(p);
@@ -83,7 +83,6 @@ public partial class OceanView3D : Node3D
             }
         }
         SyncScenery(); SyncActors(dt);
-        effects.Destination = Destination;
         effects.ShowBeacons = !Menu;
         effects.Sync(Voyage, Clock, dt);
         DrawMs = DrawMs * .95 + System.Diagnostics.Stopwatch.GetElapsedTime(start).TotalMilliseconds * .05;

@@ -5,7 +5,7 @@ public sealed partial class Voyage
 {
     public float ManeuverCooldown { get; private set; }
     public float ManeuverDuration => Spec.ManeuverSeconds;
-    Vector2 Forward => new(MathF.Sin(Heading), -MathF.Cos(Heading));
+    internal Vector2 Forward => new(MathF.Sin(Heading), -MathF.Cos(Heading));
 
     void UpdateManeuver(float dt, bool requested)
     {

@@ -25,7 +25,7 @@ public partial class Effects3D : Node3D
     float time, sampleClock;
     int ballCount;
     bool initialized;
-    public V2? Destination { get; set; }
+    public SailCourse? Course { get; set; }
     public bool ShowBeacons { get; set; }
     public int CachedEncounters => encounters.Count;
     public int TrailSamples => wake.Count + trails.Values.Sum(t => t.Count) + creatureWakes.Values.Sum(t => t.Count);
@@ -53,7 +53,7 @@ public partial class Effects3D : Node3D
     {
         wake.Clear(); trails.Clear(); creatureWakes.Clear(); bursts.Clear(); sparks.Clear();
         foreach (var e in encounters.Values) e.Root.QueueFree(); encounters.Clear();
-        time = sampleClock = 0; Destination = null;
+        time = sampleClock = 0;
         if (initialized) { foam.Begin(); foam.End(); solid.Begin(); solid.End(); balls.VisibleInstanceCount = 0; }
     }
     public void Sync(Voyage voyage, float clock, float dt)
@@ -105,14 +105,40 @@ public partial class Effects3D : Node3D
             DrawBeacons(voyage);
             if (voyage.SalvageAvailable) DrawSalvage(voyage);
         }
-        if (Destination is V2 destination)
-        {
-            var p = World(destination, .05f);
-            foam.Arc(p, .24f, -.4f, 2.1f, .019f, Fade(Cream,.70f),10);
-            foam.Arc(p, .24f, 2.8f, 1.9f, .019f, Fade(Cream,.70f),10);
-        }
+        if (Course is { Destination: { } destination } course)
+            DrawCourse(voyage.Position, course.Ahead, destination);
         foam.End(); solid.End(); balls.VisibleInstanceCount = ballCount;
     }
+    void DrawCourse(V2 boat, ReadOnlySpan<V2> waypoints, V2 destination)
+    {
+        var from = World(boat, .063f);
+        float remaining = 17;
+        float offset = .78f;
+        var ink = Fade(Cream, .54f);
+        foreach (var waypoint in waypoints)
+        {
+            var to = World(waypoint, .063f);
+            float length = from.DistanceTo(to);
+            if (length < .001f) continue;
+            var direction = (to - from) / length;
+            float span = Math.Min(length, remaining);
+            for (; offset < span; offset += .55f)
+            {
+                var a = from + direction * offset;
+                var b = from + direction * Math.Min(offset + .25f, span);
+                foam.Ribbon(a, b, .015f, .008f, ink);
+            }
+            offset -= length;
+            remaining -= length;
+            if (remaining <= 0) break;
+            from = to;
+        }
+
+        var end = World(destination, .061f);
+        foam.Arc(end, .24f, -.4f, 2.1f, .019f, Fade(Cream, .77f), 10);
+        foam.Arc(end, .24f, 2.8f, 1.9f, .019f, Fade(Cream, .77f), 10);
+    }
+
     void DrawBeacons(Voyage voyage)
     {
         foreach (var beacon in voyage.Beacons)

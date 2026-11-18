@@ -26,3 +26,39 @@ public static class StartingArea
         return new(key, places.ToArray());
     }
 }
+
+public static class HarborDock
+{
+    public const float CenterX = .56f;
+    public const float FirstBoard = .40f;
+    public const float BoardStep = .095f;
+    public const int BoardCount = 11;
+    public const float BoardDepth = .09f;
+    public const float PostSide = .25f;
+    public const float PostRadius = .049f;
+    public const float FirstPost = .48f;
+    public const float PostStep = .43f;
+
+    const float Start = FirstBoard - BoardDepth / 2;
+    const float End = FirstBoard + (BoardCount - 1) * BoardStep + BoardDepth / 2;
+    static readonly Vector2 Center = new(CenterX, (Start + End) / 2);
+    static readonly Vector2 HalfSize = new(PostSide + PostRadius, (End - Start) / 2);
+    public static float Bounds { get; } = (Center + HalfSize).Length();
+
+    public static float Overlap(Vector2 offset, float radius, float clearance, out Vector2 normal)
+    {
+        var local = offset - Center * radius;
+        var extents = HalfSize * radius;
+        var delta = local - Vector2.Clamp(local, -extents, extents);
+        float gap = delta.Length();
+        if (gap > .001f)
+        {
+            normal = delta / gap;
+            return clearance - gap;
+        }
+
+        var inside = extents - Vector2.Abs(local);
+        normal = inside.X < inside.Y ? new(MathF.CopySign(1, local.X), 0) : new(0, MathF.CopySign(1, local.Y));
+        return clearance + Math.Min(inside.X, inside.Y);
+    }
+}

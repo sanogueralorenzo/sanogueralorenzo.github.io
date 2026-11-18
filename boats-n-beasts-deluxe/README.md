@@ -7,7 +7,8 @@ Pilot a pirate ship through a procedural archipelago. Defend Breakwater, patrol 
 | Input | Action |
 | --- | --- |
 | WASD, arrows, or left stick | Steer |
-| Left-click | Set a sailing destination |
+| Left-click | Plot a course to a point or chart marker |
+| Right-click | Cancel the course |
 | Space, Shift, or RB | Boost |
 | E or controller X | Use Broadside, Breakwater, or Slipstream |
 | Esc or Start | Pause |

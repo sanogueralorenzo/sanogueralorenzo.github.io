@@ -265,16 +265,27 @@ public sealed class OceanWorld(uint seed)
             return depth > 0;
         }
         float distance = offset.Length();
-        normal = Unit(offset, Vector2.UnitX); depth = place.Radius + clearance - distance;
+        normal = Unit(offset, Vector2.UnitX);
+        depth = place.Radius + clearance - distance;
+        if (place.Kind == PlaceKind.Harbor)
+        {
+            float dock = HarborDock.Overlap(offset, place.Radius, clearance, out var dockNormal);
+            if (dock > depth) { depth = dock; normal = dockNormal; }
+        }
         return depth > 0;
     }
+    public static float SolidBounds(Place place) => place.Radius * (place.Kind == PlaceKind.Harbor ? HarborDock.Bounds : 1.04f);
+
     public bool IsWater(Vector2 position, float clearance = 24) => !Places.Any(p => IsSolid(p) && Overlap(p, position, clearance, out _, out _));
     public Vector2 Slide(Vector2 old, Vector2 target, float radius)
     {
         foreach (var p in Places)
         {
             if (!IsSolid(p)) continue;
-            if (Overlap(p, target, radius, out var normal, out float depth)) target += normal * depth;
+            if (!Overlap(p, target, radius, out var normal, out float depth)) continue;
+            target += normal * depth;
+            if (p.Kind == PlaceKind.Harbor && Overlap(p, target, radius, out normal, out depth))
+                target += normal * depth;
         }
         return target;
     }
@@ -287,8 +298,8 @@ public sealed class OceanWorld(uint seed)
         {
             if (!IsSolid(p)) continue;
             var to = p.Position - position; float distance = to.Length();
-            if (distance > p.Radius * 1.04f + radius + 90 || Vector2.Dot(to, forward) < 0) continue;
-            if (p.Shape != null && !Overlap(p, position + forward * 90, radius, out _, out _)) continue;
+            if (distance > SolidBounds(p) + radius + 90 || Vector2.Dot(to, forward) < 0) continue;
+            if (p.Kind is PlaceKind.Island or PlaceKind.Harbor && !Overlap(p, position + forward * 90, radius, out _, out _)) continue;
             var normal = Unit(to); float cross = forward.X * normal.Y - forward.Y * normal.X;
             float side = Math.Abs(cross) < .08f ? (id % 2 == 0 ? 1 : -1) : -MathF.Sign(cross);
             return Unit(forward * .35f + new Vector2(-normal.Y, normal.X) * side) * length;

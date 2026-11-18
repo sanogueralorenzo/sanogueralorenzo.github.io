@@ -409,16 +409,16 @@ public static partial class EnvironmentArt3D
     private static void Dock(Sculptor art, float r)
     {
         Color timber = new("977145"), cut = new("b19466");
-        float x = r * .56f;
-        for (int i = 0; i < 11; i++)
-            art.RoundedBox(new(x, .145f, r * (.40f + i * .095f)), new(r * .46f, .09f, r * .09f), .018f, timber.Lightened(i % 3 * .03f));
+        float x = r * HarborDock.CenterX;
+        for (int i = 0; i < HarborDock.BoardCount; i++)
+            art.RoundedBox(new(x, .145f, r * (HarborDock.FirstBoard + i * HarborDock.BoardStep)), new(r * .46f, .09f, r * HarborDock.BoardDepth), .018f, timber.Lightened(i % 3 * .03f));
         for (int side = -1; side <= 1; side += 2)
         {
             art.RoundedBox(new(x + side * r * .15f, .072f, r * .88f), new(r * .055f, .10f, r * 1.09f), .01f, timber.Darkened(.12f));
             for (int i = 0; i < 3; i++)
             {
-                var bottom = new Vector3(x + side * r * .25f, -.08f, r * (.48f + i * .43f));
-                art.Tube(bottom, bottom + new Vector3(0, .47f, 0), r * .049f, r * .042f, timber.Darkened(.09f), 9);
+                var bottom = new Vector3(x + side * r * HarborDock.PostSide, -.08f, r * (HarborDock.FirstPost + i * HarborDock.PostStep));
+                art.Tube(bottom, bottom + new Vector3(0, .47f, 0), r * HarborDock.PostRadius, r * .042f, timber.Darkened(.09f), 9);
                 art.Tube(bottom + new Vector3(0, .455f, 0), bottom + new Vector3(0, .485f, 0), r * .047f, r * .047f, cut, 9);
             }
         }

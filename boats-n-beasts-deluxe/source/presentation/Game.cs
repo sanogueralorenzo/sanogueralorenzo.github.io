@@ -8,7 +8,7 @@ public partial class Game : Node2D
     public Voyage Run = null!;
     OceanView3D ocean = null!;
     Vector2 uiPointer = new(-1000, -1000);
-    V2? destination;
+    readonly SailCourse course = new();
     Hud hud = null!;
 
     CanvasLayer layer = null!;
@@ -40,7 +40,7 @@ public partial class Game : Node2D
             FontWeight = 700
         };
         Run = new(selectedSeed, BoatKind.Cutter);
-        ocean = new() { Voyage = Run, Menu = true }; AddChild(ocean);
+        ocean = new() { Voyage = Run, Course = course, Menu = true }; AddChild(ocean);
         log.Load();
         audio = new() { Muted = log.Muted }; AddChild(audio);
         layer = new(); AddChild(layer); hud = new() { Game = this, TitleFont = titleFont, BodyFont = bodyFont }; layer.AddChild(hud);
@@ -69,18 +69,11 @@ public partial class Game : Node2D
                 }
                 boost |= Input.IsJoyButtonPressed(device, JoyButton.RightShoulder);
             }
-            if (move != V2.Zero) destination = null;
-            if (destination is V2 goal)
-            {
-                move = goal - Run.Position;
-                if (move.LengthSquared() < 26 * 26) { destination = null; move = V2.Zero; }
-                else move = Run.World.Avoid(Run.Position, OceanWorld.Unit(move), 65, 1);
-            }
-            Run.Tick(dt, new(move, boost, maneuverRequested));
+            Run.Tick(dt, course.Apply(Run, new(move, boost, maneuverRequested)));
             maneuverRequested = false;
         }
 
-        ocean.Destination = destination;
+        if (Run.Mode is VoyageMode.Victory or VoyageMode.Defeat) course.Clear();
         foreach (var e in Run.Events)
         {
             ocean.Effect(e);
@@ -133,12 +126,20 @@ public partial class Game : Node2D
     }
     public override void _UnhandledInput(InputEvent input)
     {
-        if (input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } click && !title && Run.Mode == VoyageMode.Sailing)
+        if (input is InputEventMouseButton { Pressed: true } click && !title && Run.Mode == VoyageMode.Sailing)
         {
-            var point = hud.CourseAt(click.Position) ?? ocean.WorldPoint(click.Position);
-            destination = Run.World.Slide(Run.Position, point, 70);
-            usingController = false;
-            GetViewport().SetInputAsHandled();
+            if (click.ButtonIndex == MouseButton.Right)
+            {
+                course.Clear();
+                GetViewport().SetInputAsHandled();
+            }
+            else if (click.ButtonIndex == MouseButton.Left)
+            {
+                var point = hud.CourseAt(click.Position) ?? ocean.WorldPoint(click.Position);
+                if (!course.Plot(Run, point)) Toast("Choose a course through open water");
+                usingController = false;
+                GetViewport().SetInputAsHandled();
+            }
         }
         if (input is not InputEventJoypadButton { Pressed: true } button) return;
         if (button.ButtonIndex == JoyButton.X && !title && !controls && Run.IsActive)
@@ -174,7 +175,7 @@ public partial class Game : Node2D
         else if (Run.Mode == VoyageMode.Paused) Run.Mode = beforePause;
         else if (Run.Mode == VoyageMode.Sailing)
         {
-            destination = null;
+            course.Clear();
             beforePause = Run.Mode;
             Run.Mode = VoyageMode.Paused;
         }
@@ -185,13 +186,13 @@ public partial class Game : Node2D
     public override void _Notification(int what)
     {
         if (what == NotificationApplicationFocusOut && Run != null && !title && Run.Mode == VoyageMode.Sailing)
-        { beforePause = Run.Mode; destination = null; Run.Mode = VoyageMode.Paused; Callable.From(BuildMenu).CallDeferred(); }
+        { beforePause = Run.Mode; course.Clear(); Run.Mode = VoyageMode.Paused; Callable.From(BuildMenu).CallDeferred(); }
     }
     void Start()
     {
         lootNoticeTime = hitNotice = 0;
         dailyBonus = 0;
-        creditedSilver = 0; destination = null; toastTime = 0; maneuverRequested = false;
+        creditedSilver = 0; course.Clear(); toastTime = 0; maneuverRequested = false;
         if (title)
         {
             // Keep the already-visible voyage, meshes, boat and animation clock.
@@ -226,7 +227,7 @@ public partial class Game : Node2D
 
     void BackToTitle()
     {
-        Record(); title = true; choosingBoat = controls = journal = false; destination = null; ocean.Menu = true;
+        Record(); title = true; choosingBoat = controls = journal = false; course.Clear(); ocean.Menu = true;
         daily = null;
         selectedSeed = (uint)Random.Shared.NextInt64(1, 1L << 32);
         Run = new(selectedSeed, selectedBoat, selectedCharter); ocean.Voyage = Run; ocean.Reset(); BuildMenu();
