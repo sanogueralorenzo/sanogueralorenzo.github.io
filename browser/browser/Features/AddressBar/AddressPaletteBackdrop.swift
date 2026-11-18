@@ -12,16 +12,10 @@ struct AddressPaletteBackdrop: View {
                 canvas
             } else {
                 LinearGradient(
-                    stops: [
-                        .init(color: canvas.opacity(0.95), location: 0),
-                        .init(color: canvas.opacity(0.93), location: 0.61),
-                        .init(color: canvas.opacity(0.86), location: 0.82),
-                        .init(color: canvas.opacity(0.71), location: 1),
-                    ],
+                    colors: [canvas, canvas.opacity(0.6)],
                     startPoint: .top, endPoint: .bottom
                 )
                 .background { AddressFocusMaterial().allowsHitTesting(false) }
-                .opacity(0.8)
             }
         }
         .contentShape(Rectangle())
