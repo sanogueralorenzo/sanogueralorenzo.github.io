@@ -7,7 +7,7 @@ public enum EnemyKind { Crab, Puffer, Serpent, Ray, Leviathan }
 public enum WeaponKind { Cannon, Harpoon, Mine, Coil, Undertow, Arcane }
 public sealed class Enemy
 {
-    public int Id; public EnemyKind Kind; public Vector2 Position, Direction;
+    public int Id; public EnemyKind Kind; public Vector2 Position, Direction, Velocity;
     public float Health, MaxHealth, Time, AttackClock, Telegraph, Dash, HitFlash, Pull, Fuse;
     public float SpeedMultiplier = 1;
     public bool ChargeNext;
@@ -24,7 +24,7 @@ public sealed class Enemy
 public sealed class Shot
 {
     public Vector2 Position, Previous, Velocity, Target;
-    public float Damage, Life, Radius, Age, FlightDuration; public bool Hostile;
+    public float Damage, Life, Radius, Age, FlightDuration, LaunchHeight; public bool Hostile;
     public WeaponKind Kind; public int Pierce, Bounces;
     public bool Ricocheted, ComboSpent;
     public HashSet<int> Hit = new();
@@ -77,7 +77,7 @@ public sealed partial class Voyage
         Charter = charter;
         Rules = CharterRules.For(charter);
         Health = MaxHealth;
-        Weapons[boat == BoatKind.Cutter ? 0 : boat == BoatKind.Trawler ? 4 : 5] = 1;
+        Weapons[(int)BoatRig.Starter(boat)] = 1;
         Position = StartingArea.Spawn;
         Heading = MathF.PI;
         World.Stream(Position);
@@ -165,6 +165,8 @@ public sealed partial class Voyage
         foreach (var e in Enemies)
         {
             if (e.Health <= 0) continue;
+            var beforeMove = e.Position;
+            e.Velocity = Vector2.Zero;
             e.Time += dt;
             if (e.Emerging) continue;
             e.AttackClock -= dt; e.HitFlash = Math.Max(0, e.HitFlash - dt);
@@ -179,6 +181,7 @@ public sealed partial class Voyage
                 var retreat = World.Avoid(e.Position, OceanWorld.Unit(home), e.Radius, e.Id);
                 if (home.LengthSquared() > 80 * 80)
                     e.Position = World.Slide(e.Position, e.Position + retreat * speed * dt, e.Radius);
+                e.Velocity = (e.Position - beforeMove) / dt;
                 continue;
             }
             if (e.Kind == EnemyKind.Puffer)
@@ -279,6 +282,7 @@ public sealed partial class Voyage
                 motion = World.Avoid(e.Position, motion, e.Radius, e.Id);
                 e.Position = World.Slide(e.Position, e.Position + motion * speed * dt, e.Radius);
             }
+            e.Velocity = (e.Position - beforeMove) / dt;
             if (e.Kind != EnemyKind.Puffer && Vector2.DistanceSquared(e.Position, Position) < MathF.Pow(e.Radius + 23, 2)) DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : e.GuardAnchor.HasValue ? 17 : 11);
         }
     }

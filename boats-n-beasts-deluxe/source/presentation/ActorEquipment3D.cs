@@ -6,31 +6,30 @@ namespace BoatsNBeasts;
 
 public static partial class ActorArt3D
 {
-    static readonly Vector3 BoatScale = new Vector3(1.22f, 1.15f, 1.30f) * 1.15f;
-    static Vector3 SternMount(int index) => new(index == 0 ? .115f : -.115f, .35f, .425f);
-    const float SecondarySize = .45f;
-    static int Starter(BoatKind kind) => kind == BoatKind.Cutter ? 0 : kind == BoatKind.Trawler ? 4 : 5;
+    static readonly Vector3 BoatScale = new(BoatRig.Scale.X, BoatRig.Scale.Y, BoatRig.Scale.Z);
+    static Vector3 ArtPosition(WeaponMount mount) => new(mount.Position.X, mount.Position.Y, mount.Position.Z);
 
-    public static void AnimateBoat(Node3D root, float clock, float speed, float relativeAimAngle, float heel = 0)
+    public static void AnimateBoat(Node3D root, float clock, float speed, float cannonAngle = 0, float harpoonAngle = 0, float heel = 0)
     {
         Animate(root, clock, speed);
         var sculpture = root.GetChild<Node3D>(0);
         sculpture.Rotation += new Vector3(-speed * .011f, 0, heel);
         sculpture.Position += Vector3.Up * Mathf.Sin(clock * 3.1f) * Mathf.Min(speed, 4) * .004f;
-        foreach (Node child in sculpture.GetChildren())
-            if (child is Node3D fitting && fitting.Name.ToString().StartsWith("Aim", StringComparison.Ordinal))
-                fitting.Rotation = new(0, relativeAimAngle, 0);
+        if (sculpture.GetNodeOrNull<Node3D>("AimCannon") is { } cannon)
+            cannon.Rotation = new(0, cannonAngle, 0);
+        if (sculpture.GetNodeOrNull<Node3D>("AimHarpoon") is { } harpoon)
+            harpoon.Rotation = new(0, harpoonAngle, 0);
     }
 
-    static void AddAimedWeapon(Node3D root, int weapon, int rank, Vector3 position, float size, string name)
+    static void AddAimedWeapon(Node3D root, int weapon, int rank, WeaponMount mount)
     {
-        string key = $"aim-{weapon}-{rank}-{size}";
+        string key = $"aim-{weapon}-{rank}-{mount.Size}";
         if (!Cache.TryGetValue(key, out var mesh))
         {
-            var b = new ActorGeometry(); Equipment(b, weapon, rank, Vector3.Zero, size);
+            var b = new ActorGeometry(); Equipment(b, weapon, rank, Vector3.Zero, mount.Size);
             b.Scale(BoatScale); Cache[key] = mesh = b.Mesh(Material);
         }
-        root.GetChild(0).AddChild(new MeshInstance3D { Name = name, Mesh = mesh, Position = position * BoatScale,
+        root.GetChild(0).AddChild(new MeshInstance3D { Name = weapon == (int)WeaponKind.Cannon ? "AimCannon" : "AimHarpoon", Mesh = mesh, Position = ArtPosition(mount) * BoatScale,
             CastShadow = GeometryInstance3D.ShadowCastingSetting.On });
     }
 

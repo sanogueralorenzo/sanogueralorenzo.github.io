@@ -97,26 +97,6 @@ static class CoursePlanner
         return true;
     }
 
-    static bool SegmentClear(Place[] solids, Vector2 start, Vector2 end)
-    {
-        var delta = end - start;
-        float lengthSquared = delta.LengthSquared();
-        if (lengthSquared < .0001f) return WaterAt(solids, end);
-        int steps = Math.Max(1, (int)MathF.Ceiling(MathF.Sqrt(lengthSquared) / 32));
-        foreach (var solid in solids)
-        {
-            float t = Math.Clamp(Vector2.Dot(solid.Position - start, delta) / lengthSquared, 0, 1);
-            float bounds = OceanWorld.SolidBounds(solid) + Clearance;
-            if (Vector2.DistanceSquared(solid.Position, start + delta * t) > bounds * bounds) continue;
-            if (solid.Kind == PlaceKind.Rock)
-            {
-                float edge = solid.Radius + Clearance;
-                if (Vector2.DistanceSquared(solid.Position, start + delta * t) < edge * edge) return false;
-                continue;
-            }
-            for (int i = 0; i <= steps; i++)
-                if (OceanWorld.Overlap(solid, start + delta * (i / (float)steps), Clearance, out _, out _)) return false;
-        }
-        return true;
-    }
+    static bool SegmentClear(Place[] solids, Vector2 start, Vector2 end) =>
+        OceanWorld.ClearSegment(solids, start, end, Clearance, 32);
 }

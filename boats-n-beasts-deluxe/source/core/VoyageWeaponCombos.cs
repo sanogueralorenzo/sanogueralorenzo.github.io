@@ -80,7 +80,8 @@ public sealed partial class Voyage
             Events.Add(new("stormshot", enemy.Position, 105));
             foreach (var next in Enemies.Where(next => next.Health > 0 && !next.Emerging && next != enemy &&
                          !shot.Hit.Contains(next.Id) && Vector2.DistanceSquared(next.Position, enemy.Position) < 160 * 160)
-                     .OrderBy(next => Vector2.DistanceSquared(next.Position, enemy.Position)).Take(2))
+                     .OrderBy(next => Vector2.DistanceSquared(next.Position, enemy.Position))
+                     .Where(next => World.OpenShot(enemy.Position, next.Position)).Take(2))
             {
                 if (next.Health <= 0) continue;
                 Events.Add(new("arc", enemy.Position, 0, next.Position));

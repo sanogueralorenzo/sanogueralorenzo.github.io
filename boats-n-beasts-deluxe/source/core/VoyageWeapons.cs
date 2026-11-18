@@ -17,9 +17,6 @@ public sealed partial class Voyage
             Cooldowns[w] = Math.Max(0, Cooldowns[w] - dt * FireRateMultiplier);
             int rank = Weapons[w];
             if (rank == 0 || Cooldowns[w] > 0 || Shots.Count >= 360) continue;
-            float range = w == 4 ? WhirlpoolRadius : w == 3 ? 285 * Area : 570;
-            var target = Enemies.Where(e => e.Health > 0 && !e.Emerging && Vector2.DistanceSquared(e.Position, Position) <= (range + (w == 4 ? e.Radius : 0)) * (range + (w == 4 ? e.Radius : 0)))
-                .OrderBy(e => Vector2.DistanceSquared(e.Position,Position)).FirstOrDefault();
             if (w == 2)
             {
                 if (Velocity.Length() < Speed * .2f || Shots.Count(s => !s.Hostile && s.Kind == WeaponKind.Mine && s.Life > 0) >= 8) continue;
@@ -30,7 +27,24 @@ public sealed partial class Voyage
             }
             else
             {
-                if (target == null) continue;
+                var kind = (WeaponKind)w;
+                bool deck = kind is WeaponKind.Cannon or WeaponKind.Harpoon;
+                var origin = deck ? DeckPivot(kind) : Position;
+                float range = kind == WeaponKind.Undertow ? WhirlpoolRadius : kind == WeaponKind.Coil ? 285 * Area : 570;
+                var target = Enemies.Where(enemy => enemy.Health > 0 && !enemy.Emerging)
+                    .Where(enemy =>
+                    {
+                        float reach = range + (kind == WeaponKind.Undertow ? enemy.Radius : 0);
+                        return Vector2.DistanceSquared(enemy.Position, origin) <= reach * reach;
+                    })
+                    .OrderBy(enemy => Vector2.DistanceSquared(enemy.Position, origin))
+                    .FirstOrDefault(enemy => kind == WeaponKind.Undertow || World.OpenShot(origin, enemy.Position));
+                if (target == null)
+                {
+                    if (kind == WeaponKind.Cannon) CannonAim = Vector2.Zero;
+                    if (kind == WeaponKind.Harpoon) HarpoonAim = Vector2.Zero;
+                    continue;
+                }
                 float damage = w switch { 0 => 16, 1 => 17 + 4 * (rank - 1), 4 => 9 + 2 * (rank - 1), 5 => 24, _ => 17 + 2 * (rank - 1) };
                 if (w == 5)
                 {
@@ -63,21 +77,10 @@ public sealed partial class Voyage
                     {
                         chain.Add(hit.Id); Events.Add(new("arc", from, 0, hit.Position)); Hit(hit, damage);
                         from = hit.Position;
-                        hit = Enemies.Where(e => e.Health > 0 && !chain.Contains(e.Id) && Vector2.DistanceSquared(e.Position,from) < MathF.Pow(180*Area,2)).OrderBy(e => Vector2.DistanceSquared(e.Position,from)).FirstOrDefault();
+                        hit = Enemies.Where(e => e.Health > 0 && !e.Emerging && !chain.Contains(e.Id) && Vector2.DistanceSquared(e.Position,from) < MathF.Pow(180*Area,2)).OrderBy(e => Vector2.DistanceSquared(e.Position,from)).FirstOrDefault(e => World.OpenShot(from, e.Position));
                     }
                 }
-                else
-                {
-                    var mount = Position + forward * 48;
-                    var dir = OceanWorld.Unit(target.Position-mount);
-                    int count = w == 0 ? rank : 1;
-                    for (int i=0;i<count;i++)
-                    {
-                        var start = mount + dir*24 + new Vector2(-dir.Y,dir.X)*((i-(count-1)/2f)*9);
-                        Shots.Add(new() { Kind=(WeaponKind)w, Position=start, Previous=start, Velocity=dir*(w==1?580:650), Damage=damage, Life=w==0?2.4f:1.15f, Radius=6, Pierce=w==1?(rank==5?2:1):0, Bounces=w==0?(rank==5?2:1):0 });
-                    }
-                    Events.Add(new(w==0?"shot":"harpoon",mount));
-                }
+                else FireDeckWeapon(kind, target, origin, rank, damage);
             }
             Cooldowns[w] = (w==0?.85f:w==1?1.3f:w==2?(rank==5?1.65f:2.4f):w==4?.6f:w==5?1.19f:1.55f)
                 / (1+ReloadRank*.12f);
@@ -95,7 +98,7 @@ public sealed partial class Voyage
             if (s.Life<=0) continue;
             if (s.Kind == WeaponKind.Arcane && !s.Hostile)
             {
-                var target = Enemies.Where(e=>e.Health>0 && !e.Emerging && !s.Hit.Contains(e.Id) && Vector2.DistanceSquared(e.Position,s.Position)<650*650).OrderByDescending(e => !s.ComboSpent && e.Drenched > 0).ThenBy(e=>Vector2.DistanceSquared(e.Position,s.Position)).FirstOrDefault();
+                var target = Enemies.Where(e=>e.Health>0 && !e.Emerging && !s.Hit.Contains(e.Id) && Vector2.DistanceSquared(e.Position,s.Position)<650*650).OrderByDescending(e => !s.ComboSpent && e.Drenched > 0).ThenBy(e=>Vector2.DistanceSquared(e.Position,s.Position)).FirstOrDefault(e => World.OpenShot(s.Position, e.Position));
                 if (target != null) s.Velocity = OceanWorld.Unit(Vector2.Lerp(s.Velocity/400,OceanWorld.Unit(target.Position-s.Position),1-MathF.Exp(-dt*7)))*400;
             }
             s.Previous=s.Position; s.Position+=s.Velocity*dt; s.Life-=dt; s.Age+=dt;
@@ -146,7 +149,7 @@ public sealed partial class Voyage
                 if (BossSlain) break;
                 if(s.Kind==WeaponKind.Cannon && s.Bounces>0)
                 {
-                    var next=Enemies.Where(other=>other.Health>0 && !other.Emerging && !s.Hit.Contains(other.Id) && Vector2.DistanceSquared(other.Position,e.Position)<320*320).OrderBy(other=>Vector2.DistanceSquared(other.Position,e.Position)).FirstOrDefault();
+                    var next=Enemies.Where(other=>other.Health>0 && !other.Emerging && !s.Hit.Contains(other.Id) && Vector2.DistanceSquared(other.Position,e.Position)<320*320).OrderBy(other=>Vector2.DistanceSquared(other.Position,e.Position)).FirstOrDefault(other => World.OpenShot(e.Position, other.Position));
                     // An isolated hit ends here; reversing looks like the monster firing back.
                     if(next==null) { s.Life=0; break; }
                     s.Position=e.Position;

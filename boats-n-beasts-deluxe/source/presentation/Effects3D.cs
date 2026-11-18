@@ -276,7 +276,9 @@ public partial class Effects3D : Node3D
     }
     void DrawShot(Shot s, bool stormshot)
     {
-        var p = World(s.Position, s.Kind == WeaponKind.Mine ? .1f : .24f);
+        float height = s.Kind == WeaponKind.Mine ? .1f : .24f;
+        if (s.LaunchHeight > 0) height = Mathf.Lerp(s.LaunchHeight, height, Math.Min(1, s.Age / .26f));
+        var p = World(s.Position, height);
         var dir = World(OceanWorld.Unit(s.Velocity),0)*100;
         if (s.Hostile)
         {
@@ -383,7 +385,8 @@ public partial class Effects3D : Node3D
         for(int i=0;i<count && sparks.Count<512;i++)
         {
             float a=random.RandfRange(0,Mathf.Tau), speed=random.RandfRange(.25f,ev.Kind=="explosion"?2.5f:1.2f);
-            sparks.Add(new() {P=World(ev.Position,.18f),V=new(Mathf.Cos(a)*speed,random.RandfRange(.35f,1.1f),Mathf.Sin(a)*speed),Life=random.RandfRange(.16f,.4f),Size=random.RandfRange(.025f,.065f),Color=ev.Kind=="hurt"?Coral:ev.Kind=="boostStart"?Foam:Cream});
+            float height = ev.Kind is "shot" or "harpoon" ? ev.Value : .18f;
+            sparks.Add(new() {P=World(ev.Position,height),V=new(Mathf.Cos(a)*speed,random.RandfRange(.35f,1.1f),Mathf.Sin(a)*speed),Life=random.RandfRange(.16f,.4f),Size=random.RandfRange(.025f,.065f),Color=ev.Kind=="hurt"?Coral:ev.Kind=="boostStart"?Foam:Cream});
         }
     }
     void DrawBurst(Burst b)

@@ -40,14 +40,10 @@ public static partial class ActorArt3D
             CastShadow = GeometryInstance3D.ShadowCastingSetting.On };
         sail.SetInstanceShaderParameter("sail_motion", true);
         root.GetChild(0).AddChild(sail);
-        int starter = Starter(kind);
-        if (starter == 0) AddAimedWeapon(root, 0, Math.Max(1, ranks[0]), new(0, .26f, -.325f), 1, "AimPrimary");
-        int mount = 0;
-        for (int i = 0; i < ranks.Length; i++)
+        for (int i = 0; i <= (int)WeaponKind.Harpoon; i++)
         {
-            if (i == starter || ranks[i] <= 0) continue;
-            if (i is 0 or 1) AddAimedWeapon(root, i, ranks[i], SternMount(mount), SecondarySize, $"AimStern{mount}");
-            mount++;
+            if (ranks[i] <= 0) continue;
+            AddAimedWeapon(root, i, ranks[i], BoatRig.Mount(kind, ranks, (WeaponKind)i));
         }
         return root;
     }
@@ -144,14 +140,11 @@ public static partial class ActorArt3D
         SternScrolls(b);
         PirateRig(b);
         RamFigurehead(b);
-        int starter = Starter(kind);
-        if (starter != 0) Equipment(b, starter, Math.Max(1, ranks[starter]), new(0, .25f, -.34f), starter == 5 ? .95f : 1);
-        int mount = 0;
-        for (int i = 0; i < ranks.Length; i++)
+        for (int i = (int)WeaponKind.Mine; i < ranks.Length; i++)
         {
-            if (i == starter || ranks[i] <= 0) continue;
-            if (i is not (0 or 1)) Equipment(b, i, ranks[i], SternMount(mount), SecondarySize);
-            mount++;
+            if (ranks[i] <= 0) continue;
+            var mount = BoatRig.Mount(kind, ranks, (WeaponKind)i);
+            Equipment(b, i, ranks[i], ArtPosition(mount), mount.Size);
         }
     }
 

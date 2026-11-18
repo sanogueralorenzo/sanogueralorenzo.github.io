@@ -277,6 +277,31 @@ public sealed class OceanWorld(uint seed)
     public static float SolidBounds(Place place) => place.Radius * (place.Kind == PlaceKind.Harbor ? HarborDock.Bounds : 1.04f);
 
     public bool IsWater(Vector2 position, float clearance = 24) => !Places.Any(p => IsSolid(p) && Overlap(p, position, clearance, out _, out _));
+    public bool OpenShot(Vector2 start, Vector2 end) => ClearSegment(activePlaces, start, end, 11, 20);
+
+    internal static bool ClearSegment(ReadOnlySpan<Place> solids, Vector2 start, Vector2 end, float clearance, float spacing)
+    {
+        var delta = end - start;
+        float lengthSquared = delta.LengthSquared();
+        if (lengthSquared < .0001f) lengthSquared = .0001f;
+        int steps = Math.Max(1, (int)MathF.Ceiling(MathF.Sqrt(lengthSquared) / spacing));
+        foreach (var solid in solids)
+        {
+            if (!IsSolid(solid)) continue;
+            float t = Math.Clamp(Vector2.Dot(solid.Position - start, delta) / lengthSquared, 0, 1);
+            float bounds = SolidBounds(solid) + clearance;
+            if (Vector2.DistanceSquared(solid.Position, start + delta * t) > bounds * bounds) continue;
+            if (solid.Kind == PlaceKind.Rock)
+            {
+                float edge = solid.Radius + clearance;
+                if (Vector2.DistanceSquared(solid.Position, start + delta * t) < edge * edge) return false;
+                continue;
+            }
+            for (int i = 0; i <= steps; i++)
+                if (Overlap(solid, start + delta * (i / (float)steps), clearance, out _, out _)) return false;
+        }
+        return true;
+    }
     public Vector2 Slide(Vector2 old, Vector2 target, float radius)
     {
         foreach (var p in Places)

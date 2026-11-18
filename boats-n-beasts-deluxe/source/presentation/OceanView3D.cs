@@ -132,14 +132,13 @@ public partial class OceanView3D : Node3D
         }
         boat!.Position = NativeStage3D.Point(Voyage.Position);
         boat.Rotation = new(0, -Voyage.Heading, 0);
-        var target = Voyage.Enemies.Where(e => e.Health > 0 && V2.DistanceSquared(e.Position, Voyage.Position) < 570 * 570).OrderBy(e => V2.DistanceSquared(e.Position, Voyage.Position)).FirstOrDefault();
-        var aim = target == null ? 0 : Voyage.Heading - MathF.Atan2(target.Position.X - Voyage.Position.X, Voyage.Position.Y - target.Position.Y);
+        float Yaw(V2 aim) => aim == V2.Zero ? 0 : Voyage.Heading - MathF.Atan2(aim.X, -aim.Y);
         float speed = Voyage.Velocity.Length() * NativeStage3D.Unit;
         float turn = Mathf.AngleDifference(lastHeading, Voyage.Heading);
         lastHeading = Voyage.Heading;
         float tilt = Math.Clamp(turn * 5, -.13f, .13f) * Math.Min(1, speed);
         heel = Mathf.Lerp(heel, tilt, 1 - Mathf.Exp(-dt * 13));
-        ActorArt3D.AnimateBoat(boat, Clock, speed, aim, heel);
+        ActorArt3D.AnimateBoat(boat, Clock, speed, Yaw(Voyage.CannonAim), Yaw(Voyage.HarpoonAim), heel);
         var live = Voyage.Enemies.Select(e => e.Id).ToHashSet();
         foreach (var id in creatures.Keys.Where(id => !live.Contains(id)).ToArray()) { creatures[id].QueueFree(); creatures.Remove(id); }
         foreach (var enemy in Voyage.Enemies)
