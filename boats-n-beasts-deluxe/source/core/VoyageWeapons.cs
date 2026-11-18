@@ -40,7 +40,7 @@ public sealed partial class Voyage
                         float spread = (orb-(rank-1)/2f)*.3f;
                         var dir = new Vector2(aim.X*MathF.Cos(spread)-aim.Y*MathF.Sin(spread),aim.X*MathF.Sin(spread)+aim.Y*MathF.Cos(spread));
                         var start = Position + dir*55;
-                        Shots.Add(new() { Kind=WeaponKind.Arcane, Position=start, Previous=start, Velocity=dir*400, Damage=damage, Life=2.4f, Radius=9 });
+                        Shots.Add(new() { Kind=WeaponKind.Arcane, Position=start, Previous=start, Velocity=dir*400, Damage=damage, Life=2.4f, Radius=9, Pierce=rank==5?1:0 });
                     }
                     ArcaneCasts++;
                 }
@@ -67,12 +67,12 @@ public sealed partial class Voyage
                     for (int i=0;i<count;i++)
                     {
                         var start = mount + dir*24 + new Vector2(-dir.Y,dir.X)*((i-(count-1)/2f)*9);
-                        Shots.Add(new() { Kind=(WeaponKind)w, Position=start, Previous=start, Velocity=dir*(w==1?580:650), Damage=damage, Life=w==0?2.4f:1.15f, Radius=6, Pierce=w==1?1:0, Bounces=w==0?(rank==5?2:1):0 });
+                        Shots.Add(new() { Kind=(WeaponKind)w, Position=start, Previous=start, Velocity=dir*(w==1?580:650), Damage=damage, Life=w==0?2.4f:1.15f, Radius=6, Pierce=w==1?(rank==5?2:1):0, Bounces=w==0?(rank==5?2:1):0 });
                     }
                     Events.Add(new(w==0?"shot":"harpoon",mount));
                 }
             }
-            Cooldowns[w] = (w==0?.85f:w==1?1.3f:w==2?2.4f:w==4?.6f:w==5?1.19f:1.55f)
+            Cooldowns[w] = (w==0?.85f:w==1?1.3f:w==2?(rank==5?1.65f:2.4f):w==4?.6f:w==5?1.19f:1.55f)
                 / (1+ReloadRank*.12f);
         }
     }
@@ -88,7 +88,7 @@ public sealed partial class Voyage
             if (s.Life<=0) continue;
             if (s.Kind == WeaponKind.Arcane && !s.Hostile)
             {
-                var target = Enemies.Where(e=>e.Health>0 && !e.Emerging && Vector2.DistanceSquared(e.Position,s.Position)<650*650).OrderBy(e=>Vector2.DistanceSquared(e.Position,s.Position)).FirstOrDefault();
+                var target = Enemies.Where(e=>e.Health>0 && !e.Emerging && !s.Hit.Contains(e.Id) && Vector2.DistanceSquared(e.Position,s.Position)<650*650).OrderBy(e=>Vector2.DistanceSquared(e.Position,s.Position)).FirstOrDefault();
                 if (target != null) s.Velocity = OceanWorld.Unit(Vector2.Lerp(s.Velocity/400,OceanWorld.Unit(target.Position-s.Position),1-MathF.Exp(-dt*7)))*400;
             }
             s.Previous=s.Position; s.Position+=s.Velocity*dt; s.Life-=dt; s.Age+=dt;

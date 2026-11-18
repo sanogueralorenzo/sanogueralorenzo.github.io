@@ -5,15 +5,18 @@ namespace BoatsNBeasts;
 sealed class CaptainLog
 {
     const string Path = "user://captain.cfg";
+    const string PendingPath = "user://captain.pending";
     const string Section = "log";
     public int Silver { get; private set; }
     public int Voyages { get; private set; }
     public int Wins { get; private set; }
     public int BestChain { get; private set; }
     public int BestKills { get; private set; }
-    public double FastestSeconds { get; private set; }
     public bool Muted { get; private set; }
     int charters = 1;
+    readonly Dictionary<(BoatKind Boat, Charter Charter), double> bestTimes = new();
+
+    public double BestTime(BoatKind boat, Charter charter) => bestTimes.GetValueOrDefault((boat, charter));
 
     public bool Owns(Charter charter) => (charters & (1 << (int)charter)) != 0;
 
@@ -41,7 +44,8 @@ sealed class CaptainLog
         if (run.BossSlain)
         {
             Wins++;
-            FastestSeconds = FastestSeconds == 0 ? run.CombatTime : Math.Min(FastestSeconds, run.CombatTime);
+            var key = (run.Boat, run.Charter);
+            bestTimes[key] = Faster(bestTimes.GetValueOrDefault(key), run.CombatTime);
         }
         Save();
     }
@@ -61,10 +65,18 @@ sealed class CaptainLog
         Wins = (int)config.GetValue(Section, "wins", 0);
         BestChain = (int)config.GetValue(Section, "chain", 0);
         BestKills = (int)config.GetValue(Section, "kills", 0);
-        FastestSeconds = (double)config.GetValue(Section, "fastest", 0);
         charters = (int)config.GetValue(Section, "charters", 1);
         Muted = (bool)config.GetValue(Section, "muted", false);
+        foreach (var boat in Enum.GetValues<BoatKind>())
+        foreach (var charter in Enum.GetValues<Charter>())
+        {
+            double time = (double)config.GetValue("charts", ChartKey(boat, charter), 0);
+            if (time > 0) bestTimes[(boat, charter)] = time;
+        }
     }
+
+    static double Faster(double oldTime, double newTime) => oldTime > 0 ? Math.Min(oldTime, newTime) : newTime;
+    static string ChartKey(BoatKind boat, Charter charter) => $"{boat}_{charter}";
 
     void Save()
     {
@@ -74,9 +86,12 @@ sealed class CaptainLog
         config.SetValue(Section, "wins", Wins);
         config.SetValue(Section, "chain", BestChain);
         config.SetValue(Section, "kills", BestKills);
-        config.SetValue(Section, "fastest", FastestSeconds);
         config.SetValue(Section, "charters", charters);
         config.SetValue(Section, "muted", Muted);
-        config.Save(Path);
+        foreach (var entry in bestTimes)
+            config.SetValue("charts", ChartKey(entry.Key.Boat, entry.Key.Charter), entry.Value);
+        var error = config.Save(PendingPath);
+        if (error == Error.Ok) error = DirAccess.RenameAbsolute(PendingPath, Path);
+        if (error != Error.Ok) GD.PushWarning($"Captain’s log could not be saved ({error}).");
     }
 }

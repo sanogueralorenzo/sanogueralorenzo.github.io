@@ -62,8 +62,8 @@ public partial class Game : Node2D
         if (controls) { ControlsMenu(); FocusFirst(menuRoot); return; }
         if (title)
         {
-            if (choosingBoat) BoatMenu();
-            else if (journal) JournalMenu();
+            if (choosingBoat) { BoatMenu(); return; }
+            if (journal) JournalMenu();
             else TitleMenu();
             FocusFirst(menuRoot);
             return;
@@ -164,14 +164,13 @@ public partial class Game : Node2D
         var sail = Button("Set sail", Start, true);
         sail.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         actions.AddChild(sail);
-        sail.CallDeferred(Control.MethodName.GrabFocus);
+        sail.GrabFocus();
     }
 
     void JournalMenu()
     {
-        string fastest = log.FastestSeconds > 0 ? $"  ·  Fastest hunt {ClockText((float)log.FastestSeconds)}" : "";
         var col = Panel(640, "Captain’s log",
-            $"{log.Silver} silver  ·  {log.Wins} wins in {log.Voyages} voyages{fastest}\nBest haul {log.BestKills} beasts  ·  Longest chain {log.BestChain}");
+            $"{log.Silver} silver  ·  {log.Wins} wins in {log.Voyages} voyages\nBest haul {log.BestKills} beasts  ·  Longest chain {log.BestChain}");
         foreach (var charter in new[] { Charter.Salvager, Charter.Stormchaser })
         {
             var rules = CharterRules.For(charter);
@@ -181,6 +180,28 @@ public partial class Game : Node2D
                 () => { if (log.Unlock(charter)) { audio.Play("upgrade"); BuildMenu(); } },
                 disabled: owned || log.Silver < rules.Price, purchase: !owned));
         }
+        col.AddChild(Label("Fastest hunts", 22, true));
+        var times = new GridContainer { Columns = 4 };
+        times.AddThemeConstantOverride("h_separation", 15);
+        times.AddThemeConstantOverride("v_separation", 6);
+        col.AddChild(times);
+        times.AddChild(new Control());
+        foreach (var charter in Enum.GetValues<Charter>())
+        {
+            var label = Label(CharterRules.For(charter).Name, 15, false, NauticalPalette.Gold);
+            label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            times.AddChild(label);
+        }
+        foreach (var boat in Enum.GetValues<BoatKind>())
+        {
+            times.AddChild(Label(BoatSpec.For(boat).Name, 16));
+            foreach (var charter in Enum.GetValues<Charter>())
+            {
+                float time = (float)log.BestTime(boat, charter);
+                times.AddChild(Label(time > 0 ? ClockText(time) : "—", 16, color: time > 0 ? NauticalPalette.Aqua : new Color(NauticalPalette.Cream, .52f)));
+            }
+        }
+
         AddMuteButton(col);
         col.AddChild(Button("Back", () => { journal = false; BuildMenu(); }, true));
     }
@@ -231,8 +252,8 @@ public partial class Game : Node2D
     {
         var col = Panel(680, "Captain’s handbook", "Your crew aims and fires. You steer, dodge and time the boat’s maneuver.");
         col.AddChild(Label("WASD / arrows   Steer\nLeft-click   Sail to a point\nSpace / Shift   Hold to boost\nE   Boat maneuver\nEsc   Pause\n\nController   Left stick to steer · RB to boost · X for maneuver · Start to pause", 19));
-        col.AddChild(Label("Sail into gold beacon rings and stay inside to light them. Light all three to summon the Crownclaw early, or meet it at 8:00. Red water marks incoming bombs and charges. Crownclaw’s shell opens after it attacks.", 18));
-        col.AddChild(Label("Defeat beasts and find beach chests to level up. Chain four kills within successive five-second windows for XP, boost and silver. Floating barrels repair your hull.", 18));
+        col.AddChild(Label("Hold Breakwater, patrol Gull Shoal, and defeat the keeper at Smuggler’s Light. Light all three to summon Crownclaw early, or meet it at 8:00. Red water marks incoming bombs and charges. Crownclaw’s shell opens after it attacks.", 18));
+        col.AddChild(Label("Defeat beasts and find beach chests to level up. Chain four kills within successive five-second windows for XP, boost and silver. Bait puffers near other beasts and boost clear. Floating barrels repair your hull.", 18));
         col.AddChild(Button("Back", () => { controls = false; BuildMenu(); }, true));
     }
 }

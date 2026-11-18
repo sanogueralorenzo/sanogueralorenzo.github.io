@@ -80,6 +80,8 @@ public partial class Effects3D : Node3D
             if (enemy.Health <= 0) continue;
             if (creatureWakes.TryGetValue(enemy.Id, out var history)) DrawWake(history, enemy.Radius * .006f, .85f, .38f);
             DrawEmergence(enemy);
+            if (enemy.GuardAnchor.HasValue && !enemy.Emerging)
+                foam.Arc(World(enemy.Position), .79f, time * 2, 4.8f, .027f, Fade(Cream, .67f), 26);
             if (enemy.Fuse > 0)
                 DrawWarning(enemy.Position, Enemy.PufferBlastRadius, 1 - enemy.Fuse / Enemy.PufferFuseDuration);
             if (enemy.Telegraph > 0)
@@ -104,7 +106,7 @@ public partial class Effects3D : Node3D
         {
             if (!beacon.Lit && voyage.BossSpawned) continue;
             var center = World(beacon.Position, .058f);
-            float charge = beacon.Charge / Beacon.ChargeSeconds;
+            float charge = beacon.Progress;
             float radius = Beacon.Radius * .01f;
             Color color = beacon.Lit ? NauticalPalette.Aqua : NauticalPalette.Gold;
             for (int i = 0; i < 8; i++)

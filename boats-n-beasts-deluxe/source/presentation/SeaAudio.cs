@@ -28,6 +28,7 @@ public partial class SeaAudio : Node
 
     public override void _Ready()
     {
+        if (DisplayServer.GetName() == "headless") return;
         sea = new() { Stream = SeaLoop(), VolumeDb = -24 };
         music = new() { Stream = MusicLoop(), VolumeDb = -21 };
         AddChild(sea);
@@ -60,7 +61,25 @@ public partial class SeaAudio : Node
 
     public override void _Process(double delta)
     {
+        if (music == null) return;
         music.VolumeDb = Mathf.Lerp(music.VolumeDb, InBattle ? -15 : -21, 1 - Mathf.Exp(-(float)delta * 1.8f));
+    }
+
+    public override void _ExitTree()
+    {
+        if (sea == null) return;
+        Release(sea);
+        Release(music);
+        foreach (var player in cues.Values) Release(player);
+        cues.Clear();
+    }
+
+    static void Release(AudioStreamPlayer player)
+    {
+        player.Stop();
+        var stream = player.Stream;
+        player.Stream = null;
+        stream?.Dispose();
     }
 
     public void Play(string cue)

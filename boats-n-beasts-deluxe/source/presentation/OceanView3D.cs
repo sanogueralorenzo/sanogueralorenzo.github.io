@@ -24,6 +24,7 @@ public partial class OceanView3D : Node3D
     Effects3D effects = null!;
     Node3D? boat;
     string boatSignature = "";
+    float lastHeading, heel;
     public override void _Ready()
     {
         stage = new(); AddChild(stage);
@@ -39,6 +40,7 @@ public partial class OceanView3D : Node3D
         foreach (var root in creatures.Values) root.QueueFree(); creatures.Clear();
         ClearBeacons();
         boat?.QueueFree(); boat = null; boatSignature = "";
+        lastHeading = Voyage.Heading; heel = 0;
         ActorArt3D.ResetCache();
         effects.Reset(); Clock = 0; DepartureTime = 0; Camera = HomeCamera();
         stage.Follow(Camera); stage.SetWhirlpools(System.Array.Empty<Whirlpool3D>());
@@ -60,10 +62,11 @@ public partial class OceanView3D : Node3D
             Camera = Camera.Lerp(target, 1 - Mathf.Exp(-dt * 5 * follow));
         }
         stage.Follow(Camera);
-        float storm = Voyage.BossSpawned && !Voyage.BossSlain ? 1 : 0;
+        float storm = Voyage.BossSpawned && !Voyage.BossSlain ? 1
+            : !Menu && Voyage.Charter == Charter.Stormchaser && !Voyage.BossSlain ? .49f : 0;
         stage.Advance(Clock, storm, dt);
         if (!Menu) SyncBeacons();
-        SyncScenery(); SyncActors();
+        SyncScenery(); SyncActors(dt);
         effects.Destination = Destination;
         effects.ShowBeacons = !Menu;
         effects.Sync(Voyage, Clock, dt);
@@ -105,7 +108,7 @@ public partial class OceanView3D : Node3D
         }
         stage.SetWhirlpools(scenery.Values.OfType<Whirlpool3D>());
     }
-    void SyncActors()
+    void SyncActors(float dt)
     {
         string signature = Voyage.Boat + ":" + string.Join(',', Voyage.Weapons);
         if (signature != boatSignature)
@@ -116,7 +119,12 @@ public partial class OceanView3D : Node3D
         boat.Rotation = new(0, -Voyage.Heading, 0);
         var target = Voyage.Enemies.Where(e => e.Health > 0 && V2.DistanceSquared(e.Position, Voyage.Position) < 570 * 570).OrderBy(e => V2.DistanceSquared(e.Position, Voyage.Position)).FirstOrDefault();
         var aim = target == null ? 0 : Voyage.Heading - MathF.Atan2(target.Position.X - Voyage.Position.X, Voyage.Position.Y - target.Position.Y);
-        ActorArt3D.AnimateBoat(boat, Clock, Voyage.Velocity.Length() * .01f, aim);
+        float speed = Voyage.Velocity.Length() * NativeStage3D.Unit;
+        float turn = Mathf.AngleDifference(lastHeading, Voyage.Heading);
+        lastHeading = Voyage.Heading;
+        float tilt = Math.Clamp(turn * 5, -.13f, .13f) * Math.Min(1, speed);
+        heel = Mathf.Lerp(heel, tilt, 1 - Mathf.Exp(-dt * 13));
+        ActorArt3D.AnimateBoat(boat, Clock, speed, aim, heel);
         var live = Voyage.Enemies.Select(e => e.Id).ToHashSet();
         foreach (var id in creatures.Keys.Where(id => !live.Contains(id)).ToArray()) { creatures[id].QueueFree(); creatures.Remove(id); }
         foreach (var enemy in Voyage.Enemies)
@@ -131,7 +139,7 @@ public partial class OceanView3D : Node3D
                 sculpture.SetInstanceShaderParameter("movement_rate", enemy.SpeedMultiplier);
             }
             float swelling = enemy.Fuse > 0 ? 1 - enemy.Fuse / Enemy.PufferFuseDuration : 0;
-            root.Scale = Vector3.One * (1 + swelling * .55f);
+            root.Scale = Vector3.One * (enemy.GuardAnchor.HasValue ? 1.42f : 1 + swelling * .55f);
             var mesh = root.GetChild<MeshInstance3D>(0);
             mesh.SetInstanceShaderParameter("swelling", swelling);
             mesh.SetInstanceShaderParameter("strike_flash", Math.Clamp(enemy.HitFlash / .12f, 0, 1));

@@ -12,10 +12,11 @@ public sealed class Enemy
     public float SpeedMultiplier = 1;
     public bool ChargeNext;
     public float Exposed;
+    public Vector2? GuardAnchor;
     public const float PufferFuseDuration = 1.05f, PufferTriggerRadius = 125, PufferBlastRadius = 155;
     public const float EmergenceDuration = .45f;
     public bool Emerging => Time < EmergenceDuration;
-    public float Radius => Kind == EnemyKind.Leviathan ? 74 : Kind == EnemyKind.Serpent ? 31 : 27;
+    public float Radius => Kind == EnemyKind.Leviathan ? 74 : GuardAnchor.HasValue ? 43 : Kind == EnemyKind.Serpent ? 31 : 27;
     public float SwimSpeed => (Kind == EnemyKind.Crab ? 83 : Kind == EnemyKind.Puffer ? 105
         : Kind == EnemyKind.Serpent ? 111 : Kind == EnemyKind.Ray ? 135 : 73) * SpeedMultiplier;
 }
@@ -91,11 +92,23 @@ public sealed partial class Voyage
         if (input.Maneuver && Boat == BoatKind.Mage && input.Move != Vector2.Zero && ManeuverCooldown <= dt)
             Heading = MathF.Atan2(input.Move.X, -input.Move.Y);
         UpdateManeuver(dt, input.Maneuver);
-        if (BossSlain) return;
+        if (!BossSlain) AdvanceEncounters(dt);
+        Enemies.RemoveAll(e => e.Health <= 0 || (e.Kind != EnemyKind.Leviathan && e.GuardAnchor == null && Vector2.DistanceSquared(e.Position, Position) > 1600 * 1600));
+        Shots.RemoveAll(s => s.Life <= 0);
+        if (Mode == VoyageMode.Victory) return;
+        if (Health <= 0) { Health = 0; Mode = VoyageMode.Defeat; Events.Add(new("defeat", Position)); }
+        else
+        {
+            while (Xp >= NextXp) { Xp -= NextXp; Level++; PendingUpgrades++; Events.Add(new("level", Position)); }
+            if (PendingUpgrades > 0) PrepareNextUpgrade();
+        }
+    }
+    void AdvanceEncounters(float dt)
+    {
         CollectEncounters();
         UpdateChain(dt);
         UpdateBeacons(dt);
-        int spawn = Director.Tick(dt, CombatTime, Enemies.Count(e => e.Kind != EnemyKind.Leviathan), BossSpawned && !BossSlain);
+        int spawn = Director.Tick(dt, CombatTime, Enemies.Count(e => e.Kind != EnemyKind.Leviathan), BossSpawned);
         for (int i = 0; i < spawn; i++) Spawn();
         if (!BossSpawned && (CombatTime >= SpawnDirector.BossArrivalSeconds || BeaconsLit == Beacons.Count))
         {
@@ -107,17 +120,10 @@ public sealed partial class Voyage
             }
         }
         UpdateEnemies(dt);
+        if (BossSlain) return;
         UpdateWeapons(dt);
+        if (BossSlain) return;
         UpdateShots(dt);
-        Enemies.RemoveAll(e => e.Health <= 0 || (e.Kind != EnemyKind.Leviathan && Vector2.DistanceSquared(e.Position, Position) > 1600 * 1600));
-        Shots.RemoveAll(s => s.Life <= 0);
-        if (Mode == VoyageMode.Victory) return;
-        if (Health <= 0) { Health = 0; Mode = VoyageMode.Defeat; Events.Add(new("defeat", Position)); }
-        else
-        {
-            while (Xp >= NextXp) { Xp -= NextXp; Level++; PendingUpgrades++; Events.Add(new("level", Position)); }
-            if (PendingUpgrades > 0) PrepareNextUpgrade();
-        }
     }
     static float ApproachAngle(float from, float to, float amount) => from + MathF.Atan2(MathF.Sin(to - from), MathF.Cos(to - from)) * Math.Min(1, amount);
     public bool Spawn(EnemyKind? forced = null)
@@ -136,15 +142,17 @@ public sealed partial class Voyage
         AddEnemy(kind, p);
         return true;
     }
-    void AddEnemy(EnemyKind kind, Vector2 position)
+    Enemy AddEnemy(EnemyKind kind, Vector2 position)
     {
         float hp = kind == EnemyKind.Leviathan ? 820 + 65 * BeaconsLit + Math.Min(300, CombatTime * .38f) : kind == EnemyKind.Crab ? 27 : kind == EnemyKind.Puffer ? 38 : kind == EnemyKind.Ray ? 43 : 52;
         hp *= Rules.EnemyHull;
-        Enemies.Add(new()
+        var enemy = new Enemy
         {
             Id = ++NextEnemyId, Kind = kind, Position = position, Health = hp, MaxHealth = hp,
             AttackClock = Random.Range(1, 3), SpeedMultiplier = Random.Range(.9f, 1.18f) * Rules.EnemySpeed
-        });
+        };
+        Enemies.Add(enemy);
+        return enemy;
     }
     void UpdateEnemies(float dt)
     {
@@ -158,6 +166,15 @@ public sealed partial class Voyage
             Vector2 d = Position - e.Position; float distance = d.Length(); Vector2 dir = OceanWorld.Unit(d, Vector2.UnitY);
             float speed = e.SwimSpeed;
             Vector2 motion = dir;
+            if (e.GuardAnchor is { } anchor && Vector2.DistanceSquared(Position, anchor) > 605 * 605)
+            {
+                e.Telegraph = e.Dash = 0;
+                var home = anchor - e.Position;
+                var retreat = World.Avoid(e.Position, OceanWorld.Unit(home), e.Radius, e.Id);
+                if (home.LengthSquared() > 80 * 80)
+                    e.Position = World.Slide(e.Position, e.Position + retreat * speed * dt, e.Radius);
+                continue;
+            }
             if (e.Kind == EnemyKind.Puffer)
             {
                 // Once armed, hold still and commit to the blast; sailing away avoids it.
@@ -169,6 +186,7 @@ public sealed partial class Voyage
                         e.Health = 0;
                         PufferExplosions++;
                         Events.Add(new("pufferExplosion", e.Position, Enemy.PufferBlastRadius));
+                        SplashEnemies(e.Position, Enemy.PufferBlastRadius, 24);
                         if (distance < Enemy.PufferBlastRadius + 23)
                         {
                             float before = Health;
@@ -232,20 +250,35 @@ public sealed partial class Voyage
                 else if (distance < 165) motion *= .25f;
                 else if (distance > 430) speed *= 2.6f;
             }
-            foreach (var other in Enemies)
+            if (e.Dash > 0)
             {
-                if (other == e || other.Health <= 0) continue;
-                var sep = e.Position - other.Position; float len = sep.Length();
-                if (len > .1f && len < e.Radius + other.Radius) motion += sep / len * .65f;
+                var next = e.Position + e.Direction * speed * dt;
+                if (World.IsWater(next, e.Radius)) e.Position = next;
+                else
+                {
+                    e.Dash = 0;
+                    if (e.Kind == EnemyKind.Leviathan) e.Exposed = 2.4f;
+                }
             }
-            if (e.Pull > 0)
+            else
             {
-                e.Pull = Math.Max(0, e.Pull - dt);
-                if (distance > 110) motion += dir * ((320 + (Weapons[1] - 1) * 160) / speed) * (e.Kind == EnemyKind.Leviathan ? .25f : 1);
+                foreach (var other in Enemies)
+                {
+                    if (other == e || other.Health <= 0) continue;
+                    var separation = e.Position - other.Position;
+                    float span = separation.Length();
+                    if (span > .1f && span < e.Radius + other.Radius) motion += separation / span * .65f;
+                }
+                if (e.Pull > 0)
+                {
+                    e.Pull = Math.Max(0, e.Pull - dt);
+                    if (distance > 110)
+                        motion += dir * ((320 + (Weapons[1] - 1) * 160) / speed) * (e.Kind == EnemyKind.Leviathan ? .25f : 1);
+                }
+                motion = World.Avoid(e.Position, motion, e.Radius, e.Id);
+                e.Position = World.Slide(e.Position, e.Position + motion * speed * dt, e.Radius);
             }
-            motion = World.Avoid(e.Position, motion, e.Radius, e.Id);
-            e.Position = World.Slide(e.Position, e.Position + motion * speed * dt, e.Radius);
-            if (e.Kind != EnemyKind.Puffer && Vector2.DistanceSquared(e.Position, Position) < MathF.Pow(e.Radius + 23, 2)) DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : 11);
+            if (e.Kind != EnemyKind.Puffer && Vector2.DistanceSquared(e.Position, Position) < MathF.Pow(e.Radius + 23, 2)) DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : e.GuardAnchor.HasValue ? 17 : 11);
         }
     }
     void ThrowBossBombs(Enemy boss)
@@ -303,9 +336,7 @@ public sealed partial class Voyage
         if (e.Kind == EnemyKind.Puffer && e.Fuse > 0)
         {
             Events.Add(new("explosion", e.Position, Enemy.PufferBlastRadius));
-            foreach (var other in Enemies)
-                if (other.Health > 0 && Vector2.DistanceSquared(other.Position, e.Position) < Enemy.PufferBlastRadius * Enemy.PufferBlastRadius)
-                    Hit(other, 24);
+            SplashEnemies(e.Position, Enemy.PufferBlastRadius, 24);
         }
         if (e.Kind == EnemyKind.Leviathan)
         {
@@ -315,6 +346,12 @@ public sealed partial class Voyage
             foreach (var shot in Shots) shot.Life = 0;
             Events.Add(new("victory", Position)); Events.Add(new("calm", Position, 1000));
         }
+    }
+    void SplashEnemies(Vector2 at, float radius, float damage)
+    {
+        foreach (var other in Enemies)
+            if (other.Health > 0 && !other.Emerging && Vector2.DistanceSquared(other.Position, at) < radius * radius)
+                Hit(other, damage);
     }
     void Heal(float amount)
     {
@@ -404,11 +441,11 @@ public sealed partial class Voyage
         return option switch
         {
             0 => rank == 0 ? "Fires a bouncing cannonball." : rank == 4 ? "Five cannonballs. Each can ricochet twice." : $"Another cannonball. {rank + 1} per shot.",
-            1 => rank == 0 ? "Hooks enemies and pulls them closer." : "Harpoon pulls harder and deals more damage.",
-            2 => rank == 0 ? "Leaves explosive mines in your wake." : "Bigger mine blasts. +30 blast radius.",
+            1 => rank == 0 ? "Hooks enemies and pulls them closer." : rank == 4 ? "Pierces three beasts and pulls harder." : "Harpoon pulls harder and deals more damage.",
+            2 => rank == 0 ? "Leaves explosive mines in your wake." : rank == 4 ? "Bigger blasts and faster mine deployment." : "Bigger mine blasts. +30 blast radius.",
             3 => rank == 0 ? "Lightning hits up to 3 enemies." : $"{rank + 3} targets and more damage.",
             4 => rank == 0 ? "Hits nearby enemies in every direction." : "Larger whirlpool and more damage.",
-            5 => rank == 0 ? "Fires a homing magic orb." : $"Another magic orb. {rank + 1} per cast.",
+            5 => rank == 0 ? "Fires a homing magic orb." : rank == 4 ? "Five homing orbs. Each can strike twice." : $"Another magic orb. {rank + 1} per cast.",
             6 => "+25 max health and repairs 25 hull.",
             7 => "+10% sailing speed.",
             8 => "+12% fire rate for every weapon.",

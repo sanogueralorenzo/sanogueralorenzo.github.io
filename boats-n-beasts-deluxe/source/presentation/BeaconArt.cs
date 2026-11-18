@@ -45,6 +45,6 @@ static class BeaconArt
         root.Rotation = new(Mathf.Sin(time * 1.55f + home.Z) * .08f, 0, Mathf.Sin(time * 1.13f + home.X) * .07f);
         var lamp = (StandardMaterial3D)root.GetNode<MeshInstance3D>("Lamp").MaterialOverride;
         lamp.Emission = beacon.Lit ? NauticalPalette.Aqua : NauticalPalette.Gold;
-        lamp.EmissionEnergyMultiplier = beacon.Lit ? 1.25f : .65f + beacon.Charge / Beacon.ChargeSeconds * .75f;
+        lamp.EmissionEnergyMultiplier = beacon.Lit ? 1.25f : .65f + beacon.Progress * .75f;
     }
 }

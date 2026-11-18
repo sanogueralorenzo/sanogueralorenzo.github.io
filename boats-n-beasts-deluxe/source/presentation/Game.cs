@@ -26,7 +26,7 @@ public partial class Game : Node2D
     int creditedSilver;
     float toastTime;
     string toast = "";
-    float lootNoticeTime;
+    float lootNoticeTime, hitNotice;
     string lootNotice = "";
     V2 lootNoticePosition;
 
@@ -53,6 +53,7 @@ public partial class Game : Node2D
         float dt = (float)Math.Min(delta, .05);
         toastTime = Math.Max(0, toastTime - dt);
         lootNoticeTime = Math.Max(0, lootNoticeTime - dt);
+        hitNotice = Math.Max(0, hitNotice - dt);
         if (!title && !controls && Run.IsActive)
         {
             V2 move = new((Down(Key.D) || Down(Key.Right) ? 1 : 0) - (Down(Key.A) || Down(Key.Left) ? 1 : 0),
@@ -90,6 +91,7 @@ public partial class Game : Node2D
                 case "chain": Toast($"{e.Value:0} beast chain · boost recharged"); break;
                 case "boss": Toast("The Crownclaw rises"); break;
                 case "enraged": Toast("Crownclaw is enraged · watch for charges"); break;
+                case "hurt": hitNotice = .46f; break;
                 case "treasure":
                 case "heal":
                     lootNotice = $"+{e.Value:0} {(e.Kind == "heal" ? "hull" : "XP")}";
@@ -179,7 +181,7 @@ public partial class Game : Node2D
     }
     void Start()
     {
-        lootNoticeTime = 0;
+        lootNoticeTime = hitNotice = 0;
         creditedSilver = 0; destination = null; toastTime = 0; maneuverRequested = false;
         if (title)
         {
@@ -196,6 +198,8 @@ public partial class Game : Node2D
         }
         title = choosingBoat = runRecorded = controls = false;
         ocean.BeginSailing();
+        if (log.Voyages == 0)
+            Toast(usingController ? "Left stick to steer · RB to boost" : "WASD or click to steer · Space to boost");
         BuildMenu();
     }
     static void ReleaseMenuInput(Node node)

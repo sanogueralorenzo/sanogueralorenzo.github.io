@@ -1,6 +1,6 @@
 # Boats ’n’ Beasts Deluxe
 
-Pilot a pirate ship through a procedural archipelago. Light three beacons to draw out Crownclaw, or face it when the voyage reaches 8:00. The crew fires automatically while you navigate, dodge, and time your boat’s maneuver.
+Pilot a pirate ship through a procedural archipelago. Defend Breakwater, patrol Gull Shoal, and defeat the keeper at Smuggler’s Light to draw out Crownclaw, or face it when the voyage reaches 8:00. The crew fires automatically while you navigate, dodge, and time your boat’s maneuver.
 
 ## Play
 
@@ -12,7 +12,7 @@ Pilot a pirate ship through a procedural archipelago. Light three beacons to dra
 | E or controller X | Use Broadside, Breakwater, or Slipstream |
 | Esc or Start | Pause |
 
-Level-ups fit up to three weapons and improve the hull, engine, reload, and reach. Choose a specialty at level 5. Beach chests grant XP, barrels repair hull, and every four consecutive kills earn chain rewards. Claim silver from beacons, chains, and victories. Spend it in the Captain’s Log to unlock the Salvager and Stormchaser charters.
+Level-ups fit up to three weapons and improve the hull, engine, reload, and reach. Choose a specialty at level 5. Beach chests grant XP, barrels repair hull, and every four consecutive kills earn chain rewards. Claim silver from beacons, chains, and victories. Spend it in the Captain’s Log to unlock the Salvager and Stormchaser charters. The log tracks your fastest win for each boat and charter.
 
 ## Run and preview
 

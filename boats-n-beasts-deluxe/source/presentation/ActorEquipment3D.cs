@@ -11,12 +11,13 @@ public static partial class ActorArt3D
     const float SecondarySize = .45f;
     static int Starter(BoatKind kind) => kind == BoatKind.Cutter ? 0 : kind == BoatKind.Trawler ? 4 : 5;
 
-    /// <summary>relativeAimAngle is a Godot Y rotation in radians relative to the boat's -Z bow.</summary>
-    public static void AnimateBoat(Node3D root, float clock, float speed, float relativeAimAngle)
+    public static void AnimateBoat(Node3D root, float clock, float speed, float relativeAimAngle, float heel = 0)
     {
         Animate(root, clock, speed);
-        if (root.GetChildCount() == 0) return;
-        foreach (Node child in root.GetChild(0).GetChildren())
+        var sculpture = root.GetChild<Node3D>(0);
+        sculpture.Rotation += new Vector3(-speed * .011f, 0, heel);
+        sculpture.Position += Vector3.Up * Mathf.Sin(clock * 3.1f) * Mathf.Min(speed, 4) * .004f;
+        foreach (Node child in sculpture.GetChildren())
             if (child is Node3D fitting && fitting.Name.ToString().StartsWith("Aim", StringComparison.Ordinal))
                 fitting.Rotation = new(0, relativeAimAngle, 0);
     }
