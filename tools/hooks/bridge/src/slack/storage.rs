@@ -17,6 +17,12 @@ fn error(_: rusqlite::Error) -> String {
     "Local bridge storage failed".into()
 }
 
+fn timestamp_key(ts: &str) -> String {
+    // Pad validated Slack timestamps so text comparisons preserve microsecond order.
+    let (seconds, fraction) = ts.split_once('.').unwrap();
+    format!("{seconds:0>15}.{fraction:0<6}")
+}
+
 fn open_db(folder: &Path) -> Result<(Connection, File), String> {
     std::fs::create_dir_all(folder).map_err(|_| "Cannot create private state")?;
     let path = folder.join("sessions.sqlite3");
@@ -36,7 +42,8 @@ fn open_db(folder: &Path) -> Result<(Connection, File), String> {
     tx.execute_batch(
         "CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, thread TEXT, status TEXT, answer TEXT, request TEXT, session TEXT);
          CREATE TABLE IF NOT EXISTS sessions (thread TEXT PRIMARY KEY, command TEXT, workspace TEXT, session TEXT, context_ts TEXT, answered INTEGER NOT NULL DEFAULT 0);
-         CREATE TABLE IF NOT EXISTS replies (thread TEXT, ts TEXT, session TEXT, PRIMARY KEY(thread, ts));",
+         CREATE TABLE IF NOT EXISTS replies (thread TEXT, ts TEXT, session TEXT, PRIMARY KEY(thread, ts));
+         CREATE TABLE IF NOT EXISTS stops (thread TEXT NOT NULL, keyword TEXT NOT NULL, ts TEXT NOT NULL, PRIMARY KEY(thread, keyword));",
     ).map_err(error)?;
     for (table, name, declaration) in [
         ("sessions", "answered", "INTEGER NOT NULL DEFAULT 1"),
@@ -188,7 +195,29 @@ impl Storage {
             value
         }))
     }
-    pub fn admit(&self, job: &str, thread: &str, input: &Request) -> Result<(), String> {
+    pub fn admit(&self, job: &str, thread: &str, input: &Request) -> Result<bool, String> {
+        // An in-flight request can reach the bridge after the stop that covers it.
+        let cancelled: bool = self
+            .db
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM stops WHERE thread=?1 AND keyword=?2 AND ts>?3)",
+                params![
+                    thread,
+                    input.event.keyword(),
+                    timestamp_key(&input.event.ts)
+                ],
+                |row| row.get(0),
+            )
+            .map_err(error)?;
+        if cancelled {
+            self.db
+                .execute(
+                    "INSERT INTO jobs (id,thread,status) VALUES (?1,?2,'cancelled')",
+                    params![job, thread],
+                )
+                .map_err(error)?;
+            return Ok(false);
+        }
         let count: i64 = self.db.query_row("SELECT count(*) FROM jobs WHERE status IN ('queued','running','ready','failed') AND request IS NOT NULL", [], |r| r.get(0)).map_err(error)?;
         if count >= 100 {
             return Err("Command queue is full".into());
@@ -199,7 +228,7 @@ impl Storage {
                 params![job, thread, serde_json::to_string(input).unwrap()],
             )
             .map_err(error)?;
-        Ok(())
+        Ok(true)
     }
     pub fn stop(
         &mut self,
@@ -208,12 +237,25 @@ impl Storage {
         input: &Request,
     ) -> Result<Vec<String>, String> {
         let keyword = input.event.keyword();
+        let cutoff = timestamp_key(&input.event.ts);
         let tx = self.db.transaction().map_err(error)?;
+        tx.execute(
+            "INSERT INTO stops (thread,keyword,ts) VALUES (?1,?2,?3)
+             ON CONFLICT(thread,keyword) DO UPDATE SET ts=MAX(stops.ts,excluded.ts)",
+            params![thread, keyword, cutoff],
+        )
+        .map_err(error)?;
         let stopped: Vec<_> = Self::jobs(
             &tx,
             "SELECT id,thread,request FROM jobs WHERE thread=?1 AND request IS NOT NULL AND status IN ('queued','running','ready','failed')",
             [thread],
-        )?.into_iter().filter(|job| job.input.event.keyword() == keyword).map(|job| job.id).collect();
+        )?
+        .into_iter()
+        .filter(|job| {
+            job.input.event.keyword() == keyword && timestamp_key(&job.input.event.ts) < cutoff
+        })
+        .map(|job| job.id)
+        .collect();
         for id in &stopped {
             tx.execute(
                 "UPDATE jobs SET status='cancelled',answer=NULL,request=NULL WHERE id=?1",

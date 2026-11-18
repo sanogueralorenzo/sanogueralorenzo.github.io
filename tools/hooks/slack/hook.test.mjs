@@ -25,7 +25,7 @@ function locks() {
   } };
 }
 
-function fixture({ manager = locks(), action, failPost = false, recovery = [], threadPage } = {}) {
+function fixture({ manager = locks(), action, failPost = false, recovery = [], threadPage, beforeReaction } = {}) {
   const calls = [], sockets = [], timers = new Map(), timeouts = new Map(), messages = [], listeners = new Map();
   let serial = 0, token = 'fixture', user = 'UTEST';
   const intervals = new Map();
@@ -46,11 +46,12 @@ function fixture({ manager = locks(), action, failPost = false, recovery = [], t
     async fetch(url, options) {
       const method = url.split('/').at(-1), values = Object.fromEntries(options.body);
       calls.push({ method, values, options });
+      if (method === 'reactions.add') await beforeReaction?.(values);
       if (method === 'chat.postMessage' && failPost) throw new Error('Unknown network delivery');
       let result = {};
       if (method === 'auth.test') result = { user_id: user };
       if (method === 'team.info') result = { team: { id: 'ETEST' } };
-      if (method === 'conversations.replies') result = threadPage ? threadPage(values) : { messages: [message({ ts: '2000000001.000001', text: 'Earlier context' })] };
+      if (method === 'conversations.replies') result = threadPage ? await threadPage(values) : { messages: [message({ ts: '2000000001.000001', text: 'Earlier context' })] };
       if (method === 'chat.postMessage') {
         result = { ts: `2000000099.${String(++serial).padStart(6, '0')}` };
         sockets.at(-1).event(message({ ts: result.ts, text: values.markdown_text, channel: values.channel, client_msg_id: values.client_msg_id }));
@@ -303,29 +304,40 @@ test('stop still requires an own configured command and longer stop requests rem
   f.page.agentHooks.dispose();
 });
 
-test('stop skips only its keyword while gathering context and acknowledges before another provider finishes', async () => {
-  let release, finishClaude, preflights = 0;
-  const f = fixture({ action(data) {
-    if (data.action === 'history' && ++preflights === 1) return new Promise(resolve => { release = resolve; });
-    if (data.action === 'run' && data.payload.text === 'claude queued') return { job: 'claude-running' };
-    if (data.action === 'run' && data.payload.text === 'chat stop') return { job: 'stop-receipt' };
-    if (data.action === 'wait' && data.payload.job === 'claude-running') return new Promise(resolve => { finishClaude = resolve; });
-    if (data.action === 'wait' && data.payload.job === 'stop-receipt') return { job: 'stop-receipt', answer: 'Stopping chat requests in this thread.' };
-  } });
+test('stop reaches the bridge while another keyword fetches history and the eyes reaction is pending', async () => {
+  const stopTs = '2000000004.000001';
+  let releaseHistory, releaseReaction, finishClaude;
+  const f = fixture({
+    threadPage({ latest }) {
+      if (latest === message().ts) return new Promise(resolve => { releaseHistory = resolve; });
+      return { messages: [] };
+    },
+    beforeReaction({ timestamp }) {
+      if (timestamp === stopTs) return new Promise(resolve => { releaseReaction = resolve; });
+    },
+    action(data) {
+      if (data.action === 'run' && data.payload.text === 'claude first') return { job: 'claude-running' };
+      if (data.action === 'run' && data.payload.text === 'chat stop') return { job: 'stop-receipt' };
+      if (data.action === 'wait' && data.payload.job === 'claude-running') return new Promise(resolve => { finishClaude = resolve; });
+      if (data.action === 'wait' && data.payload.job === 'stop-receipt') return { job: 'stop-receipt', answer: 'Stopping chat requests in this thread.' };
+    },
+  });
   f.configure({ keywords: ['chat', 'claude'] }); await settle();
   const thread_ts = '2000000001.000001';
-  f.sockets[0].event(message({ thread_ts, text: 'chat first' })); await settle();
+  f.sockets[0].event(message({ thread_ts, text: 'claude first' })); await settle();
   f.sockets[0].event(message({ ts: '2000000003.000001', thread_ts, text: 'chat queued' }));
-  f.sockets[0].event(message({ ts: '2000000003.000002', thread_ts, text: 'claude queued' }));
-  f.sockets[0].event(message({ ts: '2000000004.000001', thread_ts, text: 'chat stop' }));
-  release({ after: null }); await settle();
-  assert.deepEqual(f.messages.filter(m => m.action === 'run').map(m => m.payload.text), ['claude queued', 'chat stop']);
-  assert.equal(f.messages.filter(m => m.action === 'history').length, 2);
-  assert.equal(f.calls.filter(c => c.method === 'conversations.replies').length, 1);
-  assert.equal(f.page.agentHooks.status().pending, 1);
+  f.sockets[0].event(message({ ts: stopTs, thread_ts, text: 'chat stop' }));
+  await settle();
+  const submitted = () => f.messages.filter(m => m.action === 'run').map(m => m.payload.text);
+  assert.deepEqual(submitted(), ['chat stop']);
   assert.deepEqual(f.posts().map(p => p.values.markdown_text), ['Stopping chat requests in this thread.']);
+  releaseReaction();
+  releaseHistory({ messages: [] }); await settle();
+  assert.deepEqual(submitted(), ['chat stop', 'claude first']);
+  assert.equal(f.messages.filter(m => m.action === 'history').length, 1);
+  assert.equal(f.calls.filter(c => c.method === 'conversations.replies').length, 1);
   f.sockets[0].event(message({ ts: '2000000005.000001', thread_ts, text: 'chat continue' })); await settle();
-  assert.deepEqual(f.messages.filter(m => m.action === 'run').map(m => m.payload.text), ['claude queued', 'chat stop', 'chat continue']);
+  assert.deepEqual(submitted(), ['chat stop', 'claude first', 'chat continue']);
   finishClaude({ job: 'claude-running', answer: 'Claude completed' }); await settle();
   assert.deepEqual(f.posts().map(p => p.values.markdown_text), ['Stopping chat requests in this thread.', 'Claude completed', 'Test agent answer']);
   assert.equal(f.page.agentHooks.status().pending, 0);

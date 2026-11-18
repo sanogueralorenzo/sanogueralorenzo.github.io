@@ -159,7 +159,9 @@ impl Runtime {
                 .status(&id)?
                 .ok_or("Stop receipt is missing".into());
         }
-        inner.storage.admit(&id, &thread, &input)?;
+        if !inner.storage.admit(&id, &thread, &input)? {
+            return Ok(json!({"job":id,"status":"cancelled"}));
+        }
         let new = Self::queue(
             &mut inner,
             Job {

@@ -11,7 +11,7 @@ sent from your phone. Listening is automatic and invisible while the bridge and 
 successful agent reply includes a `chat` link when available. Follow-ups resume the
 native session and include newer thread context.
 
-Send `<keyword> stop` in that thread to stop requests submitted with that keyword,
+Send `<keyword> stop` in that thread to stop earlier requests sent with that keyword,
 including queued work and replies that have not started sending. `chat stop`
 stops Codex; `claude stop` stops Claude. Other keywords are unaffected. The saved
 session and project remain available for follow-ups; stopping does not undo

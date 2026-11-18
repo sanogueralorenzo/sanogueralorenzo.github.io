@@ -176,3 +176,26 @@ print(json.dumps({'session_id':'synthetic-session','answer':'completed'}))
             b.wait(job, "cancelled")
         following = self.submit(b, ts="2000000004.000001")
         b.wait(following, "running")
+
+    def test_stop_uses_message_order_when_submissions_arrive_out_of_order(self):
+        b = self.start(configuration(self.home))
+        newer_request = self.submit(b, ts="2000000003.000002")
+        b.wait(newer_request)
+        stop = self.submit(b, ts="2000000003.000001", text="hook stop")
+        self.assertEqual(b.wait(stop)["answer"], "No pending hook requests in this thread.")
+        b.wait(newer_request)
+        self.assertTrue(b.request("POST", "/slack/claim", {"job": stop})["claimed"])
+        self.assertTrue(b.request("POST", "/slack/delivered", {
+            "job": stop, "ts": "2000000004.000001",
+        })["ok"])
+        b.stop()
+        b.start()
+
+        older_stop = self.submit(b, ts="2000000002.000001", text="hook stop")
+        b.wait(older_stop)
+        delayed_request = event(ts="2000000003.000000", text="hook delayed")
+        delayed = b.request("POST", "/slack/run", delayed_request)
+        self.assertEqual(delayed["status"], "cancelled")
+        self.assertEqual(b.request("POST", "/slack/run", delayed_request), delayed)
+        self.assertFalse(b.request("POST", "/slack/claim", {"job": delayed["job"]})["claimed"])
+        b.wait(newer_request)
