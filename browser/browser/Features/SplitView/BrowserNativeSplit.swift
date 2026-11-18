@@ -44,7 +44,11 @@ struct BrowserNativeSplit: NSViewRepresentable {
         let lifted = Set(drop?.incoming ?? [])
         let nextSlots = (drop?.orderedIDs ?? pages.map(\.id)).map { lifted.contains($0) ? Slot.gap($0) : .page($0) }
         if !slots.isEmpty, slots != nextSlots, window != nil {
-            slotFrames = Dictionary(uniqueKeysWithValues: arrangedSubviews.map { ($0, $0.frame) })
+            slotFrames = if slots.count > 1 || nextSlots.count > 1 {
+                Dictionary(uniqueKeysWithValues: arrangedSubviews.map { ($0, $0.frame) })
+            } else {
+                nil
+            }
         }
         slots = nextSlots
         applying = true
