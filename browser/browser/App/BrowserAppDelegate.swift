@@ -12,6 +12,7 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     private var pendingLaunchURLs: [URL] = []
     private var pointerMonitor: Any?
     private var keyboardMonitor: Any?
+    private let usesReviewProfile = ProcessInfo.processInfo.environment["BROWSER_REVIEW_DATA_DIRECTORY"] != nil
     var store: BrowserStore? {
         guard let owner else { return nil }
         if let id = owner.activeWindowID, let context = owner.contexts[id], !context.isClosed { return context }
@@ -56,8 +57,13 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
                 let consumed = MainActor.assumeIsolated { self?.store?.handleKeyboard(event) ?? false }
                 return consumed ? nil : event
             }
-            NSApp.activate(ignoringOtherApps: true)
+            if !usesReviewProfile { NSApp.activate(ignoringOtherApps: true) }
         } catch {
+            if usesReviewProfile && !NSApp.isActive {
+                NSLog("The browsing session could not be opened: %@", error.localizedDescription)
+                NSApp.terminate(nil)
+                return
+            }
             let alert = NSAlert()
             alert.messageText = "The browsing session could not be opened"
             alert.informativeText = error.localizedDescription + " Your existing files have been preserved."
@@ -103,13 +109,13 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
                 window.cascadeTopLeft(from: NSPoint(x: window.frame.minX + 24, y: window.frame.maxY - 24))
             }
         }
-        window.makeKeyAndOrderFront(nil)
+        presentWindow(window)
         owner.activeWindowID = store.id
         owner.changed()
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows visible: Bool) -> Bool {
-        if !visible { createWindow() } else { window?.makeKeyAndOrderFront(nil) }
+        if !visible { createWindow() } else { presentWindow(window) }
         return true
     }
 
@@ -123,10 +129,19 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
 
     private func openURLs(_ urls: [URL]) {
         if store == nil { createWindow() }
-        window?.makeKeyAndOrderFront(nil)
+        presentWindow(window)
         let urls = urls.filter { ["http", "https", "file"].contains($0.scheme ?? "") }
         guard let store, store.canChangeTabCount(by: urls.count, in: store.activeSpace.id) else { return }
         for url in urls { store.open(url) }
+    }
+
+    private func presentWindow(_ window: NSWindow?) {
+        guard let window else { return }
+        if usesReviewProfile && !NSApp.isActive {
+            if !window.isVisible { window.orderBack(nil) }
+        } else {
+            window.makeKeyAndOrderFront(nil)
+        }
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
