@@ -278,9 +278,8 @@
     if (!session && !waiting && auth && !retry) attach(auth);
   }
   function configure(value) {
-    const { keywords } = value;
-    if (!Array.isArray(keywords) || !keywords.every(k => typeof k === "string" && /^[!-~]{1,40}$/.test(k))) throw failure("Invalid hook keywords.");
-    const next = { keywords: keywords.map(k => k.toLowerCase()), error: value.error || null };
+    if (!Array.isArray(value.keywords) || !value.keywords.every(k => typeof k === "string" && /^[!-~]{1,40}$/.test(k))) throw failure("Invalid hook keywords.");
+    const next = { keywords: [...value.keywords], error: value.error || null };
     if (JSON.stringify(next) === JSON.stringify(settings)) return;
     const changed = JSON.stringify(next.keywords) !== JSON.stringify(settings.keywords);
     const reconnected = settings.error && !next.error;

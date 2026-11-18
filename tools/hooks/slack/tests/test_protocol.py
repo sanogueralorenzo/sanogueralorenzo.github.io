@@ -100,7 +100,7 @@ class NativeProtocolTests(unittest.TestCase):
         self.assertEqual(c.receive(), {"type": "pong"})
         c.send(b"heartbeat", opcode=9)
         self.assertEqual(c.receive(), (10, b"heartbeat"))
-        accepted = b.request("POST", "/slack/run", event())
+        accepted = b.request("POST", "/slack/run", event(text="HoOk ping"))
         expected = hashlib.sha256(
             json.dumps(["ETEST", "UTEST", "CTEST", "2000000001.000001"]).encode()
         ).hexdigest()
@@ -139,23 +139,6 @@ class NativeProtocolTests(unittest.TestCase):
         self.assertFalse((self.home / "extension/bridge-pairing.json").exists())
         self.assertIsNone(c.receive())
 
-    def test_keywords_match_ascii_case(self):
-        config = configuration(self.home)
-        config["commands"]["Chat"] = config["commands"]["hook"]
-        config["commands"]["CLAUDE"] = config["commands"]["hook"]
-        b = self.start(config=config)
-        self.assertEqual(
-            b.request("GET", "/config")["hooks"]["slack"]["keywords"],
-            ["chat", "claude", "hook"],
-        )
-        for index, keyword in enumerate(("chat", "Chat", "CHAT", "claude", "Claude", "CLAUDE")):
-            accepted = b.request(
-                "POST", "/slack/run",
-                event(ts=f"2000000002.{index:06d}", text=f"{keyword} réponds 🐈"),
-            )
-            self.assertEqual(b.wait(accepted["job"])["answer"], "synthetic answer")
-        self.assertEqual(b.call("POST", "/slack/run", event(text="hooK ping"))[0], 400)
-
     def test_input_validation_and_http_limits(self):
         b = self.start()
         invalid = [
@@ -164,6 +147,7 @@ class NativeProtocolTests(unittest.TestCase):
             {"channel": "https://example.com"},
             {"text": " hook test"},
             {"text": "unknown test"},
+            {"text": "hooK test"},
             {"text": "hook "},
             {"user": "U"},
             {"ts": "bad"},

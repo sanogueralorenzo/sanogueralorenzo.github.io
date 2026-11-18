@@ -21,9 +21,8 @@ agent normally.
 ## Configure
 
 Edit `~/.local/share/browser-hooks/hooks/slack/config.json`, then run
-`browser-hooks stop` followed by `browser-hooks start`. The keys in `commands`
-are case-insensitive ASCII keywords with no spaces. For example, `chat`, `Chat`,
-and `CHAT` are equivalent. Setup creates `chat` and/or `claude` for installed
+`browser-hooks stop` followed by `browser-hooks start`. Keywords in `commands`
+use ASCII and ignore case. Setup creates `chat` and/or `claude` for installed
 CLIs. See [custom adapters](docs/adapters.md) for other commands.
 
 Set `workspace` for the default directory and `projects` for aliases mapped to

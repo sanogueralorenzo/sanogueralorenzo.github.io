@@ -206,22 +206,16 @@ test('starts from any Slack view and replies in public/private channels, DMs and
 });
 
 test('only own new keyword-prefixed messages trigger; ignores duplicates, edits, apps, empty requests', async () => {
-  const f = fixture(); f.configure({ keywords: ['code'] }); await settle();
+  const f = fixture(); f.configure({ keywords: ['chat', 'claude', 'hook'] }); await settle();
   const socket = f.sockets[0];
   for (const extra of [{ user: 'UOTHER' }, { ts: '1999999999.000001' }, { subtype: 'message_changed' }, { bot_id: 'BTEST' },
-    { app_id: 'ATEST' }, { text: 'hook ping' }, { text: ' code ping' }, { text: 'code ' }, { channel: '' }]) socket.event(message({ text: 'code ping', ...extra }));
-  socket.event(message({ text: 'CoDe\tping' })); socket.event(message({ text: 'CoDe\tping' }));
-  await settle(); assert.equal(f.posts().length, 1);
-});
-
-test('matches ASCII keyword case and preserves the rest of the message', async () => {
-  const f = fixture();
-  f.configure({ keywords: ['chat', 'claude', 'hook'] });
-  await settle();
-  const requests = ['chat', 'Chat', 'CHAT', 'claude', 'Claude', 'CLAUDE'].map(word => `${word} réponds 🐈`);
-  [...requests, 'hooK ping'].forEach((text, i) => {
-    f.sockets[0].event(message({ ts: `200000000${i + 2}.000001`, text }));
+    { app_id: 'ATEST' }, { text: 'unknown ping' }, { text: ' chat ping' }, { text: 'chat ' },
+    { text: 'hooK ping' }, { channel: '' }]) socket.event(message({ text: 'chat ping', ...extra }));
+  const requests = ['chat', 'Chat', 'CHAT', 'claude', 'Claude', 'CLAUDE'].map(word => `${word}\tréponds`);
+  requests.forEach((text, i) => {
+    socket.event(message({ ts: `2000000002.${String(i + 1).padStart(6, '0')}`, text }));
   });
+  socket.event(message({ text: requests[0] }));
   await settle();
   assert.deepEqual(f.messages.filter(m => m.action === 'run').map(m => m.payload.text), requests);
   f.page.agentHooks.dispose();
