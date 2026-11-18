@@ -83,15 +83,46 @@ struct BrowserPageContent: View {
                     }.buttonStyle(.bordered)
                 }.padding(32).frame(maxWidth: .infinity, maxHeight: .infinity).background(BrowserBrandTheme.canvas)
             }
-            if page.isLoading {
-                GeometryReader { geometry in
-                    Rectangle().fill(.primary).frame(width: geometry.size.width * page.progress, height: 2)
-                }.allowsHitTesting(false)
-            }
+            BrowserPageLoadingBar(indicator: page.loadingIndicator).id(page.id)
             if store.findsPage && store.selectedTab?.id == page.id {
                 BrowserFindBar(page: page, store: store).padding(12)
             }
         }.frame(maxWidth: .infinity, maxHeight: .infinity).modifier(PageTranslation(page: page, store: store))
+    }
+}
+
+private struct BrowserPageLoadingBar: View {
+    let indicator: BrowserPage.LoadingIndicator
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var width: CGFloat {
+        switch indicator {
+        case .hidden: 0
+        case .loading: reduceMotion ? 0.25 : 0.65
+        case .revealed: 1
+        }
+    }
+
+    private var sweep: Animation? {
+        guard !reduceMotion else { return nil }
+        switch indicator {
+        case .hidden: return nil
+        case .loading: return .easeOut(duration: 0.7)
+        case .revealed: return .easeOut(duration: 0.14)
+        }
+    }
+
+    var body: some View {
+        Rectangle().fill(.primary)
+            .frame(height: 2)
+            .animation(sweep) { content in
+                content.scaleEffect(x: width, y: 1, anchor: .leading)
+            }
+            .animation(!reduceMotion && indicator == .revealed ? .easeOut(duration: 0.12).delay(0.08) : nil) { content in
+                content.opacity(indicator == .loading ? 1 : 0)
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 

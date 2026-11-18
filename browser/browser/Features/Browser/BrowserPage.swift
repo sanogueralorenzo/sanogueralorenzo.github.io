@@ -6,6 +6,10 @@ import WebKit
 @MainActor
 @Observable
 final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifiable {
+    enum LoadingIndicator {
+        case hidden, loading, revealed
+    }
+
     // MARK: - Variables
 
     let id: UUID
@@ -17,9 +21,9 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     var favicon: Data?
     var isLoading = false
     private(set) var showsLoadingBackground: Bool
+    private(set) var loadingIndicator: LoadingIndicator = .hidden
     var canGoBack = false
     var canGoForward = false
-    var progress = 0.0
     var failure: String?
     var isPlaying = false
     var mediaTitle = ""
@@ -67,6 +71,8 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     @ObservationIgnored private var navigationTask: Task<Void, Never>?
     @ObservationIgnored private var pendingNavigation: (@MainActor (BrowserPage) -> Void)?
     @ObservationIgnored private var pendingPagePaint: (navigation: WKNavigation?, id: UUID)?
+    @ObservationIgnored private var loadingIndicatorNavigation: WKNavigation?
+    @ObservationIgnored private var loadingIndicatorDelay: Task<Void, Never>?
     @ObservationIgnored private(set) var isRetired = false
     @ObservationIgnored var refreshingPageState = false
 
@@ -104,9 +110,6 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
                 MainActor.assumeIsolated { self?.synchronize() }
             },
             webView.observe(\.isLoading, options: [.new]) { [weak self] _, _ in
-                MainActor.assumeIsolated { self?.synchronize() }
-            },
-            webView.observe(\.estimatedProgress, options: [.new]) { [weak self] _, _ in
                 MainActor.assumeIsolated { self?.synchronize() }
             },
             webView.observe(\.canGoBack, options: [.new]) { [weak self] _, _ in
@@ -155,6 +158,11 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         afterContentBlocking(pendingNavigation ?? { $0.webView.reload() })
     }
 
+    func stopLoading() {
+        resetLoadingIndicator()
+        webView.stopLoading()
+    }
+
     private func afterContentBlocking(_ action: @escaping @MainActor (BrowserPage) -> Void) {
         guard !isRetired else { return }
         navigationTask?.cancel()
@@ -191,6 +199,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         guard !isRetired else { return }
         contentBlocker.controller.didCloseTab(self, windowIsClosing: false)
         isRetired = true
+        resetLoadingIndicator()
         navigationTask?.cancel()
         navigationTask = nil
         pendingNavigation = nil
@@ -218,7 +227,6 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         title = String((webView.title ?? "").prefix(2048))
         url = pendingNavigationURL ?? webView.url
         isLoading = webView.isLoading
-        progress = webView.estimatedProgress
         canGoBack = webView.canGoBack
         canGoForward = webView.canGoForward
         if owner?.pages[id] === self {
@@ -228,6 +236,14 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        resetLoadingIndicator()
+        loadingIndicatorNavigation = navigation
+        loadingIndicatorDelay = Task { [weak self] in
+            do { try await Task.sleep(for: .milliseconds(120)) } catch { return }
+            guard let self, !Task.isCancelled, !isRetired else { return }
+            loadingIndicatorDelay = nil
+            loadingIndicator = .loading
+        }
         failure = nil
         (webView as? BrowserNativeWebView)?.contextSelection = ""
         siteController?.navigationStarted()
@@ -257,6 +273,8 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
                 try await Task.sleep(for: .milliseconds(100))
                 self?.revealPage(after: paint.id)
             }
+        } else if loadingIndicatorNavigation === navigation {
+            resetLoadingIndicator()
         }
         pendingNavigationURL = nil
         synchronize()
@@ -274,6 +292,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        if loadingIndicatorNavigation === navigation { resetLoadingIndicator() }
         let value = error as NSError
         if value.code == NSURLErrorCancelled || (value.domain == "WebKitErrorDomain" && value.code == 102) {
             pendingNavigationURL = nil
@@ -284,6 +303,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        if loadingIndicatorNavigation === navigation { resetLoadingIndicator() }
         if let paint = pendingPagePaint, paint.navigation === navigation { revealPage(after: paint.id) }
         let value = error as NSError
         if value.code == NSURLErrorCancelled || (value.domain == "WebKitErrorDomain" && value.code == 102) {
@@ -294,10 +314,23 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         failure = error.localizedDescription
     }
 
+    private func resetLoadingIndicator() {
+        loadingIndicatorDelay?.cancel()
+        loadingIndicatorDelay = nil
+        loadingIndicatorNavigation = nil
+        loadingIndicator = .hidden
+    }
+
     private func revealPage(after paintID: UUID) {
-        guard !isRetired, pendingPagePaint?.id == paintID else { return }
+        guard !isRetired, let paint = pendingPagePaint, paint.id == paintID else { return }
         pendingPagePaint = nil
         showsLoadingBackground = false
+        if loadingIndicatorNavigation === paint.navigation {
+            loadingIndicatorDelay?.cancel()
+            loadingIndicatorDelay = nil
+            loadingIndicatorNavigation = nil
+            if loadingIndicator == .loading { loadingIndicator = .revealed }
+        }
     }
 
     private static let waitForPagePaint = #"""
@@ -321,6 +354,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         """#
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        resetLoadingIndicator()
         failure = "This page stopped. Reload to continue."
         isPlaying = false
         pictureInPicture?.invalidate()
@@ -373,6 +407,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     }
 
     func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+        if navigationResponse.isForMainFrame { resetLoadingIndicator() }
         receiveDownload(download)
     }
 

@@ -103,7 +103,7 @@ extension BrowserAppDelegate {
     @objc private func copyAddress() { store?.copyAddress() }
     @objc private func copyMarkdown() { store?.copyAddress(markdown: true) }
     @objc private func reloadFromOrigin() { store?.activePage?.webView.reloadFromOrigin() }
-    @objc private func stopLoading() { store?.activePage?.webView.stopLoading() }
+    @objc private func stopLoading() { store?.activePage?.stopLoading() }
     @objc private func reader() { store?.activePage?.toggleReader() }
     @objc private func translate() { store?.activePage?.translationRequest &+= 1 }
     @objc private func inspector() { store?.activePage?.showDeveloperTools() }

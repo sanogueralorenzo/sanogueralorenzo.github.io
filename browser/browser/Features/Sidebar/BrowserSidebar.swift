@@ -87,7 +87,7 @@ struct BrowserSidebar: View {
                 enabled: store.activePage != nil
             ) {
                 guard let page = store.activePage else { return }
-                if page.isLoading { page.webView.stopLoading() } else { page.webView.reload() }
+                if page.isLoading { page.stopLoading() } else { page.webView.reload() }
             }
             Spacer(minLength: 0)
             navigationButton("magnifyingglass", hint: "⌘L") { store.presentAddress() }
