@@ -40,8 +40,8 @@ public partial class Game : Node2D
             FontWeight = 700
         };
         Run = new(selectedSeed, BoatKind.Cutter);
-        ocean = new() { Voyage = Run, Course = course, Menu = true }; AddChild(ocean);
         log.Load();
+        ocean = new() { Voyage = Run, Course = course, Menu = true, Livery = log.Livery }; AddChild(ocean);
         audio = new() { Muted = log.Muted }; AddChild(audio);
         layer = new(); AddChild(layer); hud = new() { Game = this, TitleFont = titleFont, BodyFont = bodyFont }; layer.AddChild(hud);
         GetWindow().Title = "Boats ’n’ Beasts Deluxe";
@@ -84,7 +84,12 @@ public partial class Game : Node2D
                 case "comboFitted": Toast($"{Run.ActiveCombo!.Name} fitted"); break;
                 case "towHooked": Toast("Tow secured · take the cargo to any beacon"); break;
                 case "towSnapped": Toast("Towline snapped · sail back to the cargo"); break;
-                case "towDelivered": Toast("Salvage delivered · refit earned"); break;
+                case "towDelivered":
+                    int salvagerSail = log.EarnSails(Run);
+                    earnedSails |= salvagerSail;
+                    Toast(salvagerSail != 0 ? $"Salvage delivered · {SailDesign.For(SailLivery.WreckDiver).Name} sail unlocked"
+                        : "Salvage delivered · refit earned");
+                    break;
                 case "chain": Toast($"{e.Value:0} beast chain · boost recharged"); break;
                 case "boss": Toast("The Crownclaw rises"); break;
                 case "enraged": Toast("Crownclaw is enraged · watch for charges"); break;
@@ -169,6 +174,7 @@ public partial class Game : Node2D
     void ToggleMenu()
     {
         if (controls) controls = false;
+        else if (sailLocker) CloseSailLocker();
         else if (title)
         {
             choosingBoat = journal = false;
@@ -193,7 +199,7 @@ public partial class Game : Node2D
     void Start()
     {
         lootNoticeTime = hitNotice = 0;
-        dailyBonus = 0;
+        dailyBonus = earnedSails = 0;
         creditedSilver = 0; course.Clear(); toastTime = 0; maneuverRequested = false;
         if (title)
         {
@@ -235,7 +241,9 @@ public partial class Game : Node2D
     void Record()
     {
         if (title || runRecorded) return;
-        dailyBonus = log.Record(Run, daily);
+        var result = log.Record(Run, daily);
+        dailyBonus = result.DailyBonus;
+        earnedSails |= result.NewSails;
         runRecorded = true;
     }
     void Toast(string text) { toast = text; toastTime = 5; }

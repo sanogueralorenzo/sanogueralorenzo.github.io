@@ -16,7 +16,7 @@ public static partial class ActorArt3D
         Coral = new("cb4829"), Shell = new("cf5531"), DarkCoral = new("9d3224"),
         Eye = new("fff1c7"), Pupil = new("192e31"), Teal = new("438d88"), Purple = new("9358bd");
 
-    public static Node3D Boat(BoatKind kind, int[] weapons)
+    public static Node3D Boat(BoatKind kind, int[] weapons, SailLivery livery = SailLivery.Original)
     {
         var ranks = new int[6];
         for (int i = 0; i < Math.Min(6, weapons.Length); i++) ranks[i] = Math.Clamp(weapons[i], 0, 8);
@@ -30,15 +30,17 @@ public static partial class ActorArt3D
             Cache[key] = mesh = b.Mesh(Material);
         }
         var root = Instance(mesh, key);
-        string sailKey = $"main-sail-{kind}";
+        string sailKey = $"main-sail-{kind}-{livery}";
         if (!Cache.TryGetValue(sailKey, out var sailMesh))
         {
-            var sailGeometry = new ActorGeometry(); MainSail(sailGeometry, kind);
+            var sailGeometry = new ActorGeometry(); MainSail(sailGeometry, kind, livery);
             Cache[sailKey] = sailMesh = sailGeometry.Mesh(Material);
         }
         var sail = new MeshInstance3D { Name = "MainSail", Mesh = sailMesh, Scale = BoatScale,
             CastShadow = GeometryInstance3D.ShadowCastingSetting.On };
         sail.SetInstanceShaderParameter("sail_motion", true);
+        sail.SetInstanceShaderParameter("sail_crest", (int)livery);
+        sail.SetInstanceShaderParameter("sail_ink", SailDesign.For(livery).Ink);
         root.GetChild(0).AddChild(sail);
         for (int i = 0; i <= (int)WeaponKind.Harpoon; i++)
         {
@@ -161,8 +163,9 @@ public static partial class ActorArt3D
         b.Sphere(new(0, MastHeight, .015f), new(.025f, .025f, .025f), Brass);
     }
 
-    static void MainSail(ActorGeometry b, BoatKind kind)
+    static void MainSail(ActorGeometry b, BoatKind kind, SailLivery livery)
     {
+        var design = SailDesign.For(livery);
         // The middle swells beyond the pinned spar ends, giving the cloth an oval outline.
         float WidthAt(float v) => Mathf.Lerp(.60f, .72f, v) + .16f * Mathf.Sin(v * Mathf.Pi);
         float Depth(float x, float y)
@@ -179,7 +182,7 @@ public static partial class ActorArt3D
             var patch = new[] { Cloth(x / 8f, y / 8f), Cloth((x + 1) / 8f, y / 8f),
                 Cloth((x + 1) / 8f, (y + 1) / 8f), Cloth(x / 8f, (y + 1) / 8f) };
             bool stripe = x is 0 or 7 || y == 0;
-            Color cloth = kind switch
+            Color cloth = livery != SailLivery.Original ? design.Panel(x, y) : kind switch
             {
                 BoatKind.Mage => stripe ? new("815eaf") : new("e3ccef"),
                 BoatKind.Trawler => stripe ? new("4e9489") : new("d0e2cb"),
@@ -188,6 +191,8 @@ public static partial class ActorArt3D
             b.Polygon(patch, cloth, Vector3.Forward);
             b.Polygon(patch, cloth, Vector3.Back);
         }
+        if (livery != SailLivery.Original) return;
+
         foreach (int side in new[] { -1, 1 })
         {
             // The emblem follows the billow and reads from either sailing direction.

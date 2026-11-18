@@ -9,6 +9,7 @@ sealed class CaptainLog
     const string PendingPath = "user://captain.pending";
     const string Section = "log";
     const string DailySection = "daily";
+    const string SailSection = "sails";
     public int Silver { get; private set; }
     public int Voyages { get; private set; }
     public int Wins { get; private set; }
@@ -16,7 +17,9 @@ sealed class CaptainLog
     public int BestKills { get; private set; }
     public bool Muted { get; private set; }
     public bool HasLitBeacon { get; private set; }
+    public SailLivery Livery { get; private set; }
     int charters = 1;
+    int sails = 1;
     readonly Dictionary<(BoatKind Boat, Charter Charter), double> bestTimes = new();
 
     readonly Dictionary<int, double> dailyTimes = new();
@@ -53,7 +56,32 @@ sealed class CaptainLog
         Save();
     }
 
-    public int Record(Voyage run, DailyChallenge? daily)
+    public bool Owns(SailDesign design) => (sails & design.Flag) != 0;
+
+    public bool Equip(SailDesign design)
+    {
+        if (!Owns(design) || Livery == design.Livery) return false;
+        Livery = design.Livery;
+        Save();
+        return true;
+    }
+
+    public int EarnSails(Voyage run)
+    {
+        int added = UnlockSails(run, null);
+        if (added != 0) Save();
+        return added;
+    }
+
+    int UnlockSails(Voyage run, DailyChallenge? daily)
+    {
+        int before = sails;
+        foreach (var design in SailDesign.All)
+            if (!Owns(design) && design.Earned(run, daily)) sails |= design.Flag;
+        return sails & ~before;
+    }
+
+    public (int DailyBonus, int NewSails) Record(Voyage run, DailyChallenge? daily)
     {
         Voyages++;
         BestKills = Math.Max(BestKills, run.Kills);
@@ -75,8 +103,9 @@ sealed class CaptainLog
             }
             else dailyTimes[day] = Faster(dailyTimes[day], run.CombatTime);
         }
+        int newSails = UnlockSails(run, daily);
         Save();
-        return bonus;
+        return (bonus, newSails);
     }
 
     public void ToggleMute()
@@ -97,6 +126,10 @@ sealed class CaptainLog
         charters = (int)config.GetValue(Section, "charters", 1);
         Muted = (bool)config.GetValue(Section, "muted", false);
         HasLitBeacon = (bool)config.GetValue(Section, "lit_beacon", false);
+        sails = (int)config.GetValue(SailSection, "owned", 1) | 1;
+        int equipped = (int)config.GetValue(SailSection, "equipped", 0);
+        if (equipped >= 0 && equipped < SailDesign.All.Length && Owns(SailDesign.All[equipped]))
+            Livery = (SailLivery)equipped;
         foreach (var boat in Enum.GetValues<BoatKind>())
         foreach (var charter in Enum.GetValues<Charter>())
         {
@@ -126,6 +159,8 @@ sealed class CaptainLog
         config.SetValue(Section, "charters", charters);
         config.SetValue(Section, "muted", Muted);
         config.SetValue(Section, "lit_beacon", HasLitBeacon);
+        config.SetValue(SailSection, "owned", sails);
+        config.SetValue(SailSection, "equipped", (int)Livery);
         foreach (var entry in bestTimes)
             config.SetValue("charts", ChartKey(entry.Key.Boat, entry.Key.Charter), entry.Value);
         foreach (var entry in dailyTimes)

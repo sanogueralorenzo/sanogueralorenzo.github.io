@@ -10,6 +10,8 @@ public partial class ArtSample : Node3D
     bool close;
     bool boatDetail;
     BoatKind boatKind = BoatKind.Mage;
+    int[] boatRanks = [0, 0, 0, 0, 0, 1];
+    SailLivery livery;
     float detailSize = 6.2f;
     bool beachReference = true;
     bool seaWreck;
@@ -53,7 +55,7 @@ public partial class ArtSample : Node3D
         stage = new(); AddChild(stage);
         home = EnvironmentArt3D.Build(new Place("sample", PlaceKind.Harbor, default, 140, 147));
         AddChild(home); home.Position = new(-3.2f, 0, -1.4f);
-        boat = ActorArt3D.Boat(BoatKind.Mage, [0,0,0,0,0,1]);
+        boat = ActorArt3D.Boat(boatKind, boatRanks);
         AddChild(boat); boat.Rotation = new(0, -.7f, 0);
         crab = ActorArt3D.Creature(EnemyKind.Crab); AddChild(crab); crab.Position = new(-2,0,1.6f); crab.Rotation = new(0,2.2f,0);
         var overlay = new CanvasLayer(); AddChild(overlay);
@@ -118,7 +120,8 @@ public partial class ArtSample : Node3D
     {
         string lighting = light switch { 1 => "golden hour", 2 => "storm", _ => "daylight" };
         status.Text = $"{sampleSummary} · {lighting}\n"
-            + "Q islands · W prison · E tower · R lighthouse · T tavern · Y market · U mill · I wreck · O cave · P arch\nA reference · S whirlpool · D land/sea wreck · F island size · G seed · H smaller · J larger · K crew · L boat\nZ turn left · X turn right · C view · V refresh · M light";
+            + "Q islands · W prison · E tower · R lighthouse · T tavern · Y market · U mill · I wreck · O cave · P arch\nA reference · S whirlpool · D land/sea wreck · F island size · G seed · H smaller · J larger · K crew · L boat\n"
+            + $"Z turn left · X turn right · C view · V refresh · M light · B sail ({SailDesign.For(livery).Name})";
     }
 
     public override void _UnhandledKeyInput(InputEvent ev)
@@ -138,9 +141,16 @@ public partial class ArtSample : Node3D
         if (boatDetail && key.Keycode == Key.L)
         {
             boatKind = (BoatKind)(((int)boatKind + 1) % 3);
-            var replacement = ActorArt3D.Boat(boatKind, [8, 8, 0, 0, 8, 8]);
-            replacement.Transform = boat.Transform;
-            RemoveChild(boat); boat.QueueFree(); boat = replacement; AddChild(boat); return;
+            boatRanks = [8, 8, 0, 0, 8, 8];
+            ReplaceBoat();
+            return;
+        }
+        if (key.Keycode == Key.B)
+        {
+            livery = (SailLivery)(((int)livery + 1) % SailDesign.All.Length);
+            ReplaceBoat();
+            UpdateStatus();
+            return;
         }
         boatDetail = false;
         bool previousWhirlpool = whirlpool;
@@ -176,6 +186,16 @@ public partial class ArtSample : Node3D
         }
         SaveSettings(); ShowIsland();
     }
+    void ReplaceBoat()
+    {
+        var replacement = ActorArt3D.Boat(boatKind, boatRanks, livery);
+        replacement.Transform = boat.Transform;
+        RemoveChild(boat);
+        boat.QueueFree();
+        boat = replacement;
+        AddChild(boat);
+    }
+
     void SelectLandmark(int style)
     {
         seaWreck = false; beachReference = false; islandStyle = style; islandSize = 2; variant = 0; close = false;

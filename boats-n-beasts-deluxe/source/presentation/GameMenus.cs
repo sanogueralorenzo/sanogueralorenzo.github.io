@@ -38,9 +38,10 @@ public partial class Game : Node2D
         b.MouseExited += () => AnimateHover(1);
         b.Pressed += () => { action(); }; return b;
     }
-    VBoxContainer Panel(float width, string heading, string detail)
+    VBoxContainer Panel(float width, string heading, string detail, bool besideBoat = false)
     {
         var center = new CenterContainer(); center.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); menuRoot.AddChild(center);
+        if (besideBoat) center.AnchorRight = .52f;
         var panel = new PanelContainer { CustomMinimumSize = new(width, 0) }; panel.AddThemeStyleboxOverride("panel", Box(new Color("102f39"), 12, new Color("ac8b56"))); center.AddChild(panel);
         var column = new VBoxContainer(); column.AddThemeConstantOverride("separation", 14); panel.AddChild(column);
         column.AddChild(Label(heading, 36, true));
@@ -68,6 +69,7 @@ public partial class Game : Node2D
                 else BoatMenu();
                 return;
             }
+            if (sailLocker) { SailLockerMenu(); return; }
             if (journal) JournalMenu();
             else TitleMenu();
             FocusFirst(menuRoot);
@@ -219,11 +221,17 @@ public partial class Game : Node2D
             }
         }
 
-        AddMuteButton(col);
+        var actions = new HBoxContainer();
+        actions.AddThemeConstantOverride("separation", 8);
+        col.AddChild(actions);
+        var locker = Button("Sail locker", OpenSailLocker);
+        locker.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        actions.AddChild(locker);
+        AddMuteButton(actions);
         col.AddChild(Button("Back", () => { journal = false; BuildMenu(); }, true));
     }
 
-    void AddMuteButton(VBoxContainer column) => column.AddChild(Button(log.Muted ? "Sound off · turn on" : "Sound on · mute",
+    void AddMuteButton(Container parent) => parent.AddChild(Button(log.Muted ? "Sound off · turn on" : "Sound on · mute",
         () => { log.ToggleMute(); audio.Muted = log.Muted; BuildMenu(); }));
 
     static string ClockText(float seconds)
@@ -234,7 +242,7 @@ public partial class Game : Node2D
 
     string VoyageSummary() => $"{Run.Rules.Name}  ·  {ClockText(Run.CombatTime)}  ·  Level {Run.Level}\n" +
         $"{Run.BeaconsLit}/{Run.Beacons.Count} beacons  ·  {Run.Kills} beasts  ·  Longest chain {Run.LongestChain}  ·  +{Run.SilverEarned} silver" +
-        (Run.Salvage.Delivered ? "\nWreck salvage delivered" : "") + DailyResult();
+        (Run.Salvage.Delivered ? "\nWreck salvage delivered" : "") + DailyResult() + SailUnlockResult();
 
     void UpgradeMenu()
     {

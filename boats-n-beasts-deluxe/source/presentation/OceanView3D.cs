@@ -7,6 +7,7 @@ namespace BoatsNBeasts;
 public partial class OceanView3D : Node3D
 {
     public Voyage Voyage = null!;
+    public SailLivery Livery;
     public bool Menu;
     public Vector2 Camera;
     public float Clock;
@@ -125,10 +126,10 @@ public partial class OceanView3D : Node3D
     }
     void SyncActors(float dt)
     {
-        string signature = Voyage.Boat + ":" + string.Join(',', Voyage.Weapons);
+        string signature = Voyage.Boat + ":" + Livery + ":" + string.Join(',', Voyage.Weapons);
         if (signature != boatSignature)
         {
-            boat?.QueueFree(); boat = ActorArt3D.Boat(Voyage.Boat, Voyage.Weapons); AddChild(boat); boatSignature = signature;
+            boat?.QueueFree(); boat = ActorArt3D.Boat(Voyage.Boat, Voyage.Weapons, Livery); AddChild(boat); boatSignature = signature;
         }
         boat!.Position = NativeStage3D.Point(Voyage.Position);
         boat.Rotation = new(0, -Voyage.Heading, 0);
