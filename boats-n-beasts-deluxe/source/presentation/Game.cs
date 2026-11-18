@@ -54,7 +54,8 @@ public partial class Game : Node2D
         toastTime = Math.Max(0, toastTime - dt);
         lootNoticeTime = Math.Max(0, lootNoticeTime - dt);
         hitNotice = Math.Max(0, hitNotice - dt);
-        if (!title && !controls && Run.IsActive)
+        if (chartOpen) PanChart(dt);
+        if (!title && !controls && !chartOpen && Run.IsActive)
         {
             V2 move = new((Down(Key.D) || Down(Key.Right) ? 1 : 0) - (Down(Key.A) || Down(Key.Left) ? 1 : 0),
                 (Down(Key.S) || Down(Key.Down) ? 1 : 0) - (Down(Key.W) || Down(Key.Up) ? 1 : 0));
@@ -103,7 +104,7 @@ public partial class Game : Node2D
             }
         }
         Run.Events.Clear();
-        ocean.Advance(dt);
+        if (!chartOpen) ocean.Advance(dt);
         audio.InBattle = !title && Run.BossSpawned && !Run.BossSlain && Run.IsActive;
 
         if (!title && Run.SilverEarned > creditedSilver)
@@ -123,7 +124,7 @@ public partial class Game : Node2D
         if (input is InputEventMouseButton mouse)
         {
             uiPointer = mouse.Position;
-            if (!title && mouse.Pressed && hud.EquipmentAt(mouse.Position) >= 0)
+            if (!title && !chartOpen && mouse.Pressed && hud.EquipmentAt(mouse.Position) >= 0)
             { GetViewport().SetInputAsHandled(); return; }
         }
         // Held boost input must not select an upgrade or retry after defeat.
@@ -133,6 +134,13 @@ public partial class Game : Node2D
     {
         if (input is InputEventMouseButton { Pressed: true } click && !title && Run.Mode == VoyageMode.Sailing)
         {
+            if (chartOpen || click.ButtonIndex == MouseButton.Left && hud.ChartToggle.HasPoint(click.Position))
+            {
+                if (chartOpen) HandleChartClick(click);
+                else ToggleChart();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
             if (click.ButtonIndex == MouseButton.Right)
             {
                 course.Clear();
@@ -140,16 +148,16 @@ public partial class Game : Node2D
             }
             else if (click.ButtonIndex == MouseButton.Left)
             {
-                var order = hud.CourseAt(click.Position);
-                bool plotted = order?.Patrol is { } beacon ? course.Plot(Run, beacon)
-                    : course.Plot(Run, order?.Point ?? ocean.WorldPoint(click.Position));
-                if (!plotted) Toast("Choose a course through open water");
+                if (!PlotChartOrder(hud.CourseAt(click.Position) ?? new(ocean.WorldPoint(click.Position))))
+                    Toast("Choose a course through open water");
                 usingController = false;
                 GetViewport().SetInputAsHandled();
             }
         }
         if (input is not InputEventJoypadButton { Pressed: true } button) return;
-        if (button.ButtonIndex == JoyButton.X && !title && !controls && Run.IsActive)
+        if (chartOpen) HandleChartButton(button.ButtonIndex);
+        else if (button.ButtonIndex == JoyButton.Y && CanOpenChart) ToggleChart();
+        else if (button.ButtonIndex == JoyButton.X && !title && !controls && Run.IsActive)
             maneuverRequested = true;
         else if (button.ButtonIndex == JoyButton.Start)
             ToggleMenu();
@@ -160,6 +168,14 @@ public partial class Game : Node2D
     public override void _UnhandledKeyInput(InputEvent @event)
     {
         if (@event is not InputEventKey key || !key.Pressed || key.Echo) return;
+        if (chartOpen || key.Keycode == Key.Tab && CanOpenChart)
+        {
+            if (key.Keycode is Key.Tab or Key.Escape) ToggleChart();
+            else if (key.Keycode == Key.Equal) ZoomChart(1);
+            else if (key.Keycode == Key.Minus) ZoomChart(-1);
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         if (key.PhysicalKeycode == Key.E && !title && !controls && Run.IsActive)
         {
             maneuverRequested = true;
@@ -194,11 +210,18 @@ public partial class Game : Node2D
     public override void _Notification(int what)
     {
         if (what == NotificationApplicationFocusOut && Run != null && !title && Run.Mode == VoyageMode.Sailing)
-        { beforePause = Run.Mode; course.Clear(); Run.Mode = VoyageMode.Paused; Callable.From(BuildMenu).CallDeferred(); }
+        {
+            chartOpen = false;
+            beforePause = Run.Mode;
+            course.Clear();
+            Run.Mode = VoyageMode.Paused;
+            Callable.From(BuildMenu).CallDeferred();
+        }
     }
     void Start()
     {
         lootNoticeTime = hitNotice = 0;
+        chartOpen = false;
         dailyBonus = earnedSails = 0;
         creditedSilver = 0; course.Clear(); toastTime = 0; maneuverRequested = false;
         if (title)

@@ -8,12 +8,12 @@ public partial class Game : Node2D
     public partial class Hud : Node2D
     {
         public Game Game = null!; public Font TitleFont = null!, BodyFont = null!;
-        readonly List<(Rect2 Bounds, V2 Point, Beacon? Patrol)> courses = new();
+        readonly List<(Rect2 Bounds, ChartOrder Order)> courses = new();
 
-        public (V2 Point, Beacon? Patrol)? CourseAt(Vector2 pointer)
+        internal ChartOrder? CourseAt(Vector2 pointer)
         {
             for (int i = courses.Count - 1; i >= 0; i--)
-                if (courses[i].Bounds.HasPoint(pointer)) return (courses[i].Point, courses[i].Patrol);
+                if (courses[i].Bounds.HasPoint(pointer)) return courses[i].Order;
             return null;
         }
         void Text(Vector2 p, string text, int size = 22, bool heading = false, Color? color = null) => DrawString(heading ? TitleFont : BodyFont, p, text, HorizontalAlignment.Left, -1, size, color ?? NauticalPalette.Cream);
@@ -36,6 +36,11 @@ public partial class Game : Node2D
         {
             courses.Clear();
             if (Game.title) return; var r = Game.Run; var size = GetViewportRect().Size;
+            if (Game.chartOpen)
+            {
+                DrawVoyageChart(r, size);
+                return;
+            }
             if (Game.hitNotice > 0)
                 DrawRect(new Rect2(3, 3, size.X - 6, size.Y - 6), new Color(NauticalPalette.Coral, Game.hitNotice * .77f), false, 6);
             string? openingHint = OpeningHint(r);
@@ -248,7 +253,7 @@ public partial class Game : Node2D
             }
 
             var bounds = new Rect2(at + new Vector2(-86, -20), new Vector2(172, 48));
-            courses.Add((bounds, world, patrol));
+            courses.Add((bounds, new(world, patrol)));
             if (patrol != null && bounds.HasPoint(Game.uiPointer) && Game.course.Patrol != patrol)
                 detail = "Click to plot patrol";
             DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .91f), 7), bounds);
@@ -295,7 +300,7 @@ public partial class Game : Node2D
             Text(center + new Vector2(-5, -64), "N", 13, true, ink);
             foreach (var place in r.World.Places)
             {
-                if (!r.World.Discovered.Contains(place.Id) || r.World.Depletion.ContainsKey(place.Id)) continue;
+                if (!r.World.Discovered.ContainsKey(place.Id) || r.World.Depletion.ContainsKey(place.Id)) continue;
                 var offset = NauticalPalette.G(place.Position - r.Position) / 17;
                 if (offset.Length() > 56) continue;
                 var at = center + offset;
@@ -305,8 +310,13 @@ public partial class Game : Node2D
                     var repair = new Color("98634c");
                     DrawLine(at - new Vector2(4, 0), at + new Vector2(4, 0), repair, 2, true);
                     DrawLine(at - new Vector2(0, 4), at + new Vector2(0, 4), repair, 2, true);
+                    courses.Add((new(at - Vector2.One * 7, Vector2.One * 14), new(place.Position, Supply: place, Label: "Repair barrel")));
                 }
-                else if (place.Kind == PlaceKind.Treasure) DrawRect(new Rect2(at-new Vector2(3,3),new(6,6)),new Color("b38943"));
+                else if (place.Kind == PlaceKind.Treasure)
+                {
+                    DrawRect(new(at - new Vector2(3, 3), new(6, 6)), new Color("b38943"));
+                    courses.Add((new(at - Vector2.One * 7, Vector2.One * 14), new(place.Position, Supply: place, Label: "Beach cache")));
+                }
                 else if (place.Kind == PlaceKind.Current) { var d=NauticalPalette.G(OceanWorld.FlowDirection(place)); DrawLine(at-d*5,at+d*5,ink,1.5f); DrawLine(at+d*5,at+d.Orthogonal()*3,ink,1.5f); }
                 else
                 {
@@ -324,8 +334,8 @@ public partial class Game : Node2D
                 {
                     var d = NauticalPalette.G(beacon.Position - r.Position) / 17;
                     var at = center + (d.Length() > 57 ? d.Normalized() * 57 : d);
-                    courses.Add((new Rect2(at - Vector2.One * 9, Vector2.One * 18), beacon.Position,
-                        !beacon.Lit && beacon.Objective == BeaconObjective.Patrol && !r.Salvage.Towing ? beacon : null));
+                    courses.Add((new Rect2(at - Vector2.One * 9, Vector2.One * 18), new(beacon.Position,
+                        !beacon.Lit && beacon.Objective == BeaconObjective.Patrol && !r.Salvage.Towing ? beacon : null)));
                     DrawCircle(at, 6, paper);
                     DrawColoredPolygon([at + new Vector2(0, -5), at + new Vector2(5, 0),
                         at + new Vector2(0, 5), at + new Vector2(-5, 0)], beacon.Lit ? new Color("41776b") : new Color("af6629"));
@@ -334,13 +344,11 @@ public partial class Game : Node2D
                 {
                     var d = NauticalPalette.G(r.Salvage.Position - r.Position) / 17;
                     var at = center + (d.Length() > 57 ? d.Normalized() * 57 : d);
-                    courses.Add((new Rect2(at - Vector2.One * 10, Vector2.One * 20), r.Salvage.Position, null));
+                    courses.Add((new Rect2(at - Vector2.One * 10, Vector2.One * 20), new(r.Salvage.Position, Label: "Wreck salvage")));
                     var flag = new Color("ad4936");
                     DrawCircle(at, 7, paper);
                     DrawLine(at + new Vector2(-3, -6), at + new Vector2(-3, 6), flag, 2, true);
                     DrawColoredPolygon([at + new Vector2(-3, -6), at + new Vector2(6, -3), at + new Vector2(-3, 1)], flag);
-                    if (courses[^1].Bounds.HasPoint(Game.uiPointer))
-                        Text(center + new Vector2(-48, 99), "Wreck salvage", 15, true, NauticalPalette.Cream);
                 }
             }
             var boss = r.Enemies.FirstOrDefault(e => e.Kind == EnemyKind.Leviathan && e.Health > 0);
@@ -352,6 +360,15 @@ public partial class Game : Node2D
             }
             Vector2[] pointer = [new(0, -8), new(-5, 6), new(0, 3), new(5, 6)];
             DrawColoredPolygon(pointer.Select(p => center + p.Rotated(r.Heading)).ToArray(), NauticalPalette.Navy);
+            if (r.IsActive)
+            {
+                var bounds = ChartToggle;
+                DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, bounds.HasPoint(Game.uiPointer) ? .98f : .83f), 5), bounds);
+                Text(bounds.Position + new Vector2(13, 19), Game.usingController ? "Y · Chart" : "Tab · Chart", 14, color: NauticalPalette.Cream);
+                if (new Rect2(center - Vector2.One * 80, Vector2.One * 160).HasPoint(Game.uiPointer) &&
+                    CourseAt(Game.uiPointer)?.Label is { } label)
+                    Text(center + new Vector2(-BodyFont.GetStringSize(label, fontSize: 14).X / 2, 138), label, 14, color: NauticalPalette.Cream);
+            }
         }
         void ChartAnchor(Vector2 at, Color ink)
         {

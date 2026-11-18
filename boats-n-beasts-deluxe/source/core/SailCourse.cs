@@ -8,6 +8,7 @@ public sealed class SailCourse
     int next;
     int patrolStart;
     bool continuing;
+    Place? supply;
 
     public Vector2? Destination { get; private set; }
     public Beacon? Patrol { get; private set; }
@@ -20,6 +21,7 @@ public sealed class SailCourse
         chart = null;
         next = patrolStart = 0;
         Patrol = null;
+        supply = null;
         continuing = false;
     }
 
@@ -39,6 +41,29 @@ public sealed class SailCourse
         waypoints = plan;
         next = 0;
         Destination = continuing ? destination : plan[^1];
+        return true;
+    }
+
+    public bool Plot(Voyage run, Place place)
+    {
+        if (run.World.Depletion.ContainsKey(place.Id)) return false;
+        if (place.Kind == PlaceKind.Treasure)
+        {
+            var pickup = OceanWorld.TreasureApproach(place);
+            if (!Plot(run, OceanWorld.TreasureApproach(place, 88))) return false;
+            if (!continuing)
+            {
+                if (!run.World.OpenApproach(waypoints[^1], pickup, OceanWorld.TreasureApproachClearance))
+                {
+                    Clear();
+                    return false;
+                }
+                waypoints = [..waypoints, pickup];
+                Destination = pickup;
+            }
+        }
+        else if (!Plot(run, place.Position)) return false;
+        supply = place;
         return true;
     }
 
@@ -97,6 +122,11 @@ public sealed class SailCourse
             return input;
         }
         if (Destination is not { } destination) return input;
+        if (supply is { } store && run.World.Depletion.ContainsKey(store.Id))
+        {
+            Clear();
+            return input;
+        }
         if (Patrol is { } beacon)
         {
             if (beacon.Lit || run.BossSpawned)
@@ -107,14 +137,20 @@ public sealed class SailCourse
             if ((continuing || next < patrolStart) && !ReferenceEquals(chart, run.World.Places) &&
                 !Plot(run, beacon)) return input;
         }
-        else if (!ReferenceEquals(chart, run.World.Places) && !Plot(run, destination)) return input;
+        else if (!ReferenceEquals(chart, run.World.Places))
+        {
+            bool clearPickup = supply?.Kind == PlaceKind.Treasure && !continuing && next == waypoints.Length - 1 &&
+                run.World.OpenApproach(run.Position, destination, OceanWorld.TreasureApproachClearance);
+            if (clearPickup) chart = run.World.Places;
+            else if (!ReplotPoint(run, destination)) return input;
+        }
 
         while (next < waypoints.Length)
         {
             var offset = waypoints[next] - run.Position;
             bool circling = Patrol != null && !continuing && next >= patrolStart;
             bool last = !circling && next == waypoints.Length - 1;
-            float reach = last ? 29 : circling ? 49 : 42;
+            float reach = last ? supply == null ? 29 : 9 : circling ? 49 : 42;
             bool reached = offset.LengthSquared() <= reach * reach;
             if (reached && !last && offset.LengthSquared() > 12 * 12)
                 reached = run.World.IsWater(run.Position, CoursePlanner.Clearance);
@@ -141,10 +177,12 @@ public sealed class SailCourse
         }
         if (continuing && Vector2.DistanceSquared(run.Position, destination) > 58 * 58)
         {
-            Plot(run, destination);
+            ReplotPoint(run, destination);
             return input;
         }
         Clear();
         return input;
     }
+
+    bool ReplotPoint(Voyage run, Vector2 destination) => supply is { } place ? Plot(run, place) : Plot(run, destination);
 }

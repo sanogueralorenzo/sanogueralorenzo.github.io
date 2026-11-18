@@ -37,6 +37,10 @@ public sealed class OceanWorld(uint seed)
     public static bool IsPrisonIsland(float radius, uint style) => radius >= PrisonIslandRadius && IsPrisonStyle(style);
     private static bool IsPrisonStyle(uint style) => new SeedRandom(style ^ 0xa43fu).Index(8) == 0;
     public const float IslandTreasureChance = .15f;
+    const float TreasureDepth = 22;
+    const float TreasureReachFromShore = 100;
+    internal const float TreasureApproachClearance = 75;
+    public const int ChartTileSize = 300;
     public const float BarrelChance = .20f;
     public const float BarrelSpacing = 900;
     public uint Seed { get; } = seed;
@@ -51,7 +55,11 @@ public sealed class OceanWorld(uint seed)
     }
     public Dictionary<ChunkKey, OceanChunk> Loaded { get; } = new();
     public Dictionary<string, int> Depletion { get; } = new();
-    public HashSet<string> Discovered { get; } = new();
+    readonly Dictionary<string, Place> discovered = new();
+    readonly HashSet<ChunkKey> chartedWater = new();
+    public IReadOnlyDictionary<string, Place> Discovered => discovered;
+    public IReadOnlySet<ChunkKey> ChartedWater => chartedWater;
+    private ChunkKey? lastSurvey;
     private ChunkKey? lastCenter;
     private Place[] activePlaces = [];
     public static ChunkKey KeyAt(Vector2 p) => new((int)MathF.Floor((p.X + 600) / ChunkSize), (int)MathF.Floor((p.Y + 600) / ChunkSize));
@@ -133,11 +141,11 @@ public sealed class OceanWorld(uint seed)
             var a = shape.Shore[side]; var b = shape.Shore[(side + 1) % IslandShape.Sides];
             var normal = Unit(new Vector2(b.Y - a.Y, a.X - b.X));
             var coast = (a + b) * .5f;
-            var chest = coast - normal * 22;
-            var approach = coast + normal * 100;
+            var chest = coast - normal * TreasureDepth;
+            var approach = coast + normal * TreasureReachFromShore;
             // Keep the chest on land and an entire boat clear of concave shores/rocks.
             if (!shape.Overlap(chest, 0, out _, out float depth) || depth < 18 ||
-                shape.Overlap(approach, 75, out _, out _) ||
+                shape.Overlap(approach, TreasureApproachClearance, out _, out _) ||
                 shape.Overlap(coast + normal * 200, 75, out _, out _) ||
                 rocks.Any(p => Vector2.Distance(p.Position, island.Position + approach) < p.Radius + 85 ||
                     Vector2.Distance(p.Position, island.Position + chest) < p.Radius + 45)) continue;
@@ -146,6 +154,9 @@ public sealed class OceanWorld(uint seed)
         }
         return null;
     }
+    internal static Vector2 TreasureApproach(Place chest, float offshore = 0) =>
+        chest.Position + new Vector2(MathF.Sin(chest.Heading), MathF.Cos(chest.Heading)) *
+        (TreasureDepth + TreasureReachFromShore + offshore);
     Place? BarrelCandidate(ChunkKey key)
     {
         if (StartingArea.Contains(key)) return null;
@@ -249,6 +260,23 @@ public sealed class OceanWorld(uint seed)
         activePlaces = Loaded.Values.SelectMany(c => c.Places).ToArray();
     }
     public IReadOnlyList<Place> Places => activePlaces;
+    public void Observe(Vector2 position)
+    {
+        var cell = new ChunkKey((int)MathF.Floor(position.X / ChartTileSize), (int)MathF.Floor(position.Y / ChartTileSize));
+        if (cell != lastSurvey)
+        {
+            lastSurvey = cell;
+            for (int y = -2; y <= 2; y++)
+                for (int x = -2; x <= 2; x++)
+                    if (x * x + y * y <= 5) chartedWater.Add(new(cell.X + x, cell.Y + y));
+        }
+        foreach (var place in activePlaces)
+        {
+            float range = 680 + (place.Kind == PlaceKind.Island ? place.Radius * .78f : 0);
+            if (Vector2.DistanceSquared(position, place.Position) <= range * range)
+                discovered.TryAdd(place.Id, place);
+        }
+    }
     public static bool Overlap(Place place, Vector2 position, float clearance, out Vector2 normal, out float depth)
     {
         var offset = position - place.Position;
@@ -278,6 +306,7 @@ public sealed class OceanWorld(uint seed)
 
     public bool IsWater(Vector2 position, float clearance = 24) => !Places.Any(p => IsSolid(p) && Overlap(p, position, clearance, out _, out _));
     public bool OpenShot(Vector2 start, Vector2 end) => ClearSegment(activePlaces, start, end, 11, 20);
+    internal bool OpenApproach(Vector2 start, Vector2 end, float clearance) => ClearSegment(activePlaces, start, end, clearance, 12);
 
     internal static bool ClearSegment(ReadOnlySpan<Place> solids, Vector2 start, Vector2 end, float clearance, float spacing)
     {

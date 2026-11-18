@@ -84,6 +84,7 @@ public sealed partial class Voyage
         Position = StartingArea.Spawn;
         Heading = MathF.PI;
         World.Stream(Position);
+        World.Observe(Position);
         Beacons = MakeBeacons(seed);
         Salvage = new(World.SalvageWreck);
     }

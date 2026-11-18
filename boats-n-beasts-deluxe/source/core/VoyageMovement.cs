@@ -44,7 +44,7 @@ public sealed partial class Voyage
         }
         Distance += Vector2.Distance(old, Position); MaxDistance = Math.Max(MaxDistance, Position.Length());
         World.Stream(Position);
-        foreach (var p in World.Places) if (Vector2.Distance(Position, p.Position) < 680) World.Discovered.Add(p.Id);
+        World.Observe(Position);
     }
     void CollectEncounters()
     {
