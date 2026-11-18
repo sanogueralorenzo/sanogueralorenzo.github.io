@@ -5,10 +5,10 @@ Cozy Sora is an original procedural Godot game about quiet summer exploration. S
 Use **Godot 4.7.2 .NET** and the **.NET 10 SDK**. The standard Godot build cannot load the C# scripts. From the repository root:
 
 ```sh
-./games/cozysora/run.sh
+./cozysora/run.sh
 ```
 
-The launcher builds `CozySora.csproj`, imports the project-owned previews and script metadata, then starts Godot. Set `GODOT_BIN` to your Godot .NET executable if it is not found automatically. To edit, use `./games/cozysora/run.sh --editor`, or open `project.godot` in the .NET editor and build before running. `global.json` selects an installed .NET 10 feature release; the first build restores the Godot SDK package from NuGet.
+The launcher builds `CozySora.csproj`, imports the project-owned previews and script metadata, then starts Godot. Set `GODOT_BIN` to your Godot .NET executable if it is not found automatically. To edit, use `./cozysora/run.sh --editor`, or open `project.godot` in the .NET editor and build before running. `global.json` selects an installed .NET 10 feature release; the first build restores the Godot SDK package from NuGet.
 
 On macOS, a user-installed SDK needs `DOTNET_ROOT` pointing to its installation directory (usually `$HOME/.dotnet`). The launcher handles that location. If a Finder-launched editor reports **Failed to load .NET runtime / hostfxr**, run `launchctl setenv DOTNET_ROOT "$HOME/.dotnet"` and restart the editor; its GUI environment must see the SDK as well as your shell. Use a login LaunchAgent for persistence, or launch through `run.sh`. The SDK and engine architectures must match.
 
@@ -54,11 +54,11 @@ See [MAPS.md](MAPS.md) for the scene lifecycle and exact registration steps. [DE
 The normal launch always opens destination selection. These explicit development options enter a map directly:
 
 ```sh
-./games/cozysora/run.sh -- --map=seabreeze_village --profile
-./games/cozysora/run.sh -- --map=harbor_hills --profile
-./games/cozysora/run.sh -- --map=daan_gardens --profile
-./games/cozysora/run.sh -- --shot --view=coast --capture=/tmp/coast.png --quit-after-capture
-./games/cozysora/run.sh -- --shot --capture-dir=/tmp/cozy-sora-views --quit-after-capture
+./cozysora/run.sh -- --map=seabreeze_village --profile
+./cozysora/run.sh -- --map=harbor_hills --profile
+./cozysora/run.sh -- --map=daan_gardens --profile
+./cozysora/run.sh -- --shot --view=coast --capture=/tmp/coast.png --quit-after-capture
+./cozysora/run.sh -- --shot --capture-dir=/tmp/cozy-sora-views --quit-after-capture
 ```
 
 `--shot` hides shared UI. Available Seabreeze Village views: `coast`, `paddy`, `farm`, `rail`, `village`, `alley`, `vending`, `viaduct`, `shrine`, `top`. Omitting `--view` uses the normal cat camera. `--gull` chooses the seagull for a direct map launch. `--capture=/tmp/landing.png` without a map or shot option captures the selector. `--touch` enables touch controls for a native pointer walkthrough.

@@ -4,8 +4,8 @@ A small collection of things I'm building and experimenting with.
 
 ## Games
 
-- [Boats ’n’ Beasts](./games/boats-n-beasts/README.md) — a procedural sailing prototype.
-- [Cozy Sora](./games/cozysora/README.md) — a game about quiet summer exploration.
+- [Boats ’n’ Beasts](./boats-n-beasts/README.md) — a procedural sailing prototype.
+- [Cozy Sora](./cozysora/README.md) — a game about quiet summer exploration.
 
 ## Tools
 
