@@ -71,6 +71,9 @@ struct BrowserPageContent: View {
                 page: page, store: store, ownerWindowID: page.hostingWindowID, revision: store.runtimeRevision,
                 mirrorImage: page.mirrorImage
             ).id(page.id)
+            if page.showsLoadingBackground {
+                BrowserBrandTheme.canvas.allowsHitTesting(false).accessibilityHidden(true)
+            }
             if let failure = page.failure {
                 VStack(spacing: 14) {
                     Text(failure).foregroundStyle(.secondary).multilineTextAlignment(.center)

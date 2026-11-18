@@ -42,6 +42,17 @@ final class BrowserNativeWebView: WKWebView {
     private lazy var pointer = BrowserTitleBarPointerTracker(view: self, region: .page)
     private var pointerArea: NSTrackingArea?
 
+    func afterNextPresentation(_ action: @escaping @MainActor () -> Void) {
+        let selector = NSSelectorFromString("_doAfterNextPresentationUpdate:")
+        guard responds(to: selector) else {
+            action()
+            return
+        }
+        typealias Update = @convention(c) (AnyObject, Selector, @escaping @convention(block) () -> Void) -> Void
+        let update = unsafeBitCast(method(for: selector), to: Update.self)
+        update(self, selector) { MainActor.assumeIsolated { action() } }
+    }
+
     var displayCaptureActive: Bool {
         let selector = NSSelectorFromString("_displayCaptureState")
         guard responds(to: selector) else { return false }

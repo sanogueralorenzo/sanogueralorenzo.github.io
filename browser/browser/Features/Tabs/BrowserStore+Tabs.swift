@@ -48,7 +48,9 @@ extension BrowserStore {
         tab.url = url?.scheme == "javascript" ? nil : url
         let index = spaceIndex(spaceID)
         session.spaces[index].tabs.append(tab)
-        let page = BrowserPage(id: tab.id, spaceID: spaceID, configuration: configuration, owner: self)
+        let loadsPage = tab.url.map { $0.scheme != "about" || $0.path != "blank" } ?? false
+        let page = BrowserPage(
+            id: tab.id, spaceID: spaceID, configuration: configuration, owner: self, showsLoadingBackground: loadsPage)
         page.webView.pageZoom = tab.zoom
         page.scriptMayClose = true
         pages[tab.id] = page

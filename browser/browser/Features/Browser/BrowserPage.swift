@@ -16,6 +16,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     var url: URL?
     var favicon: Data?
     var isLoading = false
+    private(set) var showsLoadingBackground: Bool
     var canGoBack = false
     var canGoForward = false
     var progress = 0.0
@@ -65,15 +66,20 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     @ObservationIgnored private var blockingTask: Task<Void, Never>?
     @ObservationIgnored private var navigationTask: Task<Void, Never>?
     @ObservationIgnored private var pendingNavigation: (@MainActor (BrowserPage) -> Void)?
+    @ObservationIgnored private var committedNavigation: WKNavigation?
     @ObservationIgnored private(set) var isRetired = false
     @ObservationIgnored var refreshingPageState = false
 
     // MARK: - Initializers
 
-    init(id: UUID, spaceID: UUID, configuration: WKWebViewConfiguration, owner: BrowserStore) {
+    init(
+        id: UUID, spaceID: UUID, configuration: WKWebViewConfiguration, owner: BrowserStore,
+        showsLoadingBackground: Bool = true
+    ) {
         self.id = id
         self.spaceID = spaceID
         self.owner = owner
+        self.showsLoadingBackground = showsLoadingBackground
         contentBlocker = owner.contentBlocker(for: spaceID)
         configuration.webExtensionController = contentBlocker.controller
         // Popup configurations share process/data stores with their opener, but handlers belong to one document host.
@@ -228,6 +234,12 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        committedNavigation = navigation
+        showsLoadingBackground = true
+        (webView as? BrowserNativeWebView)?.afterNextPresentation { [weak self] in
+            guard let self, !isRetired, committedNavigation === navigation else { return }
+            showsLoadingBackground = false
+        }
         pendingNavigationURL = nil
         synchronize()
         pictureInPicture?.navigationDidCommit()
@@ -260,6 +272,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        if committedNavigation === navigation { showsLoadingBackground = false }
         let value = error as NSError
         if value.code == NSURLErrorCancelled || (value.domain == "WebKitErrorDomain" && value.code == 102) {
             pendingNavigationURL = nil
