@@ -78,3 +78,17 @@ async fn main() {
         std::process::exit(1);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn private_data_inside_a_git_checkout_is_rejected_before_writing() {
+        let temp = tempfile::tempdir().unwrap();
+        std::fs::write(temp.path().join(".git"), "synthetic-worktree").unwrap();
+        let home = temp.path().join("private");
+        assert!(private_home(home.clone()).is_err());
+        assert!(!home.exists());
+    }
+}

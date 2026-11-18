@@ -1,0 +1,3 @@
+{"id":"sample_001","input":"hello","expected":"goodbye","match":"contains"}
+{"id":"sample_002","input":"please call mom at 5","expected":"call mom at 5","match":"contains"}
+{"id":"sample_003","input":"um hey uh can you text sara","expected":"text sara","match":"contains"}

@@ -24,7 +24,7 @@ import com.sanogueralorenzo.androidsteam.SteamApplication
 import com.sanogueralorenzo.androidsteam.R
 import com.sanogueralorenzo.androidsteam.SetupActivity
 
-class SessionActivity : Activity(), SurfaceHolder.Callback {
+open class SessionActivity : Activity(), SurfaceHolder.Callback {
     companion object {
         internal fun intent(context: Context) = Intent(context,
             if ((context.applicationContext as SteamApplication).preparation.installed) SessionActivity::class.java else SetupActivity::class.java)

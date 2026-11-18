@@ -73,3 +73,11 @@ The temporary `extension/bridge-pairing.json` is deleted after pairing, after te
 minutes, or when the bridge stops. If pairing expires, run `browser-hooks stop`,
 then `browser-hooks start`, then reload the extension. Hover over the popup dot
 for details; run `browser-hooks status` for diagnostics.
+
+Checks from the repository root:
+
+```sh
+cargo test --locked --manifest-path tools/hooks/bridge/Cargo.toml
+python3 -m unittest discover -s tools/hooks/slack/tests
+node --test tools/hooks/slack/*.test.mjs
+```

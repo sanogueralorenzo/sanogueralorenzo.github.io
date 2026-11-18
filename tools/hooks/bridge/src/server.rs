@@ -424,3 +424,36 @@ pub async fn serve(home: PathBuf, port: u16, ttl: Duration) -> Result<(), String
         .await
         .map_err(|_| "Bridge transport failed".into())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn pairing_expires_without_requests_and_preserves_saved_credentials() {
+        let temp = tempfile::tempdir().unwrap();
+        let home = temp.path().to_path_buf();
+        private_dir(&home.join("hooks/slack")).unwrap();
+        let saved = json!({"origin":format!("chrome-extension://{}", "a".repeat(32)),"token":"synthetic-saved-token"});
+        private_json(&home.join("pairing.json"), &saved).unwrap();
+        let bytes = fs::read(home.join("pairing.json")).unwrap();
+        private_json(&home.join("hooks/slack/config.json"), &json!({"workspace":home,"commands":{"hook":{"start":["/bin/echo"],"resume":["/bin/echo","{session_id}"]}}})).unwrap();
+        let (app, _listener) = App::start(home.clone(), 0, Duration::from_millis(20))
+            .await
+            .unwrap();
+        assert!(home.join("extension/bridge-pairing.json").exists());
+        tokio::time::sleep(Duration::from_millis(60)).await;
+        assert!(!home.join("extension/bridge-pairing.json").exists());
+        assert!(app.pair.lock().unwrap().code.is_none());
+        assert_eq!(fs::read(home.join("pairing.json")).unwrap(), bytes);
+        assert_eq!(
+            fs::metadata(home.join("pairing.json"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
+            0o600
+        );
+        app.shutdown().await;
+    }
+}

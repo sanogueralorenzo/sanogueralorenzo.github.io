@@ -4,7 +4,7 @@ Keep the APK, Arch snapshot, native adaptations, Steam/Proton builds and game pr
 
 ## Candidate gate
 
-Build the minified release, run `./gradlew :app:lintRelease`, and verify the signed APK with `apksigner verify`. Confirm the packaged launch script matches source. Stop and reap all Linux processes before installing the signed release. Verify the installed hash and absence of DEBUGGABLE.
+Build debug/test and minified release, run unit tests/lint, and verify the signed APK with `apksigner verify`. Check the archive has no debug probes and its launch script matches source. Run the focused opt-in Session/Input/Xbox/ControllerGameplay classes using `am instrument`; inspect the JUnit result, because an assertion failure can still give a successful shell exit. Do not use Gradle's connected task: it uninstalls afterward. Stop/reap all Linux processes before installing the signed release. Verify its installed hash and absence of DEBUGGABLE.
 
 ## Fixed release flow
 
@@ -13,7 +13,7 @@ Build the minified release, run `./gradlew :app:lintRelease`, and verify the sig
 3. Repeat the same game twice after Quit. Confirm each replacement reaps the prior Steam/game processes, starts a new Steam PID and reaches a usable menu. Check saved score/profile persistence. Repeat cold Play after notification Stop.
 4. Switch Superflight → Brotato → SNØ through the native library. Enter gameplay for each, exercise keyboard and direct touch, Home/resume, pause/retry and Quit. For Xbox, check A/analog movement, held/released floating stick, pressed feedback and touch outside controls. Restore original selections after checks.
 5. Refresh the live library during a paused game, open the session again and confirm the same client/game resume. Stop through the notification and verify all app-owned Linux processes are reaped. Reopen Steam, check retained login/live library, then stop cleanly again.
-6. Verify the native loading phases and spinner. If a failure occurs, verify that loading progress clears, Library remains accessible, and the app releases display, audio, and processes.
+6. Verify native loading phase/spinner and actionable error behavior. Inject audio failure only with the debug lifecycle fixture; it must remove loading progress, retain Library navigation and release display/audio/processes. Final gameplay uses the signed APK without probes or injected failures.
 
 If a menu times out, a client exits, or data/profile changes unexpectedly, fail the candidate and record that reproduced case before changing code. Rebuild means a new hash and a fresh affected acceptance run. Report startup cost even when replacement improves reliability.
 

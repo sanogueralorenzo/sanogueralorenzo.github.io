@@ -424,3 +424,21 @@ pub fn storage_json(value: &Value) -> String {
         _ => value.to_string(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn storage_identifiers_keep_the_persisted_json_format() {
+        assert_eq!(
+            storage_json(&json!(["ETEST", "🧪", "\u{7f}"])),
+            r#"["ETEST", "\ud83e\uddea", "\u007f"]"#
+        );
+        assert_eq!(
+            storage_json(&json!({"start":["cli"],"resume":["cli","{session_id}"]})),
+            r#"{"resume": ["cli", "{session_id}"], "start": ["cli"]}"#
+        );
+    }
+}

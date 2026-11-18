@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
+# GNU/Linux Wayland library and debug test client. Toolchain packages stay on the build host.
 set -euo pipefail
 : "${NDK:?Set NDK to the pinned Android NDK}"
 HERE=$(cd "$(dirname "$0")" && pwd)
-mkdir -p "$1"
-OUT=$(cd "$1" && pwd)
+DEPS=$(cd "$1" && pwd)
+mkdir -p "$2"
+OUT=$(cd "$2" && pwd)
 case "$(uname -s)" in
     Darwin) HOST=darwin-x86_64 ;;
     Linux) HOST=linux-x86_64 ;;
@@ -34,6 +36,25 @@ exec "$TOOLS/bin/clang" --target=aarch64-linux-gnu --sysroot="$SYSROOT" \\
  -Wl,--dynamic-linker=/lib/ld-linux-aarch64.so.1
 COMPILER
 chmod +x "$WORK/cc"
+mkdir -p "$OUT/probe/arm64-v8a"
+mkdir "$WORK/ffi-build"
+(
+    cd "$WORK/ffi-build"
+    CC="$WORK/cc" AR="$TOOLS/bin/llvm-ar" RANLIB="$TOOLS/bin/llvm-ranlib" \
+    CFLAGS='-O2 -fPIC' "$DEPS/ffi/configure" --host=aarch64-linux-gnu --prefix="$WORK/ffi" \
+        --disable-shared --enable-static --disable-docs --disable-multi-os-directory
+    make -j"$(getconf _NPROCESSORS_ONLN)" install
+) > "$OUT/linux-client-build.log" 2>&1
+"$WORK/cc" -O2 -I"$DEPS/wayland/src" -I"$DEPS/generated" -I"$WORK/ffi/include" \
+    "$HERE/probe.c" "$HERE/../../app/src/debug/native/input_probe.c" "$DEPS/wayland/src/wayland-client.c" "$DEPS/wayland/src/connection.c" \
+    "$DEPS/wayland/src/wayland-os.c" "$DEPS/wayland/src/wayland-util.c" \
+    "$DEPS/generated/wayland-protocol.c" "$DEPS/generated/xdg-shell-protocol.c" \
+    "$WORK/ffi/lib/libffi.a" -o "$OUT/probe/arm64-v8a/libwayland-probe.so"
+
+"$WORK/cc" -O2 "$HERE/../../app/src/debug/native/xbox_probe.c" -o "$OUT/probe/arm64-v8a/libxbox-probe.so"
+
+"$WORK/cc" -O2 "$HERE/../../app/src/debug/native/xbox_udev_probe.c" -o "$OUT/probe/arm64-v8a/libudev-probe.so"
+"$WORK/cc" -O2 -DWINE_CALLER "$HERE/../../app/src/debug/native/xbox_udev_probe.c" -o "$OUT/probe/arm64-v8a/libwinebus.so"
 
 # GNU/Linux libraries, independent of Android's Bionic engines.
 shared_library() {
@@ -43,17 +64,30 @@ shared_library() {
     -isystem "$SYSROOT/usr/include" -isystem "$SYSROOT/usr/include/aarch64-linux-gnu" \
     -isystem "$TOOLS/sysroot/usr/include/aarch64-linux-android" -isystem "$TOOLS/sysroot/usr/include" \
     -O2 -fPIC -mno-outline-atomics -fuse-ld=lld -nostdlib -shared \
+    -I"$DEPS/wayland/src" -I"$DEPS/generated" -I"$WORK/ffi/include" \
     "$LIB/crti.o" "$@" "$BUILTINS" \
     "$LIB/libc.so.6" "$LIB/libc_nonshared.a" "$LIB/crtn.o" \
     -Wl,-soname,"$library" -Wl,-z,max-page-size=16384 -o "$OUT/$library"
 }
+shared_library libwayland-client.so.0 "$DEPS/wayland/src/wayland-client.c" "$DEPS/wayland/src/connection.c" \
+    "$DEPS/wayland/src/wayland-os.c" "$DEPS/wayland/src/wayland-util.c" \
+    "$DEPS/generated/wayland-protocol.c" "$WORK/ffi/lib/libffi.a"
 shared_library libxbox-udev.so "$HERE/../session/xbox_udev.c"
 shared_library libdeck-drm.so "$HERE/../session/drm.c"
 shared_library libdeck-ports.so "$HERE/../session/socket_ports.c"
 "$WORK/cc" -O2 "$HERE/../session/socket_peer.c" -o "$OUT/steam-socket-peer"
 shared_library libdeck-robust.so "$HERE/../session/robust.c" "$HERE/../session/syscall.S"
 shared_library libsteam-wine-memory.so "$HERE/../session/wine_memory.c"
+"$WORK/cc" -O2 "$HERE/../../app/src/debug/native/wine_memory_probe.c" -o "$OUT/probe/arm64-v8a/libwine-memory-probe.so"
+"$WORK/cc" -O2 "$HERE/../../app/src/debug/native/robust_probe.c" -o "$OUT/probe/arm64-v8a/librobust-probe.so"
+"$WORK/cc" -O2 "$HERE/../../app/src/debug/native/socket_peer_probe.c" -o "$OUT/probe/arm64-v8a/libsocket-peer-probe.so"
+"$WORK/cc" -O2 "$HERE/../../app/src/debug/native/x11_locale_probe.c" -o "$OUT/probe/arm64-v8a/libx11-locale-probe.so"
 shared_library libsteam-ui-pipe.so "$HERE/../session/steam_ui_pipe.c"
+
+# The GPU client uses the same shared Wayland library as Mesa's Linux WSI.
+"$WORK/cc" -O2 -DDECK_VULKAN_PROBE -I"$DEPS/wayland/src" -I"$DEPS/generated" \
+    "$HERE/probe.c" "$HERE/../../app/src/debug/native/input_probe.c" "$HERE/probe_vulkan.c" "$DEPS/generated/xdg-shell-protocol.c" "$DEPS/generated/presentation-time-protocol.c" \
+    "$OUT/libwayland-client.so.0" -o "$OUT/probe/arm64-v8a/libwayland-vulkan-probe.so"
 
 # Xbox bridge: static C++ avoids Steam's private libstdc++ ABI. GCC stays on the build host.
 IFS=$'\t' read -r _ _ GCC_ARCHIVE _ GCC_SHA < "$HERE/../runtime/mesa/packages.tsv"
