@@ -62,14 +62,10 @@ sed -e 's/@WAYLAND_VERSION_MAJOR@/1/g' -e 's/@WAYLAND_VERSION_MINOR@/24/g' \
 # The scanner runs on the build host. Expat is a host dependency, never in the APK.
 cc -O2 -DHAVE_STRNDUP=1 -I"$OUT/wayland/src" -I"$OUT/generated" \
     "$OUT/wayland/src/scanner.c" "$OUT/wayland/src/wayland-util.c" -lexpat -o "$OUT/scanner"
-for side in server client; do
-    "$OUT/scanner" "$side-header" "$OUT/wayland/protocol/wayland.xml" "$OUT/generated/wayland-$side-protocol.h"
-    "$OUT/scanner" -c "$side-header" "$OUT/wayland/protocol/wayland.xml" "$OUT/generated/wayland-$side-protocol-core.h"
-    for protocol in xdg-shell linux-dmabuf explicit-sync presentation-time; do
-        "$OUT/scanner" "$side-header" "$OUT/protocols/$protocol.xml" "$OUT/generated/$protocol-$side.h"
-    done
-done
+"$OUT/scanner" server-header "$OUT/wayland/protocol/wayland.xml" "$OUT/generated/wayland-server-protocol.h"
+"$OUT/scanner" -c server-header "$OUT/wayland/protocol/wayland.xml" "$OUT/generated/wayland-server-protocol-core.h"
 "$OUT/scanner" public-code "$OUT/wayland/protocol/wayland.xml" "$OUT/generated/wayland-protocol.c"
 for protocol in xdg-shell linux-dmabuf explicit-sync presentation-time; do
+    "$OUT/scanner" server-header "$OUT/protocols/$protocol.xml" "$OUT/generated/$protocol-server.h"
     "$OUT/scanner" private-code "$OUT/protocols/$protocol.xml" "$OUT/generated/$protocol-protocol.c"
 done

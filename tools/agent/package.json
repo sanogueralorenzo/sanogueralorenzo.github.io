@@ -9,11 +9,7 @@
   "scripts": {
     "start": "node --experimental-strip-types src/server.ts",
     "login": "node --experimental-strip-types src/login.ts",
-    "check": "tsc --noEmit",
-    "test:tasks": "node --experimental-strip-types --test evals/request-tasks.test.mjs",
-    "test:delegation": "node --experimental-strip-types --test evals/delegation.test.mjs",
-    "test:providers": "node --experimental-strip-types --test evals/providers.test.mjs",
-    "test:composer": "node --experimental-strip-types --test evals/composer.test.mjs"
+    "check": "tsc --noEmit"
   },
   "dependencies": {
     "@earendil-works/chord": "1.4.0",
@@ -25,7 +21,6 @@
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
-    "playwright": "^1.62.1",
     "typescript": "^5.9.3"
   }
 }

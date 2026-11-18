@@ -20,4 +20,4 @@ The header above search shows the Clipboard title and its opening shortcut.
 
 Links fetch icons directly from the website, with the browser icon as fallback. Only the site root and icon URLs are requested; icons are cached in memory.
 
-Local development: `./build.sh` · Fast checks: `./tests/run.sh` · Coverage report: `./tests/run.sh --coverage` (history, formats, and website icons tested; UI untested).
+For local development, run `./build.sh`.

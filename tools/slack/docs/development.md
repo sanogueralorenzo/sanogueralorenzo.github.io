@@ -12,6 +12,4 @@ chmod 600 .env
 agent-slack
 ```
 
-Run checks with `python -m unittest discover -s tests`.
-
 `python -m agent_slack` also starts the bridge. Use `--config /path/to/.env` from another directory. Environment variables override file values.

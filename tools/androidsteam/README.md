@@ -37,15 +37,4 @@ The Linux base is an Arch ARM snapshot assembled from `native/runtime/seeds.txt`
 
 See [runtime build and update instructions](docs/runtime-build.md) for the reviewed lock, pinned Zink source/toolchain, independent rebuild and safe publication workflow. Users receive validated snapshots through app updates; installation checks staging before replacement and recovers interrupted swaps.
 
-## Checks
-
-```sh
-./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest
-adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-adb shell am instrument -w -e verifySteam true -e verifySession true -e verifyVulkan true -e verifyInput true -e verifyAudio true \
-  com.sanogueralorenzo.androidsteam.test/androidx.test.runner.AndroidJUnitRunner
-```
-
-Device checks require an installed runtime and the supported USB-connected S24. Opt-in `verifyControllerGame` checks rendered controls through Windows x64 XInput with installed Superflight. Other checks cover live licenses, launch profiles, setup and snapshot recovery; see the test classes and [validation](docs/validation.md). Use the ADB runner above: Gradle’s connected task uninstalls the app afterward. APK replacement with `install -r` preserves user data.
-
 See [THIRD_PARTY.md](THIRD_PARTY.md) for source pins/licenses, [docs/validation.md](docs/validation.md) for the working game configuration and measurements, and [release checks](docs/release-checks.md) for the repeatable acceptance procedure.

@@ -6,13 +6,7 @@ Agent is built on Pi Durable. Run commands from `tools/agent` with Node 26+.
 
 ```bash
 npm run check
-npm run test:tasks
-npm run test:delegation
-npm run test:providers
-npm run test:composer
 ```
-
-The composer tests require Google Chrome.
 
 ## Workflow
 

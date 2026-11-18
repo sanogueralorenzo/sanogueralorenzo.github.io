@@ -5,5 +5,7 @@
 - Do not add backward compatibility.
 - Organize by feature, keep entry points thin, and share only proven common code.
 - Keep READMEs brief and current: basics and setup, never work logs.
+- Do not add comments unless requested.
+- Do not add tests unless requested.
 - Run focused checks. CI is for the site only.
 - Commit and push to `main`.
