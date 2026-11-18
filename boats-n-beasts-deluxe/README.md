@@ -1,13 +1,13 @@
 # Boats ’n’ Beasts Deluxe
 
-Pilot a pirate ship through a procedural archipelago. Defend Breakwater, patrol Gull Shoal, and defeat the keeper at Smuggler’s Light. Signal Crownclaw from a lit beacon after two, or light all three to draw it out with weakened armor. It rises at 8:00 if you wait. Steer across Crownclaw’s marked charge lane or bait it into rock to keep its shell open longer.
+Pilot a pirate ship through a procedural archipelago. Defend Breakwater, patrol Gull Shoal, and defeat the keeper at Smuggler’s Light. Cross the keeper’s marked lunge and close in when it is exposed. Signal Crownclaw from a lit beacon after two, or light all three to draw it out with weakened armor. It rises at 8:00 if you wait. Bait Crownclaw’s charge into rock to keep its shell open longer.
 
 ## Play
 
 | Input | Action |
 | --- | --- |
 | WASD, arrows, or left stick | Steer |
-| Left-click | Plot a course to a point or chart marker. Click Gull Shoal to sail a patrol loop. |
+| Left-click | Plot a course. Gull Shoal plots a patrol loop, and Smuggler’s Light plots an approach to the edge of the duel. |
 | Right-click | Cancel the course |
 | Space, Shift, or RB | Boost |
 | E or controller X | Use Broadside, Breakwater, or Slipstream |

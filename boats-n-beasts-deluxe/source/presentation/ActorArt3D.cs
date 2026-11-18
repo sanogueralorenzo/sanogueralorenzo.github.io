@@ -50,9 +50,9 @@ public static partial class ActorArt3D
         return root;
     }
 
-    public static Node3D Creature(EnemyKind kind)
+    public static Node3D Creature(EnemyKind kind, bool keeper = false)
     {
-        string key = $"creature-{kind}";
+        string key = keeper ? "creature-keeper" : $"creature-{kind}";
         if (!Cache.TryGetValue(key, out var mesh))
         {
             var b = new ActorGeometry();
@@ -61,7 +61,7 @@ public static partial class ActorArt3D
                 case EnemyKind.Crab: Crab(b, 1); break;
                 case EnemyKind.Leviathan: Crab(b, 2.65f); break;
                 case EnemyKind.Puffer: Puffer(b); break;
-                case EnemyKind.Serpent: Serpent(b); break;
+                case EnemyKind.Serpent: Serpent(b, keeper); break;
                 case EnemyKind.Ray: Ray(b); break;
             }
             Cache[key] = mesh = b.Mesh(Material);
@@ -354,9 +354,9 @@ public static partial class ActorArt3D
         b.Sphere(new(0, .185f, .27f), new(.12f, .028f, .105f), gold);
     }
 
-    static void Serpent(ActorGeometry b)
+    static void Serpent(ActorGeometry b, bool keeper)
     {
-        Color skin=new("3ca99c"), fin=new("ed8057");
+        Color skin = new(keeper ? "375c76" : "3ca99c"), fin = new(keeper ? "e2ad62" : "ed8057");
         var path=new[] { new Vector3(.04f,-.025f,.90f),new Vector3(-.08f,.04f,.65f),new Vector3(-.12f,.12f,.40f),new Vector3(-.06f,.20f,.16f),new Vector3(0,.17f,-.08f),new Vector3(0,.13f,-.30f) };
         b.Tube(path,new[] { .014f,.055f,.09f,.12f,.16f,.17f },skin,8);
         b.Sphere(new(0,.14f,-.33f),new(.18f,.145f,.24f),skin,10,6);
@@ -366,8 +366,16 @@ public static partial class ActorArt3D
             Eyes(b,new(side*.126f,.245f,-.425f),.05f);
             b.Crystal(new(side*.16f,.09f,-.07f),new(.095f,.055f,.09f),fin);
         }
-        for(int i=1;i<path.Length-1;i++)
-            b.Crystal(path[i]+Vector3.Up*.09f,new(.04f,.09f,.055f),fin);
+        var scale = new Color("926047");
+        for (int i = 1; i < path.Length - 1; i++)
+        {
+            var plate = path[i] + Vector3.Up * .09f;
+            if (keeper && i > 1)
+                b.Sphere(plate, new(.049f + i * .021f, .041f, .075f), scale, 8, 5);
+            b.Crystal(plate + Vector3.Up * (keeper ? .045f : 0),
+                keeper ? new(.052f, .11f, .049f) : new(.04f, .09f, .055f), fin);
+        }
+        if (keeper) b.Sphere(new(0, .255f, -.30f), new(.154f, .055f, .134f), scale, 10, 6);
     }
 
     static void Ray(ActorGeometry b)

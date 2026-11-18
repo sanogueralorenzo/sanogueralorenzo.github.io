@@ -302,7 +302,7 @@ public partial class Game : Node2D
     {
         var col = Panel(680, "Captain’s handbook", "Your crew aims and fires. You steer, dodge and time the boat’s maneuver.");
         col.AddChild(Label("WASD / arrows   Steer\nLeft-click   Plot a course\nRight-click   Cancel the course\nSpace / Shift   Hold to boost\nE   Boat maneuver\nF   Signal at a beacon or tie up at the repair berth\nTab   Voyage chart\nEsc   Pause\n\nController   Left stick to steer · RB to boost · X for maneuver · A to interact · Y for chart · Start to pause", 19));
-        col.AddChild(Label("Hold Breakwater, keep moving inside Gull Shoal’s ring, and defeat the keeper at Smuggler’s Light. Signal Crownclaw from a lit beacon after two. Light all three to summon it with weakened armor. It rises at 8:00 anyway. Bait its charge into rocks to leave its shell open longer.", 18));
+        col.AddChild(Label("Hold Breakwater, patrol Gull Shoal, and dodge the keeper’s lunge at Smuggler’s Light to attack while it’s exposed. Signal Crownclaw from a lit beacon after two. Light all three to summon it with weakened armor. It rises at 8:00 anyway. Bait its charge into rocks to leave its shell open longer.", 18));
         col.AddChild(Label("Defeat beasts and find beach chests to level up. Fit a weapon’s partner to unlock their combination. Chain four kills for XP, boost and silver. Escape a blast at the last moment to recover boost and extend an active chain. Tie up at harbor for one repair per voyage.", 18));
         col.AddChild(Label("Follow the red flag on the compass to salvage a wreck. Sail close to hook the cargo and tow it to any beacon for a refit. Long boosts can snap the line.", 18));
         col.AddChild(Button("Back", () => { controls = false; BuildMenu(); }, true));

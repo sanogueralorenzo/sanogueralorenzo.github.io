@@ -162,7 +162,7 @@ public partial class OceanView3D : Node3D
         {
             if (!creatures.TryGetValue(enemy.Id, out var root))
             {
-                root = ActorArt3D.Creature(enemy.Kind); AddChild(root); creatures.Add(enemy.Id, root);
+                root = ActorArt3D.Creature(enemy.Kind, enemy.GuardAnchor.HasValue); AddChild(root); creatures.Add(enemy.Id, root);
                 var sculpture = root.GetChild<MeshInstance3D>(0);
                 sculpture.SetInstanceShaderParameter("creature_kind", enemy.Kind switch { EnemyKind.Crab or EnemyKind.Leviathan => 1, EnemyKind.Puffer => 2, EnemyKind.Serpent => 3, _ => 4 });
                 sculpture.SetInstanceShaderParameter("creature_scale", enemy.Kind == EnemyKind.Leviathan ? 2.65f : 1);
@@ -176,7 +176,8 @@ public partial class OceanView3D : Node3D
             mesh.SetInstanceShaderParameter("strike_flash", Math.Clamp(enemy.HitFlash / .12f, 0, 1));
             float emergence = Mathf.Clamp(enemy.Time / Enemy.EmergenceDuration, 0, 1);
             root.Position = NativeStage3D.Point(enemy.Position, -(1 - emergence) * (enemy.Kind == EnemyKind.Leviathan ? 1.2f : .6f));
-            var toward = enemy.Telegraph > 0 || enemy.Dash > 0 || enemy.Grounded ? enemy.Direction : Voyage.Position - enemy.Position;
+            var toward = enemy.Telegraph > 0 || enemy.Dash > 0 || enemy.Grounded || enemy.GuardAnchor.HasValue && enemy.Exposed > 0
+                ? enemy.Direction : Voyage.Position - enemy.Position;
             root.Rotation = new(0, -MathF.Atan2(toward.X, -toward.Y), 0);
             ActorArt3D.Animate(root, Clock + enemy.Id * .73f, enemy.Dash > 0 ? 3 : 1);
         }

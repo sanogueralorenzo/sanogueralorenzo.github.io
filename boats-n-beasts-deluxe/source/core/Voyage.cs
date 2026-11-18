@@ -14,7 +14,7 @@ public sealed class Enemy
     public bool ChargeNext;
     public bool BlastThreatened;
     public float Exposed, Drenched;
-    public CrownclawCharge? Charge { get; internal set; }
+    public BeastCharge? Charge { get; internal set; }
     public bool Grounded { get; internal set; }
     public Shot? PullMine;
     public Vector2? GuardAnchor;
@@ -177,13 +177,9 @@ public sealed partial class Voyage
             Vector2 d = Position - e.Position; float distance = d.Length(); Vector2 dir = OceanWorld.Unit(d, Vector2.UnitY);
             float speed = e.SwimSpeed;
             Vector2 motion = dir;
-            if (e.GuardAnchor is { } anchor && Vector2.DistanceSquared(Position, anchor) > 605 * 605)
+            if (e.GuardAnchor is { } anchor)
             {
-                e.Telegraph = e.Dash = 0;
-                var home = anchor - e.Position;
-                var retreat = World.Avoid(e.Position, OceanWorld.Unit(home), e.Radius, e.Id);
-                if (home.LengthSquared() > 80 * 80)
-                    e.Position = World.Slide(e.Position, e.Position + retreat * speed * dt, e.Radius);
+                UpdateKeeper(e, anchor, dir, distance, dt);
                 e.Velocity = (e.Position - beforeMove) / dt;
                 continue;
             }
@@ -254,10 +250,10 @@ public sealed partial class Voyage
             }
             e.Velocity = (e.Position - beforeMove) / dt;
             if (e.Kind != EnemyKind.Puffer && Vector2.DistanceSquared(e.Position, Position) < e.ContactRadius * e.ContactRadius)
-                DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : e.GuardAnchor.HasValue ? 17 : 11, ContactHit(e));
+                DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : 11, ContactHit(e.Kind));
         }
     }
-    static HullHit ContactHit(Enemy enemy) => enemy.GuardAnchor.HasValue ? HullHit.Keeper : enemy.Kind switch
+    static HullHit ContactHit(EnemyKind kind) => kind switch
     {
         EnemyKind.Leviathan => HullHit.Crownclaw,
         EnemyKind.Serpent => HullHit.Serpent,
@@ -288,6 +284,7 @@ public sealed partial class Voyage
                 Events.Add(new("enraged", e.Position));
             }
         }
+        else if (e.GuardAnchor.HasValue) damage *= e.Exposed > 0 ? 1.55f : .72f;
         e.Health -= damage; e.HitFlash = .12f; Events.Add(new("hit", e.Position, damage));
         if (e.Health > 0) return;
         Kills++;

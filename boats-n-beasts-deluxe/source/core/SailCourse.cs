@@ -13,7 +13,8 @@ public sealed class SailCourse
     float pursuitRefresh;
 
     public Vector2? Destination { get; private set; }
-    public Beacon? Patrol { get; private set; }
+    public Beacon? BeaconTarget { get; private set; }
+    public Beacon? Patrol => BeaconTarget is { Objective: BeaconObjective.Patrol } ? BeaconTarget : null;
     public ReadOnlySpan<Vector2> Ahead => waypoints.AsSpan(next);
 
     public void Clear()
@@ -22,7 +23,7 @@ public sealed class SailCourse
         waypoints = [];
         chart = null;
         next = patrolStart = 0;
-        Patrol = null;
+        BeaconTarget = null;
         supply = null;
         pursuit = null;
         continuing = false;
@@ -84,16 +85,25 @@ public sealed class SailCourse
 
     public bool Plot(Voyage run, Beacon beacon)
     {
-        if (beacon.Lit || beacon.Objective != BeaconObjective.Patrol || run.BossSpawned)
+        if (beacon.Lit || beacon.Objective == BeaconObjective.Defend || run.BossSpawned || run.Salvage.Towing)
             return Plot(run, beacon.Position);
+
+        const float duelEntry = Beacon.Radius - 55;
+        var from = OceanWorld.Unit(run.Position - beacon.Position, Vector2.UnitY);
+        if (beacon.Objective == BeaconObjective.Duel)
+        {
+            if (AtDuel(run, beacon)) { Clear(); return true; }
+            if (!Plot(run, beacon.Position + from * duelEntry)) return false;
+            BeaconTarget = beacon;
+            return true;
+        }
 
         const int legs = 8;
         const float radius = Beacon.Radius * .68f;
         float step = MathF.Tau / legs;
-        var from = OceanWorld.Unit(run.Position - beacon.Position, Vector2.UnitY);
         var entry = beacon.Position + from * radius;
         if (!Plot(run, entry)) return false;
-        Patrol = beacon;
+        BeaconTarget = beacon;
         Destination = beacon.Position;
         if (continuing) return true;
 
@@ -108,6 +118,9 @@ public sealed class SailCourse
         waypoints = [..waypoints, ..loop];
         return true;
     }
+
+    static bool AtDuel(Voyage run, Beacon beacon) =>
+        Vector2.DistanceSquared(run.Position, beacon.Position) <= (Beacon.Radius - 7) * (Beacon.Radius - 7);
 
     static Vector2[] PlotLeg(Voyage run, Vector2 offset)
     {
@@ -152,14 +165,15 @@ public sealed class SailCourse
             if ((run.CombatTime >= pursuitRefresh || !ReferenceEquals(chart, run.World.Places)) && !Plot(run, cache))
                 return input;
         }
-        else if (Patrol is { } beacon)
+        else if (BeaconTarget is { } beacon)
         {
-            if (beacon.Lit || run.BossSpawned)
+            bool duel = beacon.Objective == BeaconObjective.Duel;
+            if (beacon.Lit || run.BossSpawned || (duel && AtDuel(run, beacon)))
             {
                 Clear();
                 return input;
             }
-            if ((continuing || next < patrolStart) && !ReferenceEquals(chart, run.World.Places) &&
+            if ((duel || continuing || next < patrolStart) && !ReferenceEquals(chart, run.World.Places) &&
                 !Plot(run, beacon)) return input;
         }
         else if (!ReferenceEquals(chart, run.World.Places))
@@ -200,9 +214,9 @@ public sealed class SailCourse
             Plot(run, approaching);
             return input;
         }
-        if (Patrol is { } pendingPatrol)
+        if (BeaconTarget is { } pendingBeacon && (Patrol != null || continuing))
         {
-            Plot(run, pendingPatrol);
+            Plot(run, pendingBeacon);
             return input;
         }
         if (continuing && Vector2.DistanceSquared(run.Position, destination) > 58 * 58)

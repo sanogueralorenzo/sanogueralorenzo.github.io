@@ -92,11 +92,10 @@ public partial class Effects3D : Node3D
             if (enemy.Fuse > 0)
                 DrawWarning(enemy.Position, Enemy.PufferBlastRadius, enemy.Fuse, Enemy.PufferFuseDuration);
             if (enemy.Charge is { } charge)
-                DrawCrownclawCharge(enemy, charge);
+                DrawBeastCharge(enemy, charge);
             else if (enemy.Telegraph > 0)
                 DrawCharge(enemy);
-            if (enemy.Kind == EnemyKind.Leviathan && enemy.Exposed > 0)
-                DrawCrownclawOpening(enemy);
+            if (enemy.Exposed > 0) DrawOpening(enemy);
         }
         bool stormshot = voyage.ActiveCombo == WeaponCombo.Stormshot;
         foreach (var shot in voyage.Shots)
@@ -277,7 +276,7 @@ public partial class Effects3D : Node3D
         }
     }
 
-    void DrawCrownclawCharge(Enemy enemy, CrownclawCharge charge)
+    void DrawBeastCharge(Enemy enemy, BeastCharge charge)
     {
         bool windingUp = enemy.Telegraph > 0;
         float intensity = windingUp ? 1 - enemy.Telegraph / charge.Windup : 1;
@@ -313,13 +312,14 @@ public partial class Effects3D : Node3D
         }
     }
 
-    void DrawCrownclawOpening(Enemy enemy)
+    void DrawOpening(Enemy enemy)
     {
         var center = World(enemy.Position, .083f);
-        var color = enemy.Grounded ? NauticalPalette.Aqua : NauticalPalette.Gold;
+        var color = enemy.Grounded || enemy.GuardAnchor.HasValue ? NauticalPalette.Aqua : NauticalPalette.Gold;
         float opacity = Mathf.Clamp(enemy.Exposed * 2.8f, 0, 1);
+        float radius = (enemy.Radius + 38) * NativeStage3D.Unit;
         for (int i = 0; i < 5; i++)
-            foam.Arc(center, 1.12f, i * Mathf.Tau / 5 + time * .34f, .72f, .042f, Fade(color, opacity * .88f), 9);
+            foam.Arc(center, radius, i * Mathf.Tau / 5 + time * .34f, .72f, .042f, Fade(color, opacity * .88f), 9);
     }
 
     void SampleTrails(Voyage v, float dt)

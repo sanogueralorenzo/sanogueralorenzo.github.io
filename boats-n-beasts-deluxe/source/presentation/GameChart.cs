@@ -3,7 +3,7 @@ using Godot;
 using V2 = System.Numerics.Vector2;
 namespace BoatsNBeasts;
 
-internal readonly record struct ChartOrder(V2 Point, Beacon? Patrol = null, Place? Supply = null, string? Label = null, DriftingCache? Cache = null);
+internal readonly record struct ChartOrder(V2 Point, Beacon? Beacon = null, Place? Supply = null, string? Label = null, DriftingCache? Cache = null);
 
 public partial class Game
 {
@@ -92,7 +92,7 @@ public partial class Game
 
     bool PlotChartOrder(ChartOrder order)
     {
-        if (order.Patrol is { } beacon) return course.Plot(Run, beacon);
+        if (order.Beacon is { } beacon) return course.Plot(Run, beacon);
         if (order.Supply is { } place) return course.Plot(Run, place);
         if (order.Cache is { } cache) return course.Plot(Run, cache);
         return course.Plot(Run, order.Point);
@@ -140,9 +140,10 @@ public partial class Game
                     var color = beacon.Lit ? ChartTeal : ChartGold;
                     DrawCircle(at, 10, ChartPaper);
                     DrawColoredPolygon([at + new Vector2(0, -7), at + new Vector2(7, 0), at + new Vector2(0, 7), at + new Vector2(-7, 0)], color);
-                    var order = new ChartOrder(beacon.Position,
-                        !beacon.Lit && !run.Salvage.Towing && beacon.Objective == BeaconObjective.Patrol ? beacon : null,
-                        Label: run.HuntSignalReady && beacon.Lit ? $"{beacon.Name} · Hunt signal available" : beacon.Name);
+                    string destination = run.HuntSignalReady && beacon.Lit ? $"{beacon.Name} · Hunt signal available" :
+                        !beacon.Lit && !run.Salvage.Towing && beacon.Objective == BeaconObjective.Duel
+                            ? $"{beacon.Name} · Approach the keeper" : beacon.Name;
+                    var order = new ChartOrder(beacon.Position, beacon, Label: destination);
                     courses.Add((new(at - Vector2.One * 11, Vector2.One * 22), order));
                     Text(at + new Vector2(13, -4), beacon.Name, 15, true, ChartInk);
                 }
