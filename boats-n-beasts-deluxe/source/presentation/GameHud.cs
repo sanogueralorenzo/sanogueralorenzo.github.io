@@ -35,6 +35,7 @@ public partial class Game : Node2D
         public override void _Draw()
         {
             courses.Clear();
+            RepairControl = default;
             if (Game.title) return; var r = Game.Run; var size = GetViewportRect().Size;
             if (Game.chartOpen)
             {
@@ -121,6 +122,7 @@ public partial class Game : Node2D
             Bar(Vector2.Zero, new(size.X, 8), r.Xp / (float)r.NextXp, NauticalPalette.Aqua);
             DrawCompass(size);
             DrawCourseGuide(r, size, statusInset);
+            DrawHarborGuide(r, size, statusInset);
             var boss = r.Enemies.FirstOrDefault(e => e.Kind == EnemyKind.Leviathan && e.Health > 0);
             if (boss != null) DrawCrownclaw(boss, size.X / 2);
             if (Game.toastTime > 0 && r.IsActive)
@@ -384,6 +386,9 @@ public partial class Game : Node2D
                 DrawCircle(center + d, 4, new Color("b45143"));
             }
             Vector2[] pointer = [new(0, -8), new(-5, 6), new(0, 3), new(5, 6)];
+            var berth = NauticalPalette.G(StartingArea.RepairBerth - r.Position) / 17;
+            if (r.RepairsAvailable && r.Health < r.MaxHealth && berth.LengthSquared() < 56 * 56 && berth.LengthSquared() > 10 * 10)
+                DrawRepairChartMark(center + berth, paper, new("296f69"));
             DrawColoredPolygon(pointer.Select(p => center + p.Rotated(r.Heading)).ToArray(), NauticalPalette.Navy);
             if (r.IsActive)
             {

@@ -96,6 +96,7 @@ public sealed partial class Voyage
         Invulnerable = Math.Max(0, Invulnerable - dt);
         UpdateMovement(dt, input);
         if (BossSlain) return;
+        UpdateHarborRepairs(dt, input);
         if (input.Maneuver && Boat == BoatKind.Mage && input.Move != Vector2.Zero && ManeuverCooldown <= dt)
             Heading = MathF.Atan2(input.Move.X, -input.Move.Y);
         UpdateManeuver(dt, input.Maneuver);
@@ -264,6 +265,7 @@ public sealed partial class Voyage
     {
         if (Invulnerable > 0 || !IsActive) return;
         Health -= damage; Invulnerable = .8f; Events.Add(new("hurt", Position, damage));
+        InterruptHarborRepairs();
     }
     void Hit(Enemy e, float damage)
     {
@@ -295,6 +297,7 @@ public sealed partial class Voyage
         if (e.Kind == EnemyKind.Leviathan)
         {
             BossSlain = true; Mode = VoyageMode.Victory; silver += 6;
+            repairRemaining = 0;
             // Mark dead/expired rather than mutate lists being traversed by the current attack.
             foreach (var other in Enemies) other.Health = 0;
             foreach (var shot in Shots) shot.Life = 0;

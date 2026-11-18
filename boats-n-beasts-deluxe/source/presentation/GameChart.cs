@@ -168,6 +168,12 @@ public partial class Game
             }
 
             var boat = Plot(run.Position);
+            var berth = Plot(StartingArea.RepairBerth);
+            if (run.RepairsAvailable && area.Grow(-12).HasPoint(berth))
+            {
+                DrawRepairChartMark(berth, ChartPaper, ChartTeal);
+                Text(berth + new Vector2(12, 4), "Repair berth", 15, true, ChartInk);
+            }
             if (area.Grow(-15).HasPoint(boat))
             {
                 DrawCircle(boat, 13, ChartPaper);

@@ -108,6 +108,7 @@ public partial class Effects3D : Node3D
         {
             DrawBeacons(voyage);
             if (voyage.SalvageAvailable) DrawSalvage(voyage);
+            if (voyage.RepairsAvailable && voyage.Health < voyage.MaxHealth) DrawRepairBerth(voyage);
         }
         if (Course is { Destination: { } destination } course)
             DrawCourse(voyage.Position, course.Ahead, destination);
@@ -189,6 +190,25 @@ public partial class Effects3D : Node3D
         if (voyage.DeliveryBeacon is { } beacon)
             foam.Arc(World(beacon.Position, .06f), SalvageCargo.DeliveryRadius * .01f,
                 0, Mathf.Tau, .035f, Fade(Aqua, .77f), 48);
+    }
+
+    void DrawRepairBerth(Voyage voyage)
+    {
+        var center = World(StartingArea.RepairBerth, .08f);
+        float radius = Voyage.RepairRadius * NativeStage3D.Unit;
+        for (int side = 0; side < 4; side++)
+            foam.Arc(center, radius, side * Mathf.Pi / 2 + .15f, 1.22f, .029f, Fade(Aqua, .76f), 14);
+        if (!voyage.Repairing) return;
+
+        foam.Arc(center, radius - .09f, -Mathf.Pi / 2, Mathf.Tau * voyage.RepairProgress, .045f, Fade(Cream, .94f), 48);
+        var mooring = StartingArea.RepairMooring;
+        var sternOffset = voyage.TowHook - voyage.Position;
+        var deck = V2.Dot(mooring - voyage.Position, sternOffset) > 0 ? voyage.TowHook : voyage.Position - sternOffset;
+        var dock = World(mooring, .22f);
+        var attachment = World(deck, .32f);
+        var slack = dock.Lerp(attachment, .55f) - Vector3.Up * .12f;
+        foam.Ribbon(dock, slack, .017f, .017f, Fade(Cream, .9f));
+        foam.Ribbon(slack, attachment, .017f, .017f, Fade(Cream, .9f));
     }
 
     void DrawWarning(V2 position, float radius, float progress)
@@ -414,7 +434,7 @@ public partial class Effects3D : Node3D
             bursts.Add(new() { Kind = "barrel", P = World(ev.Position, .06f), Life = .55f });
         bool link = ev.Kind is "arc" or "pull" or "tripwire";
         if (bursts.Count < 192 && (link || ev.Kind is "aura" or "bulwark" or "explosion" or "calm"
-            or "pufferExplosion" or "bossExplosion" or "crownclawGrounded" or "beacon" or "broadside" or "blink" or "stormshot" or "riptide"))
+            or "pufferExplosion" or "bossExplosion" or "crownclawGrounded" or "repairDone" or "beacon" or "broadside" or "blink" or "stormshot" or "riptide"))
         {
             float life = ev.Kind switch
             {

@@ -101,6 +101,8 @@ public partial class Game : Node2D
                 case "chain": Toast($"{e.Value:0} beast chain · boost recharged"); break;
                 case "boss": Toast("The Crownclaw rises"); break;
                 case "enraged": Toast("Crownclaw is enraged · watch for charges"); break;
+                case "repairInterrupted": Toast("Repairs interrupted · berth still available"); break;
+                case "repairDone": Toast("Harbor repairs complete"); break;
                 case "hurt": hitNotice = .46f; break;
                 case "treasure":
                 case "heal":
@@ -155,7 +157,8 @@ public partial class Game : Node2D
             }
             else if (click.ButtonIndex == MouseButton.Left)
             {
-                if (!PlotChartOrder(hud.CourseAt(click.Position) ?? new(ocean.WorldPoint(click.Position))))
+                if (hud.RepairControl.HasPoint(click.Position) && CanUseHarborControls) UseHarborRepair();
+                else if (!PlotChartOrder(hud.CourseAt(click.Position) ?? new(ocean.WorldPoint(click.Position))))
                     Toast("Choose a course through open water");
                 usingController = false;
                 GetViewport().SetInputAsHandled();
@@ -164,6 +167,7 @@ public partial class Game : Node2D
         if (input is not InputEventJoypadButton { Pressed: true } button) return;
         if (chartOpen) HandleChartButton(button.ButtonIndex);
         else if (button.ButtonIndex == JoyButton.Y && CanOpenChart) ToggleChart();
+        else if (button.ButtonIndex == JoyButton.A && CanUseHarborControls) UseHarborRepair();
         else if (button.ButtonIndex == JoyButton.X && !title && !controls && Run.IsActive)
             maneuverRequested = true;
         else if (button.ButtonIndex == JoyButton.Start)
@@ -186,6 +190,12 @@ public partial class Game : Node2D
         if (key.PhysicalKeycode == Key.E && !title && !controls && Run.IsActive)
         {
             maneuverRequested = true;
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+        if (key.PhysicalKeycode == Key.F && CanUseHarborControls)
+        {
+            UseHarborRepair();
             GetViewport().SetInputAsHandled();
             return;
         }
