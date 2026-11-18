@@ -92,34 +92,78 @@ struct BrowserPageContent: View {
 }
 
 private struct BrowserPageLoadingBar: View {
-    let indicator: BrowserPage.LoadingIndicator
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private struct Motion {
+        private static let rampDuration: TimeInterval = 8
+        private static let sweepDuration: TimeInterval = 0.14
+        private static let fadeDelay: TimeInterval = 0.08
+        private static let fadeDuration: TimeInterval = 0.12
 
-    private var width: CGFloat {
-        switch indicator {
-        case .hidden: 0
-        case .loading: reduceMotion ? 0.25 : 0.65
-        case .revealed: 1
+        let width: Double
+        let opacity: Double
+
+        init(_ phase: BrowserPage.LoadingIndicator, at time: TimeInterval) {
+            switch phase {
+            case .hidden:
+                width = 0
+                opacity = 0
+            case .loading(let startedAt):
+                width = Self.estimate(after: max(0, time - startedAt))
+                opacity = 1
+            case .revealed(let startedAt, let revealedAt):
+                let elapsed = max(0, time - revealedAt)
+                let estimate = Self.estimate(after: revealedAt - startedAt)
+                let completion = UnitCurve.easeOut.value(at: min(1, elapsed / Self.sweepDuration))
+                let fade = min(1, max(0, (elapsed - Self.fadeDelay) / Self.fadeDuration))
+                width = estimate + (1 - estimate) * completion
+                opacity = 1 - UnitCurve.easeOut.value(at: fade)
+            }
+        }
+
+        static func end(of phase: BrowserPage.LoadingIndicator) -> TimeInterval {
+            switch phase {
+            case .hidden: 0
+            case .loading(let startedAt): startedAt + rampDuration
+            case .revealed(_, let revealedAt): revealedAt + fadeDelay + fadeDuration
+            }
+        }
+
+        private static func estimate(after elapsed: TimeInterval) -> Double {
+            min(0.99, 1 - 0.72 * exp(-3.9 * elapsed) - 0.28 * exp(-0.42 * elapsed))
         }
     }
 
-    private var sweep: Animation? {
-        guard !reduceMotion else { return nil }
-        switch indicator {
-        case .hidden: return nil
-        case .loading: return .easeOut(duration: 0.7)
-        case .revealed: return .easeOut(duration: 0.14)
-        }
+    let indicator: BrowserPage.LoadingIndicator
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var animatedIndicator = BrowserPage.LoadingIndicator.hidden
+
+    private var reducedMotionWidth: Double {
+        if case .loading = indicator { return 0.25 }
+        return 0
     }
 
     var body: some View {
+        let staticWidth = reduceMotion ? reducedMotionWidth : nil
+        let phase = animatedIndicator
         Rectangle().fill(.primary)
             .frame(height: 2)
-            .animation(sweep) { content in
-                content.scaleEffect(x: width, y: 1, anchor: .leading)
+            .keyframeAnimator(initialValue: ProcessInfo.processInfo.systemUptime, trigger: phase) { content, time in
+                let motion = Motion(phase, at: time)
+                content.scaleEffect(x: staticWidth ?? motion.width, y: 1, anchor: .leading)
+                    .opacity(staticWidth == nil ? motion.opacity : 1)
+            } keyframes: { _ in
+                let now = ProcessInfo.processInfo.systemUptime
+                let end = Motion.end(of: phase)
+                KeyframeTrack {
+                    if end > now {
+                        MoveKeyframe(now)
+                        LinearKeyframe(end, duration: end - now)
+                    } else {
+                        MoveKeyframe(now)
+                    }
+                }
             }
-            .animation(!reduceMotion && indicator == .revealed ? .easeOut(duration: 0.12).delay(0.08) : nil) { content in
-                content.opacity(indicator == .loading ? 1 : 0)
+            .onChange(of: reduceMotion ? .hidden : indicator, initial: true) { _, phase in
+                animatedIndicator = phase
             }
             .allowsHitTesting(false)
             .accessibilityHidden(true)

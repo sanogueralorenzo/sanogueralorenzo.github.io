@@ -6,8 +6,10 @@ import WebKit
 @MainActor
 @Observable
 final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifiable {
-    enum LoadingIndicator {
-        case hidden, loading, revealed
+    enum LoadingIndicator: Equatable {
+        case hidden
+        case loading(since: TimeInterval)
+        case revealed(loadingSince: TimeInterval, at: TimeInterval)
     }
 
     // MARK: - Variables
@@ -242,7 +244,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
             do { try await Task.sleep(for: .milliseconds(120)) } catch { return }
             guard let self, !Task.isCancelled, !isRetired else { return }
             loadingIndicatorDelay = nil
-            loadingIndicator = .loading
+            loadingIndicator = .loading(since: ProcessInfo.processInfo.systemUptime)
         }
         failure = nil
         (webView as? BrowserNativeWebView)?.contextSelection = ""
@@ -329,7 +331,9 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
             loadingIndicatorDelay?.cancel()
             loadingIndicatorDelay = nil
             loadingIndicatorNavigation = nil
-            if loadingIndicator == .loading { loadingIndicator = .revealed }
+            if case .loading(let startedAt) = loadingIndicator {
+                loadingIndicator = .revealed(loadingSince: startedAt, at: ProcessInfo.processInfo.systemUptime)
+            }
         }
     }
 
