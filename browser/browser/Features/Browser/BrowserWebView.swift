@@ -77,7 +77,10 @@ struct BrowserPageContent: View {
             if let failure = page.failure {
                 VStack(spacing: 14) {
                     Text(failure).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                    Button("Reload") { page.webView.reload() }.buttonStyle(.bordered)
+                    Button("Reload") {
+                        page.applyContentBlocking()
+                        page.reloadAfterContentBlocking()
+                    }.buttonStyle(.bordered)
                 }.padding(32).frame(maxWidth: .infinity, maxHeight: .infinity).background(BrowserBrandTheme.canvas)
             }
             if page.isLoading {

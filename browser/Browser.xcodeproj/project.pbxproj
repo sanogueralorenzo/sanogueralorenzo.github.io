@@ -60,6 +60,7 @@
 		448FFF7DFDA6EA17E1FBDC80 /* BrowserTranslationDocument+WebKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5CCA4712FD596F8EB232A14 /* BrowserTranslationDocument+WebKit.swift */; };
 		45D2A9C931762501077D1579 /* Animation+ReducedMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31CD5C6B12D50C21F96A7A20 /* Animation+ReducedMotion.swift */; };
 		48FC4276A9910FB481876460 /* BrowserRecentSwitcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = E04E246B2F7E6CD1D833530F /* BrowserRecentSwitcher.swift */; };
+		49ADF2A44CD6B431ECE034EA /* BrowserContentRuleCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2183DACF63B8F4F218AA37D /* BrowserContentRuleCache.swift */; };
 		4B42BE89A3FFBD83C376ACFA /* BrowserSidebarReorderState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80144665637B7C720690EE1F /* BrowserSidebarReorderState.swift */; };
 		4B4522EDA3769C1428211758 /* BrowserPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDD7B880B1DF0706DB4345B3 /* BrowserPersistence.swift */; };
 		4BFD79BE11E6101BC9B5FC9B /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2746BFEB59A71FFCFCDC1A81 /* AVFoundation.framework */; };
@@ -331,6 +332,7 @@
 		F112C82D4AF14AD41632EF94 /* BrowserStore+Recovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Recovery.swift"; sourceTree = "<group>"; };
 		F11DF4A7DAF0A23D80C1535C /* BrowserPage+ScreenCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserPage+ScreenCapture.swift"; sourceTree = "<group>"; };
 		F194345AC2C8655EF4C849A6 /* BrowserTabAuxiliaryClick.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserTabAuxiliaryClick.swift; sourceTree = "<group>"; };
+		F2183DACF63B8F4F218AA37D /* BrowserContentRuleCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserContentRuleCache.swift; sourceTree = "<group>"; };
 		FB6485C8BDAF1300C4D68502 /* BrowserSidebarSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSidebarSurface.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -697,6 +699,7 @@
 			isa = PBXGroup;
 			children = (
 				2891202F23865E806D456C97 /* BrowserContentBlocking.swift */,
+				F2183DACF63B8F4F218AA37D /* BrowserContentRuleCache.swift */,
 				4ED2899840DE1A98B66112DA /* BrowserPage+WebExtension.swift */,
 			);
 			path = ContentBlocking;
@@ -837,6 +840,7 @@
 				17936A6276A7FFEBC4B8CC68 /* Sources */,
 				F6D76AC73A10A20272326755 /* Resources */,
 				E50B6681570CA00E912C30C3 /* Frameworks */,
+				4F3D95C80E12937EA578E3D8 /* Unpack cached uBlock Origin Lite extension */,
 			);
 			buildRules = (
 			);
@@ -902,6 +906,29 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		4F3D95C80E12937EA578E3D8 /* Unpack cached uBlock Origin Lite extension */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/Resources/uBlockOriginLite.zip",
+			);
+			name = "Unpack cached uBlock Origin Lite extension";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/uBlockOriginLiteCached",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\nresources=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\ndestination=\"${resources}/uBlockOriginLiteCached\"\nstaging=\"$(mktemp -d \"${TARGET_TEMP_DIR}/ubol.XXXXXX\")\"\n/usr/bin/ditto -x -k \"${SRCROOT}/Resources/uBlockOriginLite.zip\" \"$staging\"\nmv \"$staging/manifest-cached.json\" \"$staging/manifest.json\"\nif [ -d \"$destination\" ]; then /bin/rm -r \"$destination\"; fi\n/bin/mv \"$staging\" \"$destination\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		17936A6276A7FFEBC4B8CC68 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -923,6 +950,7 @@
 				2204133666E807642E788D73 /* BrowserCollapsedSidebarHoverTrackingView.swift in Sources */,
 				D2BAB2504324BDDF2F87196B /* BrowserColor.swift in Sources */,
 				53C941053F92197F849DB1A7 /* BrowserContentBlocking.swift in Sources */,
+				49ADF2A44CD6B431ECE034EA /* BrowserContentRuleCache.swift in Sources */,
 				DBDE6B04B50B9F21D9CA7834 /* BrowserDataPortability.swift in Sources */,
 				E5004A37DBF30F495189D00A /* BrowserDataRetention.swift in Sources */,
 				B5B6EF357B6022A7D4F21BA7 /* BrowserDesktopPictureInPictureAccess.swift in Sources */,

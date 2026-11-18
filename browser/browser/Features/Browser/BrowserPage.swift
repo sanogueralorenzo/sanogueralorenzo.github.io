@@ -63,7 +63,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     @ObservationIgnored var uploadScopes: [URL] = []
     @ObservationIgnored weak var owner: BrowserStore?
     @ObservationIgnored private var observations: [NSKeyValueObservation] = []
-    @ObservationIgnored private var blockingTask: Task<Void, Never>?
+    @ObservationIgnored private var blockingTask: Task<Bool, Never>?
     @ObservationIgnored private var navigationTask: Task<Void, Never>?
     @ObservationIgnored private var pendingNavigation: (@MainActor (BrowserPage) -> Void)?
     @ObservationIgnored private var pendingPagePaint: (navigation: WKNavigation?, id: UUID)?
@@ -84,6 +84,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         configuration.webExtensionController = contentBlocker.controller
         // Popup configurations share process/data stores with their opener, but handlers belong to one document host.
         configuration.userContentController = WKUserContentController()
+        contentBlocker.register(configuration.userContentController)
         BrowserWebKitDefaults.apply(to: configuration.preferences)
         configuration.applicationNameForUserAgent = BrowserPlatformUserAgent.applicationName
         BrowserDesktopPictureInPictureAccess.enable(in: configuration.preferences)
@@ -160,10 +161,11 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         pendingNavigation = action
         let blocking = blockingTask
         navigationTask = Task { [weak self] in
-            await blocking?.value
-            guard !Task.isCancelled, let self, !isRetired else { return }
+            let ready = await blocking?.value ?? true
+            guard ready, !Task.isCancelled, let self, !isRetired else { return }
             pendingNavigation = nil
             navigationTask = nil
+            failure = nil
             action(self)
         }
     }
@@ -175,9 +177,12 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         blockingTask = Task { [weak self, contentBlocker] in
             do {
                 try await contentBlocker.setEnabled(enabled)
+                return true
             } catch {
-                guard !Task.isCancelled else { return }
-                self?.owner?.showNotice("Content blocking could not load: " + error.localizedDescription)
+                if !Task.isCancelled {
+                    self?.failure = "Content blocking could not load: " + error.localizedDescription
+                }
+                return false
             }
         }
     }

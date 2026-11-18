@@ -12,9 +12,10 @@ import zipfile
 
 STARTUP = """const runtime = self.browser.runtime;
 try {
-    const { starting } = await runtime.sendNativeMessage('com.itsbrowser', { event: 'prepare' });
+    const { starting, cachedRulesets } = await runtime.sendNativeMessage('com.itsbrowser', { event: 'prepare' });
     if ( typeof starting !== 'boolean' ) { throw new Error('Content blocking preparation failed'); }
     self.browserStartingBlocker = starting;
+    self.browserCachedRulesets = cachedRulesets;
     await import('./background.js');
 } catch ( reason ) {
     runtime.sendNativeMessage('com.itsbrowser', { event: 'error', message: String(reason) }).catch(() => {});
@@ -30,7 +31,14 @@ def replace_once(source, before, after):
 
 def patch_background(background):
     bootstrap = "async function start() {\n    await loadRulesetConfig();"
-    background = replace_once(background, bootstrap, bootstrap + """
+    background = replace_once(background, bootstrap, """async function start() {
+    if ( self.browserCachedRulesets ) {
+        rulesetConfig.enabledRulesets = self.browserCachedRulesets;
+        rulesetConfig.strictBlockMode = false;
+        await registerContentScripts();
+        return;
+    }
+    await loadRulesetConfig();
     if ( self.browserStartingBlocker ) { process.wakeupRun = false; }
     const browserRulesets = rulesetConfig.enabledRulesets.filter(id => id !== 'spa-1');
     if ( browserRulesets.includes('spa-0') === false ) { browserRulesets.push('spa-0'); }
@@ -77,15 +85,44 @@ def patch_background(background):
         await setDefaultFilteringMode(3);
         await registerContentScripts();
     }
-    browser.runtime.sendNativeMessage('com.itsbrowser', { event: 'ready' }).catch(() => {});""",
+    const scripts = await getRegisteredContentScripts();
+    if ( self.browserCachedRulesets && scripts.includes('css-generic-all') === false ) {
+        throw new Error('Complete filtering scripts could not be registered');
+    }
+    const snapshot = await browserCacheableRulesets(scripts);
+    await runtime.sendNativeMessage('com.itsbrowser', { event: 'ready', snapshot });""",
     )
-    return replace_once(
+    background = replace_once(
         background,
         "}).catch(reason => {\n    ubolErr(reason);",
         """}).catch(reason => {
     browser.runtime.sendNativeMessage('com.itsbrowser', { event: 'error', message: String(reason) }).catch(() => {});
     ubolErr(reason);""",
     )
+    return background + """
+
+async function browserCacheableRulesets(scripts) {
+    if ( self.browserCachedRulesets || scripts.includes('css-generic-all') === false ||
+         rulesetConfig.popupBlockMode !== true || rulesetConfig.developerMode ) { return ''; }
+    const [ modes, ids, imported, custom, sandbox, userRules ] = await Promise.all([
+        getFilteringModeDetails(), dnr.getEnabledRulesets(), getImportedLists(),
+        getAllCustomFilters(), getSandboxFilters(), getEffectiveUserRules(),
+    ]);
+    if ( modes.complete.size !== 1 || !modes.complete.has('all-urls') ||
+         modes.none.size || modes.basic.size || modes.optimal.size ||
+         imported.length || custom.length || sandbox || userRules.length || !ids.length ) { return ''; }
+    return JSON.stringify(ids);
+}
+
+if ( !self.browserCachedRulesets ) {
+    browser.storage.onChanged.addListener((changes, area) => {
+        if ( area !== 'local' || !Object.keys(changes).some(key =>
+            key === 'rulesetConfig' || key === 'filteringModeDetails' || key === 'sandboxFilters' ||
+            key.startsWith('site.') || key.startsWith('rulesets.imported')) ) { return; }
+        runtime.sendNativeMessage('com.itsbrowser', { event: 'invalidate' }).catch(() => {});
+    });
+}
+"""
 
 
 def package(archive):
@@ -106,23 +143,33 @@ def package(archive):
             "if ( extURL.startsWith('safari-web-extension:') ) { return 'safari'; }",
             "if ( extURL.startsWith('safari-web-extension:') || extURL.startsWith('webkit-extension:') ) { return 'safari'; }",
         ).encode(),
-        "js/mode-manager.js": replace_once(
+        "js/mode-manager.js": replace_once(replace_once(
             source.read("js/mode-manager.js").decode(),
             "    optimal: [ 'all-urls' ],\n    complete: [],",
             "    optimal: [],\n    complete: [ 'all-urls' ],",
-        ).encode(),
-        "js/ruleset-manager.js": replace_once(
+        ), "    filteringModesToDNR(userModes);", "    if ( !self.browserCachedRulesets ) { filteringModesToDNR(userModes); }").encode(),
+        "js/ruleset-manager.js": replace_once(replace_once(
             source.read("js/ruleset-manager.js").decode(),
             "        if ( ruleset.group === 'imported' ) { continue; }",
             "        if ( ruleset.group === 'imported' || ruleset.id === 'spa-1' ) { continue; }",
+        ), "export async function getEnabledRulesets() {", """export async function getEnabledRulesets() {
+    if ( self.browserCachedRulesets ) { return self.browserCachedRulesets; }""").encode(),
+        "js/ext-compat.js": replace_once(
+            source.read("js/ext-compat.js").decode(),
+            "async function forceEnableRulesets(windowId) {",
+            """async function forceEnableRulesets(windowId) {
+    if ( self.browserCachedRulesets ) { return; }""",
         ).encode(),
     }
+    cached_manifest = dict(manifest)
+    del cached_manifest["declarative_net_request"]
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as target:
         for entry in source.infolist():
             target.writestr(entry, replacements.get(entry.filename, source.read(entry.filename)))
         startup = zipfile.ZipInfo("js/browser-startup.js", source.getinfo("js/background.js").date_time)
         target.writestr(startup, STARTUP, compress_type=zipfile.ZIP_DEFLATED)
+        target.writestr("manifest-cached.json", json.dumps(cached_manifest, indent=2) + "\n")
     return output.getvalue()
 
 
@@ -147,7 +194,7 @@ def main():
         "archive": asset["browser_download_url"],
         "upstreamSHA256": digest.removeprefix("sha256:"),
         "bundledSHA256": hashlib.sha256(bundled).hexdigest(),
-        "changes": "Recognize WebKit's extension scheme as the Safari runtime, default to Complete filtering and EasyList Spanish (spa-0), exclude Spanish/Portuguese (spa-1), and apply rules once during startup before notifying Browser. Filter lists match the upstream release.",
+        "changes": "Recognize WebKit's extension scheme, use Complete filtering and EasyList Spanish, and support Browser's precompiled rules and startup handshake. Filter lists match the upstream release.",
     }
     (resources / "uBlockOriginLite.json").write_text(json.dumps(metadata, indent=2) + "\n")
     print(f"Bundled uBlock Origin Lite {version}")
