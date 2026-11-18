@@ -66,7 +66,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     @ObservationIgnored private var blockingTask: Task<Void, Never>?
     @ObservationIgnored private var navigationTask: Task<Void, Never>?
     @ObservationIgnored private var pendingNavigation: (@MainActor (BrowserPage) -> Void)?
-    @ObservationIgnored private var committedNavigation: WKNavigation?
+    @ObservationIgnored private var pendingPagePaint: (navigation: WKNavigation?, id: UUID)?
     @ObservationIgnored private(set) var isRetired = false
     @ObservationIgnored var refreshingPageState = false
 
@@ -234,11 +234,12 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
-        committedNavigation = navigation
+        let paintID = UUID()
+        pendingPagePaint = (navigation, paintID)
         showsLoadingBackground = true
-        (webView as? BrowserNativeWebView)?.afterNextPresentation { [weak self] in
-            guard let self, !isRetired, committedNavigation === navigation else { return }
-            showsLoadingBackground = false
+        webView.callAsyncJavaScript(Self.waitForPagePaint, arguments: [:], in: nil, in: .defaultClient) {
+            [weak self] result in
+            if case .success = result { self?.revealPage(after: paintID) }
         }
         pendingNavigationURL = nil
         synchronize()
@@ -246,6 +247,12 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        if let paint = pendingPagePaint, paint.navigation === navigation {
+            Task { [weak self] in
+                try await Task.sleep(for: .milliseconds(100))
+                self?.revealPage(after: paint.id)
+            }
+        }
         pendingNavigationURL = nil
         synchronize()
         owner?.pageFinished(self)
@@ -272,7 +279,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        if committedNavigation === navigation { showsLoadingBackground = false }
+        if let paint = pendingPagePaint, paint.navigation === navigation { revealPage(after: paint.id) }
         let value = error as NSError
         if value.code == NSURLErrorCancelled || (value.domain == "WebKitErrorDomain" && value.code == 102) {
             pendingNavigationURL = nil
@@ -281,6 +288,32 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         }
         failure = error.localizedDescription
     }
+
+    private func revealPage(after paintID: UUID) {
+        guard !isRetired, pendingPagePaint?.id == paintID else { return }
+        pendingPagePaint = nil
+        showsLoadingBackground = false
+    }
+
+    private static let waitForPagePaint = #"""
+        return new Promise(resolve => {
+            let observer;
+            const painted = () => {
+                observer?.disconnect();
+                removeEventListener("load", painted);
+                requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)));
+            };
+            if (document.readyState === "complete") {
+                painted();
+                return;
+            }
+            if (PerformanceObserver.supportedEntryTypes.includes("paint")) {
+                observer = new PerformanceObserver(painted);
+                observer.observe({type: "paint", buffered: true});
+            }
+            addEventListener("load", painted, {once: true});
+        });
+        """#
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         failure = "This page stopped. Reload to continue."
