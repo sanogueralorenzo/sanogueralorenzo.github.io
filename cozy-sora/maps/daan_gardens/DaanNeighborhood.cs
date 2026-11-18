@@ -81,7 +81,7 @@ public sealed class DaanNeighborhood
         Box(new Vector3(0, 3.25f, 0), new Vector3(w, .16f, 12.2f), "b6bba7", true);
         foreach (var x in new[] { -w * .5f + 1.5f, w * .5f - 1.5f })
         {
-            Box(new Vector3(x, 1.5f, 5.87f), new Vector3(2.8f, 2.7f, .08f), "506e69", true);
+            Box(new Vector3(x, 1.5f, 5.87f), new Vector3(2.8f, 2.7f, .08f), "9caaa0", true, 6);
             foreach (var dx in new[] { -1.4f, 0, 1.4f })
             {
                 Box(new Vector3(x + dx, 1.5f, 5.96f), new Vector3(.07f, 2.8f, .06f), "c4c7b0");
@@ -135,7 +135,7 @@ public sealed class DaanNeighborhood
             for (int bay = 0; bay < 3; bay += 1)
             {
                 var x = (bay - 1) * (w / 3f);
-                Box(new Vector3(x, y, 6.015f), new Vector3(2.4f, 1.7f, .055f), "527471");
+                Box(new Vector3(x, y, 6.015f), new Vector3(2.4f, 1.7f, .055f), "527471", finish: 5);
                 foreach (var dx in new[] { -1.25f, 0, 1.25f })
                 {
                     Box(new Vector3(x + dx, y, 6.065f), new Vector3(.07f, 1.85f, .085f), "c5c9b4");
@@ -184,7 +184,7 @@ public sealed class DaanNeighborhood
                 var y = 4.65f + floor * 2.8f;
                 foreach (var z in new[] { -3.5f, .0f, 3.5f })
                 {
-                    Box(new Vector3(side * (w * .5f + .03f), y, z), new Vector3(.07f, 1.4f, 1.6f), "628077");
+                    Box(new Vector3(side * (w * .5f + .03f), y, z), new Vector3(.07f, 1.4f, 1.6f), "628077", finish: 5);
                     foreach (var dz in new[] { -.85f, 0, .85f })
                     {
                         Box(new Vector3(side * (w * .5f + .08f), y, z + dz), new Vector3(.06f, 1.5f, .05f), "b9c2a9");

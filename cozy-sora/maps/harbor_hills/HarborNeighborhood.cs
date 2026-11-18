@@ -128,7 +128,7 @@ public sealed class HarborNeighborhood
                 var wx = col * w * .29f;
                 var bay = (!shop && col != 0 ? .6f : .12f);
                 Box(origin, yaw, new Vector3(wx, wy, d * .5f + bay * .5f), new Vector3(2.65f, 2.25f, bay + .15f), trim);
-                Box(origin, yaw, new Vector3(wx, wy + .03f, d * .5f + bay + .09f), new Vector3(2.16f, 1.9f, .07f), "486269", false, "metal");
+                Box(origin, yaw, new Vector3(wx, wy + .03f, d * .5f + bay + .09f), new Vector3(2.16f, 1.9f, .07f), "486269", false, "glass");
                 foreach (var split in new[] { -.7f, 0, .7f })
                 {
                     Box(origin, yaw, new Vector3(wx + split, wy + .04f, d * .5f + bay + .15f), new Vector3(.07f, 1.98f, .06f), trim);
@@ -160,7 +160,7 @@ public sealed class HarborNeighborhood
             {
                 foreach (var rear in new[] { -.28f, .24f })
                 {
-                    Box(origin, yaw, new Vector3(side * (w * .5f + .025f), floor * 3 + 1.65f, d * rear), new Vector3(.08f, 1.55f, 1.18f), "4d6266");
+                    Box(origin, yaw, new Vector3(side * (w * .5f + .025f), floor * 3 + 1.65f, d * rear), new Vector3(.08f, 1.55f, 1.18f), "4d6266", false, "glass");
                     foreach (var edge in new[] { -.65f, .65f })
                     {
                         Box(origin, yaw, new Vector3(side * (w * .5f + .09f), floor * 3 + 1.65f, d * rear + edge), new Vector3(.08f, 1.75f, .1f), trim);
@@ -202,7 +202,7 @@ public sealed class HarborNeighborhood
             {
                 var rear = new Vector3(side * w * .28f, floor * 3 + 1.65f, -d * .5f - .07f);
                 Box(origin, yaw, rear, new Vector3(1.7f, 1.8f, .1f), trim);
-                Box(origin, yaw, rear + new Vector3(0, 0, -.08f), new Vector3(1.42f, 1.52f, .07f), "617e7c");
+                Box(origin, yaw, rear + new Vector3(0, 0, -.08f), new Vector3(1.42f, 1.52f, .07f), "617e7c", false, "glass");
                 Box(origin, yaw, rear + new Vector3(0, 0, -.14f), new Vector3(.07f, 1.52f, .06f), trim);
                 Box(origin, yaw, rear + new Vector3(0, 0, -.14f), new Vector3(1.42f, .07f, .06f), trim);
                 if ((index + floor) % 3 == 0)
@@ -403,9 +403,8 @@ public sealed class HarborNeighborhood
             foreach (var pane in new[] { -1, 0, 1 })
             {
                 var pane_x = x + pane * w * .135f;
-                Box(o, yaw, new Vector3(pane_x, 1.6f, d * .5f + .135f), new Vector3(w * .125f, 1.89f, .024f), new[] { "567678", "648081", "4a686f" }[(pane + index + 1) % 3]);
+                Box(o, yaw, new Vector3(pane_x, 1.6f, d * .5f + .135f), new Vector3(w * .125f, 1.89f, .024f), new[] { "567678", "648081", "4a686f" }[(pane + index + 1) % 3], false, "glass");
                 Box(o, yaw, new Vector3(pane_x - w * .066f, 1.6f, d * .5f + .22f), new Vector3(.05f, 1.95f, .06f), trim);
-                Box(o, yaw, new Vector3(pane_x - .2f, 2.09f, d * .5f + .19f), new Vector3(.16f, .68f, .018f), "9fb6ad");
                 // Pendant lamps and readable display objects form a shallow shop interior.
                 _g.Beam(Local(o, yaw, new Vector3(pane_x, 2.6f, d * .5f + .22f)), Local(o, yaw, new Vector3(pane_x, 2.3f, d * .5f + .22f)), .012f, "847c65");
                 _g.Add("sphere", Local(o, yaw, new Vector3(pane_x, 2.28f, d * .5f + .23f)), new Vector3(.32f, .16f, .08f), "d9c495");

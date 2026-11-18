@@ -20,7 +20,7 @@ public sealed class DaanPlanting
         _g = geometry;
         _rng.Seed = 92176;
         _leafMesh = SprayMesh();
-        var texture = LeafTexture();
+        var texture = CozyLeafPainter.Spray(6238, 15, .46f);
         foreach (string color in new[] { "587846", "6c864d", "466c4b", "82945b" })
         {
             var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/foliage.gdshader") };
@@ -64,25 +64,6 @@ public sealed class DaanPlanting
         await _map.ToSignal(_map.GetTree(), SceneTree.SignalName.ProcessFrame);
         Grass();
         GD.Print("Daan Gardens trees: ", _treePositions.Count);
-    }
-
-    private static Texture2D LeafTexture()
-    {
-        var image = Image.CreateEmpty(256, 256, false, Image.Format.Rgba8);
-        image.Fill(Colors.Transparent);
-        var brush = new RandomNumberGenerator { Seed = 6238 };
-        for (int layer = 0; layer < 2; layer++)
-            for (int i = 0; i < 74; i++)
-            {
-                float angle = brush.Randf() * Mathf.Tau;
-                float radius = Mathf.Sqrt(brush.Randf()) * 86;
-                var at = new Vector2(128, 128) + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle) * .84f) * radius;
-                float length = brush.RandfRange(10, 22);
-                CozyLeafPainter.Paint(image, at, length, length * brush.RandfRange(.35f, .55f), angle + brush.RandfRange(-.8f, .8f),
-                    layer == 0 ? brush.RandfRange(.5f, .78f) : brush.RandfRange(.75f, 1), CozyLeafPainter.Profile.Pointed);
-            }
-        image.GenerateMipmaps();
-        return ImageTexture.CreateFromImage(image);
     }
 
     private Mesh SprayMesh()
@@ -162,6 +143,7 @@ public sealed class DaanPlanting
                 float r = Mathf.Sqrt(_rng.Randf()) * height * .19f;
                 var at = tip + new Vector3(Mathf.Cos(a) * r, _rng.RandfRange(-.08f, .09f) * height, Mathf.Sin(a) * r);
                 float size = height * _rng.RandfRange(.23f, .33f);
+                if (j % 2 == 0) Limb(elbow.Lerp(tip, .53f + .044f * j), at, trunk * .115f);
                 Leaves(at, new(size * 1.25f, size * .83f, size), branch + j);
             }
             if (banyan && branch % 2 == 0)
@@ -279,30 +261,7 @@ public sealed class DaanPlanting
 
     private void Grass()
     {
-        var surface = new SurfaceTool();
-        surface.Begin(Mesh.PrimitiveType.Triangles);
-        for (int blade = 0; blade < 4; blade++)
-        {
-            float angle = blade * 2.399f;
-            var side = new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)) * .05f;
-            var root = new Vector3(Mathf.Sin(angle), 0, Mathf.Cos(angle)) * .1f;
-            var tip = root + new Vector3(Mathf.Cos(angle) * .22f, 1, Mathf.Sin(angle) * .22f);
-            for (int row = 0; row < 3; row++)
-            {
-                float t = row / 3f;
-                float next = (row + 1) / 3f;
-                var a = root.Lerp(tip, t);
-                var b = root.Lerp(tip, next);
-                foreach (var item in new[] { (a - side * (1 - t), t), (b - side * (1 - next), next), (b + side * (1 - next), next),
-                    (a - side * (1 - t), t), (b + side * (1 - next), next), (a + side * (1 - t), t) })
-                {
-                    surface.SetNormal(Vector3.Up);
-                    surface.SetColor(Colors.White);
-                    surface.SetUV(new Vector2(0, item.Item2));
-                    surface.AddVertex(item.Item1);
-                }
-            }
-        }
+        var grass = CozyGrassMesh.Create(25419, 6, .042f);
         List<Transform3D> instances = new();
         for (int i = 0; i < 270000; i++)
         {
@@ -318,10 +277,10 @@ public sealed class DaanPlanting
             instances.Add(new Transform3D(new Basis(Vector3.Up, _rng.Randf() * Mathf.Tau) * Basis.FromScale(new Vector3(.8f, size, .8f)), _map.Point(x, z)));
         }
         var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/grass.gdshader") };
-        material.SetShaderParameter("grass_base", new Vector3(.28f, .39f, .20f));
-        material.SetShaderParameter("grass_mid", new Vector3(.44f, .51f, .27f));
-        material.SetShaderParameter("grass_tip", new Vector3(.62f, .62f, .36f));
-        int batches = CozyMeshBatches.Spatial(_g.Root, surface.Commit(), material, instances, "Park grass", 24, 105, 12, GeometryInstance3D.ShadowCastingSetting.Off);
+        material.SetShaderParameter("grass_base", new Vector3(.19f, .30f, .15f));
+        material.SetShaderParameter("grass_mid", new Vector3(.34f, .45f, .21f));
+        material.SetShaderParameter("grass_tip", new Vector3(.51f, .54f, .29f));
+        int batches = CozyMeshBatches.Spatial(_g.Root, grass, material, instances, "Park grass", 24, 105, 12, GeometryInstance3D.ShadowCastingSetting.Off);
         GD.Print("Daan Gardens grass: ", instances.Count, " in ", batches, " batches");
     }
 

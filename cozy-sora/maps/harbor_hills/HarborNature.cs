@@ -201,20 +201,24 @@ public sealed class HarborNature
             var phase = i * 2.39f + index * .38f;
             var spread = h * (.21f - i * .026f);
             var tip = (p + new Vector3(Mathf.Cos(phase) * spread, h * (.43f + i * .12f + .024f * Mathf.Sin(phase)), Mathf.Sin(phase) * spread) + lean);
+            var origin = p + new Vector3(0, h * (.31f + i * .11f), 0) + lean * (.30f + i * .13f);
+            var elbow = origin.Lerp(tip, .48f) + Vector3.Up * h * .043f + new Vector3(0, 0, spread * .24f);
             if (clear)
             {
-                _g.Branch(p + new Vector3(0, h * (.35f + i * .09f), 0) + lean * .6f, tip, h * .018f, "827058");
+                _g.Branch(origin, elbow, h * .020f, "827058");
+                _g.Branch(elbow, tip, h * .013f, "827058");
             }
             for (int j = 0; j < 12; j += 1)
             {
                 var a = _rng.Randf() * Mathf.Tau;
-                var r = Mathf.Sqrt(_rng.Randf()) * h * .19f;
+                var r = Mathf.Sqrt(_rng.Randf()) * h * (.18f - i * .017f);
                 var at = tip + new Vector3(Mathf.Cos(a) * r, _rng.RandfRange(-.3f, .3f) * h * .29f, Mathf.Sin(a) * r);
-                var size = _rng.RandfRange(.65f, 1.25f) * h * .22f;
+                var size = _rng.RandfRange(.65f, 1.25f) * h * (.205f - .011f * i);
                 var rotation = new Vector3(0, a, _rng.RandfRange(-.1f, .1f));
                 if (clear)
                 {
-                    _g.Add("leaf", at, new Vector3(size * 1.15f, size * 1.18f, size), new[] { "416c42", "557c45", "365e46", "6b874e" }[j % 4], rotation);
+                    if (j % 2 == 0) _g.Branch(elbow.Lerp(tip, .56f + .032f * j), at, h * .0035f, "827058");
+                    _g.Add("leaf", at, new Vector3(size * 1.22f, size * .85f, size), new[] { "416c42", "557c45", "365e46", "6b874e" }[j % 4], rotation);
                 }
             }
         }
@@ -404,27 +408,7 @@ public sealed class HarborNature
     }
     private void Grass()
     {
-        var st = new SurfaceTool();
-        st.Begin(Mesh.PrimitiveType.Triangles);
-        for (int i = 0; i < 5; i += 1)
-        {
-            st.SetColor(new Color(1f - i * .045f, 1f - i * .025f, 1f - i * .035f));
-            var angle = i * 2.399f;
-            var turn = new Basis(Vector3.Up, angle);
-            var h = .52f + (i % 3) * .13f;
-            var a = new Vector3(-.063f, 0, 0);
-            var b = new Vector3(.063f, 0, 0);
-            var c = new Vector3(-.039f, h * .6f, .14f);
-            var d = new Vector3(.039f, h * .6f, .14f);
-            var tip = new Vector3(.08f, h, .32f);
-            foreach (var v in new[] { a, b, c, b, d, c, c, d, tip })
-            {
-                st.SetUV(new Vector2(0, v.Y / h));
-                st.AddVertex(turn * v);
-            }
-        }
-        st.GenerateNormals();
-        var blade = st.Commit();
+        var blade = CozyGrassMesh.Create(17861, 4, .050f);
         var positions = new List<Transform3D>();
         for (int i = 0; i < 700000; i += 1)
         {
@@ -475,7 +459,7 @@ public sealed class HarborNature
             {
                 continue;
             }
-            var transform = new Transform3D(new Basis(Vector3.Up, _rng.Randf() * Mathf.Tau).Scaled(Vector3.One * _rng.RandfRange(.55f, 1.3f)), _map.Point(x, z));
+            var transform = new Transform3D(new Basis(Vector3.Up, _rng.Randf() * Mathf.Tau).Scaled(new Vector3(1, .77f, 1) * _rng.RandfRange(.49f, 1.17f)), _map.Point(x, z));
             if (!_map.RoadEndContains(x, z, .45f))
             {
                 positions.Add(transform);

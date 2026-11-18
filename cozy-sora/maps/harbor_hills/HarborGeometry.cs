@@ -32,18 +32,21 @@ public sealed class HarborGeometry
     {
         var key = (color, kind);
         if (_materials.TryGetValue(key, out var cached)) return cached;
-        var material = new ShaderMaterial();
-        if (kind == "foliage")
+        ShaderMaterial material;
+        if (kind == "glass") material = CozyGlazing.Create(new Color(color));
+        else if (kind == "bark") material = CozyBark.Create(new Color(color), 1.18f);
+        else if (kind == "foliage")
         {
-            material.Shader = GD.Load<Shader>("res://maps/harbor_hills/leaves.gdshader");
-            material.SetShaderParameter("leaf_cards", true);
-            _leafTexture ??= HarborTextures.LeafSpray();
+            material = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/foliage.gdshader") };
+            material.SetShaderParameter("wind_amplitude", .062f);
+            material.SetShaderParameter("near_fade", .78f);
+            _leafTexture ??= CozyLeafPainter.Spray(73421, 13, .39f);
             material.SetShaderParameter("leaf_texture", _leafTexture);
-            material.SetShaderParameter("base_color", new Color(color));
+            material.SetShaderParameter("tint", new Color(color));
         }
         else
         {
-            material.Shader = GD.Load<Shader>("res://maps/harbor_hills/surface.gdshader");
+            material = new ShaderMaterial { Shader = GD.Load<Shader>("res://maps/harbor_hills/surface.gdshader") };
             material.SetShaderParameter("base_color", new Color(color));
             material.SetShaderParameter("grain", kind == "metal" ? .045f : .12f);
             material.SetShaderParameter("pattern", kind switch
@@ -70,7 +73,7 @@ public sealed class HarborGeometry
         {
             case "box": mesh = CozyPrimitives.BoxMesh(); break;
             case "sphere": mesh = CozyPrimitives.SphereMesh(); break;
-            case "branch": mesh = CozyPrimitives.CylinderMesh(.5f, .26f, 1, 9); break;
+            case "branch": mesh = CozyPrimitives.CylinderMesh(.5f, .31f, 1, 13); break;
             case "leaf":
                 var surface = new SurfaceTool();
                 surface.Begin(Mesh.PrimitiveType.Triangles);
@@ -83,7 +86,7 @@ public sealed class HarborGeometry
                     var basis = new Basis(new Quaternion(Vector3.Forward, normal));
                     float radius = random.RandfRange(.22f, .35f);
                     float shade = random.RandfRange(.72f, 1.22f);
-                    surface.SetColor(new Color(shade, shade, shade));
+                    surface.SetColor(new Color(shade, shade, shade * .92f, .58f));
                     foreach (int j in Triangles)
                     {
                         surface.SetUV(corners[j] * .5f + Vector2.One * .5f);
@@ -131,7 +134,7 @@ public sealed class HarborGeometry
     {
         var delta = b - a;
         Add("branch", (a + b) * .5f, new Vector3(radius * 2, delta.Length(), radius * 2), color,
-            new Quaternion(Vector3.Up, delta.Normalized()).GetEuler());
+            new Quaternion(Vector3.Up, delta.Normalized()).GetEuler(), finish: "bark");
         if (radius >= .065f) CozyCollision.Limb(Collision, a, b, radius * .8f);
     }
 

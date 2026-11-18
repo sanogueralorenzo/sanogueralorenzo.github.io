@@ -9,6 +9,7 @@ public partial class SeabreezeVegetation : Node3D
     private readonly SeabreezePlantMeshes _plants;
     private readonly List<SeabreezePlantMeshes.Plant> _trees = new(), _bushes = new();
     private readonly List<Vector3> _placed = new();
+    private readonly Dictionary<int, List<Transform3D>> _coastalTrees = new();
     private readonly List<List<Transform3D>> _tree_batches = new(), _bush_batches = new();
     private Texture2D[] _leaf_textures = [];
     private Texture2D _large_leaf_texture = null!, _pine_texture = null!;
@@ -72,12 +73,21 @@ public partial class SeabreezeVegetation : Node3D
         }
         LandmarkFoliage();
         ForestDistribution();
+        var bark = CozyBark.Create(new Color("695748"));
         var palette = new[] { new Color("4c7a3a"), new Color("3f7a4a"), new Color("3c7052"), new Color("3f7a4a"), new Color("3c7052"), new Color("3f7a4a") };
         for (int i = 0; i < 6; i += 1)
         {
             var leaves = FoliageMaterial(_leaf_textures[i % 2], palette[i], 0.16f);
             Batch(_trees[i].Leaves, leaves, _tree_batches[i], $"Tree crowns {i}");
-            Batch(_trees[i].Trunk!, SeabreezeTextures.BarkMaterial(), _tree_batches[i], $"Branching trunks {i}");
+            Batch(_trees[i].Trunk!, bark, _tree_batches[i], $"Branching trunks {i}");
+        }
+        var leafSkin = SeabreezeTextures.LeafSkin();
+        foreach (var (kind, locations) in _coastalTrees)
+        {
+            var tree = _plants.TreeMesh(kind + 1, kind == 2 || kind == 4, coastal: true);
+            Batch(tree.Leaves, FoliageMaterial(_leaf_textures[kind % 2], palette[kind], .15f), locations, "Coastal crowns");
+            Batch(tree.CloseLeaves!, FoliageMaterial(leafSkin, palette[kind], .13f), locations, "Coastal leaf geometry");
+            Batch(_trees[kind].Trunk!, bark, locations, "Coastal trunks");
         }
         for (int i = 0; i < 7; i += 1)
         {
@@ -147,7 +157,12 @@ public partial class SeabreezeVegetation : Node3D
         var tilt = (force ? Vector3.Zero : new Vector3(_rng.RandfRange(-0.04f, 0.04f), 0, _rng.RandfRange(-0.04f, 0.04f)));
         var size = ((special_scale == Vector3.Zero ? ((force ? Vector3.One * scale_value : new Vector3(scale_value * _rng.RandfRange(0.9f, 1.1f), scale_value, scale_value * _rng.RandfRange(0.9f, 1.1f)))) : special_scale));
         var transform = new Transform3D((new Basis(Vector3.Up, rotation) * Basis.FromEuler(tilt)).Scaled(size), new Vector3(x, _world.HeightAt(x, z) - 0.15f, z));
-        _tree_batches[kind].Add(transform);
+        if (force && x > -20 && x < 1 && z > -19 && z < 2)
+        {
+            if (!_coastalTrees.TryGetValue(kind, out var locations)) _coastalTrees.Add(kind, locations = new());
+            locations.Add(transform);
+        }
+        else _tree_batches[kind].Add(transform);
         _placed.Add(new Vector3(x, radius, z));
         if (Mathf.Abs(x) < 110 && z < 100)
         {
@@ -362,7 +377,7 @@ public partial class SeabreezeVegetation : Node3D
     private async Task GrassFields()
     {
         _rng.Seed = 4242;
-        var mesh = _plants.GrassMesh();
+        var mesh = CozyGrassMesh.Create(4242, 4, .042f);
         var material = new ShaderMaterial();
         material.Shader = GD.Load<Shader>("res://shaders/grass.gdshader");
         var transforms = new List<Transform3D>();
@@ -421,7 +436,7 @@ public partial class SeabreezeVegetation : Node3D
             }
             size *= (0.9f + (1 - Mathf.Min(1, distance / 40)) * 0.3f) * ((density < 1 ? 1.35f : 1));
             float ground = (distance < 25 ? _world.HeightAt(x, z) : sample.Y);
-            transforms.Add(new Transform3D(new Basis(Vector3.Up, (float)_rng.Randf() * Mathf.Tau).Scaled(new Vector3(size * _rng.RandfRange(0.8f, 1.2f), size, size * _rng.RandfRange(0.8f, 1.2f))), new Vector3(x, ground - 0.02f, z)));
+            transforms.Add(new Transform3D(new Basis(Vector3.Up, (float)_rng.Randf() * Mathf.Tau).Scaled(new Vector3(size * _rng.RandfRange(0.8f, 1.2f), size * .72f, size * _rng.RandfRange(0.8f, 1.2f))), new Vector3(x, ground - 0.02f, z)));
         }
         for (int i = 0; i < 250; i += 1)
         {
@@ -587,8 +602,7 @@ public partial class SeabreezeVegetation : Node3D
         trunk.GenerateNormals();
         var stem = new MeshInstance3D();
         stem.Mesh = trunk.Commit();
-        stem.MaterialOverride = SeabreezeTextures.BarkMaterial();
-        ((StandardMaterial3D)stem.MaterialOverride).AlbedoColor = new Color(unchecked((uint)(((int)(options.Bark) << 8) | 255)));
+        stem.MaterialOverride = CozyBark.Create(new Color(unchecked((uint)((options.Bark << 8) | 255))));
         stem.Position = new Vector3(x, _world.HeightAt(x, z) - 0.2f, z);
         AddChild(stem);
         var crown = new MeshInstance3D();
@@ -639,7 +653,7 @@ public partial class SeabreezeVegetation : Node3D
     {
         options ??= new();
         _rng.Seed = unchecked((uint)(Mathf.FloorToInt(rect.Position.X * 3 + rect.End.Y * 5) + 7));
-        var mesh = _plants.GrassMesh();
+        var mesh = CozyGrassMesh.Create(_rng.State, 4, .037f);
         var transforms = new List<Transform3D>();
         int amount = (int)(rect.Size.X * rect.Size.Y * density);
         for (int i = 0; i < amount; i += 1)

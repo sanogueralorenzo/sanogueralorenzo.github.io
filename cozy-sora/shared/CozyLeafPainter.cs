@@ -7,6 +7,41 @@ public static class CozyLeafPainter
 {
     public enum Profile { Rounded, Pointed }
 
+    public static Texture2D Spray(ulong seed, float leafLength, float leafWidth)
+    {
+        const int resolution = 256;
+        using var image = Image.CreateEmpty(resolution, resolution, false, Image.Format.Rgba8);
+        var random = new RandomNumberGenerator { Seed = seed };
+        for (int twig = 0; twig < 12; twig++)
+        {
+            float angle = twig * Mathf.Tau / 12 + random.RandfRange(-.24f, .24f);
+            var axis = Vector2.Right.Rotated(angle);
+            var across = axis.Orthogonal();
+            var basePoint = new Vector2(128, 128) + axis * random.RandfRange(3, 16);
+            float reach = random.RandfRange(65, 96);
+            float arc = random.RandfRange(-20, 20);
+            Vector2 Along(float t) => basePoint + axis * (t * reach) + across * (t * t * arc);
+            for (int pixel = 0; pixel < (int)reach; pixel++)
+            {
+                var dot = Along(pixel / reach);
+                image.SetPixel((int)dot.X, (int)dot.Y, new Color(.27f, .28f, .20f));
+            }
+            for (int pair = 0; pair < 8; pair++)
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    float t = (.70f + pair + (side > 0 ? .25f : 0)) / 9;
+                    float size = leafLength * Mathf.Lerp(1.15f, .64f, t) * random.RandfRange(.72f, 1.27f);
+                    float turn = angle + side * random.RandfRange(.45f, 1.08f);
+                    var blade = Vector2.Right.Rotated(turn);
+                    Paint(image, Along(t) + blade * size * .70f, size, size * leafWidth, turn,
+                        random.RandfRange(.55f, .95f) * (.85f + .15f * t), Profile.Pointed);
+                }
+        }
+        image.FixAlphaEdges();
+        image.GenerateMipmaps();
+        return ImageTexture.CreateFromImage(image);
+    }
+
     public static void Paint(Image image, Vector2 center, float length, float width, float angle, float shade,
         Profile profile, bool outline = false)
     {

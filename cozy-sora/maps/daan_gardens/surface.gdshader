@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx;
 #include "res://shared/surface_noise.gdshaderinc"
+#include "res://shared/facade_weathering.gdshaderinc"
 uniform vec4 tint:source_color=vec4(.65,.65,.55,1.);
 uniform int finish=0;
 varying vec3 world;
@@ -20,25 +21,17 @@ void fragment(){
  }
  if (finish == 2) {
      vec2 tile = p * 5.0;
-     float joints = max(seam(tile.x, .025), seam(tile.y, .025));
-     mark *= (1.0 - 0.22 * joints) * (0.92 + hash(floor(tile)) * 0.14);
-     relief -= joints * 0.002;
+     float joints = max(seam(tile.x, .032), seam(tile.y, .035));
+     float glaze = hash(floor(tile));
+     float runoff = wall_runoff(p);
+     mark *= (1.0 - 0.31 * joints) * (0.83 + glaze * 0.21 - runoff * 0.19);
+     relief += glaze * 0.0014 - joints * 0.004;
  }
  if (finish == 3) {
      mark *= 0.97 + 0.025 * sin(p.x * 35.0 + sin(p.y * 3.0) * 0.6) * (1.0 - smoothstep(0.4, 1.5, fwidth(p.x * 35.0)));
  }
- vec3 ground_color = tint.rgb;
- if (finish == 4) {
-     vec2 bark = vec2(atan(local_normal.x, local_normal.z) * 3.4, world.y);
-     float drift = noise(bark * vec2(.56, .85));
-     float ridges = noise(vec2(bark.x * 2.9 + drift * 2.5, bark.y * 2.1));
-     float fissures = smoothstep(.28, .63, ridges);
-     float moss = smoothstep(.55, .77, noise(p * 3.7)) * (1.0 - smoothstep(1.0, 3.0, world.y));
-     ground_color = mix(ground_color * (0.55 + 0.65 * fissures), vec3(.068, .10, .037), moss * .56);
-     relief += fissures * 0.009;
- }
  NORMAL = relief_normal(VERTEX, NORMAL, relief);
- ALBEDO = ground_color * mark;
- ROUGHNESS = .92;
+ ALBEDO = tint.rgb * mark;
+ ROUGHNESS = finish == 2 ? .67 : .92;
  SPECULAR = .24;
 }

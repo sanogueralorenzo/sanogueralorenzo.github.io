@@ -12,6 +12,6 @@ The normal camera has a 62° vertical field of view. The cat begins at (-6.4, 0.
 
 ## Procedural rendering
 
-Godot meshes, shaders, collision bodies, particles, generated audio, and UI build the game at runtime. Procedural image routines create foliage, bark, timber, metal, roof tile, concrete, stone, and vending surfaces. GPU vegetation is grouped into spatial MultiMeshes. Static architectural primitives are merged without moving their collision bodies. Terrain and foliage caches contain only this project's generated output.
+Godot meshes, shaders, collision bodies, particles, generated audio, and UI build the game at runtime. Image routines rasterize foliage and vending displays. Shaders generate bark, glazes, weathered timber, roof tiles, concrete and masonry. Tree crowns follow seeded stems and twigs, and grass clumps use tapered blades with wind and foot-level interaction. GPU vegetation is grouped into spatial MultiMeshes. Static architectural primitives are merged without moving their collision bodies. Terrain and foliage caches contain only this project's generated output.
 
 Each map renders a light-scattered cloud volume into an HDR panorama during loading. The panorama lights surfaces and reflects in the ocean. Wind waves, distance haze, and directional sunlight shape the coast. Seabreeze uses textured asphalt with damp patches, folded steel guardrails, and hydrangeas built from individual florets and serrated leaves.

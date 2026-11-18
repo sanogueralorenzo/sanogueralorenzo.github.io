@@ -38,24 +38,25 @@ public static class SeabreezeTextures
         image.GenerateMipmaps();
         return ImageTexture.CreateFromImage(image);
     }
-    public static StandardMaterial3D BarkMaterial()
+    public static Texture2D LeafSkin()
     {
-        var material = new StandardMaterial3D();
-        material.AlbedoColor = new Color("4a3a2c");
-        material.Roughness = 1;
-        var image = Image.CreateEmpty(64, 256, false, Image.Format.Rgb8);
-        for (int y = 0; y < 256; y += 1)
-        {
-            for (int x = 0; x < 64; x += 1)
+        const int size = 64;
+        using var image = Image.CreateEmpty(size, size, false, Image.Format.Rgb8);
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
             {
-                float stripe = Mathf.Sin(x * 1.3f + Mathf.Sin(y * 0.025f) * 1.7f) * 0.09f + Mathf.Sin(x * 3.4f + y * 0.04f) * 0.055f;
-                image.SetPixel(x, y, new Color(0.82f + stripe, 0.78f + stripe, 0.72f + stripe));
+                float axis = y / (size - 1f);
+                float width = (x / (size - 1f) - .5f) * 2;
+                float rib = Mathf.Exp(-Mathf.Abs(width) * 22);
+                float vein = 1 - Mathf.SmoothStep(.055f, .19f,
+                    Mathf.Abs(Mathf.Sin((axis - Mathf.Abs(width) * .27f) * 25)));
+                float green = .75f + width * .11f + rib * .17f + vein * (1 - Mathf.Abs(width)) * .08f;
+                image.SetPixel(x, y, new Color(green * .91f, green, green * .86f));
             }
-        }
         image.GenerateMipmaps();
-        material.AlbedoTexture = ImageTexture.CreateFromImage(image);
-        return material;
+        return ImageTexture.CreateFromImage(image);
     }
+
     public static Texture2D FlowerTexture(Color color, int seed_value)
     {
         var random = new SeabreezeRandom();

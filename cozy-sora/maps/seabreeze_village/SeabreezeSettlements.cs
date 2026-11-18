@@ -7,6 +7,10 @@ public partial class SeabreezeSettlements : Node3D
     private SeabreezeWorld _world = null!;
     private readonly RandomNumberGenerator _rng = new();
     private readonly SeabreezeFinishes _finishes = new();
+    private readonly StandardMaterial3D _drainage = new()
+    {
+        AlbedoColor = new Color("858984"), Metallic = .66f, Roughness = .53f
+    };
     private readonly List<Node3D> _trainCars = new(), _butterflies = new();
     private readonly Curve3D _track = new();
     private float _elapsed = 3, _trainStart = .92f;
@@ -139,9 +143,7 @@ public partial class SeabreezeSettlements : Node3D
         mesh.GenerateNormals();
         var roofmesh = new MeshInstance3D();
         roofmesh.Mesh = mesh.Commit();
-        var mat = _finishes.Surface("tile", tint);
-        mat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
-        roofmesh.MaterialOverride = mat;
+        roofmesh.MaterialOverride = _finishes.Surface("tile", tint);
         n.AddChild(roofmesh);
         B(n, new Vector3(0, rise + .07f, 0), new Vector3(ridge * 2 + .12f, .19f, .23f), trim);
         foreach (var side in new[] { -1, 1 })
@@ -172,13 +174,16 @@ public partial class SeabreezeSettlements : Node3D
     private void Window(Node3D p, Vector3 at, float width = 1.7f, float height = 1.3f)
     {
         B(p, at, new Vector3(width + .15f, height + .15f, .08f), "#494739");
-        B(p, at + new Vector3(0, 0, .055f), new Vector3(width, height, .035f), "#738d91");
+        B(p, at + new Vector3(0, 0, .055f), new Vector3(width, height, .035f), _finishes.Surface("glass", "#637a7a"));
         foreach (var x in new[] { -width * .5f, 0, width * .5f })
         {
             B(p, at + new Vector3(x, 0, .09f), new Vector3(.055f, height + .06f, .045f), "#c0bba5");
         }
         B(p, at + new Vector3(0, 0, .095f), new Vector3(width, .045f, .035f), "#c0bba5");
-        B(p, at + new Vector3(0, -height * .5f - .08f, .1f), new Vector3(width + .27f, .11f, .22f), "#898e88");
+        B(p, at + new Vector3(0, -height * .5f - .08f, .1f),
+            new Vector3(width + .27f, .11f, .22f), _finishes.Surface("concrete", "#898e88"));
+        B(p, at + new Vector3(0, height * .5f + .096f, .075f),
+            new Vector3(width + .26f, .072f, .20f), _finishes.Surface("metal", "#777c75"));
     }
     private Node3D House(float x, float z, float width, float depth, string tint, string kind, float yaw, bool balcony = true, bool hip = false, int floors = 2, string roof_color = "")
     {
@@ -234,7 +239,8 @@ public partial class SeabreezeSettlements : Node3D
             B(n, new Vector3(-.77f + i * .128f, 1.22f, depth * .5f + .10f), new Vector3(.032f, 2.05f, .045f), "#988467");
         }
         B(n, new Vector3(0, .08f, depth * .5f + .42f), new Vector3(2, .15f, .85f), "#969689", true);
-        if (Mathf.Abs(x + 10.5f) < .01f && Mathf.Abs(z - 84) < .01f)
+        bool rotatedRoof = Mathf.Abs(x + 10.5f) < .01f && Mathf.Abs(z - 84) < .01f;
+        if (rotatedRoof)
         {
             Roof(n, new Vector3(0, h + .05f, 0), depth + 1.2f, width + 1.2f, (width + 1.2f) * .34f, "#3f484b", false, 0).Rotation = new Vector3(0, (Mathf.Pi / 2), 0);
             var gable = new SurfaceTool();
@@ -253,8 +259,7 @@ public partial class SeabreezeSettlements : Node3D
         {
             Roof(n, new Vector3(0, h + .03f, 0), width + 1.2f, depth + 1.2f, depth * .34f, (roof_color.Length != 0 ? roof_color : ((tint != "#d9d4bf" ? "#596366" : "#a6aaa4"))), hip, .3f, (roof_color.Length != 0 ? "#554330" : ""));
         }
-        // Drainpipes and outdoor condenser are significant in close street views.
-        B(n, new Vector3(width * .5f + .06f, h * .45f, depth * .42f), new Vector3(.09f, h * .9f, .09f), "#858b82");
+        HouseDrainage(n, width, depth, h, rotatedRoof);
         B(n, new Vector3(width * .34f, .61f, depth * .5f + .34f), new Vector3(.83f, .57f, .46f), "#cac9b9");
         var fan = C(n, new Vector3(width * .34f, .61f, depth * .5f + .59f), .21f, .022f, "#646c68");
         fan.Rotation = new Vector3(Mathf.Pi / 2, 0, 0);
@@ -1276,11 +1281,49 @@ public partial class SeabreezeSettlements : Node3D
             var face = new MeshInstance3D();
             face.Mesh = st.Commit();
             var mat = _finishes.Surface("wood", "#c1b691");
-            mat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
             face.MaterialOverride = mat;
             n.AddChild(face);
         }
     }
+    private void HouseDrainage(Node3D house, float width, float depth, float height, bool rotated)
+    {
+        var gutters = new Node3D { Rotation = new(0, rotated ? Mathf.Pi * .5f : 0, 0) };
+        house.AddChild(gutters);
+        if (rotated) (width, depth) = (depth, width);
+        float span = width * .5f + .61f;
+        for (int side = -1; side <= 1; side += 2)
+        {
+            float edge = side * (depth * .5f + .63f);
+            var gutter = new SurfaceTool();
+            gutter.Begin(Mesh.PrimitiveType.Triangles);
+            void Channel(float x, int step)
+            {
+                float angle = -Mathf.Pi + step * Mathf.Pi / 10;
+                var profile = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                var normal = new Vector3(0, profile.Y, profile.X);
+                gutter.SetNormal(normal);
+                gutter.AddVertex(new(x, height - .11f + profile.Y * .069f, edge + profile.X * .076f));
+            }
+            for (int i = 0; i < 10; i++)
+            {
+                Channel(-span, i); Channel(span, i + 1); Channel(span, i);
+                Channel(-span, i); Channel(-span, i + 1); Channel(span, i + 1);
+            }
+            CozyPrimitives.Instance(gutters, gutter.Commit(), Vector3.Zero, _drainage);
+            float drainX = side * (width * .5f - .16f);
+            var outlet = new Vector3(drainX, height - .17f, edge);
+            var elbow = outlet - Vector3.Up * .24f;
+            var stack = new Vector3(drainX, height - .63f, side * (depth * .5f + .13f));
+            var foot = new Vector3(drainX, .23f, stack.Z);
+            CozyPrimitives.Beam(gutters, outlet, elbow, .043f, _drainage);
+            CozyPrimitives.Beam(gutters, elbow, stack, .043f, _drainage);
+            CozyPrimitives.Beam(gutters, stack, foot, .043f, _drainage);
+            CozyPrimitives.Beam(gutters, foot, foot + new Vector3(0, -.11f, side * .17f), .043f, _drainage);
+            for (float y = .63f; y < stack.Y - .16f; y += 1.42f)
+                CozyPrimitives.Cylinder(gutters, new Vector3(drainX, y, stack.Z), .049f, .049f, .039f, _drainage);
+        }
+    }
+
     private Vector3 RoofPoint(float half, float ridge, float depth, float rise, float curved, float side, float t, float u, bool hip)
     {
         var x = Mathf.Lerp(half, ridge, t) * u;

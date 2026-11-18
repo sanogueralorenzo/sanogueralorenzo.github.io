@@ -14,8 +14,8 @@ Movement uses the shared keyboard, gamepad and touch controls. The seagull can p
 
 - `DaanWorld.cs` owns the height/walkability contract, Catmull–Rom path network, pond and island outline, collision terrain, paving, scenic viewpoints, cache and animated egrets.
 - `DaanGeometry.cs` composes shared primitive meshes, collision helpers and spatial batches. Ribbons use joined vertices and sample terrain at both edges. Planar access ramps preserve their authored grade.
-- `DaanPlanting.cs` paints leaf sprays into generated image textures, builds varied tapered branching and roots, distributes crowns and understory, and creates bamboo, fern fronds, reeds, lilies and short lawn grass. Major wooden limbs have oriented capsule collisions. Grass and small leaves bend near the player through the shared shaders.
-- `DaanNeighborhood.cs` owns tiled apartment composition, accessible cafés, façade details, courtyards, scooters and muted skyline buildings.
+- `DaanPlanting.cs` paints leaf sprays, builds tapered limbs, twigs and roots, distributes crowns and understory, and creates bamboo, fern fronds, reeds, lilies and short lawn grass. Major wooden limbs have oriented capsule collisions. Grass and small leaves bend near the player through the shared shaders.
+- `DaanNeighborhood.cs` owns weathered tiled apartments, reflective windows, accessible cafés with clear storefront panes, façade details, courtyards, scooters and muted skyline buildings.
 - `DaanFurnishings.cs` owns slatted benches, lamps, bins, signs, stone banks, the deck and the pavilion's tiled hip roof and wooden underside.
 - `ground.gdshader`, `surface.gdshader` and `pond.gdshader` provide ground variation, bark and paving relief, and rippled pond reflections. Screen-space reflections are enabled only for this map.
 - `atmosphere.tres` and `air.tres` configure the shared summer lighting, haze and drifting seed particles. The shared player synthesizes local wind, cicadas and birds; no audio files are used.

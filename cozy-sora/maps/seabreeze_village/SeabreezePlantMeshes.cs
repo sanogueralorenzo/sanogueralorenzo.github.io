@@ -6,34 +6,181 @@ public sealed class SeabreezePlantMeshes
 {
     private readonly SeabreezeRandom _rng;
     public SeabreezePlantMeshes(SeabreezeRandom random) => _rng = random;
-    public sealed record Plant(ArrayMesh Leaves, float Radius, ArrayMesh? Trunk = null);
+    public sealed record Plant(ArrayMesh Leaves, float Radius, ArrayMesh? Trunk = null, ArrayMesh? CloseLeaves = null);
     public Vector3 Unit()
     {
         return new Vector3(_rng.RandfRange(-1, 1), _rng.RandfRange(-1, 1), _rng.RandfRange(-1, 1)).Normalized();
     }
-    public Plant TreeMesh(int seed_value, bool tall)
+    public Plant TreeMesh(int seed, bool tall, bool coastal = false)
     {
         uint saved = _rng.State;
-        _rng.Seed = (uint)seed_value;
-        float h = (tall ? _rng.RandfRange(7, 11) : _rng.RandfRange(4.5f, 7.5f));
-        var radii = new Vector3(_rng.RandfRange(2.4f, 4.2f), _rng.RandfRange(2, 3.4f), _rng.RandfRange(2.4f, 4.2f));
-        var center = new Vector3(0, h + radii.Y * 0.35f, 0);
-        var leaves = Canopy(center, radii, _rng.RandiRange(6, 9), _rng.RandiRange(52, 69), 7, _rng.RandfRange(1.2f, 1.6f), _rng.RandfRange(0.9f, 1.3f), h * 0.5f, h + radii.Y * 1.6f);
-        var trunk = new SurfaceTool();
-        trunk.Begin(Mesh.PrimitiveType.Triangles);
-        float trunk_h = h + radii.Y * 0.2f;
-        float radius = _rng.RandfRange(0.22f, 0.36f);
-        TaperedBranch(trunk, Vector3.Zero, new Vector3(0, trunk_h, 0), radius, radius * 0.55f, 9);
-        for (int j = 0; j < 4; j += 1)
+        _rng.Seed = (uint)seed;
+        float height = tall ? _rng.RandfRange(9.2f, 12.3f) : _rng.RandfRange(6.6f, 9.3f);
+        float spread = _rng.RandfRange(2.5f, 4.0f);
+        float radius = _rng.RandfRange(.24f, .37f);
+        var wood = new SurfaceTool();
+        var leaves = new SurfaceTool();
+        wood.Begin(Mesh.PrimitiveType.Triangles);
+        leaves.Begin(Mesh.PrimitiveType.Triangles);
+        using var close = new SurfaceTool();
+        close.Begin(Mesh.PrimitiveType.Triangles);
+        var blades = new RandomNumberGenerator { Seed = (ulong)(81091 + seed * 19) };
+        var crown = new Vector3(_rng.RandfRange(-.8f, .8f), height, _rng.RandfRange(-.8f, .8f));
+        var bend = crown * .48f + Vector3.Right * _rng.RandfRange(-.43f, .43f);
+        CurvedLimb(wood, Vector3.Zero, bend, crown, radius, .023f, 12, 8, 1.0f);
+        for (int root = 0; root < 5; root++)
         {
-            var end = new Vector3(_rng.RandfRange(-0.6f, 0.6f) * radii.X, h + radii.Y * _rng.RandfRange(0.1f, 0.7f), _rng.RandfRange(-0.6f, 0.6f) * radii.Z);
-            TaperedBranch(trunk, new Vector3(0, trunk_h, 0), end, radius * 0.36f, radius * 0.16f, 6);
+            var direction = Vector3.Right.Rotated(Vector3.Up, root * 2.399963f + seed * .57f);
+            var toe = direction * radius * _rng.RandfRange(1.55f, 2.7f);
+            toe.Y = .08f;
+            CurvedLimb(wood, Vector3.Up * _rng.RandfRange(.32f, .68f), toe * .34f + Vector3.Up * .1f,
+                toe, radius * .4f, .016f, 7, 3);
         }
-        trunk.GenerateNormals();
-        var result = new Plant(leaves, Mathf.Max(radii.X, radii.Z) + 1, trunk.Commit());
+
+        const int limbs = 11;
+        for (int limb = 0; limb < limbs; limb++)
+        {
+            float load = limb / (limbs - 1f);
+            float station = Mathf.Lerp(.45f, .94f, load);
+            float angle = limb * 2.399963f + seed * .41f + _rng.RandfRange(-.35f, .35f);
+            var radial = Vector3.Right.Rotated(Vector3.Up, angle);
+            var tangent = radial.Cross(Vector3.Up);
+            var origin = Curve(Vector3.Zero, bend, crown, station);
+            float reach = spread * _rng.RandfRange(.77f, 1.14f) * (1.14f - .66f * load);
+            var tip = origin + radial * reach + Vector3.Up * height * _rng.RandfRange(.13f, .23f);
+            var elbow = origin.Lerp(tip, .50f) - Vector3.Up * height * .065f + tangent * reach * .22f;
+            float limbRadius = radius * (.53f - load * .27f);
+            CurvedLimb(wood, origin, elbow, tip, limbRadius, .018f, 8, 5);
+            for (int shoot = 0; shoot < 4; shoot++)
+            {
+                float along = .41f + shoot * .18f;
+                var joint = Curve(origin, elbow, tip, along);
+                var outward = (radial * .65f + tangent * (shoot % 2 == 0 ? -.72f : .72f)).Normalized();
+                float size = _rng.RandfRange(.69f, 1.18f) * (1.12f - .27f * load);
+                var end = joint + outward * size + Vector3.Up * size * _rng.RandfRange(.32f, .86f);
+                CurvedLimb(wood, joint, joint.Lerp(end, .46f) + Vector3.Up * size * .16f, end,
+                    limbRadius * .36f, .005f, 5, 3);
+                for (int spray = 0; spray < 11; spray++)
+                {
+                    var offset = Unit();
+                    offset.Y *= .68f;
+                    var at = joint.Lerp(end, _rng.RandfRange(.65f, 1.09f)) + offset * size * .71f;
+                    var normal = (Vector3.Up * .61f + offset * .46f + outward * .28f).Normalized();
+                    var orientation = new Basis(new Quaternion(Vector3.Back, normal)).Rotated(normal, _rng.RandfRange(0, Mathf.Tau));
+                    float width = size * _rng.RandfRange(.70f, 1.39f);
+                    float light = _rng.RandfRange(.62f, 1.14f) * (.76f + along * .26f);
+                    var color = new Color(light * _rng.RandfRange(.87f, 1.10f), light, light * .91f, along * .49f);
+                    if (coastal && limb < 5)
+                    {
+                        LeafSpray(close, blades, at, orientation, width, color);
+                        continue;
+                    }
+                    void LeafVertex(Vector2 uv, float ridge)
+                    {
+                        var point = new Vector3((uv.X - .5f) * width, (.5f - uv.Y) * width * .87f, ridge * width);
+                        leaves.SetUV(uv);
+                        leaves.SetNormal((normal + orientation.X * (.32f * (uv.X - .5f))).Normalized());
+                        leaves.SetColor(color);
+                        leaves.AddVertex(at + orientation * point);
+                    }
+                    if (limb < 5)
+                        for (int edge = 0; edge < 4; edge++)
+                        {
+                            LeafVertex(CardCorners[(edge + 1) % 4], 0);
+                            LeafVertex(CardCorners[edge], 0);
+                            LeafVertex(new Vector2(.5f, .5f), .18f);
+                        }
+                    else
+                        foreach (int corner in CardTriangles) LeafVertex(CardCorners[corner], 0);
+                }
+            }
+        }
+        wood.Index();
+        var result = new Plant(leaves.Commit(), spread + 1.25f, wood.Commit(), coastal ? close.Commit() : null);
         _rng.State = saved;
         return result;
     }
+
+    private static void LeafSpray(SurfaceTool mesh, RandomNumberGenerator rng, Vector3 center, Basis plane, float width, Color shade)
+    {
+        for (int blade = 0; blade < 19; blade++)
+        {
+            float angle = blade * 2.399963f + rng.RandfRange(-.22f, .22f);
+            float distance = width * .54f * Mathf.Sqrt((blade + .5f) / 19f);
+            var local = new Vector3(Mathf.Cos(angle) * distance, Mathf.Sin(angle) * distance * .72f,
+                rng.RandfRange(-.16f, .16f) * width);
+            var root = center + plane * local;
+            var axis = (plane * new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), rng.RandfRange(-.65f, .8f))).Normalized();
+            var side = plane.Z.Cross(axis).Normalized();
+            var normal = axis.Cross(side);
+            float length = rng.RandfRange(.15f, .25f) * Mathf.Clamp(width, .72f, 1.2f);
+            float halfWidth = length * rng.RandfRange(.23f, .32f);
+            var color = new Color(shade.R * rng.RandfRange(.82f, 1.18f), shade.G * rng.RandfRange(.88f, 1.20f), shade.B, shade.A);
+            void Vertex(float t, float across)
+            {
+                float outline = Mathf.Sin(t * Mathf.Pi) * halfWidth;
+                var at = root + axis * (t * length) + side * (outline * across)
+                    + normal * (length * (.16f * t * t + .05f * Mathf.Sin(t * Mathf.Pi) * (1 - Mathf.Abs(across))));
+                mesh.SetColor(color);
+                mesh.SetNormal((normal - axis * t * .24f + side * across * .27f).Normalized());
+                mesh.SetUV(new((across + 1) * .5f, 1 - t));
+                mesh.AddVertex(at);
+            }
+            for (int segment = 0; segment < 3; segment++)
+                for (int vane = -1; vane < 1; vane++)
+                {
+                    float start = segment / 3f;
+                    float end = (segment + 1) / 3f;
+                    if (segment > 0)
+                    {
+                        Vertex(start, vane); Vertex(end, vane); Vertex(start, vane + 1);
+                    }
+                    if (segment < 2)
+                    {
+                        Vertex(start, vane + 1); Vertex(end, vane); Vertex(end, vane + 1);
+                    }
+                }
+        }
+    }
+
+    private static readonly int[] CardTriangles = [0, 2, 1, 0, 3, 2];
+    private static readonly Vector2[] CardCorners = [new(0, 1), new(1, 1), new(1, 0), new(0, 0)];
+
+    private static Vector3 Curve(Vector3 start, Vector3 bend, Vector3 end, float t) =>
+        start.Lerp(bend, t).Lerp(bend.Lerp(end, t), t);
+
+    private static void CurvedLimb(SurfaceTool mesh, Vector3 start, Vector3 bend, Vector3 end, float baseRadius,
+        float tipRadius, int sides, int sections, float flare = 0)
+    {
+        var direction = (end - start).Normalized();
+        var reference = direction.Cross(Mathf.Abs(direction.X) < .79f ? Vector3.Right : Vector3.Up).Normalized();
+        void Vertex(int row, int side)
+        {
+            float t = (float)row / sections;
+            var tangent = ((bend - start) * (1 - t) + (end - bend) * t).Normalized();
+            var across = tangent.Cross(reference).Normalized();
+            var axis = across.Cross(tangent);
+            float angle = side * Mathf.Tau / sides;
+            var normal = axis * Mathf.Cos(angle) + across * Mathf.Sin(angle);
+            float ribs = 1 + .10f * Mathf.Cos(angle * 3 + t * 3) + .07f * Mathf.Sin(angle * 5 - t * 5);
+            float radius = Mathf.Lerp(tipRadius, baseRadius, Mathf.Pow(1 - t, 1.16f)) * ribs
+                * (1 + flare * Mathf.Exp(-t * 22) * (.65f + .35f * Mathf.Cos(angle * 5)));
+            mesh.SetNormal(normal);
+            mesh.AddVertex(Curve(start, bend, end, t) + normal * radius);
+        }
+        for (int row = 0; row < sections; row++)
+            for (int side = 0; side < sides; side++)
+            {
+                int next = (side + 1) % sides;
+                Vertex(row, side);
+                Vertex(row + 1, next);
+                Vertex(row, next);
+                Vertex(row, side);
+                Vertex(row + 1, side);
+                Vertex(row + 1, next);
+            }
+    }
+
     public Plant BushMesh(int kind)
     {
         uint saved = _rng.State;
@@ -146,32 +293,6 @@ public sealed class SeabreezePlantMeshes
                 st.AddVertex(points[k]);
             }
         }
-    }
-    public ArrayMesh GrassMesh()
-    {
-        var st = new SurfaceTool();
-        st.Begin(Mesh.PrimitiveType.Triangles);
-        for (int blade = 0; blade < 3; blade += 1)
-        {
-            float angle = blade * Mathf.Tau / 3 + (float)_rng.Randf() * 0.8f;
-            var basis = new Basis(Vector3.Up, angle);
-            float width = _rng.RandfRange(0.1f, 0.15f);
-            float bend = _rng.RandfRange(0.2f, 0.6f);
-            var offset = new Vector3(_rng.RandfRange(-0.06f, 0.06f), 0, _rng.RandfRange(-0.06f, 0.06f));
-            for (int segment = 0; segment < 4; segment += 1)
-            {
-                foreach (var k in new[] { 0, 2, 1, 1, 2, 3 })
-                {
-                    float t = (float)(segment + k / 2) / 4;
-                    float sign_x = (k % 2 == 0 ? -1 : 1);
-                    st.SetUV(new Vector2((sign_x < 0 ? 0 : 1), t));
-                    st.SetNormal(basis * new Vector3(0, 0.3f, 1).Normalized());
-                    st.SetColor(Colors.White);
-                    st.AddVertex((offset + basis * new Vector3(sign_x * width * Mathf.Pow(1 - t, .7f) * 0.42f, t * (1f - blade * .13f), bend * t * t)));
-                }
-            }
-        }
-        return st.Commit();
     }
     public ArrayMesh PineTier(Vector3 center, float radius, float tree_height)
     {

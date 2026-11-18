@@ -27,9 +27,26 @@ public sealed class DaanGeometry
     {
         var key = (color, finish);
         if (_materials.TryGetValue(key, out var cached)) return cached;
-        var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://maps/daan_gardens/surface.gdshader") };
-        material.SetShaderParameter("tint", new Color(color));
-        material.SetShaderParameter("finish", finish);
+        Material material;
+        if (finish == 4) material = CozyBark.Create(new Color(color), .72f);
+        else if (finish == 5) material = CozyGlazing.Create(new Color(color));
+        else if (finish == 6)
+        {
+            var tint = new Color(color);
+            tint.A = .31f;
+            material = new StandardMaterial3D
+            {
+                AlbedoColor = tint, Roughness = .12f, MetallicSpecular = .48f,
+                Transparency = BaseMaterial3D.TransparencyEnum.Alpha
+            };
+        }
+        else
+        {
+            var surface = new ShaderMaterial { Shader = GD.Load<Shader>("res://maps/daan_gardens/surface.gdshader") };
+            surface.SetShaderParameter("tint", new Color(color));
+            surface.SetShaderParameter("finish", finish);
+            material = surface;
+        }
         _materials.Add(key, material);
         return material;
     }
@@ -41,8 +58,8 @@ public sealed class DaanGeometry
         {
             "box" => (Mesh)CozyPrimitives.BoxMesh(),
             "sphere" => CozyPrimitives.SphereMesh(),
-            "branch_base" => CozyPrimitives.CylinderMesh(.5f, .375f, 1, 9),
-            "branch_tip" => CozyPrimitives.CylinderMesh(.5f, .3333333f, 1, 9),
+            "branch_base" => CozyPrimitives.CylinderMesh(.5f, .375f, 1, 13),
+            "branch_tip" => CozyPrimitives.CylinderMesh(.5f, .3333333f, 1, 13),
             _ => CozyPrimitives.CylinderMesh(.5f, .5f, 1, 12)
         };
         _meshes.Add(kind, mesh);
