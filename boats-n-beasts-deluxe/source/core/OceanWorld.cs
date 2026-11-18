@@ -40,6 +40,15 @@ public sealed class OceanWorld(uint seed)
     public const float BarrelChance = .20f;
     public const float BarrelSpacing = 900;
     public uint Seed { get; } = seed;
+    public Place SalvageWreck { get; } = ChartedWreck(seed);
+
+    static Place ChartedWreck(uint seed)
+    {
+        var chart = new SeedRandom(seed ^ 0x746f776cu);
+        float x = chart.Range(485, 1120) * (chart.Unit() < .5f ? -1 : 1);
+        var position = new Vector2(x, chart.Range(-1560, -1320));
+        return new("home:salvage", PlaceKind.Shipwreck, position, 185, chart.Next());
+    }
     public Dictionary<ChunkKey, OceanChunk> Loaded { get; } = new();
     public Dictionary<string, int> Depletion { get; } = new();
     public HashSet<string> Discovered { get; } = new();
@@ -65,8 +74,8 @@ public sealed class OceanWorld(uint seed)
         // Prison destinations reserve their real coastline before spacing or collision.
         if (radius >= 250 && IsPrisonStyle(style)) radius = PrisonIslandRadius;
         // Giant islands can reach toward home from outside its reserved chunks.
-        if (StartingArea.Places.Any(p => IsSolid(p) && Vector2.Distance(position, p.Position) <
-            (radius + p.Radius) * 1.04f + 320)) return null;
+        bool Crowds(Place solid) => Vector2.Distance(position, solid.Position) < (radius + solid.Radius) * 1.04f + 320;
+        if (Crowds(SalvageWreck) || StartingArea.Places.Any(p => IsSolid(p) && Crowds(p))) return null;
         return new($"{key.X}:{key.Y}:land", PlaceKind.Island,
             position, radius, style);
     }
@@ -164,7 +173,11 @@ public sealed class OceanWorld(uint seed)
     }
     public OceanChunk Generate(ChunkKey key)
     {
-        if (StartingArea.Contains(key)) return StartingArea.Generate(key);
+        if (StartingArea.Contains(key))
+        {
+            var home = StartingArea.Generate(key);
+            return key == KeyAt(SalvageWreck.Position) ? home with { Places = [.. home.Places, SalvageWreck] } : home;
+        }
         var places = Landmarks(key).ToList();
         // Include distant prison shores when placing nearby encounters and barrels.
         var nearbySolids = new List<Place>();
@@ -172,7 +185,7 @@ public sealed class OceanWorld(uint seed)
         {
             var neighbor = new ChunkKey(key.X + x, key.Y + y);
             nearbySolids.AddRange(StartingArea.Contains(neighbor)
-                ? StartingArea.Generate(neighbor).Places.Where(IsSolid) : Landmarks(neighbor));
+                ? Generate(neighbor).Places.Where(IsSolid) : Landmarks(neighbor));
         }
         var island = places.FirstOrDefault(p => p.Kind == PlaceKind.Island);
         if (island != null && IslandTreasure(island) is { } treasure) places.Add(treasure);

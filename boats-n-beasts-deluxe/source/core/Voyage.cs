@@ -80,6 +80,7 @@ public sealed partial class Voyage
         Heading = MathF.PI;
         World.Stream(Position);
         Beacons = MakeBeacons(seed);
+        Salvage = new(World.SalvageWreck);
     }
     public void Tick(float dt, SailInput input)
     {
@@ -107,6 +108,7 @@ public sealed partial class Voyage
     {
         CollectEncounters();
         UpdateChain(dt);
+        UpdateSalvage(dt);
         UpdateBeacons(dt);
         int spawn = Director.Tick(dt, CombatTime, Enemies.Count(e => e.Kind != EnemyKind.Leviathan), BossSpawned);
         for (int i = 0; i < spawn; i++) Spawn();
@@ -115,6 +117,7 @@ public sealed partial class Voyage
             if (Spawn(EnemyKind.Leviathan))
             {
                 BossSpawned = true;
+                Salvage.Towing = false;
                 foreach (var escort in Enemies.Where(e => e.Kind != EnemyKind.Leviathan && e.Health > 0).OrderBy(e => Vector2.DistanceSquared(e.Position, Position)).Skip(SpawnDirector.BossEscortCount)) escort.Health = 0;
                 Events.Add(new("boss", Enemies[^1].Position));
             }

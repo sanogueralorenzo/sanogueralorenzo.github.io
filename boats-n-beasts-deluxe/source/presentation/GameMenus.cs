@@ -216,7 +216,8 @@ public partial class Game : Node2D
     }
 
     string VoyageSummary() => $"{Run.Rules.Name}  ·  {ClockText(Run.CombatTime)}  ·  Level {Run.Level}\n" +
-        $"{Run.BeaconsLit}/{Run.Beacons.Count} beacons  ·  {Run.Kills} beasts  ·  Longest chain {Run.LongestChain}  ·  +{Run.SilverEarned} silver";
+        $"{Run.BeaconsLit}/{Run.Beacons.Count} beacons  ·  {Run.Kills} beasts  ·  Longest chain {Run.LongestChain}  ·  +{Run.SilverEarned} silver" +
+        (Run.Salvage.Delivered ? "\nWreck salvage delivered" : "");
 
     void UpgradeMenu()
     {
@@ -254,6 +255,7 @@ public partial class Game : Node2D
         col.AddChild(Label("WASD / arrows   Steer\nLeft-click   Sail to a point\nSpace / Shift   Hold to boost\nE   Boat maneuver\nEsc   Pause\n\nController   Left stick to steer · RB to boost · X for maneuver · Start to pause", 19));
         col.AddChild(Label("Hold Breakwater, patrol Gull Shoal, and defeat the keeper at Smuggler’s Light. Light all three to summon Crownclaw early, or meet it at 8:00. Red water marks incoming bombs and charges. Crownclaw’s shell opens after it attacks.", 18));
         col.AddChild(Label("Defeat beasts and find beach chests to level up. Chain four kills within successive five-second windows for XP, boost and silver. Bait puffers near other beasts and boost clear. Floating barrels repair your hull.", 18));
+        col.AddChild(Label("Follow the red flag on the compass to salvage a wreck. Sail close to hook the cargo and tow it to any beacon for a refit. Long boosts can snap the line.", 18));
         col.AddChild(Button("Back", () => { controls = false; BuildMenu(); }, true));
     }
 }

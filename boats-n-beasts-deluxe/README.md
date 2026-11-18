@@ -12,7 +12,7 @@ Pilot a pirate ship through a procedural archipelago. Defend Breakwater, patrol 
 | E or controller X | Use Broadside, Breakwater, or Slipstream |
 | Esc or Start | Pause |
 
-Level-ups fit up to three weapons and improve the hull, engine, reload, and reach. Choose a specialty at level 5. Beach chests grant XP, barrels repair hull, and every four consecutive kills earn chain rewards. Claim silver from beacons, chains, and victories. Spend it in the Captain’s Log to unlock the Salvager and Stormchaser charters. The log tracks your fastest win for each boat and charter.
+Level-ups fit up to three weapons and improve the hull, engine, reload, and reach. Choose a specialty at level 5. Tow cargo from the wreck marked on the compass to any beacon for a refit and repairs. Beach chests grant XP, barrels repair hull, and every four consecutive kills earn chain rewards. Claim silver from beacons, chains, and victories. Spend it in the Captain’s Log to unlock the Salvager and Stormchaser charters. The log tracks your fastest win for each boat and charter.
 
 ## Run and preview
 

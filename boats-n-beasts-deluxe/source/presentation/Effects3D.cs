@@ -91,7 +91,11 @@ public partial class Effects3D : Node3D
         foreach (var b in bursts) DrawBurst(b);
         foreach (var p in sparks) Ball(p.P, Vector3.One * p.Size * (1 - p.Age / p.Life), p.Color);
         DrawEncounters(voyage);
-        if (ShowBeacons) DrawBeacons(voyage);
+        if (ShowBeacons)
+        {
+            DrawBeacons(voyage);
+            if (voyage.SalvageAvailable) DrawSalvage(voyage);
+        }
         if (Destination is V2 destination)
         {
             var p = World(destination, .05f);
@@ -119,6 +123,33 @@ public partial class Effects3D : Node3D
             float wave = time * .36f % 1;
             foam.Arc(center, .34f + wave * 1.15f, 0, Mathf.Tau, .025f, Fade(color, .5f * (1 - wave)), 28);
         }
+    }
+
+    void DrawSalvage(Voyage voyage)
+    {
+        var crate = World(voyage.Salvage.Position, .10f);
+        if (!voyage.Salvage.Towing)
+        {
+            float pulse = time * .58f % 1;
+            foam.Arc(crate, .57f + pulse * .54f, 0, Mathf.Tau, .025f, Fade(Cream, .72f * (1 - pulse)), 28);
+            return;
+        }
+
+        float tension = voyage.TowTension;
+        var hook = World(voyage.TowHook, .20f);
+        var rope = Cream.Lerp(Coral, Mathf.SmoothStep(.49f, .95f, tension));
+        var side = new Vector3(crate.Z - hook.Z, 0, hook.X - crate.X).Normalized();
+        var last = hook;
+        for (int i = 1; i <= 9; i++)
+        {
+            float t = i / 9f;
+            var next = hook.Lerp(crate, t) + side * (Mathf.Sin(t * Mathf.Pi) * .24f * (1 - tension));
+            foam.Ribbon(last, next, .024f, .024f, Fade(rope, .92f));
+            last = next;
+        }
+        if (voyage.DeliveryBeacon is { } beacon)
+            foam.Arc(World(beacon.Position, .06f), SalvageCargo.DeliveryRadius * .01f,
+                0, Mathf.Tau, .035f, Fade(Aqua, .77f), 48);
     }
 
     void DrawWarning(V2 position, float radius, float progress)
@@ -296,7 +327,7 @@ public partial class Effects3D : Node3D
         {
             if(bursts.Count<192) bursts.Add(new() {Kind=ev.Kind,P=World(ev.Position,ev.Kind is "arc" or "pull"?.3f:.05f),End=World(ev.End,.3f),Life=ev.Kind is "arc" or "pull"?.2f:ev.Kind=="calm"?1.3f:ev.Kind is "pufferExplosion" or "bossExplosion"?.6f:.48f,Size=ev.Kind == "beacon" ? Beacon.Radius * .01f : ev.Value*.01f});
         }
-        int count=ev.Kind switch {"hit"=>2,"kill"=>7,"explosion"=>15,"hurt"=>5,"shot"=>3,"ricochet"=>4,"barrel"=>3,"heal" or "treasure" or "silver"=>6,"boostStart"=>9,"beacon"=>26,"chain"=>13,"broadside"=>20,"blink"=>16,_=>0};
+        int count=ev.Kind switch {"hit"=>2,"kill"=>7,"explosion"=>15,"hurt"=>5,"shot"=>3,"ricochet"=>4,"barrel"=>3,"heal" or "treasure" or "silver"=>6,"boostStart"=>9,"beacon" or "towDelivered"=>26,"towHooked" or "towSnapped"=>8,"chain"=>13,"broadside"=>20,"blink"=>16,_=>0};
         for(int i=0;i<count && sparks.Count<512;i++)
         {
             float a=random.RandfRange(0,Mathf.Tau), speed=random.RandfRange(.25f,ev.Kind=="explosion"?2.5f:1.2f);

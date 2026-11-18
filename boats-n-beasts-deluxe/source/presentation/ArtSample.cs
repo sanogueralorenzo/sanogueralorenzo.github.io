@@ -17,6 +17,8 @@ public partial class ArtSample : Node3D
     const string SettingsPath = "user://art-preview.cfg";
     Label status = null!;
     Node3D rocky = null!;
+    Node3D? cargo;
+    System.Numerics.Vector2 cargoPosition;
     Node3D home = null!, boat = null!, crab = null!;
     int islandStyle;
     int islandSize = 1;
@@ -73,10 +75,12 @@ public partial class ArtSample : Node3D
         }
         stage.Follow(center, boatDetail ? 1.7f : close ? detailSize : 0); stage.Advance(clock);
         ActorArt3D.AnimateBoat(boat, clock, 0, 0);
+        if (cargo != null) SalvageArt.Advance(cargo, cargoPosition, clock, default);
     }
     void ShowIsland()
     {
         if (rocky != null) { RemoveChild(rocky); rocky.QueueFree(); }
+        cargo?.QueueFree(); cargo = null;
         var place = whirlpool ? new Place("sample-whirlpool", PlaceKind.Whirlpool, default, 260, 23) : seaWreck ? new Place("sample-wreck", PlaceKind.Shipwreck, default, landmarkSizes.ForKind(3) * OceanWorld.ShipwreckUnitRadius, 15) : beachReference
             ? new Place("sample-rock", PlaceKind.Island, default, 355.70514f, 2273309013)
             : new Place("sample-rock", PlaceKind.Island, default, IslandSizes[islandSize], IslandStyles[islandStyle] + variant);
@@ -86,6 +90,16 @@ public partial class ArtSample : Node3D
         bool giant = place.Radius > 360;
         // Keep the normal camera and boat scale; make room for the giant footprint.
         rocky.Position = giant ? new(1, 0, 0) : new(4, 0, .4f);
+        if (seaWreck)
+        {
+            cargo = SalvageArt.Build();
+            AddChild(cargo);
+            cargoPosition = SalvageCargo.Mooring(place with
+            {
+                Position = new(rocky.Position.X / NativeStage3D.Unit, rocky.Position.Z / NativeStage3D.Unit)
+            });
+            SalvageArt.Advance(cargo, cargoPosition, clock, default);
+        }
         stage.SetWhirlpools(rocky is Whirlpool3D vortex ? new[] { vortex } : System.Array.Empty<Whirlpool3D>());
         boat.Position = giant ? new(-6.3f, 0, 4.6f) : Vector3.Zero;
         home.Visible = crab.Visible = !giant;

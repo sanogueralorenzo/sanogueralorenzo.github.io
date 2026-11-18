@@ -22,7 +22,7 @@ public partial class OceanView3D : Node3D
     readonly Dictionary<Beacon, Node3D> beacons = new();
     NativeStage3D stage = null!;
     Effects3D effects = null!;
-    Node3D? boat;
+    Node3D? boat, cargo;
     string boatSignature = "";
     float lastHeading, heel;
     public override void _Ready()
@@ -39,6 +39,7 @@ public partial class OceanView3D : Node3D
         foreach (var root in scenery.Values) root.QueueFree(); scenery.Clear();
         foreach (var root in creatures.Values) root.QueueFree(); creatures.Clear();
         ClearBeacons();
+        cargo?.QueueFree(); cargo = null;
         boat?.QueueFree(); boat = null; boatSignature = "";
         lastHeading = Voyage.Heading; heel = 0;
         ActorArt3D.ResetCache();
@@ -65,7 +66,21 @@ public partial class OceanView3D : Node3D
         float storm = Voyage.BossSpawned && !Voyage.BossSlain ? 1
             : !Menu && Voyage.Charter == Charter.Stormchaser && !Voyage.BossSlain ? .49f : 0;
         stage.Advance(Clock, storm, dt);
-        if (!Menu) SyncBeacons();
+        if (!Menu)
+        {
+            SyncBeacons();
+            if (Voyage.SalvageAvailable && cargo == null)
+            {
+                cargo = SalvageArt.Build();
+                AddChild(cargo);
+            }
+            if (cargo != null)
+            {
+                cargo.Visible = Voyage.SalvageAvailable;
+                var tow = Voyage.Salvage.Towing ? Voyage.TowHook - Voyage.Salvage.Position : V2.Zero;
+                SalvageArt.Advance(cargo, Voyage.Salvage.Position, Clock, tow);
+            }
+        }
         SyncScenery(); SyncActors(dt);
         effects.Destination = Destination;
         effects.ShowBeacons = !Menu;

@@ -46,6 +46,9 @@ public partial class SeaAudio : Node
         AddCue("bossExplosion", Thump(.44f, 58, .8f));
         AddCue("explosion", Thump(.26f, 85, .51f));
         AddCue("chain", Chime(.46f, [440, 587, 660], .58f));
+        AddCue("towHooked", Chime(.32f, [220, 330], .56f));
+        AddCue("towSnapped", Thump(.18f, 204, .71f));
+        AddCue("towDelivered", Chime(.88f, [330, 440, 554, 660], .68f));
         AddCue("treasure", Chime(.55f, [440, 554, 659], .58f));
         AddCue("heal", Chime(.46f, [330, 495], .42f));
         AddCue("level", Chime(.35f, [370, 494], .45f));

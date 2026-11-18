@@ -88,6 +88,9 @@ public partial class Game : Node2D
             switch (e.Kind)
             {
                 case "beacon": Toast($"Beacon lit · +{e.Value:0} XP"); break;
+                case "towHooked": Toast("Tow secured · take the cargo to any beacon"); break;
+                case "towSnapped": Toast("Towline snapped · sail back to the cargo"); break;
+                case "towDelivered": Toast("Salvage delivered · refit earned"); break;
                 case "chain": Toast($"{e.Value:0} beast chain · boost recharged"); break;
                 case "boss": Toast("The Crownclaw rises"); break;
                 case "enraged": Toast("Crownclaw is enraged · watch for charges"); break;
@@ -131,7 +134,7 @@ public partial class Game : Node2D
     {
         if (input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } click && !title && Run.Mode == VoyageMode.Sailing)
         {
-            var point = ocean.WorldPoint(click.Position);
+            var point = hud.CourseAt(click.Position) ?? ocean.WorldPoint(click.Position);
             destination = Run.World.Slide(Run.Position, point, 70);
             usingController = false;
             GetViewport().SetInputAsHandled();
