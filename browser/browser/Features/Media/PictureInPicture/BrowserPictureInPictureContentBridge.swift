@@ -1,7 +1,5 @@
 import WebKit
 
-/// Popups share their opener's user-content controller. Install once on that
-/// controller and route each message to the exact web view that authored it.
 @MainActor
 final class BrowserPictureInPictureContentBridge: NSObject, WKScriptMessageHandler {
     static let shared = BrowserPictureInPictureContentBridge()

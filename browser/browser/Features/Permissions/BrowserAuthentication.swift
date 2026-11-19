@@ -1,7 +1,6 @@
 import AppKit
 import Foundation
 
-/// Website HTTP authentication stays in memory; there is no password-saving option.
 @MainActor enum BrowserAuthentication {
     static func answer(_ challenge: URLAuthenticationChallenge, in window: NSWindow?) async -> (
         URLSession.AuthChallengeDisposition, URLCredential?

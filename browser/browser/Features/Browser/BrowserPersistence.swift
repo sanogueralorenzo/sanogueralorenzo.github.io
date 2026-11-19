@@ -2,8 +2,7 @@ import CryptoKit
 import Darwin
 import Foundation
 
-/// One durable JSON checkpoint, with a validated previous checkpoint for recovery.
-/// All writes run on the session owner's main actor and finish before an acknowledged quit.
+/// Normal quit waits for the session checkpoint.
 final class BrowserPersistence {
     struct Envelope: Codable {
         let checksum: String
@@ -107,7 +106,7 @@ final class BrowserPersistence {
             }
         }
         guard fsync(descriptor) == 0 else { throw POSIXError(.EIO) }
-        // F_FULLFSYNC asks macOS to flush the drive cache, as the durable SQLite path did.
+        // F_FULLFSYNC also flushes the drive cache.
         if fcntl(descriptor, F_FULLFSYNC) != 0, errno != ENOTSUP, errno != EINVAL { throw POSIXError(.EIO) }
         guard Darwin.rename(temporary.path, target.path) == 0 else { throw POSIXError(.EIO) }
         let parent = Darwin.open(directory.path, O_RDONLY)

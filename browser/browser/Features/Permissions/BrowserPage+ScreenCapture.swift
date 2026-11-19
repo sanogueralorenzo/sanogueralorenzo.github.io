@@ -1,7 +1,7 @@
 import WebKit
 
 extension BrowserPage {
-    // WebKit's browser delegate still presents the native source picker for every granted request.
+    // WebKit still presents its native source picker after this permission is granted.
     @objc(_webView:requestDisplayCapturePermissionForOrigin:initiatedByFrame:withSystemAudio:decisionHandler:)
     func requestDisplayCapture(
         _ view: WKWebView, origin: WKSecurityOrigin, frame: WKFrameInfo,

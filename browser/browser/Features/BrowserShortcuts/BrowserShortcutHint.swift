@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The fork's inline hint, with a native chord string instead of a generated binding record.
+/// Adapted from Crest's inline shortcut hint.
 struct BrowserShortcutHint: View {
     let text: String
     @ScaledMetric(relativeTo: .caption) private var fontSize = 12

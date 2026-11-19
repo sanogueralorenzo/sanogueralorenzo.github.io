@@ -67,7 +67,7 @@ extension BrowserStore {
             "zen-sessions.json", "zen-sessions.jsonlz4",
         ]
         var result: [URL] = []
-        // Only session/bookmark candidates are read; passwords, cookies, keys, extensions, and history databases stay untouched.
+        // Limit discovery to session and bookmark files to protect other profile data.
         for url in files {
             let values = try url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
             guard values.isSymbolicLink != true else { continue }
@@ -86,7 +86,7 @@ extension BrowserStore {
             $0.lastPathComponent > $1.lastPathComponent
         }
         if let latest = sessions.first { result.append(latest) }
-        // Prefer the latest Firefox recovery checkpoint over the older shutdown file.
+        // Firefox can leave an older shutdown file beside its current recovery checkpoint.
         if result.contains(where: { $0.lastPathComponent == "recovery.jsonlz4" }) {
             result.removeAll { $0.lastPathComponent == "sessionstore.jsonlz4" }
         }

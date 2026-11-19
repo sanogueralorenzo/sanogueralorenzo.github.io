@@ -1,8 +1,7 @@
 import Foundation
 
 extension BrowserStore {
-    /// One validated edit for a selection. Local moves keep their page instances;
-    /// a cross-Space move asks every affected page before changing any ownership.
+    /// Local moves retain pages. Cross-Space moves require approval before ownership changes.
     @discardableResult
     func moveSidebarItems(
         _ payload: BrowserDragPayload, to destination: UUID, parentID: UUID? = nil,
@@ -49,9 +48,7 @@ extension BrowserStore {
             let current = session.spaces[s]
             var destinationSpace = session.spaces[d]
             if let newFolder { destinationSpace.folders.append(newFolder) }
-            // A folder or split edited while its documents were answering is a
-            // different unit. Never publish half of it or move newly added pages
-            // that did not answer the close safeguards.
+            // Revalidate folders and split groups after awaiting approval to keep moves atomic.
             guard payload.folderIDs.allSatisfy({ id in current.folders.contains { $0.id == id } }),
                 wholeGroups.allSatisfy({ original in
                     current.splits.contains { $0.id == original.id && Set($0.tabIDs) == Set(original.tabIDs) }

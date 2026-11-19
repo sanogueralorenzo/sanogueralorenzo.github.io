@@ -21,9 +21,7 @@ enum BrowserMediaPlayerPolicyScript {
               if (container === document.body || container === document.documentElement) break;
               const bounds = container.getBoundingClientRect();
               if (bounds.width * bounds.height > Math.max(videoArea * 6, 4000000)) break;
-              // A lone "pause background animation" control is deliberately not a
-              // player. Seek/volume sliders plus transport buttons identify a real
-              // control surface without depending on the language of its labels.
+              // Require a control surface so background animations do not qualify as media players.
               const exposed = control => {
                 for (let element = control; element && element !== container; element = parentOf(element)) {
                   if (element.hidden || getComputedStyle(element).display === 'none') return false;
@@ -33,8 +31,7 @@ enum BrowserMediaPlayerPolicyScript {
               const buttons = Array.from(container.querySelectorAll('button, [role="button"]')).filter(exposed);
               const timeline = Array.from(container.querySelectorAll('input[type="range"], [role="slider"], progress')).some(exposed);
               if (buttons.length >= 2 && timeline) return true;
-              // Players without a seek bar (live streams) can qualify after a real
-              // click/key interaction and with multiple actual playback controls.
+              // Interaction can qualify live players that lack a seek bar.
               if (wasInteracted && buttons.length >= 2) {
                 const controls = Array.from(buttons).filter(button =>
                   /play|pause|mute|volume|fullscreen/i.test(

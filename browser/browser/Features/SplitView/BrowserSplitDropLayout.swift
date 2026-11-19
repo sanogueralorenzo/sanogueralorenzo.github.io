@@ -1,7 +1,6 @@
 import Foundation
 
-/// Crest's content-slot rule and proportional insertion, shared by the native
-/// placeholder and the committed split. Lifted cards retain their identities.
+/// Split insertion rules adapted from Crest and shared by preview and commit.
 struct BrowserSplitDropLayout: Equatable {
     let ids: [UUID]
     let incoming: [UUID]

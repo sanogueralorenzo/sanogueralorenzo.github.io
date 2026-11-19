@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Crest isolates nesting feedback so a target change redraws the outline,
-/// rather than an expanded folder's contents or a tab's controls.
+/// Isolate the nesting highlight so a target change only redraws the outline, as in Crest.
 struct BrowserSidebarNestHighlight: View {
     enum Target {
         case folder(UUID)

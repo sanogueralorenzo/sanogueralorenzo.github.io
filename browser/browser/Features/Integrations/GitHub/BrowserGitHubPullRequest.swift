@@ -15,7 +15,6 @@ struct BrowserGitHubPullRequest: Decodable, Identifiable, Equatable {
             && (url.port == nil || url.port == 443) && url.user == nil && url.password == nil
     }
 
-    /// Website content cannot turn an integration row into an arbitrary link.
     var isValid: Bool {
         Self.accepts(url)
             && url.query == nil && url.fragment == nil

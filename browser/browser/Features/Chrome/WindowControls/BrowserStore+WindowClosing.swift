@@ -12,7 +12,7 @@ extension BrowserStore {
                 }
         }
         let removesSpace = removesPrivateSpace()
-        // Shared pages survive the window; the last private window ends its Space.
+        // Closing the last private window ends its Space. Shared pages survive window closure.
         let ids = removesSpace ? activeSpace.tabs.map(\.id) : []
         let check = BrowserPageCloseCheck(ids, owner: owner)
         func isCurrent() -> Bool {

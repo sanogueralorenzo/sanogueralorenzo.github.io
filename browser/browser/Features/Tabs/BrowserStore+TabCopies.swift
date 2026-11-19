@@ -20,8 +20,7 @@ extension BrowserStore {
         }
     }
 
-    /// Capture before publishing a new page, so a late capture cannot overwrite
-    /// the copy's own edits. Sleeping tabs keep the operation synchronous.
+    /// Capture state before creating the copy so late results cannot overwrite its edits.
     func withCurrentTabState(_ ids: Set<UUID>, perform: @escaping @MainActor () -> Void) {
         guard !isClosed, !ids.isEmpty else { return }
         let spaces = Dictionary(

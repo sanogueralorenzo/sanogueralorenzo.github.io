@@ -1,6 +1,6 @@
 import AppKit
 
-/// Crest's phase routing and release projection, over Browser's existing sidebar hosts.
+/// Phase handling and release projection adapted from Crest.
 @MainActor final class BrowserSpaceSwipeGesture {
     private enum Axis { case outside, undecided, horizontal, vertical }
     private struct Sample {

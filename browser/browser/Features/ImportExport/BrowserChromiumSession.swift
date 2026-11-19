@@ -1,6 +1,5 @@
 import Foundation
 
-/// Reads browser session files only; no Chromium runtime or embedding code is retained.
 struct BrowserChromiumSession {
     struct Tab {
         var window: Int?

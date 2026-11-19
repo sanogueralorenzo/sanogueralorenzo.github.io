@@ -1,6 +1,6 @@
 import AppKit
 
-/// WebKit handles history gestures first; only unhandled swipes reach the window.
+/// WebKit gets first chance to handle history swipes.
 @MainActor final class BrowserWindow: NSWindow {
     weak var store: BrowserStore?
 

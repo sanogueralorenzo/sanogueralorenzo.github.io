@@ -3,11 +3,9 @@ import Foundation
 import Observation
 import WebKit
 
-/// A window's selection and presentation over the shared Swift session owner.
 @MainActor
 @Observable
 final class BrowserStore {
-    // MARK: - Variables
 
     let owner: BrowserSessionOwner
     let id: UUID
@@ -124,16 +122,12 @@ final class BrowserStore {
             || editingTabID != nil || editingFolderID != nil || selectedTab == nil
     }
 
-    // MARK: - Initializers
-
     init(owner: BrowserSessionOwner, id: UUID) {
         self.owner = owner
         self.id = id
         loadSelection()
         for space in session.spaces { _ = integration(for: space.id) }
     }
-
-    // MARK: - Actions - Navigation
 
     func selectTab(_ id: UUID, keepingSelection: Bool = false) {
         if !keepingSelection {
@@ -239,8 +233,6 @@ final class BrowserStore {
         return pages[tab.id] != nil || tab.isSettings
     }
 
-    // MARK: - Actions - Pages
-
     func pageChanged(_ page: BrowserPage) {
         guard let (s, t) = tabIndex(page.id) else { return }
         if let url = page.url { session.spaces[s].tabs[t].url = url }
@@ -255,8 +247,6 @@ final class BrowserStore {
         owner.media?.refresh()
         runtimeRevision &+= 1
     }
-
-    // MARK: - Actions - Persistence
 
     func changed() { owner.changed() }
 

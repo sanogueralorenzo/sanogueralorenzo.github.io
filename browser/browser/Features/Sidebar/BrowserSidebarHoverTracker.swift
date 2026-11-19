@@ -2,8 +2,6 @@ import SwiftUI
 
 struct BrowserSidebarHoverTracker: NSViewRepresentable {
     var isRevealedByPointer = false
-    /// How much of the tracker, along `exitEdge`, lies over the page beside
-    /// the sidebar rather than over the sidebar itself.
     var exitMargin: CGFloat = 0
     var exitEdge: HorizontalEdge = .trailing
     let onHoverChange: @MainActor @Sendable (Bool) -> Void
@@ -19,8 +17,7 @@ struct BrowserSidebarHoverTracker: NSViewRepresentable {
         view.schedulePointerRefresh()
     }
 
-    /// AppKit keeps its coordinates left to right whatever the layout
-    /// direction, so a leading or trailing edge is resolved to a side here.
+    /// Resolve logical edges because AppKit coordinates are always left to right.
     private func exitRectEdge(in layoutDirection: LayoutDirection) -> CGRectEdge {
         (exitEdge == .trailing) == (layoutDirection == .leftToRight) ? .maxXEdge : .minXEdge
     }

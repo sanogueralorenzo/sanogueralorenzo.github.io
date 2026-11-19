@@ -271,8 +271,7 @@ final class BrowserSidebarReorderState {
             ids: ids, liftedIDs: lifted, insertionIndex: insertion, availableWidth: width)
     }
 
-    /// Like Crest, hit testing uses projected resting measurements rather than
-    /// feeding animated measurements back into the insertion calculation.
+    /// Use resting frames so animated positions do not feed back into hit testing.
     func move(to screenPoint: NSPoint, in store: BrowserStore) {
         if store.owner.sidebarDrag.payload?.kind == .space {
             guard let source = store.owner.sidebarDrag.payload?.spaceID else { return }
@@ -292,8 +291,7 @@ final class BrowserSidebarReorderState {
             return
         }
         let point = content.convert(window.convertPoint(fromScreen: screenPoint), from: nil)
-        // A Space dot stays reachable even when a tall list gap covers its
-        // old vertical interval. Only the visible portion of the rail accepts.
+        // Keep visible Space dots reachable even when a list gap covers their old positions.
         for zone in restingZones.values where zone.isSpace && store.showsSidebar {
             guard zone.frame.intersection(spaceViewport).contains(point) else { continue }
             let value = Target(zoneID: zone.id, spaceID: zone.spaceID, kind: .space)

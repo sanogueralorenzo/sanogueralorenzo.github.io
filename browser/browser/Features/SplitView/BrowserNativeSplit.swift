@@ -62,8 +62,7 @@ struct BrowserNativeSplit: NSViewRepresentable {
         for page in pages {
             let view = panes[page.id] ?? NSHostingView(rootView: BrowserPageContent(page: page, store: store))
             view.sizingOptions = []
-            // BrowserRoot owns the frameless window's safe areas. A nested
-            // hosting view must not add the titlebar inset again.
+            // Avoid duplicating the title-bar inset already provided by BrowserRoot.
             view.safeAreaRegions = []
             view.rootView = BrowserPageContent(page: page, store: store)
             panes[page.id] = view
@@ -108,8 +107,7 @@ struct BrowserNativeSplit: NSViewRepresentable {
         needsLayout = true
     }
     private func unarrange(_ view: NSView) {
-        // NSSplitView removes its KVO registrations here even for a nonmember.
-        // A lifted host stays mounted and can receive several updates.
+        // NSSplitView can remove KVO registrations for a view it does not arrange.
         if arrangedSubviews.contains(view) { removeArrangedSubview(view) }
     }
     override func layout() {

@@ -1,36 +1,14 @@
 import AppKit
 
-/// Owns hover across the sidebar's full region, including its leading inset
-/// and, for a floating card, an exit margin over the page beside it.
-///
-/// Hover is the pointer resting on the region, held open for as long as
-/// something the sidebar opened is still in use: a menu started inside it, a
-/// popover or sheet it presented, an extension popup that took the keyboard
-/// from its window, or a field of its own being typed into. A hold only keeps a
-/// hover the pointer started; it never reveals the sidebar on its own.
-///
-/// Menu tracking can leave an exit queued after the pointer has returned to
-/// the sidebar. Sample the current position instead of trusting that event.
+/// Holds extend an existing hover. Sample the pointer because menu tracking can queue a stale exit.
 @MainActor
 final class BrowserSidebarHoverTrackingView: NSView {
-    // MARK: - Static Variables
 
-    /// How long the region stays held after its last hold lets go. A menu item
-    /// or a popover often opens its successor — a popover, a sheet, a rename
-    /// field — a moment after it closes, and the sidebar that anchors it
-    /// should still be there when it arrives.
+    /// Keep the anchor visible while a dismissed menu or popover opens its successor.
     static let holdReleaseDelay: TimeInterval = 0.15
 
-    // MARK: - Variables
-
     var onHoverChange: @MainActor @Sendable (Bool) -> Void
-    /// Whether the pointer brought the sidebar out by reaching the window
-    /// edge, so it was already on its way in before the region slid under it.
-    ///
-    /// Each such reveal starts a new hover. The pointer can touch the edge
-    /// again while the sidebar it just left is still sliding away, and the
-    /// same region comes back with the exit it already reported; leaving
-    /// again would repeat that report and never reach the sidebar.
+    /// Reset hover when the edge is reached again during slide-out.
     var isRevealedByPointer = false {
         didSet {
             guard isRevealedByPointer, !oldValue else { return }
@@ -52,9 +30,7 @@ final class BrowserSidebarHoverTrackingView: NSView {
     private var isReleasingHold = false
     private var lastReportedHover: Bool?
 
-    /// Whether the pointer is on the region, counting the exit margin only for
-    /// a hover already under way: the margin keeps the sidebar out, but never
-    /// brings it out.
+    /// The exit margin can extend a hover already underway.
     private var isPointerInside: Bool {
         isPointer(in: lastReportedHover == true ? trackedRect : sidebarRect)
     }
@@ -63,10 +39,7 @@ final class BrowserSidebarHoverTrackingView: NSView {
         isPointer(in: sidebarRect)
     }
 
-    /// Whether the pointer that revealed the sidebar has gone somewhere a
-    /// slide-in cannot explain: out of the window, or into another app. It
-    /// can get there before the region first reports it inside, and nothing
-    /// in the region reports an exit it never saw an entry for.
+    /// The pointer can leave the window before the sliding sidebar reports its first entry.
     private var hasRevealingPointerLeft: Bool {
         guard isRevealedByPointer, let window else { return false }
         return !window.isKeyWindow || !window.frame.contains(pointerLocation())
@@ -80,16 +53,12 @@ final class BrowserSidebarHoverTrackingView: NSView {
             || isEditingInside
     }
 
-    /// Whether a field of the sidebar's own is being typed into. The window's
-    /// field editor stands in for whichever text field it is editing, and web
-    /// content never answers as one.
+    /// Resolve the text field through AppKit's shared field editor.
     private var isEditingInside: Bool {
         guard let window, let editor = window.firstResponder as? NSTextView else { return false }
         let field = editor.isFieldEditor ? (editor.delegate as? NSView) ?? editor : editor
         guard field.window === window, !field.isHiddenOrHasHiddenAncestor else { return false }
-        // Contained rather than overlapping: a floating card covers part of the
-        // page, and a field of the page's own chrome lying partly beneath it is
-        // not one of the sidebar's.
+        // Full containment excludes fields partly covered by the floating sidebar.
         return sidebarRect.contains(convert(field.convert(field.bounds, to: nil), from: nil))
     }
 
@@ -97,13 +66,9 @@ final class BrowserSidebarHoverTrackingView: NSView {
         bounds.intersection(visibleRect)
     }
 
-    /// The part of the region over the sidebar itself, without the exit
-    /// margin over the page beside it.
     private var sidebarRect: NSRect {
         bounds.divided(atDistance: exitMargin, from: exitEdge).remainder.intersection(visibleRect)
     }
-
-    // MARK: - Initializers
 
     init(
         notificationCenter: NotificationCenter = .default,
@@ -114,8 +79,7 @@ final class BrowserSidebarHoverTrackingView: NSView {
         self.pointerLocation = pointerLocation
         self.onHoverChange = onHoverChange
         super.init(frame: .zero)
-        // Modern NSView instances do not clip by default. Without this,
-        // inVisibleRect can track the window beyond the sidebar's bounds.
+        // Clip the tracker because inVisibleRect can otherwise extend beyond the sidebar.
         clipsToBounds = true
     }
 
@@ -123,8 +87,6 @@ final class BrowserSidebarHoverTrackingView: NSView {
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-
-    // MARK: - Actions - Hover
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         nil
@@ -154,7 +116,7 @@ final class BrowserSidebarHoverTrackingView: NSView {
             notificationCenter.addObserver(self, selector: selector, name: name, object: object)
         }
         firstResponderObservation = window.observe(\.firstResponder) { [weak self] _, _ in
-            // Settle after the field editor finishes taking over or handing back.
+            // Wait for the field editor to finish switching responders.
             DispatchQueue.main.async { [weak self] in
                 self?.refreshPointerHover()
             }
@@ -178,8 +140,7 @@ final class BrowserSidebarHoverTrackingView: NSView {
             removeTrackingArea(sidebarTrackingArea)
             self.sidebarTrackingArea = nil
         }
-        // A pointer that comes onto the sidebar from the exit margin never
-        // leaves the whole region, so the sidebar itself reports the entry.
+        // Track the sidebar separately to detect entry from its exit margin.
         if exitMargin > 0 {
             let sidebarArea = NSTrackingArea(
                 rect: bounds.divided(atDistance: exitMargin, from: exitEdge).remainder,
@@ -204,9 +165,7 @@ final class BrowserSidebarHoverTrackingView: NSView {
         guard window != nil else { return }
         releaseWindowsNoLongerShown()
         let isHovering = isPointerInside || (lastReportedHover == true && isHeldOpen)
-        // A newly revealed sidebar starts offscreen while it slides in.
-        // Absence before its first entry is not a pointer exit, unless the
-        // pointer that revealed it has already left the window.
+        // Allow the sidebar to slide into view before treating absence as an exit.
         guard isHovering || lastReportedHover != nil || hasRevealingPointerLeft else { return }
         guard isHovering != lastReportedHover else { return }
         lastReportedHover = isHovering
@@ -220,14 +179,11 @@ final class BrowserSidebarHoverTrackingView: NSView {
     }
 
     func schedulePointerRefresh() {
-        // Attachment/layout may run inside SwiftUI's update. Read the settled
-        // geometry on the next main-loop turn, without publishing during it.
+        // Defer geometry reads and hover updates until SwiftUI layout settles.
         DispatchQueue.main.async { [weak self] in
             self?.refreshPointerHover()
         }
     }
-
-    // MARK: - Actions - Holds
 
     @objc private func menuTrackingBegan(_ notification: Notification) {
         guard let menu = notification.object as? NSMenu,
@@ -241,14 +197,11 @@ final class BrowserSidebarHoverTrackingView: NSView {
         guard let menu = notification.object as? NSMenu,
             trackingMenus.remove(ObjectIdentifier(menu)) != nil
         else { return }
-        // This also covers Escape and selecting an action. Neither needs to
-        // produce another mouse event to resolve the sidebar's visibility.
+        // Escape can dismiss the menu without generating another mouse event.
         beginHoldRelease()
     }
 
-    /// Popovers are child windows that leave their parent key, so they are
-    /// claimed as they open rather than when the keyboard moves. The window
-    /// is not placed yet, so the keyboard stands in for where it came from.
+    /// Use the key window to identify the popover's origin before AppKit positions it.
     @objc private func popoverWillShow(_ notification: Notification) {
         guard let popover = notification.object as? NSPopover,
             lastReportedHover == true,
@@ -272,9 +225,7 @@ final class BrowserSidebarHoverTrackingView: NSView {
     }
 
     @objc private func windowResignedKey(_ notification: Notification) {
-        // AppKit has already made the next window key. One this window opened —
-        // an extension's popup, a sheet, a popover taking typing — belongs to
-        // whatever in the sidebar opened it.
+        // AppKit assigns the next key window before delivering this notification.
         if lastReportedHover == true, let keyWindow = NSApp.keyWindow, isOpened(byThisWindow: keyWindow) {
             heldWindows.add(keyWindow)
         }
@@ -282,8 +233,7 @@ final class BrowserSidebarHoverTrackingView: NSView {
     }
 
     @objc private func windowBecameKey(_ notification: Notification) {
-        // A popup that held the keyboard has been ordered out by now, even when
-        // its close notification is still to come.
+        // The popup can already be hidden when its parent becomes key, before the close notification.
         refreshPointerHover()
     }
 
@@ -312,10 +262,6 @@ final class BrowserSidebarHoverTrackingView: NSView {
         }
     }
 
-    // MARK: - Mutators
-
-    /// Sets how much of the region along `edge` lies over the page beside the
-    /// sidebar rather than over the sidebar itself.
     func setExitMargin(_ margin: CGFloat, on edge: CGRectEdge) {
         guard margin != exitMargin || edge != exitEdge else { return }
         exitMargin = margin

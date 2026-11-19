@@ -68,7 +68,7 @@ actor BrowserSearchClient {
         return data
     }
 
-    /// Do not forward typed text to a different endpoint through redirects.
+    /// Reject redirects to keep typed text on the selected endpoint.
     private final class RequestDelegate: NSObject, URLSessionTaskDelegate, Sendable {
         func urlSession(
             _ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,

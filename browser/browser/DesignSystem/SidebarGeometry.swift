@@ -16,7 +16,7 @@ enum SidebarGeometry {
     static let currentDividerHeight: CGFloat = 28
 
     static func windowCornerRadius(from insets: RectangleCornerInsets) -> CGFloat? {
-        // Bottom corners describe the window; top insets can also reserve its controls.
+        // Top insets can include window controls.
         let radius = max(
             min(insets.bottomLeading.width, insets.bottomLeading.height),
             min(insets.bottomTrailing.width, insets.bottomTrailing.height))

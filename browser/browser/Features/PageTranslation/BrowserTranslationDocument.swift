@@ -1,16 +1,10 @@
 import Foundation
 
-/// The page's main document as whole-page translation reads and rewrites it:
-/// Browser's translation bridge, run in an isolated world the page cannot see
-/// through whichever engine shows the page. The page's engine adapter supplies
-/// it, with the engine's own way to evaluate that bridge.
+/// The page adapter supplies evaluation in an isolated translation world.
 @MainActor
 struct BrowserTranslationDocument {
-    // MARK: - Types
 
-    /// Runs `body` as the body of an async function with `arguments` bound as
-    /// constants, in the main document's translation world, and answers its
-    /// result, or nil when the document is gone.
+    /// The evaluator returns nil if the document is gone.
     typealias Evaluate = @MainActor (_ body: String, _ arguments: [String: Any]) async throws -> Any?
 
     struct Sample: Sendable {
@@ -28,17 +22,11 @@ struct BrowserTranslationDocument {
         let text: String
     }
 
-    // MARK: - Variables
-
     private let evaluate: Evaluate
-
-    // MARK: - Initializers
 
     init(evaluate: @escaping Evaluate) {
         self.evaluate = evaluate
     }
-
-    // MARK: - Actions - Document
 
     func sample() async throws -> Sample {
         let value = try await perform("sample") as? [String: Any]

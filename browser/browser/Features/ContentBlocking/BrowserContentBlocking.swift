@@ -1,7 +1,7 @@
 import Foundation
 import WebKit
 
-/// One uBO Lite instance per Space. Only this Space's pages are exposed to it.
+/// Each uBO Lite instance only sees pages from its Space.
 @MainActor
 final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, WKWebExtensionWindow {
     let controller: WKWebExtensionController

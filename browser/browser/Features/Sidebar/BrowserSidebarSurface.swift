@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Keeps the card mounted while sliding only its own region, as Crest does.
+/// Keep the card mounted during its slide, as in Crest.
 struct BrowserSidebarSurface: View {
     let store: BrowserStore
     let cornerRadius: CGFloat

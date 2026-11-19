@@ -23,8 +23,7 @@ extension BrowserStore {
     }
 }
 
-/// An approval belongs to these page instances and documents, including tabs
-/// that were asleep when the check began.
+/// Close approval is scoped to the checked documents, including tabs asleep at the start.
 @MainActor
 struct BrowserPageCloseCheck {
     private let ids: [UUID]

@@ -2,8 +2,7 @@ import AppKit
 import Observation
 import SwiftUI
 
-/// Crest draws lifts in an inert child window so WKWebView cannot cover or
-/// clip them. One host owns the preview through lift, shape changes and landing.
+/// Child-window preview adapted from Crest so WebKit cannot cover or clip it.
 @MainActor
 final class BrowserSidebarDragPreview {
     struct Row: Identifiable {
@@ -150,8 +149,7 @@ final class BrowserSidebarDragPreview {
                 presentation.cardHeight = nil
             }
             presentation.width = destination.width
-            // Keep a stable canvas through the spring so WebKit, clipping and
-            // native window animation cannot change the landing curve.
+            // Keep the preview canvas stable through the spring so resizing cannot change the landing curve.
             let previous = panel.frame
             panel.setFrame(previous.union(destination.insetBy(dx: -16, dy: -16)), display: true)
             presentation.pointer.x += previous.minX - panel.frame.minX

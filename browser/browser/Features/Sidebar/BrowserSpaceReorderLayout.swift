@@ -1,7 +1,6 @@
 import Foundation
 
-/// Crest's Space-picker displacement: the session order stays unchanged until
-/// release, while the buttons between source and destination step aside.
+/// Space-picker displacement adapted from Crest. Commit the order only on release.
 struct BrowserSpaceReorderLayout: Equatable {
     let sourceID: UUID
     let ids: [UUID]

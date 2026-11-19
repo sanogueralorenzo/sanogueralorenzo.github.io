@@ -7,8 +7,7 @@ import Foundation
 extension GitHubLiveFolderOptions {
     var hasFilters: Bool { authorMe || assignedMe || reviewRequested }
 
-    /// GitHub's JSON dashboard supports OR; the older HTML dashboard needs
-    /// one query per relationship, just as Zen's provider does.
+    /// Only the JSON dashboard supports OR. The HTML dashboard needs one query per relationship.
     func queries(jsonAPI: Bool) -> [String] {
         var base = ["is:pr", "is:open", "archived:false", "sort:updated-desc"]
         if !includeDrafts { base.append("draft:false") }

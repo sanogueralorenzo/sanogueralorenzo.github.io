@@ -1,7 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// Monochrome chrome following the system's appearance.
 enum BrowserBrandTheme {
     static let canvas = gray(light: 1, dark: 0)
     static let surface = gray(light: 242.0 / 255, dark: 24.0 / 255)

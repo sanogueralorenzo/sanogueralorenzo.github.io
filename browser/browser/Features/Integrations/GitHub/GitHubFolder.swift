@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import WebKit
 
-/// One collector per Space, using its cookie store even when every GitHub tab sleeps.
+/// The Space's cookie store supports fetching while its GitHub tabs sleep.
 @MainActor
 @Observable
 final class GitHubFolder: NSObject, WKHTTPCookieStoreObserver {

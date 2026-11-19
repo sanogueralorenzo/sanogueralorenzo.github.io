@@ -1,8 +1,7 @@
 import AppKit
 import WebKit
 
-/// The desktop embedder preference used by WebKit's MiniBrowser. Resolve SPI
-/// exactly as the inspector does; unavailable SPI leaves native PiP disabled.
+/// Use WebKit MiniBrowser's embedder preference when its SPI is available.
 @MainActor
 enum BrowserDesktopPictureInPictureAccess {
     @discardableResult
@@ -15,9 +14,7 @@ enum BrowserDesktopPictureInPictureAccess {
         return true
     }
 
-    /// Window metadata is public and does not capture screen contents or need
-    /// Screen Recording permission. A running PIPAgent alone is not an active
-    /// session: the agent stays alive after its last window closes.
+    /// PIPAgent survives window closure. Window metadata identifies active PiP without screen capture.
     static func isSystemOccupied() -> Bool {
         guard
             let windows = CGWindowListCopyWindowInfo(

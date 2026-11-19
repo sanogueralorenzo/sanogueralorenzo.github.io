@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Crest's source/gap treatment, attached to the whole item rather than only
-/// its drag handle so expanded folders and split groups travel as one block.
+/// Apply Crest's drag treatment to the entire folder or split so it travels as one block.
 struct BrowserSidebarReorderItem: ViewModifier {
     let store: BrowserStore
     let id: UUID

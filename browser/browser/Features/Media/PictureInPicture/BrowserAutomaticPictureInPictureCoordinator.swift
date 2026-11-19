@@ -8,8 +8,7 @@ protocol BrowserAutomaticPictureInPictureClient: AnyObject {
     func cancelAutomaticPictureInPicture()
 }
 
-/// One reservation per application, including all windows and private Spaces.
-/// Automatic requests never displace another Browser or system PiP session.
+/// Automatic PiP respects a single reservation across all Spaces and existing system PiP.
 @MainActor
 final class BrowserAutomaticPictureInPictureCoordinator {
     static let shared = BrowserAutomaticPictureInPictureCoordinator()

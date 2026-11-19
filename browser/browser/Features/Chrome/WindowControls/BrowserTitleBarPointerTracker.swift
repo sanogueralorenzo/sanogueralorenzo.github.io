@@ -1,18 +1,10 @@
 import AppKit
 
-/// Keeps page input under the native titlebar from dragging the window.
 @MainActor
 final class BrowserTitleBarPointerTracker: NSResponder {
-    // MARK: - Types
 
-    /// Where a tracked view holds its window still, given a pointer location in
-    /// the window's coordinates.
     struct Region: Sendable {
-        /// A page holds the window from a little below the title bar, so a
-        /// pointer on its way up has already made the window unmovable before
-        /// it can press there. The page must be what a press there would reach,
-        /// so the window's own buttons and chrome drawn over the page, such as a
-        /// floating sidebar, stay the title bar's.
+        /// Claim the window below the title bar before the pointer can reach the drag strip.
         static let page = Region { location, page, window in
             guard location.y >= window.contentLayoutRect.maxY - BrowserTitleBarPointerTracker.approachMargin,
                 !BrowserTitleBarPointerTracker.windowButtons.contains(where: {
@@ -27,22 +19,13 @@ final class BrowserTitleBarPointerTracker: NSResponder {
         let contains: @MainActor @Sendable (NSPoint, NSView, NSWindow) -> Bool
     }
 
-    // MARK: - Static Variables
-
-    /// How far below the title bar a page already counts as under it.
     private static let approachMargin: CGFloat = 32
-    /// The window's own buttons, which sit in its title bar above any page.
     private static let windowButtons: [NSWindow.ButtonType] = [.closeButton, .miniaturizeButton, .zoomButton]
-
-    // MARK: - Variables
 
     private weak var view: NSView?
     private let region: Region
-    /// The window whose guard holds this view's claim.
     private weak var claimedWindow: NSWindow?
     private var pointerCheckIsPending = false
-
-    // MARK: - Initializers
 
     init(view: NSView, region: Region) {
         self.view = view
@@ -52,11 +35,7 @@ final class BrowserTitleBarPointerTracker: NSResponder {
 
     required init?(coder: NSCoder) { nil }
 
-    // MARK: - Actions - Tracking
-
-    /// The area to install on the view. It follows the view's visible rect, and
-    /// keeps reporting while a button is held so a drag that leaves the view
-    /// still ends the claim.
+    /// Track during drags so leaving the view with a button held ends the claim.
     func makeTrackingArea() -> NSTrackingArea {
         NSTrackingArea(
             rect: .zero,
@@ -77,11 +56,7 @@ final class BrowserTitleBarPointerTracker: NSResponder {
         release()
     }
 
-    /// Checks the pointer where it is now, for a view that appeared, was shown
-    /// or resized under a pointer that has not moved. The check waits for the
-    /// next turn of the main queue: the view's geometry changes during AppKit's
-    /// layout, and the guard must not flush the window from inside it. A
-    /// pointer over another window above this one is not on the view.
+    /// Defer the check to avoid flushing the window during AppKit layout.
     func checkPointerSoon() {
         guard !pointerCheckIsPending else { return }
         pointerCheckIsPending = true
@@ -99,8 +74,6 @@ final class BrowserTitleBarPointerTracker: NSResponder {
         }
     }
 
-    /// Ends this view's claim, for a pointer that left or a view that left its
-    /// window or was hidden.
     func release() {
         guard let claimedWindow else { return }
         self.claimedWindow = nil
@@ -120,8 +93,6 @@ final class BrowserTitleBarPointerTracker: NSResponder {
         BrowserWindowTitleBarGuard.guarding(window).claim(by: self)
     }
 
-    /// Whether `window` has a strip under its title bar to hold. A window in
-    /// fullscreen, or one whose content stops at its title bar, has none.
     private static func hasTitleBarStrip(_ window: NSWindow) -> Bool {
         guard !window.styleMask.contains(.fullScreen), let content = window.contentView else { return false }
         return window.contentLayoutRect.maxY < content.convert(content.bounds, to: nil).maxY

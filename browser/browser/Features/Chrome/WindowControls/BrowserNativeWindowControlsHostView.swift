@@ -1,7 +1,5 @@
 import AppKit
 
-// MARK: - Types
-
 struct BrowserNativeWindowChromeSnapshot {
     let styleMask: NSWindow.StyleMask
     let titlebarAppearsTransparent: Bool
@@ -12,47 +10,25 @@ struct BrowserNativeWindowChromeSnapshot {
     let buttonAppearance: [(NSWindow.ButtonType, Bool, CGFloat)]
 }
 
-/// Styles the window that shows Browser's chrome, which acts as the window's
-/// title bar: the title bar is transparent and shows no title, and the
-/// window's own controls align with Spaces independently of toolbar styling.
-///
-/// In fullscreen the title bar slides down over the page with the menu bar,
-/// so there it is the system's standard one while it is revealed, from the
-/// moment the window is fullscreen until it starts to leave. Hidden, it stays
-/// transparent: WebKit pages keep the scroll edge effect they took from the
-/// windowed title bar, which an opaque title bar draws as a band across the
-/// top of every page. Neither writes the fullscreen bit of the style mask,
-/// which AppKit owns during its transitions.
+/// Keep the hidden fullscreen title bar transparent to avoid a band on WebKit pages.
 @MainActor
 final class BrowserNativeWindowControlsHostView: NSView {
-    // MARK: - Static Variables
 
     static let fullScreenEntryFailed = Notification.Name("BrowserWindowFullScreenEntryFailed")
 
-    /// The standard window buttons the chrome hides and shows.
     static let buttonTypes: [NSWindow.ButtonType] = [
         .closeButton,
         .miniaturizeButton,
         .zoomButton,
     ]
 
-    // MARK: - Variables
-
     private var originalChrome: BrowserNativeWindowChromeSnapshot?
     private var controlLayout: BrowserWindowControlLayout?
     private var enteringFullScreen = false
     private var windowObservers: [NSObjectProtocol] = []
     var controlsOpacity: CGFloat = 1
-    /// Whether the window shows the system's standard title bar: while it is
-    /// fullscreen and its title bar is revealed, and not once it starts to
-    /// leave.
     private var showsStandardTitleBar = false
-    /// Follows the window that holds the title bar in fullscreen, which AppKit
-    /// shows from just before the title bar slides down with the menu bar
-    /// until just after it slides away.
     private var fullScreenTitleBarObservation: NSKeyValueObservation?
-
-    // MARK: - Actions - Window
 
     override func viewWillMove(toWindow newWindow: NSWindow?) {
         if newWindow !== window {
@@ -76,13 +52,9 @@ final class BrowserNativeWindowControlsHostView: NSView {
         nil
     }
 
-    // MARK: - Actions - Chrome
-
     func applyBrowserChrome() {
         guard let window else { return }
-        // The window stays movable, so its title bar and the system's window
-        // commands move it as they move any window. A page under the title bar
-        // keeps its presses through `BrowserWindowTitleBarGuard`.
+        // Keep native window movement available while the title-bar guard protects page clicks.
         if !window.styleMask.contains(.fullSizeContentView) {
             window.styleMask.insert(.fullSizeContentView)
         }
@@ -105,9 +77,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
         }
     }
 
-    /// Shows the title bar as Browser's chrome, transparent and without a title
-    /// or separator, or while it is revealed in fullscreen as the system's
-    /// standard one.
     private func applyTitleBar(to window: NSWindow) {
         let standard = showsStandardTitleBar
         let titleVisibility: NSWindow.TitleVisibility = standard ? .visible : .hidden
@@ -162,8 +131,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
     }
 
     private func applyWindowShape(to window: NSWindow) {
-        // A toolbar, even an empty one, gives macOS windows larger corners.
-        // The sidebar supplies all chrome, so use the smaller titlebar-only shape.
+        // Even an empty toolbar makes macOS use larger window corners.
         if window.toolbar != nil {
             window.toolbar = nil
         }
@@ -172,8 +140,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
             frameView.clipsToBounds = true
         }
     }
-
-    // MARK: - Actions - Observing
 
     private func observeWindow() {
         stopObservingWindow()
@@ -211,8 +177,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
             enteringFullScreen = false
             observeFullScreenTitleBar()
         case NSWindow.willExitFullScreenNotification:
-            // The title bar returns to the window as it leaves fullscreen, so
-            // it is Browser's again before it does.
+            // Restore Browser chrome before AppKit moves the title bar back from fullscreen.
             stopObservingFullScreenTitleBar()
             showsStandardTitleBar = false
             if let window { applyTitleBar(to: window) }
@@ -228,10 +193,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
         }
     }
 
-    /// In fullscreen the title bar moves to a window of its own, which AppKit
-    /// makes visible just before the title bar slides down with the menu bar
-    /// and invisible again just after it slides away. The title bar changes
-    /// with that window in the same update, so the change never shows.
+    /// AppKit makes the fullscreen title-bar window visible before the slide and hides it after.
     private func observeFullScreenTitleBar() {
         stopObservingFullScreenTitleBar()
         guard let window,

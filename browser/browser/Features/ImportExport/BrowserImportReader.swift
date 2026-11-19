@@ -1,7 +1,6 @@
 import Compression
 import Foundation
 
-/// Local import formats are untrusted. Readers only produce bounded, validated browser records.
 struct BrowserImportReader {
     static let maximumBytes = 100 * 1_024 * 1_024
     static func read(_ url: URL) throws -> [BrowserSpace] {

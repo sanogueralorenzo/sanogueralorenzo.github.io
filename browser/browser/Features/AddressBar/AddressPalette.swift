@@ -179,7 +179,7 @@ struct AddressPalette: View {
         }
     }
     private func perform(_ result: BrowserPaletteResult) {
-        // Close before executing: commands such as New Tab intentionally open another palette.
+        // Close first so commands like New Tab can open a fresh palette.
         store.addressPresented = false
         result.perform(store)
         if store.addressPresented {

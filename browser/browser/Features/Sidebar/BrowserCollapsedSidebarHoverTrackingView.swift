@@ -1,23 +1,13 @@
 import AppKit
 
-/// A transparent leading-edge view whose hover events come from AppKit.
-///
-/// SwiftUI's `.onHover` can miss the transition when the view behind the edge
-/// is a live `WKWebView`. `NSTrackingArea` observes the window-level pointer
-/// crossing instead, while `hitTest` keeps clicks, scrolling, and page drags
-/// owned by the web content beneath it.
-///
-/// The strip reveals only for a pointer that moves onto it. One already resting
-/// where the strip appears, as the sidebar it just hid slides away, has not
-/// reached for the edge again: Universal Control leaves the pointer parked
-/// there after crossing to another Mac.
+/// Use AppKit tracking because SwiftUI hover can miss crossings over WKWebView.
+/// Require movement onto the strip because Universal Control can leave the pointer parked there.
 @MainActor
 final class BrowserCollapsedSidebarHoverTrackingView: NSView {
     var onHoverChange: @MainActor @Sendable (Bool) -> Void
 
     private let pointerLocation: @MainActor () -> NSPoint
     private var trackingArea: NSTrackingArea?
-    /// Where the pointer rested when the strip appeared, until it moves.
     private var restingPointer: NSPoint?
 
     init(

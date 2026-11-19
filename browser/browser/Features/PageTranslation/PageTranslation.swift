@@ -2,7 +2,6 @@ import NaturalLanguage
 import SwiftUI
 @preconcurrency import Translation
 
-/// Apple's translation service over Browser's existing isolated-document bridge.
 struct PageTranslation: ViewModifier {
     let page: BrowserPage
     let store: BrowserStore

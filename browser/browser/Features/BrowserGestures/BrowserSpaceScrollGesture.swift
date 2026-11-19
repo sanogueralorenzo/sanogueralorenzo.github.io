@@ -1,8 +1,6 @@
 import AppKit
 
-/// Recognizes one horizontal Space intent without coupling selection to scroll position.
-/// Phased gestures stay latched until their boundary; phase-less devices use a quiet gap
-/// measured from the last event, never a timer measured from the last accepted step.
+/// Phased gestures latch until they end. Phase-less gestures reset after a gap between events.
 struct BrowserSpaceScrollGesture {
     struct Decision: Equatable {
         static let passThrough = Self(consumesEvent: false, step: nil)
@@ -29,8 +27,7 @@ struct BrowserSpaceScrollGesture {
         case undecided, horizontal, vertical, outside
     }
 
-    // Precise deltas are points; ordinary wheel deltas are line units. These are
-    // separate recognition thresholds, not a conversion tied to the tab-row height.
+    // Precise devices report points. Wheel devices report lines.
     private static let preciseThreshold: CGFloat = 40
     private static let wheelThreshold: CGFloat = 1
     private static let horizontalDominance: CGFloat = 1.35
@@ -49,8 +46,7 @@ struct BrowserSpaceScrollGesture {
         self = Self()
     }
 
-    /// Disabling recognition must reject the current stream without inventing
-    /// a new gesture when it becomes enabled again. Retain its phase and clock.
+    /// Keep the phase and timestamp so re-enabling cannot recognize the same gesture twice.
     mutating func cancelCurrentGesture() {
         axis = .outside
         hasResolved = true
@@ -63,8 +59,7 @@ struct BrowserSpaceScrollGesture {
         }
         guard input.phase != .mayBegin else { return .passThrough }
 
-        // Momentum can arrive after a zero-delta .ended, or with no ordinary
-        // phase at all. It never starts a new recognition, even after a long gap.
+        // Momentum can arrive after a zero-delta end or without a regular gesture phase.
         if input.isMomentum {
             lastTimestamp = input.timestamp
             hasActivePhase = false
@@ -82,8 +77,7 @@ struct BrowserSpaceScrollGesture {
         }
         lastTimestamp = input.timestamp
 
-        // Terminal events must run before nonzero-delta and axis filters, and
-        // still belong to a claimed gesture after the pointer leaves the region.
+        // Handle zero-delta endings even after the pointer leaves the tracked region.
         if input.phase == .ended || input.phase == .cancelled {
             hasActivePhase = false
             hasFinished = true
@@ -118,8 +112,7 @@ struct BrowserSpaceScrollGesture {
             initialDirection = accumulatedX < 0 ? -1 : 1
         }
 
-        // Returning across the origin before acceptance abandons this candidate.
-        // It does not select the opposite Space later in the same gesture.
+        // Crossing the origin cancels the candidate for the rest of this gesture.
         guard accumulatedX * initialDirection > 0 else {
             hasResolved = true
             return .consumed

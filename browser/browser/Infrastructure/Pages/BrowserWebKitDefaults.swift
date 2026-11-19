@@ -5,7 +5,7 @@ enum BrowserWebKitDefaults {
     static func apply(to preferences: WKPreferences) {
         preferences.inactiveSchedulingPolicy = .suspend
 
-        // Crest enables this preference; every other feature keeps WebKit's default.
+        // Use Crest's WebKit preference while keeping the other defaults.
         let featuresSelector = NSSelectorFromString("_features")
         let setterSelector = NSSelectorFromString("_setEnabled:forFeature:")
         let keySelector = NSSelectorFromString("key")

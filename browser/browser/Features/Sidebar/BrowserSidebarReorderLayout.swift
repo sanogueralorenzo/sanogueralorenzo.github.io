@@ -1,7 +1,6 @@
 import Foundation
 
-/// Adapted from Crest's BrowserSidebarReorderLayout: a lift removes source
-/// intervals and opens one destination interval without editing the session.
+/// Adapted from Crest's BrowserSidebarReorderLayout. Preview geometry leaves session order intact.
 struct BrowserSidebarReorderLayout: Equatable {
     struct Section: Equatable {
         let spaceID: UUID
@@ -52,8 +51,7 @@ struct BrowserSidebarReorderLayout: Equatable {
     }
 }
 
-/// Crest's pinned-slot projection, using Browser's existing two-column density.
-/// The source stays mounted but does not occupy a slot while it travels.
+/// Pinned-slot projection adapted from Crest. The lifted source stays mounted.
 struct BrowserPinnedTabReorderLayout: Equatable {
     let ids: [UUID]
     var liftedIDs: Set<UUID> = []

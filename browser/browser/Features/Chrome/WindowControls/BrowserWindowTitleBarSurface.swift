@@ -1,9 +1,6 @@
 import SwiftUI
 
-/// Makes a stretch of empty chrome, such as the backdrop or the navigation
-/// strip, act as the window's title bar (`BrowserWindowTitleBarSurfaceView`).
-/// Place it behind the chrome's controls, and before any safe-area change, so
-/// it covers the strip under the title bar.
+/// Install behind controls before changing safe areas so the surface covers the title-bar strip.
 struct BrowserWindowTitleBarSurface: NSViewRepresentable {
     func makeNSView(context: Context) -> BrowserWindowTitleBarSurfaceView {
         BrowserWindowTitleBarSurfaceView()

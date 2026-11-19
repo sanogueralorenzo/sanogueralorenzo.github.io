@@ -29,10 +29,7 @@ final class BrowserPictureInPicturePageController: BrowserAutomaticPictureInPict
         didSet { residencyProtectionMayHaveChanged() }
     }
     private var timeout: Task<Void, Never>?
-    /// Whether the controller kept the page's video on screen when it last
-    /// said so.
     private var reportedResidencyProtection = false
-    /// Reports changes in page residency protection.
     var residencyProtectionChanged: (@MainActor () -> Void)?
 
     var isPictureInPictureActive: Bool { nativeIsActive || !activeDocuments.isEmpty }
@@ -134,9 +131,7 @@ final class BrowserPictureInPicturePageController: BrowserAutomaticPictureInPict
         let request = AutomaticRequest(id: UUID(), candidate: candidate)
         automaticRequest = request
         self.completion = completion
-        // evaluateJavaScript provides the native user-activation context. Keep
-        // the request synchronous inside that evaluation; awaiting discovery
-        // before requestPictureInPicture can lose the activation.
+        // Request PiP synchronously during evaluation to preserve native user activation.
         let arguments = [candidate.documentID, candidate.videoID, request.id.uuidString]
         guard let data = try? JSONSerialization.data(withJSONObject: arguments),
             let encoded = String(data: data, encoding: .utf8)

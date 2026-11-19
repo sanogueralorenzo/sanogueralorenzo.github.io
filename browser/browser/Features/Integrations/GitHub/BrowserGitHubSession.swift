@@ -2,11 +2,9 @@ import Foundation
 import Network
 import WebKit
 
-/// Read-only requests over one origin's cookies in one WebKit profile. No web
-/// view, shared cookie storage, HTTP-auth credentials or disk cache is involved.
+/// Read-only GitHub requests use cookies scoped to the authorized Space.
 @MainActor
 final class BrowserGitHubSession {
-    // MARK: - Types
 
     private struct CookieState: Equatable {
         let name: String
@@ -30,8 +28,6 @@ final class BrowserGitHubSession {
         }
     }
 
-    // MARK: - Variables
-
     private static let host = "github.com"
     private static let dashboard = URL(string: "https://\(host)/pulls")!
     private var revision = 0
@@ -43,8 +39,6 @@ final class BrowserGitHubSession {
     private var writingCookies = false
     private var observation: Task<Void, Never>?
     private let observer = CookieObserver()
-
-    // MARK: - Initializers
 
     init(store: WKWebsiteDataStore, isAuthorized: @escaping @MainActor () -> Bool) {
         self.store = store
@@ -58,8 +52,6 @@ final class BrowserGitHubSession {
         for session in requests.values { session.invalidateAndCancel() }
         Task { @MainActor [store, observer] in store?.httpCookieStore.remove(observer) }
     }
-
-    // MARK: - Actions - Requests
 
     func fetchPullRequests(query: String? = nil) async throws -> Data {
         let url =
@@ -147,8 +139,6 @@ final class BrowserGitHubSession {
         knownCookies = nil
     }
 
-    // MARK: - Actions - Cookies
-
     func isSignedIn() async -> Bool {
         guard let store else { return false }
         return await store.httpCookieStore.allCookies().contains {
@@ -220,8 +210,6 @@ final class BrowserGitHubSession {
         let domain = cookie.domain.lowercased()
         return domain == host || domain == "." + host
     }
-
-    // MARK: - Types - Engine callbacks
 
     private final class CookieObserver: NSObject, WKHTTPCookieStoreObserver {
         weak var owner: BrowserGitHubSession?

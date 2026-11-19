@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Shared proportions and hinge angles for the folder's two flat faces.
 private enum BrowserFolderGeometry {
     static let translation = 3.0
     static let yAngle = 32.0

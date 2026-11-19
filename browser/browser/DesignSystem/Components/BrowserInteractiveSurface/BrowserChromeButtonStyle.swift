@@ -1,19 +1,13 @@
 import SwiftUI
 
-/// Shared hover and press treatment for compact browser chrome controls.
 struct BrowserChromeButtonStyle: ButtonStyle {
-    /// The control's fixed size, or `nil` for a tile that takes the size its
-    /// label and container give it.
     var controlSize: CGSize? = CGSize(
         width: BrowserLayout.minimumHitTarget,
         height: BrowserLayout.minimumHitTarget
     )
     var cornerRadius = BrowserRadius.compact
     var cornerStyle: RoundedCornerStyle = .continuous
-    /// Draws a fixed fill at rest, for a tile that stands on its own rather
-    /// than a glyph that only shows a surface under the pointer. It is a fill
-    /// rather than the device's material because these tiles sit inside
-    /// panels that already wear it, where material on material disappears.
+    /// Use a solid fill because stacked materials can disappear.
     var showsRestingFill = false
 
     func makeBody(configuration: Configuration) -> some View {

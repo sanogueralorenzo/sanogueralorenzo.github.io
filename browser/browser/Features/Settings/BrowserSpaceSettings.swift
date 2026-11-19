@@ -79,7 +79,6 @@ struct BrowserSpaceSettings: View {
                 Text("Browser needs at least one Space.").foregroundStyle(.secondary)
             }
         }
-        // Keep Browser's existing download controls available alongside the Space they affect.
         Section("Downloads") {
             Toggle(
                 "Ask Where to Save Each File",

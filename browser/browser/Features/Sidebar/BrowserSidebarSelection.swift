@@ -149,8 +149,7 @@ extension BrowserStore {
         let tabSet = Set(tabs)
         guard !tabs.isEmpty || !nested.isEmpty else { return }
         Task {
-            // A folder edited while its pages answer is a different deletion.
-            // Refuse the entire request rather than orphaning or taking new work.
+            // Revalidate the folder after awaiting close checks so newly added tabs stay safe.
             guard await prepareTabs(tabs), let index = session.spaces.firstIndex(where: { $0.id == spaceID }) else {
                 return
             }

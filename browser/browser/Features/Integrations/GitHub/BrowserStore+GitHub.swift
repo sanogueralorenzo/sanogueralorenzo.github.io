@@ -1,7 +1,7 @@
 import Foundation
 
 extension BrowserStore {
-    /// Reconciles results without replacing tab identities, renames, or personal navigation.
+    /// Reconciliation preserves user renames, tab identities and personal navigation.
     @discardableResult
     func reconcileGitHub(
         _ items: [BrowserGitHubPullRequest], folderID: UUID, in spaceID: UUID, options: GitHubLiveFolderOptions
@@ -25,7 +25,7 @@ extension BrowserStore {
         guard canChangeTabCount(by: added - removed, in: spaceID) else { return false }
         for tab in expired {
             let away = !BrowserURLs.same(tab.url, tab.savedURL)
-            // A result that became personal work leaves the managed folder.
+            // Keep tabs with personal activity when GitHub drops them from the results.
             if away || pages[tab.id]?.isProtectedFromUnloading == true {
                 placeTab(tab.id, as: .current)
             } else {

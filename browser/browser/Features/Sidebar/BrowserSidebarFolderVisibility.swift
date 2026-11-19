@@ -1,8 +1,7 @@
 import Observation
 import SwiftUI
 
-/// Crest keeps the last shown resident tab on a collapsed folder's path.
-/// This is window presentation state; it never enters the session checkpoint.
+/// Collapsed folders keep their last visible tab, as in Crest. The state is window-local.
 @MainActor
 final class BrowserSidebarFolderVisibility {
     @Observable final class Entry {

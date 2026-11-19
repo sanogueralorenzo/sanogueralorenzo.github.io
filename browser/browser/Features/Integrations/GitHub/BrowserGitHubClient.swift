@@ -5,10 +5,8 @@
 // GithubLiveFolder.sys.mjs, commit 2ad194525da74d7f00609a424d93a3c7db430d21.
 import Foundation
 
-/// The dashboard collector consumes an engine session, never a tab or cookies.
 @MainActor
 final class BrowserGitHubClient {
-    // MARK: - Types
 
     private struct Dashboard: Decodable {
         struct Payload: Decodable {
@@ -28,11 +26,7 @@ final class BrowserGitHubClient {
         let payload: Payload
     }
 
-    // MARK: - Variables
-
     private var isJSONAPI: Bool?
-
-    // MARK: - Actions - Reading
 
     func reset() { isJSONAPI = nil }
 
@@ -63,8 +57,6 @@ final class BrowserGitHubClient {
         return collected
     }
 
-    // MARK: - Actions - Parsing
-
     private nonisolated static func parse(_ data: Data) async throws -> [BrowserGitHubPullRequest] {
         guard data.count <= 5 * 1_024 * 1_024, let text = String(data: data, encoding: .utf8) else {
             throw BrowserGitHubFailure.invalidResponse
@@ -73,8 +65,7 @@ final class BrowserGitHubClient {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("{") else {
             throw BrowserGitHubFailure.invalidResponse
         }
-        // Tidy legacy dashboard HTML without executing scripts, loading resources
-        // or resolving external entities. This parser never creates a web view.
+        // Parse dashboard HTML as inert XML to avoid loading page resources.
         let document = try XMLDocument(xmlString: text, options: [.documentTidyHTML, .nodeLoadExternalEntitiesNever])
         for script in try document.nodes(forXPath: "//script[@type='application/json']") {
             if let body = script.stringValue?.data(using: .utf8), let items = decodeJSON(body) { return items }

@@ -1,8 +1,7 @@
 import Foundation
 
 extension BrowserStore {
-    /// Crest creates the folder and files its items in one validated edit.
-    /// The around-tab form replaces that root row and keeps it first inside.
+    /// Folder creation adapted from Crest. Wrapping a tab keeps it first in the new folder.
     @discardableResult
     func createSidebarFolder(
         containing payload: BrowserDragPayload, placement: BrowserTab.Placement, around tabID: UUID? = nil

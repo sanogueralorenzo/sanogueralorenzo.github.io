@@ -3,7 +3,7 @@ import Foundation
 import Observation
 import WebKit
 
-/// The only authoritative browser state, shared by every ordinary window.
+/// Every ordinary window shares this session.
 @MainActor @Observable
 final class BrowserSessionOwner {
     var session: BrowserSession

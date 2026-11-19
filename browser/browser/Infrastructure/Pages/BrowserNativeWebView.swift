@@ -1,6 +1,6 @@
 import WebKit
 
-/// The fork's titlebar input protection without its engine adapter or core bridge.
+/// Title-bar input protection adapted from Crest.
 @MainActor
 final class BrowserNativeWebView: WKWebView {
     weak var page: BrowserPage?

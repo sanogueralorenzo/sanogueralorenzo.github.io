@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// The unoccupied remainder moves the window; a double-click opens a tab.
 struct BrowserSidebarBackground: View {
     let store: BrowserStore
     var body: some View {

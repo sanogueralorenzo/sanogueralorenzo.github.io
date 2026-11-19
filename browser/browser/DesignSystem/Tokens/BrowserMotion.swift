@@ -2,7 +2,7 @@ import SwiftUI
 
 enum BrowserMotion {
     static var surface: Animation { .easeInOut(duration: 0.12) }
-    // Crest's motion roles keep chrome, collection changes and lifts distinct.
+    // Motion timings adapted from Crest.
     static var floatingPane: Animation { .smooth(duration: 0.24) }
     static var collection: Animation { .snappy(duration: 0.22) }
     static var dragSource: Animation { .snappy(duration: 0.20) }

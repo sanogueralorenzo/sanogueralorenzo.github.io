@@ -1,7 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// A native address editor that takes focus when it is attached, including at launch.
 struct BrowserAddressField: NSViewRepresentable {
     @Binding var text: String
     let prompt: String

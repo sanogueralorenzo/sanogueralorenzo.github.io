@@ -3,8 +3,7 @@ import AppKit
 import QuartzCore
 import SwiftUI
 
-/// Uses the enclosing native scroll view, including manual scrolling during a
-/// lift. Only its actual bounds delta is applied to the frozen reorder geometry.
+/// Use the actual native scroll delta to keep frozen reorder geometry aligned.
 struct BrowserSpacePickerAutoscroll: NSViewRepresentable {
     let viewport: CGRect
     let pointer: CGPoint?
@@ -130,7 +129,7 @@ final class BrowserSpacePickerAutoscrollView: NSView {
     }
 }
 
-/// Advances the existing 60 Hz scroll distances at the view's display cadence.
+/// Scale the 60 Hz scroll distances to the current display cadence.
 @MainActor
 private final class BrowserSpaceAutoscrollClock {
     private var link: CADisplayLink?
@@ -164,11 +163,11 @@ private final class BrowserSpaceAutoscrollClock {
         let elapsed = link.targetTimestamp - (lastTargetTimestamp ?? link.timestamp)
         lastTargetTimestamp = link.targetTimestamp
         guard elapsed > 0 else { return }
-        // A delayed callback must not jump several rows while the drag is held.
+        // Cap elapsed time to avoid a large jump after a delayed frame.
         advance(CGFloat(min(elapsed, 1 / 30) * 60))
     }
 
-    /// The run loop retains the display link and its target, never the owner.
+    /// The run loop retains the display link and target, so the target holds the clock weakly.
     @MainActor
     private final class FrameTarget: NSObject {
         weak var clock: BrowserSpaceAutoscrollClock?

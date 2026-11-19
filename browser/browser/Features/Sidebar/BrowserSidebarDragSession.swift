@@ -2,7 +2,6 @@ import AppKit
 import Observation
 import SwiftUI
 
-/// One internal drag shared by every window of the browser session.
 @MainActor @Observable
 final class BrowserSidebarDragSession {
     private(set) var payload: BrowserDragPayload?

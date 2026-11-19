@@ -1,7 +1,6 @@
 import WebKit
 
 extension BrowserPage {
-    /// One collection pass feeds unload protection and media presentation.
     func refreshPageState() async {
         guard !isRetired, !refreshingPageState else { return }
         refreshingPageState = true

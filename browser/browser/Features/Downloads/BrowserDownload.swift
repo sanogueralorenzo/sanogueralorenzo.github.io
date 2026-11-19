@@ -212,7 +212,7 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
             finish(.failed, error: "No destination was saved.")
             return
         }
-        // A resumed WebKit task already knows its temporary path; resumeData owns that path.
+        // WebKit resume data carries the original temporary path.
         let temporary =
             workingURL
             ?? destination.deletingLastPathComponent().appendingPathComponent(".Browser-download-\(id.uuidString)")

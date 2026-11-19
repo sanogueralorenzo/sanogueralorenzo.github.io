@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Follows the sidebar's animation while keeping its closing edge immediate.
 struct BrowserWindowControlsPresentation: @MainActor AnimatableModifier {
     let showsSidebar: Bool
     private var sidebarReveal: CGFloat
@@ -21,7 +20,7 @@ struct BrowserWindowControlsPresentation: @MainActor AnimatableModifier {
 
     private var controlsOpacity: CGFloat {
         guard showsSidebar else { return 0 }
-        // Finish the fade with the visible slide, before the spring's settling tail.
+        // Finish the fade before the spring settles.
         let fadeStart: CGFloat = 0.90
         let fadeEnd: CGFloat = 0.98
         return min(1, max(0, (sidebarReveal - fadeStart) / (fadeEnd - fadeStart)))

@@ -1,8 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Internal moves belong to the browser, including over native WebKit views.
-/// Outside a browser lift this surface does not participate in hit testing.
+/// Intercept native WebKit hit testing only during an internal drag.
 struct BrowserSidebarDropDestination: NSViewRepresentable {
     let store: BrowserStore
 

@@ -16,7 +16,7 @@ extension BrowserStore {
     }
 }
 
-/// Crest's native page motion, scoped to the sidebar's window presentation.
+/// Native page motion adapted from Crest.
 struct BrowserSidebarSpacePager: NSViewRepresentable {
     let store: BrowserStore
     let spaces: [BrowserSpace]
@@ -303,7 +303,7 @@ final class BrowserSidebarSpaceViewport: NSView {
         }
     }
 
-    /// Also bounds roots during repeated interruptions, before any completion runs.
+    /// Prune before animations finish to bound retained roots during repeated interruptions.
     private func prune(retaining required: Set<UUID>) {
         guard let store, let selectedSpaceID,
             let index = store.session.spaces.firstIndex(where: { $0.id == selectedSpaceID })

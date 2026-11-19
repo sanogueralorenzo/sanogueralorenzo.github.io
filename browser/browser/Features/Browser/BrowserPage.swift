@@ -6,7 +6,6 @@ import WebKit
 @MainActor
 @Observable
 final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifiable {
-    // MARK: - Variables
 
     let id: UUID
     let spaceID: UUID
@@ -62,8 +61,6 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     @ObservationIgnored private(set) var isRetired = false
     @ObservationIgnored var refreshingPageState = false
 
-    // MARK: - Initializers
-
     init(
         id: UUID, spaceID: UUID, configuration: WKWebViewConfiguration, owner: BrowserStore,
         showsLoadingBackground: Bool = true
@@ -74,7 +71,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         loading = BrowserPageLoading(showsBackground: showsLoadingBackground)
         contentBlocker = owner.contentBlocker(for: spaceID)
         configuration.webExtensionController = contentBlocker.controller
-        // Popup configurations share process/data stores with their opener, but handlers belong to one document host.
+        // Popups inherit the opener configuration and need their own document handlers.
         configuration.userContentController = WKUserContentController()
         contentBlocker.register(configuration.userContentController)
         BrowserWebKitDefaults.apply(to: configuration.preferences)
@@ -119,8 +116,6 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
                 injectionTime: .atDocumentStart, forMainFrameOnly: false))
         applyContentBlocking()
     }
-
-    // MARK: - Actions - Browsing
 
     func load(_ url: URL, restoring interactionState: Data? = nil) {
         guard !isRetired else { return }
@@ -198,8 +193,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         blockingTask = nil
         webView.evaluateJavaScript("globalThis.__browserFaviconFetch?.abort()", in: nil, in: .defaultClient) { _ in }
         observations.removeAll()
-        // UI transitions and pending callbacks can retain a retired page.
-        // End playback now rather than waiting for its web view to deallocate.
+        // Suspend playback immediately because transitions and callbacks can retain retired pages.
         webView.setAllMediaPlaybackSuspended(true, completionHandler: {})
         webView.stopLoading()
         webView.removeFromSuperview()
@@ -368,8 +362,6 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         }
     }
 
-    // MARK: - Actions - Native website UI
-
     func webView(
         _ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
         for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures
@@ -495,8 +487,6 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         }
         alert.beginSheetModal(for: window, completionHandler: completion)
     }
-
-    // MARK: - Actions - Page images
 
     func captureMirror() {
         guard isSharedAcrossWindows, webView.bounds.width > 0 else { return }

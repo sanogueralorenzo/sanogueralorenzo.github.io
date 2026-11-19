@@ -59,8 +59,7 @@ enum BrowserPictureInPictureScript {
           };
           const candidate = video => {
             const videoID = idFor(video);
-            // Layout reads can synchronously flush an otherwise unrelated page
-            // mutation. A paused, unloaded or disallowed player needs none.
+            // Layout reads can flush unrelated DOM changes.
             if (!parentAllows || !potentiallyPlayable(video)) return { videoID, eligible: false, score: 0 };
             const bounds = video.getBoundingClientRect();
             const inViewport = bounds.bottom > 0 && bounds.right > 0
@@ -100,9 +99,7 @@ enum BrowserPictureInPictureScript {
             scheduled = true;
             setTimeout(publish, 100);
           };
-          // The parent can see whether an iframe is decorative; a cross-origin
-          // child cannot inspect that DOM. Propagate only this boolean, never media
-          // URLs or page contents. Each hop validates the sending Window identity.
+          // A cross-origin child needs its parent to report eligibility. Send only the boolean.
           const publishFrameEligibility = (refresh = false) => {
             for (const frame of connected(interestedFrames)) {
               const bounds = frame.getBoundingClientRect();
@@ -186,17 +183,13 @@ enum BrowserPictureInPictureScript {
           addEventListener('scroll', schedule, { passive: true, capture: true });
           addEventListener('pageshow', () => { lastState = ''; schedule(); });
           addEventListener('pagehide', () => send({ kind: 'removed' }));
-          // Keep discovery cheap on documents without media, including app-like
-          // pages that continually rebuild DOM. Scan coalesced inserted subtrees
-          // outside mutation delivery; media events and explicit entry/refresh
-          // can discover a player immediately when necessary.
+          // Batch discovery outside mutation delivery to avoid repeated scans of busy pages.
           const observerOptions = { subtree: true, attributes: true,
             attributeFilter: ['controls', 'autoplay', 'loop', 'muted', 'hidden', 'aria-hidden',
                              'disablepictureinpicture', 'role', 'class', 'style'] };
           const discover = (root, scannedRoots = new WeakSet()) => {
             if (!root.querySelectorAll) return;
-            // A batch can report both an inserted ancestor and its descendants.
-            // Their current subtrees already include every change in the batch.
+            // Mutation batches can include both an inserted ancestor and its descendants.
             for (let ancestor = root; ancestor; ancestor = ancestor.parentNode) {
               if (scannedRoots.has(ancestor)) return;
             }
@@ -217,9 +210,7 @@ enum BrowserPictureInPictureScript {
               }
             };
             inspect(root);
-            // A deferred scan may first encounter a shadow root after a large
-            // subtree was inserted. Find its media even beyond the bounded
-            // general walk used to discover further open shadow roots.
+            // Find media beyond the bounded walk used to discover nested shadow roots.
             for (const element of root.querySelectorAll('video, iframe')) inspect(element);
             let visited = 0;
             const elements = root.querySelectorAll('*');

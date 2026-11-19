@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Geometry shared by selected, pressed, and hovered browser surfaces.
 enum BrowserInteractiveSurfaceMetrics {
     static let defaultSelectedBorderWidth: CGFloat = 0.5
     static let increasedContrastBorderWidth: CGFloat = 1.5
@@ -58,16 +57,10 @@ struct BrowserInteractiveSurfaceModifier: ViewModifier {
             )
             .animation(accessibleSurfaceAnimation, value: isHovering)
             .animation(accessibleSurfaceAnimation, value: selectionEmphasis)
-            // Selection shows at once, as browsers switch tabs; only a press
-            // eases in. Fading a selected surface in and out redraws its
-            // shadow, its glow and the content it covers every frame, on two
-            // surfaces at every tab switch.
+            // Fading selection redraws both surfaces and their shadows on every tab switch.
             .animation(accessibleSurfaceAnimation, value: isPressed)
     }
 
-    /// Selected, pressed and resting surfaces are layers of the device's
-    /// material, wearing their accent tint; hover is only ever a tint, laid
-    /// over that material or, on a plain row, alone.
     @ViewBuilder
     private func surface(in shape: RoundedRectangle) -> some View {
         if isSelected || isPressed || showsRestingSurface {
@@ -101,8 +94,6 @@ struct BrowserInteractiveSurfaceModifier: ViewModifier {
     }
 }
 
-/// Owns pointer hover state for controls that use Browser's shared interaction
-/// surface but do not otherwise need to react to hover themselves.
 private struct BrowserHoverSurfaceModifier: ViewModifier {
     let isSelected: Bool
     let cornerRadius: CGFloat

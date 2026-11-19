@@ -1,6 +1,6 @@
 import AppKit
 
-/// Aligns the window's actual controls without opting into a toolbar's larger corners.
+/// Position the native controls without adding a toolbar that enlarges the window corners.
 @MainActor
 final class BrowserWindowControlLayout {
     private let buttons: [(NSButton, Bool, NSRect)]

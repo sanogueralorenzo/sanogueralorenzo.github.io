@@ -1,9 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// AppKit owns the drag lifetime; the shared session owns the items being moved.
-/// Keeping those identities locally avoids treating an internal URL representation
-/// as a newly opened tab, even when SwiftUI filters the provider's representations.
+/// Track internal identity outside the provider because SwiftUI can filter its representations.
 struct BrowserSidebarDragSource: ViewModifier {
     let store: BrowserStore
     let payload: () -> BrowserDragPayload
@@ -45,16 +43,14 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
             let event = NSApp.currentEvent, event.type == .leftMouseDragged, event.window === window
         else { return }
         let item = NSPasteboardItem()
-        // Only the marker and optional URL leave the process. The item
-        // identities, including those from private Spaces, stay with the owner.
+        // Export only the marker and optional URL. Internal IDs stay in the process.
         item.setData(Data(), forType: .init(BrowserDragPayload.type))
         if let url {
             item.setString(url.absoluteString, forType: .URL)
             if url.isFileURL { item.setString(url.absoluteString, forType: .fileURL) }
         }
         let dragging = NSDraggingItem(pasteboardWriter: item)
-        // The inert child panel owns the one visible preview, including over
-        // WebKit and outside the list's scroll clip.
+        // Use a transparent AppKit preview because the child panel draws the visible one.
         let transparent = NSImage(size: NSSize(width: 1, height: 1), flipped: false) { _ in true }
         dragging.setDraggingFrame(bounds, contents: transparent)
         owner = store.owner
