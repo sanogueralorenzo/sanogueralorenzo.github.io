@@ -60,6 +60,19 @@ extension BrowserStore {
         return page.webView
     }
 
+    func setSelectedTab(_ tabID: UUID?, in spaceID: UUID) {
+        windowState.tabsBySpace[spaceID] = tabID
+        if tabID == nil { windowState.emptySpaces.insert(spaceID) } else { windowState.emptySpaces.remove(spaceID) }
+        if let index = session.spaces.firstIndex(where: { $0.id == spaceID }) {
+            session.spaces[index].selectedTabID = tabID
+        }
+        if let tabID {
+            windowState.recentTabs.removeAll { $0 == tabID }
+            windowState.recentTabs.insert(tabID, at: 0)
+            if let (s, t) = tabIndex(tabID) { session.spaces[s].tabs[t].lastUsed = Date() }
+        }
+    }
+
     func closeSelectedTab() { requestCloseSelected() }
 
     func deleteTab(_ id: UUID, liveFolderRefresh: Bool = false) {

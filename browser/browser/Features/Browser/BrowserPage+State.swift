@@ -8,9 +8,7 @@ extension BrowserPage {
         defer { refreshingPageState = false }
         let script = #"""
             const media = [...document.querySelectorAll('video,audio')].some(e => !e.paused && !e.ended);
-            const dirty = [...document.querySelectorAll('input,textarea,select,[contenteditable=true]')].some(e =>
-              (!e.isContentEditable && (e.type === 'checkbox' || e.type === 'radio' ? e.checked !== e.defaultChecked :
-              e.tagName === 'SELECT' ? [...e.options].some(o => o.selected !== o.defaultSelected) : e.value !== e.defaultValue)));
+            const dirty = globalThis.__browserHasFormEdits?.() ?? true;
             const e = document.querySelector('video,audio');
             return {playing:media, hasMedia:!!e, muted:e?.muted || false, dirty, title:navigator.mediaSession?.metadata?.title || document.title,
               artist:navigator.mediaSession?.metadata?.artist || '', duration: Number.isFinite(e?.duration) ? e.duration : 0,
@@ -25,7 +23,7 @@ extension BrowserPage {
         var dirty = value["dirty"] as? Bool != false
         mediaFrame = nil
         if value["playing"] as? Bool != true {
-            for frame in Array(siteController?.frames.values ?? [:].values).filter({ !$0.isMainFrame }).prefix(32) {
+            for frame in documentActivity.childFrames.prefix(32) {
                 guard
                     let child = try? await webView.callAsyncJavaScript(
                         script, arguments: [:], in: frame, contentWorld: .defaultClient) as? [String: Any],
@@ -46,8 +44,7 @@ extension BrowserPage {
             webView.requestMediaPlaybackState { continuation.resume(returning: $0) }
         }
         guard revision == documentRevision, !isRetired else { return }
-        documentHasEdits = dirty
-        updateEditProtection()
+        documentActivity.recordPolledEdits(dirty)
         await updateMediaState(value, native: native, revision: revision)
     }
 }

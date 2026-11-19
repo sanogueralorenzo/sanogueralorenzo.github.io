@@ -13,6 +13,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     let webView: WKWebView
     let contentBlocker: BrowserContentBlocking
     let loading: BrowserPageLoading
+    let documentActivity: BrowserDocumentActivity
     var title = ""
     var url: URL?
     var favicon: Data?
@@ -22,12 +23,9 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     var failure: String?
     var isPlaying = false
     var mediaTitle = ""
-    var hasUnsavedEdits = true
-    @ObservationIgnored var documentHasEdits = true
     var lastSelected = Date()
     var translationRequest = 0
     var documentRevision = 0
-    var frameEdits: [String: Bool] = [:]
     @ObservationIgnored var pendingNavigationURL: URL?
     var hasPictureInPicture = false
     @ObservationIgnored var pictureInPicture: BrowserPictureInPicturePageController?
@@ -48,12 +46,6 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
             ?? 0) > 1
     }
     var scriptMayClose = false
-    var isProtectedFromUnloading: Bool {
-        isPlaying || hasPictureInPicture || pictureInPicture?.protectsPageResidency == true || hasUnsavedEdits
-            || webView.cameraCaptureState != .none
-            || webView.microphoneCaptureState != .none
-            || (webView as? BrowserNativeWebView)?.displayCaptureActive == true || closeContinuation != nil
-    }
     @ObservationIgnored var closeContinuation: CheckedContinuation<Bool, Never>?
     @ObservationIgnored var closeTask: Task<Void, Never>?
     @ObservationIgnored var automaticClose = false
@@ -88,9 +80,11 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         configuration.applicationNameForUserAgent = BrowserPlatformUserAgent.applicationName
         BrowserDesktopPictureInPictureAccess.enable(in: configuration.preferences)
         BrowserPictureInPictureContentBridge.shared.install(in: configuration.userContentController)
-        webView = BrowserNativeWebView(frame: .zero, configuration: configuration)
+        let webView = BrowserNativeWebView(frame: .zero, configuration: configuration)
+        self.webView = webView
+        documentActivity = BrowserDocumentActivity(webView: webView)
         super.init()
-        (webView as? BrowserNativeWebView)?.page = self
+        webView.page = self
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
@@ -208,6 +202,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         webView.navigationDelegate = nil
         webView.uiDelegate = nil
         pictureInPicture?.invalidate()
+        documentActivity.invalidate()
         siteController?.invalidate()
         for scope in uploadScopes { scope.stopAccessingSecurityScopedResource() }
         uploadScopes.removeAll()
@@ -232,12 +227,9 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         guard !isRetired else { return }
         loading.started(navigation)
         failure = nil
-        (webView as? BrowserNativeWebView)?.contextSelection = ""
+        documentActivity.navigationStarted()
         siteController?.navigationStarted()
-        frameEdits.removeAll()
         isReaderMode = false
-        hasUnsavedEdits = true
-        documentHasEdits = true
         documentRevision &+= 1
     }
 
@@ -390,10 +382,6 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
             return nil
         }
         return owner.openPopup(configuration: configuration, url: navigationAction.request.url, spaceID: spaceID)
-    }
-
-    func webViewDidClose(_ webView: WKWebView) {
-        if closeContinuation != nil { finishClose(true) } else if scriptMayClose { owner?.deleteTab(id) }
     }
 
     func webView(

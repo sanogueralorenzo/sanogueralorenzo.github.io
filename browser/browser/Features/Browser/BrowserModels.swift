@@ -17,18 +17,6 @@ struct BrowserTab: Codable, Identifiable, Equatable {
     var zoom = 1.0
 }
 
-struct BrowserDocumentState: Codable, Equatable, Sendable {
-    struct Field: Codable, Equatable, Sendable {
-        var selector: String
-        var value: String
-        var checked: Bool?
-    }
-    var url: String
-    var x: Double
-    var y: Double
-    var fields: [Field]
-}
-
 struct BrowserFolder: Codable, Identifiable, Equatable {
     enum Kind: String, Codable { case regular, github }
     var id = UUID()

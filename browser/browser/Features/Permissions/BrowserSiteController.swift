@@ -23,7 +23,6 @@ final class BrowserSiteController: NSObject, WKScriptMessageHandler, @preconcurr
     private var locationRequests: [String: LocationRequest] = [:]
     private var notifications: Set<String> = []
     private var permissionQuestions: [String: Task<Bool, Never>] = [:]
-    var frames: [String: WKFrameInfo] = [:]
     private var captureGrants: [BrowserSitePermission.Kind: Set<String>] = [:]
     func recordCapture(_ kinds: [BrowserSitePermission.Kind], origin: String) {
         for kind in kinds { captureGrants[kind, default: []].insert(origin) }
@@ -34,11 +33,6 @@ final class BrowserSiteController: NSObject, WKScriptMessageHandler, @preconcurr
         super.init()
         manager.delegate = self
         let controller = page.webView.configuration.userContentController
-        controller.add(self, contentWorld: .defaultClient, name: "browserDocumentActivity")
-        controller.addUserScript(
-            WKUserScript(
-                source: Self.activityScript, injectionTime: .atDocumentStart,
-                forMainFrameOnly: false, in: .defaultClient))
         controller.add(self, contentWorld: .page, name: "browserGeolocation")
         controller.add(self, contentWorld: .page, name: "browserHostedNotifications")
         controller.addUserScript(
@@ -104,23 +98,6 @@ final class BrowserSiteController: NSObject, WKScriptMessageHandler, @preconcurr
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        if message.name == "browserDocumentActivity", let page, message.webView === page.webView,
-            let body = message.body as? [String: Any], let id = body["document"] as? String, UUID(uuidString: id) != nil
-        {
-            if let selection = body["selection"] as? String {
-                (page.webView as? BrowserNativeWebView)?.contextSelection = String(selection.prefix(4096))
-                return
-            }
-            if body["removed"] as? Bool == true {
-                page.frameEdits[id] = nil
-                frames[id] = nil
-            } else if let dirty = body["dirty"] as? Bool, frames.count < 128 || frames[id] != nil {
-                page.frameEdits[id] = dirty
-                frames[id] = message.frameInfo
-            }
-            page.updateEditProtection()
-            return
-        }
         guard let page, message.webView === page.webView, let origin = Self.origin(message.frameInfo.securityOrigin),
             Self.secure(origin), let body = message.body as? [String: Any], body["version"] as? Int == 1,
             let action = body["action"] as? String
@@ -344,7 +321,6 @@ final class BrowserSiteController: NSObject, WKScriptMessageHandler, @preconcurr
         for pending in permissionQuestions.values { pending.cancel() }
         permissionQuestions.removeAll()
         locationRequests.removeAll()
-        frames.removeAll()
         manager.stopUpdatingLocation()
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: Array(notifications))
         notifications.removeAll()
@@ -376,8 +352,6 @@ final class BrowserSiteController: NSObject, WKScriptMessageHandler, @preconcurr
     func invalidate() {
         navigationStarted()
         finishLocationAuthorization()
-        page?.webView.configuration.userContentController.removeScriptMessageHandler(
-            forName: "browserDocumentActivity", contentWorld: .defaultClient)
         page?.webView.configuration.userContentController.removeScriptMessageHandler(
             forName: "browserGeolocation", contentWorld: .page)
         page?.webView.configuration.userContentController.removeScriptMessageHandler(
@@ -417,26 +391,4 @@ extension BrowserStore {
         for page in pages.values where page.spaceID == spaceID { page.siteController?.permissionChanged() }
         changed()
     }
-}
-
-extension BrowserSiteController {
-    static let activityScript = #"""
-        (() => {
-          const documentID = crypto.randomUUID(); const edited = new WeakSet();
-          addEventListener('contextmenu', event => {
-            if(!event.isTrusted) return;
-            const selection = event.target?.type === 'password' ? '' : String(getSelection() || '');
-            webkit.messageHandlers.browserDocumentActivity.postMessage({document:documentID,selection});
-          },true);
-          const send = removed => {
-            const dirty = [...document.querySelectorAll('input,textarea,select,[contenteditable=true]')].some(e =>
-              (e.isContentEditable ? edited.has(e) : (['checkbox','radio'].includes(e.type) ? e.checked !== e.defaultChecked :
-              e.tagName === 'SELECT' ? [...e.options].some(o => o.selected !== o.defaultSelected) : e.value !== e.defaultValue)));
-            try { webkit.messageHandlers.browserDocumentActivity.postMessage({document:documentID,dirty,removed}); } catch {}
-          };
-          for(const type of ['input','change','reset']) addEventListener(type,event => { if(event.target?.isContentEditable) edited.add(event.target); queueMicrotask(() => send(false)); },true);
-          addEventListener('DOMContentLoaded',() => send(false),{once:true});
-          addEventListener('pagehide',() => send(true),{once:true});
-        })();
-        """#
 }

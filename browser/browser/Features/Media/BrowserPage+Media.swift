@@ -52,6 +52,13 @@ extension BrowserPage {
             owner?.owner.media?.refresh()
         }
     }
+
+    @objc(_webView:hasVideoInPictureInPictureDidChange:)
+    func webView(_ webView: WKWebView, hasVideoInPictureInPictureDidChange active: Bool) {
+        hasPictureInPicture = active
+        pictureInPicture?.nativePresentationDidChange(isActive: active)
+    }
+
     @objc(_webViewFullscreenMayReturnToInline:)
     func restorePictureInPicture(_ view: WKWebView) {
         guard view === webView, pictureInPicture?.canRestoreSource == true, let owner else { return }
