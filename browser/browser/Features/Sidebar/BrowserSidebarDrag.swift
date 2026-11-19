@@ -242,7 +242,9 @@ struct BrowserDropArea: ViewModifier {
                     isScrollable: spaceID == nil && placement != .pinned && !pinned,
                     isNesting: folder != nil && before == nil))
             if let folder, before == nil,
-                let header = (store.sidebarSpace(presentedSpaceID)).folders.first(where: { $0.id == folder })
+                let header = store.sidebarSpace(presentedSpaceID).folders.first(where: {
+                    $0.id == folder && $0.kind == .regular
+                })
             {
                 store.sidebarReorder.register(
                     .init(

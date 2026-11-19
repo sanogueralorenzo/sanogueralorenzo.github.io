@@ -15,6 +15,8 @@ extension BrowserSpace {
         return orderedSidebarIDs.compactMap { pins[$0] }
     }
 
+    var liveFolders: [BrowserFolder] { isPrivate ? [] : folders.filter { $0.kind == .github } }
+
     var sidebarItemIDs: [UUID] {
         var result = pinnedTabs.map(\.id)
         func append(_ parent: UUID?, _ placement: BrowserTab.Placement) {
@@ -22,6 +24,10 @@ extension BrowserSpace {
                 result.append(entry.id)
                 if case .folder(let folder) = entry.kind { append(folder.id, placement) }
             }
+        }
+        for folder in liveFolders {
+            result.append(folder.id)
+            append(folder.id, folder.placement ?? .saved)
         }
         append(nil, .saved)
         append(nil, .current)
@@ -56,7 +62,7 @@ extension BrowserSpace {
         let keptTabs = keeping.map { id in Set(splits.first { $0.tabIDs.contains(id) }?.tabIDs ?? [id]) }
         let folders = Dictionary(
             uniqueKeysWithValues: folders.filter {
-                $0.parentID == parentID && ($0.placement ?? .saved) == placement
+                $0.kind == .regular && $0.parentID == parentID && ($0.placement ?? .saved) == placement
                     && (path?.contains($0.id) ?? true)
             }.map { ($0.id, $0) })
         let tabs = Dictionary(

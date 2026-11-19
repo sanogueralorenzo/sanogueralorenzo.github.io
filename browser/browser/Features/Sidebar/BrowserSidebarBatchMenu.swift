@@ -4,6 +4,9 @@ struct BrowserSidebarBatchMenu: View {
     let store: BrowserStore
     private var ids: [UUID] { store.selectedActionTabIDs }
     private var hasFolders: Bool { !store.selectedFolders.isEmpty }
+    private var includesLiveFolder: Bool {
+        store.activeSpace.liveFolders.contains { store.selectedFolders.contains($0.id) }
+    }
     private var pinnedOnly: Bool {
         !ids.isEmpty
             && ids.allSatisfy { id in store.activeSpace.tabs.contains { $0.id == id && $0.placement == .pinned } }
@@ -28,9 +31,11 @@ struct BrowserSidebarBatchMenu: View {
         }
         if hasFolders || !pinnedOnly {
             Button("Move to Current Tabs", systemImage: "rectangle.stack") { store.fileSidebarSelection(as: .current) }
+                .disabled(includesLiveFolder)
         }
         if hasFolders {
             Button("Move to Saved Tabs", systemImage: "bookmark") { store.fileSidebarSelection(as: .saved) }
+                .disabled(includesLiveFolder)
         }
         Menu("Move to Folder", systemImage: "folder") {
             Button("New Current Tabs Folder") { fileInNewFolder(.current) }
@@ -45,6 +50,7 @@ struct BrowserSidebarBatchMenu: View {
                 Button(folder.title) { store.fileSidebarSelection(as: folder.placement ?? .saved, folderID: folder.id) }
             }
         }
+        .disabled(includesLiveFolder)
         if !hasFolders {
             Menu("Move to Space", systemImage: "square.grid.2x2") {
                 ForEach(store.session.spaces.filter { $0.id != store.activeSpace.id }) { space in

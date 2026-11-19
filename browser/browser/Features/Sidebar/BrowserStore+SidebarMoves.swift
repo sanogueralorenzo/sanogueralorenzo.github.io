@@ -77,9 +77,10 @@ extension BrowserStore {
                 targetParent.flatMap({ id in destinationSpace.folders.first { $0.id == id } }).map({
                     ($0.placement ?? .saved) == location
                 }) ?? true,
+                beforeFolder?.kind != .github,
                 folders.isEmpty || location != .pinned,
                 !hasLiveFolder
-                    || (!destinationSpace.isPrivate && location != .current
+                    || (!local && !destinationSpace.isPrivate && location == nil && targetParent == nil
                         && !destinationSpace.folders.contains { $0.kind == .github && !folders.contains($0.id) }),
                 !current.tabs.contains(where: {
                     tabSet.contains($0.id) && $0.isSettings

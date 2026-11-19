@@ -31,6 +31,7 @@ final class BrowserSessionOwner {
         persistence = try BrowserPersistence()
         contentExtension = BrowserContentExtension(profile: persistence.directory)
         session = try persistence.load()
+        session.normalizeLiveFolders()
         sweepExpiredRecords()
         session.selectedSpaceID = session.selectedSpaceID ?? session.spaces[0].id
         for i in session.downloads.indices where [.running, .choosing].contains(session.downloads[i].status) {

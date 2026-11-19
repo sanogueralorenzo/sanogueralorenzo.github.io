@@ -18,18 +18,23 @@ extension BrowserStore {
             for entry in activeSpace.sidebarEntries(parentID: parent, placement: placement, keeping: keeping) {
                 switch entry.kind {
                 case .folder(let folder):
-                    units.append([folder.id])
-                    if folder.isExpanded && keeping == nil {
-                        walk(folder.id, placement)
-                    } else if let kept = keeping ?? sidebarFolders.state(for: folder.id).keptTabID {
-                        walk(folder.id, placement, keeping: kept)
-                    }
+                    append(folder, keeping: keeping)
                 case .tab(let tab):
                     append([tab])
                 }
             }
         }
+        func append(_ folder: BrowserFolder, keeping: UUID? = nil) {
+            units.append([folder.id])
+            let placement = folder.placement ?? .saved
+            if folder.isExpanded && keeping == nil {
+                walk(folder.id, placement)
+            } else if let kept = keeping ?? sidebarFolders.state(for: folder.id).keptTabID {
+                walk(folder.id, placement, keeping: kept)
+            }
+        }
         append(activeSpace.pinnedTabs)
+        for folder in activeSpace.liveFolders { append(folder) }
         walk(nil, .saved)
         walk(nil, .current)
         return units

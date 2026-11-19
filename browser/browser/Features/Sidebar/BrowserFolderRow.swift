@@ -34,12 +34,6 @@ struct BrowserFolderRow: View {
                                     .offset(y: folder.isExpanded ? -1.5 : -0.5)
                                     .accessibilityHidden(true)
                                 Text(folder.title).lineLimit(1)
-                                if folder.kind == .github {
-                                    Text("Live")
-                                        .font(.caption2).foregroundStyle(.secondary)
-                                        .padding(.horizontal, 5).padding(.vertical, 2)
-                                        .background(.primary.opacity(0.08), in: Capsule())
-                                }
                                 Spacer(minLength: 0)
                                 if folder.kind == .github {
                                     if service.isLoading {
@@ -75,29 +69,26 @@ struct BrowserFolderRow: View {
                         BrowserSidebarBatchMenu(store: store)
                     } else {
                         Button("Rename Folder") { store.editingFolderID = folder.id }
-                        if folder.kind == .regular {
-                            Button("New Nested Folder") { store.addFolder(parentID: folder.id) }
-                        }
                         if folder.kind == .github {
                             Menu("Live Folder Options") { GitHubFolderMenu(folder: folder, store: store) }
-                        }
-                        if folder.kind == .regular {
+                        } else {
+                            Button("New Nested Folder") { store.addFolder(parentID: folder.id) }
                             Button(folder.placement == .current ? "Move to Saved Tabs" : "Move to Current Tabs") {
                                 store.moveFolderLocally(
                                     folder.id, into: nil, placement: folder.placement == .current ? .saved : .current)
                             }
-                        }
-                        Menu("Move to Folder") {
-                            Button("Top Level") { store.moveFolderLocally(folder.id, into: nil) }.disabled(
-                                folder.parentID == nil)
-                            ForEach(
-                                space.folders.filter {
-                                    $0.kind == .regular
-                                        && !store.descendants(folder.id, in: space).contains($0.id)
+                            Menu("Move to Folder") {
+                                Button("Top Level") { store.moveFolderLocally(folder.id, into: nil) }.disabled(
+                                    folder.parentID == nil)
+                                ForEach(
+                                    space.folders.filter {
+                                        $0.kind == .regular
+                                            && !store.descendants(folder.id, in: space).contains($0.id)
+                                    }
+                                ) { target in
+                                    Button(target.title) { store.moveFolderLocally(folder.id, into: target.id) }.disabled(
+                                        folder.parentID == target.id)
                                 }
-                            ) { target in
-                                Button(target.title) { store.moveFolderLocally(folder.id, into: target.id) }.disabled(
-                                    folder.parentID == target.id)
                             }
                         }
                         Divider()

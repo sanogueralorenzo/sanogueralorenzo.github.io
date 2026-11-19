@@ -568,8 +568,9 @@ extension BrowserStore {
             payload.folderIDs.allSatisfy({ id in source.folders.contains { $0.id == id } }),
             !tabs.isEmpty || !folders.isEmpty,
             !carriesLiveFolder
-                || (!destination.isPrivate && placement != .current
+                || (source.id != destination.id && !destination.isPrivate && placement == nil && parent == nil
                     && !destination.folders.contains { $0.kind == .github && !folders.contains($0.id) }),
+            !destination.folders.contains(where: { $0.id == before && $0.kind == .github }),
             before.map({ !payload.ids.contains($0) && !folders.contains($0) }) ?? true,
             folders.isEmpty || placement != .pinned,
             !tabs.contains(where: { $0.isSettings && (parent != nil || (placement != nil && placement != .current)) }),

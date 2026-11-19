@@ -120,18 +120,15 @@ extension BrowserSessionOwner {
             }
             if let existing = space.folders.first(where: { $0.kind == .github }) { return existing.id }
         }
-        if let parentID, !space.folders.contains(where: { $0.id == parentID && $0.kind == .regular }) {
+        if let parentID, github || !space.folders.contains(where: { $0.id == parentID && $0.kind == .regular }) {
             throw BrowserFolderFailure.parent
         }
         var folder = BrowserFolder()
         folder.parentID = parentID
         folder.placement = parentID.flatMap { id in space.folders.first { $0.id == id }?.placement }
         if github {
-            guard folder.placement == nil || folder.placement == .saved else {
-                throw BrowserFolderFailure.placement
-            }
             folder.kind = .github
-            folder.title = "GitHub"
+            folder.title = BrowserFolder.pullRequestsTitle
         }
         var candidate = session
         candidate.spaces[index].folders.append(folder)
@@ -145,11 +142,27 @@ extension BrowserSessionOwner {
     }
 }
 
+extension BrowserFolder {
+    static let pullRequestsTitle = "Pull Requests"
+}
+
+extension BrowserSession {
+    mutating func normalizeLiveFolders() {
+        for i in spaces.indices {
+            for j in spaces[i].folders.indices where spaces[i].folders[j].kind == .github {
+                spaces[i].folders[j].parentID = nil
+                if spaces[i].folders[j].title == "GitHub" {
+                    spaces[i].folders[j].title = BrowserFolder.pullRequestsTitle
+                }
+            }
+        }
+    }
+}
+
 private enum BrowserFolderFailure: String, LocalizedError {
     case space = "The Space is no longer available."
     case parent = "The destination folder is no longer available."
     case privateSpace = "Live folders aren’t available in private Spaces."
-    case placement = "Live folders belong in Saved Tabs."
     case limit = "The folder count or nesting limit has been reached."
 
     var errorDescription: String? { rawValue }

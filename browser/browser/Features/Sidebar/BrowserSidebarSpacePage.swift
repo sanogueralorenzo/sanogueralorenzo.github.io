@@ -32,7 +32,7 @@ struct BrowserSidebarSpacePage: View {
                     ? unusedHeight : nil
                 ScrollView {
                     VStack(spacing: 0) {
-                        tabRows.onGeometryChange(for: CGFloat.self) {
+                        scrollingSections.onGeometryChange(for: CGFloat.self) {
                             $0.size.height
                         } action: {
                             listHeight = $0
@@ -76,8 +76,19 @@ struct BrowserSidebarSpacePage: View {
         .animation(BrowserMotion.collection.unlessReducingMotion(reduceMotion), value: space.orderedSidebarIDs)
     }
 
-    private var tabRows: some View {
+    private var scrollingSections: some View {
         VStack(spacing: SidebarGeometry.panelSpacing) {
+            let liveFolders = space.liveFolders
+            if !liveFolders.isEmpty {
+                VStack(spacing: 4) {
+                    sectionTitle("Live")
+                    ForEach(liveFolders) { folder in
+                        BrowserFolderRow(folder: folder, store: store, depth: 0)
+                    }
+                }
+                .padding(SidebarGeometry.panelPadding)
+                .browserSidebarPanel()
+            }
             VStack(spacing: 4) {
                 sectionTitle("Saved")
                 BrowserSidebarList(store: store, placement: .saved)
