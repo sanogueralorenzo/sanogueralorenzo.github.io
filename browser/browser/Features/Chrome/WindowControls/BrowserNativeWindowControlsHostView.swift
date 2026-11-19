@@ -7,7 +7,6 @@ struct BrowserNativeWindowChromeSnapshot {
     let titlebarSeparatorStyle: NSTitlebarSeparatorStyle
     let toolbar: NSToolbar?
     let contentFrameClipsToBounds: Bool
-    let buttonAppearance: [(NSWindow.ButtonType, Bool, CGFloat)]
 }
 
 /// Keep the hidden fullscreen title bar transparent to avoid a band on WebKit pages.
@@ -26,7 +25,9 @@ final class BrowserNativeWindowControlsHostView: NSView {
     private var controlLayout: BrowserWindowControlLayout?
     private var enteringFullScreen = false
     private var windowObservers: [NSObjectProtocol] = []
-    var controlsOpacity: CGFloat = 1
+    var sidebarOffset: CGFloat = 0 {
+        didSet { controlLayout?.update(sidebarOffset: sidebarOffset) }
+    }
     private var showsStandardTitleBar = false
     private var fullScreenTitleBarObservation: NSKeyValueObservation?
 
@@ -62,18 +63,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
         applyWindowShape(to: window)
         if !enteringFullScreen, !window.styleMask.contains(.fullScreen), controlLayout == nil {
             controlLayout = BrowserWindowControlLayout(window: window)
-        }
-        let shouldShowWindowControls = window.styleMask.showsWindowControls(
-            sidebarPresentationShowsControls: controlsOpacity > 0)
-        let opacity = window.styleMask.contains(.fullScreen) ? 1 : controlsOpacity
-        for type in Self.buttonTypes {
-            guard let button = window.standardWindowButton(type) else { continue }
-            if button.alphaValue != opacity {
-                button.alphaValue = opacity
-            }
-            if button.isHidden == shouldShowWindowControls {
-                button.isHidden = !shouldShowWindowControls
-            }
+            controlLayout?.update(sidebarOffset: sidebarOffset)
         }
     }
 
@@ -105,11 +95,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
         window.toolbar = originalChrome.toolbar
         window.contentView?.superview?.clipsToBounds =
             originalChrome.contentFrameClipsToBounds
-        for (type, wasHidden, alpha) in originalChrome.buttonAppearance {
-            guard let button = window.standardWindowButton(type) else { continue }
-            button.isHidden = wasHidden
-            button.alphaValue = alpha
-        }
         self.originalChrome = nil
     }
 
@@ -121,12 +106,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
             titleVisibility: window.titleVisibility,
             titlebarSeparatorStyle: window.titlebarSeparatorStyle,
             toolbar: window.toolbar,
-            contentFrameClipsToBounds:
-                window.contentView?.superview?.clipsToBounds ?? false,
-            buttonAppearance: Self.buttonTypes.map { type in
-                let button = window.standardWindowButton(type)
-                return (type, button?.isHidden ?? false, button?.alphaValue ?? 1)
-            }
+            contentFrameClipsToBounds: window.contentView?.superview?.clipsToBounds ?? false
         )
     }
 

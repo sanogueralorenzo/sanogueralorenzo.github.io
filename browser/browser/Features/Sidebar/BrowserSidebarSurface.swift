@@ -1,15 +1,23 @@
 import SwiftUI
 
 /// Keep the card mounted during its slide, as in Crest.
-struct BrowserSidebarSurface: View {
+struct BrowserSidebarSurface: View, Animatable {
     let store: BrowserStore
     let height: CGFloat
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    var animatableData: CGFloat
 
     private var regionWidth: CGFloat { store.sidebarWidth + SidebarGeometry.inset * 2 }
 
+    init(store: BrowserStore, height: CGFloat) {
+        self.store = store
+        self.height = height
+        animatableData = store.showsSidebar ? 1 : 0
+    }
+
     var body: some View {
+        let offset = (min(max(animatableData, 0), 1) - 1) * regionWidth
         BrowserSidebar(store: store)
             .frame(height: max(0, height - SidebarGeometry.inset * 2))
             .compositingGroup()
@@ -36,10 +44,11 @@ struct BrowserSidebarSurface: View {
                     .accessibilityHidden(true)
                 }
             }
-            .offset(x: store.showsSidebar ? 0 : -regionWidth)
+            .offset(x: offset)
             .allowsHitTesting(store.showsSidebar)
             .accessibilityHidden(!store.showsSidebar)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(BrowserNativeWindowControlsBridge(sidebarOffset: offset))
     }
 }
 

@@ -43,7 +43,6 @@ struct BrowserRoot: View {
                         .allowsHitTesting(false)
                 }
             }
-            .modifier(BrowserWindowControlsPresentation(showsSidebar: store.showsSidebar))
             .animation(BrowserMotion.floatingPane.unlessReducingMotion(reduceMotion), value: store.showsSidebar)
             .overlay { BrowserSidebarDropDestination(store: store).accessibilityHidden(true) }
         }
