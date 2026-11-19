@@ -36,53 +36,31 @@ final class BrowserGitHubClient {
 
     func reset() { isJSONAPI = nil }
 
-    func read(from session: any BrowserIntegrationSession, options: GitHubLiveFolderOptions = .default) async throws
+    func read(from session: BrowserGitHubSession, options: GitHubLiveFolderOptions = .default) async throws
         -> [BrowserGitHubPullRequest]
     {
         guard options.hasFilters else { throw BrowserGitHubFailure.noFilters }
         var collected: [BrowserGitHubPullRequest] = []
         var seen: Set<URL> = []
-        do {
-            if isJSONAPI == nil {
-                guard let url = URL(string: "https://github.com/pulls") else {
-                    throw BrowserGitHubFailure.invalidResponse
-                }
-                let probe = try await dashboard(url, using: session)
-                isJSONAPI = Self.decodeJSON(probe.data) != nil
-            }
-            for query in options.queries(jsonAPI: isJSONAPI == true) {
-                var url = URLComponents(string: "https://github.com/pulls")
-                url?.queryItems = [URLQueryItem(name: "q", value: query)]
-                guard let url = url?.url else { throw BrowserGitHubFailure.invalidResponse }
-                let response = try await dashboard(url, using: session)
-                if isJSONAPI == true, Self.decodeJSON(response.data) == nil {
-                    isJSONAPI = false
-                    throw BrowserGitHubFailure.invalidResponse
-                }
-                let items = try await Self.parse(response.data)
-                guard items.allSatisfy(\.isValid) else { throw BrowserGitHubFailure.invalidResponse }
-                for item in items where seen.insert(item.url).inserted && collected.count < 100 {
-                    collected.append(item)
-                }
-            }
-            try await session.validate()
-            try Task.checkCancellation()
-            return collected
-        } catch BrowserIntegrationSessionFailure.sessionChanged {
-            throw BrowserGitHubFailure.notSignedIn
+        if isJSONAPI == nil {
+            let probe = try await session.fetchPullRequests()
+            isJSONAPI = Self.decodeJSON(probe) != nil
         }
-    }
-
-    private func dashboard(_ url: URL, using session: any BrowserIntegrationSession) async throws
-        -> BrowserIntegrationResponse
-    {
-        let response = try await session.get(url, accept: "application/json,text/html")
-        guard BrowserGitHubPullRequest.accepts(response.url) else { throw BrowserGitHubFailure.invalidResponse }
-        if (300..<400).contains(response.status) || [401, 404].contains(response.status) {
-            throw BrowserGitHubFailure.notSignedIn
+        for query in options.queries(jsonAPI: isJSONAPI == true) {
+            let data = try await session.fetchPullRequests(query: query)
+            if isJSONAPI == true, Self.decodeJSON(data) == nil {
+                isJSONAPI = false
+                throw BrowserGitHubFailure.invalidResponse
+            }
+            let items = try await Self.parse(data)
+            guard items.allSatisfy(\.isValid) else { throw BrowserGitHubFailure.invalidResponse }
+            for item in items where seen.insert(item.url).inserted && collected.count < 100 {
+                collected.append(item)
+            }
         }
-        guard response.status == 200 else { throw BrowserGitHubFailure.unavailable }
-        return response
+        try await session.validate()
+        try Task.checkCancellation()
+        return collected
     }
 
     // MARK: - Actions - Parsing

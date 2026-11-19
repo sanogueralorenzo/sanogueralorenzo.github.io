@@ -1,13 +1,11 @@
 import Foundation
 import Network
-import Observation
 import WebKit
 
 /// Read-only requests over one origin's cookies in one WebKit profile. No web
 /// view, shared cookie storage, HTTP-auth credentials or disk cache is involved.
 @MainActor
-@Observable
-final class WebKitIntegrationSession: BrowserIntegrationSession {
+final class BrowserGitHubSession {
     // MARK: - Types
 
     private struct CookieState: Equatable {
@@ -34,29 +32,23 @@ final class WebKitIntegrationSession: BrowserIntegrationSession {
 
     // MARK: - Variables
 
-    private(set) var revision = 0
-    @ObservationIgnored private var store: WKWebsiteDataStore?
-    @ObservationIgnored private let origin: URL
-    @ObservationIgnored private let isAuthorized: @MainActor () -> Bool
-    @ObservationIgnored private let configuration: @MainActor () -> URLSessionConfiguration
-    @ObservationIgnored private var knownCookies: [CookieState]?
-    @ObservationIgnored private var requests: [UUID: URLSession] = [:]
-    @ObservationIgnored private var stopped = false
-    @ObservationIgnored private var writingCookies = false
-    @ObservationIgnored private var observation: Task<Void, Never>?
-    @ObservationIgnored private let observer = CookieObserver()
+    private static let host = "github.com"
+    private static let dashboard = URL(string: "https://\(host)/pulls")!
+    private var revision = 0
+    private var store: WKWebsiteDataStore?
+    private let isAuthorized: @MainActor () -> Bool
+    private var knownCookies: [CookieState]?
+    private var requests: [UUID: URLSession] = [:]
+    private var stopped = false
+    private var writingCookies = false
+    private var observation: Task<Void, Never>?
+    private let observer = CookieObserver()
 
     // MARK: - Initializers
 
-    init(
-        store: WKWebsiteDataStore, origin: URL,
-        isAuthorized: @escaping @MainActor () -> Bool,
-        configuration: @escaping @MainActor () -> URLSessionConfiguration = { .ephemeral }
-    ) {
+    init(store: WKWebsiteDataStore, isAuthorized: @escaping @MainActor () -> Bool) {
         self.store = store
-        self.origin = origin
         self.isAuthorized = isAuthorized
-        self.configuration = configuration
         observer.owner = self
         store.httpCookieStore.add(observer)
     }
@@ -69,10 +61,11 @@ final class WebKitIntegrationSession: BrowserIntegrationSession {
 
     // MARK: - Actions - Requests
 
-    func get(_ url: URL, accept: String) async throws -> BrowserIntegrationResponse {
-        guard accepts(url), !accept.contains("\r"), !accept.contains("\n") else {
-            throw BrowserIntegrationSessionFailure.invalidRequest
-        }
+    func fetchPullRequests(query: String? = nil) async throws -> Data {
+        let url =
+            query.map {
+                Self.dashboard.appending(queryItems: [URLQueryItem(name: "q", value: $0)])
+            } ?? Self.dashboard
         try checkAuthorization()
         let cookies = await scopedCookies()
         try checkAuthorization()
@@ -80,7 +73,7 @@ final class WebKitIntegrationSession: BrowserIntegrationSession {
         if let knownCookies, knownCookies != state { changed(to: state) }
         knownCookies = state
         let generation = revision
-        let settings = configuration()
+        let settings = URLSessionConfiguration.ephemeral
         settings.proxyConfigurations = store?.proxyConfigurations ?? []
         settings.httpCookieStorage = nil
         settings.httpShouldSetCookies = false
@@ -98,7 +91,7 @@ final class WebKitIntegrationSession: BrowserIntegrationSession {
         }
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 15)
         request.httpShouldHandleCookies = false
-        request.setValue(accept, forHTTPHeaderField: "Accept")
+        request.setValue("application/json,text/html", forHTTPHeaderField: "Accept")
         request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
         let eligible = cookies.filter { cookie in
             let path = url.path.isEmpty ? "/" : url.path
@@ -111,20 +104,24 @@ final class WebKitIntegrationSession: BrowserIntegrationSession {
         defer { bytes.task.cancel() }
         guard let response = response as? HTTPURLResponse, response.url == url,
             response.expectedContentLength <= 5 * 1_024 * 1_024
-        else { throw BrowserIntegrationSessionFailure.invalidResponse }
+        else { throw BrowserGitHubFailure.invalidResponse }
         var data = Data()
         for try await byte in bytes {
             if data.count.isMultiple(of: 8_192) {
                 try checkAuthorization()
-                guard revision == generation else { throw BrowserIntegrationSessionFailure.sessionChanged }
+                guard revision == generation else { throw BrowserGitHubFailure.notSignedIn }
             }
-            guard data.count < 5 * 1_024 * 1_024 else { throw BrowserIntegrationSessionFailure.invalidResponse }
+            guard data.count < 5 * 1_024 * 1_024 else { throw BrowserGitHubFailure.invalidResponse }
             data.append(byte)
         }
         try await validate()
-        guard revision == generation else { throw BrowserIntegrationSessionFailure.sessionChanged }
+        guard revision == generation else { throw BrowserGitHubFailure.notSignedIn }
         try await acceptCookies(from: response, expecting: state)
-        return BrowserIntegrationResponse(url: url, status: response.statusCode, data: data)
+        if (300..<400).contains(response.statusCode) || [401, 404].contains(response.statusCode) {
+            throw BrowserGitHubFailure.notSignedIn
+        }
+        guard response.statusCode == 200 else { throw BrowserGitHubFailure.unavailable }
+        return data
     }
 
     func validate() async throws {
@@ -133,7 +130,7 @@ final class WebKitIntegrationSession: BrowserIntegrationSession {
         try checkAuthorization()
         if let knownCookies, knownCookies != current {
             changed(to: current)
-            throw BrowserIntegrationSessionFailure.sessionChanged
+            throw BrowserGitHubFailure.notSignedIn
         }
         knownCookies = current
     }
@@ -151,6 +148,13 @@ final class WebKitIntegrationSession: BrowserIntegrationSession {
     }
 
     // MARK: - Actions - Cookies
+
+    func isSignedIn() async -> Bool {
+        guard let store else { return false }
+        return await store.httpCookieStore.allCookies().contains {
+            Self.belongsToGitHub($0) && $0.name == "logged_in" && $0.value == "yes"
+        }
+    }
 
     private func cookiesChanged() {
         guard !stopped, !writingCookies else { return }
@@ -172,13 +176,8 @@ final class WebKitIntegrationSession: BrowserIntegrationSession {
     private func scopedCookies() async -> [HTTPCookie] {
         guard let store, await allowsCookies() else { return [] }
         let cookies = await store.httpCookieStore.allCookies()
-        let host = origin.host?.lowercased() ?? ""
         return cookies.filter { cookie in
-            let domain = cookie.domain.lowercased()
-            let matches =
-                domain.hasPrefix(".")
-                ? host == String(domain.dropFirst()) || host.hasSuffix(domain) : host == domain
-            return matches && (cookie.expiresDate.map { $0 > Date() } ?? true)
+            Self.belongsToGitHub(cookie) && (cookie.expiresDate.map { $0 > Date() } ?? true)
         }.sorted { ($0.domain, $0.path, $0.name) < ($1.domain, $1.path, $1.name) }
     }
 
@@ -187,16 +186,10 @@ final class WebKitIntegrationSession: BrowserIntegrationSession {
         let fields = response.allHeaderFields.reduce(into: [String: String]()) { result, entry in
             if let key = entry.key as? String, let value = entry.value as? String { result[key] = value }
         }
-        let updates = HTTPCookie.cookies(withResponseHeaderFields: fields, for: url).filter { cookie in
-            // New cookies may name only this host. Existing parent-domain cookies
-            // can be renewed, but a response cannot create a broader credential.
-            let domain = cookie.domain.lowercased()
-            return domain == origin.host || domain == "." + (origin.host ?? "")
-                || baseline.contains { $0.name == cookie.name && $0.domain == cookie.domain && $0.path == cookie.path }
-        }
+        let updates = HTTPCookie.cookies(withResponseHeaderFields: fields, for: url).filter(Self.belongsToGitHub)
         guard !updates.isEmpty else { return }
         try await validate()
-        guard knownCookies == baseline else { throw BrowserIntegrationSessionFailure.sessionChanged }
+        guard knownCookies == baseline else { throw BrowserGitHubFailure.notSignedIn }
         writingCookies = true
         defer { writingCookies = false }
         for cookie in updates {
@@ -223,16 +216,15 @@ final class WebKitIntegrationSession: BrowserIntegrationSession {
         guard !stopped, isAuthorized() else { throw CancellationError() }
     }
 
-    private func accepts(_ url: URL) -> Bool {
-        url.scheme == "https" && origin.scheme == "https" && url.host == origin.host
-            && (url.port ?? 443) == (origin.port ?? 443) && url.user == nil && url.password == nil
-            && url.fragment == nil
+    private static func belongsToGitHub(_ cookie: HTTPCookie) -> Bool {
+        let domain = cookie.domain.lowercased()
+        return domain == host || domain == "." + host
     }
 
     // MARK: - Types - Engine callbacks
 
     private final class CookieObserver: NSObject, WKHTTPCookieStoreObserver {
-        weak var owner: WebKitIntegrationSession?
+        weak var owner: BrowserGitHubSession?
         func cookiesDidChange(in cookieStore: WKHTTPCookieStore) { owner?.cookiesChanged() }
     }
 

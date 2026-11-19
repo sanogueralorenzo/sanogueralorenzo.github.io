@@ -15,7 +15,7 @@ final class GitHubFolder: NSObject, WKHTTPCookieStoreObserver {
     private(set) var error: String?
     @ObservationIgnored private weak var store: BrowserStore?
     @ObservationIgnored private let cookies: WKHTTPCookieStore
-    @ObservationIgnored private let session: WebKitIntegrationSession
+    @ObservationIgnored private let session: BrowserGitHubSession
     @ObservationIgnored private let client = BrowserGitHubClient()
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
     @ObservationIgnored private var timer: Timer?
@@ -26,7 +26,7 @@ final class GitHubFolder: NSObject, WKHTTPCookieStoreObserver {
         self.store = store
         let profile = store.profile(for: spaceID)
         cookies = profile.httpCookieStore
-        session = WebKitIntegrationSession(store: profile, origin: URL(string: "https://github.com")!) {
+        session = BrowserGitHubSession(store: profile) {
             [weak store] in store?.session.spaces.contains { $0.id == spaceID } == true
         }
         super.init()
@@ -71,11 +71,9 @@ final class GitHubFolder: NSObject, WKHTTPCookieStoreObserver {
         guard !retired, let store,
             store.session.spaces.first(where: { $0.id == spaceID })?.isPrivate == false
         else { return }
-        let values = await cookies.allCookies()
+        let signedIn = await session.isSignedIn()
         guard !retired, !Task.isCancelled else { return }
-        isSignedIn = values.contains {
-            ($0.domain == "github.com" || $0.domain == ".github.com") && $0.name == "logged_in" && $0.value == "yes"
-        }
+        isSignedIn = signedIn
         guard isSignedIn else {
             items = []
             error = nil
