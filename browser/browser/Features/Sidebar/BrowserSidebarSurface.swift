@@ -48,6 +48,5 @@ extension View {
         let shape = RoundedRectangle(cornerRadius: SidebarGeometry.panelRadius)
         return background(BrowserBrandTheme.surface, in: shape)
             .clipShape(shape)
-            .overlay { shape.strokeBorder(BrowserBrandTheme.line, lineWidth: 0.75).allowsHitTesting(false) }
     }
 }

@@ -4,7 +4,7 @@ import SwiftUI
 enum BrowserBrandTheme {
     static let canvas = gray(light: 1, dark: 0)
     static let surface = gray(light: 242.0 / 255, dark: 24.0 / 255)
-    static let sidebarBackdrop = gray(light: 220.0 / 255, dark: 12.0 / 255)
+    static let sidebarBackdrop = gray(light: 232.0 / 255, dark: 16.0 / 255)
     static let textDisplay = gray(light: 0, dark: 1)
     static let line = textDisplay.opacity(0.18)
     private static func gray(light: CGFloat, dark: CGFloat) -> Color {

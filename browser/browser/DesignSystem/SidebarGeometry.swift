@@ -13,7 +13,8 @@ enum SidebarGeometry {
     static let titlebarSpacing: CGFloat = 4
     static let navigationSymbolPointSize: CGFloat = 15
     static let panelSpacing: CGFloat = 8
-    static let panelRadius: CGFloat = 14
+    static let backdropRadius: CGFloat = 14
+    static let panelRadius: CGFloat = 9
     static let panelPadding: CGFloat = 10
     static let rowHeight = BrowserLayout.sidebarRowHeight
     static let pinnedTopInset: CGFloat = 8

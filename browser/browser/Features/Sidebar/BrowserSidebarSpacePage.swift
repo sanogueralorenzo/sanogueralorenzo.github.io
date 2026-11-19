@@ -18,18 +18,18 @@ struct BrowserSidebarSpacePage: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: SidebarGeometry.panelSpacing) {
             VStack(spacing: 0) {
                 sectionTitle("Pinned").padding(.horizontal, SidebarGeometry.panelPadding)
                 pinnedTabs
             }
             .padding(.top, SidebarGeometry.panelPadding)
             .browserSidebarPanel()
-            .padding(.bottom, SidebarGeometry.panelSpacing)
-            .background {
-                BrowserBrandTheme.sidebarBackdrop.allowsHitTesting(false)
-            }
             GeometryReader { viewport in
+                let unusedHeight = max(0, viewport.size.height - listHeight)
+                let canResizeBackdrop = !store.sidebarSpaceTransitioning || unusedHeight < store.sidebarUnusedHeight
+                let backdropInset = spaceID == store.activeSpace.id && listHeight > 0 && canResizeBackdrop
+                    ? unusedHeight : nil
                 ScrollView {
                     VStack(spacing: 0) {
                         tabRows.onGeometryChange(for: CGFloat.self) {
@@ -38,17 +38,11 @@ struct BrowserSidebarSpacePage: View {
                             listHeight = $0
                         }
                         BrowserSidebarBackground(store: store)
-                            .frame(height: max(0, viewport.size.height - listHeight))
+                            .frame(height: unusedHeight)
                     }
                 }
-                .background(alignment: .top) {
-                    UnevenRoundedRectangle(
-                        bottomLeadingRadius: SidebarGeometry.panelRadius,
-                        bottomTrailingRadius: SidebarGeometry.panelRadius
-                    )
-                    .fill(BrowserBrandTheme.sidebarBackdrop)
-                    .frame(height: min(listHeight, viewport.size.height))
-                    .allowsHitTesting(false)
+                .onChange(of: backdropInset, initial: true) { _, height in
+                    if let height { store.sidebarUnusedHeight = height }
                 }
                 .scrollIndicators(.never)
                 .scrollPosition($position)
@@ -102,7 +96,6 @@ struct BrowserSidebarSpacePage: View {
             .padding(SidebarGeometry.panelPadding)
             .browserSidebarPanel()
         }
-        .padding(.bottom, SidebarGeometry.panelSpacing)
         .frame(maxWidth: .infinity, alignment: .top)
     }
 
@@ -115,7 +108,7 @@ struct BrowserSidebarSpacePage: View {
 
     private var pinnedTabs: some View {
         let projection = store.sidebarReorder.pinnedLayout(
-            in: space, width: store.sidebarWidth - 2 * SidebarGeometry.panelPadding)
+            in: space, width: store.sidebarWidth - 2 * (SidebarGeometry.panelSpacing + SidebarGeometry.panelPadding))
         return
             BrowserPinnedTabSlotLayout(
                 projection: projection

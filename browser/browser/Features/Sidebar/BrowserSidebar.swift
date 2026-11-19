@@ -10,19 +10,8 @@ struct BrowserSidebar: View {
     var body: some View {
         VStack(spacing: SidebarGeometry.panelSpacing) {
             header
-            VStack(spacing: 0) {
+            VStack(spacing: SidebarGeometry.panelSpacing) {
                 navigation
-                    .padding(.bottom, SidebarGeometry.panelSpacing)
-                    .background {
-                        if store.utility == nil {
-                            UnevenRoundedRectangle(
-                                topLeadingRadius: SidebarGeometry.panelRadius,
-                                topTrailingRadius: SidebarGeometry.panelRadius
-                            )
-                            .fill(BrowserBrandTheme.sidebarBackdrop)
-                            .allowsHitTesting(false)
-                        }
-                    }
                 if let utility = store.utility {
                     BrowserUtilityList(utility: utility, store: store)
                         .padding(SidebarGeometry.panelPadding)
@@ -31,17 +20,31 @@ struct BrowserSidebar: View {
                     BrowserSidebarSpacePager(store: store)
                 }
             }
+            .padding([.horizontal, .bottom], SidebarGeometry.panelSpacing)
         }
         .font(.system(size: 13))
         .background { BrowserSidebarFolderReconciler(store: store) }
         .focusEffectDisabled()
         .frame(width: store.sidebarWidth)
+        .background { backdrop }
         .overlay(alignment: .trailing) { resizeHandle }
         .sheet(
             isPresented: $showsSpaceEditor, onDismiss: { store.sidebarEditorPresented = false },
             content: {
                 SpaceEditor(space: editingSpace, store: store) { showsSpaceEditor = false }
             })
+    }
+
+    private var backdrop: some View {
+        GeometryReader { geometry in
+            let shape = RoundedRectangle(cornerRadius: SidebarGeometry.backdropRadius)
+            let unusedHeight = store.utility == nil ? store.sidebarUnusedHeight : 0
+            shape.fill(BrowserBrandTheme.sidebarBackdrop)
+                .overlay { shape.strokeBorder(BrowserBrandTheme.line, lineWidth: 0.75) }
+                .frame(height: max(0, geometry.size.height - unusedHeight))
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     private var header: some View {
