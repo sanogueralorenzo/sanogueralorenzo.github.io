@@ -26,11 +26,7 @@ struct BrowserTabRow: View {
                 } label: {
                     Group {
                         if pinned {
-                            VStack(spacing: 2) {
-                                TabIcon(tab: tab)
-                                Text(title).font(.system(size: 10)).lineLimit(1)
-                            }
-                            .padding(.horizontal, 3)
+                            TabIcon(tab: tab)
                         } else {
                             HStack(spacing: 9) {
                                 if space.folders.contains(where: { $0.id == tab.folderID && $0.kind == .github }) {
@@ -50,6 +46,8 @@ struct BrowserTabRow: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(title)
+                .help(pinned ? title : "")
                 .padding(.leading, pinned ? 0 : 9)
                 if selected && !pinned { BrowserShortcutHint(text: "⌘W") }
                 if showsAction {
