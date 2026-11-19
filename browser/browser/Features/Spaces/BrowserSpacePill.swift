@@ -3,10 +3,11 @@ import SwiftUI
 struct BrowserSpacePill: View {
     let color: Int
     var isSelected = true
+    var width: CGFloat = 18
 
     var body: some View {
         Capsule().fill(Color.space(color).opacity(isSelected ? 1 : 0.35))
-            .frame(width: 18, height: 6)
+            .frame(width: width, height: 6)
     }
 }
 

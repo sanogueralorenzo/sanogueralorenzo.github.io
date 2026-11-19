@@ -28,7 +28,7 @@ struct BrowserSpaceSwitcher: View {
                                 store.selectSpace(space.id)
                             } label: {
                                 HStack(spacing: 5) {
-                                    Circle().fill(Color.space(space.color)).frame(width: 7, height: 7)
+                                    BrowserSpacePill(color: space.color, width: 12)
                                     Text(space.name).lineLimit(1).minimumScaleFactor(0.85)
                                 }
                                 .font(.system(size: 11, weight: .medium))
