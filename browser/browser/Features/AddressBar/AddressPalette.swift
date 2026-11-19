@@ -140,6 +140,12 @@ struct AddressPalette: View {
     private func tab() -> Bool {
         guard siteSearch == nil else { return false }
         let results = results
+        if suggestions.isEmpty, results.allSatisfy(\.isWebSearch),
+            !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            submit()
+            return true
+        }
         guard let index = tabIndex(in: results, selection: selectedIndex(resultCount: results.count)),
             results[index].address != nil
         else { return false }
