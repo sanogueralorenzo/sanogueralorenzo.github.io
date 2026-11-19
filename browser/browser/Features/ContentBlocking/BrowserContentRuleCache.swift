@@ -20,8 +20,7 @@ struct BrowserContentRuleCache: Sendable {
     init?(spaceID: UUID, profile: URL) {
         guard let bundleID = Bundle.main.bundleIdentifier,
             let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first,
-            let metadata = Bundle.main.url(forResource: "uBlockOriginLite", withExtension: "json"),
-            let data = try? Data(contentsOf: metadata),
+            let package = BrowserContentExtension.packageHash,
             let webKitVersion = Bundle(for: WKWebView.self).object(forInfoDictionaryKey: "CFBundleVersion") as? String
         else { return nil }
         directory = profile.appendingPathComponent("ContentBlocking", isDirectory: true)
@@ -31,7 +30,6 @@ struct BrowserContentRuleCache: Sendable {
             .appendingPathComponent("WebExtensions", isDirectory: true)
             .appendingPathComponent(spaceID.uuidString, isDirectory: true)
             .appendingPathComponent("com.itsbrowser.ubol", isDirectory: true)
-        let package = SHA256.hash(data: data).description
         version = "1/\(package)/\(webKitVersion)/\(ProcessInfo.processInfo.operatingSystemVersionString)"
     }
 

@@ -13,6 +13,7 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
     private var enabled: Bool?
     private var startup: CheckedContinuation<Void, Error>?
     private var timeout: Task<Void, Never>?
+    private let extensionPackage: BrowserContentExtension
     private let cache: BrowserContentRuleCache?
     private var cacheBuild: Task<Void, Never>?
     private var cachedRulesets: [String]?
@@ -22,13 +23,11 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
     private static let rulePermissions: [WKWebExtension.Permission] = [
         .declarativeNetRequest, .declarativeNetRequestWithHostAccess,
     ]
-    private static var extensionTask: Task<WKWebExtension, Error>?
-    private static var cachedExtensionTask: Task<WKWebExtension, Error>?
-
     init(spaceID: UUID, owner: BrowserSessionOwner, dataStore: WKWebsiteDataStore) {
         self.spaceID = spaceID
         self.owner = owner
         privateSpace = !dataStore.isPersistent
+        extensionPackage = owner.contentExtension
         cache = dataStore.isPersistent ? BrowserContentRuleCache(spaceID: spaceID, profile: owner.persistence.directory) : nil
         let configuration: WKWebExtensionController.Configuration =
             privateSpace ? .nonPersistent() : .init(identifier: spaceID)
@@ -81,7 +80,7 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
     }
 
     private func loadExtension(cached: Bool) async throws {
-        let webExtension = try await Self.webExtension(cached: cached)
+        let webExtension = try await extensionPackage.load(cached ? .cached : .bundled)
         let context = WKWebExtensionContext(for: webExtension)
         context.uniqueIdentifier = cached ? BrowserContentRuleCache.extensionID : "com.itsbrowser.ubol"
         context.baseURL = URL(string: BrowserContentRuleCache.extensionURL + "/")!
@@ -110,26 +109,6 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
         }
     }
 
-    private static func webExtension(cached: Bool) async throws -> WKWebExtension {
-        if let task = cached ? cachedExtensionTask : extensionTask {
-            return try await task.value
-        }
-        let task = Task {
-            guard let url = Bundle.main.url(
-                forResource: cached ? "uBlockOriginLiteCached" : "uBlockOriginLite",
-                withExtension: cached ? nil : "zip")
-            else { throw CocoaError(.fileNoSuchFile) }
-            return try await WKWebExtension(resourceBaseURL: url)
-        }
-        if cached { cachedExtensionTask = task } else { extensionTask = task }
-        do {
-            return try await task.value
-        } catch {
-            if cached { cachedExtensionTask = nil } else { extensionTask = nil }
-            throw error
-        }
-    }
-
     private func unload() throws {
         if let nativeRules {
             for content in contentControllers.allObjects {
@@ -154,10 +133,12 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
         else { return }
         let previous = cacheBuild
         previous?.cancel()
-        cacheBuild = Task {
+        cacheBuild = Task { [extensionPackage] in
             await previous?.value
             do {
                 try await Task.sleep(for: .seconds(2))
+                _ = try await extensionPackage.prepareCachedCopy()
+                try Task.checkCancellation()
                 try await cache.build(rulesets: rulesets)
             } catch {}
         }

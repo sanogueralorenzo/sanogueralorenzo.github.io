@@ -8,6 +8,7 @@ import WebKit
 final class BrowserSessionOwner {
     var session: BrowserSession
     let persistence: BrowserPersistence
+    let contentExtension: BrowserContentExtension
     var pages: [UUID: BrowserPage] = [:]
     var profiles: [UUID: WKWebsiteDataStore] = [:]
     var contentBlockers: [UUID: BrowserContentBlocking] = [:]
@@ -28,6 +29,7 @@ final class BrowserSessionOwner {
 
     init() throws {
         persistence = try BrowserPersistence()
+        contentExtension = BrowserContentExtension(profile: persistence.directory)
         session = try persistence.load()
         sweepExpiredRecords()
         session.selectedSpaceID = session.selectedSpaceID ?? session.spaces[0].id

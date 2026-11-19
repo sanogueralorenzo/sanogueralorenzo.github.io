@@ -18,6 +18,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     var url: URL?
     var favicon: Data?
     var isLoading = false
+    private(set) var waitsForContentBlocking = false
     var canGoBack = false
     var canGoForward = false
     var failure: String?
@@ -155,11 +156,14 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         navigationTask?.cancel()
         pendingNavigation = action
         let blocking = blockingTask
+        waitsForContentBlocking = blocking != nil
         navigationTask = Task { [weak self] in
             let ready = await blocking?.value ?? true
-            guard ready, !Task.isCancelled, let self, !isRetired else { return }
-            pendingNavigation = nil
+            guard !Task.isCancelled, let self, !isRetired else { return }
+            waitsForContentBlocking = false
             navigationTask = nil
+            guard ready else { return }
+            pendingNavigation = nil
             failure = nil
             action(self)
         }

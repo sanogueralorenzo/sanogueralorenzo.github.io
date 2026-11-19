@@ -24,6 +24,7 @@
 		0D73C7320B24D3CB5492B5FE /* BrowserSidebarDrag.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9F1D4EF6B15F4719DBD670 /* BrowserSidebarDrag.swift */; };
 		11001EC4523F955EDB80045C /* BrowserPageLoadingBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B72D59435BBF138570A06B7 /* BrowserPageLoadingBar.swift */; };
 		11CFD407A2E24CEAD4F678ED /* BrowserPageZoom.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19E9319AFC8D0B7A284FF2EF /* BrowserPageZoom.swift */; };
+		11F72C3F6DD9BF6B4448635E /* BrowserContentExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A93EE300C000E1FBA3B10C8 /* BrowserContentExtension.swift */; };
 		1202EF78F7FCD63C937F06FD /* BrowserWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F4110C02C657A3AF7C54E53 /* BrowserWindow.swift */; };
 		1207580585F13239D8A07B0D /* libcompression.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 26C6240B4B77BA3E7B4EEAC1 /* libcompression.tbd */; };
 		12A90CC7AA132553AF10E5FA /* BrowserStore+Spaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F675EB9BE3405439BCD802 /* BrowserStore+Spaces.swift */; };
@@ -280,6 +281,7 @@
 		780AFF2B8A72DF3BCCE0B31A /* BrowserShortcutHint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserShortcutHint.swift; sourceTree = "<group>"; };
 		790ED21B97F4CE47EAFAF702 /* BrowserPage+DeveloperTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserPage+DeveloperTools.swift"; sourceTree = "<group>"; };
 		79885FF3ACFE4A289FBD35D5 /* BrowserMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserMotion.swift; sourceTree = "<group>"; };
+		7A93EE300C000E1FBA3B10C8 /* BrowserContentExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserContentExtension.swift; sourceTree = "<group>"; };
 		7EE34F96B69AC3719EA34AAD /* BrowserSidebarSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSidebarSelection.swift; sourceTree = "<group>"; };
 		80144665637B7C720690EE1F /* BrowserSidebarReorderState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSidebarReorderState.swift; sourceTree = "<group>"; };
 		80F7557C28796AD737B5A6F1 /* BrowserSidebarBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSidebarBackground.swift; sourceTree = "<group>"; };
@@ -736,6 +738,7 @@
 			isa = PBXGroup;
 			children = (
 				2891202F23865E806D456C97 /* BrowserContentBlocking.swift */,
+				7A93EE300C000E1FBA3B10C8 /* BrowserContentExtension.swift */,
 				F2183DACF63B8F4F218AA37D /* BrowserContentRuleCache.swift */,
 				4ED2899840DE1A98B66112DA /* BrowserPage+WebExtension.swift */,
 			);
@@ -917,7 +920,6 @@
 				17936A6276A7FFEBC4B8CC68 /* Sources */,
 				F6D76AC73A10A20272326755 /* Resources */,
 				E50B6681570CA00E912C30C3 /* Frameworks */,
-				4F3D95C80E12937EA578E3D8 /* Unpack cached uBlock Origin Lite extension */,
 			);
 			buildRules = (
 			);
@@ -983,29 +985,6 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
-/* Begin PBXShellScriptBuildPhase section */
-		4F3D95C80E12937EA578E3D8 /* Unpack cached uBlock Origin Lite extension */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/Resources/uBlockOriginLite.zip",
-			);
-			name = "Unpack cached uBlock Origin Lite extension";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/uBlockOriginLiteCached",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "set -eu\nresources=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\ndestination=\"${resources}/uBlockOriginLiteCached\"\nstaging=\"$(mktemp -d \"${TARGET_TEMP_DIR}/ubol.XXXXXX\")\"\n/usr/bin/ditto -x -k \"${SRCROOT}/Resources/uBlockOriginLite.zip\" \"$staging\"\nmv \"$staging/manifest-cached.json\" \"$staging/manifest.json\"\nif [ -d \"$destination\" ]; then /bin/rm -r \"$destination\"; fi\n/bin/mv \"$staging\" \"$destination\"\n";
-		};
-/* End PBXShellScriptBuildPhase section */
-
 /* Begin PBXSourcesBuildPhase section */
 		17936A6276A7FFEBC4B8CC68 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -1032,6 +1011,7 @@
 				2204133666E807642E788D73 /* BrowserCollapsedSidebarHoverTrackingView.swift in Sources */,
 				D2BAB2504324BDDF2F87196B /* BrowserColor.swift in Sources */,
 				53C941053F92197F849DB1A7 /* BrowserContentBlocking.swift in Sources */,
+				11F72C3F6DD9BF6B4448635E /* BrowserContentExtension.swift in Sources */,
 				49ADF2A44CD6B431ECE034EA /* BrowserContentRuleCache.swift in Sources */,
 				DBDE6B04B50B9F21D9CA7834 /* BrowserDataPortability.swift in Sources */,
 				E5004A37DBF30F495189D00A /* BrowserDataRetention.swift in Sources */,

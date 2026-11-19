@@ -46,21 +46,6 @@ targets:
       - sdk: AVFoundation.framework
       - sdk: Security.framework
       - sdk: libcompression.tbd
-    postBuildScripts:
-      - name: Unpack cached uBlock Origin Lite extension
-        script: |
-          set -eu
-          resources="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"
-          destination="${resources}/uBlockOriginLiteCached"
-          staging="$(mktemp -d "${TARGET_TEMP_DIR}/ubol.XXXXXX")"
-          /usr/bin/ditto -x -k "${SRCROOT}/Resources/uBlockOriginLite.zip" "$staging"
-          mv "$staging/manifest-cached.json" "$staging/manifest.json"
-          if [ -d "$destination" ]; then /bin/rm -r "$destination"; fi
-          /bin/mv "$staging" "$destination"
-        inputFiles:
-          - "$(SRCROOT)/Resources/uBlockOriginLite.zip"
-        outputFiles:
-          - "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/uBlockOriginLiteCached"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.itsbrowser.Browser

@@ -12,6 +12,9 @@ struct BrowserPageContent: View {
             ).id(page.id)
             if page.loading.showsBackground {
                 BrowserBrandTheme.canvas.allowsHitTesting(false).accessibilityHidden(true)
+                if page.waitsForContentBlocking {
+                    BrowserContentBlockingProgress()
+                }
             }
             if let failure = page.failure {
                 VStack(spacing: 14) {
@@ -27,6 +30,27 @@ struct BrowserPageContent: View {
                 BrowserFindBar(page: page, store: store).padding(12)
             }
         }.frame(maxWidth: .infinity, maxHeight: .infinity).modifier(PageTranslation(page: page, store: store))
+    }
+}
+
+private struct BrowserContentBlockingProgress: View {
+    @State private var visible = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ProgressView().controlSize(.small)
+            Text("Preparing content blocking…").font(.callout)
+        }
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .opacity(visible ? 1 : 0)
+        .accessibilityHidden(!visible)
+        .allowsHitTesting(false)
+        .task {
+            do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+            guard !Task.isCancelled else { return }
+            visible = true
+        }
     }
 }
 
