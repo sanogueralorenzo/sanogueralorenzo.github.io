@@ -5,7 +5,6 @@ struct BrowserSidebarSpacePage: View {
     let space: BrowserSpace
     private var spaceID: UUID { space.id }
     private let restoreOffset: CGFloat
-    @State private var listHovered = false
     @State private var listHeight: CGFloat = 0
     @State private var position: ScrollPosition
     @State private var restoring = true
@@ -60,7 +59,6 @@ struct BrowserSidebarSpacePage: View {
                     store.sidebarScrollOffsets[spaceID] = max(0, new.y)
                     store.sidebarReorder.scroll(by: old.y - new.y, in: store)
                 }
-                .onHover { listHovered = $0 }
             }
         }
         .animation(BrowserMotion.collection.unlessReducingMotion(reduceMotion), value: space.orderedSidebarIDs)
@@ -116,7 +114,7 @@ struct BrowserSidebarSpacePage: View {
     private var currentDivider: some View {
         HStack(spacing: 8) {
             Rectangle().fill(BrowserBrandTheme.line).frame(height: 0.5)
-            if listHovered {
+            if space.tabs.contains(where: { $0.placement == .current && !$0.isSettings }) {
                 Button {
                     store.clearCurrentTabs()
                 } label: {
