@@ -11,6 +11,7 @@ struct BrowserTabRow: View {
     private var selected: Bool { store.sidebarSelectedTabID(in: space) == tab.id }
     private var away: Bool { tab.savedURL != nil && !BrowserURLs.same(tab.url, tab.savedURL) }
     private var title: String { tab.customTitle ?? tab.title }
+    private var removesFromSaved: Bool { tab.placement == .saved && !store.isLoaded(tab) }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -51,23 +52,22 @@ struct BrowserTabRow: View {
                 .padding(.leading, pinned ? 0 : 9)
                 if selected && !pinned { BrowserShortcutHint(text: "⌘W") }
                 if showsAction {
+                    let remove = removesFromSaved
                     Button {
                         guard !store.owner.sidebarDrag.suppressesActivation else { return }
-                        if tab.placement == .current {
+                        if remove {
                             store.requestDeleteTabs([tab.id])
-                        } else if let url = tab.savedURL, away {
-                            store.navigate(url, in: tab.id)
                         } else {
                             store.requestCloseTab(tab.id)
                         }
                     } label: {
-                        Image(systemName: tab.placement == .current ? "xmark" : away ? "arrow.uturn.backward" : "minus")
+                        Image(systemName: remove || tab.placement == .current ? "xmark" : away ? "arrow.uturn.backward" : "minus")
                             .font(.system(size: 12, weight: .regular))
                     }
                     .buttonStyle(BrowserChromeButtonStyle(controlSize: CGSize(width: 28, height: 28), cornerRadius: 14))
                     .padding(.trailing, 6)
-                    .accessibilityLabel(
-                        tab.placement == .current ? "Close Tab" : away ? "Return to Saved URL" : "Sleep Tab")
+                    .accessibilityLabel(remove ? "Remove from Saved" : closeLabel)
+                    .help(remove ? "Remove from Saved" : closeLabel)
                 } else if !pinned {
                     Color.clear.frame(width: tab.placement == .current ? 34 : 6, height: 1)
                 }
@@ -113,7 +113,12 @@ struct BrowserTabRow: View {
     private var showsAction: Bool {
         if pinned { return selected && away }
         if tab.placement == .current { return selected || hovering }
-        return away || store.isLoaded(tab)
+        return true
+    }
+
+    private var closeLabel: String {
+        if tab.placement == .current { return "Close Tab" }
+        return away ? "Return to Saved URL" : "Sleep Tab"
     }
 
     @ViewBuilder
