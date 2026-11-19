@@ -12,6 +12,9 @@ struct BrowserSidebar: View {
             header
             VStack(spacing: SidebarGeometry.panelSpacing) {
                 navigation
+                if !store.activeSpace.isPrivate, let page = store.playingPage {
+                    BrowserNowPlaying(page: page) { store.selectTab(page.id) }
+                }
                 if let utility = store.utility {
                     BrowserUtilityList(utility: utility, store: store)
                         .padding(SidebarGeometry.panelPadding)
@@ -90,26 +93,23 @@ struct BrowserSidebar: View {
 
     private var navigation: some View {
         let loading = store.activePage?.isLoading == true
-        return VStack(spacing: 0) {
-            HStack(spacing: 2) {
-                navigationButton("chevron.left", label: "Back", hint: "⌘[", enabled: store.activePage?.canGoBack == true) {
-                    store.activePage?.webView.goBack()
-                }
-                navigationButton("chevron.right", label: "Forward", hint: "⌘]", enabled: store.activePage?.canGoForward == true) {
-                    store.activePage?.webView.goForward()
-                }
-                navigationButton(
-                    loading ? "xmark" : "arrow.clockwise", label: loading ? "Stop Loading" : "Reload", hint: "⌘R",
-                    enabled: store.activePage != nil
-                ) {
-                    guard let page = store.activePage else { return }
-                    if page.isLoading { page.stopLoading() } else { page.webView.reload() }
-                }
-                addressButton
+        return HStack(spacing: 2) {
+            navigationButton("chevron.left", label: "Back", hint: "⌘[", enabled: store.activePage?.canGoBack == true) {
+                store.activePage?.webView.goBack()
             }
-            .padding(5)
-            if !store.activeSpace.isPrivate, let playing = store.playingPage { nowPlaying(playing) }
+            navigationButton("chevron.right", label: "Forward", hint: "⌘]", enabled: store.activePage?.canGoForward == true) {
+                store.activePage?.webView.goForward()
+            }
+            navigationButton(
+                loading ? "xmark" : "arrow.clockwise", label: loading ? "Stop Loading" : "Reload", hint: "⌘R",
+                enabled: store.activePage != nil
+            ) {
+                guard let page = store.activePage else { return }
+                if page.isLoading { page.stopLoading() } else { page.webView.reload() }
+            }
+            addressButton
         }
+        .padding(5)
         .background(BrowserWindowTitleBarSurface())
         .browserSidebarPanel()
     }
@@ -194,55 +194,6 @@ struct BrowserSidebar: View {
         .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         .frame(width: BrowserLayout.minimumHitTarget, height: BrowserLayout.minimumHitTarget)
         .accessibilityLabel("Space and Website Options")
-    }
-
-    private func nowPlaying(_ page: BrowserPage) -> some View {
-        HStack(spacing: 0) {
-            Button {
-                store.selectTab(page.id)
-            } label: {
-                HStack(spacing: 8) {
-                    if let data = page.favicon, let icon = NSImage(data: data) {
-                        Image(nsImage: icon).resizable().scaledToFit().frame(width: 22, height: 22).frame(width: 28)
-                    } else {
-                        Image(systemName: "music.note").frame(width: 28)
-                    }
-                    Text(page.mediaTitle.isEmpty ? page.title : page.mediaTitle).lineLimit(1)
-                }
-                .padding(.leading, 9).padding(.trailing, 4)
-                .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
-                .contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityLabel("Show tab playing \(page.mediaTitle)")
-            if page.mediaActions.contains("previoustrack") {
-                mediaButton(page, action: "previoustrack", symbol: "backward.fill", label: "Previous Track")
-            }
-            mediaButton(
-                page, action: page.isPlaying ? "pause" : "play", symbol: page.isPlaying ? "pause.fill" : "play.fill",
-                label: page.isPlaying ? "Pause" : "Play")
-            if page.mediaActions.contains("nexttrack") {
-                mediaButton(page, action: "nexttrack", symbol: "forward.fill", label: "Next Track")
-            }
-        }
-        .padding(.trailing, 6).frame(height: SidebarGeometry.rowHeight)
-        .browserHoverSurface(cornerRadius: 20, showsRestingSurface: true)
-        .padding(.horizontal, 5).padding(.bottom, 5)
-        .accessibilityElement(children: .contain).accessibilityLabel("Now Playing")
-        .contextMenu {
-            Button(page.mediaIsMuted ? "Unmute" : "Mute") {
-                page.performMediaAction(page.mediaIsMuted ? "unmute" : "mute")
-            }
-            Button("Hide Now Playing") { page.nowPlayingHidden = true }
-        }
-    }
-
-    private func mediaButton(_ page: BrowserPage, action: String, symbol: String, label: String) -> some View {
-        Button {
-            page.performMediaAction(action)
-        } label: {
-            Image(systemName: symbol).font(.system(size: 12))
-        }
-        .buttonStyle(BrowserChromeButtonStyle(controlSize: CGSize(width: 28, height: 28), cornerRadius: 14))
-        .accessibilityLabel(label)
     }
 
     private func showEditor(_ space: BrowserSpace?) {
