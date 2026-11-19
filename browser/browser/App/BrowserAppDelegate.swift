@@ -90,7 +90,7 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     func createWindow(restoring state: BrowserWindowState? = nil) {
         guard browserReady, let owner else { return }
         let store = owner.makeStore(restoring: state)
-        store.prewarmContentBlocking()
+        owner.prewarmContentBlocking(in: store.activeSpace.id)
         let window = BrowserWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1440, height: 900),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered,

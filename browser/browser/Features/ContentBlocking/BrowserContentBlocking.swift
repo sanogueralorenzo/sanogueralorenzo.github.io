@@ -4,6 +4,8 @@ import WebKit
 /// Each uBO Lite instance only sees pages from its Space.
 @MainActor
 final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, WKWebExtensionWindow {
+    static let preparingLabel = "Getting this Space ready…"
+
     let controller: WKWebExtensionController
     let spaceID: UUID
     private weak var owner: BrowserSessionOwner?
@@ -233,15 +235,6 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
 }
 
 extension BrowserStore {
-    func prewarmContentBlocking() {
-        Task { [weak self] in
-            guard let self, !isClosed else { return }
-            let spaceID = activeSpace.id
-            guard spacePreferences(spaceID).blocksContent else { return }
-            try? await contentBlocker(for: spaceID).setEnabled(true)
-        }
-    }
-
     func contentBlocker(for spaceID: UUID) -> BrowserContentBlocking {
         owner.contentBlocker(for: spaceID)
     }
@@ -255,6 +248,16 @@ extension BrowserStore {
 }
 
 extension BrowserSessionOwner {
+    func prewarmContentBlocking(in spaceID: UUID) {
+        Task { [weak self] in
+            guard let self, contentExtension.package != nil,
+                let space = session.spaces.first(where: { $0.id == spaceID }),
+                space.browsingPreferences?.blocksContent ?? session.preferences.blocksContent
+            else { return }
+            try? await contentBlocker(for: spaceID).setEnabled(true)
+        }
+    }
+
     func contentBlocker(for spaceID: UUID) -> BrowserContentBlocking {
         if let blocker = contentBlockers[spaceID] { return blocker }
         let blocker = BrowserContentBlocking(spaceID: spaceID, owner: self, dataStore: profile(for: spaceID))

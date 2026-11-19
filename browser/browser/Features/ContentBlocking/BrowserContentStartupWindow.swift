@@ -55,9 +55,9 @@ final class BrowserContentStartupWindow: NSWindowController, NSWindowDelegate {
                     .accessibilityHidden(true)
                 switch state.phase {
                 case .downloading(let fraction):
-                    progress("Downloading content blocking…", fraction: fraction)
+                    progress(fraction: fraction)
                 case .preparing:
-                    progress("Preparing content blocking…", fraction: nil)
+                    progress(fraction: nil)
                 case .failed:
                     Text("Content blocking couldn’t be set up.")
                     Text("Browser will try again the next time it opens.")
@@ -71,8 +71,9 @@ final class BrowserContentStartupWindow: NSWindowController, NSWindowDelegate {
             .padding(.top, 12)
         }
 
-        private func progress(_ label: String, fraction: Double?) -> some View {
-            Group {
+        private func progress(fraction: Double?) -> some View {
+            let label = BrowserContentBlocking.preparingLabel
+            return Group {
                 if let fraction {
                     ProgressView(label, value: fraction)
                 } else {

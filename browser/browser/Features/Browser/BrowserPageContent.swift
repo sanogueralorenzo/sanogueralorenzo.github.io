@@ -39,7 +39,7 @@ private struct BrowserContentBlockingProgress: View {
     var body: some View {
         HStack(spacing: 8) {
             ProgressView().controlSize(.small)
-            Text("Preparing content blocking…").font(.callout)
+            Text(BrowserContentBlocking.preparingLabel).font(.callout)
         }
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -128,6 +128,7 @@ extension BrowserSessionOwner {
         space.color = color
         space.isPrivate = isPrivate
         session.spaces.append(space)
+        prewarmContentBlocking(in: space.id)
         changed()
         return space.id
     }
