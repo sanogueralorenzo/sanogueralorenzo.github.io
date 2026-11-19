@@ -35,7 +35,7 @@ extension BrowserStore {
         }
         append(activeSpace.pinnedTabs)
         for folder in activeSpace.liveFolders { append(folder) }
-        walk(nil, .saved)
+        if expandedSavedSpaces.contains(activeSpace.id) { walk(nil, .saved) }
         walk(nil, .current)
         return units
     }

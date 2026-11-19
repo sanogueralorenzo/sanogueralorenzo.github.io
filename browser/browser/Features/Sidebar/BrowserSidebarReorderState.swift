@@ -22,6 +22,7 @@ final class BrowserSidebarReorderState {
         var isScrollable = false
         var isNesting = false
         var createsFolder = false
+        var showsInsertionGap = true
     }
     struct Target: Equatable {
         enum Kind: Equatable {
@@ -313,7 +314,8 @@ final class BrowserSidebarReorderState {
             return $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height
         }
         let sections = restingZones.values.compactMap { zone -> (Zone, CGFloat)? in
-            guard store.showsSidebar, !zone.isSpace, !zone.isNesting, zone.before == nil, zone.folder == nil,
+            guard store.showsSidebar, !zone.isSpace, !zone.isNesting, zone.showsInsertionGap,
+                zone.before == nil, zone.folder == nil,
                 zone.placement != nil, zone.spaceID == store.activeSpace.id
             else { return nil }
             let frame = projected(zone, in: store)
@@ -504,7 +506,9 @@ final class BrowserSidebarReorderState {
             target = value
             var next = layout
             next.gap = nil
-            if let value, case .insert(let section, let before) = value.kind, section.placement != .pinned {
+            if let value, case .insert(let section, let before) = value.kind, section.placement != .pinned,
+                restingZones[value.zoneID]?.showsInsertionGap != false
+            {
                 let candidates = restingRows.values.filter { row in
                     row.section == section && row.parentItemID == section.folderID && !next.hiddenIDs.contains(row.id)
                 }.sorted { $0.frame.minY < $1.frame.minY }

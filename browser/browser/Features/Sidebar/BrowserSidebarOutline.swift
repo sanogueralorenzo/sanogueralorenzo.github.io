@@ -17,6 +17,11 @@ extension BrowserSpace {
 
     var liveFolders: [BrowserFolder] { isPrivate ? [] : folders.filter { $0.kind == .github } }
 
+    var hasSavedItems: Bool {
+        tabs.contains { $0.placement == .saved && $0.folderID == nil }
+            || folders.contains { $0.kind == .regular && $0.parentID == nil && ($0.placement ?? .saved) == .saved }
+    }
+
     var sidebarItemIDs: [UUID] {
         var result = pinnedTabs.map(\.id)
         func append(_ parent: UUID?, _ placement: BrowserTab.Placement) {

@@ -9,6 +9,7 @@ struct BrowserSidebarSpacePage: View {
     @State private var position: ScrollPosition
     @State private var restoring = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var savedExpanded: Bool { store.expandedSavedSpaces.contains(spaceID) }
 
     init(store: BrowserStore, space: BrowserSpace) {
         self.store = store
@@ -74,6 +75,9 @@ struct BrowserSidebarSpacePage: View {
             }
         }
         .animation(BrowserMotion.collection.unlessReducingMotion(reduceMotion), value: space.orderedSidebarIDs)
+        .onChange(of: space.hasSavedItems, initial: true) { _, hasItems in
+            if !hasItems { store.expandedSavedSpaces.remove(spaceID) }
+        }
     }
 
     private var scrollingSections: some View {
@@ -89,14 +93,9 @@ struct BrowserSidebarSpacePage: View {
                 .padding(SidebarGeometry.panelPadding)
                 .browserSidebarPanel()
             }
-            VStack(spacing: 4) {
-                sectionTitle("Saved")
-                BrowserSidebarList(store: store, placement: .saved)
-                    .frame(maxWidth: .infinity, minHeight: 8)
-                    .modifier(BrowserDropArea(store: store, placement: .saved))
+            if space.hasSavedItems {
+                savedSection
             }
-            .padding(SidebarGeometry.panelPadding)
-            .browserSidebarPanel()
             VStack(spacing: 4) {
                 tabsHeader
                 BrowserSidebarList(store: store, placement: .current)
@@ -108,6 +107,42 @@ struct BrowserSidebarSpacePage: View {
             .browserSidebarPanel()
         }
         .frame(maxWidth: .infinity, alignment: .top)
+    }
+
+    private var savedSection: some View {
+        VStack(spacing: 4) {
+            Button {
+                guard !store.owner.sidebarDrag.suppressesActivation else { return }
+                store.clearSidebarSelection()
+                withAnimation(BrowserMotion.disclosure.unlessReducingMotion(reduceMotion)) {
+                    if savedExpanded {
+                        store.expandedSavedSpaces.remove(spaceID)
+                    } else {
+                        store.expandedSavedSpaces.insert(spaceID)
+                    }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "bookmark").foregroundStyle(.secondary)
+                    Text("Saved").font(.headline)
+                    Spacer(minLength: 0)
+                    Image(systemName: savedExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, SidebarGeometry.panelPadding)
+                .frame(height: 34)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(BrowserChromeButtonStyle(controlSize: nil, cornerRadius: SidebarGeometry.panelRadius))
+            .accessibilityLabel("Saved")
+            .accessibilityValue(savedExpanded ? "Expanded" : "Collapsed")
+            if savedExpanded {
+                BrowserSidebarList(store: store, placement: .saved)
+                    .padding([.horizontal, .bottom], SidebarGeometry.panelPadding)
+            }
+        }
+        .modifier(BrowserDropArea(store: store, placement: .saved))
+        .browserSidebarPanel()
     }
 
     private func sectionTitle(_ title: String) -> some View {
@@ -143,7 +178,15 @@ struct BrowserSidebarSpacePage: View {
     private var tabsHeader: some View {
         HStack(spacing: 8) {
             sectionTitle("Tabs")
-            if space.tabs.lazy.filter({ $0.placement == .current && !$0.isSettings }).prefix(2).count == 2 {
+            if !space.hasSavedItems, let drag = store.owner.sidebarDrag.payload, drag.kind != .space {
+                Text("Drop to save")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .frame(height: BrowserLayout.minimumHitTarget)
+                    .background(BrowserBrandTheme.line.opacity(0.35), in: Capsule())
+                    .modifier(BrowserDropArea(store: store, placement: .saved, showsInsertionGap: false))
+            } else if space.tabs.lazy.filter({ $0.placement == .current && !$0.isSettings }).prefix(2).count == 2 {
                 Button {
                     store.clearCurrentTabs()
                 } label: {

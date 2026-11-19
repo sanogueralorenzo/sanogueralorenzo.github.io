@@ -24,6 +24,7 @@ final class BrowserStore {
     var sidebarSpaceStep: Int?
     var sidebarSpaceTransitioning = false
     var sidebarUnusedHeight: CGFloat = 0
+    var expandedSavedSpaces: Set<UUID> = []
     @ObservationIgnored var sidebarScrollOffsets: [UUID: CGFloat] = [:]
     var recentSwitcherPresented = false
     var recentSwitcherIndex = 0

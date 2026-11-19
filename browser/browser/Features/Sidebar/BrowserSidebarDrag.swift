@@ -208,6 +208,7 @@ struct BrowserDropArea: ViewModifier {
     var placement: BrowserTab.Placement?
     var allowsAfter = true
     var isSpaceRail = false
+    var showsInsertionGap = true
     @State private var targeted = false
     @State private var insertAfter = false
     @State private var nesting = true
@@ -240,7 +241,7 @@ struct BrowserDropArea: ViewModifier {
                     spaceID: spaceID ?? presentedSpaceID ?? store.activeSpace.id, allowsAfter: allowsAfter,
                     isSpace: spaceID != nil && before == nil && folder == nil && placement == nil,
                     isScrollable: spaceID == nil && placement != .pinned && !pinned,
-                    isNesting: folder != nil && before == nil))
+                    isNesting: folder != nil && before == nil, showsInsertionGap: showsInsertionGap))
             if let folder, before == nil,
                 let header = store.sidebarSpace(presentedSpaceID).folders.first(where: {
                     $0.id == folder && $0.kind == .regular
@@ -278,7 +279,9 @@ struct BrowserDropArea: ViewModifier {
         }
         .overlay {
             Group {
-                if targeted && store.owner.sidebarDrag.lift == nil && store.owner.sidebarDrag.payload?.kind != .space {
+                if !showsInsertionGap && store.sidebarReorder.target?.zoneID == zoneID {
+                    Capsule().strokeBorder(BrowserBrandTheme.textDisplay.opacity(0.6), lineWidth: 1)
+                } else if targeted && store.owner.sidebarDrag.lift == nil && store.owner.sidebarDrag.payload?.kind != .space {
                     if before != nil || (folder != nil && !nesting) {
                         Rectangle().fill(BrowserBrandTheme.textDisplay)
                             .frame(width: pinned ? 2 : nil, height: pinned ? nil : 2)

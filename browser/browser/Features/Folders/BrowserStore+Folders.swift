@@ -28,7 +28,7 @@ extension BrowserStore {
             showNotice("These items cannot be moved into a new folder.")
             return nil
         }
-        editingFolderID = folder.id
+        beginNamingFolder(folder.id)
         return folder.id
     }
 
@@ -50,10 +50,7 @@ extension BrowserStore {
         guard !isClosed else { return nil }
         do {
             let id = try owner.addFolder(parentID: parentID, github: github, in: spaceID ?? activeSpace.id)
-            if !github {
-                revealFolderAncestors(id)
-                editingFolderID = id
-            }
+            if !github { beginNamingFolder(id) }
             return id
         } catch {
             showNotice(error.localizedDescription)
@@ -70,9 +67,12 @@ extension BrowserStore {
         changed()
     }
 
-    private func revealFolderAncestors(_ id: UUID) {
-        guard let s = session.spaces.firstIndex(where: { $0.folders.contains { $0.id == id } }) else { return }
-        var parent = session.spaces[s].folders.first { $0.id == id }?.parentID
+    private func beginNamingFolder(_ id: UUID) {
+        guard let s = session.spaces.firstIndex(where: { $0.folders.contains { $0.id == id } }),
+            let folder = session.spaces[s].folders.first(where: { $0.id == id })
+        else { return }
+        if (folder.placement ?? .saved) == .saved { expandedSavedSpaces.insert(session.spaces[s].id) }
+        var parent = folder.parentID
         var visited = Set<UUID>()
         while let id = parent, visited.insert(id).inserted,
             let index = session.spaces[s].folders.firstIndex(where: { $0.id == id })
@@ -81,6 +81,7 @@ extension BrowserStore {
             session.spaces[s].folders[index].isExpanded = true
             parent = session.spaces[s].folders[index].parentID
         }
+        editingFolderID = id
     }
 
     func deleteFolder(_ id: UUID) {
