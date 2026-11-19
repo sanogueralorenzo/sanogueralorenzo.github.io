@@ -143,7 +143,7 @@ struct BrowserSidebarSpacePage: View {
     private var tabsHeader: some View {
         HStack(spacing: 8) {
             sectionTitle("Tabs")
-            if space.tabs.contains(where: { $0.placement == .current && !$0.isSettings }) {
+            if space.tabs.lazy.filter({ $0.placement == .current && !$0.isSettings }).prefix(2).count == 2 {
                 Button {
                     store.clearCurrentTabs()
                 } label: {
