@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Vendor an official Safari release with Complete mode, Spanish rules and a startup handshake."""
+"""Prepare an official Safari release for Browser's content blocking feed."""
 
+import argparse
 import hashlib
 import io
 import json
 from pathlib import Path
-import sys
 import urllib.request
 import zipfile
 
@@ -185,35 +185,41 @@ def package(archive):
             target.writestr(entry, replacements.get(entry.filename, source.read(entry.filename)))
         startup = zipfile.ZipInfo("js/browser-startup.js", source.getinfo("js/background.js").date_time)
         target.writestr(startup, STARTUP, compress_type=zipfile.ZIP_DEFLATED)
-        target.writestr("manifest-cached.json", json.dumps(cached_manifest, indent=2) + "\n")
+        cached = zipfile.ZipInfo("manifest-cached.json", source.getinfo("manifest.json").date_time)
+        target.writestr(cached, json.dumps(cached_manifest, indent=2) + "\n", compress_type=zipfile.ZIP_DEFLATED)
     return output.getvalue()
 
 
 def main():
-    version = sys.argv[1]
-    release_url = f"https://api.github.com/repos/uBlockOrigin/uBOL-home/releases/tags/{version}"
-    with urllib.request.urlopen(release_url) as response:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("version", nargs="?", help="An upstream release tag. Defaults to the latest release.")
+    args = parser.parse_args()
+    endpoint = f"tags/{args.version}" if args.version else "latest"
+    release_url = f"https://api.github.com/repos/uBlockOrigin/uBOL-home/releases/{endpoint}"
+    with urllib.request.urlopen(release_url, timeout=30) as response:
         release = json.load(response)
+    version = release["tag_name"]
     name = f"uBOLite_{version}.safari.zip"
     asset = next(item for item in release["assets"] if item["name"] == name)
-    with urllib.request.urlopen(asset["browser_download_url"]) as response:
+    with urllib.request.urlopen(asset["browser_download_url"], timeout=60) as response:
         archive = response.read()
     digest = "sha256:" + hashlib.sha256(archive).hexdigest()
     if asset.get("digest") != digest:
         raise ValueError("Release archive does not match GitHub's published SHA-256")
-    bundled = package(archive)
+    prepared = package(archive)
     resources = Path(__file__).resolve().parents[1] / "Resources"
-    (resources / "uBlockOriginLite.zip").write_bytes(bundled)
+    (resources / "uBlockOriginLite.zip").write_bytes(prepared)
     metadata = {
+        "format": 1,
         "version": version,
         "source": release["html_url"],
         "archive": asset["browser_download_url"],
         "upstreamSHA256": digest.removeprefix("sha256:"),
-        "bundledSHA256": hashlib.sha256(bundled).hexdigest(),
+        "sha256": hashlib.sha256(prepared).hexdigest(),
         "changes": "Recognize WebKit's extension scheme, use Complete filtering and EasyList Spanish, and support Browser's precompiled rules and startup handshake. Filter lists match the upstream release.",
     }
     (resources / "uBlockOriginLite.json").write_text(json.dumps(metadata, indent=2) + "\n")
-    print(f"Bundled uBlock Origin Lite {version}")
+    print(f"Prepared uBlock Origin Lite {version}")
 
 
 if __name__ == "__main__":

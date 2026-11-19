@@ -13,7 +13,7 @@ The GitHub live folder adapts response formats and selectors from
 [Zen Browser](https://github.com/zen-browser/desktop/blob/2ad194525da74d7f00609a424d93a3c7db430d21/src/zen/live-folders/providers/GithubLiveFolder.sys.mjs),
 also under MPL-2.0.
 
-The bundled [uBlock Origin Lite](https://github.com/uBlockOrigin/uBOL-home)
+The downloadable [uBlock Origin Lite](https://github.com/uBlockOrigin/uBOL-home)
 Safari extension is copyright Raymond Hill and licensed GPL-3.0-or-later.
 `Resources/uBlockOriginLite.zip` includes its license, source code and filtering
 data. `Resources/uBlockOriginLite.json` records the upstream release and hashes.

@@ -28,7 +28,9 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
         self.owner = owner
         privateSpace = !dataStore.isPersistent
         extensionPackage = owner.contentExtension
-        cache = dataStore.isPersistent ? BrowserContentRuleCache(spaceID: spaceID, profile: owner.persistence.directory) : nil
+        cache = dataStore.isPersistent ? owner.contentExtension.package.flatMap {
+            BrowserContentRuleCache(spaceID: spaceID, profile: owner.persistence.directory, packageHash: $0.manifest.sha256)
+        } : nil
         let configuration: WKWebExtensionController.Configuration =
             privateSpace ? .nonPersistent() : .init(identifier: spaceID)
         configuration.defaultWebsiteDataStore = dataStore
@@ -80,7 +82,7 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
     }
 
     private func loadExtension(cached: Bool) async throws {
-        let webExtension = try await extensionPackage.load(cached ? .cached : .bundled)
+        let webExtension = try await extensionPackage.load(cached ? .cached : .full)
         let context = WKWebExtensionContext(for: webExtension)
         context.uniqueIdentifier = cached ? BrowserContentRuleCache.extensionID : "com.itsbrowser.ubol"
         context.baseURL = URL(string: BrowserContentRuleCache.extensionURL + "/")!
@@ -152,10 +154,14 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
         continuation?.resume(with: result)
     }
 
-    func removeData() async {
+    func cancelPreparation() async {
         try? await setEnabled(false)
         cacheBuild?.cancel()
         await cacheBuild?.value
+    }
+
+    func removeData() async {
+        await cancelPreparation()
         cache?.remove()
         let types = WKWebExtensionController.allExtensionDataTypes
         let records: [WKWebExtension.DataRecord] = await withCheckedContinuation { continuation in
@@ -237,10 +243,7 @@ extension BrowserStore {
     }
 
     func contentBlocker(for spaceID: UUID) -> BrowserContentBlocking {
-        if let blocker = owner.contentBlockers[spaceID] { return blocker }
-        let blocker = BrowserContentBlocking(spaceID: spaceID, owner: owner, dataStore: profile(for: spaceID))
-        owner.contentBlockers[spaceID] = blocker
-        return blocker
+        owner.contentBlocker(for: spaceID)
     }
 
     func reloadContentBlocking(in spaceID: UUID? = nil) {
@@ -248,5 +251,14 @@ extension BrowserStore {
             page.applyContentBlocking()
             page.reloadAfterContentBlocking()
         }
+    }
+}
+
+extension BrowserSessionOwner {
+    func contentBlocker(for spaceID: UUID) -> BrowserContentBlocking {
+        if let blocker = contentBlockers[spaceID] { return blocker }
+        let blocker = BrowserContentBlocking(spaceID: spaceID, owner: self, dataStore: profile(for: spaceID))
+        contentBlockers[spaceID] = blocker
+        return blocker
     }
 }

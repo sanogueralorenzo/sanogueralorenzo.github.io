@@ -10,7 +10,7 @@ Built with SwiftUI, AppKit, and WebKit.
 - **Spaces** keep website sessions separate. Private Spaces stay in memory.
 - **Sidebar** keeps pins, saved tabs, folders, GitHub live folders, and media controls together.
 - **Browsing** includes split views, translation, Reader Mode, downloads, history, Archive, and browser import/export.
-- **Content blocking** uses bundled uBlock Origin Lite, with settings for each Space.
+- **Content blocking** downloads uBlock Origin Lite on first launch, with Complete mode and settings for each Space.
 
 **Build and run** (Apple silicon, macOS 26.1+, Xcode, and [XcodeGen](https://github.com/yonaskolb/XcodeGen)):
 
@@ -37,8 +37,9 @@ Sessions are saved in `~/Library/Application Support/Browser/SwiftSession`, with
 checkpoint for recovery. For isolated review builds, set `BROWSER_REVIEW_DATA_DIRECTORY`
 to a disposable directory and use a distinct bundle identifier.
 
-To update the bundled blocker, run `python3 scripts/update-ublock-origin-lite.py VERSION`
-from this directory with an upstream Safari release tag, then rebuild.
+Browser checks for blocker updates when it opens and applies downloaded updates on the next launch.
+To publish a blocker update, run `python3 scripts/update-ublock-origin-lite.py [VERSION]`
+from this directory and commit the two updated feed files. Omitting the version selects the latest upstream release.
 
 Source is [MPL-2.0](LICENSE), derived from [Crest](https://github.com/pauljoda/Crest).
 See [third-party notices](THIRD_PARTY_NOTICES.md) and [trademark terms](TRADEMARKS.md).

@@ -10,6 +10,9 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     private var preparingCloses: Set<UUID> = []
     private var preparingQuit = false
     private var pendingLaunchURLs: [URL] = []
+    private var contentStartup: BrowserContentStartup?
+    private var launchTask: Task<Void, Never>?
+    private var browserReady = false
     private var pointerMonitor: Any?
     private var keyboardMonitor: Any?
     private let usesReviewProfile = ProcessInfo.processInfo.environment["BROWSER_REVIEW_DATA_DIRECTORY"] != nil
@@ -32,30 +35,13 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
             owner.openWindow = { [weak self] state in self?.createWindow(restoring: state) }
             owner.media = BrowserSystemMedia(owner: owner)
             UNUserNotificationCenter.current().delegate = self
+            let startup = BrowserContentStartup(owner: owner) { [weak self] in self?.presentWindow($0) }
+            contentStartup = startup
             installMenu()
-            let previous = owner.session.windows.filter(\.isOpen)
-            if previous.isEmpty { createWindow() } else { for state in previous { createWindow(restoring: state) } }
-            if !pendingLaunchURLs.isEmpty {
-                let urls = pendingLaunchURLs
-                pendingLaunchURLs.removeAll()
-                openURLs(urls)
-            }
-            owner.startMaintenance()
-            pointerMonitor = NSEvent.addLocalMonitorForEvents(matching: [
-                .mouseMoved, .leftMouseDown, .scrollWheel,
-            ]) { [weak self] event in
-                let consumed = MainActor.assumeIsolated {
-                    guard let window = event.window, let context = self?.context(for: window) else { return false }
-                    if event.type == .scrollWheel { return context.handleSpaceScroll(event) == nil }
-                    context.handleSidebarPointer(event)
-                    return false
-                }
-                return consumed ? nil : event
-            }
-            keyboardMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) {
-                [weak self] event in
-                let consumed = MainActor.assumeIsolated { self?.store?.handleKeyboard(event) ?? false }
-                return consumed ? nil : event
+            launchTask = Task { [weak self] in
+                guard await startup.prepare(), !Task.isCancelled, let self else { return }
+                finishLaunching(owner)
+                await startup.checkForUpdate()
             }
             if !usesReviewProfile { NSApp.activate(ignoringOtherApps: true) }
         } catch {
@@ -73,8 +59,36 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         }
     }
 
+    private func finishLaunching(_ owner: BrowserSessionOwner) {
+        browserReady = true
+        let previous = owner.session.windows.filter(\.isOpen)
+        if previous.isEmpty { createWindow() } else { for state in previous { createWindow(restoring: state) } }
+        if !pendingLaunchURLs.isEmpty {
+            let urls = pendingLaunchURLs
+            pendingLaunchURLs.removeAll()
+            openURLs(urls)
+        }
+        owner.startMaintenance()
+        pointerMonitor = NSEvent.addLocalMonitorForEvents(matching: [
+            .mouseMoved, .leftMouseDown, .scrollWheel,
+        ]) { [weak self] event in
+            let consumed = MainActor.assumeIsolated {
+                guard let window = event.window, let context = self?.context(for: window) else { return false }
+                if event.type == .scrollWheel { return context.handleSpaceScroll(event) == nil }
+                context.handleSidebarPointer(event)
+                return false
+            }
+            return consumed ? nil : event
+        }
+        keyboardMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) {
+            [weak self] event in
+            let consumed = MainActor.assumeIsolated { self?.store?.handleKeyboard(event) ?? false }
+            return consumed ? nil : event
+        }
+    }
+
     func createWindow(restoring state: BrowserWindowState? = nil) {
-        guard let owner else { return }
+        guard browserReady, let owner else { return }
         let store = owner.makeStore(restoring: state)
         store.prewarmContentBlocking()
         let window = BrowserWindow(
@@ -115,12 +129,13 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows visible: Bool) -> Bool {
-        if !visible { createWindow() } else { presentWindow(window) }
+        if !browserReady { contentStartup?.showWindow() }
+        else if !visible { createWindow() } else { presentWindow(window) }
         return true
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        guard owner != nil else {
+        guard browserReady else {
             pendingLaunchURLs.append(contentsOf: urls)
             return
         }
@@ -146,7 +161,7 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard !preparingQuit else { return .terminateCancel }
-        guard let owner else { return .terminateNow }
+        guard browserReady, let owner else { return .terminateNow }
         preparingQuit = true
         Task {
             let allowed = await owner.canCloseAll()
@@ -157,8 +172,9 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        launchTask?.cancel()
         owner?.media?.stop()
-        owner?.flush()
+        if browserReady { owner?.flush() }
         if let pointerMonitor { NSEvent.removeMonitor(pointerMonitor) }
         if let keyboardMonitor { NSEvent.removeMonitor(keyboardMonitor) }
     }

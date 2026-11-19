@@ -90,12 +90,7 @@ extension BrowserStore {
     }
 
     func profile(for spaceID: UUID) -> WKWebsiteDataStore {
-        if let profile = profiles[spaceID] { return profile }
-        let profile =
-            session.spaces.first(where: { $0.id == spaceID })?.isPrivate == true
-            ? WKWebsiteDataStore.nonPersistent() : WKWebsiteDataStore(forIdentifier: spaceID)
-        profiles[spaceID] = profile
-        return profile
+        owner.profile(for: spaceID)
     }
 
     func savePrivateSpace(name: String = "Private", color: Int = 4) {
@@ -116,6 +111,15 @@ extension BrowserStore {
 }
 
 extension BrowserSessionOwner {
+    func profile(for spaceID: UUID) -> WKWebsiteDataStore {
+        if let profile = profiles[spaceID] { return profile }
+        let profile =
+            session.spaces.first(where: { $0.id == spaceID })?.isPrivate == true
+            ? WKWebsiteDataStore.nonPersistent() : WKWebsiteDataStore(forIdentifier: spaceID)
+        profiles[spaceID] = profile
+        return profile
+    }
+
     func addSpace(name: String, color: Int, isPrivate: Bool = false) throws -> UUID {
         guard session.spaces.count < BrowserSession.maximumSpaceCount else { throw BrowserSpaceFailure.limit }
         let title = name.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -17,10 +17,9 @@ struct BrowserContentRuleCache: Sendable {
     private let version: String
     private var stampURL: URL { directory.appendingPathComponent("Ready.json") }
 
-    init?(spaceID: UUID, profile: URL) {
+    init?(spaceID: UUID, profile: URL, packageHash: String) {
         guard let bundleID = Bundle.main.bundleIdentifier,
             let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first,
-            let package = BrowserContentExtension.packageHash,
             let webKitVersion = Bundle(for: WKWebView.self).object(forInfoDictionaryKey: "CFBundleVersion") as? String
         else { return nil }
         directory = profile.appendingPathComponent("ContentBlocking", isDirectory: true)
@@ -30,7 +29,7 @@ struct BrowserContentRuleCache: Sendable {
             .appendingPathComponent("WebExtensions", isDirectory: true)
             .appendingPathComponent(spaceID.uuidString, isDirectory: true)
             .appendingPathComponent("com.itsbrowser.ubol", isDirectory: true)
-        version = "1/\(package)/\(webKitVersion)/\(ProcessInfo.processInfo.operatingSystemVersionString)"
+        version = "2/\(packageHash)/\(webKitVersion)/\(ProcessInfo.processInfo.operatingSystemVersionString)"
     }
 
     @MainActor

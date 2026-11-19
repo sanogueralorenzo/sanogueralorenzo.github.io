@@ -1,23 +1,15 @@
-import CryptoKit
 import Foundation
 import WebKit
 
 @MainActor
 final class BrowserContentExtension {
     enum Variant: Hashable {
-        case bundled
+        case full
         case cached
     }
 
-    nonisolated static let packageHash: SHA256.Digest? = {
-        guard let url = Bundle.main.url(forResource: "uBlockOriginLite", withExtension: "json"),
-            let data = try? Data(contentsOf: url)
-        else { return nil }
-        return SHA256.hash(data: data)
-    }()
-
+    private(set) var package: BrowserContentPackage?
     private let directory: URL
-    private let archive = Bundle.main.url(forResource: "uBlockOriginLite", withExtension: "zip")
     private var extensions: [Variant: Task<WKWebExtension, Error>] = [:]
     private var cachedCopy: Task<URL, Error>?
 
@@ -25,18 +17,28 @@ final class BrowserContentExtension {
         directory = profile.appendingPathComponent("ContentBlocking/Extension", isDirectory: true)
     }
 
+    func select(_ package: BrowserContentPackage) {
+        self.package = package
+        extensions.removeAll()
+        cachedCopy?.cancel()
+        cachedCopy = nil
+    }
+
     func load(_ variant: Variant) async throws -> WKWebExtension {
         if let task = extensions[variant] { return try await task.value }
+        guard let package else { throw CocoaError(.fileNoSuchFile) }
         let task = Task {
             let url: URL
             switch variant {
-            case .bundled:
-                guard let archive else { throw CocoaError(.fileNoSuchFile) }
-                url = archive
+            case .full:
+                url = package.archive
             case .cached:
                 url = try await prepareCachedCopy()
             }
-            return try await WKWebExtension(resourceBaseURL: url)
+            let webExtension = try await WKWebExtension(resourceBaseURL: url)
+            guard webExtension.version == package.manifest.version
+            else { throw CocoaError(.fileReadCorruptFile) }
+            return webExtension
         }
         extensions[variant] = task
         do {
@@ -49,11 +51,10 @@ final class BrowserContentExtension {
 
     func prepareCachedCopy() async throws -> URL {
         if let cachedCopy { return try await cachedCopy.value }
-        guard let archive, let hash = Self.packageHash else { throw CocoaError(.fileNoSuchFile) }
-        let version = hash.map { String(format: "%02x", $0) }.joined()
+        guard let package else { throw CocoaError(.fileNoSuchFile) }
         let directory = directory
         let task = Task.detached(priority: .utility) {
-            try Self.unpack(archive, into: directory, version: version)
+            try Self.unpack(package.archive, into: directory, version: package.manifest.sha256)
         }
         cachedCopy = task
         do {
