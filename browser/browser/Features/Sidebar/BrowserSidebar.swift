@@ -10,13 +10,26 @@ struct BrowserSidebar: View {
     var body: some View {
         VStack(spacing: SidebarGeometry.panelSpacing) {
             header
-            navigation
-            if let utility = store.utility {
-                BrowserUtilityList(utility: utility, store: store)
-                    .padding(SidebarGeometry.panelPadding)
-                    .browserSidebarPanel()
-            } else {
-                BrowserSidebarSpacePager(store: store)
+            VStack(spacing: 0) {
+                navigation
+                    .padding(.bottom, SidebarGeometry.panelSpacing)
+                    .background {
+                        if store.utility == nil {
+                            UnevenRoundedRectangle(
+                                topLeadingRadius: SidebarGeometry.panelRadius,
+                                topTrailingRadius: SidebarGeometry.panelRadius
+                            )
+                            .fill(BrowserBrandTheme.sidebarBackdrop)
+                            .allowsHitTesting(false)
+                        }
+                    }
+                if let utility = store.utility {
+                    BrowserUtilityList(utility: utility, store: store)
+                        .padding(SidebarGeometry.panelPadding)
+                        .browserSidebarPanel()
+                } else {
+                    BrowserSidebarSpacePager(store: store)
+                }
             }
         }
         .font(.system(size: 13))

@@ -18,13 +18,17 @@ struct BrowserSidebarSpacePage: View {
     }
 
     var body: some View {
-        VStack(spacing: SidebarGeometry.panelSpacing) {
+        VStack(spacing: 0) {
             VStack(spacing: 0) {
                 sectionTitle("Pinned").padding(.horizontal, SidebarGeometry.panelPadding)
                 pinnedTabs
             }
             .padding(.top, SidebarGeometry.panelPadding)
             .browserSidebarPanel()
+            .padding(.bottom, SidebarGeometry.panelSpacing)
+            .background {
+                BrowserBrandTheme.sidebarBackdrop.allowsHitTesting(false)
+            }
             GeometryReader { viewport in
                 ScrollView {
                     VStack(spacing: 0) {
@@ -36,6 +40,15 @@ struct BrowserSidebarSpacePage: View {
                         BrowserSidebarBackground(store: store)
                             .frame(height: max(0, viewport.size.height - listHeight))
                     }
+                }
+                .background(alignment: .top) {
+                    UnevenRoundedRectangle(
+                        bottomLeadingRadius: SidebarGeometry.panelRadius,
+                        bottomTrailingRadius: SidebarGeometry.panelRadius
+                    )
+                    .fill(BrowserBrandTheme.sidebarBackdrop)
+                    .frame(height: min(listHeight, viewport.size.height))
+                    .allowsHitTesting(false)
                 }
                 .scrollIndicators(.never)
                 .scrollPosition($position)
@@ -89,7 +102,7 @@ struct BrowserSidebarSpacePage: View {
             .padding(SidebarGeometry.panelPadding)
             .browserSidebarPanel()
         }
-        .padding(.bottom, 8)
+        .padding(.bottom, SidebarGeometry.panelSpacing)
         .frame(maxWidth: .infinity, alignment: .top)
     }
 
