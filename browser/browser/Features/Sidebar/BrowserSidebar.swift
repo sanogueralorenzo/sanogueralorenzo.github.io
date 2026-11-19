@@ -2,25 +2,19 @@ import SwiftUI
 
 struct BrowserSidebar: View {
     let store: BrowserStore
-    let cornerRadius: CGFloat
     @State private var editingSpace: BrowserSpace?
     @State private var showsSpaceEditor = false
 
     @State private var resizeStart: CGFloat?
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Spacer(minLength: 70)
-                BrowserSpaceSwitcher(store: store, edit: showEditor)
-            }
-            .padding(.horizontal, SidebarGeometry.titlebarHorizontalInset)
-            .frame(height: SidebarGeometry.titlebarHeight)
-            .background(BrowserWindowTitleBarSurface())
-            navigation.padding(.bottom, 4)
-            if !store.activeSpace.isPrivate, let playing = store.playingPage { nowPlaying(playing) }
+        VStack(spacing: SidebarGeometry.panelSpacing) {
+            header
+            navigation
             if let utility = store.utility {
-                BrowserUtilityList(utility: utility, store: store).padding(.horizontal, 16)
+                BrowserUtilityList(utility: utility, store: store)
+                    .padding(SidebarGeometry.panelPadding)
+                    .browserSidebarPanel()
             } else {
                 BrowserSidebarSpacePager(store: store)
             }
@@ -29,20 +23,24 @@ struct BrowserSidebar: View {
         .background { BrowserSidebarFolderReconciler(store: store) }
         .focusEffectDisabled()
         .frame(width: store.sidebarWidth)
-        .background(BrowserBrandTheme.surface, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).strokeBorder(
-                BrowserBrandTheme.line, lineWidth: 0.75
-            )
-            .allowsHitTesting(false)
-        }
         .overlay(alignment: .trailing) { resizeHandle }
         .sheet(
             isPresented: $showsSpaceEditor, onDismiss: { store.sidebarEditorPresented = false },
             content: {
                 SpaceEditor(space: editingSpace, store: store) { showsSpaceEditor = false }
             })
+    }
+
+    private var header: some View {
+        HStack(spacing: SidebarGeometry.titlebarSpacing) {
+            Spacer().frame(width: SidebarGeometry.titlebarLeadingSpace)
+            BrowserSpaceSwitcher(store: store, edit: showEditor)
+            Spacer(minLength: 0)
+            moreMenu
+        }
+        .padding(.horizontal, SidebarGeometry.titlebarHorizontalInset)
+        .frame(height: SidebarGeometry.titlebarHeight)
+        .background(BrowserWindowTitleBarSurface())
     }
 
     private var resizeHandle: some View {
@@ -75,44 +73,61 @@ struct BrowserSidebar: View {
     }
 
     private var navigation: some View {
-        HStack(alignment: .top, spacing: 0) {
-            navigationButton("chevron.left", hint: "⌘[", enabled: store.activePage?.canGoBack == true) {
-                store.activePage?.webView.goBack()
+        let loading = store.activePage?.isLoading == true
+        return VStack(spacing: 0) {
+            HStack(spacing: 2) {
+                navigationButton("chevron.left", label: "Back", hint: "⌘[", enabled: store.activePage?.canGoBack == true) {
+                    store.activePage?.webView.goBack()
+                }
+                navigationButton("chevron.right", label: "Forward", hint: "⌘]", enabled: store.activePage?.canGoForward == true) {
+                    store.activePage?.webView.goForward()
+                }
+                navigationButton(
+                    loading ? "xmark" : "arrow.clockwise", label: loading ? "Stop Loading" : "Reload", hint: "⌘R",
+                    enabled: store.activePage != nil
+                ) {
+                    guard let page = store.activePage else { return }
+                    if page.isLoading { page.stopLoading() } else { page.webView.reload() }
+                }
+                addressButton
             }
-            navigationButton("chevron.right", hint: "⌘]", enabled: store.activePage?.canGoForward == true) {
-                store.activePage?.webView.goForward()
-            }
-            navigationButton(
-                store.activePage?.isLoading == true ? "xmark" : "arrow.clockwise", hint: "⌘R",
-                enabled: store.activePage != nil
-            ) {
-                guard let page = store.activePage else { return }
-                if page.isLoading { page.stopLoading() } else { page.webView.reload() }
-            }
-            Spacer(minLength: 0)
-            navigationButton("magnifyingglass", hint: "⌘L") { store.presentAddress() }
-            moreMenu.offset(y: -8)
+            .padding(5)
+            if !store.activeSpace.isPrivate, let playing = store.playingPage { nowPlaying(playing) }
         }
-        .padding(.horizontal, 16)
         .background(BrowserWindowTitleBarSurface())
+        .browserSidebarPanel()
     }
 
-    private func navigationButton(_ symbol: String, hint: String, enabled: Bool = true, action: @escaping () -> Void)
-        -> some View
-    {
-        Button(action: action) {
-            VStack(spacing: 2) {
-                BrowserChromeSymbolLabel(systemName: symbol, pointSize: SidebarGeometry.navigationSymbolPointSize)
-                BrowserShortcutHint(text: hint)
-            }.frame(width: 40, height: 40)
+    private var addressButton: some View {
+        let url = store.activePage?.url ?? store.selectedTab?.url
+        return Button {
+            store.presentAddress()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                Text(url?.host ?? url?.absoluteString ?? "Search or enter URL")
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity, minHeight: BrowserLayout.minimumHitTarget, alignment: .leading)
+            .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+            .contentShape(Rectangle())
         }
-        .buttonStyle(BrowserChromeButtonStyle(controlSize: nil))
+        .buttonStyle(BrowserChromeButtonStyle(controlSize: nil, cornerRadius: 8))
+        .accessibilityLabel("Address and search")
+        .help("Address and search (⌘L)")
+    }
+
+    private func navigationButton(
+        _ symbol: String, label: String, hint: String, enabled: Bool, action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            BrowserChromeSymbolLabel(systemName: symbol, pointSize: SidebarGeometry.navigationSymbolPointSize)
+        }
+        .buttonStyle(BrowserChromeButtonStyle())
         .disabled(!enabled)
-        .accessibilityLabel(
-            symbol == "magnifyingglass"
-                ? "Address and search"
-                : symbol == "chevron.left"
-                    ? "Back" : symbol == "chevron.right" ? "Forward" : symbol == "xmark" ? "Stop Loading" : "Reload")
+        .accessibilityLabel(label)
+        .help("\(label) (\(hint))")
     }
 
     private var moreMenu: some View {
@@ -157,11 +172,11 @@ struct BrowserSidebar: View {
             Divider()
             Button("Settings…", systemImage: "gearshape") { store.openSettings() }.keyboardShortcut(",")
         } label: {
-            Image(systemName: "ellipsis").font(.system(size: 18))
-                .frame(width: 40, height: 40)
+            Image(systemName: "ellipsis").font(.system(size: 16))
+                .frame(width: BrowserLayout.minimumHitTarget, height: BrowserLayout.minimumHitTarget)
         }
         .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-        .frame(width: 40, height: 40)
+        .frame(width: BrowserLayout.minimumHitTarget, height: BrowserLayout.minimumHitTarget)
         .accessibilityLabel("Space and Website Options")
     }
 
@@ -194,7 +209,7 @@ struct BrowserSidebar: View {
         }
         .padding(.trailing, 6).frame(height: SidebarGeometry.rowHeight)
         .browserHoverSurface(cornerRadius: 20, showsRestingSurface: true)
-        .padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 4)
+        .padding(.horizontal, 5).padding(.bottom, 5)
         .accessibilityElement(children: .contain).accessibilityLabel("Now Playing")
         .contextMenu {
             Button(page.mediaIsMuted ? "Unmute" : "Mute") {

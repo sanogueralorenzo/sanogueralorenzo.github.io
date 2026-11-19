@@ -24,14 +24,24 @@ struct BrowserTabRow: View {
                 Button {
                     store.clickTab(tab.id)
                 } label: {
-                    HStack(spacing: 9) {
-                        if space.folders.contains(where: { $0.id == tab.folderID && $0.kind == .github }) {
-                            Circle().fill(.green).frame(width: 6, height: 6).frame(width: 20, height: 20)
+                    Group {
+                        if pinned {
+                            VStack(spacing: 2) {
+                                TabIcon(tab: tab)
+                                Text(title).font(.system(size: 10)).lineLimit(1)
+                            }
+                            .padding(.horizontal, 3)
                         } else {
-                            TabIcon(tab: tab).frame(width: 28, height: 20)
+                            HStack(spacing: 9) {
+                                if space.folders.contains(where: { $0.id == tab.folderID && $0.kind == .github }) {
+                                    Circle().fill(.green).frame(width: 6, height: 6).frame(width: 20, height: 20)
+                                } else {
+                                    TabIcon(tab: tab).frame(width: 28, height: 20)
+                                }
+                                Text(title).lineLimit(1)
+                                Spacer(minLength: 0)
+                            }
                         }
-                        if !pinned { Text(title).lineLimit(1) }
-                        if !pinned { Spacer(minLength: 0) }
                     }
                     .frame(
                         maxWidth: .infinity, minHeight: SidebarGeometry.rowHeight,
@@ -41,7 +51,7 @@ struct BrowserTabRow: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.leading, pinned ? 0 : 9)
-                if selected { BrowserShortcutHint(text: "⌘W") }
+                if selected && !pinned { BrowserShortcutHint(text: "⌘W") }
                 if showsAction {
                     Button {
                         guard !store.owner.sidebarDrag.suppressesActivation else { return }
@@ -70,11 +80,11 @@ struct BrowserTabRow: View {
         .browserInteractiveSurface(
             isSelected: selected || (store.selectedTabs.contains(tab.id) && !store.selectionCovers(tab.folderID)),
             isHovering: hovering,
-            cornerRadius: max(0, 20 - CGFloat(depth) * 4), cornerStyle: .circular,
+            cornerRadius: max(0, 10 - CGFloat(depth) * 2), cornerStyle: .circular,
             selectionEmphasis: store.sidebarKeyboardSelection && store.selectedTabs.contains(tab.id),
             showsRestingSurface: pinned, selectedBorderColor: pinned ? .clear : BrowserColor.selectedBorder,
             selectedBorderWidth: pinned ? 0.5 : 1,
-            customSelectedFill: pinned ? Color.primary.opacity(0.13) : nil,
+            customSelectedFill: Color.space(space.color).opacity(0.32),
             customRestingFill: pinned ? Color.primary.opacity(0.055) : nil
         )
         .overlay { BrowserSidebarNestHighlight(state: store.sidebarReorder, target: .currentTab(tab.id)) }

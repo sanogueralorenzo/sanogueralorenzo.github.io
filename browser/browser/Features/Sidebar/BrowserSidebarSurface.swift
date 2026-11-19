@@ -3,7 +3,6 @@ import SwiftUI
 /// Keep the card mounted during its slide, as in Crest.
 struct BrowserSidebarSurface: View {
     let store: BrowserStore
-    let cornerRadius: CGFloat
     let height: CGFloat
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -11,12 +10,12 @@ struct BrowserSidebarSurface: View {
     private var regionWidth: CGFloat { store.sidebarWidth + SidebarGeometry.inset * 2 }
 
     var body: some View {
-        BrowserSidebar(store: store, cornerRadius: cornerRadius)
+        BrowserSidebar(store: store)
             .frame(height: max(0, height - SidebarGeometry.inset * 2))
             .compositingGroup()
             .shadow(
                 color: .black.opacity(reduceTransparency || !store.showsSidebar ? 0 : 0.3),
-                radius: 28, x: 8, y: 8
+                radius: 12, x: 2, y: 5
             )
             .padding(SidebarGeometry.inset)
             .frame(width: regionWidth)
@@ -41,5 +40,14 @@ struct BrowserSidebarSurface: View {
             .allowsHitTesting(store.showsSidebar)
             .accessibilityHidden(!store.showsSidebar)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+extension View {
+    func browserSidebarPanel() -> some View {
+        let shape = RoundedRectangle(cornerRadius: SidebarGeometry.panelRadius)
+        return background(BrowserBrandTheme.surface, in: shape)
+            .clipShape(shape)
+            .overlay { shape.strokeBorder(BrowserBrandTheme.line, lineWidth: 0.75).allowsHitTesting(false) }
     }
 }

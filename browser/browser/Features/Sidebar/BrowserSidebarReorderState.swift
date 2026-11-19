@@ -63,8 +63,6 @@ final class BrowserSidebarReorderState {
     @ObservationIgnored private var restingRows: [UUID: Row] = [:]
     @ObservationIgnored private var restingZones: [UUID: Zone] = [:]
     @ObservationIgnored private var scrollViewport: CGRect?
-    @ObservationIgnored private var dividerFrame: CGRect?
-    @ObservationIgnored private var restingDividerFrame: CGRect?
     @ObservationIgnored private(set) var spaceViewport = CGRect.zero
     private(set) var spaceLayout: BrowserSpaceReorderLayout?
     private(set) var lift: Lift?
@@ -101,16 +99,6 @@ final class BrowserSidebarReorderState {
     func updateScrollViewport(_ frame: CGRect?, in store: BrowserStore) {
         scrollViewport = frame
         if lift != nil { move(to: NSEvent.mouseLocation, in: store) }
-    }
-
-    func registerDivider(_ frame: CGRect) { dividerFrame = frame }
-
-    func showsCurrentDivider(in store: BrowserStore, space: BrowserSpace? = nil) -> Bool {
-        let space = space ?? store.activeSpace
-        if case .split = target?.kind { return true }
-        if case .insert(let section, _) = target?.kind, section.placement == .current { return true }
-        return space.tabs.contains { $0.placement == .current }
-            || space.folders.contains { $0.parentID == nil && $0.placement == .current }
     }
 
     func updateSpaceViewport(_ frame: CGRect) {
@@ -220,7 +208,6 @@ final class BrowserSidebarReorderState {
         self.lift = lift
         restingRows = rows.mapValues(\.row)
         restingZones = zones
-        restingDividerFrame = dividerFrame
         var next = BrowserSidebarReorderLayout()
         next.sourceSpaceID = lift.spaceID
         next.hiddenIDs = lift.rootIDs
@@ -476,7 +463,7 @@ final class BrowserSidebarReorderState {
 
     private func pinHeight(in store: BrowserStore, width: CGFloat) -> CGFloat {
         let height = pinnedLayout(in: store.activeSpace, width: width).height
-        return height > 0 ? height + SidebarGeometry.pinnedTopInset + SidebarGeometry.pinnedBottomInset : 0
+        return max(8, height) + SidebarGeometry.pinnedTopInset + SidebarGeometry.pinnedBottomInset
     }
 
     private func pinGrid(in store: BrowserStore) -> CGRect? {
@@ -487,11 +474,6 @@ final class BrowserSidebarReorderState {
     }
 
     private func updatePinProjection(_ projection: inout BrowserSidebarReorderLayout, in store: BrowserStore) {
-        if let frame = restingDividerFrame {
-            projection.dividerFrame = frame
-            projection.dividerHeightDelta =
-                (showsCurrentDivider(in: store) ? SidebarGeometry.currentDividerHeight : 0) - frame.height
-        }
         guard let grid = pinContainer(in: store.activeSpace.id) else { return }
         projection.gridFrame = grid
         projection.gridHeightDelta = pinHeight(in: store, width: grid.width) - grid.height

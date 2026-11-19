@@ -14,9 +14,7 @@ struct BrowserRoot: View {
                 } else if !store.visiblePages.isEmpty {
                     splitContent
                 }
-                BrowserSidebarSurface(
-                    store: store, cornerRadius: SidebarGeometry.radius(windowCornerRadius: windowCornerRadius),
-                    height: geometry.size.height)
+                BrowserSidebarSurface(store: store, height: geometry.size.height)
                 if !store.showsSidebar {
                     Color.clear
                         .frame(width: SidebarGeometry.revealWidth)

@@ -3,16 +3,23 @@ import SwiftUI
 struct BrowserSpaceSwitcher: View {
     let store: BrowserStore
     let edit: (BrowserSpace?) -> Void
-    @State private var firstVisible = 0
+    @State private var position = ScrollPosition(x: 0)
+    @State private var scroll = CGPoint.zero
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private let itemWidth: CGFloat = 72
     private var spaces: [BrowserSpace] { store.session.spaces }
-    private var width: CGFloat { min(max(CGFloat(spaces.count) * 28 + 4, 56), 100) }
-    private var overflows: Bool { CGFloat(spaces.count) * 28 + 4 > width }
+    private var contentWidth: CGFloat { CGFloat(spaces.count) * itemWidth + 4 }
+    private var width: CGFloat {
+        min(contentWidth, store.sidebarWidth - SidebarGeometry.titlebarLeadingSpace
+            - 2 * SidebarGeometry.titlebarHorizontalInset - 3 * SidebarGeometry.titlebarSpacing
+            - BrowserLayout.minimumHitTarget)
+    }
+    private var overflows: Bool { contentWidth > width }
 
     var body: some View {
         ScrollViewReader { reader in
             HStack(spacing: 0) {
-                if overflows { scrollButton(forward: false, reader: reader) }
+                if overflows { scrollButton(forward: false) }
                 ScrollView(.horizontal) {
                     HStack(spacing: 0) {
                         ForEach(spaces) { space in
@@ -20,9 +27,17 @@ struct BrowserSpaceSwitcher: View {
                                 guard !store.owner.sidebarDrag.suppressesActivation else { return }
                                 store.selectSpace(space.id)
                             } label: {
-                                BrowserSpacePill(color: space.color, isSelected: store.activeSpace.id == space.id)
-                                    .frame(width: 28, height: 20)
-                                    .contentShape(Rectangle())
+                                HStack(spacing: 5) {
+                                    Circle().fill(Color.space(space.color)).frame(width: 7, height: 7)
+                                    Text(space.name).lineLimit(1).minimumScaleFactor(0.85)
+                                }
+                                .font(.system(size: 11, weight: .medium))
+                                .padding(.horizontal, 5)
+                                .frame(height: 22)
+                                .background(
+                                    .primary.opacity(store.activeSpace.id == space.id ? 0.13 : 0), in: Capsule())
+                                .frame(width: itemWidth)
+                                .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(space.name)
@@ -77,6 +92,7 @@ struct BrowserSpaceSwitcher: View {
                         }
                     }
                 }
+                .scrollPosition($position)
                 .scrollIndicators(.never).scrollBounceBehavior(.basedOnSize, axes: .horizontal)
                 .onGeometryChange(for: CGRect.self) {
                     $0.frame(in: .global)
@@ -84,16 +100,19 @@ struct BrowserSpaceSwitcher: View {
                     store.sidebarReorder.updateSpaceViewport($0)
                 }
                 .onDisappear { store.sidebarReorder.updateSpaceViewport(.zero) }
-                .onScrollGeometryChange(for: Int.self) { geometry in
-                    Int(max(0, geometry.contentOffset.x) / 28)
-                } action: { _, index in
-                    firstVisible = index
+                .onScrollGeometryChange(for: CGPoint.self) { geometry in
+                    CGPoint(
+                        x: max(0, geometry.contentOffset.x),
+                        y: max(0, geometry.contentSize.width - geometry.containerSize.width))
+                } action: { _, value in
+                    scroll = value
                 }
-                if overflows { scrollButton(forward: true, reader: reader) }
+                if overflows { scrollButton(forward: true) }
             }
             .frame(width: width, height: 24)
             .modifier(BrowserDropArea(store: store, spaceID: store.activeSpace.id, isSpaceRail: true))
             .contextMenu { Button("New Space") { edit(nil) } }
+            .onAppear { reader.scrollTo(store.activeSpace.id, anchor: .center) }
             .onChange(of: store.activeSpace.id) { _, id in
                 withAnimation(
                     store.sidebarSpaceStep != nil && store.owner.sidebarDrag.payload == nil
@@ -105,11 +124,10 @@ struct BrowserSpaceSwitcher: View {
         }
     }
 
-    private func scrollButton(forward: Bool, reader: ScrollViewProxy) -> some View {
+    private func scrollButton(forward: Bool) -> some View {
         Button {
-            firstVisible = min(max(firstVisible + (forward ? 1 : -1), 0), max(0, spaces.count - 2))
             withAnimation(BrowserMotion.scrollAlignment.unlessReducingMotion(reduceMotion)) {
-                reader.scrollTo(spaces[firstVisible].id, anchor: .leading)
+                position.scrollTo(x: min(max(0, scroll.x + (forward ? itemWidth : -itemWidth)), scroll.y))
             }
         } label: {
             Image(systemName: forward ? "chevron.right" : "chevron.left")
@@ -117,6 +135,6 @@ struct BrowserSpaceSwitcher: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(forward ? "Show Next Spaces" : "Show Previous Spaces")
-        .disabled(forward ? firstVisible >= spaces.count - 2 : firstVisible == 0)
+        .disabled(forward ? scroll.x >= scroll.y - 0.5 : scroll.x <= 0.5)
     }
 }

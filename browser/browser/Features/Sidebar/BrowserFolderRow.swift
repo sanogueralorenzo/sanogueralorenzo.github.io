@@ -34,6 +34,12 @@ struct BrowserFolderRow: View {
                                     .offset(y: folder.isExpanded ? -1.5 : -0.5)
                                     .accessibilityHidden(true)
                                 Text(folder.title).lineLimit(1)
+                                if folder.kind == .github {
+                                    Text("Live")
+                                        .font(.caption2).foregroundStyle(.secondary)
+                                        .padding(.horizontal, 5).padding(.vertical, 2)
+                                        .background(.primary.opacity(0.08), in: Capsule())
+                                }
                                 Spacer(minLength: 0)
                                 if folder.kind == .github {
                                     if service.isLoading {
