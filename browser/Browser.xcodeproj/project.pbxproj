@@ -1168,6 +1168,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = Browser;
 				CODE_SIGN_ENTITLEMENTS = Config/Local.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
+				DEPLOYMENT_POSTPROCESSING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Config/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1178,6 +1180,7 @@
 				PRODUCT_MODULE_NAME = Browser;
 				PRODUCT_NAME = Browser;
 				SDKROOT = macosx;
+				STRIP_STYLE = "non-global";
 			};
 			name = Release;
 		};

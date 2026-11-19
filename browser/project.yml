@@ -58,6 +58,11 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: Config/Local.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: Browser
+      configs:
+        Release:
+          DEAD_CODE_STRIPPING: YES
+          DEPLOYMENT_POSTPROCESSING: YES
+          STRIP_STYLE: non-global
 schemes:
   Browser:
     build:
