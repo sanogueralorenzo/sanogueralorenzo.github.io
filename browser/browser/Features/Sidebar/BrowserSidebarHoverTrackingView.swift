@@ -8,41 +8,23 @@ final class BrowserSidebarHoverTrackingView: NSView {
     static let holdReleaseDelay: TimeInterval = 0.15
 
     var onHoverChange: @MainActor @Sendable (Bool) -> Void
-    /// Reset hover when the edge is reached again during slide-out.
-    var isRevealedByPointer = false {
-        didSet {
-            guard isRevealedByPointer, !oldValue else { return }
-            lastReportedHover = nil
-        }
-    }
+    var waitsForPointer = false
 
     private let notificationCenter: NotificationCenter
     private let pointerLocation: @MainActor () -> NSPoint
     private let heldPopovers = NSHashTable<NSPopover>.weakObjects()
     private let heldWindows = NSHashTable<NSWindow>.weakObjects()
     private var trackingArea: NSTrackingArea?
-    private var sidebarTrackingArea: NSTrackingArea?
-    private var exitMargin: CGFloat = 0
-    private var exitEdge: CGRectEdge = .maxXEdge
     private var firstResponderObservation: NSKeyValueObservation?
     private var trackingMenus: Set<ObjectIdentifier> = []
     private var holdReleaseRevision = 0
     private var isReleasingHold = false
     private var lastReportedHover: Bool?
 
-    /// The exit margin can extend a hover already underway.
     private var isPointerInside: Bool {
-        isPointer(in: lastReportedHover == true ? trackedRect : sidebarRect)
-    }
-
-    private var isPointerOnSidebar: Bool {
-        isPointer(in: sidebarRect)
-    }
-
-    /// The pointer can leave the window before the sliding sidebar reports its first entry.
-    private var hasRevealingPointerLeft: Bool {
-        guard isRevealedByPointer, let window else { return false }
-        return !window.isKeyWindow || !window.frame.contains(pointerLocation())
+        guard let window, window.isKeyWindow, !isHiddenOrHasHiddenAncestor else { return false }
+        let location = convert(window.convertPoint(fromScreen: pointerLocation()), from: nil)
+        return trackedRect.contains(location)
     }
 
     private var isHeldOpen: Bool {
@@ -59,15 +41,11 @@ final class BrowserSidebarHoverTrackingView: NSView {
         let field = editor.isFieldEditor ? (editor.delegate as? NSView) ?? editor : editor
         guard field.window === window, !field.isHiddenOrHasHiddenAncestor else { return false }
         // Full containment excludes fields partly covered by the floating sidebar.
-        return sidebarRect.contains(convert(field.convert(field.bounds, to: nil), from: nil))
+        return trackedRect.contains(convert(field.convert(field.bounds, to: nil), from: nil))
     }
 
     private var trackedRect: NSRect {
         bounds.intersection(visibleRect)
-    }
-
-    private var sidebarRect: NSRect {
-        bounds.divided(atDistance: exitMargin, from: exitEdge).remainder.intersection(visibleRect)
     }
 
     init(
@@ -136,20 +114,6 @@ final class BrowserSidebarHoverTrackingView: NSView {
         )
         addTrackingArea(area)
         trackingArea = area
-        if let sidebarTrackingArea {
-            removeTrackingArea(sidebarTrackingArea)
-            self.sidebarTrackingArea = nil
-        }
-        // Track the sidebar separately to detect entry from its exit margin.
-        if exitMargin > 0 {
-            let sidebarArea = NSTrackingArea(
-                rect: bounds.divided(atDistance: exitMargin, from: exitEdge).remainder,
-                options: [.mouseEnteredAndExited, .activeInKeyWindow],
-                owner: self
-            )
-            addTrackingArea(sidebarArea)
-            sidebarTrackingArea = sidebarArea
-        }
         schedulePointerRefresh()
     }
 
@@ -162,20 +126,17 @@ final class BrowserSidebarHoverTrackingView: NSView {
     }
 
     func refreshPointerHover() {
-        guard window != nil else { return }
+        guard let window, !bounds.isEmpty else { return }
         releaseWindowsNoLongerShown()
         let isHovering = isPointerInside || (lastReportedHover == true && isHeldOpen)
-        // Allow the sidebar to slide into view before treating absence as an exit.
-        guard isHovering || lastReportedHover != nil || hasRevealingPointerLeft else { return }
+        if waitsForPointer, lastReportedHover == nil, !isHovering,
+            window.isKeyWindow, window.frame.contains(pointerLocation())
+        {
+            return
+        }
         guard isHovering != lastReportedHover else { return }
         lastReportedHover = isHovering
         onHoverChange(isHovering)
-    }
-
-    private func isPointer(in rect: NSRect) -> Bool {
-        guard let window, window.isKeyWindow, !isHiddenOrHasHiddenAncestor else { return false }
-        let location = convert(window.convertPoint(fromScreen: pointerLocation()), from: nil)
-        return rect.contains(location)
     }
 
     func schedulePointerRefresh() {
@@ -187,7 +148,7 @@ final class BrowserSidebarHoverTrackingView: NSView {
 
     @objc private func menuTrackingBegan(_ notification: Notification) {
         guard let menu = notification.object as? NSMenu,
-            !trackingMenus.isEmpty || isPointerOnSidebar
+            !trackingMenus.isEmpty || isPointerInside
         else { return }
         trackingMenus.insert(ObjectIdentifier(menu))
         refreshPointerHover()
@@ -260,12 +221,5 @@ final class BrowserSidebarHoverTrackingView: NSView {
             self.isReleasingHold = false
             self.refreshPointerHover()
         }
-    }
-
-    func setExitMargin(_ margin: CGFloat, on edge: CGRectEdge) {
-        guard margin != exitMargin || edge != exitEdge else { return }
-        exitMargin = margin
-        exitEdge = edge
-        updateTrackingAreas()
     }
 }

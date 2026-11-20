@@ -4,8 +4,7 @@ extension BrowserStore {
     func handleSidebarPointer(_ event: NSEvent) {
         guard !isClosed, let window = event.window, window === self.window else { return }
         let point = event.locationInWindow
-        let onSidebar = showsSidebar && point.x < sidebarWidth + SidebarGeometry.inset
-        if event.type == .leftMouseDown, !onSidebar, !addressPresented {
+        if event.type == .leftMouseDown, !sidebarContains(event), !addressPresented {
             sidebarKeyboardSelection = false
             selectedTabs.removeAll()
             selectedFolders.removeAll()

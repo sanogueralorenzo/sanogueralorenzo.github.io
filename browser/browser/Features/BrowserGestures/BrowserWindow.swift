@@ -16,15 +16,12 @@ extension BrowserStore {
             && !isResizingSidebar && owner.sidebarDrag.payload == nil
     }
 
-    private func sidebarContains(_ event: NSEvent, excludingTitlebar: Bool = false) -> Bool {
+    func sidebarContains(_ event: NSEvent, excludingTitlebar: Bool = false) -> Bool {
         guard showsSidebar, let content = window?.contentView else { return false }
         let inset = SidebarGeometry.inset
         let top = excludingTitlebar ? SidebarGeometry.titlebarHeight : 0
-        let x =
-            content.userInterfaceLayoutDirection == .rightToLeft
-            ? content.bounds.maxX - inset - sidebarWidth : content.bounds.minX + inset
         let rect = CGRect(
-            x: x, y: content.bounds.minY + inset + (content.isFlipped ? top : 0),
+            x: content.bounds.minX + inset, y: content.bounds.minY + inset + (content.isFlipped ? top : 0),
             width: sidebarWidth, height: max(0, content.bounds.height - inset * 2 - top))
         return rect.contains(content.convert(event.locationInWindow, from: nil))
     }

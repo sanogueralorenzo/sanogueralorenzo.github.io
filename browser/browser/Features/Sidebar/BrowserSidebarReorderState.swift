@@ -288,7 +288,7 @@ final class BrowserSidebarReorderState {
             return
         }
         if let target {
-            if target.isPinned, let grid = pinGrid(in: store),
+            if target.isPinned, let grid = pinGrid(in: store.activeSpace.id),
                 pinnedLayout(in: store.activeSpace, width: grid.width).frame(for: nil, in: grid)?.contains(point)
                     == true
             {
@@ -357,9 +357,7 @@ final class BrowserSidebarReorderState {
             setTarget(next, in: store)
             return
         }
-        let onSidebar =
-            store.showsSidebar
-            && point.x <= store.sidebarWidth + SidebarGeometry.inset * 2 + SidebarGeometry.hoverMargin
+        let onSidebar = store.showsSidebar && point.x < store.sidebarDropBoundary
         if !onSidebar, let geometry = contentGeometry, geometry.spaceID == store.activeSpace.id,
             geometry.shown == store.selectedTab?.id, geometry.bounds.contains(point),
             let payload = store.owner.sidebarDrag.payload, store.canDropSidebarTabsIntoSplit(payload)
@@ -418,7 +416,7 @@ final class BrowserSidebarReorderState {
             return window.convertToScreen(content.convert(layout.projected(row.frame, in: target.spaceID), to: nil))
         }
         let frame: CGRect
-        if target.isPinned, let grid = pinGrid(in: store) {
+        if target.isPinned, let grid = pinGrid(in: store.activeSpace.id) {
             frame = pinnedLayout(in: store.activeSpace, width: grid.width).frame(for: nil, in: grid) ?? grid
         } else if let gap = layout.gap {
             frame = layout.projected(
@@ -436,13 +434,13 @@ final class BrowserSidebarReorderState {
     }
 
     private func projected(_ zone: Zone, in store: BrowserStore) -> CGRect {
-        if zone.placement == .pinned, zone.before == nil, let grid = pinContainer(in: zone.spaceID) {
+        if zone.placement == .pinned, zone.before == nil, let grid = pinGrid(in: zone.spaceID) {
             var result = grid
-            result.size.height = max(8, pinHeight(in: store, width: grid.width))
+            result.size.height = pinHeight(in: store, width: grid.width)
             return result
         }
         if let id = zone.before, let row = restingRows[id], row.section.placement == .pinned,
-            let grid = pinGrid(in: store)
+            let grid = pinGrid(in: store.activeSpace.id)
         {
             return pinnedLayout(in: store.activeSpace, width: grid.width).frame(for: id, in: grid) ?? .null
         }
@@ -459,24 +457,16 @@ final class BrowserSidebarReorderState {
         return scrollViewport.map { frame.intersection($0) } ?? .null
     }
 
-    private func pinContainer(in spaceID: UUID) -> CGRect? {
+    private func pinGrid(in spaceID: UUID) -> CGRect? {
         restingZones.values.first { $0.spaceID == spaceID && $0.before == nil && $0.placement == .pinned }?.frame
     }
 
     private func pinHeight(in store: BrowserStore, width: CGFloat) -> CGFloat {
-        let height = pinnedLayout(in: store.activeSpace, width: width).height
-        return max(8, height) + SidebarGeometry.pinnedTopInset + SidebarGeometry.pinnedBottomInset
-    }
-
-    private func pinGrid(in store: BrowserStore) -> CGRect? {
-        guard var frame = pinContainer(in: store.activeSpace.id) else { return nil }
-        frame.origin.y += SidebarGeometry.pinnedTopInset
-        frame.size.height = pinnedLayout(in: store.activeSpace, width: frame.width).height
-        return frame
+        max(8, pinnedLayout(in: store.activeSpace, width: width).height)
     }
 
     private func updatePinProjection(_ projection: inout BrowserSidebarReorderLayout, in store: BrowserStore) {
-        guard let grid = pinContainer(in: store.activeSpace.id) else { return }
+        guard let grid = pinGrid(in: store.activeSpace.id) else { return }
         projection.gridFrame = grid
         projection.gridHeightDelta = pinHeight(in: store, width: grid.width) - grid.height
     }

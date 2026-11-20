@@ -23,7 +23,7 @@ final class BrowserWindowControlLayout {
             return Placement(
                 button: button, frame: button.frame, autoresizes: button.translatesAutoresizingMaskIntoConstraints,
                 isHidden: button.isHidden, leading: leading,
-                constraint: button.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: leading))
+                constraint: button.leftAnchor.constraint(equalTo: content.leftAnchor, constant: leading))
         }
         constraints = placements.flatMap { placement in
             let button = placement.button

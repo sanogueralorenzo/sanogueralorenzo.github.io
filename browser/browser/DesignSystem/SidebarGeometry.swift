@@ -4,21 +4,19 @@ enum SidebarGeometry {
     static let width = CGFloat(289)
     static let widthRange: ClosedRange<CGFloat> = 280...380
     static let defaultWindowRadius: CGFloat = 13
-    static let inset: CGFloat = 6
+    static let inset: CGFloat = 8
     static let revealWidth: CGFloat = 16
     static let hoverMargin: CGFloat = 32
     static let titlebarHeight: CGFloat = 38
     static let titlebarHorizontalInset: CGFloat = 12
-    static let titlebarLeadingSpace: CGFloat = 68
+    static let windowControlsWidth: CGFloat = 64
     static let titlebarSpacing: CGFloat = 4
     static let navigationSymbolPointSize: CGFloat = 15
     static let panelSpacing: CGFloat = 8
     static let backdropRadius: CGFloat = 14
     static let panelRadius: CGFloat = 9
-    static let panelPadding: CGFloat = 10
+    static let contentInset: CGFloat = 12
     static let rowHeight = BrowserLayout.sidebarRowHeight
-    static let pinnedTopInset: CGFloat = 8
-    static let pinnedBottomInset: CGFloat = 12
 
     static func windowCornerRadius(from insets: RectangleCornerInsets) -> CGFloat? {
         // Top insets can include window controls.

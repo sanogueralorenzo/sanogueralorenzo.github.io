@@ -55,20 +55,21 @@ struct BrowserPinnedTabReorderLayout: Equatable {
     var insertionIndex: Int?
     var availableWidth: CGFloat
     static let spacing: CGFloat = 8
+    private static let tileWidth: CGFloat = 56
 
     var slots: [UUID?] {
         var result = ids.filter { !liftedIDs.contains($0) }.map(Optional.some)
         if let insertionIndex { result.insert(nil, at: min(max(0, insertionIndex), result.count)) }
         return result
     }
-    var columns: Int { max(1, min(3, slots.count)) }
+    var columns: Int { max(1, Int((availableWidth + Self.spacing) / (Self.tileWidth + Self.spacing))) }
     var height: CGFloat {
         let rows = (slots.count + columns - 1) / columns
         return rows == 0 ? 0 : CGFloat(rows) * SidebarGeometry.rowHeight + CGFloat(rows - 1) * Self.spacing
     }
     func frame(for id: UUID?, in bounds: CGRect) -> CGRect? {
         guard let index = slots.firstIndex(where: { $0 == id }) else { return nil }
-        let width = max(0, (bounds.width - CGFloat(columns - 1) * Self.spacing) / CGFloat(columns))
+        let width = min(Self.tileWidth, bounds.width)
         return CGRect(
             x: bounds.minX + CGFloat(index % columns) * (width + Self.spacing),
             y: bounds.minY + CGFloat(index / columns) * (SidebarGeometry.rowHeight + Self.spacing),

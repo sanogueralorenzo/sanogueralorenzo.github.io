@@ -6,13 +6,11 @@ struct BrowserSpaceSwitcher: View {
     @State private var position = ScrollPosition(x: 0)
     @State private var scroll = CGPoint.zero
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private let itemWidth: CGFloat = 72
+    private let itemWidth: CGFloat = 96
     private var spaces: [BrowserSpace] { store.session.spaces }
     private var contentWidth: CGFloat { CGFloat(spaces.count) * itemWidth + 4 }
     private var width: CGFloat {
-        min(contentWidth, store.sidebarWidth - SidebarGeometry.titlebarLeadingSpace
-            - 2 * SidebarGeometry.titlebarHorizontalInset - 3 * SidebarGeometry.titlebarSpacing
-            - BrowserLayout.minimumHitTarget)
+        min(contentWidth, store.sidebarWidth - 2 * SidebarGeometry.contentInset)
     }
     private var overflows: Bool { contentWidth > width }
 
@@ -28,16 +26,18 @@ struct BrowserSpaceSwitcher: View {
                                 store.selectSpace(space.id)
                             } label: {
                                 HStack(spacing: 5) {
-                                    BrowserSpacePill(color: space.color, width: 12)
+                                    BrowserSpacePill(color: space.color, width: 15)
                                     Text(space.name).lineLimit(1).minimumScaleFactor(0.85)
                                 }
-                                .font(.system(size: 11, weight: .medium))
-                                .padding(.horizontal, 5)
-                                .frame(height: 22)
+                                .font(.system(size: 12, weight: .medium))
+                                .padding(.horizontal, 8)
+                                .frame(width: itemWidth - 6, height: 26)
                                 .background(
-                                    .primary.opacity(store.activeSpace.id == space.id ? 0.13 : 0), in: Capsule())
-                                .frame(width: itemWidth)
-                                .contentShape(Rectangle())
+                                    Color.space(space.color).opacity(store.activeSpace.id == space.id ? 0.22 : 0.07),
+                                    in: Capsule()
+                                )
+                                .contentShape(Capsule())
+                                .frame(width: itemWidth, alignment: .leading)
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(space.name)
@@ -109,7 +109,7 @@ struct BrowserSpaceSwitcher: View {
                 }
                 if overflows { scrollButton(forward: true) }
             }
-            .frame(width: width, height: 24)
+            .frame(width: width, height: 30)
             .modifier(BrowserDropArea(store: store, spaceID: store.activeSpace.id, isSpaceRail: true))
             .contextMenu { Button("New Space") { edit(nil) } }
             .onAppear { reader.scrollTo(store.activeSpace.id, anchor: .center) }

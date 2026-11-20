@@ -3,7 +3,7 @@ import Foundation
 extension BrowserStore {
     func presentAddress(newTab: Bool = false) {
         addressPresentationID = UUID()
-        sidebarRevealed = false
+        if !sidebarDocked { sidebarRevealed = false }
         pendingSplitSourceID = nil
         utility = nil
         addressCreatesTab = newTab || selectedTab == nil || selectedTab?.isSettings == true

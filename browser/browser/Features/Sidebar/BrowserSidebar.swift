@@ -9,27 +9,34 @@ struct BrowserSidebar: View {
 
     var body: some View {
         VStack(spacing: SidebarGeometry.panelSpacing) {
-            header
+            windowControls
             VStack(spacing: SidebarGeometry.panelSpacing) {
+                BrowserSpaceSwitcher(store: store, edit: showEditor)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 navigation
+                Divider()
                 if !store.activeSpace.isPrivate, let page = store.playingPage {
                     BrowserNowPlaying(page: page) { store.selectTab(page.id) }
                 }
                 if let utility = store.utility {
                     BrowserUtilityList(utility: utility, store: store)
-                        .padding(SidebarGeometry.panelPadding)
-                        .browserSidebarPanel()
                 } else {
                     BrowserSidebarSpacePager(store: store)
                 }
             }
-            .padding([.horizontal, .bottom], SidebarGeometry.panelSpacing)
+            .padding(.horizontal, SidebarGeometry.contentInset)
+            .padding(.bottom, SidebarGeometry.panelSpacing)
         }
         .font(.system(size: 13))
         .background { BrowserSidebarFolderReconciler(store: store) }
         .focusEffectDisabled()
         .frame(width: store.sidebarWidth)
-        .background { backdrop }
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background {
+            let shape = RoundedRectangle(cornerRadius: SidebarGeometry.backdropRadius)
+            shape.fill(BrowserBrandTheme.sidebarBackdrop)
+                .overlay { shape.strokeBorder(BrowserBrandTheme.line, lineWidth: 0.75) }
+        }
         .overlay(alignment: .trailing) { resizeHandle }
         .sheet(
             isPresented: $showsSpaceEditor, onDismiss: { store.sidebarEditorPresented = false },
@@ -38,28 +45,29 @@ struct BrowserSidebar: View {
             })
     }
 
-    private var backdrop: some View {
-        GeometryReader { geometry in
-            let shape = RoundedRectangle(cornerRadius: SidebarGeometry.backdropRadius)
-            let unusedHeight = store.utility == nil ? store.sidebarUnusedHeight : 0
-            shape.fill(BrowserBrandTheme.sidebarBackdrop)
-                .overlay { shape.strokeBorder(BrowserBrandTheme.line, lineWidth: 0.75) }
-                .frame(height: max(0, geometry.size.height - unusedHeight))
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
-
-    private var header: some View {
+    private var windowControls: some View {
         HStack(spacing: SidebarGeometry.titlebarSpacing) {
-            Spacer().frame(width: SidebarGeometry.titlebarLeadingSpace)
-            BrowserSpaceSwitcher(store: store, edit: showEditor)
+            if !store.isFullScreen { Color.clear.frame(width: SidebarGeometry.windowControlsWidth) }
+            Button {
+                store.sidebarDocked.toggle()
+            } label: {
+                Image(systemName: "sidebar.left")
+                    .font(.system(size: 16))
+                    .foregroundStyle(store.sidebarDocked ? Color.accentColor : Color.primary)
+            }
+            .buttonStyle(BrowserChromeButtonStyle())
+            .background(store.sidebarDocked ? Color.accentColor.opacity(0.18) : .clear, in: .rect(cornerRadius: 8))
+            .accessibilityLabel("Keep Sidebar Open")
+            .accessibilityValue(store.sidebarDocked ? "On" : "Off")
+            .accessibilityIdentifier("sidebar-dock")
+            .help(store.sidebarDocked ? "Switch to Hover Sidebar" : "Keep Sidebar Open")
             Spacer(minLength: 0)
             moreMenu
         }
         .padding(.horizontal, SidebarGeometry.titlebarHorizontalInset)
         .frame(height: SidebarGeometry.titlebarHeight)
         .background(BrowserWindowTitleBarSurface())
+        .environment(\.layoutDirection, .leftToRight)
     }
 
     private var resizeHandle: some View {
@@ -69,7 +77,7 @@ struct BrowserSidebar: View {
                 if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
             }
             .gesture(
-                DragGesture(minimumDistance: 0)
+                DragGesture(minimumDistance: 0, coordinateSpace: .global)
                     .onChanged { value in
                         if resizeStart == nil { resizeStart = store.sidebarWidth }
                         store.isResizingSidebar = true
@@ -93,25 +101,30 @@ struct BrowserSidebar: View {
 
     private var navigation: some View {
         let loading = store.activePage?.isLoading == true
-        return HStack(spacing: 2) {
-            navigationButton("chevron.left", label: "Back", hint: "⌘[", enabled: store.activePage?.canGoBack == true) {
-                store.activePage?.webView.goBack()
+        return HStack(spacing: 6) {
+            HStack(spacing: 0) {
+                navigationButton(
+                    "chevron.left", label: "Back", hint: "⌘[", enabled: store.activePage?.canGoBack == true
+                ) {
+                    store.activePage?.webView.goBack()
+                }
+                Rectangle().fill(BrowserBrandTheme.line).frame(width: 1, height: 14).accessibilityHidden(true)
+                navigationButton(
+                    "chevron.right", label: "Forward", hint: "⌘]", enabled: store.activePage?.canGoForward == true
+                ) {
+                    store.activePage?.webView.goForward()
+                }
             }
-            navigationButton("chevron.right", label: "Forward", hint: "⌘]", enabled: store.activePage?.canGoForward == true) {
-                store.activePage?.webView.goForward()
-            }
+            .background(.quaternary, in: .rect(cornerRadius: 8))
             navigationButton(
                 loading ? "xmark" : "arrow.clockwise", label: loading ? "Stop Loading" : "Reload", hint: "⌘R",
-                enabled: store.activePage != nil
+                enabled: store.activePage != nil, showsRestingFill: true
             ) {
                 guard let page = store.activePage else { return }
                 if page.isLoading { page.stopLoading() } else { page.webView.reload() }
             }
             addressButton
         }
-        .padding(5)
-        .background(BrowserWindowTitleBarSurface())
-        .browserSidebarPanel()
     }
 
     private var addressButton: some View {
@@ -126,7 +139,7 @@ struct BrowserSidebar: View {
             }
             .padding(.horizontal, 8)
             .frame(maxWidth: .infinity, minHeight: BrowserLayout.minimumHitTarget, alignment: .leading)
-            .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+            .background(.quaternary, in: .rect(cornerRadius: 8))
             .contentShape(Rectangle())
         }
         .buttonStyle(BrowserChromeButtonStyle(controlSize: nil, cornerRadius: 8))
@@ -135,12 +148,13 @@ struct BrowserSidebar: View {
     }
 
     private func navigationButton(
-        _ symbol: String, label: String, hint: String, enabled: Bool, action: @escaping () -> Void
+        _ symbol: String, label: String, hint: String, enabled: Bool, showsRestingFill: Bool = false,
+        action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             BrowserChromeSymbolLabel(systemName: symbol, pointSize: SidebarGeometry.navigationSymbolPointSize)
         }
-        .buttonStyle(BrowserChromeButtonStyle())
+        .buttonStyle(BrowserChromeButtonStyle(cornerRadius: 8, showsRestingFill: showsRestingFill))
         .disabled(!enabled)
         .accessibilityLabel(label)
         .help("\(label) (\(hint))")

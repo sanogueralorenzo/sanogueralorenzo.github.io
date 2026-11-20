@@ -17,7 +17,7 @@ struct BrowserTabRow: View {
         HStack(spacing: 0) {
             if store.editingTabID == tab.id {
                 HStack(spacing: 9) {
-                    TabIcon(tab: tab).frame(width: 28, height: 20)
+                    TabIcon(tab: tab)
                     InlineNameField(
                         title: title, commit: { store.renameTab(tab.id, to: $0) }, cancel: { store.editingTabID = nil })
                 }.padding(.horizontal, 9)
@@ -33,9 +33,9 @@ struct BrowserTabRow: View {
                                 if space.folders.contains(where: { $0.id == tab.folderID && $0.kind == .github }) {
                                     Circle().fill(.green).frame(width: 6, height: 6).frame(width: 20, height: 20)
                                 } else {
-                                    TabIcon(tab: tab).frame(width: 28, height: 20)
+                                    TabIcon(tab: tab)
                                 }
-                                Text(title).lineLimit(1)
+                                Text(title).fontWeight(selected ? .medium : .regular).lineLimit(1)
                                 Spacer(minLength: 0)
                             }
                         }
@@ -50,7 +50,6 @@ struct BrowserTabRow: View {
                 .accessibilityLabel(title)
                 .help(pinned ? title : "")
                 .padding(.leading, pinned ? 0 : 9)
-                if selected && !pinned { BrowserShortcutHint(text: "⌘W") }
                 if showsAction {
                     let remove = removesFromSaved
                     Button {
@@ -61,13 +60,16 @@ struct BrowserTabRow: View {
                             store.requestCloseTab(tab.id)
                         }
                     } label: {
-                        Image(systemName: remove || tab.placement == .current ? "xmark" : away ? "arrow.uturn.backward" : "minus")
-                            .font(.system(size: 12, weight: .regular))
+                        Image(
+                            systemName: remove || tab.placement == .current
+                                ? "xmark" : away ? "arrow.uturn.backward" : "minus"
+                        )
+                        .font(.system(size: 12, weight: .regular))
                     }
                     .buttonStyle(BrowserChromeButtonStyle(controlSize: CGSize(width: 28, height: 28), cornerRadius: 14))
                     .padding(.trailing, 6)
                     .accessibilityLabel(remove ? "Remove from Saved" : closeLabel)
-                    .help(remove ? "Remove from Saved" : closeLabel)
+                    .help(remove ? "Remove from Saved" : tab.placement == .current ? "Close Tab (⌘W)" : closeLabel)
                 } else if !pinned {
                     Color.clear.frame(width: tab.placement == .current ? 34 : 6, height: 1)
                 }

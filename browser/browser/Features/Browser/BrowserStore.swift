@@ -23,7 +23,6 @@ final class BrowserStore {
     let sidebarFolders = BrowserSidebarFolderVisibility()
     var sidebarSpaceStep: Int?
     var sidebarSpaceTransitioning = false
-    var sidebarUnusedHeight: CGFloat = 0
     var expandedSavedSpaces: Set<UUID> = []
     @ObservationIgnored var sidebarScrollOffsets: [UUID: CGFloat] = [:]
     var recentSwitcherPresented = false
@@ -63,11 +62,16 @@ final class BrowserStore {
         set { settingsState.spacePrivacy = newValue }
     }
     var isFullScreen = false
+    var sidebarDocked = false
     var sidebarRevealed = false
     var sidebarEditorPresented = false
     var isResizingSidebar = false
     var sidebarWidth: CGFloat {
         SidebarGeometry.clampedWidth(CGFloat(preferences.sidebarWidth ?? Double(SidebarGeometry.width)))
+    }
+    var sidebarRegionWidth: CGFloat { sidebarWidth + SidebarGeometry.inset * 2 }
+    var sidebarDropBoundary: CGFloat {
+        sidebarRegionWidth + (sidebarDocked ? 0 : SidebarGeometry.hoverMargin)
     }
     var pendingSplitSourceID: UUID?
     var editingTabID: UUID?
@@ -120,8 +124,8 @@ final class BrowserStore {
         return Array(downloads.values)
     }
     var showsSidebar: Bool {
-        sidebarRevealed || sidebarEditorPresented || isResizingSidebar || isDragging
-            || editingTabID != nil || editingFolderID != nil || selectedTab == nil
+        sidebarDocked || sidebarRevealed || sidebarEditorPresented || isResizingSidebar || isDragging
+            || editingTabID != nil || editingFolderID != nil
     }
 
     init(owner: BrowserSessionOwner, id: UUID) {

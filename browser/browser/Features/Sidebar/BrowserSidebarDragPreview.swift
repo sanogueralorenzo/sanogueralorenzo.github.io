@@ -74,7 +74,8 @@ final class BrowserSidebarDragPreview {
         if rows.count == 1, case .tab(let value) = rows[0].content { tab = value } else { tab = nil }
         let pinned = tab?.placement == .pinned
         sourcePinned = pinned
-        sourceWidth = pinned || payload.kind == .space ? frame.width : store.sidebarWidth - 32
+        sourceWidth =
+            pinned || payload.kind == .space ? frame.width : store.sidebarWidth - 2 * SidebarGeometry.contentInset
         presentation = Presentation(
             rows: rows, sourceHeight: frame.height, tab: tab, title: title,
             count: store.owner.sidebarDrag.lift?.rootIDs.count ?? 1,

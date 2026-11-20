@@ -105,9 +105,10 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         window.toolbar = nil
         window.isReleasedWhenClosed = false
         window.acceptsMouseMovedEvents = true
-        window.minSize = NSSize(width: 700, height: 480)
         window.collectionBehavior = [.fullScreenPrimary]
-        window.contentView = NSHostingView(rootView: BrowserRoot(store: store))
+        let content = NSHostingView(rootView: BrowserRoot(store: store))
+        content.safeAreaRegions = []
+        window.contentView = content
         window.contentView?.superview?.clipsToBounds = true
         window.delegate = self
         if let value = state?.frame, let frame = Optional(NSRectFromString(value)),

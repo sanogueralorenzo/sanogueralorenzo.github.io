@@ -4,36 +4,23 @@ struct BrowserRoot: View {
     let store: BrowserStore
     @State private var windowCornerRadius: CGFloat?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.layoutDirection) private var layoutDirection
 
     var body: some View {
         GeometryReader { geometry in
             ZStack {
                 BrowserBrandTheme.canvas
-                if store.selectedTab?.isSettings == true {
-                    BrowserSettings(store: store)
-                } else if !store.visiblePages.isEmpty {
-                    splitContent
-                }
+                pageContent.padding(
+                    layoutDirection == .leftToRight ? .leading : .trailing,
+                    store.sidebarDocked ? store.sidebarRegionWidth : 0
+                )
                 BrowserSidebarSurface(store: store, height: geometry.size.height)
-                if !store.showsSidebar {
-                    Color.clear
-                        .frame(width: SidebarGeometry.revealWidth)
-                        .frame(maxHeight: .infinity)
-                        .overlay {
-                            BrowserCollapsedSidebarHoverTracker { inside in
-                                guard inside, store.window?.isKeyWindow == true else { return }
-                                withAnimation(BrowserMotion.floatingPane.unlessReducingMotion(reduceMotion)) {
-                                    store.sidebarRevealed = true
-                                }
-                            }
-                        }
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                }
+                    .animation(BrowserMotion.floatingPane.unlessReducingMotion(reduceMotion), value: store.showsSidebar)
                 if store.addressPresented {
-                    AddressPalette(store: store, cornerRadius: windowCornerRadius ?? SidebarGeometry.defaultWindowRadius)
-                        .id(store.addressPresentationID)
+                    AddressPalette(
+                        store: store, cornerRadius: windowCornerRadius ?? SidebarGeometry.defaultWindowRadius
+                    )
+                    .id(store.addressPresentationID)
                 }
                 if store.recentSwitcherPresented { BrowserRecentSwitcher(store: store) }
                 if let notice = store.notice ?? store.owner.storageError {
@@ -43,7 +30,6 @@ struct BrowserRoot: View {
                         .allowsHitTesting(false)
                 }
             }
-            .animation(BrowserMotion.floatingPane.unlessReducingMotion(reduceMotion), value: store.showsSidebar)
             .overlay { BrowserSidebarDropDestination(store: store).accessibilityHidden(true) }
         }
         .onGeometryChange(for: CGFloat?.self) { proxy in
@@ -60,13 +46,18 @@ struct BrowserRoot: View {
         .sheet(isPresented: Binding(get: { store.exportPresented }, set: { store.exportPresented = $0 })) {
             BrowserExportView(store: store)
         }
+        .frame(minWidth: 700, minHeight: 480)
         .ignoresSafeArea()
         .tint(BrowserBrandTheme.textDisplay)
     }
 
-    private var splitContent: some View {
-        BrowserNativeSplit(
-            store: store, pages: store.visiblePages, split: store.activeSplit,
-            drop: store.sidebarReorder.splitProjection(in: store))
+    @ViewBuilder private var pageContent: some View {
+        if store.selectedTab?.isSettings == true {
+            BrowserSettings(store: store)
+        } else if !store.visiblePages.isEmpty {
+            BrowserNativeSplit(
+                store: store, pages: store.visiblePages, split: store.activeSplit,
+                drop: store.sidebarReorder.splitProjection(in: store))
+        }
     }
 }

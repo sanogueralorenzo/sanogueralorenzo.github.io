@@ -20,17 +20,13 @@ struct BrowserSidebarSpacePage: View {
 
     var body: some View {
         VStack(spacing: SidebarGeometry.panelSpacing) {
-            VStack(spacing: 0) {
-                sectionTitle("Pinned").padding(.horizontal, SidebarGeometry.panelPadding)
+            VStack(spacing: SidebarGeometry.panelSpacing) {
+                sectionTitle("Pinned").padding(.horizontal, 4)
                 pinnedTabs
             }
-            .padding(.top, SidebarGeometry.panelPadding)
-            .browserSidebarPanel()
+            Divider()
             GeometryReader { viewport in
                 let unusedHeight = max(0, viewport.size.height - listHeight)
-                let canResizeBackdrop = !store.sidebarSpaceTransitioning || unusedHeight < store.sidebarUnusedHeight
-                let backdropInset = spaceID == store.activeSpace.id && listHeight > 0 && canResizeBackdrop
-                    ? unusedHeight : nil
                 ScrollView {
                     VStack(spacing: 0) {
                         scrollingSections.onGeometryChange(for: CGFloat.self) {
@@ -41,9 +37,6 @@ struct BrowserSidebarSpacePage: View {
                         BrowserSidebarBackground(store: store)
                             .frame(height: unusedHeight)
                     }
-                }
-                .onChange(of: backdropInset, initial: true) { _, height in
-                    if let height { store.sidebarUnusedHeight = height }
                 }
                 .scrollIndicators(.never)
                 .scrollPosition($position)
@@ -85,16 +78,16 @@ struct BrowserSidebarSpacePage: View {
             let liveFolders = space.liveFolders
             if !liveFolders.isEmpty {
                 VStack(spacing: 4) {
-                    sectionTitle("Live")
+                    sectionTitle("Live").padding(.horizontal, 4)
                     ForEach(liveFolders) { folder in
                         BrowserFolderRow(folder: folder, store: store, depth: 0)
                     }
                 }
-                .padding(SidebarGeometry.panelPadding)
-                .browserSidebarPanel()
+                Divider()
             }
             if space.hasSavedItems {
                 savedSection
+                Divider()
             }
             VStack(spacing: 4) {
                 tabsHeader
@@ -103,8 +96,6 @@ struct BrowserSidebarSpacePage: View {
                     .modifier(BrowserDropArea(store: store, placement: .current))
                 newTab
             }
-            .padding(SidebarGeometry.panelPadding)
-            .browserSidebarPanel()
         }
         .frame(maxWidth: .infinity, alignment: .top)
     }
@@ -129,7 +120,7 @@ struct BrowserSidebarSpacePage: View {
                     Image(systemName: savedExpanded ? "chevron.down" : "chevron.right")
                         .font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
                 }
-                .padding(.horizontal, SidebarGeometry.panelPadding)
+                .padding(.horizontal, 4)
                 .frame(height: 34)
                 .contentShape(Rectangle())
             }
@@ -138,11 +129,9 @@ struct BrowserSidebarSpacePage: View {
             .accessibilityValue(savedExpanded ? "Expanded" : "Collapsed")
             if savedExpanded {
                 BrowserSidebarList(store: store, placement: .saved)
-                    .padding([.horizontal, .bottom], SidebarGeometry.panelPadding)
             }
         }
         .modifier(BrowserDropArea(store: store, placement: .saved))
-        .browserSidebarPanel()
     }
 
     private func sectionTitle(_ title: String) -> some View {
@@ -154,7 +143,7 @@ struct BrowserSidebarSpacePage: View {
 
     private var pinnedTabs: some View {
         let projection = store.sidebarReorder.pinnedLayout(
-            in: space, width: store.sidebarWidth - 2 * (SidebarGeometry.panelSpacing + SidebarGeometry.panelPadding))
+            in: space, width: store.sidebarWidth - 2 * SidebarGeometry.contentInset)
         return
             BrowserPinnedTabSlotLayout(
                 projection: projection
@@ -165,14 +154,12 @@ struct BrowserSidebarSpacePage: View {
                     .allowsHitTesting(false).accessibilityHidden(true)
             }
             .frame(minHeight: 8)
-            .padding(.top, SidebarGeometry.pinnedTopInset)
-            .padding(.bottom, SidebarGeometry.pinnedBottomInset)
             .modifier(BrowserDropArea(store: store, placement: .pinned))
-            .padding(.horizontal, SidebarGeometry.panelPadding)
             .animation(BrowserMotion.collection.unlessReducingMotion(reduceMotion), value: pins.map(\.id))
             .animation(BrowserMotion.dragSource.unlessReducingMotion(reduceMotion), value: store.sidebarReorder.target)
             .animation(
-                BrowserMotion.dragSource.unlessReducingMotion(reduceMotion), value: store.owner.sidebarDrag.lift?.rootIDs)
+                BrowserMotion.dragSource.unlessReducingMotion(reduceMotion),
+                value: store.owner.sidebarDrag.lift?.rootIDs)
     }
 
     private var tabsHeader: some View {
@@ -200,7 +187,9 @@ struct BrowserSidebarSpacePage: View {
                 .buttonStyle(BrowserChromeButtonStyle(controlSize: nil, cornerRadius: 14))
                 .accessibilityLabel("Archive Current Tabs")
             }
-        }.frame(height: BrowserLayout.minimumHitTarget)
+        }
+        .padding(.horizontal, 4)
+        .frame(height: BrowserLayout.minimumHitTarget)
     }
 
     private var newTab: some View {

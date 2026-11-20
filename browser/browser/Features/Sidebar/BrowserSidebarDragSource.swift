@@ -88,15 +88,14 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
                 context.sidebarReorder.begin(lift, in: context)
             }
             let local = context.window.map { $0.convertPoint(fromScreen: screenPoint) } ?? .zero
-            let edge =
-                context.showsSidebar
-                ? context.sidebarWidth + SidebarGeometry.inset * 2 + SidebarGeometry.hoverMargin
-                : SidebarGeometry.revealWidth
+            let edge = context.showsSidebar ? context.sidebarDropBoundary : SidebarGeometry.revealWidth
             context.isDragging = context.window === window && local.x <= edge
-            if !context.isDragging {
-                context.sidebarRevealed = false
-            } else if local.x <= SidebarGeometry.revealWidth {
-                context.sidebarRevealed = true
+            if !context.sidebarDocked {
+                if !context.isDragging {
+                    context.sidebarRevealed = false
+                } else if local.x <= SidebarGeometry.revealWidth {
+                    context.sidebarRevealed = true
+                }
             }
             if context.window === window {
                 context.sidebarReorder.move(to: screenPoint, in: context)

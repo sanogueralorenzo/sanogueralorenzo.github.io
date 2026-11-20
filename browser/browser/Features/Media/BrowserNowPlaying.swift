@@ -35,7 +35,6 @@ struct BrowserNowPlaying: View {
         }
         .padding(.trailing, 6)
         .browserHoverSurface(cornerRadius: SidebarGeometry.panelRadius)
-        .browserSidebarPanel()
         .accessibilityElement(children: .contain).accessibilityLabel("Now Playing")
         .contextMenu {
             Button(page.mediaIsMuted ? "Unmute" : "Mute") {
