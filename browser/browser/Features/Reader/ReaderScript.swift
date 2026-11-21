@@ -136,7 +136,7 @@ enum BrowserReaderModeJavaScriptBridge {
 
           const availability = () => articleCandidate() !== null;
 
-          const activate = () => {
+          const activate = (readerModeLabel) => {
             if (host?.isConnected) return true;
             const candidate = articleCandidate();
             if (!candidate || !document.documentElement) return false;
@@ -295,7 +295,7 @@ enum BrowserReaderModeJavaScriptBridge {
         const current = globalThis.__browserReaderModeBridge;
         switch (action) {
           case "availability": return current.availability();
-          case "activate": return current.activate();
+          case "activate": return current.activate(readerModeLabel);
           case "deactivate": return current.deactivate();
           case "snapshot": return current.snapshot();
           default: return null;
