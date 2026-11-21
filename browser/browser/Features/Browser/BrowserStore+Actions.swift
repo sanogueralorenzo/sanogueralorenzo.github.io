@@ -10,14 +10,10 @@ extension BrowserStore {
         activePage?.webView.find(findText, configuration: config) { _ in }
     }
 
-    func copyAddress(markdown: Bool = false) {
+    func copyAddress() {
         guard let url = activePage?.url ?? selectedTab?.url else { return }
-        let text =
-            markdown
-            ? "[\(selectedTab?.customTitle ?? activePage?.title ?? url.host ?? "Page")](\(url.absoluteString))"
-            : url.absoluteString
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        NSPasteboard.general.setString(url.absoluteString, forType: .string)
     }
 
     func openFile() {
@@ -33,22 +29,14 @@ extension BrowserStore {
         }
     }
 
-    func savePage(pdf: Bool) {
+    func exportPDF() {
         guard let page = activePage else { return }
         Task {
             do {
-                let data: Data
-                if pdf {
-                    data = try await page.webView.pdf(configuration: WKPDFConfiguration())
-                } else {
-                    data = try await withCheckedThrowingContinuation { continuation in
-                        page.webView.createWebArchiveData { continuation.resume(with: $0) }
-                    }
-                }
+                let data = try await page.webView.pdf(configuration: WKPDFConfiguration())
                 let panel = NSSavePanel()
                 panel.canCreateDirectories = true
-                panel.nameFieldStringValue =
-                    BrowserDownloadFile.safeFilename(page.title) + (pdf ? ".pdf" : ".webarchive")
+                panel.nameFieldStringValue = BrowserDownloadFile.safeFilename(page.title) + ".pdf"
                 guard let window else { return }
                 let result = await withCheckedContinuation { continuation in
                     panel.beginSheetModal(for: window) { continuation.resume(returning: $0) }

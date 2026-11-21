@@ -23,8 +23,7 @@ extension BrowserAppDelegate {
         item("Reopen Closed Tab", in: file, action: #selector(reopenTab), key: "t", modifiers: [.command, .shift])
         file.addItem(.separator())
         item("Open File…", in: file, action: #selector(openFile))
-        item("Save Web Archive…", in: file, action: #selector(saveArchive))
-        item("Export as PDF…", in: file, action: #selector(savePDF))
+        item("Export as PDF…", in: file, action: #selector(exportPDF))
         item("Print…", in: file, action: #selector(printPage), key: "p")
         item("Share…", in: file, action: #selector(sharePage))
         let edit = submenu("Edit", in: bar)
@@ -39,9 +38,6 @@ extension BrowserAppDelegate {
         item("Find Next", in: edit, action: #selector(findNext), key: "g")
         item("Find Previous", in: edit, action: #selector(findPrevious), key: "g", modifiers: [.command, .shift])
         item("Copy Address", in: edit, action: #selector(copyAddress), key: "c", modifiers: [.command, .shift])
-        item(
-            "Copy Address as Markdown", in: edit, action: #selector(copyMarkdown), key: "c",
-            modifiers: [.command, .option, .shift])
         let view = submenu("View", in: bar)
         item("Back", in: view, action: #selector(back), key: "[")
         item("Forward", in: view, action: #selector(forward), key: "]")
@@ -93,12 +89,10 @@ extension BrowserAppDelegate {
     @objc private func closeWindow() { window?.performClose(nil) }
     @objc private func reopenTab() { store?.reopenClosedTab() }
     @objc private func openFile() { store?.openFile() }
-    @objc private func saveArchive() { store?.savePage(pdf: false) }
-    @objc private func savePDF() { store?.savePage(pdf: true) }
+    @objc private func exportPDF() { store?.exportPDF() }
     @objc private func printPage() { store?.printPage() }
     @objc private func sharePage() { store?.sharePage() }
     @objc private func copyAddress() { store?.copyAddress() }
-    @objc private func copyMarkdown() { store?.copyAddress(markdown: true) }
     @objc private func reloadFromOrigin() { store?.activePage?.webView.reloadFromOrigin() }
     @objc private func stopLoading() { store?.activePage?.stopLoading() }
     @objc private func reader() { store?.activePage?.toggleReader() }
