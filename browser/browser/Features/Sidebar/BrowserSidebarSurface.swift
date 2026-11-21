@@ -52,3 +52,70 @@ struct BrowserSidebarSurface: View, Animatable {
             .background(BrowserNativeWindowControlsBridge(sidebarOffset: offset))
     }
 }
+
+struct BrowserSidebarDocking: ViewModifier {
+    let store: BrowserStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.layoutDirection) private var layoutDirection
+    @State private var pageDocked: Bool
+    @State private var pageCovered = false
+    @State private var transition: Task<Void, Never>?
+
+    init(store: BrowserStore) {
+        self.store = store
+        _pageDocked = State(initialValue: store.sidebarDocked)
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .padding(layoutDirection == .leftToRight ? .leading : .trailing, pageDocked ? store.sidebarRegionWidth : 0)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay {
+                BrowserBrandTheme.sidebarBackdrop
+                    .opacity(pageCovered ? 1 : 0)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+            .onChange(of: store.sidebarDocked) { updateDocking() }
+            .onChange(of: reduceMotion) { if reduceMotion { finishImmediately() } }
+            .onDisappear(perform: finishImmediately)
+    }
+
+    private func updateDocking() {
+        if reduceMotion {
+            finishImmediately()
+            return
+        }
+        guard transition == nil, pageDocked != store.sidebarDocked else { return }
+        transition = Task {
+            guard !Task.isCancelled else { return }
+            let clock = ContinuousClock()
+            let revealDeadline = clock.now + .milliseconds(145)
+            await withCheckedContinuation { continuation in
+                withAnimation(.easeIn(duration: 0.065), completionCriteria: .removed) {
+                    pageCovered = true
+                } completion: {
+                    continuation.resume()
+                }
+            }
+            guard !Task.isCancelled else { return }
+            while pageDocked != store.sidebarDocked {
+                withAnimation(nil) { pageDocked = store.sidebarDocked }
+                do {
+                    try await clock.sleep(until: min(clock.now + .milliseconds(50), revealDeadline))
+                } catch { return }
+            }
+            withAnimation(.easeOut(duration: 0.125)) { pageCovered = false }
+            transition = nil
+        }
+    }
+
+    private func finishImmediately() {
+        transition?.cancel()
+        transition = nil
+        withAnimation(nil) {
+            pageDocked = store.sidebarDocked
+            pageCovered = false
+        }
+    }
+}
