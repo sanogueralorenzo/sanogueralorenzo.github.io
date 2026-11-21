@@ -92,7 +92,7 @@ struct BrowserSpaceSettings: View {
     @ViewBuilder private func privacy(_ space: BrowserSpace) -> some View {
         Section {
             retention("History", \.historyRetention)
-            retention("Archived Tabs", \.archiveRetention)
+            retention("Recently Closed", \.archiveRetention)
             retention("Download Records", \.downloadRetention)
         } header: {
             Text("Keep")
