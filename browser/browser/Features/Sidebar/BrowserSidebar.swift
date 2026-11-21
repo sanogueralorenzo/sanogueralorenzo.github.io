@@ -2,7 +2,6 @@ import SwiftUI
 
 struct BrowserSidebar: View {
     let store: BrowserStore
-    let toggleDocking: () -> Void
     @State private var editingSpace: BrowserSpace?
     @State private var showsSpaceEditor = false
 
@@ -49,7 +48,9 @@ struct BrowserSidebar: View {
     private var windowControls: some View {
         HStack(spacing: SidebarGeometry.titlebarSpacing) {
             if !store.isFullScreen { Color.clear.frame(width: SidebarGeometry.windowControlsWidth) }
-            Button(action: toggleDocking) {
+            Button {
+                store.sidebarDocked.toggle()
+            } label: {
                 Image(systemName: "sidebar.left")
                     .font(.system(size: 16))
                     .foregroundStyle(store.sidebarDocked ? Color.accentColor : Color.primary)

@@ -3,15 +3,13 @@ import SwiftUI
 struct BrowserSidebarSurface: View, Animatable {
     let store: BrowserStore
     let height: CGFloat
-    let toggleDocking: () -> Void
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.layoutDirection) private var layoutDirection
     var animatableData: CGFloat
 
-    init(store: BrowserStore, height: CGFloat, toggleDocking: @escaping () -> Void) {
+    init(store: BrowserStore, height: CGFloat) {
         self.store = store
         self.height = height
-        self.toggleDocking = toggleDocking
         animatableData = store.showsSidebar ? 1 : 0
     }
 
@@ -19,7 +17,7 @@ struct BrowserSidebarSurface: View, Animatable {
         let progress = min(max(animatableData, 0), 1)
         let offset = (progress - 1) * store.sidebarRegionWidth
         let left: Alignment = layoutDirection == .leftToRight ? .topLeading : .topTrailing
-        BrowserSidebar(store: store, toggleDocking: toggleDocking)
+        BrowserSidebar(store: store)
             .frame(height: max(0, height - SidebarGeometry.inset * 2))
             .compositingGroup()
             .shadow(
@@ -52,95 +50,5 @@ struct BrowserSidebarSurface: View, Animatable {
                 }
             }
             .background(BrowserNativeWindowControlsBridge(sidebarOffset: offset))
-    }
-}
-
-struct BrowserSidebarDocking<Content: View>: View {
-    let store: BrowserStore
-    let height: CGFloat
-    @ViewBuilder let content: () -> Content
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.layoutDirection) private var layoutDirection
-    @State private var pageDocked = false
-    @State private var pageCovered = false
-    @State private var transitionID: UUID?
-    @State private var revealAt: TimeInterval?
-    private let revealDuration: TimeInterval = 0.1
-    private let holdDuration: TimeInterval = 0.5
-
-    var body: some View {
-        ZStack {
-            content()
-                .padding(
-                    layoutDirection == .leftToRight ? .leading : .trailing, pageDocked ? store.sidebarRegionWidth : 0
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .overlay {
-                    BrowserBrandTheme.sidebarBackdrop
-                        .opacity(pageCovered ? 1 : 0)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                }
-            BrowserSidebarSurface(store: store, height: height, toggleDocking: toggleDocking)
-                .animation(BrowserMotion.floatingPane.unlessReducingMotion(reduceMotion), value: store.showsSidebar)
-        }
-        .onChange(of: transitionID) { _, id in
-            guard let id else { return }
-            DispatchQueue.main.async { resizeAndReveal(id: id) }
-        }
-        .onChange(of: reduceMotion) { if reduceMotion { finishImmediately() } }
-        .onDisappear(perform: finishImmediately)
-    }
-
-    private func toggleDocking() {
-        store.sidebarDocked.toggle()
-        if reduceMotion {
-            finishImmediately()
-            return
-        }
-        if transitionID != nil {
-            guard let revealAt else { return }
-            if ProcessInfo.processInfo.systemUptime < revealAt {
-                resizePage()
-                return
-            }
-        }
-        withAnimation(nil) {
-            transitionID = UUID()
-            revealAt = nil
-            pageCovered = true
-        }
-    }
-
-    private func resizeAndReveal(id: UUID) {
-        guard transitionID == id else { return }
-        let fadeOut = Animation.linear(duration: revealDuration)
-        guard pageDocked != store.sidebarDocked else {
-            transitionID = nil
-            withAnimation(fadeOut) { pageCovered = false }
-            return
-        }
-        resizePage()
-        revealAt = ProcessInfo.processInfo.systemUptime + holdDuration
-        withAnimation(fadeOut.delay(holdDuration), completionCriteria: .removed) {
-            pageCovered = false
-        } completion: {
-            guard transitionID == id else { return }
-            transitionID = nil
-            revealAt = nil
-        }
-    }
-
-    private func resizePage() {
-        withAnimation(nil) { pageDocked = store.sidebarDocked }
-    }
-
-    private func finishImmediately() {
-        transitionID = nil
-        revealAt = nil
-        withAnimation(nil) {
-            pageDocked = store.sidebarDocked
-            pageCovered = false
-        }
     }
 }
