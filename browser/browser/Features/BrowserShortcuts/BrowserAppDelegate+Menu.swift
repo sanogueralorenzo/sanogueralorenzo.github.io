@@ -14,8 +14,6 @@ extension BrowserAppDelegate {
         item(
             "New Private Window", in: file, action: #selector(newPrivateWindow), key: "n",
             modifiers: [.command, .shift])
-        item("Import Browser Data…", in: file, action: #selector(importData))
-        item("Export Browser Data…", in: file, action: #selector(exportData))
         item("New Tab", in: file, action: #selector(newTab), key: "t")
         item("Open Location…", in: file, action: #selector(openLocation), key: "l")
         item("Close Tab", in: file, action: #selector(closeTab), key: "w")
@@ -121,8 +119,6 @@ extension BrowserAppDelegate {
             }
         }
     }
-    @objc private func importData() { store?.importBrowserData() }
-    @objc private func exportData() { store?.exportBrowserData() }
     @objc private func about() { NSApp.orderFrontStandardAboutPanel(nil) }
     @objc private func settings() { store?.openSettings() }
     @objc private func newTab() {

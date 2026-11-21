@@ -48,7 +48,6 @@ targets:
       - sdk: AuthenticationServices.framework
       - sdk: AVFoundation.framework
       - sdk: Security.framework
-      - sdk: libcompression.tbd
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.itsbrowser.Browser

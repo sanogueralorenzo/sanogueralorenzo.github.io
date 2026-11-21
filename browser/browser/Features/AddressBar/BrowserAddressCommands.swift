@@ -44,12 +44,6 @@ import Foundation
             title: "New Private Space", aliases: "incognito", symbol: "eye.slash", shortcut: "",
             action: { $0.savePrivateSpace() }),
         .init(
-            title: "Import Browser Data", aliases: "bookmarks safari chrome zen arc firefox",
-            symbol: "square.and.arrow.down", shortcut: "", action: { $0.importBrowserData() }),
-        .init(
-            title: "Export Browser Data", aliases: "backup bookmarks", symbol: "square.and.arrow.up", shortcut: "",
-            action: { $0.exportBrowserData() }),
-        .init(
             title: "Developer Tools", aliases: "inspect debugger console", symbol: "curlybraces", shortcut: "⌥⌘I",
             action: { $0.activePage?.showDeveloperTools() }),
         .init(

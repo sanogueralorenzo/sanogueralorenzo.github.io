@@ -40,12 +40,6 @@ struct BrowserRoot: View {
         .sheet(isPresented: Binding(get: { store.siteSettingsPresented }, set: { store.siteSettingsPresented = $0 })) {
             BrowserSiteSettings(store: store)
         }
-        .sheet(isPresented: Binding(get: { store.importPresented }, set: { store.importPresented = $0 })) {
-            BrowserImportView(store: store)
-        }
-        .sheet(isPresented: Binding(get: { store.exportPresented }, set: { store.exportPresented = $0 })) {
-            BrowserExportView(store: store)
-        }
         .frame(minWidth: 700, minHeight: 480)
         .ignoresSafeArea()
         .tint(BrowserBrandTheme.textDisplay)

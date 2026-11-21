@@ -45,8 +45,6 @@ final class BrowserStore {
     var findsPage = false
     var findText = ""
     var siteSettingsPresented = false
-    var importPresented = false
-    var exportPresented = false
     var notice: String?
     var settingsTabs: [UUID: BrowserSettingsTabState] = [:]
     var settingsState: BrowserSettingsTabState {

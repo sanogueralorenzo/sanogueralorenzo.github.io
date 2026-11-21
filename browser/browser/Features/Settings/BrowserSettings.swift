@@ -4,14 +4,13 @@ import WebKit
 enum BrowserSettingsSelection: Hashable {
     case general, privacy
     case space(UUID)
-    case advanced, about
+    case about
 
     var title: String {
         switch self {
         case .general: "General"
         case .privacy: "Privacy & Permissions"
         case .space: "Spaces"
-        case .advanced: "Advanced"
         case .about: "About"
         }
     }
@@ -21,7 +20,6 @@ enum BrowserSettingsSelection: Hashable {
         case .general: "gearshape"
         case .privacy: "hand.raised"
         case .space: "capsule.fill"
-        case .advanced: "switch.2"
         case .about: "info.circle"
         }
     }
@@ -143,7 +141,6 @@ struct BrowserSettings: View {
                     }.buttonStyle(.borderless).padding(.trailing, 6).accessibilityElement(children: .contain)
                 }
                 Section {
-                    destination(.advanced)
                     destination(.about)
                 }
             }
@@ -166,7 +163,6 @@ struct BrowserSettings: View {
         case .general: " search provider Google DuckDuckGo Bing Brave zoom default browser translation language"
         case .privacy:
             " permissions camera microphone location notifications passkeys content blocking ads trackers history cookies data retention"
-        case .advanced: " export backup bookmarks"
         case .about: " version build updates license"
         default: ""
         }
@@ -181,8 +177,7 @@ struct BrowserSettings: View {
                 store.settingsSpacePrivacy = true
             }
         case .space(let id): BrowserSpaceSettings(store: store, spaceID: id)
-        case .advanced, .about:
-            BrowserAdditionalSettings(store: store, selection: store.settingsSelection)
+        case .about: BrowserAboutSettings()
         }
     }
 }
