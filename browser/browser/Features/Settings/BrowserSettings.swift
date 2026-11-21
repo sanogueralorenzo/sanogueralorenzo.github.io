@@ -166,7 +166,7 @@ struct BrowserSettings: View {
         case .general: " search provider Google DuckDuckGo Bing Brave zoom default browser translation language"
         case .privacy:
             " permissions camera microphone location notifications passkeys content blocking ads trackers history cookies data retention"
-        case .advanced: " import export backup bookmarks"
+        case .advanced: " export backup bookmarks"
         case .about: " version build updates license"
         default: ""
         }

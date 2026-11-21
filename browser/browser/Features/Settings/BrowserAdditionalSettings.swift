@@ -10,10 +10,9 @@ struct BrowserAdditionalSettings: View {
             case .advanced:
                 Section {
                     Button("Export Browser Data…") { store.saveExport(bookmarks: false) }
-                    Button("Import Browser Data…") { store.importBrowserData() }
                     Button("Export Bookmarks as HTML…") { store.saveExport(bookmarks: true) }
                 } header: {
-                    Text("Import and export")
+                    Text("Export")
                 } footer: {
                     Text("Exports never include passwords, cookies, website data or extensions.")
                 }
