@@ -10,10 +10,12 @@ struct BrowserRoot: View {
         GeometryReader { geometry in
             ZStack {
                 BrowserBrandTheme.canvas
-                pageContent.padding(
-                    layoutDirection == .leftToRight ? .leading : .trailing,
-                    store.sidebarDocked ? store.sidebarRegionWidth : 0
-                )
+                pageContent
+                    .padding(
+                        layoutDirection == .leftToRight ? .leading : .trailing,
+                        store.sidebarDocked ? store.sidebarRegionWidth : 0
+                    )
+                    .animation(BrowserMotion.sidebarDock.unlessReducingMotion(reduceMotion), value: store.sidebarDocked)
                 BrowserSidebarSurface(store: store, height: geometry.size.height)
                     .animation(BrowserMotion.floatingPane.unlessReducingMotion(reduceMotion), value: store.showsSidebar)
                 if store.addressPresented {
