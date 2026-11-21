@@ -47,15 +47,59 @@ enum SearchProvider: String, Codable, CaseIterable, Identifiable {
     }
 
     func searchURL(_ text: String) -> URL? {
-        let endpoint: String
-        switch self {
-        case .google: endpoint = "https://www.google.com/search"
-        case .duckDuckGo: endpoint = "https://duckduckgo.com/"
-        case .bing: endpoint = "https://www.bing.com/search"
-        case .brave: endpoint = "https://search.brave.com/search"
-        }
-        var components = URLComponents(string: endpoint)
-        components?.queryItems = [URLQueryItem(name: "q", value: text)]
-        return components?.url
+        makeSearchURL(endpoint: searchEndpoint, parameter: "q", text: text)
     }
+
+    fileprivate var searchEndpoint: String {
+        switch self {
+        case .google: "https://www.google.com/search"
+        case .duckDuckGo: "https://duckduckgo.com/"
+        case .bing: "https://www.bing.com/search"
+        case .brave: "https://search.brave.com/search"
+        }
+    }
+}
+
+struct BrowserSiteSearchShortcut {
+    let name: String
+    private let endpoint: String
+    private var queryParameter = "q"
+
+    private static let all = [
+        Self(name: "YouTube", endpoint: "https://www.youtube.com/results", queryParameter: "search_query"),
+        Self(name: "Wikipedia", endpoint: "https://en.wikipedia.org/wiki/Special:Search?fulltext=1", queryParameter: "search"),
+        Self(name: "Reddit", endpoint: "https://www.reddit.com/search/"),
+        Self(name: "GitHub", endpoint: "https://github.com/search"),
+        Self(name: "Amazon", endpoint: "https://www.amazon.com/s", queryParameter: "k"),
+    ] + SearchProvider.allCases.map { Self(name: $0.rawValue, endpoint: $0.searchEndpoint) }
+
+    static func matching(_ text: String) -> Self? {
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let match = all.first(where: { $0.name.caseInsensitiveCompare(text) == .orderedSame }) { return match }
+        guard let address = SearchProvider.explicitAddress(text),
+            let components = URLComponents(url: address, resolvingAgainstBaseURL: false),
+            components.scheme == "http" || components.scheme == "https",
+            components.path.isEmpty || components.path == "/",
+            components.query == nil, components.fragment == nil,
+            components.user == nil, components.password == nil, components.port == nil,
+            let host = BrowserAddressMatch.hostName(address), host.contains(".")
+        else { return nil }
+        return all.first {
+            guard let siteHost = BrowserAddressMatch.hostName(URL(string: $0.endpoint)) else { return false }
+            return siteHost == host || siteHost.hasSuffix("." + host)
+        }
+    }
+
+    func searchURL(_ text: String) -> URL? {
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return nil }
+        return makeSearchURL(endpoint: endpoint, parameter: queryParameter, text: text)
+    }
+}
+
+private func makeSearchURL(endpoint: String, parameter: String, text: String) -> URL? {
+    guard var components = URLComponents(string: endpoint) else { return nil }
+    components.queryItems = (components.queryItems ?? []) + [URLQueryItem(name: parameter, value: text)]
+    components.percentEncodedQuery = components.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+    return components.url
 }

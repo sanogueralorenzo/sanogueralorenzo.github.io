@@ -12,23 +12,30 @@ struct AddressPalette: View {
     }
     @State private var suggestions: [String] = []
     @State private var selected: Int?
+    @State private var siteSearch: BrowserSiteSearchShortcut?
+    @State private var siteSearchText = ""
+
+    private var offeredSiteSearch: BrowserSiteSearchShortcut? {
+        guard siteSearch == nil, selected == nil else { return nil }
+        return BrowserSiteSearchShortcut.matching(text)
+    }
     private var results: [BrowserPaletteResult] { store.paletteResults(text) }
     private var completionURL: URL? {
-        guard store.preferences.searchSuggestions, !store.activeSpace.isPrivate,
+        guard siteSearch == nil, store.preferences.searchSuggestions, !store.activeSpace.isPrivate,
             text.count >= 2, !text.contains("://"), !text.hasPrefix(">")
         else { return nil }
         return store.preferences.searchProvider.suggestionsURL(for: text)
     }
 
     var body: some View {
-        let results = results
+        let results = siteSearch == nil ? self.results : []
         let completion = completionURL
         let selection = selectedIndex(resultCount: results.count)
         ZStack(alignment: .top) {
             AddressPaletteBackdrop(dismiss: store.dismissAddress)
             VStack(spacing: 5) {
                 editor
-                if !results.isEmpty || !suggestions.isEmpty {
+                if siteSearch == nil && (!results.isEmpty || !suggestions.isEmpty) {
                     AddressPaletteResults(
                         results: results, suggestions: suggestions, searchProvider: store.preferences.searchProvider,
                         selection: selection, cornerRadius: cornerRadius,
@@ -43,7 +50,7 @@ struct AddressPalette: View {
         }
         .onChange(of: text) { selected = nil }
         .task(id: completion) { await loadSuggestions(from: completion) }
-        .onExitCommand(perform: store.dismissAddress)
+        .onExitCommand(perform: cancel)
     }
 
     private var panelShape: RoundedRectangle {
@@ -55,11 +62,24 @@ struct AddressPalette: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
+            if let siteSearch {
+                Text("Search \(siteSearch.name)")
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                Divider().frame(height: 18)
+            }
             BrowserAddressField(
-                text: $text, prompt: "Search or Enter URL…",
-                submit: submit, cancel: store.dismissAddress, moveSelection: move, tab: tab
+                text: siteSearch == nil ? $text : $siteSearchText,
+                prompt: siteSearch == nil ? "Search or Enter URL…" : "Search terms…",
+                submit: submit, cancel: cancel, moveSelection: move, tab: tab
             ).frame(height: 28)
-            Button(action: store.dismissAddress) {
+            if let shortcut = offeredSiteSearch {
+                Button("Tab to search \(shortcut.name)") { siteSearch = shortcut }
+                    .font(.caption)
+                    .buttonStyle(BrowserChromeButtonStyle(controlSize: nil))
+            }
+            Button(action: cancel) {
                 Text("Esc")
                     .font(.system(size: 11, weight: .medium))
                     .padding(.horizontal, 5)
@@ -67,7 +87,7 @@ struct AddressPalette: View {
                     .overlay { RoundedRectangle(cornerRadius: 5).strokeBorder(BrowserBrandTheme.line) }
             }
             .buttonStyle(BrowserChromeButtonStyle(controlSize: CGSize(width: 34, height: 28)))
-            .accessibilityLabel("Cancel")
+            .accessibilityLabel(siteSearch == nil ? "Cancel" : "Exit site search")
         }
         .padding(.leading, 15)
         .padding(.trailing, 9)
@@ -96,6 +116,7 @@ struct AddressPalette: View {
         return count > 0 && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0 : nil
     }
     private func move(_ direction: Int) {
+        guard siteSearch == nil else { return }
         let resultCount = results.count
         let count = resultCount + suggestions.count
         guard count > 0 else { return }
@@ -103,6 +124,10 @@ struct AddressPalette: View {
         selected = (current + direction + count) % count
     }
     private func submit() {
+        if let siteSearch {
+            if let url = siteSearch.searchURL(siteSearchText) { store.submitAddress(url) }
+            return
+        }
         let results = results
         guard let selected = selectedIndex(resultCount: results.count) else {
             store.submitAddress(text)
@@ -115,6 +140,11 @@ struct AddressPalette: View {
         }
     }
     private func tab() -> Bool {
+        guard siteSearch == nil else { return false }
+        if let shortcut = offeredSiteSearch {
+            siteSearch = shortcut
+            return true
+        }
         let results = results
         if suggestions.isEmpty, results.allSatisfy(\.isWebSearch),
             !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -129,6 +159,16 @@ struct AddressPalette: View {
         perform(results[index])
         return true
     }
+
+    private func cancel() {
+        if siteSearch != nil {
+            siteSearch = nil
+            siteSearchText = ""
+        } else {
+            store.dismissAddress()
+        }
+    }
+
     private func perform(_ result: BrowserPaletteResult) {
         // Close first so commands like New Tab can open a fresh palette.
         store.addressPresented = false
