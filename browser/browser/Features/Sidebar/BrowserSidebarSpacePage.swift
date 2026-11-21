@@ -178,14 +178,12 @@ struct BrowserSidebarSpacePage: View {
                     store.clearCurrentTabs()
                 } label: {
                     HStack(spacing: 4) {
-                        Text("Clear")
+                        Text("Clear Tabs")
                         BrowserShortcutHint(text: "⇧⌘K")
-                        Image(systemName: "archivebox")
                     }.padding(.horizontal, 6).frame(height: BrowserLayout.minimumHitTarget)
                 }
                 .font(.caption.weight(.medium)).foregroundStyle(.secondary)
                 .buttonStyle(BrowserChromeButtonStyle(controlSize: nil, cornerRadius: 14))
-                .accessibilityLabel("Archive Current Tabs")
             }
         }
         .padding(.horizontal, 4)

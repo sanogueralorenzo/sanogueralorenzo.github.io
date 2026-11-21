@@ -38,7 +38,7 @@ import Foundation
             title: "Leave Split View", aliases: "unsplit separate", symbol: "rectangle", shortcut: "",
             action: { $0.leaveSplit() }),
         .init(
-            title: "Archive Current Tabs", aliases: "clear cleanup", symbol: "archivebox", shortcut: "",
+            title: "Clear Tabs", aliases: "close current cleanup", symbol: "xmark", shortcut: "⇧⌘K",
             action: { $0.clearCurrentTabs() }),
         .init(
             title: "New Private Space", aliases: "incognito", symbol: "eye.slash", shortcut: "",

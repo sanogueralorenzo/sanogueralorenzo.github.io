@@ -57,9 +57,7 @@ extension BrowserAppDelegate {
         item("Split with New Tab", in: view, action: #selector(split))
         item("Pin or Unpin Tab", in: view, action: #selector(pinTab), key: "d")
         item("Archive Tab", in: view, action: #selector(archiveTab), key: "e")
-        item(
-            "Archive Current Tabs", in: view, action: #selector(archiveCurrent), key: "k",
-            modifiers: [.command, .shift])
+        item("Clear Tabs", in: view, action: #selector(clearTabs), key: "k", modifiers: [.command, .shift])
         item("Change Split Direction", in: view, action: #selector(changeSplit))
         item("Leave Split View", in: view, action: #selector(leaveSplit), key: "u", modifiers: [.command, .option])
         view.addItem(.separator())
@@ -108,7 +106,7 @@ extension BrowserAppDelegate {
     @objc private func inspector() { store?.activePage?.showDeveloperTools() }
     @objc private func pinTab() { store?.togglePin() }
     @objc private func archiveTab() { store?.archiveSelected() }
-    @objc private func archiveCurrent() { store?.clearCurrentTabs() }
+    @objc private func clearTabs() { store?.clearCurrentTabs() }
     @objc private func findNext() { store?.findInPage() }
     @objc private func findPrevious() { store?.findInPage(backwards: true) }
     @objc private func newWindow() { createWindow() }
