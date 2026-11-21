@@ -7,24 +7,6 @@ struct BrowserAdditionalSettings: View {
     var body: some View {
         BrowserSettingsForm {
             switch selection {
-            case .sync:
-                Section("iCloud") {
-                    Toggle("Sync with iCloud", isOn: .constant(false)).disabled(true)
-                    LabeledContent("Status", value: "Unavailable in this build")
-                    Text("iCloud sync requires a build signed for Browser’s iCloud container.").foregroundStyle(.secondary)
-                    Button("Sync Now") {}.disabled(true)
-                    Button("Pull from iCloud…") {}.disabled(true)
-                }
-            case .agents:
-                Section {
-                    Toggle("Allow agents to use Browser", isOn: .constant(false)).disabled(true)
-                    Text("Agent connections are unavailable in this build.").foregroundStyle(.secondary)
-                }
-                Section("Spaces") {
-                    ForEach(store.session.spaces) { space in Toggle(space.name, isOn: .constant(false)).disabled(true) }
-                    Toggle("Let agents run scripts in pages", isOn: .constant(false)).disabled(true)
-                }
-                Section("Allowed agents") { Text("No agents yet").foregroundStyle(.secondary) }
             case .advanced:
                 Section("Import") { Button("Import from Another Browser…") { store.importBrowserData() } }
                 Section {
