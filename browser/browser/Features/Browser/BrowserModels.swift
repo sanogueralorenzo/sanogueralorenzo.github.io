@@ -213,7 +213,6 @@ struct BrowserSession: Codable {
 
 enum BrowserUtility: String, Identifiable {
     case history = "History"
-    case archive = "Archive"
     case downloads = "Downloads"
     var id: String { rawValue }
 }

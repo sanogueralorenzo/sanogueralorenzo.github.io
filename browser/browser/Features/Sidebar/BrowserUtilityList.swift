@@ -4,6 +4,7 @@ struct BrowserUtilityList: View {
     let utility: BrowserUtility
     let store: BrowserStore
     @State private var search = ""
+    @State private var showsRecentlyClosed = false
 
     var body: some View {
         VStack(spacing: 8) {
@@ -16,41 +17,30 @@ struct BrowserUtilityList: View {
                 .buttonStyle(BrowserChromeButtonStyle())
                 Text(utility.rawValue).font(.headline)
                 Spacer()
-                if utility == .history {
-                    Button("Clear") { store.clearHistory() }.buttonStyle(.plain).foregroundStyle(.secondary)
+                if utility == .history && !showsRecentlyClosed {
+                    Button("Clear") { store.clearHistory() }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Clear History")
                 }
             }
-            TextField("Search " + utility.rawValue, text: $search).textFieldStyle(.roundedBorder)
+            if utility == .history {
+                Picker("History view", selection: $showsRecentlyClosed) {
+                    Text("Visited").tag(false)
+                    Text("Recently Closed").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
+            TextField("Search " + searchScope, text: $search).textFieldStyle(.roundedBorder)
             ScrollView {
                 LazyVStack(spacing: 4) {
                     switch utility {
                     case .history:
-                        ForEach(
-                            store.session.history.filter {
-                                $0.spaceID == store.activeSpace.id && matches($0.title + $0.url.absoluteString)
-                            }
-                        ) { visit in
-                            Button {
-                                store.open(visit.url)
-                            } label: {
-                                entry(
-                                    title: visit.title, subtitle: visit.url.host ?? visit.url.absoluteString,
-                                    symbol: "globe")
-                            }
-                            .buttonStyle(BrowserChromeButtonStyle(controlSize: nil, cornerRadius: 16))
-                        }
-                    case .archive:
-                        ForEach(
-                            store.session.archive.filter { $0.spaceID == store.activeSpace.id && matches($0.tab.title) }
-                        ) { item in
-                            Button {
-                                store.restore(item)
-                            } label: {
-                                entry(
-                                    title: item.tab.customTitle ?? item.tab.title, subtitle: item.tab.url?.host ?? "",
-                                    symbol: "arrow.uturn.backward")
-                            }
-                            .buttonStyle(BrowserChromeButtonStyle(controlSize: nil, cornerRadius: 16))
+                        if showsRecentlyClosed {
+                            recentlyClosedEntries
+                        } else {
+                            visitedEntries
                         }
                     case .downloads:
                         ForEach(
@@ -98,6 +88,51 @@ struct BrowserUtilityList: View {
             .scrollIndicators(.hidden)
         }
         .padding(.top, 6)
+    }
+
+    private var searchScope: String {
+        utility == .history && showsRecentlyClosed ? "Recently Closed" : utility.rawValue
+    }
+
+    private var visitedEntries: some View {
+        ForEach(
+            store.session.history.filter {
+                $0.spaceID == store.activeSpace.id && matches($0.title + $0.url.absoluteString)
+            }
+        ) { visit in
+            Button {
+                store.open(visit.url)
+            } label: {
+                entry(title: visit.title, subtitle: visit.url.host ?? visit.url.absoluteString, symbol: "globe")
+            }
+            .buttonStyle(BrowserChromeButtonStyle(controlSize: nil, cornerRadius: 16))
+        }
+    }
+
+    @ViewBuilder private var recentlyClosedEntries: some View {
+        let entries = store.session.archive.filter { item in
+            item.spaceID == store.activeSpace.id
+                && (matches(item.tab.title) || item.tab.customTitle.map(matches) == true
+                    || matches(item.tab.url?.absoluteString ?? ""))
+        }
+        if entries.isEmpty {
+            Text(search.isEmpty ? "No recently closed tabs" : "No matching tabs")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            ForEach(entries) { item in
+                Button {
+                    store.restore(item)
+                } label: {
+                    entry(
+                        title: item.tab.customTitle ?? item.tab.title, subtitle: item.tab.url?.host ?? "",
+                        symbol: "arrow.uturn.backward")
+                }
+                .buttonStyle(BrowserChromeButtonStyle(controlSize: nil, cornerRadius: 16))
+            }
+        }
     }
 
     private func matches(_ text: String) -> Bool { search.isEmpty || text.localizedCaseInsensitiveContains(search) }

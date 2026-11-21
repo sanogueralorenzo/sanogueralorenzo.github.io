@@ -69,7 +69,6 @@ extension BrowserAppDelegate {
         item("Enter Full Screen", in: view, action: #selector(fullscreen), key: "f", modifiers: [.command, .control])
         let history = submenu("History", in: bar)
         item("Show History", in: history, action: #selector(showHistory), key: "y")
-        item("Show Archive", in: history, action: #selector(showArchive))
         item("Show Downloads", in: history, action: #selector(showDownloads), key: "j", modifiers: [.command, .shift])
         NSApp.mainMenu = bar
     }
@@ -153,7 +152,6 @@ extension BrowserAppDelegate {
     @objc private func changeSplit() { store?.changeSplitDirection() }
     @objc private func leaveSplit() { store?.leaveSplit() }
     @objc private func showHistory() { store?.presentUtility(.history) }
-    @objc private func showArchive() { store?.presentUtility(.archive) }
     @objc private func showDownloads() { store?.presentUtility(.downloads) }
     @objc private func zoomIn() {
         if let web = store?.activePage?.webView {

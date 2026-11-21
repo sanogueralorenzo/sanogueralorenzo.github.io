@@ -195,7 +195,6 @@ struct BrowserSidebar: View {
             if store.utility != nil { Button("Back to Tabs", systemImage: "sidebar.left") { store.utility = nil } }
             Button("History", systemImage: "clock.arrow.circlepath") { store.presentUtility(.history) }
                 .keyboardShortcut("y")
-            Button("Archive", systemImage: "archivebox") { store.presentUtility(.archive) }
             Button("Downloads", systemImage: "arrow.down.circle") { store.presentUtility(.downloads) }.keyboardShortcut(
                 "j", modifiers: [.command, .shift])
             Divider()

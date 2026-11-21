@@ -20,9 +20,6 @@ import Foundation
             title: "History", aliases: "visited", symbol: "clock.arrow.circlepath", shortcut: "⌘Y",
             action: { $0.presentUtility(.history) }),
         .init(
-            title: "Archive", aliases: "closed recover restore", symbol: "archivebox", shortcut: "",
-            action: { $0.presentUtility(.archive) }),
-        .init(
             title: "Downloads", aliases: "files resume", symbol: "arrow.down.circle", shortcut: "⇧⌘J",
             action: { $0.presentUtility(.downloads) }),
         .init(
