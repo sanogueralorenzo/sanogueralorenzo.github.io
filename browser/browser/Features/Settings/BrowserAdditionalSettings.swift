@@ -8,7 +8,6 @@ struct BrowserAdditionalSettings: View {
         BrowserSettingsForm {
             switch selection {
             case .advanced:
-                Section("Import") { Button("Import from Another Browser…") { store.importBrowserData() } }
                 Section {
                     Button("Export Browser Data…") { store.saveExport(bookmarks: false) }
                     Button("Import Browser Data…") { store.importBrowserData() }
