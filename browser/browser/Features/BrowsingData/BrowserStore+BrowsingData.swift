@@ -34,7 +34,6 @@ extension BrowserStore {
 
     func clearHistory() {
         session.history.removeAll { $0.spaceID == activeSpace.id }
-        session.spaces[spaceIndex(activeSpace.id)].siteSearches = nil
         changed()
     }
 

@@ -5,7 +5,6 @@ struct AddressPaletteResults: View {
     let suggestions: [String]
     let searchProvider: SearchProvider
     let selection: Int?
-    let siteSearchHint: Int?
     let cornerRadius: CGFloat
     let activateResult: (BrowserPaletteResult) -> Void
     let activateSuggestion: (String) -> Void
@@ -38,9 +37,7 @@ struct AddressPaletteResults: View {
                 resultButton(selected: index == selection) {
                     activateResult(result)
                 } label: {
-                    row(
-                        title: result.title, subtitle: result.subtitle, symbol: result.symbol, spaceColor: result.spaceColor,
-                        showsSearchHint: index == siteSearchHint)
+                    row(title: result.title, subtitle: result.subtitle, symbol: result.symbol, spaceColor: result.spaceColor)
                 }
                 .id(index)
             }
@@ -63,9 +60,7 @@ struct AddressPaletteResults: View {
             .background(selected ? BrowserBrandTheme.line : .clear, in: RoundedRectangle(cornerRadius: 12))
     }
 
-    private func row(
-        title: String, subtitle: String, symbol: String, spaceColor: Int? = nil, showsSearchHint: Bool = false
-    ) -> some View {
+    private func row(title: String, subtitle: String, symbol: String, spaceColor: Int? = nil) -> some View {
         HStack(spacing: 12) {
             Group {
                 if let spaceColor {
@@ -79,9 +74,6 @@ struct AddressPaletteResults: View {
                 Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 0)
-            if showsSearchHint {
-                Text("Tab to search").font(.caption).foregroundStyle(.secondary)
-            }
         }.padding(.horizontal, 10).padding(.vertical, 7).frame(maxWidth: .infinity, alignment: .leading)
     }
 }

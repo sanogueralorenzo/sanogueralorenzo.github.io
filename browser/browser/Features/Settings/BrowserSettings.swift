@@ -2,14 +2,13 @@ import SwiftUI
 import WebKit
 
 enum BrowserSettingsSelection: Hashable {
-    case general, engines, sync, privacy
+    case general, sync, privacy
     case space(UUID)
     case agents, advanced, about
 
     var title: String {
         switch self {
         case .general: "General"
-        case .engines: "Engines"
         case .sync: "Sync"
         case .privacy: "Privacy & Permissions"
         case .space: "Spaces"
@@ -22,7 +21,6 @@ enum BrowserSettingsSelection: Hashable {
     var symbol: String {
         switch self {
         case .general: "gearshape"
-        case .engines: "cpu"
         case .sync: "arrow.triangle.2.circlepath.icloud"
         case .privacy: "hand.raised"
         case .space: "capsule.fill"
@@ -108,7 +106,6 @@ struct BrowserSettings: View {
             List(selection: selection) {
                 Section {
                     destination(.general)
-                    destination(.engines)
                     destination(.sync)
                     destination(.privacy)
                 }
@@ -190,7 +187,7 @@ struct BrowserSettings: View {
                 store.settingsSpacePrivacy = true
             }
         case .space(let id): BrowserSpaceSettings(store: store, spaceID: id)
-        case .engines, .sync, .agents, .advanced, .about:
+        case .sync, .agents, .advanced, .about:
             BrowserAdditionalSettings(store: store, selection: store.settingsSelection)
         }
     }

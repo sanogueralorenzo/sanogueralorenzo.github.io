@@ -57,7 +57,6 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     @ObservationIgnored private var blockingTask: Task<Bool, Never>?
     @ObservationIgnored private var navigationTask: Task<Void, Never>?
     @ObservationIgnored private var pendingNavigation: (@MainActor (BrowserPage) -> Void)?
-    @ObservationIgnored private let siteSearchDiscovery = BrowserSiteSearchDiscovery()
     @ObservationIgnored private(set) var isRetired = false
     @ObservationIgnored var refreshingPageState = false
 
@@ -243,7 +242,6 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         pendingNavigationURL = nil
         synchronize()
         owner?.pageFinished(self)
-        siteSearchDiscovery.finished(self)
         checkpointNativeState()
         Task { [weak self] in
             await self?.restoreDocumentState()
@@ -310,7 +308,6 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
             decisionHandler(.cancel)
         } else {
             if action.targetFrame?.isMainFrame == true && url.scheme != "javascript" {
-                siteSearchDiscovery.requested(action, url: url)
                 pendingNavigationURL = url
                 self.url = url
                 owner?.pageChanged(self)
@@ -323,7 +320,6 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         _ webView: WKWebView, decidePolicyFor response: WKNavigationResponse,
         decisionHandler: @escaping @MainActor @Sendable (WKNavigationResponsePolicy) -> Void
     ) {
-        siteSearchDiscovery.received(response)
         decisionHandler(response.canShowMIMEType ? .allow : .download)
     }
 

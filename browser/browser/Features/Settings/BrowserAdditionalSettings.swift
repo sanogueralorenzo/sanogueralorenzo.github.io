@@ -7,18 +7,6 @@ struct BrowserAdditionalSettings: View {
     var body: some View {
         BrowserSettingsForm {
             switch selection {
-            case .engines:
-                Section {
-                    Label("Chromium", systemImage: "circle").foregroundStyle(.secondary)
-                    Text("Unavailable in this build").font(.caption).foregroundStyle(.secondary)
-                    Label("WebKit", systemImage: "checkmark.circle.fill")
-                    Text("Recommended · Native macOS handling, FairPlay protected video, Reader Mode").font(.caption)
-                        .foregroundStyle(.secondary)
-                } header: {
-                    Text("Default engine")
-                } footer: {
-                    Text("Open pages keep their engine.")
-                }
             case .sync:
                 Section("iCloud") {
                     Toggle("Sync with iCloud", isOn: .constant(false)).disabled(true)

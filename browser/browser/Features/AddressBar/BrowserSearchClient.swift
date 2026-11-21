@@ -37,35 +37,24 @@ actor BrowserSearchClient {
     }
 
     func suggestions(from address: URL) async throws -> [String] {
-        BrowserSearchSuggestionResponseParser.suggestions(
-            from: try await data(from: address, accepting: "application/json"))
-    }
-
-    func siteSearch(from descriptor: URL, origin: String) async throws -> BrowserSiteSearch? {
-        let bytes = try await data(from: descriptor, accepting: "application/opensearchdescription+xml, application/xml, text/xml")
-        guard let xml = String(data: bytes, encoding: .utf8) else { return nil }
-        return BrowserOpenSearchDescription.search(in: xml, origin: origin)
-    }
-
-    private func data(from address: URL, accepting type: String) async throws -> Data {
         var request = URLRequest(url: address)
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        request.setValue(type, forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
         let (bytes, response) = try await session.bytes(for: request, delegate: Self.requestDelegate)
         guard
             let response = response as? HTTPURLResponse,
             (200...299).contains(response.statusCode),
             response.expectedContentLength <= 0
                 || response.expectedContentLength <= Self.maximumResponseByteCount
-        else { return Data() }
+        else { return [] }
 
         var data = Data()
         data.reserveCapacity(min(Self.maximumResponseByteCount, 8 * 1_024))
         for try await byte in bytes {
-            guard data.count < Self.maximumResponseByteCount else { return Data() }
+            guard data.count < Self.maximumResponseByteCount else { return [] }
             data.append(byte)
         }
-        return data
+        return BrowserSearchSuggestionResponseParser.suggestions(from: data)
     }
 
     /// Reject redirects to keep typed text on the selected endpoint.
