@@ -67,7 +67,7 @@ struct BrowserTabRow: View {
                         .font(.system(size: 12, weight: .regular))
                     }
                     .buttonStyle(BrowserChromeButtonStyle(controlSize: CGSize(width: 28, height: 28), cornerRadius: 14))
-                    .padding(.trailing, 6)
+                    .padding(.trailing, pinned ? 0 : 6)
                     .accessibilityLabel(remove ? "Remove from Saved" : closeLabel)
                     .help(remove ? "Remove from Saved" : tab.placement == .current ? "Close Tab (⌘W)" : closeLabel)
                 } else if !pinned {
