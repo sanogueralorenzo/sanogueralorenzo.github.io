@@ -65,8 +65,8 @@ struct BrowserSidebarDocking<Content: View>: View {
     @State private var pageCovered = false
     @State private var transitionID: UUID?
     @State private var revealAt: TimeInterval?
-    private let fadeDuration: TimeInterval = 0.05
-    private let holdDuration: TimeInterval = 0.4
+    private let revealDuration: TimeInterval = 0.1
+    private let holdDuration: TimeInterval = 0.3
 
     var body: some View {
         ZStack {
@@ -83,6 +83,10 @@ struct BrowserSidebarDocking<Content: View>: View {
                 }
             BrowserSidebarSurface(store: store, height: height, toggleDocking: toggleDocking)
                 .animation(BrowserMotion.floatingPane.unlessReducingMotion(reduceMotion), value: store.showsSidebar)
+        }
+        .onChange(of: transitionID) { _, id in
+            guard let id else { return }
+            DispatchQueue.main.async { resizeAndReveal(id: id) }
         }
         .onChange(of: reduceMotion) { if reduceMotion { finishImmediately() } }
         .onDisappear(perform: finishImmediately)
@@ -101,19 +105,16 @@ struct BrowserSidebarDocking<Content: View>: View {
                 return
             }
         }
-        let id = UUID()
-        transitionID = id
-        revealAt = nil
-        withAnimation(.linear(duration: fadeDuration), completionCriteria: .removed) {
+        withAnimation(nil) {
+            transitionID = UUID()
+            revealAt = nil
             pageCovered = true
-        } completion: {
-            resizeAndReveal(id: id)
         }
     }
 
     private func resizeAndReveal(id: UUID) {
         guard transitionID == id else { return }
-        let fadeOut = Animation.linear(duration: fadeDuration)
+        let fadeOut = Animation.linear(duration: revealDuration)
         guard pageDocked != store.sidebarDocked else {
             transitionID = nil
             withAnimation(fadeOut) { pageCovered = false }
