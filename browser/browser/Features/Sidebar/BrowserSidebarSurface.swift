@@ -63,8 +63,10 @@ struct BrowserSidebarDocking<Content: View>: View {
     @Environment(\.layoutDirection) private var layoutDirection
     @State private var pageDocked = false
     @State private var pageCovered = false
-    @State private var revealDeadline: TimeInterval?
-    @State private var coverReady = false
+    @State private var transitionID: UUID?
+    @State private var revealAt: TimeInterval?
+    private let fadeDuration: TimeInterval = 0.08
+    private let holdDuration: TimeInterval = 0.42
 
     var body: some View {
         ZStack {
@@ -92,38 +94,39 @@ struct BrowserSidebarDocking<Content: View>: View {
             finishImmediately()
             return
         }
-        let now = ProcessInfo.processInfo.systemUptime
-        if let revealDeadline, !coverReady || now < revealDeadline {
-            if coverReady { resizePage() }
-            return
+        if transitionID != nil {
+            guard let revealAt else { return }
+            if ProcessInfo.processInfo.systemUptime < revealAt {
+                resizePage()
+                return
+            }
         }
-        let deadline = now + 0.24
-        revealDeadline = deadline
-        coverReady = false
-        withAnimation(.linear(duration: 0.05), completionCriteria: .removed) {
+        let id = UUID()
+        transitionID = id
+        revealAt = nil
+        withAnimation(.linear(duration: fadeDuration), completionCriteria: .removed) {
             pageCovered = true
         } completion: {
-            resizeAndReveal(at: deadline)
+            resizeAndReveal(id: id)
         }
     }
 
-    private func resizeAndReveal(at deadline: TimeInterval) {
-        guard revealDeadline == deadline else { return }
-        let fadeOut = Animation.linear(duration: 0.04)
+    private func resizeAndReveal(id: UUID) {
+        guard transitionID == id else { return }
+        let fadeOut = Animation.linear(duration: fadeDuration)
         guard pageDocked != store.sidebarDocked else {
-            revealDeadline = nil
+            transitionID = nil
             withAnimation(fadeOut) { pageCovered = false }
             return
         }
-        coverReady = true
         resizePage()
-        let delay = max(0, deadline - ProcessInfo.processInfo.systemUptime)
-        withAnimation(fadeOut.delay(delay), completionCriteria: .removed) {
+        revealAt = ProcessInfo.processInfo.systemUptime + holdDuration
+        withAnimation(fadeOut.delay(holdDuration), completionCriteria: .removed) {
             pageCovered = false
         } completion: {
-            guard revealDeadline == deadline else { return }
-            revealDeadline = nil
-            coverReady = false
+            guard transitionID == id else { return }
+            transitionID = nil
+            revealAt = nil
         }
     }
 
@@ -132,8 +135,8 @@ struct BrowserSidebarDocking<Content: View>: View {
     }
 
     private func finishImmediately() {
-        revealDeadline = nil
-        coverReady = false
+        transitionID = nil
+        revealAt = nil
         withAnimation(nil) {
             pageDocked = store.sidebarDocked
             pageCovered = false
