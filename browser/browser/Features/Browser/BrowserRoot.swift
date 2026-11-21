@@ -3,15 +3,12 @@ import SwiftUI
 struct BrowserRoot: View {
     let store: BrowserStore
     @State private var windowCornerRadius: CGFloat?
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geometry in
             ZStack {
                 BrowserBrandTheme.canvas
-                pageContent.modifier(BrowserSidebarDocking(store: store))
-                BrowserSidebarSurface(store: store, height: geometry.size.height)
-                    .animation(BrowserMotion.floatingPane.unlessReducingMotion(reduceMotion), value: store.showsSidebar)
+                BrowserSidebarDocking(store: store, height: geometry.size.height) { pageContent }
                 if store.addressPresented {
                     AddressPalette(
                         store: store, cornerRadius: windowCornerRadius ?? SidebarGeometry.defaultWindowRadius
