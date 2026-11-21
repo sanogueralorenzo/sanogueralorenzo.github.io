@@ -66,7 +66,7 @@ struct BrowserSidebarDocking<Content: View>: View {
     @State private var transitionID: UUID?
     @State private var revealAt: TimeInterval?
     private let revealDuration: TimeInterval = 0.1
-    private let holdDuration: TimeInterval = 0.3
+    private let holdDuration: TimeInterval = 0.4
 
     var body: some View {
         ZStack {
