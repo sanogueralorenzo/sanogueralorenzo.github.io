@@ -12,8 +12,8 @@ extension BrowserStore {
         return (activeSplit?.tabIDs ?? [id]).compactMap { pages[$0] }
     }
 
-    func beginSplit(with id: UUID? = nil) {
-        guard let source = id ?? selectedTab?.id,
+    func beginSplit() {
+        guard let source = selectedTab?.id,
             let (space, index) = tabIndex(source), !session.spaces[space].tabs[index].isSettings
         else { return }
         presentAddress(newTab: true)

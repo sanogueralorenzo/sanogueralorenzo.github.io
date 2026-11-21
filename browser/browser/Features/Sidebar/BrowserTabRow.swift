@@ -148,12 +148,6 @@ struct BrowserTabRow: View {
             Button("Split with Current Tab", systemImage: "rectangle.split.2x1") {
                 if let selected = store.selectedTab?.id { store.split(selected, with: tab.id) }
             }.disabled(store.selectedTab?.id == tab.id || store.selectedTab?.isSettings != false)
-            Menu("Split With") {
-                Button("New Tab") { store.beginSplit(with: tab.id) }
-                ForEach(space.tabs.filter { $0.id != tab.id && !$0.isSettings }) { other in
-                    Button(other.customTitle ?? other.title) { store.split(tab.id, with: other.id) }
-                }
-            }
             if tab.placement == .current {
                 Menu("Add to Current Tabs Folder", systemImage: "folder.badge.plus") {
                     Button("New Folder") {
