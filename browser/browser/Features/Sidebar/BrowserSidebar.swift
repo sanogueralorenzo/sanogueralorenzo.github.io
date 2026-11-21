@@ -51,12 +51,11 @@ struct BrowserSidebar: View {
             Button {
                 store.sidebarDocked.toggle()
             } label: {
-                Image(systemName: "sidebar.left")
+                Image(systemName: store.sidebarDocked ? "rectangle.leftthird.inset.filled" : "sidebar.left")
                     .font(.system(size: 16))
-                    .foregroundStyle(store.sidebarDocked ? Color.accentColor : Color.primary)
+                    .foregroundStyle(.secondary)
             }
             .buttonStyle(BrowserChromeButtonStyle())
-            .background(store.sidebarDocked ? Color.accentColor.opacity(0.18) : .clear, in: .rect(cornerRadius: 8))
             .accessibilityLabel("Keep Sidebar Open")
             .accessibilityValue(store.sidebarDocked ? "On" : "Off")
             .accessibilityIdentifier("sidebar-dock")
