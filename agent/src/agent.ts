@@ -33,12 +33,12 @@ export class Agent {
   private constructor(dataDir: string, cwd: string, pi: PiService, db: DatabaseSync, routing: ReturnType<typeof routingTask>, dispatch: ReturnType<typeof dispatchTask>, work: ReturnType<typeof requestTask>, rootId: ConversationId) {
     this.dataDir = dataDir; this.cwd = cwd; this.pi = pi; this.db = db; this.routing = routing; this.dispatch = dispatch; this.work = work; this.rootId = rootId;
     this.state = new State(pi.harness); this.router = new HomeRouter(this.state, pi, cwd);
-    this.suggestions = new PromptSuggestions(Promise.resolve(pi.models), db, async (sessionId) => {
+    this.suggestions = new PromptSuggestions(pi.models, db, async (sessionId) => {
       const record = this.state.home.sessions.find(session => session.id === sessionId);
-      if (!record) return pi.model;
+      if (!record) return pi.availableModel();
       const conversation = await pi.harness.conversation(record.conversationId as ConversationId, BACKGROUND_CONTEXT);
-      return (await conversation!.agent(BACKGROUND_CONTEXT)).model || pi.model;
-    }, provider => pi.providers.fastEnabled(provider));
+      return pi.availableModel((await conversation!.agent(BACKGROUND_CONTEXT)).model);
+    });
   }
   static async open(dataDir: string, cwd: string, options: PiOptions = {}) {
     let app!: Agent;
@@ -247,5 +247,12 @@ export class Agent {
     const text = await this.suggestions.get(sessionId, replyId, messages.filter((message) => message.role === "user" || message.completed));
     return { text: current() ? text : null };
   }
-  shutdown() { return this.closing ||= (async () => { await this.pi.close(); await this.state.close(); this.db.close(); })(); }
+  shutdown() {
+    return this.closing ||= (async () => {
+      await this.suggestions.close();
+      await this.pi.close();
+      await this.state.close();
+      this.db.close();
+    })();
+  }
 }

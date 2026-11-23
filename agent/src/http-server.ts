@@ -89,23 +89,6 @@ export function createAgentServer(app: Agent) {
         await app.pi.providers.select(input(request.provider), request.modelId === undefined ? undefined : input(request.modelId));
         return json(res, 200, await app.pi.providers.snapshot());
       }
-      if (url.pathname === "/api/providers/login") {
-        const loginId = app.pi.providers.startLogin(input(request.provider), input(request.method));
-        return json(res, 202, { loginId });
-      }
-      if (url.pathname === "/api/providers/respond") {
-        if (typeof request.value !== "string") throw new Error("Enter a sign-in response");
-        app.pi.providers.respond(input(request.loginId), input(request.promptId), request.value);
-        return json(res, 202, { accepted: true });
-      }
-      if (url.pathname === "/api/providers/cancel") {
-        await app.pi.providers.cancelLogin(input(request.loginId));
-        return json(res, 200, await app.pi.providers.snapshot());
-      }
-      if (url.pathname === "/api/providers/logout") {
-        await app.pi.providers.logout(input(request.provider));
-        return json(res, 200, await app.pi.providers.snapshot());
-      }
       if (url.pathname === "/api/suggestions") return json(res, 200, await app.suggestion(input(request.sessionId), input(request.replyId)));
       if (url.pathname === "/api/home") return json(res, 202, { message: await app.submitHome(input(request.text), typeof request.id === "string" ? request.id : undefined) });
       if (url.pathname === "/api/turns") return json(res, 202, await app.submitSession(String(request.sessionId), input(request.text), request.mode === "steer" ? "steer" : "followUp", {

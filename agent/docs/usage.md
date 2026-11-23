@@ -17,8 +17,8 @@ Conversations and workers use provider-hosted web search first. Browser interact
 
 ## Providers
 
-Click the status dot, choose **Sign in**, **API key**, or **Cloud**, then search for a provider. Sign-in opens a browser tab; the link stays available if pop-ups are blocked. Browser logins finish through Pi's callback listener, with code entry when required by the provider.
+Click the status dot to see Codex, Claude Code, and Google Antigravity. A provider is green when its official CLI is installed and authenticated on the Agent host. The main dot is green when at least one provider is connected.
 
-Click a connected provider to select a model or disconnect. The selection applies to new tasks; existing conversations keep their model.
+Sign in from the host terminal with `codex login`, `claude auth login`, or `agy acp --login`. Click a connected provider to select a model for new conversations. Existing conversations keep their model while its CLI is connected and use an available provider if it disconnects.
 
-Connected OpenAI, Anthropic, xAI, and Google accounts show a lightning button for fast mode. It starts off and costs more. Changes apply to existing conversations and reply suggestions on their next request; model compatibility is handled automatically. Gemini priority requires an eligible paid account; older Claude Opus previews require fast-mode access.
+The lightning button enables fast mode for Codex and supported Claude models. It starts off and can increase usage cost.

@@ -1,210 +1,160 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import { createModels, lazyStream } from "@earendil-works/pi-ai";
-import { openaiProvider } from "@earendil-works/pi-ai/providers/openai";
-import { anthropicProvider } from "@earendil-works/pi-ai/providers/anthropic";
-import { googleProvider } from "@earendil-works/pi-ai/providers/google";
-import { xaiProvider } from "@earendil-works/pi-ai/providers/xai";
-import { Providers, utilityAgent } from "../src/providers.ts";
+import { lazyStream } from "@earendil-works/pi-ai";
+import { Providers } from "../src/providers.ts";
 import { PiService, providerModels } from "../src/pi.ts";
-import { supportsFastMode } from "../src/fast-mode.ts";
+import { cliModels } from "../src/cli/models.ts";
 import { PromptSuggestions } from "../src/prompt-suggestions.ts";
 import { NativeSearchSources } from "../src/native-search.ts";
-import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
 import { defineTool, MemoryStorage } from "@earendil-works/pi-durable";
 
-function runtime() {
-  const models = createModels({ authContext: {
-    env: async name => ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "XAI_API_KEY"].includes(name) ? "test-key" : undefined,
-    fileExists: async () => false,
-  } });
-  models.setProvider(openaiProvider());
-  models.setProvider(anthropicProvider());
-  models.setProvider(googleProvider());
-  models.setProvider(xaiProvider());
-  return models;
+function fixture(t) {
+  const dir = mkdtempSync(join(tmpdir(), "agent-cli-"));
+  const previous = process.env.PATH;
+  const requests = join(dir, "requests");
+  process.env.PATH = dir;
+  t.after(() => { process.env.PATH = previous; rmSync(dir, { recursive: true, force: true }); });
+  function fake(binary, connected = true) {
+    writeFileSync(join(dir, binary), `#!${process.execPath}
+const {appendFileSync, readFileSync} = require("node:fs");
+const {join} = require("node:path");
+const readline = require("node:readline");
+const args = process.argv.slice(2);
+const binary = ${JSON.stringify(binary)};
+const connected = ${connected};
+const capture = values => appendFileSync(${JSON.stringify(requests)}, JSON.stringify({binary, args, ...values}) + "\\n");
+const send = event => console.log(JSON.stringify(event));
+const command = args[0];
+if (command === "--version") process.exit(0);
+if (command === "login") process.exit(connected ? 0 : 1);
+if (command === "auth") { send({loggedIn: connected}); process.exit(0); }
+const lines = readline.createInterface({input: process.stdin});
+lines.on("line", line => {
+  const request = JSON.parse(line);
+  if (command === "acp") {
+    if (request.id === 1) send({id: 1, result: {}});
+    if (request.id === 2) send(connected ? {id: 2, result: {sessions: []}} : {id: 2, error: {code: -32000}});
+    return;
+  }
+  const output = {text: "Check the tests", calls: []};
+  if (binary === "codex") {
+    if (request.id === 1) send({id: 1, result: {}});
+    if (request.id === 2) { capture({thread: request.params}); send({id: 2, result: {thread: {id: "thread"}}}); }
+    if (request.id === 3) {
+      capture({turn: request.params});
+      send({method: "item/agentMessage/delta", params: {threadId: "thread", itemId: "answer", delta: JSON.stringify(output)}});
+      send({method: "item/completed", params: {threadId: "thread", item: {type: "agentMessage", text: JSON.stringify(output)}}});
+      send({method: "turn/completed", params: {threadId: "thread", turn: {status: "completed"}}});
+    }
+  } else if (binary === "claude") {
+    capture({request, prompt: readFileSync(args[args.indexOf("--system-prompt-file") + 1], "utf8")});
+    send({type: "result", subtype: "success", structured_output: output});
+  } else {
+    capture({request, prompt: readFileSync(join(".agents", "agents", "agent-turn.md"), "utf8")});
+    send({event: "result", result: {status: "SUCCESS", structured_output: output}});
+  }
+});
+`, { mode: 0o700 });
+  }
+  return { dir, fake, requests: () => readFileSync(requests, "utf8").trim().split("\n").map(JSON.parse) };
 }
 
-// Capture the real SDK's serialized HTTP request without contacting a provider.
-function capture(requests) {
-  return async (_url, init) => {
-    requests.push({ body: JSON.parse(init.body), headers: new Headers(init.headers) });
-    return new Response(JSON.stringify({ error: { message: "Test request captured", type: "invalid_request_error" } }),
-      { status: 400, headers: { "content-type": "application/json" } });
-  };
-}
-
-test("fast preferences persist independently and require a connected provider", async t => {
-  const dir = mkdtempSync(join(tmpdir(), "agent-providers-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const models = runtime();
-  const providers = new Providers(dir, models);
-  assert.equal(providers.fastEnabled("openai"), false);
-  await providers.setFastMode("openai", true);
-  await providers.setFastMode("anthropic", true);
-  await providers.setFastMode("openai", false);
-  await providers.select("openai", "gpt-6-luna");
-  await providers.close();
-  const reopened = new Providers(dir, models);
+test("checks exactly three CLI accounts and persists fast settings for connected CLIs", async t => {
+  const { dir, fake } = fixture(t);
+  fake("codex", false);
+  fake("agy");
+  const first = new Providers(dir);
+  t.after(() => first.close());
+  const { providers, selected } = await first.snapshot();
+  assert.deepEqual(providers.map(({ id, installed, connected }) => [id, installed, connected]), [
+    ["openai", true, false], ["anthropic", false, false], ["google", true, true],
+  ]);
+  assert.equal(selected.provider, "google");
+  await assert.rejects(first.select("anthropic"), /Sign in to Claude Code/);
+  await assert.rejects(first.setFastMode("openai", true), /Sign in to Codex/);
+  fake("codex");
+  fake("claude");
+  const connected = new Providers(dir);
+  t.after(() => connected.close());
+  await connected.setFastMode("openai", true);
+  await connected.setFastMode("anthropic", true);
+  await connected.setFastMode("openai", false);
+  await connected.select("openai", "gpt-6-luna");
+  const reopened = new Providers(dir);
   t.after(() => reopened.close());
+  await reopened.refresh();
+  assert.deepEqual(reopened.model, { provider: "openai", modelId: "gpt-6-luna" });
   assert.equal(reopened.fastEnabled("openai"), false);
   assert.equal(reopened.fastEnabled("anthropic"), true);
-  assert.deepEqual(reopened.model, { provider: "openai", modelId: "gpt-6-luna" });
-  await assert.rejects(reopened.setFastMode("unknown", true), /Choose a provider/);
-  const offline = new Providers(dir, new Proxy(models, { get(target, key) {
-    return key === "checkAuth" ? async () => undefined : Reflect.get(target, key);
-  } }));
-  t.after(() => offline.close());
-  await assert.rejects(offline.setFastMode("anthropic", true), /Connect Anthropic first/);
 });
 
-test("native search preserves client tools, skips router and dispatcher calls, and stays out of suggestions", async t => {
-  const models = runtime();
-  const wrapped = providerModels(models);
-  const requests = [];
-  t.mock.method(globalThis, "fetch", capture(requests));
-  for (const [provider, id] of [["openai", "gpt-6-luna"], ["xai", "grok-4.7"],
-    ["anthropic", "claude-sonnet-5-5"], ["google", "gemini-3.8-flash"]]) {
-    const selected = models.getModel(provider, id);
-    const send = async toolName => {
-      await wrapped.streamSimple(selected, {
-        messages: [{ role: "user", content: "Look up tomorrow's weather", timestamp: 0 }],
-        tools: [{ name: toolName, description: "Fixture", parameters: { type: "object", properties: {} } }],
-      }, { maxRetries: 0 }).result();
-      return requests.at(-1).body;
-    };
-    const request = await send("read");
-    if (provider === "google") {
-      assert.equal(request.tools.filter(tool => tool.googleSearch).length, 1);
-      assert.equal(request.tools.flatMap(tool => tool.functionDeclarations || []).some(tool => tool.name === "read"), true);
-    } else {
-      assert.equal(request.tools.filter(tool => tool.type?.startsWith("web_search")).length, 1);
-      const clientTools = provider === "openai"
-        ? request.input.filter(item => item.type === "additional_tools").flatMap(item => item.tools)
-        : request.tools;
-      assert.equal(clientTools.some(tool => tool.name === "read"), true);
-      if (provider === "anthropic") assert.equal(request.tools.find(tool => tool.name === "web_search").type, "web_search_20250305");
-    }
-    for (const name of ["route_home", "dispatch_message"]) {
-      const routing = await send(name);
-      assert.ok(!(routing.tools || []).some(tool => tool.googleSearch || tool.type?.startsWith("web_search")));
+test("CLI turns retain Agent tools and enable web search only for execution", async t => {
+  const { fake, requests } = fixture(t);
+  for (const binary of ["codex", "claude", "agy"]) fake(binary);
+  const models = cliModels(() => true);
+  for (const provider of models.getProviders()) {
+    const model = models.getModels(provider.id)[0];
+    for (const name of ["read", "route_home", "dispatch_message"]) {
+      const stream = models.streamSimple(model, {
+        messages: [{ role: "user", content: "Test", timestamp: 0 }],
+        tools: [{ name, description: "Fixture", parameters: { type: "object", properties: {} } }],
+      });
+      assert.equal((await stream.result()).stopReason, "stop");
+      const captured = requests();
+      if (provider.id === "openai") {
+        const { thread, args } = captured.at(-2);
+        assert.match(thread.baseInstructions, new RegExp(`"name":"${name}"`));
+        assert.ok(args.includes(name === "read" ? 'web_search="live"' : 'web_search="disabled"'));
+        assert.equal(thread.serviceTier, "fast");
+      } else {
+        const { prompt, args } = captured.at(-1);
+        assert.match(prompt, new RegExp(`"name":"${name}"`));
+        if (provider.id === "anthropic") assert.equal(args[args.indexOf("--tools") + 1], name === "read" ? "WebSearch,WebFetch" : "");
+        else assert.equal(prompt.includes('"search_web"'), name === "read");
+      }
     }
   }
 });
 
-test("hosted search citations survive Pi normalization without browser calls", async t => {
-  const models = runtime();
-  const annotation = { type: "url_citation", url: "https://example.com/forecast", title: "Forecast" };
-  const item = { id: "message", type: "message", role: "assistant", content: [
-    { type: "output_text", text: "Rain tomorrow.", annotations: [annotation] },
-  ] };
-  const events = [
-    { type: "response.output_item.added", output_index: 0, item: { ...item, content: [] } },
-    { type: "response.output_text.delta", output_index: 0, content_index: 0, delta: "Rain tomorrow." },
-    { type: "response.output_text.annotation.added", annotation },
-    { type: "response.output_item.done", output_index: 0, item },
-    { type: "response.completed", response: { id: "response", status: "completed", output: [item] } },
-  ];
-  t.mock.method(globalThis, "fetch", async () => new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join(""),
-    { headers: { "content-type": "text/event-stream" } }));
-  const observed = [];
-  const answer = await providerModels(models).streamSimple(models.getModel("openai", "gpt-6-luna"), {
-    messages: [{ role: "user", content: "Tomorrow's weather?", timestamp: 0 }],
-  }, { maxRetries: 0, onProviderStreamEvent: event => { observed.push(event.type); } }).result();
-  assert.equal(answer.stopReason, "stop");
-  assert.equal(answer.content.some(part => part.type === "toolCall"), false);
-  const text = answer.content.filter(part => part.type === "text").map(part => part.text).join("");
-  assert.equal(text, "Rain tomorrow.\n\nSources: [Forecast](https://example.com/forecast)");
-  assert.equal(observed.length, events.length);
-});
-
-test("Claude citations and Gemini grounding retain safe source URLs without duplicates", () => {
+test("CLI citations retain safe source URLs without duplicates", () => {
   const sources = new NativeSearchSources();
-  sources.observe({ delta: { citation: { type: "web_search_result_location", url: "https://example.com/claude", title: "Claude source" } } });
-  sources.observe({ candidates: [{ groundingMetadata: { groundingChunks: [{ web: { uri: "https://example.com/gemini", title: "Gemini source" } }] } }] });
-  sources.observe({ annotation: { url: "javascript:alert(1)", title: "Unsafe" } });
+  sources.observe({ url: "https://example.com/claude", title: "Claude source" });
+  sources.observe({ url: "https://example.com/other", title: "Other source" });
+  sources.observe({ url: "javascript:alert(1)", title: "Unsafe" });
   const answer = { stopReason: "stop", content: [{ type: "text", text: "Answer [Claude source](https://example.com/claude)" }] };
   sources.append(answer);
-  assert.equal(answer.content.at(-1).text, "\n\nSources: [Gemini source](https://example.com/gemini)");
+  assert.equal(answer.content.at(-1).text, "\n\nSources: [Other source](https://example.com/other)");
 });
 
-test("Pi serializes fast options for all four providers and preserves Anthropic betas", async t => {
-  const models = runtime();
-  let fast = true;
-  const wrapped = providerModels(models, () => fast);
-  const requests = [];
-  t.mock.method(globalThis, "fetch", capture(requests));
-  const send = async (provider, id) => {
-    await wrapped.streamSimple(models.getModel(provider, id), { messages: [{ role: "user", content: "Test", timestamp: 0 }] },
-      { maxRetries: 0 }).result();
-    return requests.at(-1);
-  };
-  assert.equal((await send("openai", "gpt-6-luna")).body.service_tier, "priority");
-  assert.equal((await send("xai", "grok-4.7")).body.service_tier, "priority");
-  assert.equal((await send("google", "gemini-3.8-flash")).body.serviceTier, "priority");
-  assert.equal((await send("google", "gemma-4-31b-it")).body.serviceTier, undefined);
-  const preview = await send("anthropic", "claude-opus-5");
-  assert.equal(preview.body.speed, "fast");
-  assert.match(preview.headers.get("anthropic-beta"), /fast-mode-2026-02-01/);
-  assert.match(preview.headers.get("anthropic-beta"), /mid-conversation-output-config/);
-  const opus = await send("anthropic", "claude-opus-5-5");
-  assert.equal(opus.body.speed, "fast");
-  assert.doesNotMatch(opus.headers.get("anthropic-beta"), /fast-mode-2026-02-01/);
-  assert.equal((await send("anthropic", "claude-sonnet-5-5")).body.speed, undefined);
-  fast = false;
-  assert.equal((await send("openai", "gpt-6-luna")).body.service_tier, "default");
-  assert.equal((await send("xai", "grok-4.7")).body.service_tier, "default");
-  assert.equal((await send("google", "gemini-3.8-flash")).body.serviceTier, undefined);
-  const standard = await send("anthropic", "claude-opus-5");
-  assert.equal(standard.body.speed, undefined);
-  assert.doesNotMatch(standard.headers.get("anthropic-beta"), /fast-mode-2026-02-01/);
-  assert.match(standard.headers.get("anthropic-beta"), /mid-conversation-output-config/);
-  const openai = { provider: "openai", api: "openai-responses", id: "gpt-6-luna" };
-  assert.equal(supportsFastMode({ ...openai, id: "gpt-6-luna-2026-09-01" }), true);
-  assert.equal(supportsFastMode({ ...openai, id: "gpt-6-unknown" }), false);
-  assert.equal(supportsFastMode({ ...openai, provider: "some-proxy" }), false);
-});
-
-test("reply suggestions follow the current provider fast preference", async t => {
-  const models = runtime();
-  const requests = [];
-  t.mock.method(globalThis, "fetch", capture(requests));
+test("reply suggestions use the current CLI fast preference without search", async t => {
+  const { fake, requests } = fixture(t);
+  fake("codex");
   const db = new DatabaseSync(":memory:");
   t.after(() => db.close());
   let fast = true;
-  let selected;
-  const suggestions = new PromptSuggestions(Promise.resolve(models), db, () => selected, () => fast);
+  const suggestions = new PromptSuggestions(cliModels(() => fast), db);
   const messages = [{ role: "user", text: "Test" }, { role: "assistant", text: "Done" }];
-  for (const [provider, modelId, field, on, off] of [
-    ["openai", "gpt-6-luna", "service_tier", "priority", "default"],
-    ["xai", "grok-4.7", "service_tier", "priority", "default"],
-    ["google", "gemini-3.8-flash", "serviceTier", "priority", undefined],
-  ]) {
-    selected = { provider, modelId };
-    fast = true;
-    await suggestions.get("session", "reply", messages);
-    assert.equal(requests.at(-1).body[field], on);
-    assert.ok(!(requests.at(-1).body.tools || []).some(tool => tool.googleSearch || tool.type?.startsWith("web_search")));
-    fast = false;
-    await suggestions.get("session", "reply", messages);
-    assert.equal(requests.at(-1).body[field], off);
-  }
+  assert.equal(await suggestions.get("session", "one", messages), "Check the tests");
+  const first = requests().at(-2);
+  assert.equal(first.thread.serviceTier, "fast");
+  assert.ok(first.args.includes('web_search="disabled"'));
+  fast = false;
+  assert.equal(await suggestions.get("session", "two", messages), "Check the tests");
+  assert.equal(requests().at(-2).thread.serviceTier, undefined);
 });
 
-
-test("router and dispatcher disable reasoning or use the provider minimum with fast mode on or off", { timeout: 15000 }, async t => {
+test("router and dispatcher use the fast utility model with low or disabled reasoning", { timeout: 15000 }, async t => {
   const dir = mkdtempSync(join(tmpdir(), "agent-utility-models-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const catalog = runtime();
+  const catalog = cliModels(() => false);
   for (const [provider, modelId, expected, thinkingLevel] of [
     ["openai", "gpt-6-astra", "gpt-6-luna", "off"],
-    ["anthropic", "claude-fable-5-1", "claude-haiku-5-5", "off"],
-    ["google", "gemini-4-argon", "gemini-3.5-flash-lite", "minimal"],
-    ["xai", "grok-4.7", "grok-4.7", "low"],
+    ["anthropic", "claude-fable-5-1", "claude-haiku-5-5", "low"],
+    ["google", "gemini-4-argon", "gemini-3.5-flash-lite", "low"],
     ["fixture", "custom-model", "custom-model", "low"],
   ]) for (const fast of [false, true]) {
     const calls = [];
@@ -246,46 +196,8 @@ test("router and dispatcher disable reasoning or use the provider minimum with f
 });
 
 
-test("mapped utility models serialize disabled or minimum reasoning and respect each provider's fast compatibility", async t => {
-  const models = runtime();
-  let fast = false;
-  const wrapped = providerModels(models, () => fast);
-  const requests = [];
-  t.mock.method(globalThis, "fetch", capture(requests));
-  for (const selected of [
-    { provider: "openai", modelId: "gpt-6-astra" },
-    { provider: "anthropic", modelId: "claude-fable-5-1" },
-    { provider: "google", modelId: "gemini-4-argon" },
-    { provider: "xai", modelId: "grok-4.7" },
-  ]) for (const enabled of [false, true]) for (const name of ["route_home", "dispatch_message"]) {
-    fast = enabled;
-    const { model: mapped, thinkingLevel } = utilityAgent(selected);
-    await wrapped.streamSimple(models.getModel(mapped.provider, mapped.modelId), {
-      messages: [{ role: "user", content: "Choose", timestamp: 0 }],
-      tools: [{ name, description: "Choose", parameters: { type: "object", properties: {} } }],
-    }, { ...(thinkingLevel === "off" ? {} : { reasoning: thinkingLevel }), maxRetries: 0 }).result();
-    const request = requests.at(-1).body;
-    if (selected.provider === "google") {
-      assert.equal(request.generationConfig.thinkingConfig.thinkingLevel, "MINIMAL");
-      assert.equal(request.serviceTier, enabled ? "priority" : undefined);
-    } else {
-      assert.equal(request.model, mapped.modelId);
-      if (selected.provider === "anthropic") {
-        assert.deepEqual(request.thinking, { type: "disabled" });
-        assert.equal(request.output_config, undefined);
-        assert.ok(!request.messages.some(message => message.output_config));
-        assert.equal(request.speed, undefined); // Haiku has no Opus fast mode.
-      } else {
-        assert.equal(request.reasoning.effort, selected.provider === "openai" ? "none" : "low");
-        assert.equal(request.service_tier, enabled ? "priority" : "default");
-      }
-    }
-    assert.ok(!(request.tools || []).some(tool => tool.googleSearch || tool.type?.startsWith("web_search")));
-  }
-});
-
 test("Home routing and dispatch keep reserved capacity under execution and dispatch load", { timeout: 10000 }, async () => {
-  const model = runtime().getModel("openai", "gpt-6-luna");
+  const model = cliModels(() => false).getModel("openai", "gpt-6-luna");
   for (const flood of [Array(9).fill("dispatch_message"), Array(8).fill("read")]) {
     const release = Promise.withResolvers();
     const started = [];

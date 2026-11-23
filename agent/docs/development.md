@@ -1,6 +1,6 @@
 # Development
 
-Agent is built on Pi Durable. Run commands from `agent` with Node 26+.
+Agent uses Pi Durable for tasks, tools, and transcripts. Run commands from `agent` with Node 26+.
 
 ## Checks
 
@@ -24,17 +24,13 @@ Workers have coding, shell, computer-use, and delegation tools, with separate co
 
 ## Models
 
-Router and dispatcher use GPT-6 Luna or Claude Haiku 5.5 with reasoning disabled, Gemini 3.5 Flash-Lite at minimal, or Grok 4.7 at low. Gemini and Grok cannot disable reasoning. Other providers use the selected model at low. This mapping applies with fast mode on or off.
+Model turns run through Codex app-server, Claude Code print mode, or Antigravity CLI headless mode. The CLIs handle authentication and model calls. Agent sends the current instructions, tool definitions, and transcript, then validates and executes requested tools through Pi Durable.
 
-Model pickers use a curated lineup because Pi's catalog has no release dates: GPT-6.1 Sol, GPT-6 Astra, and GPT-6 Luna; Claude Fable 5.1 and Opus/Sonnet/Haiku 5.5; Gemini 4 Argon, 3.8 Flash, and 3.5 Flash-Lite; and Grok 4.7.
-
-Conversations and workers use native web search with OpenAI, Anthropic, xAI, and the listed Gemini models. The router, dispatcher, and reply suggestions do not receive search tools.
+Routing and dispatch use the selected CLI’s lightweight model. Conversations and workers can use CLI web search. Reply suggestions, routing, and dispatch do not receive web search tools.
 
 ## Local state
 
 - `~/.agent/durable.sqlite`: state and transcripts.
 - `~/.agent/suggestions.db`: saved reply suggestions.
-- `~/.agent/auth.json`: provider credentials.
 - `~/.agent/provider.json`: selected provider and model.
 - `~/.agent/fast-mode.json`: per-provider fast preferences.
-- `~/.agent/settings.json`: installation ID managed by Pi.

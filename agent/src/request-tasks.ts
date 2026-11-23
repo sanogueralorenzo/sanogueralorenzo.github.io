@@ -100,6 +100,10 @@ export function requestTask(getApp: () => Agent) {
     },
     fork: async (task, runtime, context) => {
       try {
+        const app = getApp();
+        const session = app.state.home.sessions.find(item => item.id === task.input.sessionId)!;
+        const conversation = (await app.pi.harness.conversation(session.conversationId as ConversationId, context))!;
+        const model = await app.pi.availableModel((await conversation.agent(context)).model);
         await runtime.commit(async tx => {
           const home = await tx.doc(HomeDoc);
           const source = home.messages.find(item => item.id === task.input.sourceId)!;
@@ -111,6 +115,7 @@ export function requestTask(getApp: () => Agent) {
           // Fork only committed history; the input was placed in the previous durable phase.
           const execution = await tx.forkConversation(record.conversationId as ConversationId, task.state.checkpoint.entryId as EntryId,
             { ownership: { kind: "task", taskId: runtime.taskId } });
+          await configure(tx, execution.id, { model });
           source.executionId = execution.id;
           return { status: "running", checkpoint: { phase: "execute", conversationId: execution.id, cwd: task.state.checkpoint.cwd } };
         }, context);

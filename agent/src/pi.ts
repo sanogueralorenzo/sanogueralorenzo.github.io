@@ -7,15 +7,14 @@ import { createCodingTools, createReadOnlyTools, formatSkillsForPrompt } from "@
 import { AssistantEntry, createRegistry, defineExtension, defineTool, Harness, MemoryStorage, section,
   type AnyTask, type Extension, type ModelRef, type Storage, type ToolRegistration } from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
-import { agentModels, Providers, utilityAgent } from "./providers.ts";
+import { Providers, utilityAgent } from "./providers.ts";
+import { cliModels } from "./cli/models.ts";
 import { ComputerUseClient } from "./computer-use.ts";
 import { agentResources, type AgentRole } from "./agent-resources.ts";
 import { agentText } from "./state.ts";
 import { createDelegation, delegationHooks } from "./delegation.ts";
 import { workingNotes, workingNotesSection } from "./working-notes.ts";
 import { workingDirectory, workingDirectoryHook } from "./working-directory.ts";
-import { fastModePayload } from "./fast-mode.ts";
-import { nativeSearchPayload, NativeSearchSources } from "./native-search.ts";
 
 const json = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
@@ -56,7 +55,7 @@ export function roleExtension(role: AgentRole, extraTools: ToolRegistration[] = 
     }, { tag: false }), ...(!["router", "dispatcher"].includes(role) ? [workingNotesSection] : [])] });
 }
 
-export function providerModels(runtime: Models, fastEnabled: (provider: string) => boolean = () => false): Models {
+export function providerModels(runtime: Models): Models {
   const maxWorkRequests = 8;
   const active = new Set<Promise<void>>();
   return new Proxy(runtime, { get(target, key) {
@@ -86,21 +85,7 @@ export function providerModels(runtime: Models, fastEnabled: (provider: string) 
       active.add(occupied);
       return (async function* () {
         try {
-          const sources = new NativeSearchSources();
-          const stream = target.streamSimple(model, transcript, { ...options,
-            onPayload: async (payload, selected) => {
-              const request = nativeSearchPayload(model, await options.onPayload?.(payload, selected) ?? payload, !scheduling);
-              return fastModePayload(model, request, fastEnabled(model.provider));
-            },
-            onProviderStreamEvent: async (event, selected) => {
-              sources.observe(event);
-              await options.onProviderStreamEvent?.(event, selected);
-            },
-          });
-          for await (const event of stream) {
-            if (event.type === "done") sources.append(event.message);
-            yield event;
-          }
+          yield* target.streamSimple(model, transcript, options);
         } finally { active.delete(occupied); release(); }
       })();
     });
@@ -111,15 +96,14 @@ export type PiOptions = { models?: Models; model?: ModelRef; extensions?: Extens
 export class PiService {
   readonly harness: Harness;
   readonly models: Models;
-  private readonly agentModels: Models;
   readonly providers: Providers;
   private readonly fixedModel?: ModelRef;
   private readonly roles: Record<AgentRole, Extension>;
   private readonly computers: Map<number, ComputerUseClient>;
   private readonly computerClosures = new Set<Promise<void>>();
   private unsubscribe = () => {};
-  private constructor(harness: Harness, models: Models, agentModels: Models, providers: Providers, fixedModel: ModelRef | undefined, roles: Record<AgentRole, Extension>, computers: Map<number, ComputerUseClient>) {
-    this.harness = harness; this.models = models; this.agentModels = agentModels; this.providers = providers; this.fixedModel = fixedModel; this.roles = roles; this.computers = computers;
+  private constructor(harness: Harness, models: Models, providers: Providers, fixedModel: ModelRef | undefined, roles: Record<AgentRole, Extension>, computers: Map<number, ComputerUseClient>) {
+    this.harness = harness; this.models = models; this.providers = providers; this.fixedModel = fixedModel; this.roles = roles; this.computers = computers;
     this.unsubscribe = harness.subscribeCommits((publication) => {
       for (const change of publication.changes) {
         if (change.type !== "document" || !change.value || change.conversationId === undefined) continue;
@@ -129,10 +113,10 @@ export class PiService {
   }
   static async open(dataDir: string, options: PiOptions = {}) {
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
-    const runtime = options.models || await agentModels(dataDir);
-    const providers = new Providers(dataDir, runtime);
+    const providers = new Providers(dataDir);
+    if (!options.models) await providers.refresh();
     let service: PiService | undefined;
-    const models = providerModels(runtime, provider => providers.fastEnabled(provider));
+    const models = providerModels(options.models || cliModels(provider => providers.fastEnabled(provider)));
     const computers = new Map<number, ComputerUseClient>();
     const computer = new ComputerUseClient().tool();
     const computerTool = defineTool({ ...computer,
@@ -151,15 +135,24 @@ export class PiService {
     const harness = await Harness.open(options.storage || await openNodeSqliteStorage(join(dataDir, "durable.sqlite")), {
       models, registry, settings: { extensions: [], steeringMode: "one-at-a-time", followUpMode: "one-at-a-time", toolExecution: "parallel", progress: { partialIntervalMs: 16, outputIntervalMs: 16 } },
     }, BACKGROUND_CONTEXT);
-    service = new PiService(harness, runtime, models, providers, options.model, roles, computers);
+    service = new PiService(harness, models, providers, options.model, roles, computers);
     return service;
   }
   get model(): ModelRef { return this.fixedModel || this.providers.model; }
+  async availableModel(preferred?: ModelRef) {
+    if (this.fixedModel) return preferred || this.fixedModel;
+    await this.providers.refresh();
+    if (preferred && this.providers.usable(preferred)) return preferred;
+    const model = this.model;
+    if (!this.providers.usable(model)) throw new Error("Sign in to Codex, Claude Code, or Google Antigravity on the Agent host");
+    return model;
+  }
   agent(role: AgentRole, cwd: string) {
     const utility = ["router", "dispatcher"].includes(role);
     return { ...(utility ? utilityAgent(this.model) : { model: this.model, thinkingLevel: "high" as const }), cwd, extensions: [this.roles[role]] };
   }
   async utility(role: "router" | "dispatcher", input: string, cwd: string, customTools: ToolRegistration[] = [], acceptedResult?: () => string | undefined, context: TaskContext = BACKGROUND_CONTEXT) {
+    await this.availableModel();
     const tools = customTools.map((tool) => defineTool({ name: tool.name, description: tool.description, parameters: tool.parameters,
       execute: async (args, api, context) => {
         const result = await tool.execute(args, api, context);
@@ -169,7 +162,7 @@ export class PiService {
     const registry = createRegistry();
     const extension = roleExtension(role, tools);
     registry.install(extension);
-    const harness = await Harness.open(new MemoryStorage(), { models: this.agentModels, registry }, context);
+    const harness = await Harness.open(new MemoryStorage(), { models: this.models, registry }, context);
     try {
       const root = await harness.root(context, { agent: { ...this.agent(role, cwd), extensions: [extension] } });
       const settled = await (await root.submit({ type: "input", content: input }, context)).wait(context);

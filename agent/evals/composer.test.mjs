@@ -68,18 +68,24 @@ async function fixture(t, { suggestion = null, empty = false,
 
 async function clickReply(page, id = "1") { await page.locator(`[data-action="reply"][data-reply="reply-${id}"]`).click(); }
 
-test("fast mode can be enabled for a connected provider", async t => {
-  const providerData = { selected: { provider: "openai", modelId: "selected" }, providers: [
-    { id: "openai", name: "OpenAI", connected: true, fastSupported: true, fastEnabled: false,
-      methods: [{ id: "oauth" }], models: [{ id: "selected", name: "Selected model" }] },
-    { id: "offline", name: "Offline", connected: false, fastSupported: true, fastEnabled: false,
-      methods: [{ id: "oauth" }], models: [] },
+test("any connected CLI makes accounts ready and shows its supported fast mode", async t => {
+  const providerData = { selected: { provider: "anthropic", modelId: "selected" }, providers: [
+    { id: "openai", name: "Codex", installed: true, connected: true, fastSupported: true, fastEnabled: false,
+      models: [{ id: "selected", name: "Selected model" }] },
+    { id: "anthropic", name: "Claude Code", installed: true, connected: false, fastSupported: true, fastEnabled: false,
+      loginCommand: "claude auth login", models: [] },
+    { id: "google", name: "Google Antigravity", installed: false, connected: false, fastSupported: false, fastEnabled: false, models: [] },
   ] };
   const { page, calls } = await fixture(t, { providerData });
+  await page.locator(".provider-trigger .connection-dot.online").waitFor();
   await page.getByRole("button", { name: /^Accounts/ }).click();
-  assert.equal(await page.getByRole("button", { name: "Offline fast mode", exact: true }).count(), 0);
-  await page.getByRole("button", { name: "OpenAI fast mode", pressed: false }).click();
-  await page.getByRole("button", { name: "OpenAI fast mode", pressed: true }).waitFor();
+  assert.equal(await page.locator(".provider-row .connection-dot").count(), 3);
+  assert.equal(await page.locator(".provider-row .connection-dot.online").count(), 1);
+  assert.equal(await page.getByRole("button", { name: "Claude Code fast mode", exact: true }).count(), 0);
+  await page.getByText("claude auth login", { exact: true }).waitFor();
+  await page.getByText("CLI not installed", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Codex fast mode", pressed: false }).click();
+  await page.getByRole("button", { name: "Codex fast mode", pressed: true }).waitFor();
   assert.deepEqual(calls, [{ provider: "openai", enabled: true }]);
 });
 async function send(page, input, text) {
