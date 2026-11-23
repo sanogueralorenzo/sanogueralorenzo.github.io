@@ -17,10 +17,8 @@ extension BrowserStore {
         guard ["http", "https", "file", "about", "data", "blob"].contains(url.scheme?.lowercased() ?? "") else {
             return nil
         }
-        var tab = BrowserTab()
-        tab.zoom = preferences.defaultPageZoom ?? 1
-        tab.url = url
-        tab.title = url.host ?? url.lastPathComponent
+        guard placement != .pinned || canAddPins(1, in: activeSpace) else { return nil }
+        var tab = newTab(for: url)
         tab.placement = placement
         tab.savedURL = placement == .current ? nil : url
         tab.folderID = folderID
@@ -28,6 +26,14 @@ extension BrowserStore {
         session.spaces[index].tabs.append(tab)
         selectTab(tab.id)
         return tab.id
+    }
+
+    func newTab(for url: URL) -> BrowserTab {
+        var tab = BrowserTab()
+        tab.zoom = preferences.defaultPageZoom ?? 1
+        tab.url = url
+        tab.title = BrowserTab.limitedTitle(url.host ?? url.lastPathComponent)
+        return tab
     }
 
     func navigate(_ url: URL, in id: UUID) {
@@ -61,6 +67,7 @@ extension BrowserStore {
     }
 
     func setSelectedTab(_ tabID: UUID?, in spaceID: UUID) {
+        if spaceID == activeSpace.id { dismissAddress() }
         windowState.tabsBySpace[spaceID] = tabID
         if tabID == nil { windowState.emptySpaces.insert(spaceID) } else { windowState.emptySpaces.remove(spaceID) }
         if let index = session.spaces.firstIndex(where: { $0.id == spaceID }) {
@@ -76,36 +83,21 @@ extension BrowserStore {
     func closeSelectedTab() { requestCloseSelected() }
 
     func deleteTab(_ id: UUID, liveFolderRefresh: Bool = false) {
-        guard let (s, t) = tabIndex(id) else { return }
-        let spaceID = session.spaces[s].id
-        let affected = owner.contexts.values.filter {
-            $0.selectedTab?.id == id || $0.windowState.tabsBySpace[spaceID] == id
-        }
-        detachFromSplits(id)
-        let tab = session.spaces[s].tabs.remove(at: t)
-        let liveFolder = session.spaces[s].folders.contains { $0.id == tab.folderID && $0.kind == .github }
-        var entry = BrowserArchiveEntry(spaceID: session.spaces[s].id, tab: tab)
-        entry.wasDeletedFromLiveFolder = liveFolder && !liveFolderRefresh ? true : nil
-        session.archive.insert(entry, at: 0)
-        unload(id)
-        for context in affected {
-            context.setSelectedTab(nil, in: spaceID)
-            if context.activeSpace.id == spaceID { context.selectNextLoaded(excluding: id) }
-        }
-        if session.spaces[s].selectedTabID == id { session.spaces[s].selectedTabID = nil }
-        changed()
+        owner.deleteTab(id, liveFolderRefresh: liveFolderRefresh)
     }
 
     func renameTab(_ id: UUID, to title: String) {
         guard let (s, t) = tabIndex(id) else { return }
         let text = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        session.spaces[s].tabs[t].customTitle = text.isEmpty ? nil : String(text.prefix(2048))
+        session.spaces[s].tabs[t].customTitle = text.isEmpty ? nil : BrowserTab.limitedTitle(text)
         editingTabID = nil
         changed()
     }
 
     func placeTab(_ id: UUID, as placement: BrowserTab.Placement, folderID: UUID? = nil) {
-        guard let (s, t) = tabIndex(id), !session.spaces[s].tabs[t].isSettings else { return }
+        guard let (s, t) = tabIndex(id), !session.spaces[s].tabs[t].isSettings,
+            placement != .pinned || session.spaces[s].tabs[t].placement == .pinned || canAddPins(1, in: session.spaces[s])
+        else { return }
         session.spaces[s].tabs[t].placement = placement
         session.spaces[s].tabs[t].folderID = placement == .pinned ? nil : folderID
         if placement == .current {
@@ -139,7 +131,7 @@ extension BrowserStore {
             requestDeleteTabs([tab.id])
         } else {
             Task {
-                guard await unloadSafely(tab.id) else { return }
+                guard await owner.unloadSafely(tab.id) else { return }
                 detachFromSplits(tab.id)
                 let affected = owner.contexts.values.filter {
                     $0.activeSpace.id == originalSpace && $0.selectedTab?.id == tab.id
@@ -169,7 +161,23 @@ extension BrowserStore {
     }
 
     func placeTabs(_ ids: [UUID], as placement: BrowserTab.Placement, folderID: UUID? = nil) {
-        for id in relatedTabIDs(ids) { placeTab(id, as: placement, folderID: folderID) }
+        let ids = relatedTabIDs(ids)
+        if placement == .pinned {
+            let incoming = Set(ids)
+            guard session.spaces.allSatisfy({ space in
+                let count = space.tabs.count { incoming.contains($0.id) && !$0.isSettings && $0.placement != .pinned }
+                return count == 0 || canAddPins(count, in: space)
+            }) else { return }
+        }
+        for id in ids { placeTab(id, as: placement, folderID: folderID) }
+    }
+
+    func canAddPins(_ count: Int, in space: BrowserSpace) -> Bool {
+        guard space.canAddPins(count) else {
+            showNotice("Each Space can hold up to \(BrowserSpace.maximumPinnedTabCount) pinned tabs.")
+            return false
+        }
+        return true
     }
 
     func canChangeTabCount(by delta: Int, in spaceID: UUID) -> Bool {
@@ -194,5 +202,28 @@ extension BrowserStore {
         moveSidebarItems(
             BrowserDragPayload(kind: .tabs, spaceID: session.spaces[source].id, ids: ids, activeTabID: selectedTab?.id),
             to: destination, parentID: folderID, placement: placement, before: before)
+    }
+}
+
+extension BrowserSessionOwner {
+    func deleteTab(_ id: UUID, liveFolderRefresh: Bool = false) {
+        guard let (s, t) = tabIndex(id) else { return }
+        let spaceID = session.spaces[s].id
+        let affected = contexts.values.filter {
+            $0.selectedTab?.id == id || $0.windowState.tabsBySpace[spaceID] == id
+        }
+        detachFromSplits(id)
+        let tab = session.spaces[s].tabs.remove(at: t)
+        let liveFolder = session.spaces[s].folders.contains { $0.id == tab.folderID && $0.kind == .github }
+        var entry = BrowserArchiveEntry(spaceID: session.spaces[s].id, tab: tab)
+        entry.wasDeletedFromLiveFolder = liveFolder && !liveFolderRefresh ? true : nil
+        session.archive.insert(entry, at: 0)
+        unload(id)
+        for context in affected {
+            context.setSelectedTab(nil, in: spaceID)
+            if context.activeSpace.id == spaceID { context.selectNextLoaded(excluding: id) }
+        }
+        if session.spaces[s].selectedTabID == id { session.spaces[s].selectedTabID = nil }
+        changed()
     }
 }

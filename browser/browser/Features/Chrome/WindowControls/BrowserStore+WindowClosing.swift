@@ -47,9 +47,11 @@ extension BrowserStore {
 
     func closeWindow() {
         guard !isClosed else { return }
+        let closingSpace = activeSpace
         isClosed = true
-        windowState.isOpen = false
-        let remaining = owner.contexts.values.filter { !$0.isClosed }
+        owner.contexts[id] = nil
+        session.windows.removeAll { $0.id == id }
+        let remaining = Array(owner.contexts.values)
         if owner.activeWindowID == id { owner.activeWindowID = remaining.first?.id }
         for page in pages.values where page.hostingWindowID == id || page.owner === self {
             let presenter = remaining.first { $0.visiblePages.contains(where: { $0.id == page.id }) }
@@ -57,11 +59,11 @@ extension BrowserStore {
                 page.webView.removeFromSuperview()
                 page.hostingWindowID = presenter?.id
             }
-            if page.owner === self { page.owner = presenter ?? remaining.first ?? self }
+            if page.owner === self { page.owner = presenter ?? remaining.first }
         }
         runtimeRevision &+= 1
-        if activeSpace.isPrivate && !remaining.contains(where: { $0.activeSpace.id == activeSpace.id }) {
-            deleteSpace(activeSpace.id, prepared: true)
+        if closingSpace.isPrivate && !remaining.contains(where: { $0.activeSpace.id == closingSpace.id }) {
+            deleteSpace(closingSpace.id, prepared: true)
         }
         changed()
     }

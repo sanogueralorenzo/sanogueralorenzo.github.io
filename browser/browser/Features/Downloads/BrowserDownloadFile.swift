@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import UniformTypeIdentifiers
 
@@ -26,6 +27,36 @@ struct BrowserDownloadFile {
             name = stem + ext
         }
         return name
+    }
+
+    static func replacementIdentity(at url: URL) -> String? {
+        var info = stat()
+        guard lstat(url.path, &info) == 0, info.st_mode & S_IFMT == S_IFREG else { return nil }
+        return "\(info.st_dev):\(info.st_ino):\(info.st_ctimespec.tv_sec):\(info.st_ctimespec.tv_nsec)"
+    }
+
+    static func publish(_ temporary: URL, to destination: URL, replacing identity: String?) throws -> URL {
+        if let identity, replacementIdentity(at: destination) == identity {
+            guard rename(temporary.path, destination.path) == 0 else {
+                throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+            }
+            return destination
+        }
+        let directory = destination.deletingLastPathComponent()
+        let ext = destination.pathExtension.isEmpty ? "" : "." + destination.pathExtension
+        let stem = destination.deletingPathExtension().lastPathComponent
+        var target = destination
+        var number = 1
+        while renamex_np(temporary.path, target.path, UInt32(RENAME_EXCL)) != 0 {
+            guard errno == EEXIST else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+            let suffix = " (\(number))" + ext
+            var prefix = stem[...]
+            while !prefix.isEmpty && prefix.utf8.count + suffix.utf8.count > 255 { prefix.removeLast() }
+            guard prefix.utf8.count + suffix.utf8.count <= 255 else { throw POSIXError(.ENAMETOOLONG) }
+            target = directory.appendingPathComponent(String(prefix) + suffix)
+            number += 1
+        }
+        return target
     }
 
     static func risks(suggested: String, sanitized: String, mime: String?, initiated: Bool) -> [String] {

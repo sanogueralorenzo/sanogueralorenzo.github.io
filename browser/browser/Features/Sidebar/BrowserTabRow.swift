@@ -192,9 +192,12 @@ struct BrowserTabRow: View {
                 store.changed()
             }
         }
-        Menu("Move to Space") {
-            ForEach(store.session.spaces.filter { $0.id != space.id }) { space in
-                Button(space.name) { store.moveTabs(store.actionTabs(tab.id), to: space.id) }
+        let destinations = store.session.spaces.filter { $0.id != space.id && space.canMoveItems(to: $0) }
+        if !destinations.isEmpty {
+            Menu("Move to Space") {
+                ForEach(destinations) { destination in
+                    Button(destination.name) { store.moveTabs(store.actionTabs(tab.id), to: destination.id) }
+                }
             }
         }
         Divider()

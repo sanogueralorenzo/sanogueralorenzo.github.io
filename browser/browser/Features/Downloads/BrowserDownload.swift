@@ -11,22 +11,27 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
     let spaceID: UUID
     var name = "Download"
     var isActive = true
-    @ObservationIgnored weak var store: BrowserStore?
+    private let windowID: UUID?
+    @ObservationIgnored private weak var owner: BrowserSessionOwner?
+    private var window: NSWindow? { owner?.downloadWindow(preferred: windowID) }
     @ObservationIgnored var downloadView: WKWebView?
     @ObservationIgnored private var progressObservation: NSKeyValueObservation?
     @ObservationIgnored private var scope: URL?
     @ObservationIgnored private var workingURL: URL?
     @ObservationIgnored private var pauseTask: Task<Void, Never>?
 
-    init(download: WKDownload, store: BrowserStore, spaceID: UUID, restoring id: UUID? = nil, requestID: UUID = UUID())
-    {
+    init(
+        download: WKDownload, owner: BrowserSessionOwner, spaceID: UUID, windowID: UUID?,
+        restoring id: UUID?, requestID: UUID
+    ) {
         self.id = id ?? UUID()
         self.requestID = requestID
         self.download = download
-        self.store = store
+        self.owner = owner
+        self.windowID = windowID
         self.spaceID = spaceID
         super.init()
-        if let old = store.session.downloads.first(where: { $0.id == self.id }) {
+        if let old = owner.session.downloads.first(where: { $0.id == self.id }) {
             name = old.name
             if let data = old.destinationBookmark {
                 var stale = false
@@ -38,7 +43,7 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
                 }
             }
         } else {
-            store.session.downloads.insert(
+            owner.session.downloads.insert(
                 BrowserDownloadRecord(
                     id: self.id, spaceID: spaceID, name: name,
                     source: download.originalRequest?.url), at: 0)
@@ -66,7 +71,7 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
         completionHandler: @escaping @MainActor @Sendable (URL?) -> Void
     ) {
         Task {
-            guard isActive, let store else {
+            guard isActive, let owner else {
                 completionHandler(nil)
                 cancel()
                 return
@@ -75,7 +80,7 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
                 let url = download.originalRequest?.mainDocumentURL ?? download.originalRequest?.url,
                 let origin = BrowserStore.siteOrigin(url)
             {
-                let decision = store.permission(.automaticDownloads, origin: origin, spaceID: spaceID)
+                let decision = owner.permission(.automaticDownloads, origin: origin, spaceID: spaceID)
                 if decision == .deny {
                     completionHandler(nil)
                     cancel()
@@ -87,8 +92,8 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
                     alert.informativeText = origin
                     alert.addButton(withTitle: "Don't Allow")
                     alert.addButton(withTitle: "Allow")
-                    let allowed = await BrowserDialogs.ask(alert, in: store.window) == .alertSecondButtonReturn
-                    store.setPermission(
+                    let allowed = await BrowserDialogs.ask(alert, in: window) == .alertSecondButtonReturn
+                    owner.setPermission(
                         .automaticDownloads, origin: origin, spaceID: spaceID, decision: allowed ? .allow : .deny)
                     guard allowed, isActive else {
                         completionHandler(nil)
@@ -112,21 +117,23 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
                 alert.informativeText = risk.joined(separator: "\n")
                 alert.addButton(withTitle: "Cancel")
                 alert.addButton(withTitle: "Download")
-                guard await BrowserDialogs.ask(alert, in: store.window) == .alertSecondButtonReturn, isActive else {
+                guard await BrowserDialogs.ask(alert, in: window) == .alertSecondButtonReturn, isActive else {
                     completionHandler(nil)
                     cancel()
                     return
                 }
             }
-            guard store.session.spaces.contains(where: { $0.id == spaceID }) else {
+            guard owner.session.spaces.contains(where: { $0.id == spaceID }) else {
                 completionHandler(nil)
                 cancel()
                 return
             }
-            var destination = store.session.downloads.first { $0.id == id }?.destination
-            if destination == nil && !store.preferences.downloadsAskEveryTime {
+            let record = owner.session.downloads.first { $0.id == id }
+            var destination = record?.destination
+            var replacementIdentity = record?.replacementIdentity
+            if destination == nil && !owner.session.preferences.downloadsAskEveryTime {
                 var stale = false
-                let bookmark = store.session.spaces.first { $0.id == spaceID }?.downloadDirectory
+                let bookmark = owner.session.spaces.first { $0.id == spaceID }?.downloadDirectory
                 let directory =
                     bookmark.flatMap {
                         try? URL(resolvingBookmarkData: $0, options: [.withSecurityScope], bookmarkDataIsStale: &stale)
@@ -135,16 +142,7 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
                 if let directory {
                     scope = directory
                     _ = directory.startAccessingSecurityScopedResource()
-                    var target = directory.appendingPathComponent(name)
-                    let ext = target.pathExtension
-                    let stem = target.deletingPathExtension().lastPathComponent
-                    var suffix = 1
-                    while FileManager.default.fileExists(atPath: target.path) {
-                        target = directory.appendingPathComponent(
-                            stem + " (\(suffix))" + (ext.isEmpty ? "" : "." + ext))
-                        suffix += 1
-                    }
-                    destination = target
+                    destination = directory.appendingPathComponent(name)
                 }
             }
             if destination == nil {
@@ -153,7 +151,7 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
                 panel.canCreateDirectories = true
                 panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
                 let result: NSApplication.ModalResponse
-                if let window = store.window {
+                if let window {
                     result = await withCheckedContinuation { continuation in
                         panel.beginSheetModal(for: window) { continuation.resume(returning: $0) }
                     }
@@ -166,6 +164,7 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
                     return
                 }
                 destination = panel.url
+                replacementIdentity = destination.flatMap { BrowserDownloadFile.replacementIdentity(at: $0) }
             }
             guard let target = destination else {
                 completionHandler(nil)
@@ -184,6 +183,7 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
             update {
                 $0.destination = target
                 $0.destinationBookmark = bookmark
+                $0.replacementIdentity = replacementIdentity
                 $0.status = .running
             }
             completionHandler(temporary)
@@ -195,7 +195,7 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
         completionHandler: @escaping @MainActor @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
     ) {
         Task {
-            let result = await BrowserAuthentication.answer(challenge, in: store?.window)
+            let result = await BrowserAuthentication.answer(challenge, in: window)
             guard isActive else {
                 completionHandler(.cancelAuthenticationChallenge, nil)
                 return
@@ -206,7 +206,7 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
 
     func downloadDidFinish(_ download: WKDownload) {
         guard isActive else { return }
-        guard let store, let record = store.session.downloads.first(where: { $0.id == id }),
+        guard let owner, let record = owner.session.downloads.first(where: { $0.id == id }),
             let destination = record.destination
         else {
             finish(.failed, error: "No destination was saved.")
@@ -222,10 +222,12 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
                 setxattr(temporary.path, "com.apple.quarantine", ptr, strlen(ptr), 0, 0)
             }
             guard result == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
-            if FileManager.default.fileExists(atPath: destination.path) {
-                _ = try FileManager.default.replaceItemAt(destination, withItemAt: temporary)
-            } else {
-                try FileManager.default.moveItem(at: temporary, to: destination)
+            let published = try BrowserDownloadFile.publish(
+                temporary, to: destination, replacing: record.replacementIdentity)
+            update {
+                $0.destination = published
+                $0.name = published.lastPathComponent
+                $0.replacementIdentity = nil
             }
             finish(.completed)
         } catch { finish(.failed, error: error.localizedDescription) }
@@ -266,9 +268,9 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
 
     func cancel() {
         guard isActive else { return }
+        if let workingURL { try? FileManager.default.removeItem(at: workingURL) }
         finish(.cancelled)
         download.cancel { _ in }
-        if let workingURL { try? FileManager.default.removeItem(at: workingURL) }
     }
 
     private func finish(_ status: BrowserDownloadRecord.Status, error: String? = nil) {
@@ -285,18 +287,18 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
         progressObservation = nil
         scope?.stopAccessingSecurityScopedResource()
         scope = nil
-        store?.downloads.removeValue(forKey: ObjectIdentifier(download))
-        store?.runtimeRevision &+= 1
+        owner?.downloads.removeValue(forKey: ObjectIdentifier(download))
+        owner?.runtimeRevision &+= 1
         downloadView = nil
-        store?.changed()
+        owner?.changed()
     }
 
     private func update(_ apply: (inout BrowserDownloadRecord) -> Void) {
-        guard isActive, let store, let index = store.session.downloads.firstIndex(where: { $0.id == id }) else {
+        guard isActive, let owner, let index = owner.session.downloads.firstIndex(where: { $0.id == id }) else {
             return
         }
-        apply(&store.session.downloads[index])
-        store.changed()
+        apply(&owner.session.downloads[index])
+        owner.changed()
     }
 
 }

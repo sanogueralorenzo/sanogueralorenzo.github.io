@@ -9,7 +9,12 @@ extension BrowserStore {
         tab.id = UUID()
         tab.folderID = nil
         var candidate = session
-        candidate.spaces[spaceIndex(spaceID)].tabs.append(tab)
+        let index = spaceIndex(spaceID)
+        if tab.placement == .pinned && !candidate.spaces[index].canAddPins(1) {
+            tab.placement = .saved
+            tab.savedURL = tab.savedURL ?? tab.url
+        }
+        candidate.spaces[index].tabs.append(tab)
         candidate.archive.removeAll { $0.id == entry.id }
         guard (try? candidate.validate()) != nil else {
             showNotice("This tab couldn’t be restored. Its archived copy has been kept.")
@@ -19,6 +24,17 @@ extension BrowserStore {
         selectTab(tab.id)
     }
 
+    func clearHistory() {
+        session.history.removeAll { $0.spaceID == activeSpace.id }
+        changed()
+    }
+
+    func reopenClosedTab() {
+        if let entry = session.archive.first(where: { $0.spaceID == activeSpace.id }) { restore(entry) }
+    }
+}
+
+extension BrowserSessionOwner {
     func pageFinished(_ page: BrowserPage) {
         pageChanged(page)
         guard !session.spaces.contains(where: { $0.id == page.spaceID && $0.isPrivate }),
@@ -30,14 +46,5 @@ extension BrowserStore {
         visit.count = count + 1
         session.history.insert(visit, at: 0)
         changed()
-    }
-
-    func clearHistory() {
-        session.history.removeAll { $0.spaceID == activeSpace.id }
-        changed()
-    }
-
-    func reopenClosedTab() {
-        if let entry = session.archive.first(where: { $0.spaceID == activeSpace.id }) { restore(entry) }
     }
 }

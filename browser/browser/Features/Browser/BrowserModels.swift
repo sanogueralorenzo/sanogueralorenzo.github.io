@@ -1,7 +1,17 @@
 import Foundation
 
 struct BrowserTab: Codable, Identifiable, Equatable {
+    static let maximumTitleBytes = 16_384
     enum Placement: String, Codable { case pinned, saved, current }
+
+    static func limitedTitle(_ title: String) -> String {
+        let utf8 = title.prefix(2048).utf8
+        var bytes = utf8.prefix(maximumTitleBytes)
+        while bytes.endIndex != utf8.endIndex && utf8[bytes.endIndex] & 0xC0 == 0x80 {
+            bytes = bytes.dropLast()
+        }
+        return String(decoding: bytes, as: UTF8.self)
+    }
     var id = UUID()
     var title = "New Tab"
     var url: URL?
@@ -30,6 +40,7 @@ struct BrowserFolder: Codable, Identifiable, Equatable {
 
 struct BrowserSpace: Codable, Identifiable, Equatable {
     static let maximumTabCount = 20_000
+    static let maximumPinnedTabCount = 8
     var id = UUID()
     var name = "Personal"
     var color = 0
@@ -43,6 +54,25 @@ struct BrowserSpace: Codable, Identifiable, Equatable {
     var permissions: [BrowserSitePermission] = []
     var downloadDirectory: Data?
     var browsingPreferences: BrowserSpacePreferences?
+
+    func canMoveItems(to destination: BrowserSpace) -> Bool {
+        id == destination.id || (!isPrivate && !destination.isPrivate)
+    }
+
+    func canAddPins(_ count: Int) -> Bool {
+        guard count > 0 else { return true }
+        return tabs.lazy.filter { $0.placement == .pinned }.prefix(Self.maximumPinnedTabCount + 1).count + count
+            <= Self.maximumPinnedTabCount
+    }
+
+    mutating func limitPinnedTabs() {
+        let overflow = Set(pinnedTabs.dropFirst(Self.maximumPinnedTabCount).map(\.id))
+        for index in tabs.indices where overflow.contains(tabs[index].id) {
+            tabs[index].placement = .saved
+            tabs[index].folderID = nil
+            tabs[index].savedURL = tabs[index].savedURL ?? tabs[index].url
+        }
+    }
 }
 
 struct BrowserSitePermission: Codable, Identifiable, Equatable {
@@ -94,6 +124,7 @@ struct BrowserDownloadRecord: Codable, Identifiable {
     var requestMethod = "GET"
     var destination: URL?
     var destinationBookmark: Data?
+    var replacementIdentity: String?
     var mimeType: String?
     var status = Status.choosing
     var received: Int64 = 0
@@ -187,7 +218,7 @@ struct BrowserSession: Codable {
             }
             let tabs = Set(space.tabs.map(\.id))
             for tab in space.tabs {
-                guard identifiers.insert(tab.id).inserted, tab.title.utf8.count <= 16_384,
+                guard identifiers.insert(tab.id).inserted, tab.title.utf8.count <= BrowserTab.maximumTitleBytes,
                     (tab.interactionState?.count ?? 0) <= 8 * 1_024 * 1_024,
                     tab.zoom.isFinite && (0.25...5).contains(tab.zoom),
                     tab.folderID.map({ folders[$0] != nil }) ?? true,
@@ -200,7 +231,7 @@ struct BrowserSession: Codable {
             }
             var splitTabs = Set<UUID>()
             for split in space.splits {
-                guard identifiers.insert(split.id).inserted, (2...4).contains(split.tabIDs.count),
+                guard identifiers.insert(split.id).inserted, (2...BrowserSplit.maximumTabCount).contains(split.tabIDs.count),
                     split.tabIDs.allSatisfy({ tabs.contains($0) && splitTabs.insert($0).inserted }),
                     split.fractions.count == split.tabIDs.count,
                     split.fractions.allSatisfy({ $0.isFinite && $0 > 0 }),
@@ -218,6 +249,7 @@ enum BrowserUtility: String, Identifiable {
 }
 
 struct BrowserSplit: Codable, Identifiable, Equatable {
+    static let maximumTabCount = 4
     enum Direction: String, Codable { case horizontal, vertical }
     var id = UUID()
     var tabIDs: [UUID]

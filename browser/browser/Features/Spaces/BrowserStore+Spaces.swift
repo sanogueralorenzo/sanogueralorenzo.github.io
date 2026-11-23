@@ -72,6 +72,7 @@ extension BrowserStore {
                 context.sidebarScrollOffsets[id] = nil
                 context.expandedSavedSpaces.remove(id)
                 if context.windowState.spaceID == id {
+                    context.dismissAddress()
                     context.sidebarSpaceStep = nil
                     context.windowState.spaceID = fallback
                     if !context.isClosed { context.resumePages() }

@@ -37,6 +37,8 @@ extension BrowserAppDelegate {
         item("Find Previous", in: edit, action: #selector(findPrevious), key: "g", modifiers: [.command, .shift])
         item("Copy Address", in: edit, action: #selector(copyAddress), key: "c", modifiers: [.command, .shift])
         let view = submenu("View", in: bar)
+        item("Toggle Sidebar", in: view, action: #selector(toggleSidebar), key: "s", modifiers: [.command, .option])
+        view.addItem(.separator())
         item("Back", in: view, action: #selector(back), key: "[")
         item("Forward", in: view, action: #selector(forward), key: "]")
         item("Reload", in: view, action: #selector(reload), key: "r")
@@ -96,6 +98,7 @@ extension BrowserAppDelegate {
     @objc private func reader() { store?.activePage?.toggleReader() }
     @objc private func translate() { store?.activePage?.translationRequest &+= 1 }
     @objc private func inspector() { store?.activePage?.showDeveloperTools() }
+    @objc private func toggleSidebar() { store?.sidebarDocked.toggle() }
     @objc private func pinTab() { store?.togglePin() }
     @objc private func archiveTab() { store?.archiveSelected() }
     @objc private func clearTabs() { store?.clearCurrentTabs() }

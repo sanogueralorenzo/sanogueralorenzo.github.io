@@ -33,6 +33,7 @@ struct BrowserSettings: View {
     }
     @State private var showsSpaceEditor = false
     @State private var arrangingSpaces = false
+    private var canArrangeSpaces: Bool { query.isEmpty && store.session.spaces.count > 1 }
 
     private var selection: Binding<BrowserSettingsSelection?> {
         Binding(get: { store.settingsSelection }, set: { if let value = $0 { store.settingsSelection = value } })
@@ -54,6 +55,7 @@ struct BrowserSettings: View {
         .ignoresSafeArea(.container, edges: .top)
         .controlSize(.regular)
         .background(BrowserBrandTheme.canvas)
+        .onChange(of: query) { _, _ in arrangingSpaces = false }
         .sheet(isPresented: $showsSpaceEditor) {
             SpaceEditor(space: nil, store: store) { showsSpaceEditor = false }
         }
@@ -115,9 +117,10 @@ struct BrowserSettings: View {
                             Button("Delete Space", role: .destructive) { store.deleteSpace(space.id) }
                                 .disabled(!space.isPrivate && store.session.spaces.filter { !$0.isPrivate }.count == 1)
                         }
-                        .moveDisabled(!arrangingSpaces)
+                        .moveDisabled(!arrangingSpaces || !canArrangeSpaces)
                     }
                     .onMove { source, destination in
+                        guard arrangingSpaces, canArrangeSpaces else { return }
                         store.session.spaces.move(fromOffsets: source, toOffset: destination)
                         store.changed()
                     }
@@ -131,7 +134,7 @@ struct BrowserSettings: View {
                             Image(systemName: arrangingSpaces ? "checkmark" : "pencil")
                         }
                         .accessibilityLabel(arrangingSpaces ? "Done" : "Rearrange Spaces")
-                        .disabled(store.session.spaces.count < 2 && !arrangingSpaces)
+                        .disabled(!canArrangeSpaces)
                         Button {
                             showsSpaceEditor = true
                         } label: {

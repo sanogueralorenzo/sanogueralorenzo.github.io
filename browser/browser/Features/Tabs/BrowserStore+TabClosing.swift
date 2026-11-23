@@ -1,21 +1,22 @@
 import Foundation
 
-extension BrowserStore {
+extension BrowserSessionOwner {
     func unloadSafely(_ id: UUID, automatic: Bool = false) async -> Bool {
         guard let page = pages[id] else { return true }
-        if automatic && (owner.visiblePageIDs.contains(id) || page.isProtectedFromUnloading) { return false }
+        if automatic && (visiblePageIDs.contains(id) || page.isProtectedFromUnloading) { return false }
         let revision = page.documentRevision
         guard await page.prepareToClose(automatically: automatic) else { return false }
         await page.captureDocumentState()
         guard pages[id] === page, page.documentRevision == revision,
-            !automatic || (!owner.visiblePageIDs.contains(id) && !page.isProtectedFromUnloading)
+            !automatic || (!visiblePageIDs.contains(id) && !page.isProtectedFromUnloading)
         else { return false }
-        page.checkpointNativeState()
         unload(id)
         changed()
         return true
     }
+}
 
+extension BrowserStore {
     func prepareTabs(_ ids: [UUID]) async -> Bool {
         guard !isClosed else { return false }
         let check = BrowserPageCloseCheck(ids, owner: owner)

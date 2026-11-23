@@ -5,6 +5,7 @@ import Foundation
     let aliases: String
     let symbol: String
     let shortcut: String
+    var requiresCommandMode = false
     let action: (BrowserStore) -> Void
     static let all: [BrowserPaletteCommand] = [
         .init(
@@ -39,6 +40,7 @@ import Foundation
             action: { $0.leaveSplit() }),
         .init(
             title: "Clear Tabs", aliases: "close current cleanup", symbol: "xmark", shortcut: "⇧⌘K",
+            requiresCommandMode: true,
             action: { $0.clearCurrentTabs() }),
         .init(
             title: "New Private Space", aliases: "incognito", symbol: "eye.slash", shortcut: "",

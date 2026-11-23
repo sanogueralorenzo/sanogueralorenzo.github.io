@@ -1,14 +1,29 @@
 import Foundation
 
+enum BrowserAddressTarget {
+    case newTab, tab(UUID), split(UUID)
+
+    var splitSource: UUID? {
+        if case .split(let id) = self { return id }
+        return nil
+    }
+}
+
 extension BrowserStore {
     func presentAddress(newTab: Bool = false) {
+        if !newTab, let tab = selectedTab, !tab.isSettings {
+            presentAddress(target: .tab(tab.id), text: tab.url?.absoluteString ?? "")
+        } else {
+            presentAddress(target: .newTab)
+        }
+    }
+
+    func presentAddress(target: BrowserAddressTarget, text: String = "") {
         addressPresentationID = UUID()
         if !sidebarDocked { sidebarRevealed = false }
-        pendingSplitSourceID = nil
         utility = nil
-        addressCreatesTab = newTab || selectedTab == nil || selectedTab?.isSettings == true
-        addressText = addressCreatesTab ? "" : selectedTab?.url?.absoluteString ?? ""
-        addressPresented = true
+        addressText = text
+        addressTarget = target
     }
 
     func submitAddress(_ text: String) {
@@ -17,20 +32,19 @@ extension BrowserStore {
     }
 
     func submitAddress(_ url: URL) {
-        if addressCreatesTab || selectedTab == nil {
-            let source = pendingSplitSourceID
-            guard let id = open(url) else { return }
-            addressPresented = false
-            pendingSplitSourceID = nil
-            if let source { split(source, with: id) }
-        } else if let id = selectedTab?.id {
-            addressPresented = false
-            navigate(url, in: id)
+        switch addressTarget {
+        case .newTab:
+            if open(url) != nil { dismissAddress() }
+        case .tab(let id):
+            dismissAddress()
+            if selectedTab?.id == id { navigate(url, in: id) }
+        case .split(let source):
+            if openSplit(url, beside: source) { dismissAddress() }
+        case nil: break
         }
     }
 
     func dismissAddress() {
-        addressPresented = false
-        pendingSplitSourceID = nil
+        addressTarget = nil
     }
 }

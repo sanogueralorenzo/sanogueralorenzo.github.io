@@ -52,9 +52,13 @@ struct BrowserSidebarBatchMenu: View {
         }
         .disabled(includesLiveFolder)
         if !hasFolders {
-            Menu("Move to Space", systemImage: "square.grid.2x2") {
-                ForEach(store.session.spaces.filter { $0.id != store.activeSpace.id }) { space in
-                    Button(space.name) { store.moveTabs(ids, to: space.id) }
+            let source = store.activeSpace
+            let destinations = store.session.spaces.filter { $0.id != source.id && source.canMoveItems(to: $0) }
+            if !destinations.isEmpty {
+                Menu("Move to Space", systemImage: "square.grid.2x2") {
+                    ForEach(destinations) { space in
+                        Button(space.name) { store.moveTabs(ids, to: space.id) }
+                    }
                 }
             }
             Button("Combine in Split View", systemImage: "rectangle.split.2x1") {

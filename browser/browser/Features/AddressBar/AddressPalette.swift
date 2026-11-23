@@ -170,15 +170,15 @@ struct AddressPalette: View {
     }
 
     private func perform(_ result: BrowserPaletteResult) {
-        // Close first so commands like New Tab can open a fresh palette.
-        store.addressPresented = false
-        result.perform(store)
-        if store.addressPresented {
-            text = store.addressText
-            selected = nil
-            suggestions = []
-        } else {
-            store.pendingSplitSourceID = nil
+        switch result.action {
+        case .address(let url):
+            store.submitAddress(url)
+        case .splitTab(let id):
+            guard let source = store.addressTarget?.splitSource else { return }
+            if store.split(source, with: id) { store.dismissAddress() }
+        case .perform(let action):
+            store.dismissAddress()
+            action(store)
         }
     }
 }

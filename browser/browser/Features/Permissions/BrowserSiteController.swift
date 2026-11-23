@@ -69,7 +69,7 @@ final class BrowserSiteController: NSObject, WKScriptMessageHandler, @preconcurr
     }
 
     func decide(_ kind: BrowserSitePermission.Kind, origin: String, generation: Int) async -> Bool {
-        guard Self.secure(origin), let page, let store = page.owner,
+        guard Self.secure(origin), let page, let store = page.sessionOwner,
             store.session.spaces.contains(where: { $0.id == page.spaceID }), generation == page.documentRevision
         else { return false }
         let decision = store.permission(kind, origin: origin, spaceID: page.spaceID)
@@ -121,7 +121,7 @@ final class BrowserSiteController: NSObject, WKScriptMessageHandler, @preconcurr
         }
         if action == "queryPermission" {
             guard let page else { return }
-            var state = page.owner?.permission(.location, origin: origin, spaceID: page.spaceID) ?? .deny
+            var state = page.sessionOwner?.permission(.location, origin: origin, spaceID: page.spaceID) ?? .deny
             if [.denied, .restricted].contains(manager.authorizationStatus) { state = .deny }
             send(
                 [
@@ -141,7 +141,7 @@ final class BrowserSiteController: NSObject, WKScriptMessageHandler, @preconcurr
         Task {
             guard await decide(.location, origin: origin, generation: generation), await systemLocationAuthorized(),
                 let page, page.documentRevision == generation,
-                page.owner?.permission(.location, origin: origin, spaceID: page.spaceID) == .allow
+                page.sessionOwner?.permission(.location, origin: origin, spaceID: page.spaceID) == .allow
             else {
                 send(
                     [
@@ -194,7 +194,7 @@ final class BrowserSiteController: NSObject, WKScriptMessageHandler, @preconcurr
         guard let location = locations.last, location.horizontalAccuracy >= 0 else { return }
         for (key, request) in locationRequests {
             guard let page, request.generation == page.documentRevision,
-                page.owner?.permission(.location, origin: request.origin, spaceID: page.spaceID) == .allow
+                page.sessionOwner?.permission(.location, origin: request.origin, spaceID: page.spaceID) == .allow
             else {
                 locationRequests[key] = nil
                 continue
@@ -234,7 +234,7 @@ final class BrowserSiteController: NSObject, WKScriptMessageHandler, @preconcurr
     private func receiveNotification(
         _ body: [String: Any], action: String, origin: String, frame: WKFrameInfo, generation: Int
     ) {
-        guard let page, let store = page.owner else { return }
+        guard let page, let store = page.sessionOwner else { return }
         if action == "queryPermission" || action == "requestPermission" {
             let requestID = String((body["requestID"] as? String ?? "initial").prefix(200))
             Task {
@@ -329,18 +329,18 @@ final class BrowserSiteController: NSObject, WKScriptMessageHandler, @preconcurr
     func permissionChanged() {
         guard let page else { return }
         locationRequests = locationRequests.filter {
-            page.owner?.permission(.location, origin: $0.value.origin, spaceID: page.spaceID) == .allow
+            page.sessionOwner?.permission(.location, origin: $0.value.origin, spaceID: page.spaceID) == .allow
         }
         if locationRequests.isEmpty { manager.stopUpdatingLocation() }
         for (kind, origins) in captureGrants
-        where origins.contains(where: { page.owner?.permission(kind, origin: $0, spaceID: page.spaceID) != .allow }) {
+        where origins.contains(where: { page.sessionOwner?.permission(kind, origin: $0, spaceID: page.spaceID) != .allow }) {
             if kind == .camera { page.webView.setCameraCaptureState(.none) {} }
             if kind == .microphone { page.webView.setMicrophoneCaptureState(.none) {} }
             if kind == .screenCapture { (page.webView as? BrowserNativeWebView)?.stopDisplayCapture() }
             captureGrants[kind] = nil
         }
         if let url = page.url, let origin = BrowserStore.siteOrigin(url) {
-            if page.owner?.permission(.notifications, origin: origin, spaceID: page.spaceID) != .allow {
+            if page.sessionOwner?.permission(.notifications, origin: origin, spaceID: page.spaceID) != .allow {
                 UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: Array(notifications))
                 UNUserNotificationCenter.current().removePendingNotificationRequests(
                     withIdentifiers: Array(notifications))
@@ -373,6 +373,18 @@ extension BrowserStore {
         }
         return parts.string
     }
+    func permission(_ kind: BrowserSitePermission.Kind, origin: String, spaceID: UUID) -> BrowserSitePermission.Decision {
+        owner.permission(kind, origin: origin, spaceID: spaceID)
+    }
+
+    func setPermission(
+        _ kind: BrowserSitePermission.Kind, origin: String, spaceID: UUID, decision: BrowserSitePermission.Decision
+    ) {
+        owner.setPermission(kind, origin: origin, spaceID: spaceID, decision: decision)
+    }
+}
+
+extension BrowserSessionOwner {
     func permission(_ kind: BrowserSitePermission.Kind, origin: String, spaceID: UUID) -> BrowserSitePermission.Decision
     {
         session.spaces.first(where: { $0.id == spaceID })?.permissions.first(where: {

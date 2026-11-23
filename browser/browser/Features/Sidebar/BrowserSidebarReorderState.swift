@@ -531,7 +531,8 @@ extension BrowserStore {
     func canPreviewSidebarDrop(_ target: BrowserSidebarReorderState.Target) -> Bool {
         guard !isClosed, let payload = owner.sidebarDrag.payload, payload.kind != .space,
             let source = session.spaces.first(where: { $0.id == payload.spaceID }),
-            let destination = session.spaces.first(where: { $0.id == target.spaceID })
+            let destination = session.spaces.first(where: { $0.id == target.spaceID }),
+            source.canMoveItems(to: destination)
         else { return false }
         let placement: BrowserTab.Placement?
         let parent: UUID?
@@ -567,6 +568,9 @@ extension BrowserStore {
             !destination.folders.contains(where: { $0.id == before && $0.kind == .github }),
             before.map({ !payload.ids.contains($0) && !folders.contains($0) }) ?? true,
             folders.isEmpty || placement != .pinned,
+            destination.canAddPins(tabs.count {
+                (placement ?? $0.placement) == .pinned && (source.id != destination.id || $0.placement != .pinned)
+            }),
             !tabs.contains(where: { $0.isSettings && (parent != nil || (placement != nil && placement != .current)) }),
             source.id == destination.id || destination.tabs.count + tabs.count <= BrowserSpace.maximumTabCount,
             source.id == destination.id || destination.folders.count + folders.count <= 4096

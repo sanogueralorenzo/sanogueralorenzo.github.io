@@ -37,9 +37,9 @@ final class BrowserStore {
             if let i = owner.session.windows.firstIndex(where: { $0.id == id }) { owner.session.windows[i] = newValue }
         }
     }
-    var addressPresented = false
+    var addressTarget: BrowserAddressTarget?
+    var addressPresented: Bool { addressTarget != nil }
     var addressPresentationID = UUID()
-    var addressCreatesTab = false
     var addressText = ""
     var utility: BrowserUtility?
     var findsPage = false
@@ -71,7 +71,6 @@ final class BrowserStore {
     var sidebarDropBoundary: CGFloat {
         sidebarRegionWidth + (sidebarDocked ? 0 : SidebarGeometry.hoverMargin)
     }
-    var pendingSplitSourceID: UUID?
     var editingTabID: UUID?
     var editingFolderID: UUID?
     var runtimeRevision: Int {
@@ -89,10 +88,6 @@ final class BrowserStore {
     var integrations: [UUID: GitHubFolder] {
         get { owner.integrations }
         set { owner.integrations = newValue }
-    }
-    var downloads: [ObjectIdentifier: BrowserDownload] {
-        get { owner.downloads }
-        set { owner.downloads = newValue }
     }
     @ObservationIgnored private var noticeTask: Task<Void, Never>?
 
@@ -119,10 +114,10 @@ final class BrowserStore {
     var preferences: BrowserPreferences { session.preferences }
     var activeDownloads: [BrowserDownload] {
         _ = runtimeRevision
-        return Array(downloads.values)
+        return Array(owner.downloads.values)
     }
     var showsSidebar: Bool {
-        sidebarDocked || sidebarRevealed || sidebarEditorPresented || isResizingSidebar || isDragging
+        selectedTab == nil || sidebarDocked || sidebarRevealed || sidebarEditorPresented || isResizingSidebar || isDragging
             || editingTabID != nil || editingFolderID != nil
     }
 
@@ -141,6 +136,7 @@ final class BrowserStore {
             sidebarKeyboardSelection = false
         }
         guard let (space, _) = tabIndex(id) else { return }
+        if selectedTab?.id != id { dismissAddress() }
         let previousPages = visiblePages
         let previousPage = activePage
         prepareSidebarSpaceChange(session.spaces[space].id)
@@ -164,6 +160,7 @@ final class BrowserStore {
 
     func selectSpace(_ id: UUID, step: Int? = nil) {
         guard session.spaces.contains(where: { $0.id == id }), id != activeSpace.id else { return }
+        dismissAddress()
         prepareSidebarSpaceChange(id, step: step)
         let previous = visiblePages
         windowState.spaceID = id
@@ -237,20 +234,7 @@ final class BrowserStore {
         return pages[tab.id] != nil || tab.isSettings
     }
 
-    func pageChanged(_ page: BrowserPage) {
-        guard let (s, t) = tabIndex(page.id) else { return }
-        if let url = page.url { session.spaces[s].tabs[t].url = url }
-        if !page.title.isEmpty { session.spaces[s].tabs[t].title = page.title }
-        if let icon = page.favicon, icon.count <= 32_768 { session.spaces[s].tabs[t].favicon = icon }
-        changed()
-    }
-
-    func unload(_ id: UUID) {
-        pages[id]?.checkpointNativeState()
-        pages.removeValue(forKey: id)?.invalidate()
-        owner.media?.refresh()
-        runtimeRevision &+= 1
-    }
+    func unload(_ id: UUID) { owner.unload(id) }
 
     func changed() { owner.changed() }
 
@@ -272,10 +256,5 @@ final class BrowserStore {
         session.spaces.firstIndex { $0.id == id } ?? 0
     }
 
-    func tabIndex(_ id: UUID) -> (Int, Int)? {
-        for s in session.spaces.indices {
-            if let t = session.spaces[s].tabs.firstIndex(where: { $0.id == id }) { return (s, t) }
-        }
-        return nil
-    }
+    func tabIndex(_ id: UUID) -> (Int, Int)? { owner.tabIndex(id) }
 }

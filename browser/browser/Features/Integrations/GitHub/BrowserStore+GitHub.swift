@@ -39,11 +39,11 @@ extension BrowserStore {
                 $0.folderID == folderID && $0.savedURL == item.url
             }) {
                 if BrowserURLs.same(session.spaces[current].tabs[position].url, item.url) {
-                    session.spaces[current].tabs[position].title = item.title
+                    session.spaces[current].tabs[position].title = BrowserTab.limitedTitle(item.title)
                 }
             } else {
                 var tab = BrowserTab()
-                tab.title = item.title
+                tab.title = BrowserTab.limitedTitle(item.title)
                 tab.url = item.url
                 tab.savedURL = item.url
                 tab.placement = .saved

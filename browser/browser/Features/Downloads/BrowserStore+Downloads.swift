@@ -31,6 +31,54 @@ extension BrowserSessionOwner {
         session.downloads[index].error = nil
         changed()
     }
+
+    func downloadWindow(preferred id: UUID?) -> NSWindow? {
+        id.flatMap { contexts[$0]?.window }
+            ?? activeWindowID.flatMap { contexts[$0]?.window }
+    }
+
+    func finishDownloadRequest(
+        _ download: WKDownload, pending: BrowserPendingDownload, view: WKWebView, windowID: UUID
+    ) {
+        if downloads[ObjectIdentifier(download)] != nil { return }
+        let id = pending.record.id
+        guard pendingDownloads[id]?.id == pending.id else {
+            download.cancel { _ in }
+            return
+        }
+        pendingDownloads[id] = nil
+        guard
+            session.downloads.contains(where: {
+                $0.id == id && $0.spaceID == pending.record.spaceID && $0.status == .choosing
+            })
+        else {
+            download.cancel { _ in }
+            return
+        }
+        let job = beginDownload(
+            download, spaceID: pending.record.spaceID, windowID: windowID, restoring: id, requestID: pending.id)
+        job?.downloadView = view
+    }
+
+    @discardableResult
+    func beginDownload(
+        _ download: WKDownload, spaceID: UUID, windowID: UUID?, restoring id: UUID? = nil, requestID: UUID = UUID()
+    ) -> BrowserDownload? {
+        guard session.spaces.contains(where: { $0.id == spaceID }) else {
+            download.cancel { _ in }
+            return nil
+        }
+        if let job = downloads[ObjectIdentifier(download)] { return job }
+        if let id, activeDownloadRequests()[id] != nil {
+            download.cancel { _ in }
+            return nil
+        }
+        let job = BrowserDownload(
+            download: download, owner: self, spaceID: spaceID, windowID: windowID, restoring: id, requestID: requestID)
+        downloads[ObjectIdentifier(download)] = job
+        runtimeRevision &+= 1
+        return job
+    }
 }
 
 extension BrowserStore {
@@ -57,12 +105,12 @@ extension BrowserStore {
         config.websiteDataStore = profile(for: pending.record.spaceID)
         BrowserWebKitDefaults.apply(to: config.preferences)
         let view = WKWebView(frame: .zero, configuration: config)
-        view.resumeDownload(fromResumeData: data) { [weak self, view] download in
-            guard let self else {
+        view.resumeDownload(fromResumeData: data) { [weak owner, view, id] download in
+            guard let owner else {
                 download.cancel { _ in }
                 return
             }
-            finishDownloadRequest(download, pending: pending, view: view)
+            owner.finishDownloadRequest(download, pending: pending, view: view, windowID: id)
         }
     }
 
@@ -72,12 +120,12 @@ extension BrowserStore {
         config.websiteDataStore = profile(for: pending.record.spaceID)
         BrowserWebKitDefaults.apply(to: config.preferences)
         let view = WKWebView(frame: .zero, configuration: config)
-        view.startDownload(using: URLRequest(url: url)) { [weak self, view] download in
-            guard let self else {
+        view.startDownload(using: URLRequest(url: url)) { [weak owner, view, id] download in
+            guard let owner else {
                 download.cancel { _ in }
                 return
             }
-            finishDownloadRequest(download, pending: pending, view: view)
+            owner.finishDownloadRequest(download, pending: pending, view: view, windowID: id)
         }
     }
 
@@ -98,6 +146,7 @@ extension BrowserStore {
             else { return nil }
             session.downloads[index].destination = nil
             session.downloads[index].destinationBookmark = nil
+            session.downloads[index].replacementIdentity = nil
             session.downloads[index].received = 0
             session.downloads[index].expected = 0
             session.downloads[index].resumeData = nil
@@ -108,26 +157,6 @@ extension BrowserStore {
         session.downloads[index].error = nil
         changed()
         return pending
-    }
-
-    private func finishDownloadRequest(_ download: WKDownload, pending: BrowserPendingDownload, view: WKWebView) {
-        if downloads[ObjectIdentifier(download)] != nil { return }
-        let id = pending.record.id
-        guard owner.pendingDownloads[id]?.id == pending.id else {
-            download.cancel { _ in }
-            return
-        }
-        owner.pendingDownloads[id] = nil
-        guard
-            session.downloads.contains(where: {
-                $0.id == id && $0.spaceID == pending.record.spaceID && $0.status == .choosing
-            })
-        else {
-            download.cancel { _ in }
-            return
-        }
-        beginDownload(download, spaceID: pending.record.spaceID, restoring: id, requestID: pending.id)?.downloadView =
-            view
     }
 
     func cancelDownload(_ id: UUID) {
@@ -171,26 +200,5 @@ extension BrowserStore {
         let access = scoped.startAccessingSecurityScopedResource()
         NSWorkspace.shared.activateFileViewerSelecting([url])
         if access { scoped.stopAccessingSecurityScopedResource() }
-    }
-
-    @discardableResult
-    func beginDownload(
-        _ download: WKDownload, spaceID: UUID? = nil, restoring id: UUID? = nil, requestID: UUID = UUID()
-    ) -> BrowserDownload? {
-        let spaceID = spaceID ?? activeSpace.id
-        guard session.spaces.contains(where: { $0.id == spaceID }) else {
-            download.cancel { _ in }
-            return nil
-        }
-        if let job = downloads[ObjectIdentifier(download)] { return job }
-        if let id, owner.activeDownloadRequests()[id] != nil {
-            download.cancel { _ in }
-            return nil
-        }
-        let job = BrowserDownload(
-            download: download, store: self, spaceID: spaceID, restoring: id, requestID: requestID)
-        downloads[ObjectIdentifier(download)] = job
-        runtimeRevision &+= 1
-        return job
     }
 }

@@ -77,6 +77,6 @@ extension BrowserPage {
     }
 
     func webViewDidClose(_ webView: WKWebView) {
-        if closeContinuation != nil { finishClose(true) } else if scriptMayClose { owner?.deleteTab(id) }
+        if closeContinuation != nil { finishClose(true) } else if scriptMayClose { sessionOwner?.deleteTab(id) }
     }
 }

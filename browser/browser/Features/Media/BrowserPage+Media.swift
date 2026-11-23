@@ -49,7 +49,7 @@ extension BrowserPage {
                 script, arguments: ["action": action, "time": time ?? 0],
                 in: mediaFrame, contentWorld: .page)
             await refreshPageState()
-            owner?.owner.media?.refresh()
+            sessionOwner?.media?.refresh()
         }
     }
 

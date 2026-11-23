@@ -11,6 +11,7 @@ extension BrowserStore {
         guard let source = session.spaces.first(where: { $0.id == payload.spaceID }),
             let target = session.spaces.first(where: { $0.id == destination })
         else { return false }
+        guard source.canMoveItems(to: target) else { return false }
         let local = payload.spaceID == destination
         if let newFolder {
             guard local, parentID == newFolder.id, newFolder.kind == .regular, newFolder.parentID == nil,
@@ -47,6 +48,7 @@ extension BrowserStore {
             else { return false }
             let current = session.spaces[s]
             var destinationSpace = session.spaces[d]
+            guard current.canMoveItems(to: destinationSpace) else { return false }
             if let newFolder { destinationSpace.folders.append(newFolder) }
             // Revalidate folders and split groups after awaiting approval to keep moves atomic.
             guard payload.folderIDs.allSatisfy({ id in current.folders.contains { $0.id == id } }),
@@ -79,6 +81,10 @@ extension BrowserStore {
                 }) ?? true,
                 beforeFolder?.kind != .github,
                 folders.isEmpty || location != .pinned,
+                canAddPins(current.tabs.count {
+                    tabSet.contains($0.id) && (location ?? $0.placement) == .pinned
+                        && (!local || $0.placement != .pinned)
+                }, in: destinationSpace),
                 !hasLiveFolder
                     || (!local && !destinationSpace.isPrivate && location == nil && targetParent == nil
                         && !destinationSpace.folders.contains { $0.kind == .github && !folders.contains($0.id) }),

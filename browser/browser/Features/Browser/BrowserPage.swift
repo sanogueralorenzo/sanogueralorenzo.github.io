@@ -42,7 +42,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     var hostingWindowID: UUID?
     var mirrorImage: NSImage?
     var isSharedAcrossWindows: Bool {
-        (owner?.owner.contexts.values.filter { !$0.isClosed && $0.visiblePages.contains(where: { $0.id == id }) }.count
+        (sessionOwner?.contexts.values.filter { !$0.isClosed && $0.visiblePages.contains(where: { $0.id == id }) }.count
             ?? 0) > 1
     }
     var scriptMayClose = false
@@ -53,6 +53,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     @ObservationIgnored var siteController: BrowserSiteController?
     @ObservationIgnored var uploadScopes: [URL] = []
     @ObservationIgnored weak var owner: BrowserStore?
+    @ObservationIgnored weak var sessionOwner: BrowserSessionOwner?
     @ObservationIgnored private var observations: [NSKeyValueObservation] = []
     @ObservationIgnored private var blockingTask: Task<Bool, Never>?
     @ObservationIgnored private var navigationTask: Task<Void, Never>?
@@ -67,6 +68,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         self.id = id
         self.spaceID = spaceID
         self.owner = owner
+        sessionOwner = owner.owner
         loading = BrowserPageLoading(showsBackground: showsLoadingBackground)
         contentBlocker = owner.contentBlocker(for: spaceID)
         configuration.webExtensionController = contentBlocker.controller
@@ -121,7 +123,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         failure = nil
         pendingNavigationURL = url
         self.url = url
-        owner?.pageChanged(self)
+        sessionOwner?.pageChanged(self)
         afterContentBlocking { page in
             let webView = page.webView
             if let interactionState {
@@ -166,7 +168,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     func applyContentBlocking() {
         guard !isRetired else { return }
         blockingTask?.cancel()
-        let enabled = owner?.spacePreferences(spaceID).blocksContent == true
+        let enabled = sessionOwner?.spacePreferences(spaceID).blocksContent == true
         blockingTask = Task { [weak self, contentBlocker] in
             do {
                 try await contentBlocker.setEnabled(enabled)
@@ -209,15 +211,15 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
 
     private func synchronize() {
         guard !isRetired else { return }
-        title = String((webView.title ?? "").prefix(2048))
+        title = BrowserTab.limitedTitle(webView.title ?? "")
         url = pendingNavigationURL ?? webView.url
         isLoading = webView.isLoading
         canGoBack = webView.canGoBack
         canGoForward = webView.canGoForward
-        if owner?.pages[id] === self {
+        if sessionOwner?.pages[id] === self {
             contentBlocker.controller.didChangeTabProperties([.URL, .title, .loading], for: self)
         }
-        owner?.pageChanged(self)
+        sessionOwner?.pageChanged(self)
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
@@ -241,7 +243,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         loading.finished(navigation)
         pendingNavigationURL = nil
         synchronize()
-        owner?.pageFinished(self)
+        sessionOwner?.pageFinished(self)
         checkpointNativeState()
         Task { [weak self] in
             await self?.restoreDocumentState()
@@ -310,7 +312,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
             if action.targetFrame?.isMainFrame == true && url.scheme != "javascript" {
                 pendingNavigationURL = url
                 self.url = url
-                owner?.pageChanged(self)
+                sessionOwner?.pageChanged(self)
             }
             decisionHandler(action.shouldPerformDownload ? .download : .allow)
         }
@@ -336,11 +338,11 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         pendingNavigationURL = nil
         failure = nil
         synchronize()
-        guard let owner else {
+        guard let sessionOwner else {
             download.cancel { _ in }
             return
         }
-        owner.beginDownload(download, spaceID: spaceID)
+        sessionOwner.beginDownload(download, spaceID: spaceID, windowID: hostingWindowID ?? owner?.id)
     }
 
     func webView(
@@ -464,7 +466,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
                 }
             }
             guard generation == documentRevision,
-                kinds.allSatisfy({ owner?.permission($0, origin: name, spaceID: spaceID) == .allow })
+                kinds.allSatisfy({ sessionOwner?.permission($0, origin: name, spaceID: spaceID) == .allow })
             else {
                 decisionHandler(.deny)
                 return
@@ -522,7 +524,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
                 NSImage(data: data) != nil
             else { return }
             favicon = data
-            owner?.pageChanged(self)
+            sessionOwner?.pageChanged(self)
         }
     }
 }

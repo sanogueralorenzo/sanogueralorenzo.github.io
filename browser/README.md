@@ -27,7 +27,8 @@ Passkeys require an Apple-authorized browser signing profile with
 
 ## Everyday use
 
-Move to the left edge to reveal the sidebar; drag its right edge to resize it.
+The sidebar opens when no tab is selected. While browsing, move to the left edge to reveal it
+or use **⌥⌘S** to keep it open. Drag its right edge to resize it.
 Use **⌘L** for addresses and commands, **⌘T** for a new tab, **⌃Tab** for recent tabs,
 and **⌥⌘←/→** to switch Spaces. Swipe over a page to go back or forward,
 or over the sidebar to switch Spaces.

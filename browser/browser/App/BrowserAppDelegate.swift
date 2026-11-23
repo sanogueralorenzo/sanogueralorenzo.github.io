@@ -61,7 +61,7 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
 
     private func finishLaunching(_ owner: BrowserSessionOwner) {
         browserReady = true
-        let previous = owner.session.windows.filter(\.isOpen)
+        let previous = owner.session.windows
         if previous.isEmpty { createWindow() } else { for state in previous { createWindow(restoring: state) } }
         if !pendingLaunchURLs.isEmpty {
             let urls = pendingLaunchURLs

@@ -32,6 +32,8 @@ final class BrowserSessionOwner {
         contentExtension = BrowserContentExtension(profile: persistence.directory)
         session = try persistence.load()
         session.normalizeLiveFolders()
+        session.windows.removeAll { !$0.isOpen }
+        for index in session.spaces.indices { session.spaces[index].limitPinnedTabs() }
         sweepExpiredRecords()
         session.selectedSpaceID = session.selectedSpaceID ?? session.spaces[0].id
         for i in session.downloads.indices where [.running, .choosing].contains(session.downloads[i].status) {
@@ -56,10 +58,9 @@ final class BrowserSessionOwner {
                         await page.refreshPageState()
                         await page.captureDocumentState()
                         if !visiblePageIDs.contains(page.id), !page.isProtectedFromUnloading,
-                            Date().timeIntervalSince(page.lastSelected) >= 300,
-                            let store = page.owner
+                            Date().timeIntervalSince(page.lastSelected) >= 300
                         {
-                            _ = await store.unloadSafely(page.id, automatic: true)
+                            _ = await unloadSafely(page.id, automatic: true)
                         }
                     }
                 }
@@ -79,7 +80,6 @@ final class BrowserSessionOwner {
             ?? BrowserWindowState(
                 spaceID: spaceID ?? session.selectedSpaceID ?? session.spaces.first(where: { !$0.isPrivate })!.id)
         if !session.spaces.contains(where: { $0.id == state.spaceID }) { state.spaceID = session.spaces[0].id }
-        state.isOpen = true
         if let index = session.windows.firstIndex(where: { $0.id == state.id }) {
             session.windows[index] = state
         } else {
@@ -89,6 +89,28 @@ final class BrowserSessionOwner {
         contexts[state.id] = context
         activeWindowID = state.id
         return context
+    }
+
+    func tabIndex(_ id: UUID) -> (Int, Int)? {
+        for s in session.spaces.indices {
+            if let t = session.spaces[s].tabs.firstIndex(where: { $0.id == id }) { return (s, t) }
+        }
+        return nil
+    }
+
+    func pageChanged(_ page: BrowserPage) {
+        guard let (s, t) = tabIndex(page.id) else { return }
+        if let url = page.url { session.spaces[s].tabs[t].url = url }
+        if !page.title.isEmpty { session.spaces[s].tabs[t].title = page.title }
+        if let icon = page.favicon, icon.count <= 32_768 { session.spaces[s].tabs[t].favicon = icon }
+        changed()
+    }
+
+    func unload(_ id: UUID) {
+        pages[id]?.checkpointNativeState()
+        pages.removeValue(forKey: id)?.invalidate()
+        media?.refresh()
+        runtimeRevision &+= 1
     }
 
     func changed() {
