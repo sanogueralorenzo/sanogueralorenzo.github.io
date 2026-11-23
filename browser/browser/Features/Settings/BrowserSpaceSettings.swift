@@ -1,5 +1,4 @@
 import SwiftUI
-import WebKit
 
 struct BrowserSpaceSettings: View {
     let store: BrowserStore
@@ -133,16 +132,11 @@ struct BrowserSpaceSettings: View {
             if !space.permissions.isEmpty { Button("Reset All…", role: .destructive) { confirmsReset = true } }
         }
         Section("Browsing data") {
-            Button("Clear History in This Space") {
-                store.session.history.removeAll { $0.spaceID == spaceID }
-                store.changed()
+            Button("Clear History in This Space…", role: .destructive) {
+                store.confirmClearing(.visitedHistory, in: spaceID)
             }
-            Button("Clear Website Data in This Space", role: .destructive) {
-                store.profile(for: spaceID).removeData(
-                    ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast
-                ) {
-                    Task { @MainActor in store.showNotice("Website data cleared") }
-                }
+            Button("Clear Website Data in This Space…", role: .destructive) {
+                store.confirmClearing(.websiteData, in: spaceID)
             }
         }
     }

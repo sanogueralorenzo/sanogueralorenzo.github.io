@@ -42,8 +42,14 @@ final class BrowserStore {
     var addressPresentationID = UUID()
     var addressText = ""
     var utility: BrowserUtility?
-    var findsPage = false
-    var findText = ""
+    var findsPage = false {
+        didSet { if !findsPage { findMatch = nil } }
+    }
+    var findText = "" {
+        didSet { findMatch = nil }
+    }
+    var findMatch: Bool?
+    @ObservationIgnored var findRequest = UUID()
     var siteSettingsPresented = false
     var notice: String?
     var settingsTabs: [UUID: BrowserSettingsTabState] = [:]

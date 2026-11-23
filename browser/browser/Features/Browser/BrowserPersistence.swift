@@ -3,7 +3,7 @@ import Darwin
 import Foundation
 
 /// Normal quit waits for the session checkpoint.
-final class BrowserPersistence {
+final class BrowserPersistence: Sendable {
     struct Envelope: Codable {
         let checksum: String
         let payload: Data
@@ -12,7 +12,7 @@ final class BrowserPersistence {
     private let lockDescriptor: Int32
     private var file: URL { directory.appendingPathComponent("session.json") }
     private var backup: URL { directory.appendingPathComponent("session.recovery.json") }
-    private(set) var recovered = false
+    private let writes = DispatchQueue(label: "com.itsbrowser.session-checkpoint", qos: .utility)
 
     init() throws {
         let support = try FileManager.default.url(
@@ -39,25 +39,31 @@ final class BrowserPersistence {
         Darwin.close(lockDescriptor)
     }
 
-    func load() throws -> BrowserSession {
+    func load() throws -> (session: BrowserSession, recovered: Bool) {
         if FileManager.default.fileExists(atPath: file.path) {
-            do { return try decode(file) } catch {
+            do { return (try readCheckpoint(file).session, false) } catch {
                 guard FileManager.default.fileExists(atPath: backup.path) else { throw error }
-                let state = try decode(backup)
+                let state = try readCheckpoint(backup).session
                 try FileManager.default.copyItem(
                     at: file, to: directory.appendingPathComponent("unreadable-session-\(UUID().uuidString).json"))
-                recovered = true
-                return state
+                return (state, true)
             }
         }
         if FileManager.default.fileExists(atPath: backup.path) {
-            recovered = true
-            return try decode(backup)
+            return (try readCheckpoint(backup).session, true)
         }
-        return BrowserSession()
+        return (BrowserSession(), false)
     }
 
     func save(_ value: BrowserSession) throws {
+        try writes.sync { try write(value) }
+    }
+
+    func save(_ value: BrowserSession, completion: @escaping @Sendable (Result<Void, Error>) -> Void) {
+        writes.async { completion(Result { try self.write(value) }) }
+    }
+
+    private func write(_ value: BrowserSession) throws {
         let state = value.persistent()
         try state.validate()
         let encoder = JSONEncoder()
@@ -68,11 +74,11 @@ final class BrowserPersistence {
             checksum: SHA256.hash(data: payload).map { String(format: "%02x", $0) }.joined(), payload: payload)
         let bytes = try encoder.encode(envelope)
         // Never rotate damaged data over a known-good recovery copy.
-        if (try? decode(file)) != nil { try durableReplace(try Data(contentsOf: file), at: backup) }
+        if let previous = try? readCheckpoint(file) { try durableReplace(previous.bytes, at: backup) }
         try durableReplace(bytes, at: file)
     }
 
-    private func decode(_ url: URL) throws -> BrowserSession {
+    private func readCheckpoint(_ url: URL) throws -> (session: BrowserSession, bytes: Data) {
         let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         guard size <= 350 * 1_024 * 1_024 else { throw CocoaError(.fileReadTooLarge) }
         let decoder = JSONDecoder()
@@ -85,7 +91,7 @@ final class BrowserPersistence {
         }
         let session = try decoder.decode(BrowserSession.self, from: envelope.payload)
         try session.validate()
-        return session
+        return (session, data)
     }
 
     private func durableReplace(_ data: Data, at target: URL) throws {

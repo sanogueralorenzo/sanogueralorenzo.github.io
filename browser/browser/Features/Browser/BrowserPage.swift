@@ -352,7 +352,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         let generation = documentRevision
         Task {
             let result = await BrowserAuthentication.answer(challenge, in: webView.window ?? owner?.window)
-            guard generation == documentRevision, owner != nil else {
+            guard generation == documentRevision, !isRetired, sessionOwner != nil else {
                 completionHandler(.cancelAuthenticationChallenge, nil)
                 return
             }

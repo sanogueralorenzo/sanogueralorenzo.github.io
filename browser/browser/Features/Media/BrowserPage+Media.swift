@@ -10,10 +10,14 @@ extension BrowserPage {
         mediaTitle = nextTitle
         hasMedia = isPlaying || value["hasMedia"] as? Bool == true
         mediaIsMuted = value["muted"] as? Bool == true
-        let actions =
-            try? await webView.callAsyncJavaScript(
+        let actions: [String]?
+        if hasMedia {
+            actions = try? await webView.callAsyncJavaScript(
                 "return [...(globalThis.__browserMediaActions || new Map())].filter(([key,value]) => typeof value === 'function').map(([key]) => key)",
                 arguments: [:], in: mediaFrame, contentWorld: .page) as? [String]
+        } else {
+            actions = nil
+        }
         guard revision == documentRevision, !isRetired else { return }
         mediaActions = Set(actions ?? [])
         if hasMedia { mediaActions.formUnion(["play", "pause"]) }
@@ -61,14 +65,15 @@ extension BrowserPage {
 
     @objc(_webViewFullscreenMayReturnToInline:)
     func restorePictureInPicture(_ view: WKWebView) {
-        guard view === webView, pictureInPicture?.canRestoreSource == true, let owner else { return }
-        var context = owner
-        if owner.isClosed {
-            owner.owner.openWindow?(BrowserWindowState(spaceID: spaceID))
-            guard let id = owner.owner.activeWindowID, let reopened = owner.owner.contexts[id] else { return }
-            context = reopened
+        guard view === webView, pictureInPicture?.canRestoreSource == true, let sessionOwner else { return }
+        let context: BrowserStore?
+        if let owner, !owner.isClosed {
+            context = owner
+        } else {
+            sessionOwner.openWindow?(BrowserWindowState(spaceID: spaceID))
+            context = sessionOwner.activeWindowID.flatMap { sessionOwner.contexts[$0] }
         }
-        context.selectTab(id)
-        context.window?.makeKeyAndOrderFront(nil)
+        context?.selectTab(id)
+        context?.window?.makeKeyAndOrderFront(nil)
     }
 }

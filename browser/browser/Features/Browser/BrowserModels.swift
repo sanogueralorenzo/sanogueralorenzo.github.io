@@ -5,12 +5,7 @@ struct BrowserTab: Codable, Identifiable, Equatable {
     enum Placement: String, Codable { case pinned, saved, current }
 
     static func limitedTitle(_ title: String) -> String {
-        let utf8 = title.prefix(2048).utf8
-        var bytes = utf8.prefix(maximumTitleBytes)
-        while bytes.endIndex != utf8.endIndex && utf8[bytes.endIndex] & 0xC0 == 0x80 {
-            bytes = bytes.dropLast()
-        }
-        return String(decoding: bytes, as: UTF8.self)
+        title.prefix(characters: 2048, utf8Bytes: maximumTitleBytes)
     }
     var id = UUID()
     var title = "New Tab"
@@ -41,6 +36,12 @@ struct BrowserFolder: Codable, Identifiable, Equatable {
 struct BrowserSpace: Codable, Identifiable, Equatable {
     static let maximumTabCount = 20_000
     static let maximumPinnedTabCount = 8
+    static let maximumNameBytes = 4096
+
+    static func normalizedName(_ name: String) -> String {
+        let text = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? "Space" : text.prefix(characters: 256, utf8Bytes: maximumNameBytes)
+    }
     var id = UUID()
     var name = "Personal"
     var color = 0
@@ -197,7 +198,7 @@ struct BrowserSession: Codable {
         for space in spaces {
             guard identifiers.insert(space.id).inserted, space.tabs.count <= BrowserSpace.maximumTabCount,
                 space.folders.count <= 4096,
-                space.name.utf8.count <= 4096
+                space.name.utf8.count <= BrowserSpace.maximumNameBytes
             else {
                 throw CocoaError(.fileReadCorruptFile)
             }
@@ -258,5 +259,16 @@ struct BrowserSplit: Codable, Identifiable, Equatable {
     init(tabIDs: [UUID]) {
         self.tabIDs = tabIDs
         fractions = tabIDs.map { _ in 1 / Double(tabIDs.count) }
+    }
+}
+
+private extension String {
+    func prefix(characters: Int, utf8Bytes: Int) -> String {
+        let utf8 = prefix(characters).utf8
+        var bytes = utf8.prefix(utf8Bytes)
+        while bytes.endIndex != utf8.endIndex && utf8[bytes.endIndex] & 0xC0 == 0x80 {
+            bytes = bytes.dropLast()
+        }
+        return String(decoding: bytes, as: UTF8.self)
     }
 }

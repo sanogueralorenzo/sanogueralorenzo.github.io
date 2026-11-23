@@ -27,9 +27,6 @@ targets:
     sources:
       - path: browser
       - path: Resources
-        excludes:
-          - uBlockOriginLite.json
-          - uBlockOriginLite.zip
       - path: Documentation/ReleaseNotes.json
         buildPhase: resources
       - path: LICENSE

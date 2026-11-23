@@ -38,15 +38,31 @@ actor BrowserContentPackages {
 
     private let directory: URL
     private var stateURL: URL { directory.appendingPathComponent("Selection.json") }
+    private let bundledArchive: URL?
+    private let bundledManifest: URL?
 
-    init(profile: URL) {
+    init(profile: URL, bundle: Bundle = .main) {
         directory = profile.appendingPathComponent("ContentBlocking/Packages", isDirectory: true)
+        bundledArchive = bundle.url(forResource: "uBlockOriginLite", withExtension: "zip")
+        bundledManifest = bundle.url(forResource: "uBlockOriginLite", withExtension: "json")
+    }
+
+    func builtIn() throws -> BrowserContentPackage {
+        guard let bundledManifest, let bundledArchive else { throw CocoaError(.fileNoSuchFile) }
+        let manifest = try JSONDecoder().decode(BrowserContentPackage.Manifest.self, from: Data(contentsOf: bundledManifest))
+        guard let package = verified(manifest, archive: bundledArchive) else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        return package
     }
 
     func available() -> (active: BrowserContentPackage?, pending: BrowserContentPackage?) {
         let state = selection()
-        let active = verified(state.active)
-        let pending = verified(state.pending).flatMap { candidate -> BrowserContentPackage? in
+        let active = state.active.flatMap { manifest in
+            verified(manifest, archive: archiveURL(for: manifest))
+                ?? bundledArchive.flatMap { verified(manifest, archive: $0) }
+        }
+        let pending = state.pending.flatMap { verified($0, archive: archiveURL(for: $0)) }.flatMap { candidate -> BrowserContentPackage? in
             if let active, !candidate.manifest.supersedes(active.manifest) { return nil }
             return candidate
         }
@@ -58,14 +74,13 @@ actor BrowserContentPackages {
         let state = selection()
         return manifest.isSupported && manifest.sha256 != state.rejected
             && manifest.supersedes(active.manifest)
-            && (state.pending?.sha256 != manifest.sha256 || verified(state.pending) == nil)
+            && (state.pending?.sha256 != manifest.sha256 || verified(manifest, archive: archiveURL(for: manifest)) == nil)
     }
 
     func stage(_ manifest: BrowserContentPackage.Manifest, data: Data) throws -> BrowserContentPackage {
         guard manifest.isSupported, Self.matches(data, digest: manifest.sha256)
         else { throw CocoaError(.fileReadCorruptFile) }
-        try FileManager.default.createDirectory(
-            at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        try createDirectory()
         let archive = archiveURL(for: manifest)
         try data.write(to: archive, options: .atomic)
         var state = selection()
@@ -98,14 +113,18 @@ actor BrowserContentPackages {
         return state
     }
 
+    private func createDirectory() throws {
+        try FileManager.default.createDirectory(
+            at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+    }
+
     private func save(_ state: Selection) throws {
+        try createDirectory()
         try JSONEncoder().encode(state).write(to: stateURL, options: .atomic)
     }
 
-    private func verified(_ manifest: BrowserContentPackage.Manifest?) -> BrowserContentPackage? {
-        guard let manifest, manifest.isSupported else { return nil }
-        let archive = archiveURL(for: manifest)
-        guard let values = try? archive.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey]),
+    private func verified(_ manifest: BrowserContentPackage.Manifest, archive: URL) -> BrowserContentPackage? {
+        guard manifest.isSupported, let values = try? archive.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey]),
             values.isRegularFile == true, values.isSymbolicLink != true,
             let size = values.fileSize, (1...Self.maximumArchiveSize).contains(size),
             let data = try? Data(contentsOf: archive), Self.matches(data, digest: manifest.sha256)

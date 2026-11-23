@@ -7,7 +7,6 @@ final class BrowserContentStartup {
     private let download = BrowserContentPackageDownload()
     private let present: (NSWindow?) -> Void
     private var window: BrowserContentStartupWindow?
-    private var checkedFeed = false
 
     init(owner: BrowserSessionOwner, present: @escaping (NSWindow?) -> Void) {
         self.owner = owner
@@ -25,7 +24,6 @@ final class BrowserContentStartup {
                 } catch {
                     try Task.checkCancellation()
                     try? await packages.reject(pending, retaining: available.active)
-                    if available.active == nil { throw error }
                     NSLog("Content blocking update could not be applied: %@", error.localizedDescription)
                 }
             }
@@ -34,19 +32,8 @@ final class BrowserContentStartup {
                 close()
                 return true
             }
-            show(.downloading(nil))
-            checkedFeed = true
-            let manifest = try await download.latest()
-            let package = try await stage(manifest) { [weak self] progress in
-                self?.window?.setDownloadProgress(progress)
-            }
-            do {
-                try await activate(package)
-            } catch {
-                try Task.checkCancellation()
-                try? await packages.reject(package, retaining: nil)
-                throw error
-            }
+            let bundled = try await packages.builtIn()
+            try await activate(bundled)
             return true
         } catch {
             if !Task.isCancelled {
@@ -58,26 +45,19 @@ final class BrowserContentStartup {
     }
 
     func checkForUpdate() async {
-        guard !checkedFeed, let active = owner.contentExtension.package else { return }
-        checkedFeed = true
+        guard let active = owner.contentExtension.package else { return }
         do {
             let manifest = try await download.latest()
             guard await packages.shouldDownload(manifest, after: active) else { return }
-            _ = try await stage(manifest)
+            let data = try await download.fetch()
+            try Task.checkCancellation()
+            _ = try await packages.stage(manifest, data: data)
         } catch {
             if !Task.isCancelled { NSLog("Content blocking update could not be downloaded: %@", error.localizedDescription) }
         }
     }
 
     func showWindow() { present(window?.window) }
-
-    private func stage(
-        _ manifest: BrowserContentPackage.Manifest, progress: BrowserContentPackageDownload.Progress? = nil
-    ) async throws -> BrowserContentPackage {
-        let data = try await download.fetch(progress: progress)
-        try Task.checkCancellation()
-        return try await packages.stage(manifest, data: data)
-    }
 
     private func activate(_ package: BrowserContentPackage) async throws {
         show(.preparing)

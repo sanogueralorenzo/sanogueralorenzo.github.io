@@ -3,11 +3,21 @@ import WebKit
 
 extension BrowserStore {
     func findInPage(backwards: Bool = false) {
+        guard let page = activePage else { return }
+        let term = findText
+        let document = page.documentRevision
+        let request = UUID()
+        findRequest = request
         findsPage = true
         let config = WKFindConfiguration()
         config.backwards = backwards
         config.wraps = true
-        activePage?.webView.find(findText, configuration: config) { _ in }
+        page.webView.find(term, configuration: config) { [weak self, weak page] result in
+            guard let self, let page, self.findsPage, self.findRequest == request,
+                self.activePage === page, page.documentRevision == document, self.findText == term
+            else { return }
+            self.findMatch = term.isEmpty ? nil : result.matchFound
+        }
     }
 
     func copyAddress() {

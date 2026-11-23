@@ -4,7 +4,6 @@ import SwiftUI
 @MainActor
 final class BrowserContentStartupWindow: NSWindowController, NSWindowDelegate {
     enum Phase {
-        case downloading(Double?)
         case preparing
         case failed
     }
@@ -35,10 +34,6 @@ final class BrowserContentStartupWindow: NSWindowController, NSWindowDelegate {
 
     required init?(coder: NSCoder) { nil }
 
-    func setDownloadProgress(_ fraction: Double?) {
-        if case .downloading = state.phase { state.phase = .downloading(fraction) }
-    }
-
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         NSApp.terminate(nil)
         return false
@@ -54,10 +49,10 @@ final class BrowserContentStartupWindow: NSWindowController, NSWindowDelegate {
                     .frame(width: 72, height: 72)
                     .accessibilityHidden(true)
                 switch state.phase {
-                case .downloading(let fraction):
-                    progress(fraction: fraction)
                 case .preparing:
-                    progress(fraction: nil)
+                    ProgressView(BrowserContentBlocking.preparingLabel)
+                        .progressViewStyle(.linear)
+                        .frame(width: 238)
                 case .failed:
                     Text("Content blocking couldn’t be set up.")
                     Text("Browser will try again the next time it opens.")
@@ -69,19 +64,6 @@ final class BrowserContentStartupWindow: NSWindowController, NSWindowDelegate {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.top, 12)
-        }
-
-        private func progress(fraction: Double?) -> some View {
-            let label = BrowserContentBlocking.preparingLabel
-            return Group {
-                if let fraction {
-                    ProgressView(label, value: fraction)
-                } else {
-                    ProgressView(label)
-                }
-            }
-            .progressViewStyle(.linear)
-            .frame(width: 238)
         }
     }
 }

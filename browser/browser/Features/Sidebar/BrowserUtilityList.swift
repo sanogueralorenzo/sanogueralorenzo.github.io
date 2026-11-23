@@ -15,10 +15,11 @@ struct BrowserUtilityList: View {
                     Image(systemName: "chevron.left")
                 }
                 .buttonStyle(BrowserChromeButtonStyle())
+                .accessibilityLabel("Back to Tabs")
                 Text(utility.rawValue).font(.headline)
                 Spacer()
                 if utility == .history && !showsRecentlyClosed {
-                    Button("Clear") { store.clearHistory() }
+                    Button("Clear…") { store.confirmClearing(.visitedHistory, in: store.activeSpace.id) }
                         .buttonStyle(.plain)
                         .foregroundStyle(.secondary)
                         .accessibilityLabel("Clear History")
@@ -43,9 +44,11 @@ struct BrowserUtilityList: View {
                             visitedEntries
                         }
                     case .downloads:
-                        ForEach(
-                            store.session.downloads.filter { $0.spaceID == store.activeSpace.id && matches($0.name) }
-                        ) { download in
+                        let downloads = store.session.downloads.filter {
+                            $0.spaceID == store.activeSpace.id && matches($0.name)
+                        }
+                        if downloads.isEmpty { empty("No downloads", "No matching downloads") }
+                        ForEach(downloads) { download in
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(download.name).lineLimit(1)
                                 if download.status == .running && download.expected > 0 {
@@ -94,12 +97,12 @@ struct BrowserUtilityList: View {
         utility == .history && showsRecentlyClosed ? "Recently Closed" : utility.rawValue
     }
 
-    private var visitedEntries: some View {
-        ForEach(
-            store.session.history.filter {
-                $0.spaceID == store.activeSpace.id && matches($0.title + $0.url.absoluteString)
-            }
-        ) { visit in
+    @ViewBuilder private var visitedEntries: some View {
+        let entries = store.session.history.filter {
+            $0.spaceID == store.activeSpace.id && matches($0.title + " " + $0.url.absoluteString)
+        }
+        if entries.isEmpty { empty("No visited pages", "No matching pages") }
+        ForEach(entries) { visit in
             Button {
                 store.open(visit.url)
             } label: {
@@ -116,11 +119,7 @@ struct BrowserUtilityList: View {
                     || matches(item.tab.url?.absoluteString ?? ""))
         }
         if entries.isEmpty {
-            Text(search.isEmpty ? "No recently closed tabs" : "No matching tabs")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            empty("No recently closed tabs", "No matching tabs")
         } else {
             ForEach(entries) { item in
                 Button {
@@ -133,6 +132,14 @@ struct BrowserUtilityList: View {
                 .buttonStyle(BrowserChromeButtonStyle(controlSize: nil, cornerRadius: 16))
             }
         }
+    }
+
+    private func empty(_ label: String, _ noMatches: String) -> some View {
+        Text(search.isEmpty ? label : noMatches)
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func matches(_ text: String) -> Bool { search.isEmpty || text.localizedCaseInsensitiveContains(search) }

@@ -25,15 +25,16 @@ extension BrowserStore {
 
     func saveSpace(id: UUID?, name: String, color: Int, isPrivate: Bool = false) {
         guard !isClosed else { return }
-        let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if let id {
             guard let index = session.spaces.firstIndex(where: { $0.id == id }) else { return }
-            session.spaces[index].name = title.isEmpty ? "Space" : String(title.prefix(256))
+            let title = BrowserSpace.normalizedName(name)
+            guard session.spaces[index].name != title || session.spaces[index].color != color else { return }
+            session.spaces[index].name = title
             session.spaces[index].color = color
             changed()
         } else {
             do {
-                let id = try owner.addSpace(name: title, color: color, isPrivate: isPrivate)
+                let id = try owner.addSpace(name: name, color: color, isPrivate: isPrivate)
                 selectSpace(id)
                 _ = integration(for: id)
             } catch {
@@ -66,6 +67,9 @@ extension BrowserStore {
             session.spaces.removeAll { $0.id == id }
             session.history.removeAll { $0.spaceID == id }
             session.archive.removeAll { $0.spaceID == id }
+            if space.isPrivate {
+                for download in session.downloads where download.spaceID == id { download.discardPartialFile() }
+            }
             session.downloads.removeAll { $0.spaceID == id }
             let fallback = session.spaces.first(where: { !$0.isPrivate })!.id
             for context in owner.contexts.values {
@@ -124,9 +128,8 @@ extension BrowserSessionOwner {
 
     func addSpace(name: String, color: Int, isPrivate: Bool = false) throws -> UUID {
         guard session.spaces.count < BrowserSession.maximumSpaceCount else { throw BrowserSpaceFailure.limit }
-        let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
         var space = BrowserSpace()
-        space.name = title.isEmpty ? "Space" : String(title.prefix(256))
+        space.name = BrowserSpace.normalizedName(name)
         space.color = color
         space.isPrivate = isPrivate
         session.spaces.append(space)

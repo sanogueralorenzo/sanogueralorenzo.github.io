@@ -166,7 +166,11 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         preparingQuit = true
         Task {
             let allowed = await owner.canCloseAll()
-            if !allowed { preparingQuit = false }
+            if allowed {
+                owner.discardPrivatePartialDownloads()
+            } else {
+                preparingQuit = false
+            }
             NSApp.reply(toApplicationShouldTerminate: allowed)
         }
         return .terminateLater

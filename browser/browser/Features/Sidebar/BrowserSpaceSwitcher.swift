@@ -26,7 +26,13 @@ struct BrowserSpaceSwitcher: View {
                                 store.selectSpace(space.id)
                             } label: {
                                 HStack(spacing: 5) {
-                                    BrowserSpacePill(color: space.color, width: 15)
+                                    if space.isPrivate {
+                                        Image(systemName: "eye.slash")
+                                            .foregroundStyle(Color.space(space.color))
+                                            .frame(width: 15)
+                                    } else {
+                                        BrowserSpacePill(color: space.color, width: 15)
+                                    }
                                     Text(space.name).lineLimit(1).minimumScaleFactor(0.85)
                                 }
                                 .font(.system(size: 12, weight: .medium))
@@ -40,7 +46,7 @@ struct BrowserSpaceSwitcher: View {
                                 .frame(width: itemWidth, alignment: .leading)
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel(space.name)
+                            .accessibilityLabel(space.isPrivate ? "\(space.name), Private Space" : space.name)
                             .accessibilityAddTraits(store.activeSpace.id == space.id ? .isSelected : [])
                             .help(space.name)
                             .contextMenu {

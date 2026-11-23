@@ -6,7 +6,31 @@ struct BrowserPendingDownload: Identifiable {
     let record: BrowserDownloadRecord
 }
 
+extension BrowserDownloadRecord {
+    var temporaryFile: URL? {
+        destination?.deletingLastPathComponent().appendingPathComponent(".Browser-download-\(id.uuidString)")
+    }
+
+    func discardPartialFile() {
+        guard status != .completed, let temporaryFile else { return }
+        var stale = false
+        let directory = destinationBookmark.flatMap {
+            try? URL(resolvingBookmarkData: $0, options: .withSecurityScope, bookmarkDataIsStale: &stale)
+        }
+        let access = directory?.startAccessingSecurityScopedResource() == true
+        defer { if access { directory?.stopAccessingSecurityScopedResource() } }
+        try? FileManager.default.removeItem(at: temporaryFile)
+    }
+}
+
 extension BrowserSessionOwner {
+    func discardPrivatePartialDownloads() {
+        let privateSpaces = Set(session.spaces.lazy.filter(\.isPrivate).map(\.id))
+        for download in session.downloads where privateSpaces.contains(download.spaceID) {
+            download.discardPartialFile()
+        }
+    }
+
     func activeDownloadRequests(in spaceID: UUID? = nil) -> [UUID: UUID] {
         var requests = Dictionary(
             uniqueKeysWithValues: downloads.values.filter {
@@ -144,6 +168,7 @@ extension BrowserStore {
             guard session.downloads[index].requestMethod == "GET", let url = session.downloads[index].source,
                 ["http", "https"].contains(url.scheme ?? "")
             else { return nil }
+            session.downloads[index].discardPartialFile()
             session.downloads[index].destination = nil
             session.downloads[index].destinationBookmark = nil
             session.downloads[index].replacementIdentity = nil

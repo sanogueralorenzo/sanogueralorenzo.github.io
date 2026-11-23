@@ -207,15 +207,11 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
     func downloadDidFinish(_ download: WKDownload) {
         guard isActive else { return }
         guard let owner, let record = owner.session.downloads.first(where: { $0.id == id }),
-            let destination = record.destination
+            let destination = record.destination, let temporary = workingURL ?? record.temporaryFile
         else {
             finish(.failed, error: "No destination was saved.")
             return
         }
-        // WebKit resume data carries the original temporary path.
-        let temporary =
-            workingURL
-            ?? destination.deletingLastPathComponent().appendingPathComponent(".Browser-download-\(id.uuidString)")
         do {
             let metadata = "0083;\(String(Int(Date().timeIntervalSince1970), radix: 16));Browser;\(id.uuidString)"
             let result = metadata.withCString { ptr in
@@ -268,7 +264,7 @@ final class BrowserDownload: NSObject, WKDownloadDelegate, Identifiable {
 
     func cancel() {
         guard isActive else { return }
-        if let workingURL { try? FileManager.default.removeItem(at: workingURL) }
+        owner?.session.downloads.first { $0.id == id }?.discardPartialFile()
         finish(.cancelled)
         download.cancel { _ in }
     }

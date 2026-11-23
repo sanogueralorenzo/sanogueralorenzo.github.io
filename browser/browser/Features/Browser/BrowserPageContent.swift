@@ -27,7 +27,7 @@ struct BrowserPageContent: View {
             }
             BrowserPageLoadingBar(indicator: page.loading.indicator).id(page.id)
             if store.findsPage && store.selectedTab?.id == page.id {
-                BrowserFindBar(page: page, store: store).padding(12)
+                BrowserFindBar(page: page, store: store).padding(.top, 8)
             }
         }.frame(maxWidth: .infinity, maxHeight: .infinity).modifier(PageTranslation(page: page, store: store))
     }
@@ -58,34 +58,46 @@ private struct BrowserFindBar: View {
     let page: BrowserPage
     let store: BrowserStore
     @FocusState private var focused: Bool
+
     var body: some View {
-        HStack(spacing: 8) {
-            TextField("Find in Page", text: Binding(get: { store.findText }, set: { store.findText = $0 }))
-                .textFieldStyle(.plain).frame(width: 200).focused($focused).onSubmit { find(false) }
-            Button {
-                find(true)
-            } label: {
-                Image(systemName: "chevron.up")
+        VStack(alignment: .leading, spacing: 4) {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    field.frame(width: 200)
+                    controls
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    field.frame(maxWidth: 200)
+                    controls
+                }
             }
-            Button {
-                find(false)
-            } label: {
-                Image(systemName: "chevron.down")
+            if store.findMatch == false {
+                Text("No matches").font(.caption).foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
             }
-            Button {
-                store.findsPage = false
-            } label: {
-                Image(systemName: "xmark")
-            }
-        }.padding(10).background(BrowserBrandTheme.surface, in: RoundedRectangle(cornerRadius: BrowserRadius.control))
-            .buttonStyle(BrowserChromeButtonStyle()).onChange(of: store.findText) { find(false) }.onAppear {
-                focused = true
-            }.onExitCommand { store.findsPage = false }
+        }
+        .padding(.horizontal, 4).padding(.vertical, 6)
+        .background(BrowserBrandTheme.surface, in: RoundedRectangle(cornerRadius: BrowserRadius.control))
+        .buttonStyle(BrowserChromeButtonStyle())
+        .onChange(of: store.findText) { _, _ in store.findInPage() }
+        .onChange(of: page.documentRevision) { _, _ in store.findMatch = nil }
+        .onAppear { focused = true }
+        .onExitCommand { store.findsPage = false }
     }
-    private func find(_ backwards: Bool) {
-        let configuration = WKFindConfiguration()
-        configuration.backwards = backwards
-        configuration.wraps = true
-        page.webView.find(store.findText, configuration: configuration) { _ in }
+
+    private var field: some View {
+        TextField("Find in Page", text: Binding(get: { store.findText }, set: { store.findText = $0 }))
+            .textFieldStyle(.plain).focused($focused).onSubmit { store.findInPage() }
+    }
+
+    private var controls: some View {
+        HStack(spacing: 4) {
+            Button { store.findInPage(backwards: true) } label: { Image(systemName: "chevron.up") }
+                .accessibilityLabel("Previous Match")
+            Button { store.findInPage() } label: { Image(systemName: "chevron.down") }
+                .accessibilityLabel("Next Match")
+            Button { store.findsPage = false } label: { Image(systemName: "xmark") }
+                .accessibilityLabel("Close Find")
+        }
     }
 }

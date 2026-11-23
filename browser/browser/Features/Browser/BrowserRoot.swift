@@ -14,8 +14,10 @@ struct BrowserRoot: View {
                     layoutDirection == .leftToRight ? .leading : .trailing,
                     store.sidebarDocked ? store.sidebarRegionWidth : 0
                 )
+                .accessibilityHidden(store.addressPresented)
                 BrowserSidebarSurface(store: store, height: geometry.size.height)
                     .animation(BrowserMotion.floatingPane.unlessReducingMotion(reduceMotion), value: store.showsSidebar)
+                    .accessibilityHidden(store.addressPresented)
                 if store.addressPresented {
                     AddressPalette(
                         store: store, cornerRadius: windowCornerRadius ?? SidebarGeometry.defaultWindowRadius
@@ -24,10 +26,14 @@ struct BrowserRoot: View {
                 }
                 if store.recentSwitcherPresented { BrowserRecentSwitcher(store: store) }
                 if let notice = store.notice ?? store.owner.storageError {
-                    Text(notice).font(.callout).padding(.horizontal, 16).padding(.vertical, 10)
-                        .background(BrowserBrandTheme.surface, in: Capsule())
-                        .padding(.top, 12).frame(maxHeight: .infinity, alignment: .top)
-                        .allowsHitTesting(false)
+                    banner(Text(notice)).allowsHitTesting(false)
+                } else if store.owner.showsRecoveryNotice, !store.addressPresented {
+                    banner(
+                        HStack(spacing: 12) {
+                            Text("Recovered the previous saved session. The damaged file has been preserved.")
+                            Button("Dismiss") { store.owner.showsRecoveryNotice = false }
+                                .buttonStyle(.borderless)
+                        })
                 }
             }
             .overlay { BrowserSidebarDropDestination(store: store).accessibilityHidden(true) }
@@ -45,13 +51,22 @@ struct BrowserRoot: View {
         .tint(BrowserBrandTheme.textDisplay)
     }
 
+    private func banner(_ content: some View) -> some View {
+        content.font(.callout).padding(.horizontal, 16).padding(.vertical, 10)
+            .background(BrowserBrandTheme.surface, in: Capsule())
+            .padding(.top, 12).frame(maxHeight: .infinity, alignment: .top)
+    }
+
     @ViewBuilder private var pageContent: some View {
         if store.selectedTab?.isSettings == true {
             BrowserSettings(store: store)
-        } else if !store.visiblePages.isEmpty {
-            BrowserNativeSplit(
-                store: store, pages: store.visiblePages, split: store.activeSplit,
-                drop: store.sidebarReorder.splitProjection(in: store))
+        } else {
+            let pages = store.visiblePages
+            if !pages.isEmpty {
+                BrowserNativeSplit(
+                    store: store, pages: pages, split: store.activeSplit,
+                    drop: store.sidebarReorder.splitProjection(in: store))
+            }
         }
     }
 }

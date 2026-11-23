@@ -6,10 +6,11 @@ extension BrowserPage {
         refreshingPageState = true
         defer { refreshingPageState = false }
         let script = #"""
-            const media = [...document.querySelectorAll('video,audio')].some(e => !e.paused && !e.ended);
+            const media = [...document.querySelectorAll('video,audio')];
+            const playing = media.find(e => !e.paused && !e.ended);
             const dirty = globalThis.__browserHasFormEdits?.() ?? true;
-            const e = document.querySelector('video,audio');
-            return {playing:media, hasMedia:!!e, muted:e?.muted || false, dirty, title:navigator.mediaSession?.metadata?.title || document.title,
+            const e = playing ?? media[0];
+            return {playing:!!playing, hasMedia:!!e, muted:e?.muted || false, dirty, title:navigator.mediaSession?.metadata?.title || document.title,
               artist:navigator.mediaSession?.metadata?.artist || '', duration: Number.isFinite(e?.duration) ? e.duration : 0,
               elapsed:Number.isFinite(e?.currentTime) ? e.currentTime : 0};
             """#

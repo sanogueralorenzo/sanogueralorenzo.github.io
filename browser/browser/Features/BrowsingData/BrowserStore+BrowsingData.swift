@@ -1,4 +1,14 @@
+import AppKit
 import Foundation
+import WebKit
+
+enum BrowserBrowsingData {
+    case visitedHistory, websiteData
+
+    var title: String {
+        self == .visitedHistory ? "History" : "Website Data"
+    }
+}
 
 extension BrowserStore {
     func restore(_ entry: BrowserArchiveEntry) {
@@ -24,9 +34,29 @@ extension BrowserStore {
         selectTab(tab.id)
     }
 
-    func clearHistory() {
-        session.history.removeAll { $0.spaceID == activeSpace.id }
-        changed()
+    func confirmClearing(_ data: BrowserBrowsingData, in spaceID: UUID) {
+        guard !isClosed, let space = session.spaces.first(where: { $0.id == spaceID }) else { return }
+        let alert = NSAlert()
+        alert.messageText = "Clear \(data.title.lowercased()) in “\(space.name)”?"
+        alert.informativeText = data == .visitedHistory
+            ? "This removes all visited history in this Space."
+            : "This removes cookies and other site data in this Space and may sign you out."
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Clear \(data.title)")
+        Task { [weak self] in
+            guard let self, await BrowserDialogs.ask(alert, in: window) == .alertSecondButtonReturn,
+                !isClosed, session.spaces.contains(where: { $0.id == spaceID })
+            else { return }
+            switch data {
+            case .visitedHistory:
+                session.history.removeAll { $0.spaceID == spaceID }
+                changed()
+            case .websiteData:
+                await profile(for: spaceID).removeData(
+                    ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
+                if !isClosed { showNotice("Website data cleared") }
+            }
+        }
     }
 
     func reopenClosedTab() {

@@ -19,9 +19,11 @@ final class BrowserSessionOwner {
     var runtimeRevision = 0
     var lastRetentionSweep = Date.distantPast
     var storageError: String?
+    var showsRecoveryNotice = false
     var activeWindowID: UUID?
     let sidebarDrag = BrowserSidebarDragSession()
     @ObservationIgnored private var saveTask: Task<Void, Never>?
+    @ObservationIgnored private var savingRevision: UInt64?
     @ObservationIgnored private var maintenance: Task<Void, Never>?
     @ObservationIgnored private var pageMaintenance: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored var openWindow: ((BrowserWindowState?) -> Void)?
@@ -30,7 +32,8 @@ final class BrowserSessionOwner {
     init() throws {
         persistence = try BrowserPersistence()
         contentExtension = BrowserContentExtension(profile: persistence.directory)
-        session = try persistence.load()
+        let saved = try persistence.load()
+        session = saved.session
         session.normalizeLiveFolders()
         session.windows.removeAll { !$0.isOpen }
         for index in session.spaces.indices { session.spaces[index].limitPinnedTabs() }
@@ -40,9 +43,7 @@ final class BrowserSessionOwner {
             session.downloads[i].status = session.downloads[i].resumeData == nil ? .failed : .paused
             session.downloads[i].error = "The previous download was interrupted."
         }
-        if persistence.recovered {
-            storageError = "Recovered the previous saved session. The damaged file has been preserved."
-        }
+        showsRecoveryNotice = saved.recovered
     }
 
     func startMaintenance() {
@@ -52,9 +53,11 @@ final class BrowserSessionOwner {
                 do { try await Task.sleep(for: .seconds(2)) } catch { break }
                 guard let self else { break }
                 for page in Array(pages.values) where pageMaintenance[page.id] == nil {
-                    pageMaintenance[page.id] = Task { [weak self, weak page] in
-                        guard let self, let page else { return }
-                        defer { pageMaintenance[page.id] = nil }
+                    let id = page.id
+                    pageMaintenance[id] = Task { [weak self, weak page] in
+                        guard let self else { return }
+                        defer { pageMaintenance[id] = nil }
+                        guard let page, pages[id] === page else { return }
                         await page.refreshPageState()
                         await page.captureDocumentState()
                         if !visiblePageIDs.contains(page.id), !page.isProtectedFromUnloading,
@@ -100,9 +103,12 @@ final class BrowserSessionOwner {
 
     func pageChanged(_ page: BrowserPage) {
         guard let (s, t) = tabIndex(page.id) else { return }
-        if let url = page.url { session.spaces[s].tabs[t].url = url }
-        if !page.title.isEmpty { session.spaces[s].tabs[t].title = page.title }
-        if let icon = page.favicon, icon.count <= 32_768 { session.spaces[s].tabs[t].favicon = icon }
+        var tab = session.spaces[s].tabs[t]
+        if let url = page.url { tab.url = url }
+        if !page.title.isEmpty { tab.title = page.title }
+        if let icon = page.favicon, icon.count <= 32_768 { tab.favicon = icon }
+        guard tab != session.spaces[s].tabs[t] else { return }
+        session.spaces[s].tabs[t] = tab
         changed()
     }
 
@@ -115,21 +121,52 @@ final class BrowserSessionOwner {
 
     func changed() {
         session.revision &+= 1
+        scheduleSave()
+    }
+
+    private func scheduleSave() {
+        guard savingRevision == nil else { return }
         saveTask?.cancel()
         saveTask = Task { [weak self] in
             do { try await Task.sleep(for: .milliseconds(350)) } catch { return }
-            self?.flush()
+            self?.saveInBackground()
+        }
+    }
+
+    private func saveInBackground() {
+        saveTask = nil
+        let revision = session.revision
+        savingRevision = revision
+        persistence.save(checkpoint()) { [weak self] result in
+            Task { @MainActor in
+                guard let self, self.savingRevision == revision else { return }
+                self.savingRevision = nil
+                self.recordSave(result)
+                if self.session.revision != revision { self.scheduleSave() }
+            }
         }
     }
 
     @discardableResult func flush() -> Bool {
         saveTask?.cancel()
+        saveTask = nil
+        savingRevision = nil
+        let snapshot = checkpoint()
+        return recordSave(Result { try persistence.save(snapshot) })
+    }
+
+    private func checkpoint() -> BrowserSession {
         for page in pages.values { page.checkpointNativeState() }
-        do {
-            try persistence.save(session)
+        return session
+    }
+
+    @discardableResult
+    private func recordSave(_ result: Result<Void, Error>) -> Bool {
+        switch result {
+        case .success:
             storageError = nil
             return true
-        } catch {
+        case .failure(let error):
             storageError = error.localizedDescription
             return false
         }
@@ -137,7 +174,9 @@ final class BrowserSessionOwner {
 
     func setWindowFrame(_ id: UUID, frame: NSRect) {
         guard let index = session.windows.firstIndex(where: { $0.id == id }) else { return }
-        session.windows[index].frame = NSStringFromRect(frame)
+        let frame = NSStringFromRect(frame)
+        guard session.windows[index].frame != frame else { return }
+        session.windows[index].frame = frame
         changed()
     }
 

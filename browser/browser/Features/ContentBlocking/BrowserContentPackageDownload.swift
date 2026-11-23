@@ -1,8 +1,6 @@
 import Foundation
 
 struct BrowserContentPackageDownload: Sendable {
-    typealias Progress = @MainActor @Sendable (Double) -> Void
-
     private let baseURL: URL
     private let session: URLSession
 
@@ -27,11 +25,11 @@ struct BrowserContentPackageDownload: Sendable {
         return manifest
     }
 
-    func fetch(progress: Progress? = nil) async throws -> Data {
-        try await receive("uBlockOriginLite.zip", limit: BrowserContentPackages.maximumArchiveSize, progress: progress)
+    func fetch() async throws -> Data {
+        try await receive("uBlockOriginLite.zip", limit: BrowserContentPackages.maximumArchiveSize)
     }
 
-    private func receive(_ name: String, limit: Int, progress: Progress? = nil) async throws -> Data {
+    private func receive(_ name: String, limit: Int) async throws -> Data {
         let url = baseURL.appendingPathComponent(name)
         let (bytes, response) = try await session.bytes(from: url)
         guard let response = response as? HTTPURLResponse, response.statusCode == 200, response.url == url
@@ -43,9 +41,6 @@ struct BrowserContentPackageDownload: Sendable {
         for try await byte in bytes {
             guard data.count < limit else { throw URLError(.dataLengthExceedsMaximum) }
             data.append(byte)
-            if let progress, expected > 0, data.count.isMultiple(of: 131_072) {
-                await progress(min(1, Double(data.count) / Double(expected)))
-            }
         }
         return data
     }

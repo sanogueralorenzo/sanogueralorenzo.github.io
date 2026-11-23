@@ -36,7 +36,11 @@ extension BrowserSessionOwner {
             }
             if let cutoff = preferences.downloadRetention.cutoff(at: now) {
                 session.downloads.removeAll {
-                    $0.spaceID == space.id && $0.date < cutoff && ![.running, .paused, .choosing].contains($0.status)
+                    guard $0.spaceID == space.id && $0.date < cutoff,
+                        ![.running, .paused, .choosing].contains($0.status)
+                    else { return false }
+                    if space.isPrivate { $0.discardPartialFile() }
+                    return true
                 }
             }
         }

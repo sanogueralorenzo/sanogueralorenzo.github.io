@@ -10,7 +10,7 @@ Built with SwiftUI, AppKit, and WebKit.
 - **Spaces** keep website sessions separate. Private Spaces stay in memory.
 - **Sidebar** keeps pins, saved tabs, folders, GitHub live folders, and media controls together.
 - **Browsing** includes split views, translation, Reader Mode, downloads, and history with recently closed tabs.
-- **Content blocking** downloads uBlock Origin Lite on first launch, with Complete mode and settings for each Space.
+- **Content blocking** includes uBlock Origin Lite, with Complete mode and settings for each Space.
 
 **Build and run** (Apple silicon, macOS 26.1+, Xcode, and [XcodeGen](https://github.com/yonaskolb/XcodeGen)):
 
