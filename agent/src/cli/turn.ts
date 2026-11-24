@@ -104,7 +104,7 @@ export async function googleTurn(turn: Turn): Promise<TurnResult> {
   await writeFile(join(agents, "agent-turn.md"), [
     "---", "name: agent-turn", "description: Return one response for Agent.",
     `tools: ${JSON.stringify(allowedTools)}`, "subagent: false", "commandExecutionPolicy: off",
-    "mcpServers: []", "skills: []", "plugins: []", "---", turn.instructions,
+    "excludeDefaultComponents: true", "inheritCustomizations: false", "---", turn.instructions,
   ].join("\n"), { signal: turn.signal, mode: 0o600 });
   const settings = JSON.stringify({ allowNonWorkspaceAccess: false, toolPermission: "strict", permissions: {
     allow: [...(turn.search ? ["read_url(*)"] : []), ...images.map(path => `read_file(${path})`)],

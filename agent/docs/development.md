@@ -24,7 +24,7 @@ Workers have coding, shell, computer-use, and delegation tools, with separate co
 
 ## Models
 
-The CLIs handle authentication and model calls. Codex app-server replaces its base instructions with Agent's role prompt and exposes that role's tools as native dynamic tools in Code Mode. Pi Durable executes every Agent tool call and returns its result to Codex. If a turn has to reopen, Agent restores its context from the durable transcript. Claude Code and Antigravity CLI use structured responses for Agent tool requests.
+The CLIs handle authentication and model calls. Codex app-server and Claude Code replace their default system prompts with Agent's role instructions. Antigravity runs an Agent-defined custom agent with default prompt components and inherited customizations disabled. Codex Code Mode exposes the role's tools as native dynamic tools. Claude Code and Antigravity use structured responses for Agent tool requests. Pi Durable executes Agent tool calls and restores context from the durable transcript when a turn reopens.
 
 Routing and dispatch use the selected CLI’s lightweight model. Conversations and workers can use CLI web search. Reply suggestions, routing, and dispatch do not receive web search tools.
 
