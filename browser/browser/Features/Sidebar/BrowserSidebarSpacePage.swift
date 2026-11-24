@@ -10,6 +10,11 @@ struct BrowserSidebarSpacePage: View {
     @State private var restoring = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var savedExpanded: Bool { store.expandedSavedSpaces.contains(spaceID) }
+    private var hasSavedItems: Bool { space.hasRootSidebarItems(in: .saved) }
+    private var isDraggingItems: Bool {
+        guard let payload = store.owner.sidebarDrag.payload else { return false }
+        return payload.kind != .space
+    }
 
     init(store: BrowserStore, space: BrowserSpace) {
         self.store = store
@@ -20,11 +25,14 @@ struct BrowserSidebarSpacePage: View {
 
     var body: some View {
         VStack(spacing: SidebarGeometry.panelSpacing) {
-            VStack(spacing: SidebarGeometry.panelSpacing) {
-                sectionTitle("Pinned").padding(.horizontal, 4)
-                pinnedTabs
+            let pins = space.pinnedTabs
+            if !pins.isEmpty || isDraggingItems {
+                VStack(spacing: SidebarGeometry.panelSpacing) {
+                    sectionTitle("Pinned").padding(.horizontal, 4)
+                    pinnedTabs(pins)
+                }
+                Divider()
             }
-            Divider()
             GeometryReader { viewport in
                 let unusedHeight = max(0, viewport.size.height - listHeight)
                 ScrollView {
@@ -68,7 +76,7 @@ struct BrowserSidebarSpacePage: View {
             }
         }
         .animation(BrowserMotion.collection.unlessReducingMotion(reduceMotion), value: space.orderedSidebarIDs)
-        .onChange(of: space.hasSavedItems, initial: true) { _, hasItems in
+        .onChange(of: hasSavedItems, initial: true) { _, hasItems in
             if !hasItems { store.expandedSavedSpaces.remove(spaceID) }
         }
     }
@@ -85,15 +93,19 @@ struct BrowserSidebarSpacePage: View {
                 }
                 Divider()
             }
-            if space.hasSavedItems {
+            if hasSavedItems || isDraggingItems {
                 savedSection
                 Divider()
             }
             VStack(spacing: 4) {
-                tabsHeader
-                BrowserSidebarList(store: store, placement: .current)
-                    .frame(maxWidth: .infinity, minHeight: 8)
+                if space.hasRootSidebarItems(in: .current) || isDraggingItems {
+                    VStack(spacing: 4) {
+                        tabsHeader
+                        BrowserSidebarList(store: store, placement: .current)
+                            .frame(maxWidth: .infinity, minHeight: 8)
+                    }
                     .modifier(BrowserDropArea(store: store, placement: .current))
+                }
                 newTab
             }
         }
@@ -141,7 +153,7 @@ struct BrowserSidebarSpacePage: View {
             .accessibilityAddTraits(.isHeader)
     }
 
-    private var pinnedTabs: some View {
+    private func pinnedTabs(_ pins: [BrowserTab]) -> some View {
         let projection = store.sidebarReorder.pinnedLayout(
             in: space, width: store.sidebarWidth - 2 * SidebarGeometry.contentInset)
         return
@@ -165,15 +177,7 @@ struct BrowserSidebarSpacePage: View {
     private var tabsHeader: some View {
         HStack(spacing: 8) {
             sectionTitle("Tabs")
-            if !space.hasSavedItems, let drag = store.owner.sidebarDrag.payload, drag.kind != .space {
-                Text("Drop to save")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .frame(height: BrowserLayout.minimumHitTarget)
-                    .background(BrowserBrandTheme.line.opacity(0.35), in: Capsule())
-                    .modifier(BrowserDropArea(store: store, placement: .saved, showsInsertionGap: false))
-            } else if space.tabs.lazy.filter({ $0.placement == .current && !$0.isSettings }).prefix(2).count == 2 {
+            if space.tabs.lazy.filter({ $0.placement == .current && !$0.isSettings }).prefix(2).count == 2 {
                 Button {
                     store.clearCurrentTabs()
                 } label: {
@@ -208,6 +212,4 @@ struct BrowserSidebarSpacePage: View {
         .buttonStyle(BrowserChromeButtonStyle(controlSize: nil, cornerRadius: 20))
         .accessibilityIdentifier("new-tab")
     }
-
-    private var pins: [BrowserTab] { space.pinnedTabs }
 }

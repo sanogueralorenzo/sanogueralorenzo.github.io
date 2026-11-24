@@ -84,9 +84,6 @@ final class BrowserSidebarDragSourceView: NSView, NSDraggingSource {
         }
         var destination: BrowserStore?
         for context in contexts {
-            if context.sidebarReorder.lift == nil, let lift = owner.sidebarDrag.lift {
-                context.sidebarReorder.begin(lift, in: context)
-            }
             let local = context.window.map { $0.convertPoint(fromScreen: screenPoint) } ?? .zero
             let edge = context.showsSidebar ? context.sidebarDropBoundary : SidebarGeometry.revealWidth
             context.isDragging = context.window === window && local.x <= edge

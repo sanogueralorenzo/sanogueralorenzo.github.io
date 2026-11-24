@@ -31,11 +31,6 @@ final class BrowserSidebarDragSession {
         }
         if let space = store.session.spaces.first(where: { $0.id == payload.spaceID }) {
             lift = store.sidebarReorder.makeLift(payload, in: space)
-            if let lift {
-                for context in store.owner.contexts.values where !context.isClosed {
-                    context.sidebarReorder.begin(lift, in: context)
-                }
-            }
         }
         return true
     }

@@ -22,7 +22,7 @@ final class BrowserSidebarReorderState {
         var isScrollable = false
         var isNesting = false
         var createsFolder = false
-        var showsInsertionGap = true
+        var isSection: Bool { before == nil && folder == nil && placement != nil }
     }
     struct Target: Equatable {
         enum Kind: Equatable {
@@ -138,13 +138,13 @@ final class BrowserSidebarReorderState {
     }
 
     func previewRows(in store: BrowserStore) -> [BrowserSidebarDragPreview.Row] {
-        guard let id = lift?.anchorID, let root = restingRows[id] else { return [] }
-        let space = store.session.spaces.first { $0.id == lift?.spaceID } ?? store.activeSpace
+        guard let lift = store.owner.sidebarDrag.lift, let id = lift.anchorID, let root = rows[id]?.row else { return [] }
+        let space = store.session.spaces.first { $0.id == lift.spaceID } ?? store.activeSpace
         let folders = Dictionary(uniqueKeysWithValues: space.folders.map { ($0.id, $0) })
         let tabs = Dictionary(uniqueKeysWithValues: space.tabs.map { ($0.id, $0) })
         let groups = Dictionary(uniqueKeysWithValues: space.splits.map { ($0.id, $0) })
         let inside = folders[id].map { store.descendants($0.id, in: space) } ?? []
-        let candidates = restingRows.values.filter { row in
+        let candidates = rows.values.map(\.row).filter { row in
             row.id == id
                 || (!inside.isEmpty && (inside.contains(row.id) || row.section.folderID.map(inside.contains) == true))
         }
@@ -205,10 +205,14 @@ final class BrowserSidebarReorderState {
             height: max(SidebarGeometry.rowHeight, frames.reduce(0) { $0 + $1.height }), anchorID: anchorID)
     }
 
-    func begin(_ lift: Lift, in store: BrowserStore) {
-        self.lift = lift
+    private func begin(_ lift: Lift, in store: BrowserStore) {
         restingRows = rows.mapValues(\.row)
         restingZones = zones
+        if var grid = pinZone(in: store.activeSpace.id) {
+            grid.frame.size.height = pinHeight(in: store, width: grid.frame.width)
+            restingZones[grid.id] = grid
+        }
+        self.lift = lift
         var next = BrowserSidebarReorderLayout()
         next.sourceSpaceID = lift.spaceID
         next.hiddenIDs = lift.rootIDs
@@ -272,6 +276,13 @@ final class BrowserSidebarReorderState {
             }
             return
         }
+        if lift == nil, let pendingLift = store.owner.sidebarDrag.lift {
+            if store.utility == nil {
+                let sections = zones.values.filter { $0.isSection && $0.spaceID == store.activeSpace.id }
+                guard sections.count == 3 else { return }
+            }
+            begin(pendingLift, in: store)
+        }
         guard lift != nil, let window = store.window, let content = window.contentView,
             window.frame.contains(screenPoint)
         else {
@@ -314,9 +325,7 @@ final class BrowserSidebarReorderState {
             return $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height
         }
         let sections = restingZones.values.compactMap { zone -> (Zone, CGFloat)? in
-            guard store.showsSidebar, !zone.isSpace, !zone.isNesting, zone.showsInsertionGap,
-                zone.before == nil, zone.folder == nil,
-                zone.placement != nil, zone.spaceID == store.activeSpace.id
+            guard store.showsSidebar, zone.isSection, zone.spaceID == store.activeSpace.id
             else { return nil }
             let frame = projected(zone, in: store)
             guard !frame.isNull, point.x >= frame.minX, point.x <= frame.maxX else { return nil }
@@ -458,7 +467,11 @@ final class BrowserSidebarReorderState {
     }
 
     private func pinGrid(in spaceID: UUID) -> CGRect? {
-        restingZones.values.first { $0.spaceID == spaceID && $0.before == nil && $0.placement == .pinned }?.frame
+        pinZone(in: spaceID)?.frame
+    }
+
+    private func pinZone(in spaceID: UUID) -> Zone? {
+        restingZones.values.first { $0.spaceID == spaceID && $0.isSection && $0.placement == .pinned }
     }
 
     private func pinHeight(in store: BrowserStore, width: CGFloat) -> CGFloat {
@@ -496,9 +509,7 @@ final class BrowserSidebarReorderState {
             target = value
             var next = layout
             next.gap = nil
-            if let value, case .insert(let section, let before) = value.kind, section.placement != .pinned,
-                restingZones[value.zoneID]?.showsInsertionGap != false
-            {
+            if let value, case .insert(let section, let before) = value.kind, section.placement != .pinned {
                 let candidates = restingRows.values.filter { row in
                     row.section == section && row.parentItemID == section.folderID && !next.hiddenIDs.contains(row.id)
                 }.sorted { $0.frame.minY < $1.frame.minY }
