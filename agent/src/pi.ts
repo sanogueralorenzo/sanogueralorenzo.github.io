@@ -5,10 +5,11 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { lazyStream, type Models, type Model, type Api, type Context, type ModelsSimpleStreamOptions } from "@earendil-works/pi-ai";
 import { createCodingTools, createReadOnlyTools, formatSkillsForPrompt } from "@earendil-works/pi-coding-agent";
 import { AssistantEntry, createRegistry, defineExtension, defineTool, Harness, MemoryStorage, section,
-  type AnyTask, type Extension, type ModelRef, type Storage, type ToolRegistration } from "@earendil-works/pi-durable";
+  LiveDoc, ProviderDoc, type AnyTask, type ConversationId, type Extension, type ModelRef, type Storage, type ToolRegistration } from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { Providers, utilityAgent } from "./providers.ts";
 import { cliModels } from "./cli/models.ts";
+import { CodexTurns } from "./cli/codex.ts";
 import { ComputerUseClient } from "./computer-use.ts";
 import { agentResources, type AgentRole } from "./agent-resources.ts";
 import { agentText } from "./state.ts";
@@ -100,14 +101,18 @@ export class PiService {
   private readonly fixedModel?: ModelRef;
   private readonly roles: Record<AgentRole, Extension>;
   private readonly computers: Map<number, ComputerUseClient>;
+  private readonly codex?: CodexTurns;
   private readonly computerClosures = new Set<Promise<void>>();
   private unsubscribe = () => {};
-  private constructor(harness: Harness, models: Models, providers: Providers, fixedModel: ModelRef | undefined, roles: Record<AgentRole, Extension>, computers: Map<number, ComputerUseClient>) {
-    this.harness = harness; this.models = models; this.providers = providers; this.fixedModel = fixedModel; this.roles = roles; this.computers = computers;
+  private constructor(harness: Harness, models: Models, providers: Providers, fixedModel: ModelRef | undefined, roles: Record<AgentRole, Extension>, computers: Map<number, ComputerUseClient>, codex?: CodexTurns) {
+    this.harness = harness; this.models = models; this.providers = providers; this.fixedModel = fixedModel; this.roles = roles; this.computers = computers; this.codex = codex;
     this.unsubscribe = harness.subscribeCommits((publication) => {
       for (const change of publication.changes) {
         if (change.type !== "document" || !change.value || change.conversationId === undefined) continue;
-        if (change.record.kind === "pi.live" && !change.value.run) this.closeComputer(change.conversationId);
+        if (change.record.kind === "pi.live" && !change.value.run) {
+          this.closeComputer(change.conversationId);
+          void this.closeCodex(harness, change.conversationId).catch(() => {});
+        }
       }
     });
   }
@@ -116,7 +121,8 @@ export class PiService {
     const providers = new Providers(dataDir);
     if (!options.models) await providers.refresh();
     let service: PiService | undefined;
-    const models = providerModels(options.models || cliModels(provider => providers.fastEnabled(provider)));
+    const codex = options.models ? undefined : new CodexTurns();
+    const models = providerModels(options.models || cliModels(provider => providers.fastEnabled(provider), codex));
     const computers = new Map<number, ComputerUseClient>();
     const computer = new ComputerUseClient().tool();
     const computerTool = defineTool({ ...computer,
@@ -135,7 +141,7 @@ export class PiService {
     const harness = await Harness.open(options.storage || await openNodeSqliteStorage(join(dataDir, "durable.sqlite")), {
       models, registry, settings: { extensions: [], steeringMode: "one-at-a-time", followUpMode: "one-at-a-time", toolExecution: "parallel", progress: { partialIntervalMs: 16, outputIntervalMs: 16 } },
     }, BACKGROUND_CONTEXT);
-    service = new PiService(harness, models, providers, options.model, roles, computers);
+    service = new PiService(harness, models, providers, options.model, roles, computers, codex);
     return service;
   }
   get model(): ModelRef { return this.fixedModel || this.providers.model; }
@@ -163,14 +169,25 @@ export class PiService {
     const extension = roleExtension(role, tools);
     registry.install(extension);
     const harness = await Harness.open(new MemoryStorage(), { models: this.models, registry }, context);
+    let rootId: ConversationId | undefined;
     try {
       const root = await harness.root(context, { agent: { ...this.agent(role, cwd), extensions: [extension] } });
+      rootId = root.id;
       const settled = await (await root.submit({ type: "input", content: input }, context)).wait(context);
       if (acceptedResult?.()) return acceptedResult()!;
       if (settled.status !== "done" || settled.type !== "input") throw new Error("Router did not choose a destination");
       const entry = await root.commit((tx) => tx.entry(AssistantEntry, settled.answer), context);
       return agentText(entry?.model?.[0] || {});
-    } finally { await harness.close(BACKGROUND_CONTEXT); }
+    } finally {
+      try { if (rootId !== undefined) await this.closeCodex(harness, rootId); }
+      finally { await harness.close(BACKGROUND_CONTEXT); }
+    }
+  }
+  private async closeCodex(harness: Harness, conversationId: ConversationId) {
+    if (!this.codex) return;
+    const provider = await harness.snapshot(ProviderDoc, conversationId, BACKGROUND_CONTEXT);
+    const live = await harness.snapshot(LiveDoc, conversationId, BACKGROUND_CONTEXT);
+    if (provider && !live?.run) await this.codex.closeSession(provider.sessionId);
   }
   closeComputer(id: number) {
     const client = this.computers.get(id);
@@ -185,6 +202,7 @@ export class PiService {
     await this.providers.close();
     await this.harness.close(BACKGROUND_CONTEXT);
     this.unsubscribe();
+    await this.codex?.close();
     for (const id of this.computers.keys()) this.closeComputer(id);
     await Promise.all(this.computerClosures);
   }

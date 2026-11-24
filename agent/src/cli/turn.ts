@@ -32,7 +32,7 @@ export type Turn = {
   source: (source: unknown) => void;
 };
 
-type CliUsage = {
+export type CliUsage = {
   input_tokens?: number;
   output_tokens?: number;
   cache_read_input_tokens?: number;
@@ -54,57 +54,6 @@ async function imageFiles(turn: Turn) {
     await writeFile(path, Buffer.from(image.data, "base64"), { signal: turn.signal, mode: 0o600 });
     return path;
   }));
-}
-
-export async function codexTurn(turn: Turn): Promise<TurnResult> {
-  const images = await imageFiles(turn);
-  const cli = startCli("codex", ["app-server", "--listen", "stdio://",
-    "-c", 'mcp_servers={}', "-c", `web_search="${turn.search ? "live" : "disabled"}"`,
-    "--disable", "shell_tool", "--disable", "hooks", "--disable", "plugins", "--disable", "multi_agent",
-    "--disable", "multi_agent_v2", "--enable", "skip_host_skill_discovery"], turn.cwd, turn.signal);
-  const events = cli.events();
-  const request = (id: number, method: string, params: object) => cli.send({ id, method, params });
-  try {
-    request(1, "initialize", { clientInfo: { name: "sanogueralorenzo_agent", title: "Agent", version: "0.1.0" } });
-    let threadId: string | undefined;
-    let id: string | undefined;
-    let text: string | undefined;
-    let usage: CliUsage | undefined;
-    for await (const event of events) {
-      const { params } = event;
-      if (event.id !== undefined && event.method) {
-        cli.send({ id: event.id, error: { code: -32601, message: "Tool unavailable in Agent" } });
-      } else if (event.error) {
-        throw new Error("Codex could not start the turn");
-      } else if (event.id === 1) {
-        cli.send({ method: "initialized" });
-        request(2, "thread/start", { cwd: turn.cwd, model: turn.model, modelProvider: "openai",
-          ...(turn.fast && { serviceTier: "fast" }), approvalPolicy: "never", sandbox: "read-only",
-          baseInstructions: turn.instructions, ephemeral: true });
-      } else if (event.id === 2) {
-        threadId = event.result.thread.id;
-        request(3, "turn/start", { threadId, outputSchema: turnSchema, ...(turn.effort && { effort: turn.effort }),
-          input: [{ type: "text", text: turn.transcript }, ...images.map(path => ({ type: "localImage", path }))] });
-      } else if (params?.threadId === threadId) {
-        if (event.method === "item/agentMessage/delta") turn.progress(params.itemId, params.delta);
-        if (event.method === "item/completed" && params.item?.type === "agentMessage" && params.item.phase !== "commentary") {
-          text = params.item.text;
-          id = params.item.id;
-        }
-        if (event.method === "thread/tokenUsage/updated" && params.tokenUsage?.total) {
-          const total = params.tokenUsage.total;
-          usage = { input_tokens: total.inputTokens, output_tokens: total.outputTokens, cached_input_tokens: total.cachedInputTokens,
-            thinking_tokens: total.reasoningOutputTokens, total_tokens: total.totalTokens };
-        }
-        if (event.method === "turn/completed") {
-          if (params.turn.status !== "completed" || typeof text !== "string") throw new Error("Codex did not complete the turn");
-          return { output: JSON.parse(text), id, usage };
-        }
-      }
-    }
-    await cli.result();
-    throw new Error("Codex closed before completing the turn");
-  } finally { await cli.stop(); }
 }
 
 export async function claudeTurn(turn: Turn): Promise<TurnResult> {

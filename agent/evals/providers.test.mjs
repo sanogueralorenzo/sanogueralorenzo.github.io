@@ -8,6 +8,7 @@ import { lazyStream } from "@earendil-works/pi-ai";
 import { Providers } from "../src/providers.ts";
 import { PiService, providerModels } from "../src/pi.ts";
 import { cliModels } from "../src/cli/models.ts";
+import { CodexTurns } from "../src/cli/codex.ts";
 import { PromptSuggestions } from "../src/prompt-suggestions.ts";
 import { NativeSearchSources } from "../src/native-search.ts";
 import { defineTool, MemoryStorage } from "@earendil-works/pi-durable";
@@ -33,6 +34,7 @@ if (command === "--version") process.exit(0);
 if (command === "login") process.exit(connected ? 0 : 1);
 if (command === "auth") { send({loggedIn: connected}); process.exit(0); }
 const lines = readline.createInterface({input: process.stdin});
+let requestTool = false;
 lines.on("line", line => {
   const request = JSON.parse(line);
   if (command === "acp") {
@@ -44,11 +46,26 @@ lines.on("line", line => {
   if (binary === "codex") {
     if (request.id === 1) send({id: 1, result: {}});
     if (request.id === 2) { capture({thread: request.params}); send({id: 2, result: {thread: {id: "thread"}}}); }
+    const finish = text => {
+      send({method: "item/agentMessage/delta", params: {threadId: "thread", itemId: "answer", delta: text}});
+      send({method: "item/completed", params: {threadId: "thread", item: {type: "agentMessage", text}}});
+      send({method: "turn/completed", params: {threadId: "thread", turn: {status: "completed"}}});
+    };
+    if (request.id === 4) {
+      requestTool = request.params.items.some(item => item.role === "user" &&
+        item.content.some(part => part.text === "Call the native tool"));
+      send({id: 4, result: {}});
+    }
     if (request.id === 3) {
       capture({turn: request.params});
-      send({method: "item/agentMessage/delta", params: {threadId: "thread", itemId: "answer", delta: JSON.stringify(output)}});
-      send({method: "item/completed", params: {threadId: "thread", item: {type: "agentMessage", text: JSON.stringify(output)}}});
-      send({method: "turn/completed", params: {threadId: "thread", turn: {status: "completed"}}});
+      if (requestTool) send({id: "callback", method: "item/tool/call", params: {
+        threadId: "thread", callId: "exec-fixture", tool: "read", arguments: {path: "sample.txt"}
+      }});
+      else finish(output.text);
+    }
+    if (request.id === "callback") {
+      capture({toolOutput: request.result});
+      finish(request.result.contentItems[0].text);
     }
   } else if (binary === "claude") {
     capture({request, prompt: readFileSync(args[args.indexOf("--system-prompt-file") + 1], "utf8")});
@@ -95,11 +112,14 @@ test("checks exactly three CLI accounts and persists fast settings for connected
 test("CLI turns retain Agent tools and enable web search only for execution", async t => {
   const { fake, requests } = fixture(t);
   for (const binary of ["codex", "claude", "agy"]) fake(binary);
-  const models = cliModels(() => true);
+  const codex = new CodexTurns();
+  t.after(() => codex.close());
+  const models = cliModels(() => true, codex);
   for (const provider of models.getProviders()) {
     const model = models.getModels(provider.id)[0];
     for (const name of ["read", "route_home", "dispatch_message"]) {
       const stream = models.streamSimple(model, {
+        systemPrompt: "Act as the focused role.",
         messages: [{ role: "user", content: "Test", timestamp: 0 }],
         tools: [{ name, description: "Fixture", parameters: { type: "object", properties: {} } }],
       });
@@ -107,7 +127,11 @@ test("CLI turns retain Agent tools and enable web search only for execution", as
       const captured = requests();
       if (provider.id === "openai") {
         const { thread, args } = captured.at(-2);
-        assert.match(thread.baseInstructions, new RegExp(`"name":"${name}"`));
+        assert.equal(thread.baseInstructions, "Act as the focused role.");
+        assert.deepEqual(thread.dynamicTools, [{type: "function", name, description: "Fixture",
+          inputSchema: {type: "object", properties: {}}, deferLoading: false}]);
+        assert.ok(args.includes("code_mode"));
+        assert.equal(captured.at(-1).turn.outputSchema, undefined);
         assert.ok(args.includes(name === "read" ? 'web_search="live"' : 'web_search="disabled"'));
         assert.equal(thread.serviceTier, "fast");
       } else {
@@ -118,6 +142,20 @@ test("CLI turns retain Agent tools and enable web search only for execution", as
       }
     }
   }
+  const model = models.getModels("openai")[0];
+  const messages = [{ role: "user", content: "Call the native tool", timestamp: 0 }];
+  const tools = [{ name: "read", description: "Fixture", parameters: { type: "object", properties: { path: { type: "string" } } } }];
+  const send = () => models.streamSimple(model, { messages, tools, systemPrompt: "Act as the focused role." },
+    { sessionId: "native-fixture" }).result();
+  const first = await send();
+  assert.equal(first.stopReason, "toolUse");
+  assert.deepEqual(first.content[0], { type: "toolCall", id: "exec-fixture", name: "read", arguments: { path: "sample.txt" } });
+  messages.push(first, { role: "toolResult", toolCallId: "exec-fixture", toolName: "read", isError: false,
+    content: [{ type: "text", text: "Native result" }], timestamp: 1 });
+  const final = await send();
+  assert.deepEqual(final.content, [{ type: "text", text: "Native result" }]);
+  assert.deepEqual(requests().at(-1).toolOutput, { success: true, contentItems: [{ type: "inputText", text: "Native result" }] });
+
 });
 
 test("CLI citations retain safe source URLs without duplicates", () => {
