@@ -198,6 +198,8 @@ def main():
     release_url = f"https://api.github.com/repos/uBlockOrigin/uBOL-home/releases/{endpoint}"
     with urllib.request.urlopen(release_url, timeout=30) as response:
         release = json.load(response)
+    if release["draft"] or release["prerelease"]:
+        raise ValueError("Browser's content blocking feed requires a stable release")
     version = release["tag_name"]
     name = f"uBOLite_{version}.safari.zip"
     asset = next(item for item in release["assets"] if item["name"] == name)

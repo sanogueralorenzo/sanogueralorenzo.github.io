@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		008C161A1636C322E8FDA3C1 /* uBlockOriginLite.json in Resources */ = {isa = PBXBuildFile; fileRef = 01D2A65CEA82633591B90123 /* uBlockOriginLite.json */; };
 		020ED89987CE0FD4B5314D09 /* NaturalLanguage.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E132A97C431868B3CEA9B840 /* NaturalLanguage.framework */; };
 		02B520B35BABADA29C1182CB /* BrowserStore+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B1AD06F07160F2D6BD9842A /* BrowserStore+Actions.swift */; };
 		02D809BFCB4EAEB38163041D /* BrowserAuthentication.swift in Sources */ = {isa = PBXBuildFile; fileRef = B21C7118A43E13750DA63DA8 /* BrowserAuthentication.swift */; };
@@ -42,7 +41,6 @@
 		260E64E8D2E1FFA97F1F2775 /* BrowserSpaceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80F9C5171E897277B2D31172 /* BrowserSpaceSettings.swift */; };
 		27A11509CE6648521BE5E32B /* BrowserSidebarSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EE34F96B69AC3719EA34AAD /* BrowserSidebarSelection.swift */; };
 		281ACB7B73C34B4D5125F0AD /* BrowserDownloadFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4EF71EE9B2834D18B5CE1BB /* BrowserDownloadFile.swift */; };
-		2A1C948C31F5E19ED4F9C7DB /* uBlockOriginLite.zip in Resources */ = {isa = PBXBuildFile; fileRef = 206F68CA4BE550C75CF0218F /* uBlockOriginLite.zip */; };
 		2A8A3AE9E39CCD0277F4EB8B /* BrowserSidebarDragSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32A91F4F358D627B09024CF2 /* BrowserSidebarDragSession.swift */; };
 		2C978631FD5F46FA0D7D692C /* BrowserUtilityList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44EF12F89309762D498AB5C8 /* BrowserUtilityList.swift */; };
 		2D612DBC270357439CCA9225 /* BrowserGeneralSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 225FB228318F9888DF7A3201 /* BrowserGeneralSettings.swift */; };
@@ -189,7 +187,6 @@
 
 /* Begin PBXFileReference section */
 		0193FC68A3C40E6BF57CB0EC /* BrowserSpacePickerAutoscroll.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSpacePickerAutoscroll.swift; sourceTree = "<group>"; };
-		01D2A65CEA82633591B90123 /* uBlockOriginLite.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = uBlockOriginLite.json; sourceTree = "<group>"; };
 		0456D3C56256386697BA93B3 /* SidebarGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarGeometry.swift; sourceTree = "<group>"; };
 		07A8440E812FB71940945279 /* BrowserStore+Splits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Splits.swift"; sourceTree = "<group>"; };
 		0E5B9179FE51CC1268C57CBB /* BrowserSiteScripts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSiteScripts.swift; sourceTree = "<group>"; };
@@ -207,7 +204,6 @@
 		1B7A0DE2D7D86D5BF64C7261 /* BrowserPage+Reader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserPage+Reader.swift"; sourceTree = "<group>"; };
 		1BC2EE408278091A709ED490 /* BrowserContentPackageDownload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserContentPackageDownload.swift; sourceTree = "<group>"; };
 		1D015C06FFF9CEEAD517150D /* BrowserDataRetention.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserDataRetention.swift; sourceTree = "<group>"; };
-		206F68CA4BE550C75CF0218F /* uBlockOriginLite.zip */ = {isa = PBXFileReference; lastKnownFileType = archive.zip; path = uBlockOriginLite.zip; sourceTree = "<group>"; };
 		223863C57EF414B9CB35CCAC /* BrowserSidebarNestHighlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSidebarNestHighlight.swift; sourceTree = "<group>"; };
 		225FB228318F9888DF7A3201 /* BrowserGeneralSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserGeneralSettings.swift; sourceTree = "<group>"; };
 		2290C7FB632AA86D7AA44D63 /* BrowserSidebarBatchMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSidebarBatchMenu.swift; sourceTree = "<group>"; };
@@ -681,8 +677,6 @@
 				1878E5DF95A3C654F8DF9005 /* Assets.xcassets */,
 				8B58255C7E7E657E12832372 /* Browser.icon */,
 				2BAE5090C597703091FF5D00 /* PrivacyInfo.xcprivacy */,
-				01D2A65CEA82633591B90123 /* uBlockOriginLite.json */,
-				206F68CA4BE550C75CF0218F /* uBlockOriginLite.zip */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -972,8 +966,6 @@
 				0987C9DC854EA264B630A8AE /* PrivacyInfo.xcprivacy in Resources */,
 				427E05E9DF242B3D8632F4EC /* ReleaseNotes.json in Resources */,
 				AE93E77A3045EBEE341CB002 /* THIRD_PARTY_NOTICES.md in Resources */,
-				008C161A1636C322E8FDA3C1 /* uBlockOriginLite.json in Resources */,
-				2A1C948C31F5E19ED4F9C7DB /* uBlockOriginLite.zip in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

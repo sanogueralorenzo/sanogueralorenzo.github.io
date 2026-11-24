@@ -4,6 +4,7 @@ import SwiftUI
 @MainActor
 final class BrowserContentStartupWindow: NSWindowController, NSWindowDelegate {
     enum Phase {
+        case downloading
         case preparing
         case failed
     }
@@ -49,10 +50,10 @@ final class BrowserContentStartupWindow: NSWindowController, NSWindowDelegate {
                     .frame(width: 72, height: 72)
                     .accessibilityHidden(true)
                 switch state.phase {
+                case .downloading:
+                    progress("Downloading content blocking…")
                 case .preparing:
-                    ProgressView(BrowserContentBlocking.preparingLabel)
-                        .progressViewStyle(.linear)
-                        .frame(width: 238)
+                    progress(BrowserContentBlocking.preparingLabel)
                 case .failed:
                     Text("Content blocking couldn’t be set up.")
                     Text("Browser will try again the next time it opens.")
@@ -64,6 +65,12 @@ final class BrowserContentStartupWindow: NSWindowController, NSWindowDelegate {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.top, 12)
+        }
+
+        private func progress(_ label: String) -> some View {
+            ProgressView(label)
+                .progressViewStyle(.linear)
+                .frame(width: 238)
         }
     }
 }
