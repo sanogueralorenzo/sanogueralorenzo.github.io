@@ -10,7 +10,6 @@ import Foundation
     let title: String
     let subtitle: String
     let symbol: String
-    var spaceColor: Int? = nil
     var address: URL? = nil
     var isWebSearch = false
     let score: Double
@@ -46,8 +45,8 @@ extension BrowserStore {
                 if let score = BrowserAddressMatch.textScore(match, in: space.name), !query.isEmpty {
                     results.append(
                         .init(
-                            id: "space-\(space.id)", title: space.name, subtitle: "Switch Space", symbol: "capsule.fill",
-                            spaceColor: space.color,
+                            id: "space-\(space.id)", title: space.name, subtitle: "Switch Space",
+                            symbol: space.isPrivate ? "eye.slash" : "square.stack",
                             score: score + 10, action: .perform { $0.selectSpace(space.id) }))
                 }
                 for folder in space.folders {

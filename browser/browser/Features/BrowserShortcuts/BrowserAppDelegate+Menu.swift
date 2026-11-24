@@ -106,7 +106,7 @@ extension BrowserAppDelegate {
     @objc private func newPrivateWindow() {
         guard let owner else { return }
         do {
-            let id = try owner.addSpace(name: "Private", color: 4, isPrivate: true)
+            let id = try owner.addSpace(name: "Private", isPrivate: true)
             createWindow(restoring: BrowserWindowState(spaceID: id))
         } catch {
             if let store {

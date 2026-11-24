@@ -45,7 +45,6 @@ struct BrowserSpace: Codable, Identifiable, Equatable {
     }
     var id = UUID()
     var name = "Personal"
-    var color = 0
     var isPrivate = false
     var tabs: [BrowserTab] = []
     var folders: [BrowserFolder] = []

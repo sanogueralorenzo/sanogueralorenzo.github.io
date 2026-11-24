@@ -37,7 +37,7 @@ struct AddressPaletteResults: View {
                 resultButton(selected: index == selection) {
                     activateResult(result)
                 } label: {
-                    row(title: result.title, subtitle: result.subtitle, symbol: result.symbol, spaceColor: result.spaceColor)
+                    row(title: result.title, subtitle: result.subtitle, symbol: result.symbol)
                 }
                 .id(index)
             }
@@ -60,15 +60,9 @@ struct AddressPaletteResults: View {
             .background(selected ? BrowserBrandTheme.line : .clear, in: RoundedRectangle(cornerRadius: 12))
     }
 
-    private func row(title: String, subtitle: String, symbol: String, spaceColor: Int? = nil) -> some View {
+    private func row(title: String, subtitle: String, symbol: String) -> some View {
         HStack(spacing: 12) {
-            Group {
-                if let spaceColor {
-                    BrowserSpacePill(color: spaceColor)
-                } else {
-                    Image(systemName: symbol).foregroundStyle(.secondary)
-                }
-            }.frame(width: 22)
+            Image(systemName: symbol).foregroundStyle(.secondary).frame(width: 22)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).lineLimit(1)
                 Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)

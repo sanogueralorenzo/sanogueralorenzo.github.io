@@ -84,7 +84,6 @@ struct BrowserTabRow: View {
             selectionEmphasis: store.sidebarKeyboardSelection && store.selectedTabs.contains(tab.id),
             showsRestingSurface: pinned, selectedBorderColor: pinned ? .clear : BrowserColor.selectedBorder,
             selectedBorderWidth: pinned ? 0.5 : 1,
-            customSelectedFill: Color.space(space.color).opacity(0.32),
             customRestingFill: pinned ? Color.primary.opacity(0.055) : nil
         )
         .overlay { BrowserSidebarNestHighlight(state: store.sidebarReorder, target: .currentTab(tab.id)) }

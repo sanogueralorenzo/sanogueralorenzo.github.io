@@ -410,8 +410,7 @@ final class BrowserSidebarReorderState {
     }
 
     func landingFrame(in store: BrowserStore) -> CGRect? {
-        if let spaceLayout, spaceLayout.destination != nil, let id = spaceLayout.targetID,
-            let frame = spaceLayout.frames[id], let window = store.window, let content = window.contentView
+        if let frame = spaceLayout?.landingFrame, let window = store.window, let content = window.contentView
         {
             return window.convertToScreen(content.convert(frame, to: nil))
         }

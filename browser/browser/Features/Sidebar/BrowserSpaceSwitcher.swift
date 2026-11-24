@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct BrowserSpaceSwitcher: View {
@@ -6,49 +7,35 @@ struct BrowserSpaceSwitcher: View {
     @State private var position = ScrollPosition(x: 0)
     @State private var scroll = CGPoint.zero
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private let itemWidth: CGFloat = 96
+    private let spacing: CGFloat = 2
+    private let inset: CGFloat = 2
     private var spaces: [BrowserSpace] { store.session.spaces }
-    private var contentWidth: CGFloat { CGFloat(spaces.count) * itemWidth + 4 }
-    private var width: CGFloat {
-        min(contentWidth, store.sidebarWidth - 2 * SidebarGeometry.contentInset)
-    }
-    private var overflows: Bool { contentWidth > width }
 
     var body: some View {
+        let tabs = spaceTabs
+        let starts = tabs.map(\.start)
+        let contentWidth = (tabs.last.map { $0.start + $0.width } ?? 0) + 2 * inset
+        let width = min(contentWidth, store.sidebarWidth - 2 * SidebarGeometry.contentInset)
+        let overflows = contentWidth > width
         ScrollViewReader { reader in
             HStack(spacing: 0) {
-                if overflows { scrollButton(forward: false) }
+                if overflows { scrollButton(forward: false, starts: starts) }
                 ScrollView(.horizontal) {
-                    HStack(spacing: 0) {
-                        ForEach(spaces) { space in
+                    HStack(spacing: spacing) {
+                        ForEach(tabs, id: \.space.id) { tab in
+                            let space = tab.space
+                            let selected = store.activeSpace.id == space.id
+                            let label = space.isPrivate ? "\(space.name), Private Space" : space.name
                             Button {
                                 guard !store.owner.sidebarDrag.suppressesActivation else { return }
                                 store.selectSpace(space.id)
                             } label: {
-                                HStack(spacing: 5) {
-                                    if space.isPrivate {
-                                        Image(systemName: "eye.slash")
-                                            .foregroundStyle(Color.space(space.color))
-                                            .frame(width: 15)
-                                    } else {
-                                        BrowserSpacePill(color: space.color, width: 15)
-                                    }
-                                    Text(space.name).lineLimit(1).minimumScaleFactor(0.85)
-                                }
-                                .font(.system(size: 12, weight: .medium))
-                                .padding(.horizontal, 8)
-                                .frame(width: itemWidth - 6, height: 26)
-                                .background(
-                                    Color.space(space.color).opacity(store.activeSpace.id == space.id ? 0.22 : 0.07),
-                                    in: Capsule()
-                                )
-                                .contentShape(Capsule())
-                                .frame(width: itemWidth, alignment: .leading)
+                                BrowserSpaceTabLabel(name: space.name, width: tab.width, selected: selected)
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel(space.isPrivate ? "\(space.name), Private Space" : space.name)
-                            .accessibilityAddTraits(store.activeSpace.id == space.id ? .isSelected : [])
-                            .help(space.name)
+                            .accessibilityLabel(label)
+                            .accessibilityAddTraits(selected ? .isSelected : [])
+                            .help(label)
                             .contextMenu {
                                 if let index = spaces.firstIndex(where: { $0.id == space.id }) {
                                     Button("Move Left", systemImage: "arrow.left") {
@@ -88,7 +75,7 @@ struct BrowserSpaceSwitcher: View {
                             ? BrowserMotion.spaceSwitch.unlessReducingMotion(reduceMotion) : nil,
                         value: store.activeSpace.id
                     )
-                    .padding(2).frame(minWidth: overflows ? 0 : width, alignment: .center)
+                    .padding(inset)
                     .background {
                         BrowserSpacePickerAutoscroll(
                             viewport: store.sidebarReorder.spaceViewport,
@@ -113,9 +100,9 @@ struct BrowserSpaceSwitcher: View {
                 } action: { _, value in
                     scroll = value
                 }
-                if overflows { scrollButton(forward: true) }
+                if overflows { scrollButton(forward: true, starts: starts) }
             }
-            .frame(width: width, height: 30)
+            .frame(width: width, height: BrowserSpaceTabLabel.height + 2 * inset)
             .modifier(BrowserDropArea(store: store, spaceID: store.activeSpace.id, isSpaceRail: true))
             .contextMenu { Button("New Space") { edit(nil) } }
             .onAppear { reader.scrollTo(store.activeSpace.id, anchor: .center) }
@@ -130,10 +117,20 @@ struct BrowserSpaceSwitcher: View {
         }
     }
 
-    private func scrollButton(forward: Bool) -> some View {
+    private var spaceTabs: [(space: BrowserSpace, width: CGFloat, start: CGFloat)] {
+        var start: CGFloat = 0
+        return spaces.map { space in
+            let width = BrowserSpaceTabLabel.width(for: space.name)
+            defer { start += width + spacing }
+            return (space, width, start)
+        }
+    }
+
+    private func scrollButton(forward: Bool, starts: [CGFloat]) -> some View {
         Button {
+            let next = forward ? starts.first { $0 > scroll.x + 0.5 } : starts.last { $0 < scroll.x - 0.5 }
             withAnimation(BrowserMotion.scrollAlignment.unlessReducingMotion(reduceMotion)) {
-                position.scrollTo(x: min(max(0, scroll.x + (forward ? itemWidth : -itemWidth)), scroll.y))
+                position.scrollTo(x: min(next ?? (forward ? scroll.y : 0), scroll.y))
             }
         } label: {
             Image(systemName: forward ? "chevron.right" : "chevron.left")
@@ -142,5 +139,36 @@ struct BrowserSpaceSwitcher: View {
         .buttonStyle(.plain)
         .accessibilityLabel(forward ? "Show Next Spaces" : "Show Previous Spaces")
         .disabled(forward ? scroll.x >= scroll.y - 0.5 : scroll.x <= 0.5)
+    }
+}
+
+struct BrowserSpaceTabLabel: View {
+    static let height = BrowserLayout.minimumHitTarget
+    static let cornerRadius: CGFloat = 8
+    private static let labelFont = NSFont.systemFont(ofSize: 12, weight: .medium)
+    private static let horizontalInset: CGFloat = 10
+
+    let name: String
+    let width: CGFloat
+    let selected: Bool
+    @State private var hovering = false
+
+    static func width(for name: String) -> CGFloat {
+        let textWidth = (name as NSString).size(withAttributes: [.font: labelFont]).width
+        return min(144, max(44, ceil(textWidth) + 2 * horizontalInset))
+    }
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Self.cornerRadius)
+        Text(name)
+            .font(Font(Self.labelFont))
+            .lineLimit(1)
+            .foregroundStyle(selected ? Color.primary : Color.secondary)
+            .padding(.horizontal, Self.horizontalInset)
+            .frame(width: width, height: Self.height)
+            .background(selected ? Color.primary.opacity(0.10) : hovering ? BrowserColor.hover : .clear, in: shape)
+            .overlay { if selected { shape.strokeBorder(BrowserColor.selectedBorder, lineWidth: 0.5) } }
+            .contentShape(shape)
+            .onHover { hovering = $0 }
     }
 }

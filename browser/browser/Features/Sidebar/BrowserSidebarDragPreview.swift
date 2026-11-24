@@ -22,8 +22,6 @@ final class BrowserSidebarDragPreview {
         let title: String
         let count: Int
         let isSpace: Bool
-        let isSelectedSpace: Bool
-        let spaceColor: Int
         let spaceHeight: CGFloat
         let snapshot: NSImage?
         var cardHeight: CGFloat?
@@ -34,7 +32,7 @@ final class BrowserSidebarDragPreview {
         var pointer = CGPoint.zero
         init(
             rows: [Row], sourceHeight: CGFloat, tab: BrowserTab?, title: String, count: Int,
-            isSpace: Bool, isSelectedSpace: Bool, spaceColor: Int, spaceHeight: CGFloat,
+            isSpace: Bool, spaceHeight: CGFloat,
             snapshot: NSImage?, pinned: Bool, width: CGFloat
         ) {
             self.rows = rows
@@ -43,8 +41,6 @@ final class BrowserSidebarDragPreview {
             self.title = title
             self.count = count
             self.isSpace = isSpace
-            self.isSelectedSpace = isSelectedSpace
-            self.spaceColor = spaceColor
             self.spaceHeight = spaceHeight
             self.snapshot = snapshot
             self.pinned = pinned
@@ -79,9 +75,7 @@ final class BrowserSidebarDragPreview {
         presentation = Presentation(
             rows: rows, sourceHeight: frame.height, tab: tab, title: title,
             count: store.owner.sidebarDrag.lift?.rootIDs.count ?? 1,
-            isSpace: payload.kind == .space, isSelectedSpace: payload.spaceID == store.activeSpace.id,
-            spaceColor: store.session.spaces.first { $0.id == payload.spaceID }?.color ?? 0,
-            spaceHeight: frame.height,
+            isSpace: payload.kind == .space, spaceHeight: frame.height,
             snapshot: tab.flatMap { store.owner.pages[$0.id]?.mirrorImage },
             pinned: pinned, width: sourceWidth)
         anchor = CGPoint(
@@ -188,10 +182,10 @@ final class BrowserSidebarDragPreview {
         let anchor: CGPoint
         let reduceMotion: Bool
         var body: some View {
+            let radius = presentation.isSpace ? BrowserSpaceTabLabel.cornerRadius : presentation.cardHeight == nil ? 20 : 13
             ZStack(alignment: .topLeading) {
                 if presentation.isSpace {
-                    BrowserSpacePill(color: presentation.spaceColor, isSelected: presentation.isSelectedSpace)
-                        .frame(width: presentation.width, height: presentation.height)
+                    BrowserSpaceTabLabel(name: presentation.title, width: presentation.width, selected: true)
                 } else if presentation.rows.isEmpty {
                     row(nil, title: presentation.title)
                 } else if let tab = presentation.tab {
@@ -215,10 +209,10 @@ final class BrowserSidebarDragPreview {
                 }
             }
             .background(
-                BrowserBrandTheme.surface.opacity(presentation.isSpace ? 0 : 1),
-                in: RoundedRectangle(cornerRadius: presentation.cardHeight == nil ? 20 : 13)
+                BrowserBrandTheme.surface,
+                in: RoundedRectangle(cornerRadius: radius)
             )
-            .clipShape(RoundedRectangle(cornerRadius: presentation.cardHeight == nil ? 20 : 13))
+            .clipShape(RoundedRectangle(cornerRadius: radius))
             .overlay(alignment: .topTrailing) {
                 if presentation.count > 1 {
                     Text("\(presentation.count)").font(.caption.weight(.semibold)).padding(5)

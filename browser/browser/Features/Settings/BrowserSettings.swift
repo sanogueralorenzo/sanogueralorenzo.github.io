@@ -109,7 +109,7 @@ struct BrowserSettings: View {
                         Label {
                             Text(space.name).lineLimit(1)
                         } icon: {
-                            BrowserSpacePill(color: space.color).frame(height: 18)
+                            Image(systemName: space.isPrivate ? "eye.slash" : "square.stack")
                         }
                         .tag(BrowserSettingsSelection.space(space.id))
                         .contextMenu {

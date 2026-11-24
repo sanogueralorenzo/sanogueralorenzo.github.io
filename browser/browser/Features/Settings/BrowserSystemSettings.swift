@@ -82,7 +82,6 @@ struct BrowserSystemSettings: View {
                         openSpace(space.id)
                     } label: {
                         HStack {
-                            BrowserSpacePill(color: space.color).frame(height: 18)
                             Text(space.name)
                             Spacer()
                             Image(systemName: "chevron.right").foregroundStyle(.tertiary)

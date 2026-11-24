@@ -17,10 +17,11 @@ struct BrowserSpaceReorderLayout: Equatable {
             targetID = nil
             return
         }
-        let x = min(max(pointer.x, viewport.minX + source.width / 2), viewport.maxX - source.width / 2)
-        targetID = ids.filter { frames[$0] != nil }.min {
-            abs(frames[$0]!.midX - x) < abs(frames[$1]!.midX - x)
-        }
+        let x = min(max(pointer.x, viewport.minX), viewport.maxX)
+        targetID = ids.compactMap { id -> (id: UUID, frame: CGRect)? in
+            guard let frame = frames[id]?.intersection(viewport), !frame.isEmpty else { return nil }
+            return (id, frame)
+        }.min { abs($0.frame.midX - x) < abs($1.frame.midX - x) }?.id
     }
 
     var destination: (id: UUID, after: Bool)? {
@@ -30,20 +31,27 @@ struct BrowserSpaceReorderLayout: Equatable {
         return (targetID, source < target)
     }
 
+    var landingFrame: CGRect? {
+        guard let destination, let target = frames[destination.id], var source = frames[sourceID] else { return nil }
+        source.origin.x = target.midX > source.midX ? target.maxX - source.width : target.minX
+        return source
+    }
+
     func offset(for id: UUID) -> CGFloat {
         guard id != sourceID, let targetID,
             let source = ids.firstIndex(of: sourceID), let target = ids.firstIndex(of: targetID),
-            let index = ids.firstIndex(of: id), let frame = frames[id]
+            let index = ids.firstIndex(of: id), let frame = frames[sourceID]
         else { return 0 }
-        let displaced: Int
+        let neighborIndex: Int
         if source < target, index > source, index <= target {
-            displaced = index - 1
+            neighborIndex = source + 1
         } else if source > target, index >= target, index < source {
-            displaced = index + 1
+            neighborIndex = source - 1
         } else {
             return 0
         }
-        return (frames[ids[displaced]]?.minX ?? frame.minX) - frame.minX
+        guard let neighbor = frames[ids[neighborIndex]] else { return 0 }
+        return neighbor.midX > frame.midX ? frame.minX - neighbor.minX : frame.maxX - neighbor.maxX
     }
 
     mutating func contentMoved(by delta: CGFloat, viewport: CGRect) {

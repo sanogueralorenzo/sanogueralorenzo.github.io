@@ -61,15 +61,7 @@ struct BrowserSpaceSettings: View {
                 "Space name",
                 text: Binding(
                     get: { self.space?.name ?? "" },
-                    set: {
-                        store.saveSpace(id: spaceID, name: $0, color: self.space?.color ?? 0)
-                    }))
-            LabeledContent("Space color") {
-                BrowserSpaceColorPicker(
-                    selection: Binding(
-                        get: { self.space?.color ?? 0 },
-                        set: { store.saveSpace(id: spaceID, name: self.space?.name ?? "Space", color: $0) }))
-            }
+                    set: { store.saveSpace(id: spaceID, name: $0) }))
         }
         Section {
             Button("Delete “\(space.name)”", role: .destructive) { store.deleteSpace(spaceID) }

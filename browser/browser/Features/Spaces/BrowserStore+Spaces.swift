@@ -23,18 +23,17 @@ extension BrowserStore {
         return true
     }
 
-    func saveSpace(id: UUID?, name: String, color: Int, isPrivate: Bool = false) {
+    func saveSpace(id: UUID?, name: String, isPrivate: Bool = false) {
         guard !isClosed else { return }
         if let id {
             guard let index = session.spaces.firstIndex(where: { $0.id == id }) else { return }
             let title = BrowserSpace.normalizedName(name)
-            guard session.spaces[index].name != title || session.spaces[index].color != color else { return }
+            guard session.spaces[index].name != title else { return }
             session.spaces[index].name = title
-            session.spaces[index].color = color
             changed()
         } else {
             do {
-                let id = try owner.addSpace(name: name, color: color, isPrivate: isPrivate)
+                let id = try owner.addSpace(name: name, isPrivate: isPrivate)
                 selectSpace(id)
                 _ = integration(for: id)
             } catch {
@@ -98,15 +97,8 @@ extension BrowserStore {
         owner.profile(for: spaceID)
     }
 
-    func savePrivateSpace(name: String = "Private", color: Int = 4) {
-        guard !isClosed else { return }
-        do {
-            let id = try owner.addSpace(name: name, color: color, isPrivate: true)
-            selectSpace(id)
-            _ = integration(for: id)
-        } catch {
-            showNotice(error.localizedDescription)
-        }
+    func savePrivateSpace() {
+        saveSpace(id: nil, name: "Private", isPrivate: true)
     }
 
     func adjacentSpace(_ delta: Int) {
@@ -125,11 +117,10 @@ extension BrowserSessionOwner {
         return profile
     }
 
-    func addSpace(name: String, color: Int, isPrivate: Bool = false) throws -> UUID {
+    func addSpace(name: String, isPrivate: Bool = false) throws -> UUID {
         guard session.spaces.count < BrowserSession.maximumSpaceCount else { throw BrowserSpaceFailure.limit }
         var space = BrowserSpace()
         space.name = BrowserSpace.normalizedName(name)
-        space.color = color
         space.isPrivate = isPrivate
         session.spaces.append(space)
         prewarmContentBlocking(in: space.id)

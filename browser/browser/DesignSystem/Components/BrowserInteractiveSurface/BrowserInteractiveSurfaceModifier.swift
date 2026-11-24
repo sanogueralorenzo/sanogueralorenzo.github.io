@@ -18,7 +18,6 @@ struct BrowserInteractiveSurfaceModifier: ViewModifier {
     let selectedBorderColor: Color
     let selectedBorderWidth: CGFloat
     var customHoverFill: Color? = nil
-    var customSelectedFill: Color? = nil
     var customRestingFill: Color? = nil
     var restingBorderColor: Color = .clear
 
@@ -66,7 +65,7 @@ struct BrowserInteractiveSurfaceModifier: ViewModifier {
         if isSelected || isPressed || showsRestingSurface {
             BrowserSurfaceLayer(
                 shape: shape,
-                tint: isSelected || isPressed ? customSelectedFill : customRestingFill,
+                tint: isSelected || isPressed ? nil : customRestingFill,
                 hoverTint: isHovering ? hoverFill : nil
             )
         } else if isHovering {
@@ -134,7 +133,6 @@ extension View {
         selectedBorderColor: Color = BrowserColor.selectedBorder,
         selectedBorderWidth: CGFloat =
             BrowserInteractiveSurfaceMetrics.defaultSelectedBorderWidth,
-        customSelectedFill: Color? = nil,
         customRestingFill: Color? = nil
     ) -> some View {
         modifier(
@@ -148,7 +146,6 @@ extension View {
                 showsRestingSurface: showsRestingSurface,
                 selectedBorderColor: selectedBorderColor,
                 selectedBorderWidth: selectedBorderWidth,
-                customSelectedFill: customSelectedFill,
                 customRestingFill: customRestingFill
             )
         )
