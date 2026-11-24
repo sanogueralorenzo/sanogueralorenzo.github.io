@@ -8,6 +8,9 @@ final class BrowserPersistence: Sendable {
         let checksum: String
         let payload: Data
     }
+    private struct SessionFormat: Decodable {
+        let format: Int
+    }
     let directory: URL
     private let lockDescriptor: Int32
     private var file: URL { directory.appendingPathComponent("session.json") }
@@ -41,12 +44,20 @@ final class BrowserPersistence: Sendable {
     }
 
     func load() throws -> BrowserSession {
-        guard FileManager.default.fileExists(atPath: file.path) else { return BrowserSession() }
+        var info = stat()
+        if lstat(file.path, &info) != 0 {
+            let error = errno
+            if error == ENOENT { return BrowserSession() }
+            throw POSIXError(POSIXErrorCode(rawValue: error) ?? .EIO)
+        }
+        guard info.st_mode & S_IFMT == S_IFREG else { throw CocoaError(.fileReadUnknown) }
+        guard info.st_size <= 350 * 1_024 * 1_024 else { throw CocoaError(.fileReadTooLarge) }
+        let data = try Data(contentsOf: file)
         do {
-            return try readSession()
-        } catch {
-            try FileManager.default.moveItem(
-                at: file, to: directory.appendingPathComponent("unreadable-session-\(UUID().uuidString).json"))
+            return try decodeSession(data)
+        } catch is DecodingError {
+            return BrowserSession()
+        } catch let error as CocoaError where error.code == .fileReadCorruptFile {
             return BrowserSession()
         }
     }
@@ -71,18 +82,25 @@ final class BrowserPersistence: Sendable {
         try durableReplace(encoder.encode(envelope))
     }
 
-    private func readSession() throws -> BrowserSession {
-        let size = try file.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-        guard size <= 350 * 1_024 * 1_024 else { throw CocoaError(.fileReadTooLarge) }
+    private func decodeSession(_ data: Data) throws -> BrowserSession {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .millisecondsSince1970
-        let data = try Data(contentsOf: file)
         let envelope = try decoder.decode(Envelope.self, from: data)
         guard SHA256.hash(data: envelope.payload).map({ String(format: "%02x", $0) }).joined() == envelope.checksum
         else {
             throw CocoaError(.fileReadCorruptFile)
         }
-        let session = try decoder.decode(BrowserSession.self, from: envelope.payload)
+        let session: BrowserSession
+        do {
+            session = try decoder.decode(BrowserSession.self, from: envelope.payload)
+        } catch let error as DecodingError {
+            if let header = try? decoder.decode(SessionFormat.self, from: envelope.payload),
+                header.format != BrowserSession.currentFormat
+            {
+                throw CocoaError(.fileReadUnknown)
+            }
+            throw error
+        }
         try session.validate()
         return session
     }

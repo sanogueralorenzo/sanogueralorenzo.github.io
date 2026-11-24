@@ -159,8 +159,9 @@ struct BrowserWindowState: Codable, Identifiable {
 }
 
 struct BrowserSession: Codable {
+    static let currentFormat = 1
     static let maximumSpaceCount = 64
-    var format = 1
+    var format = Self.currentFormat
     var revision: UInt64 = 0
     var spaces = [BrowserSpace()]
     var selectedSpaceID: UUID?
@@ -191,7 +192,8 @@ struct BrowserSession: Codable {
     }
 
     func validate() throws {
-        guard format == 1, !spaces.isEmpty, spaces.count <= Self.maximumSpaceCount else {
+        guard format == Self.currentFormat else { throw CocoaError(.fileReadUnknown) }
+        guard !spaces.isEmpty, spaces.count <= Self.maximumSpaceCount else {
             throw CocoaError(.fileReadCorruptFile)
         }
         var identifiers = Set<UUID>()
