@@ -475,7 +475,7 @@ final class BrowserSidebarReorderState {
     }
 
     private func pinHeight(in store: BrowserStore, width: CGFloat) -> CGFloat {
-        max(8, pinnedLayout(in: store.activeSpace, width: width).height)
+        pinnedLayout(in: store.activeSpace, width: width).height
     }
 
     private func updatePinProjection(_ projection: inout BrowserSidebarReorderLayout, in store: BrowserStore) {

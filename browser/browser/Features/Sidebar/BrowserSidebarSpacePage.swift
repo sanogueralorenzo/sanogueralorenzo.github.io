@@ -25,8 +25,10 @@ struct BrowserSidebarSpacePage: View {
         VStack(spacing: SidebarGeometry.panelSpacing) {
             let pins = space.pinnedTabs
             if !pins.isEmpty || isDraggingItems {
-                VStack(spacing: SidebarGeometry.panelSpacing) {
-                    sectionTitle("Pinned").padding(.horizontal, 4)
+                VStack(spacing: 4) {
+                    sectionTitle("Pinned")
+                        .padding(.horizontal, 4)
+                        .frame(height: BrowserLayout.minimumHitTarget)
                     pinnedTabs(pins)
                 }
                 Divider()
@@ -132,7 +134,6 @@ struct BrowserSidebarSpacePage: View {
                     .opacity(store.sidebarReorder.target?.isPinned == true ? 1 : 0)
                     .allowsHitTesting(false).accessibilityHidden(true)
             }
-            .frame(minHeight: 8)
             .modifier(BrowserDropArea(store: store, placement: .pinned))
             .animation(BrowserMotion.collection.unlessReducingMotion(reduceMotion), value: pins.map(\.id))
             .animation(BrowserMotion.dragSource.unlessReducingMotion(reduceMotion), value: store.sidebarReorder.target)
