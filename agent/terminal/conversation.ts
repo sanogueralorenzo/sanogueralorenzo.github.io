@@ -6,7 +6,7 @@ export type Row = Target & {
   role: "You" | "Agent";
   title?: string;
   detail?: string;
-  replyTo?: string;
+  quote?: string;
   replyable?: boolean;
 };
 export type Feed = {
@@ -77,7 +77,7 @@ function homeRows(feed: Feed): Row[] {
     });
   }
   return rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt)).map(({ sourceId, ...row }, index) => ({
-    ...row, replyTo: sourceId && rows[index - 1]?.id !== sourceId ? texts.get(sourceId) : undefined,
+    ...row, quote: sourceId && rows[index - 1]?.id !== sourceId ? texts.get(sourceId) : undefined,
   }));
 }
 
@@ -89,7 +89,7 @@ export function conversationRows(feed: Feed): Row[] {
     return {
       id: message.id, role: message.role === "user" ? "You" : "Agent", text: message.text,
       sessionId: feed.view, replyable: message.role === "assistant" && message.replyable,
-      replyTo: preceding?.role === "user" && preceding.text === message.request ? undefined : message.request,
+      quote: preceding?.role === "user" && preceding.text === message.request ? undefined : message.request,
     };
   });
   for (const turn of sessionTurns(feed)) {
@@ -97,7 +97,7 @@ export function conversationRows(feed: Feed): Row[] {
     const preceding = rows.at(-1);
     if (turn.status === "running" && progress) rows.push({
       id: `progress:${turn.id}`, role: "Agent", text: progress,
-      replyTo: preceding?.role === "You" && preceding.text === turn.text ? undefined : turn.text,
+      quote: preceding?.role === "You" && preceding.text === turn.text ? undefined : turn.text,
     });
   }
   if (feed.conversation?.streaming && !rows.some(row => row.id.startsWith("progress:"))) {

@@ -23,6 +23,10 @@ export function compact(text: string) {
   return clean(text).replace(/\s+/g, " ").trim();
 }
 
+export function quotePreview(text: string) {
+  return dim(`> ${truncateToWidth(compact(text), 72, "…")}`);
+}
+
 export type Button = { id: string; label: string; run: () => void; focused?: boolean };
 type Line = string | Button[];
 
@@ -78,7 +82,7 @@ type Block = {
   header?: string;
   text?: string;
   detail?: string;
-  replyTo?: string;
+  quote?: string;
   user?: boolean;
   markdown?: boolean;
   focused?: boolean;
@@ -102,6 +106,7 @@ class Transcript {
       if (block.id) this.positions.set(block.id, lines.length);
       const start = lines.length;
       if (block.header) lines.push(truncateToWidth(block.header, contentWidth, "…"));
+      if (block.quote) lines.push(truncateToWidth(quotePreview(block.quote), contentWidth, "…"));
       if (block.text) {
         const text = clean(block.text);
         if (block.markdown && block.id) {
@@ -113,10 +118,6 @@ class Transcript {
           const bar = block.user && contentWidth > 2 ? dim("│ ") : "";
           lines.push(...wrapTextWithAnsi(text, contentWidth - visibleWidth(bar)).map(line => bar + line));
         }
-      }
-      if (block.replyTo) {
-        const preview = truncateToWidth(compact(block.replyTo), 72, "…");
-        lines.push(dim(truncateToWidth(`↳ Reply to “${preview}”`, contentWidth, "…")));
       }
       if (block.detail) lines.push(dim(truncateToWidth(compact(block.detail), contentWidth, "…")));
       for (let index = start; index < lines.length; index++) {

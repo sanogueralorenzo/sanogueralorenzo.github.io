@@ -5,7 +5,7 @@ import type { Data } from "../src/state.ts";
 import { agentClient, type Conversation } from "./api.ts";
 import { conversationRows, queuedRows, type Row, type Target } from "./conversation.ts";
 import { savedDrafts, type Draft } from "./drafts.ts";
-import { bold, clean, compact, dim, terminalView, yellow, type Button } from "./view.ts";
+import { bold, clean, compact, dim, quotePreview, terminalView, yellow, type Button } from "./view.ts";
 
 export function runTerminal(url: URL) {
   const abort = new AbortController();
@@ -17,6 +17,8 @@ export function runTerminal(url: URL) {
   let view = drafts.view;
   let data: Data = { messages: [], entries: [], sessions: [], turns: [] };
   let online = false;
+  let connectionNotice = false;
+  let offlineTimer: ReturnType<typeof setTimeout> | undefined;
   let loaded = false;
   let error = "";
   const conversations = new Map<string, Conversation>();
@@ -201,7 +203,7 @@ export function runTerminal(url: URL) {
     return {
       id, header: row.title ? bold(compact(row.title)) : undefined,
       text: row.text, user: row.role === "You", markdown: row.role === "Agent", focused: focus === id,
-      replyTo: row.replyTo, detail: [reacted(row.id) ? "👍" : "", row.detail].filter(Boolean).join(" · "),
+      quote: row.quote, detail: [reacted(row.id) ? "👍" : "", row.detail].filter(Boolean).join(" · "),
       select: rows.has(id) ? () => selectRow(id, row) : undefined,
     };
   }
@@ -244,12 +246,12 @@ export function runTerminal(url: URL) {
     const reply = drafts.get(view).reply;
     const row = rows.get(focus);
     footer.lines = [];
-    if (!online) footer.lines.push(yellow(`Connecting to ${url.origin}…`));
+    if (connectionNotice) footer.lines.push(yellow(`${loaded ? "Reconnecting" : "Connecting"} to ${url.origin}…`));
     if (error) footer.lines.push(yellow(compact(error)));
     if (running) footer.lines.push(dim("Working…"));
     if (interrupted) footer.lines.push(dim("Paused"));
     if (runButtons.length) footer.lines.push(runButtons);
-    if (reply) footer.lines.push(dim(`Replying to “${compact(reply.text)}”`));
+    if (reply) footer.lines.push(quotePreview(reply.text));
     if (row) footer.lines.push(dim(view === "home" ? "Click or Enter to open · Type to reply" : "Type to reply · Esc clears selection"));
     else if (focus === "composer") {
       footer.lines.push(dim(`Enter sends · ${reply ? "Esc clears quote" : view === "home" ? "Tab moves focus" : "Esc goes Home"}`));
@@ -260,9 +262,26 @@ export function runTerminal(url: URL) {
   function quit() {
     if (abort.signal.aborted) return;
     abort.abort();
+    clearTimeout(offlineTimer);
     tui.stop();
     drafts.flush();
     process.stdout.write("", () => process.exit());
+  }
+
+  function setConnection(connected: boolean) {
+    online = connected;
+    if (connected) {
+      clearTimeout(offlineTimer);
+      offlineTimer = undefined;
+      connectionNotice = false;
+    } else if (!offlineTimer) {
+      offlineTimer = setTimeout(() => {
+        connectionNotice = true;
+        draw();
+      }, 2000);
+      offlineTimer.unref();
+    }
+    draw();
   }
 
   const consume = { consume: true } as const;
@@ -315,7 +334,7 @@ export function runTerminal(url: URL) {
   setFocus("composer");
   process.once("SIGINT", quit);
   process.once("SIGTERM", quit);
-  draw();
+  setConnection(false);
   tui.start();
 
   void api.follow(event => {
@@ -336,5 +355,5 @@ export function runTerminal(url: URL) {
       if (event.sessionId !== view) return;
     } else return;
     draw();
-  }, connected => { online = connected; draw(); });
+  }, setConnection);
 }

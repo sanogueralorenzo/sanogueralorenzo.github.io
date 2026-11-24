@@ -42,6 +42,10 @@ export function createAgentServer(app: Agent) {
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive", "x-accel-buffering": "no" });
       clients.add(res);
       const controller = new AbortController();
+      const heartbeat = setInterval(() => {
+        if (!res.writableEnded && !res.writableNeedDrain) res.write(": keep-alive\n\n");
+      }, 15_000);
+      heartbeat.unref();
       const watches = new Map<string, ReturnType<Agent["watchConversation"]>>();
       const send = async (event: unknown) => {
         controller.signal.throwIfAborted();
@@ -63,6 +67,7 @@ export function createAgentServer(app: Agent) {
       const sendProviders = () => app.pi.providers.snapshot().then(data => send({ type: "providers", data }));
       const unsubscribeProviders = app.pi.providers.subscribe(() => { void sendProviders().catch(() => res.destroy()); });
       res.on("close", () => {
+        clearInterval(heartbeat);
         clients.delete(res); controller.abort(); unsubscribe(); unsubscribeProviders();
         for (const pending of watches.values()) void pending.then((watch) => watch.stop(), () => {});
       });
