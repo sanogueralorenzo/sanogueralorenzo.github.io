@@ -73,7 +73,17 @@ export class Panel {
   invalidate() { this.hits.clear(); }
 }
 
-type Block = { id?: string; header?: string; quote?: string; text?: string; markdown?: boolean; select?: () => void };
+type Block = {
+  id?: string;
+  header?: string;
+  text?: string;
+  detail?: string;
+  replyTo?: string;
+  user?: boolean;
+  markdown?: boolean;
+  focused?: boolean;
+  select?: () => void;
+};
 
 class Transcript {
   blocks: Block[] = [];
@@ -84,26 +94,34 @@ class Transcript {
   render(width: number) {
     const lines: string[] = [];
     const markdown = new Map<string, Markdown>();
+    const margin = width > 2 ? 2 : 0;
+    const contentWidth = width - margin;
     this.positions.clear();
     this.hits = [];
     for (const block of this.blocks) {
       if (block.id) this.positions.set(block.id, lines.length);
       const start = lines.length;
-      if (block.header) lines.push(truncateToWidth(block.header, width));
-      if (block.quote) lines.push(truncateToWidth(block.quote, width));
+      if (block.header) lines.push(truncateToWidth(block.header, contentWidth, "…"));
       if (block.text) {
         const text = clean(block.text);
         if (block.markdown && block.id) {
           const content = this.markdown.get(block.id) ?? new Markdown(text, 0, 0, markdownTheme);
           content.setText(text);
           markdown.set(block.id, content);
-          lines.push(...content.render(width));
+          lines.push(...content.render(contentWidth));
         } else {
-          lines.push(...wrapTextWithAnsi(text, width));
+          const bar = block.user && contentWidth > 2 ? dim("│ ") : "";
+          lines.push(...wrapTextWithAnsi(text, contentWidth - visibleWidth(bar)).map(line => bar + line));
         }
       }
-      if (block.select) {
-        for (let index = start; index < lines.length; index++) this.hits[index] = block.select;
+      if (block.replyTo) {
+        const preview = truncateToWidth(compact(block.replyTo), 72, "…");
+        lines.push(dim(truncateToWidth(`↳ Reply to “${preview}”`, contentWidth, "…")));
+      }
+      if (block.detail) lines.push(dim(truncateToWidth(compact(block.detail), contentWidth, "…")));
+      for (let index = start; index < lines.length; index++) {
+        if (margin) lines[index] = (block.focused && index === start ? bold("› ") : "  ") + lines[index];
+        if (block.select) this.hits[index] = block.select;
       }
       lines.push("");
     }

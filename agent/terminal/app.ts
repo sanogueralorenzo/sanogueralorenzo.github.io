@@ -76,8 +76,8 @@ export function runTerminal(url: URL) {
 
   function focusComposer(row?: Row) {
     if (row?.replyable && row.sessionId) {
-      const { id, text, role, sessionId } = row;
-      const reply: Target = { id, text, role, sessionId };
+      const { id, text, sessionId } = row;
+      const reply: Target = { id, text, sessionId };
       changeDraft({ text: drafts.get(view).text, reply });
     }
     moveFocus("composer");
@@ -198,12 +198,10 @@ export function runTerminal(url: URL) {
   }
 
   function rowBlock(id: string, row: Row) {
-    const focused = focus === id;
-    const label = [row.role, row.title && compact(row.title), row.detail && compact(row.detail)].filter(Boolean).join(" · ");
-    const quote = row.quote && dim(`│ ${row.quote.role} · ${compact(row.quote.text).slice(0, 80)}`);
     return {
-      id, header: (focused ? bold : dim)(`${focused ? "›" : " "} ${label}${reacted(row.id) ? " 👍" : ""}`),
-      quote, text: row.text, markdown: row.role === "Agent",
+      id, header: row.title ? bold(compact(row.title)) : undefined,
+      text: row.text, user: row.role === "You", markdown: row.role === "Agent", focused: focus === id,
+      replyTo: row.replyTo, detail: [reacted(row.id) ? "👍" : "", row.detail].filter(Boolean).join(" · "),
       select: rows.has(id) ? () => selectRow(id, row) : undefined,
     };
   }
@@ -217,14 +215,14 @@ export function runTerminal(url: URL) {
     rows = new Map(messages.filter(row => row.replyable || (view === "home" && row.sessionId)).map(row => [`row:${row.id}`, row]));
 
     const home = view === "home" ? [] : [button("home", unseen.size ? "← Home · new replies" : "← Home", () => navigate("home"))];
-    top.lines = [` ${bold(compact(session?.title || "Agent"))}`];
+    top.lines = [`  ${bold(compact(session?.title || "Agent"))}`];
     if (home.length) top.lines.push(home);
 
     transcript.blocks = messages.map(row => rowBlock(`row:${row.id}`, row));
     if (!messages.length) transcript.blocks.push({ text: view === "home" ? "How can I help?" : "No messages yet." });
     const queue = queuedRows(feed);
     if (queue.length) transcript.blocks.push({ header: bold("Queued follow-ups") }, ...queue.map(item => ({
-      header: dim(compact(item.detail)), text: item.text,
+      text: item.text, detail: item.detail, user: true,
     })));
 
     const running = session?.status === "running";
@@ -251,7 +249,7 @@ export function runTerminal(url: URL) {
     if (running) footer.lines.push(dim("Working…"));
     if (interrupted) footer.lines.push(dim("Paused"));
     if (runButtons.length) footer.lines.push(runButtons);
-    if (reply) footer.lines.push(dim(`Reply to ${reply.role} · ${compact(reply.text)}`));
+    if (reply) footer.lines.push(dim(`Replying to “${compact(reply.text)}”`));
     if (row) footer.lines.push(dim(view === "home" ? "Click or Enter to open · Type to reply" : "Type to reply · Esc clears selection"));
     else if (focus === "composer") {
       footer.lines.push(dim(`Enter sends · ${reply ? "Esc clears quote" : view === "home" ? "Tab moves focus" : "Esc goes Home"}`));
