@@ -17,7 +17,7 @@ Conversations and workers use provider-hosted web search first. Browser interact
 
 ## Terminal
 
-**Enter** sends from the composer or opens a focused conversation from Home. You can also double-click a Home message to open its conversation. **Tab** moves focus. Click a message and type to quote it. Press **y** on a selected Agent reply to send a thumbs-up, or **Tab** first to type a reply starting with **y**.
+**Enter** sends from the composer or opens the focused conversation from Home. **Tab** moves focus. Click a message to select it, then type to quote it or click it again on Home to open the conversation. Press **y** on a selected Agent reply to send a thumbs-up, or **Tab** first to type a reply starting with **y**.
 
 **Esc** clears the selection or quote, then goes Home. Running work continues when you leave. Open the conversation to **Stop** or **Continue** work. **Shift+Enter** or **Ctrl+J** inserts a new line. **Ctrl+C** quits.
 

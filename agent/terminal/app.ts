@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { decodeKittyPrintable, isKeyRelease, isKeyRepeat, matchesKey, ProcessTerminal, TuiAltScreen } from "@earendil-works/pi-tui";
-import type { TuiMouseEvent } from "@earendil-works/pi-tui";
 import type { Data } from "../src/state.ts";
 import { agentClient, type Conversation } from "./api.ts";
 import { conversationRows, queuedRows, type Row, type Target } from "./conversation.ts";
@@ -31,7 +30,7 @@ export function runTerminal(url: URL) {
   let rows = new Map<string, Row>();
   let stops: string[] = [];
   let focus = "composer";
-  let lastRowClick: { x: number; y: number; at: number } | undefined;
+  let clickedRow = false;
   let changingEditor = false;
 
   const tui = new TuiAltScreen(new ProcessTerminal(), true, undefined, {
@@ -54,7 +53,7 @@ export function runTerminal(url: URL) {
 
   function setFocus(next: string) {
     focus = next;
-    lastRowClick = undefined;
+    clickedRow = false;
     tui.setFocus(next === "composer" ? editor : null);
   }
 
@@ -185,18 +184,16 @@ export function runTerminal(url: URL) {
     }
   }
 
-  function selectRow(id: string, row: Row, event: TuiMouseEvent) {
-    const click = { x: event.screenX, y: event.screenY, at: performance.now() };
+  function selectRow(id: string, row: Row) {
     if (view === "home" && row.sessionId) {
-      if (focus === id && lastRowClick && click.at - lastRowClick.at <= 500 &&
-          Math.abs(click.x - lastRowClick.x) <= 1 && Math.abs(click.y - lastRowClick.y) <= 1) {
+      if (focus === id) {
         navigate(row.sessionId);
         return;
       }
       tui.resetTextSelection();
     }
     setFocus(id);
-    lastRowClick = click;
+    clickedRow = true;
     draw();
   }
 
@@ -207,7 +204,7 @@ export function runTerminal(url: URL) {
     return {
       id, header: (focused ? bold : dim)(`${focused ? "›" : " "} ${label}${reacted(row.id) ? " 👍" : ""}`),
       quote, text: row.text, markdown: row.role === "Agent",
-      select: rows.has(id) ? (event: TuiMouseEvent) => selectRow(id, row, event) : undefined,
+      select: rows.has(id) ? () => selectRow(id, row) : undefined,
     };
   }
 
@@ -255,7 +252,7 @@ export function runTerminal(url: URL) {
     if (interrupted) footer.lines.push(dim("Paused"));
     if (runButtons.length) footer.lines.push(runButtons);
     if (reply) footer.lines.push(dim(`Reply to ${reply.role} · ${compact(reply.text)}`));
-    if (row) footer.lines.push(dim(view === "home" ? "Enter opens · Type to reply" : "Type to reply · Esc clears selection"));
+    if (row) footer.lines.push(dim(view === "home" ? "Click or Enter to open · Type to reply" : "Type to reply · Esc clears selection"));
     else if (focus === "composer") {
       footer.lines.push(dim(`Enter sends · ${reply ? "Esc clears quote" : view === "home" ? "Tab moves focus" : "Esc goes Home"}`));
     }
@@ -285,7 +282,7 @@ export function runTerminal(url: URL) {
     const row = rows.get(focus);
     const tab = matchesKey(input, "tab");
     if (tab || matchesKey(input, "shift+tab")) {
-      if (tab && lastRowClick && row?.replyable) focusComposer(row);
+      if (tab && clickedRow && row?.replyable) focusComposer(row);
       else {
         const delta = tab ? 1 : -1;
         moveFocus(stops[(stops.indexOf(focus) + stops.length + delta) % stops.length]);

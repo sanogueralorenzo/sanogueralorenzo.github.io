@@ -73,12 +73,12 @@ export class Panel {
   invalidate() { this.hits.clear(); }
 }
 
-type Block = { id?: string; header?: string; quote?: string; text?: string; markdown?: boolean; select?: (event: TuiMouseEvent) => void };
+type Block = { id?: string; header?: string; quote?: string; text?: string; markdown?: boolean; select?: () => void };
 
 class Transcript {
   blocks: Block[] = [];
   positions = new Map<string, number>();
-  private hits: ((event: TuiMouseEvent) => ReturnType<Panel["handleMouse"]>)[] = [];
+  private hits: (() => void)[] = [];
   private markdown = new Map<string, Markdown>();
 
   render(width: number) {
@@ -103,10 +103,7 @@ class Transcript {
         }
       }
       if (block.select) {
-        for (let index = start; index < lines.length; index++) this.hits[index] = event => {
-          block.select!(event);
-          return { handled: true };
-        };
+        for (let index = start; index < lines.length; index++) this.hits[index] = block.select;
       }
       lines.push("");
     }
@@ -115,7 +112,11 @@ class Transcript {
   }
 
   handleMouse(event: TuiMouseEvent) {
-    if (event.type === "click" && event.button === "left") return this.hits[event.y]?.(event);
+    if (event.type !== "click" || event.button !== "left") return;
+    const select = this.hits[event.y];
+    if (!select) return;
+    select();
+    return { handled: true };
   }
 
   invalidate() { this.markdown.clear(); }
