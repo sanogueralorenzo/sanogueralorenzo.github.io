@@ -23,19 +23,29 @@ extension BrowserStore {
 
     @discardableResult
     func split(_ source: UUID, with destination: UUID) -> Bool {
-        guard splitCandidates(beside: source).contains(destination) else { return false }
+        guard let tab = activeSpace.tabs.first(where: { $0.id == destination }), canSplit(beside: source, with: tab)
+        else { return false }
         return joinTabs([destination], to: source)
     }
 
     func splitCandidates(beside source: UUID) -> Set<UUID> {
-        guard canExtendSplit(beside: source), let target = selectedTab else { return [] }
+        guard let isEligible = splitCandidateFilter(beside: source) else { return [] }
+        return Set(activeSpace.tabs.lazy.filter(isEligible).map(\.id))
+    }
+
+    func canSplit(beside source: UUID, with tab: BrowserTab) -> Bool {
+        splitCandidateFilter(beside: source)?(tab) == true
+    }
+
+    private func splitCandidateFilter(beside source: UUID) -> ((BrowserTab) -> Bool)? {
+        guard canExtendSplit(beside: source), let target = selectedTab else { return nil }
         let members = Set(activeSplit?.tabIDs ?? [source])
         let available = BrowserSpace.maximumTabCount - activeSpace.tabs.count
         let targetCopies = target.placement == .current ? 0 : members.count
-        return Set(activeSpace.tabs.lazy.filter { tab in
+        return { tab in
             !tab.isSettings && tab.url != nil && !members.contains(tab.id)
                 && available >= targetCopies + (tab.placement == .current ? 0 : 1)
-        }.map(\.id))
+        }
     }
 
     func openSplit(_ url: URL, beside source: UUID) -> Bool {
@@ -53,10 +63,23 @@ extension BrowserStore {
     }
 
     func combineTabs(_ ids: [UUID]) {
-        let requested = Set(ids)
-        let ordered = activeSpace.sidebarItemIDs.filter(requested.contains)
-        guard ordered.count == requested.count, let target = ordered.first else { return }
+        guard let ordered = orderedSplitSelection(ids, in: activeSpace), let target = ordered.first else { return }
         joinTabs(ordered, to: target)
+    }
+
+    func canCombineTabs(_ ids: [UUID]) -> Bool {
+        guard !isClosed, (2...BrowserSplit.maximumTabCount).contains(ids.count) else { return false }
+        let space = activeSpace
+        guard let ordered = orderedSplitSelection(ids, in: space), let target = ordered.first,
+            let combination = space.joiningTabs(ordered, to: target)
+        else { return false }
+        return space.tabs.count + combination.copies.count <= BrowserSpace.maximumTabCount
+    }
+
+    private func orderedSplitSelection(_ ids: [UUID], in space: BrowserSpace) -> [UUID]? {
+        let requested = Set(ids)
+        let ordered = space.sidebarItemIDs.filter(requested.contains)
+        return ordered.count == requested.count ? ordered : nil
     }
 
     func canDropSidebarTabsIntoSplit(_ payload: BrowserDragPayload) -> Bool {

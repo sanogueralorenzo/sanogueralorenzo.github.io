@@ -156,10 +156,6 @@ extension BrowserStore {
         placeTabs([tab.id], as: tab.placement == .pinned ? .current : .pinned)
     }
 
-    func archiveSelected() {
-        if let id = selectedTab?.id { requestDeleteTabs([id]) }
-    }
-
     func placeTabs(_ ids: [UUID], as placement: BrowserTab.Placement, folderID: UUID? = nil) {
         let ids = relatedTabIDs(ids)
         if placement == .pinned {

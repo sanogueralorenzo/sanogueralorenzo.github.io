@@ -145,50 +145,54 @@ struct BrowserTabRow: View {
                     store.placeTabs(store.actionTabs(tab.id), as: .current)
                 }
             }
-            Button("Split with Current Tab", systemImage: "rectangle.split.2x1") {
-                if let selected = store.selectedTab?.id { store.split(selected, with: tab.id) }
-            }.disabled(store.selectedTab?.id == tab.id || store.selectedTab?.isSettings != false)
-            if tab.placement == .current {
-                Menu("Move to Folder in Tabs", systemImage: "folder.badge.plus") {
-                    Button("New Folder") {
-                        store.createSidebarFolder(
-                            containing: BrowserDragPayload(
-                                kind: .tabs,
-                                spaceID: space.id, ids: store.actionTabs(tab.id),
-                                activeTabID: store.selectedTab?.id),
-                            placement: .current)
-                    }
-                    ForEach(space.folders.filter { $0.placement == .current && $0.kind == .regular }) {
-                        folder in
-                        Button(folder.title) {
-                            store.placeTabs(store.actionTabs(tab.id), as: .current, folderID: folder.id)
+            if let selected = store.selectedTab?.id, space.id == store.activeSpace.id,
+                store.canSplit(beside: selected, with: tab)
+            {
+                Button("Split with Active Tab", systemImage: "rectangle.split.2x1") {
+                    store.split(selected, with: tab.id)
+                }
+            }
+            let folders = space.folders.filter { $0.kind == .regular }
+            if tab.placement == .current || !folders.isEmpty {
+                Menu("Move to Folder", systemImage: "folder") {
+                    if tab.placement == .current {
+                        Button("New Folder") {
+                            store.createSidebarFolder(
+                                containing: BrowserDragPayload(
+                                    kind: .tabs,
+                                    spaceID: space.id, ids: store.actionTabs(tab.id),
+                                    activeTabID: store.selectedTab?.id),
+                                placement: .current)
                         }
+                    }
+                    ForEach(folders) { folder in
+                        Button(folder.title) {
+                            store.placeTabs(store.actionTabs(tab.id), as: folder.placement ?? .saved, folderID: folder.id)
+                        }
+                        .disabled(folder.id == tab.folderID)
                     }
                 }
             }
             if tab.folderID != nil {
                 Button("Remove from Folder") { store.placeTabs(store.actionTabs(tab.id), as: tab.placement) }
             }
-            let savedFolders = space.folders.filter { $0.kind == .regular && ($0.placement ?? .saved) == .saved }
-            if !savedFolders.isEmpty {
-                Menu("Move to Folder in Saved") {
-                    ForEach(savedFolders) { folder in
-                        Button(folder.title) { store.placeTabs(store.actionTabs(tab.id), as: .saved, folderID: folder.id) }
-                    }
-                }
-            }
         }
         if let split = space.splits.first(where: { $0.tabIDs.contains(tab.id) }),
             let index = split.tabIDs.firstIndex(of: tab.id)
         {
-            Button("Move Left", systemImage: "arrow.left") {
-                store.selectTab(tab.id)
-                store.moveSplitCard(-1)
-            }.disabled(index == 0)
-            Button("Move Right", systemImage: "arrow.right") {
-                store.selectTab(tab.id)
-                store.moveSplitCard(1)
-            }.disabled(index == split.tabIDs.count - 1)
+            let vertical = split.direction == .vertical
+            if index > 0 {
+                Button(vertical ? "Move Up" : "Move Left", systemImage: vertical ? "arrow.up" : "arrow.left") {
+                    store.selectTab(tab.id)
+                    store.moveSplitCard(-1)
+                }
+            }
+            if index < split.tabIDs.count - 1 {
+                Button(vertical ? "Move Down" : "Move Right", systemImage: vertical ? "arrow.down" : "arrow.right") {
+                    store.selectTab(tab.id)
+                    store.moveSplitCard(1)
+                }
+            }
             Button("Remove from Split", systemImage: "rectangle.badge.minus") {
                 store.detachFromSplits(tab.id)
                 store.changed()

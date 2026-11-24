@@ -2,16 +2,16 @@ import SwiftUI
 
 struct BrowserSidebarBatchMenu: View {
     let store: BrowserStore
-    private var ids: [UUID] { store.selectedActionTabIDs }
     private var hasFolders: Bool { !store.selectedFolders.isEmpty }
     private var includesLiveFolder: Bool {
         store.activeSpace.liveFolders.contains { store.selectedFolders.contains($0.id) }
     }
-    private var pinnedOnly: Bool {
-        !ids.isEmpty
-            && ids.allSatisfy { id in store.activeSpace.tabs.contains { $0.id == id && $0.placement == .pinned } }
-    }
     var body: some View {
+        let source = store.activeSpace
+        let ids = store.selectedActionTabIDs
+        let selection = Set(ids)
+        let tabs = source.tabs.lazy.filter { selection.contains($0.id) }
+        let pinnedOnly = !ids.isEmpty && tabs.allSatisfy { $0.placement == .pinned }
         let count = hasFolders ? store.selectionRootFolders.count + store.selectedLooseTabIDs.count : ids.count
         Text(
             hasFolders
@@ -49,7 +49,6 @@ struct BrowserSidebarBatchMenu: View {
         }
         .disabled(includesLiveFolder)
         if !hasFolders {
-            let source = store.activeSpace
             let destinations = store.session.spaces.filter { $0.id != source.id && source.canMoveItems(to: $0) }
             if !destinations.isEmpty {
                 Menu("Move to Space", systemImage: "square.grid.2x2") {
@@ -58,11 +57,11 @@ struct BrowserSidebarBatchMenu: View {
                     }
                 }
             }
-            Button("Combine in Split View", systemImage: "rectangle.split.2x1") {
-                store.combineTabs(ids)
-            }.disabled(
-                ids.count < 2 || ids.count > 4
-                    || ids.contains { id in store.activeSpace.tabs.contains { $0.id == id && $0.isSettings } })
+            if store.canCombineTabs(ids) {
+                Button("Combine in Split View", systemImage: "rectangle.split.2x1") {
+                    store.combineTabs(ids)
+                }
+            }
             if store.activeSpace.splits.contains(where: { !Set($0.tabIDs).isDisjoint(with: ids) }) {
                 Button("Separate Selected Splits", systemImage: "rectangle.split.2x1.slash") {
                     for id in ids { store.detachFromSplits(id) }
@@ -71,11 +70,12 @@ struct BrowserSidebarBatchMenu: View {
             }
             Divider()
             Button("Duplicate \(ids.count) Tabs", systemImage: "plus.square.on.square") { store.duplicateTabs(ids) }
-            Button("Archive Selected Tabs", systemImage: "archivebox") {
-                store.requestDeleteTabs(
-                    ids.filter { id in store.activeSpace.tabs.contains { $0.id == id && $0.placement == .current } })
-            }
-            Button("Delete \(ids.count) Tabs", systemImage: "trash", role: .destructive) {
+            let closesTabs = tabs.allSatisfy { $0.placement == .current }
+            let action = closesTabs ? "Close" : "Remove"
+            Button(
+                "\(action) \(ids.count) \(ids.count == 1 ? "Tab" : "Tabs")",
+                systemImage: closesTabs ? "xmark" : "trash", role: .destructive
+            ) {
                 store.deleteSidebarSelection()
             }
         }
