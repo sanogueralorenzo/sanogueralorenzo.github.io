@@ -17,9 +17,11 @@ Conversations and workers use provider-hosted web search first. Browser interact
 
 ## Terminal
 
-Click a message to select it. Type to quote it in a reply, or press **y** on a selected Agent reply to send a thumbs-up. Press **Tab** before typing a reply that starts with **y**. Use **Option+↑/↓** to select messages by keyboard and **Enter** to open the selected Home conversation.
+**Tab** moves focus and **Enter** activates the focused item. Click a message and type to quote it. **Tab** from a clicked reply focuses the composer, so you can type a reply starting with **y**. Press **y** on the selected Agent reply to send a thumbs-up.
 
-Press **Ctrl+P** for Accounts, **Ctrl+G** for Home, and **Ctrl+C** to quit. Use **Shift+Enter** or **Ctrl+J** for a new line. Set `AGENT_URL` to connect to a different address, such as an SSH-forwarded port. Terminal drafts stay local to the client.
+With a queued message focused, **Enter** edits it and **Esc** opens a deletion confirmation. In the composer, **Esc** cancels a reply or edit first, or stops a running conversation while keeping your draft. **Shift+Enter** or **Ctrl+J** inserts a new line. **Ctrl+C** quits.
+
+Set `AGENT_URL` to connect to another address, such as an SSH-forwarded port. Terminal drafts stay local to the client.
 
 ## Providers
 

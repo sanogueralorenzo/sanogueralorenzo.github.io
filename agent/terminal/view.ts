@@ -24,15 +24,17 @@ export function compact(text: string) {
   return clean(text).replace(/\s+/g, " ").trim();
 }
 
-export type Button = { label: string; run: () => void };
+export type Button = { id: string; label: string; run: () => void; focused?: boolean };
 type Line = string | Button[];
 
 export class Panel {
   lines: Line[] = [];
   private hits = new Map<number, { start: number; end: number; run: () => void }[]>();
+  positions = new Map<string, number>();
 
   render(width: number) {
     this.hits.clear();
+    this.positions.clear();
     const output: string[] = [];
     for (const line of this.lines) {
       if (typeof line === "string") {
@@ -50,12 +52,13 @@ export class Panel {
         hits = [];
       };
       for (const button of line) {
-        const label = truncateToWidth(`[${button.label}]`, width);
+        const label = truncateToWidth(`[${button.focused ? "› " : ""}${button.label}]`, width);
         const length = visibleWidth(label);
         if (x && x + 2 + length > width) flush();
         if (x) { text += "  "; x += 2; }
+        this.positions.set(button.id, output.length);
         hits.push({ start: x, end: x + length, run: button.run });
-        text += cyan(label);
+        text += (button.focused ? bold : cyan)(label);
         x += length;
       }
       if (text) flush();
@@ -113,7 +116,9 @@ class Transcript {
         const panel = new Panel();
         panel.lines = [block.buttons];
         const start = lines.length;
-        for (const [index, line] of panel.render(width).entries()) {
+        const controls = panel.render(width);
+        for (const [id, line] of panel.positions) this.positions.set(id, start + line);
+        for (const [index, line] of controls.entries()) {
           lines.push(line);
           this.hits[start + index] = event => panel.handleMouse({ ...event, y: index });
         }
@@ -145,8 +150,8 @@ export function terminalView(tui: TuiAltScreen, compose: () => void) {
     borderColor: dim,
     selectList: { selectedPrefix: cyan, selectedText: cyan, description: dim, scrollInfo: dim, noMatch: dim },
   }, { paddingX: 1 });
-  let accountsOpen = false;
+  let composerVisible = true;
   tui.setLayoutRoot(new VStack([top, { component: scroll, basis: 0, grow: 1 }, footer,
-    { component: editor, visible: () => !accountsOpen }]));
-  return { top, footer, transcript, scroll, editor, showAccounts(open: boolean) { accountsOpen = open; } };
+    { component: editor, visible: () => composerVisible }]));
+  return { top, footer, transcript, scroll, editor, showComposer(visible: boolean) { composerVisible = visible; } };
 }

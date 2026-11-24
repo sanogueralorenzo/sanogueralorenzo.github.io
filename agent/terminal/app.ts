@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { decodeKittyPrintable, isKeyRelease, matchesKey, ProcessTerminal, TuiAltScreen } from "@earendil-works/pi-tui";
+import { decodeKittyPrintable, isKeyRelease, isKeyRepeat, matchesKey, ProcessTerminal, TuiAltScreen } from "@earendil-works/pi-tui";
 import type { Data, HomeMessage, Turn } from "../src/state.ts";
 import { agentClient, type Accounts, type Conversation } from "./api.ts";
 import { conversationRows, dependencies, replyTarget, sessionTurns, suggestionTarget, type Feed, type Row, type Target } from "./conversation.ts";
@@ -29,11 +29,15 @@ export function runTerminal(url: URL) {
   const suggestions = new Map<string, string>();
   const dismissed = new Set<string>();
   let accounts: Accounts | undefined;
-  let menu: { provider?: string; cursor: number } | undefined;
+  let menu: { provider?: string } | undefined;
   let accountBusy = false;
   let selection: string | undefined;
   let rows: Row[] = [];
-  let accountActions: Button[] = [];
+  let focus = "composer";
+  let clickedRow = false;
+  let deleteTurn: Turn | undefined;
+  const controls = new Map<string, Button>();
+  let stops: string[] = [];
   let changingEditor = false;
 
   const tui = new TuiAltScreen(new ProcessTerminal(), true, undefined, {
@@ -46,10 +50,38 @@ export function runTerminal(url: URL) {
       child.on("error", failure => { error = failure.message; draw(); });
     },
   });
-  const { top, footer, transcript, scroll, editor, showAccounts } = terminalView(tui, focusComposer);
+  const { top, footer, transcript, scroll, editor, showComposer } = terminalView(tui, () => focusComposer(focus.startsWith("row:")));
   const feed = (): Feed => ({ data, conversation: conversations.get(view), progress, view });
   const selected = () => rows.find(row => row.id === selection);
-  const button = (label: string, run: () => void): Button => ({ label, run });
+  const button = (id: string, label: string, run: () => void): Button => {
+    const item = { id, label, focused: focus === id, run: () => {
+      if (!deleteTurn || id === "confirm-delete" || id === "keep") run();
+    } };
+    controls.set(id, item);
+    return item;
+  };
+  const rowKey = (row: Row) => `row:${row.id}`;
+  const composerFocused = () => focus === "composer";
+  const canSteer = (turn: Turn) => data.turns.some(item => item.sessionId === turn.sessionId && item.status === "running");
+
+  function setFocus(next: string) {
+    focus = next;
+    tui.setFocus(composerFocused() ? editor : null);
+  }
+
+  function moveFocus(next: string) {
+    const row = rows.find(item => rowKey(item) === next);
+    if (row) selection = row.id;
+    clickedRow = false;
+    setFocus(next);
+    draw();
+    if (!transcript.positions.has(next)) return;
+    tui.renderNow();
+    const position = transcript.positions.get(next);
+    if (position !== undefined && (position < scroll.scrollTop || position >= scroll.scrollTop + scroll.viewportHeight)) {
+      scroll.scrollTo(position);
+    }
+  }
   const targetOf = ({ id, text, role, sessionId }: Target): Target => ({ id, text, role, sessionId });
 
   function changeDraft(draft: Draft, id = view) {
@@ -60,14 +92,14 @@ export function runTerminal(url: URL) {
     changingEditor = false;
   }
 
-  function focusComposer() {
-    const row = selected();
+  function focusComposer(quote = false) {
+    const row = quote ? selected() : undefined;
     if (row?.replyable && row.sessionId) {
       const draft = drafts.get(view);
       changeDraft({ text: draft.text, reply: targetOf(row) });
     }
-    selection = undefined;
-    tui.setFocus(editor);
+    clickedRow = false;
+    setFocus("composer");
     draw();
   }
 
@@ -83,11 +115,13 @@ export function runTerminal(url: URL) {
     if (next === view && !menu) return;
     if (!menu) saveScroll();
     menu = undefined;
+    deleteTurn = undefined;
     selection = undefined;
+    clickedRow = false;
     view = next;
     drafts.select(view);
     changeDraft(drafts.get(view));
-    tui.setFocus(editor);
+    setFocus("composer");
     tui.resetTextSelection();
     const first = next === "home" ? rowsForHome().find(row => unseen.has(row.id))?.id : undefined;
     if (next === "home") unseen.clear();
@@ -140,7 +174,7 @@ export function runTerminal(url: URL) {
   }
 
   function queueAction(turn: Turn, kind: "edit" | "delete" | "steer") {
-    if (!online || queued.has(turn.id)) return;
+    if (!online || queued.has(turn.id) || !data.turns.some(item => item.id === turn.id && item.status === "queued")) return;
     const origin = view;
     queued.add(turn.id);
     void action(async () => {
@@ -180,6 +214,7 @@ export function runTerminal(url: URL) {
       if (suggestion) dismissed.add(suggestionKey(suggestion));
       sending.add(origin);
       changeDraft(previous);
+      selection = undefined;
       if (origin === "home") data.messages.push({
         id, text, createdAt: new Date().toISOString(), entryId: null,
         replyToId: draft.reply?.id, editOfId: draft.edit?.target.id, status: sessionId ? "routed" : "routing",
@@ -206,7 +241,7 @@ export function runTerminal(url: URL) {
 
   const suggestionKey = (value: { sessionId: string; replyId: string }) => `${value.sessionId}:${value.replyId}`;
 
-  function suggestion(showDismissed = false) {
+  function suggestion() {
     const draft = drafts.get(view);
     if (!online || draft.text || draft.edit || draft.queuedEdit) return;
     const target = suggestionTarget(feed());
@@ -220,11 +255,11 @@ export function runTerminal(url: URL) {
       }).catch(() => {});
     }
     const text = suggestions.get(key);
-    if (text && (showDismissed || !dismissed.has(key))) return { ...target, text, key };
+    if (text && !dismissed.has(key)) return { ...target, text, key };
   }
 
   function acceptSuggestion() {
-    const hint = suggestion(true);
+    const hint = suggestion();
     if (!hint) return false;
     const reply = replyTarget(feed(), hint.replyId);
     if (!reply) return false;
@@ -233,20 +268,51 @@ export function runTerminal(url: URL) {
     return true;
   }
 
-  function escape() {
+  function cancelDelete() {
+    deleteTurn = undefined;
+    const row = selected();
+    moveFocus(row ? rowKey(row) : "composer");
+  }
+
+  function askDelete(turn: Turn) {
+    deleteTurn = turn;
+    setFocus("confirm-delete");
+    draw();
+  }
+
+  function stop() {
+    if (data.sessions.some(session => session.id === view && session.status === "running")) {
+      post("stop", { sessionId: view });
+    }
+  }
+
+  function escape(repeat: boolean) {
+    if (deleteTurn) { if (!repeat) cancelDelete(); return; }
     if (menu) { closeAccounts(); return; }
-    if (selection) { selection = undefined; focusComposer(); return; }
+    const row = selected();
+    if (row && focus === rowKey(row) && row.turn && online && !repeat && !queued.has(row.turn.id)) {
+      askDelete(row.turn);
+      return;
+    }
+    if (!composerFocused()) {
+      selection = undefined;
+      focusComposer();
+      return;
+    }
     const draft = drafts.get(view);
     const edit = draft.edit || draft.queuedEdit;
     if (edit) changeDraft(edit.previous);
     else if (draft.reply) {
       const hint = suggestions.get(suggestionKey({ sessionId: draft.reply.sessionId ?? view, replyId: draft.reply.id }));
       changeDraft({ text: draft.text === hint ? "" : draft.text });
+    } else if (!repeat && data.sessions.some(session => session.id === view && session.status === "running")) {
+      stop();
     } else {
       const hint = suggestion();
       if (hint) dismissed.add(hint.key);
       else error = "";
     }
+    selection = undefined;
     draw();
   }
 
@@ -264,8 +330,8 @@ export function runTerminal(url: URL) {
     if (menu) { closeAccounts(); return; }
     saveScroll();
     selection = undefined;
-    menu = { cursor: 0 };
-    tui.setFocus(null);
+    menu = {};
+    setFocus("accounts");
     draw();
     scrollTo(undefined, 0);
     void updateAccounts();
@@ -278,25 +344,19 @@ export function runTerminal(url: URL) {
   }
 
   function accountPage(provider?: string) {
-    menu = { provider, cursor: 0 };
+    menu = { provider };
+    setFocus(provider ? "account-back" : "accounts");
     draw();
     scrollTo(undefined, 0);
   }
 
   function accountBlocks() {
-    accountActions = [];
-    const choice = (label: string, run: () => void) => {
-      const index = accountActions.length;
-      const item = button(`${menu?.cursor === index ? "› " : ""}${label}`, run);
-      accountActions.push(item);
-      return item;
-    };
     const provider = accounts?.providers.find(item => item.id === menu?.provider && item.connected);
     if (provider && online) return [
-      { buttons: [choice(`← ${provider.name}`, () => accountPage())] },
+      { buttons: [button("account-back", `← ${provider.name}`, () => accountPage())] },
       ...provider.models.map(model => {
         const active = accounts?.selected.provider === provider.id && accounts?.selected.modelId === model.id;
-        return { buttons: [choice(`${active ? "✓ " : ""}${model.name}`, () => {
+        return { buttons: [button(`model:${model.id}`, `${active ? "✓ " : ""}${model.name}`, () => {
           void updateAccounts("providers/select", { provider: provider.id, modelId: model.id });
         })] };
       }),
@@ -305,79 +365,95 @@ export function runTerminal(url: URL) {
       const connected = online && item.connected;
       const status = !online ? "Status unavailable" : connected ? "Connected"
         : item.installed ? `Sign in on the host with ${item.loginCommand}` : "CLI not installed";
-      const buttons = connected ? [choice(item.name, () => accountPage(item.id))] : [];
-      if (connected && item.fastSupported) buttons.push(choice(`Fast mode ${item.fastEnabled ? "on" : "off"}`, () => {
+      const buttons = connected ? [button(`provider:${item.id}`, item.name, () => accountPage(item.id))] : [];
+      if (connected && item.fastSupported) buttons.push(button(`fast:${item.id}`, `Fast mode ${item.fastEnabled ? "on" : "off"}`, () => {
         void updateAccounts("providers/fast", { provider: item.id, enabled: !item.fastEnabled });
       }));
       return { header: `${connected ? green("●") : dim("○")} ${bold(item.name)} · ${dim(status)}`, buttons };
     }) ?? [{ text: online ? "Loading accounts…" : "Status unavailable" }];
   }
 
-  function queueButtons(turn: Turn, steer: boolean) {
-    if (!online || queued.has(turn.id)) return [];
-    const buttons = [button("Edit", () => queueAction(turn, "edit")), button("Delete", () => queueAction(turn, "delete"))];
-    if (steer) buttons.push(button("Steer", () => queueAction(turn, "steer")));
-    return buttons;
+  function queueRows(): Row[] {
+    return sessionTurns(feed()).filter(turn => turn.status === "queued").map(turn => {
+      const waiting = dependencies(data, turn);
+      return {
+        id: `queued:${turn.id}`, role: "You", turn,
+        text: data.messages.find(message => message.id === turn.sourceId)?.reaction ? "👍 Go ahead" : turn.text,
+        detail: waiting ? `Waiting for ${waiting}` : "Queued",
+      };
+    });
   }
 
-  function select(row: Row) {
-    selection = row.id;
-    tui.setFocus(null);
-    draw();
+  function enterRow(row: Row) {
+    if (row.turn && online) queueAction(row.turn, "edit");
+    else if (row.title && row.sessionId) navigate(row.sessionId);
+    else if (row.replyable) focusComposer(true);
   }
 
   function rowBlock(row: Row) {
     const active = row.id === selection;
+    const key = rowKey(row);
     const label = [row.role, row.title && compact(row.title), row.detail && compact(row.detail)].filter(Boolean).join(" · ");
     const buttons: Button[] = [];
-    if (active && row.title && row.sessionId) buttons.push(button("Open · Enter", () => navigate(row.sessionId!)));
-    if (row.resume && online) buttons.push(button("Continue", () => post("resume", { entryId: row.resume })));
-    if (active && row.replyable) buttons.push(button("Reply · Tab", focusComposer));
-    if (active && row.editable && online) buttons.push(button("Edit and steer", () => edit(row)));
-    if (active && row.turn) buttons.push(...queueButtons(row.turn, false));
+    const add = (id: string, label: string, run: () => void) => buttons.push(button(`${key}:${id}`, label, run));
+    if (active && row.title && row.sessionId) add("open", "Open", () => navigate(row.sessionId!));
+    if (row.resume && online) add("resume", "Continue", () => post("resume", { entryId: row.resume }));
+    if (active && row.replyable) add("reply", "Reply", () => focusComposer(true));
+    if (active && row.editable && online) add("edit", "Edit and steer", () => edit(row));
+    if (active && row.turn && online && !queued.has(row.turn.id)) {
+      const turn = row.turn;
+      add("edit", "Edit", () => queueAction(turn, "edit"));
+      add("delete", "Delete", () => askDelete(turn));
+      if (canSteer(turn)) add("steer", "Steer", () => queueAction(turn, "steer"));
+    }
     if (active && row.role === "Agent" && row.replyable && online && !reacted(row.id)) {
-      buttons.push(button("👍 Go ahead · y", () => approve(row)));
+      add("approve", "👍 Go ahead · y", () => approve(row));
     }
     const quote = row.quote && dim(`│ ${row.quote.role} · ${compact(row.quote.text).slice(0, 80)}`);
+    const focused = focus === key;
     return {
-      id: row.id, header: (active ? bold : dim)(`${active ? "›" : " " } ${label}${reacted(row.id) ? " 👍" : ""}`),
-      quote, text: row.text, markdown: row.role === "Agent", buttons, select: () => select(row),
+      id: key, header: (focused ? bold : dim)(`${focused ? "›" : active ? "·" : " "} ${label}${reacted(row.id) ? " 👍" : ""}`),
+      quote, text: row.text, markdown: row.role === "Agent", buttons,
+      select: () => {
+        if (deleteTurn) return;
+        selection = row.id;
+        clickedRow = true;
+        setFocus(key);
+        draw();
+      },
     };
   }
 
   function draw() {
     if (abort.signal.aborted) return;
+    controls.clear();
     const session = data.sessions.find(item => item.id === view);
     const ready = online && accounts?.providers.some(item => item.connected);
     const provider = online && accounts?.providers.find(item => item.id === accounts?.selected.provider && item.connected);
     const model = provider && provider.models.find(item => item.id === accounts?.selected.modelId);
     const nav = [];
-    if (view !== "home" && !menu) nav.push(button(unseen.size ? "← Home · new replies" : "← Home", () => navigate("home")));
-    nav.push(button(menu ? "Close accounts · Esc" : "Accounts · Ctrl+P", toggleAccounts));
+    if (view !== "home" && !menu) nav.push(button("home", unseen.size ? "← Home · new replies" : "← Home", () => navigate("home")));
+    nav.push(button("accounts", menu ? "Close accounts" : "Accounts", toggleAccounts));
     top.lines = [
       ` ${bold(menu ? "Accounts" : compact(session?.title || "Agent"))}  ${ready ? green("●") : dim("○")}${model && provider ? dim(` ${provider.name} · ${model.name}`) : ""}`,
       nav,
     ];
     footer.lines = [];
-    showAccounts(!!menu);
+    showComposer(!menu);
     if (menu) {
       transcript.blocks = accountBlocks();
+      stops = [...controls.keys()];
       if (accountBusy) footer.lines.push(dim("Checking accounts…"));
     } else {
-      rows = conversationRows(feed());
-      if (selection && !selected()) {
-        selection = undefined;
-        tui.setFocus(editor);
-      }
+      const messages = conversationRows(feed());
+      const queue = queueRows();
+      rows = [...messages, ...queue];
+      if (selection && !selected()) selection = undefined;
+      if (deleteTurn && !data.turns.some(turn => turn.id === deleteTurn?.id && turn.status === "queued")) deleteTurn = undefined;
       const running = session?.status === "running";
-      const queue = sessionTurns(feed()).filter(turn => turn.status === "queued");
-      transcript.blocks = rows.map(rowBlock);
+      transcript.blocks = messages.map(rowBlock);
       if (!rows.length) transcript.blocks.push({ text: view === "home" ? "How can I help?" : "No messages yet." });
-      if (queue.length) transcript.blocks.push({ header: bold("Queued follow-ups") }, ...queue.map(turn => ({
-        text: data.messages.find(message => message.id === turn.sourceId)?.reaction ? "👍 Go ahead" : turn.text,
-        header: dependencies(data, turn) ? dim(`Waiting for ${compact(dependencies(data, turn)!)}`) : undefined,
-        buttons: queueButtons(turn, running),
-      })));
+      if (queue.length) transcript.blocks.push({ header: bold("Queued follow-ups") }, ...queue.map(rowBlock));
       if (running) footer.lines.push(dim("Working…"));
       if (session?.status === "interrupted") footer.lines.push(dim("Stopped. Return to Home to continue."));
       const draft = drafts.get(view);
@@ -386,31 +462,46 @@ export function runTerminal(url: URL) {
         const label = draft.edit ? "Editing and steering" : draft.queuedEdit ? "Editing queued message" : `Reply to ${target?.role}`;
         footer.lines.push(dim(`${label} · ${compact(target?.text || draft.queuedEdit?.text || "")}`));
       }
-      const hint = !selection && suggestion();
-      if (hint) footer.lines.push(dim(`Tab · ${compact(hint.text)}`));
-      const controls: Button[] = [];
-      if (running && online) controls.push(button("Stop", () => post("stop", { sessionId: view })));
-      if (draft.text.trim() && online) controls.push(button("Send", () => { void send(); }));
-      if (target || draft.queuedEdit) controls.push(button("Cancel · Esc", escape));
-      if (controls.length) footer.lines.push(controls);
-      footer.lines.push(dim(selection
-        ? "Type or press Tab to compose · Esc to clear selection"
-        : `Enter to send · Shift+Enter for a new line${target || draft.queuedEdit ? " · Esc to cancel" : ""}`));
+      const actions: Button[] = [];
+      const hint = suggestion();
+      if (hint) actions.push(button("suggestion", `Use suggestion · ${compact(hint.text)}`, acceptSuggestion));
+      if (running && online) actions.push(button("stop", "Stop", stop));
+      if (actions.length) footer.lines.push(actions);
+      const row = selected();
+      const key = row && rowKey(row);
+      const rowActions = new Map<string, string[]>();
+      for (const block of transcript.blocks) {
+        if (block.id && block.buttons?.length) rowActions.set(block.id, block.buttons.map(item => item.id));
+      }
+      const rowStops = [...rows].reverse().flatMap(item => [rowKey(item), ...(rowActions.get(rowKey(item)) ?? [])]);
+      stops = ["composer", ...actions.map(item => item.id), ...nav.map(item => item.id), ...rowStops];
+      footer.lines.push(dim(focus === key && row?.turn
+        ? "Enter edits · Esc deletes · Tab moves focus"
+        : composerFocused() ? `Enter sends · Tab moves focus${target || draft.queuedEdit ? " · Esc cancels" : running ? " · Esc stops" : ""}`
+        : clickedRow && row?.replyable ? "Type or Tab to reply · Esc goes back" : "Tab moves focus · Enter selects · Esc goes back"));
     }
     if (!online) footer.lines.unshift(yellow(`Connecting to ${url.origin}…`));
-    if (error) footer.lines.unshift(yellow(compact(error)), [button("Dismiss", () => { error = ""; draw(); })]);
+    if (error) {
+      footer.lines.unshift(yellow(compact(error)), [button("dismiss", "Dismiss", () => { error = ""; draw(); })]);
+      stops.push("dismiss");
+    }
+    if (deleteTurn) {
+      const turn = deleteTurn;
+      showComposer(false);
+      footer.lines = [
+        yellow(`Delete queued message? ${compact(turn.text)}`),
+        [button("confirm-delete", "Delete", () => { cancelDelete(); queueAction(turn, "delete"); }),
+          button("keep", "Keep", cancelDelete)],
+        dim("Enter selects · Esc keeps message"),
+      ];
+      stops = ["confirm-delete", "keep"];
+    }
+    if (!stops.includes(focus)) {
+      setFocus(deleteTurn ? "confirm-delete" : menu ? "accounts" : "composer");
+      draw();
+      return;
+    }
     tui.requestRender();
-  }
-
-  function chooseRow(offset: number) {
-    if (!rows.length) return;
-    const index = rows.findIndex(row => row.id === selection);
-    const next = rows[Math.max(0, Math.min(rows.length - 1, index < 0 ? rows.length - 1 : index + offset))];
-    selection = next.id;
-    tui.setFocus(null);
-    const position = transcript.positions.get(next.id);
-    if (position !== undefined && (position < scroll.scrollTop || position >= scroll.scrollTop + scroll.viewportHeight)) scroll.scrollTo(position);
-    draw();
   }
 
   function quit() {
@@ -429,33 +520,39 @@ export function runTerminal(url: URL) {
       else quit();
       return consume;
     }
-    if (matchesKey(input, "ctrl+p")) { toggleAccounts(); return consume; }
-    if (matchesKey(input, "ctrl+g")) { navigate("home"); return consume; }
-    if (matchesKey(input, "escape")) { escape(); return consume; }
-    if (menu) {
-      if (matchesKey(input, "up") || matchesKey(input, "down") || matchesKey(input, "tab")) {
-        const delta = matchesKey(input, "up") ? -1 : 1;
-        menu.cursor = Math.max(0, Math.min(accountActions.length - 1, menu.cursor + delta));
-        draw();
-      } else if (matchesKey(input, "enter")) accountActions[menu.cursor]?.run();
-      return consume;
-    }
-    if (matchesKey(input, "alt+up") || matchesKey(input, "alt+down")) {
-      chooseRow(matchesKey(input, "alt+up") ? -1 : 1);
+    if (matchesKey(input, "escape")) { escape(isKeyRepeat(input)); return consume; }
+    const tab = matchesKey(input, "tab");
+    const enter = matchesKey(input, "enter") && input !== "\n" && !matchesKey(input, "shift+enter") && !matchesKey(input, "ctrl+j");
+    if (deleteTurn) {
+      if (tab) moveFocus(focus === "confirm-delete" ? "keep" : "confirm-delete");
+      else if (enter && !isKeyRepeat(input)) controls.get(focus)?.run();
       return consume;
     }
     const row = selected();
-    if (matchesKey(input, "tab")) {
-      if (row || !acceptSuggestion()) focusComposer();
+    const onRow = row && focus === rowKey(row);
+    if (tab || matchesKey(input, "shift+tab") || (menu && (matchesKey(input, "up") || matchesKey(input, "down")))) {
+      if (tab && clickedRow && onRow && row.replyable) focusComposer(true);
+      else {
+        const delta = tab || matchesKey(input, "down") ? 1 : -1;
+        moveFocus(stops[(stops.indexOf(focus) + stops.length + delta) % stops.length]);
+      }
       return consume;
     }
-    if (row) {
-      if (matchesKey(input, "enter") && row.title && row.sessionId) { navigate(row.sessionId); return consume; }
-      if (matchesKey(input, "y") && row.role === "Agent" && row.replyable) { approve(row); return consume; }
-      if (decodeKittyPrintable(input) || /^[^\x00-\x1f\x7f]/.test(input) || input.startsWith("\x1b[200~")) focusComposer();
+    if (enter) {
+      if (isKeyRepeat(input)) return consume;
+      if (composerFocused()) void send();
+      else if (onRow) enterRow(row);
+      else controls.get(focus)?.run();
+      return consume;
     }
-    if (editor.focused && (input === "\n" || matchesKey(input, "ctrl+j") || matchesKey(input, "shift+enter"))) return;
-    if (matchesKey(input, "enter") && editor.focused) { void send(); return consume; }
+    if (menu) return consume;
+    if (onRow && matchesKey(input, "y") && row.role === "Agent" && row.replyable) {
+      approve(row);
+      return consume;
+    }
+    if (!composerFocused() && (decodeKittyPrintable(input) || /^[^\x00-\x1f\x7f]/.test(input) || input.startsWith("\x1b[200~"))) {
+      focusComposer(!!onRow);
+    }
     if (input.startsWith("\x1b[200~") && input.endsWith("\x1b[201~")) {
       return { data: `\x1b[200~${clean(input.slice(6, -6))}\x1b[201~` };
     }
