@@ -1,25 +1,24 @@
 import { setTimeout as delay } from "node:timers/promises";
 import type { Agent } from "../src/agent.ts";
-import type { Providers } from "../src/providers.ts";
 import type { Data } from "../src/state.ts";
 
-export type Accounts = Awaited<ReturnType<Providers["snapshot"]>>;
 export type Conversation = ReturnType<Agent["transcript"]>;
 type Event =
   | { type: "snapshot"; data: Data }
-  | { type: "providers"; data: Accounts }
+  | { type: "providers" }
   | { type: "progress"; sourceId: string; text: string }
   | ({ type: "conversation"; sessionId: string } & Conversation);
 
 export function agentClient(url: URL, signal: AbortSignal) {
-  async function request<T = unknown>(path: string, body?: object): Promise<T> {
+  async function request(path: string, body: object) {
     const response = await fetch(new URL(`/api/${path}`, url), {
-      ...body && { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
       signal,
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || `Request failed (${response.status})`);
-    return result;
   }
 
   async function follow(receive: (event: Event) => void, connected: (online: boolean) => void) {

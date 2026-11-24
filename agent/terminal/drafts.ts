@@ -7,8 +7,6 @@ import type { Target } from "./conversation.ts";
 export type Draft = {
   text: string;
   reply?: Target;
-  edit?: { target: Target; previous: Draft };
-  queuedEdit?: { sessionId: string; text: string; previous: Draft };
 };
 
 export function savedDrafts(url: URL, onError: (message: string) => void) {
@@ -48,7 +46,7 @@ export function savedDrafts(url: URL, onError: (message: string) => void) {
     get view() { return view; },
     get(id: string): Draft { return drafts.get(id) ?? { text: "" }; },
     set(id: string, draft: Draft) {
-      if (draft.text || draft.reply || draft.edit || draft.queuedEdit) drafts.set(id, draft);
+      if (draft.text || draft.reply) drafts.set(id, draft);
       else drafts.delete(id);
       persist();
     },

@@ -17,11 +17,11 @@ Conversations and workers use provider-hosted web search first. Browser interact
 
 ## Terminal
 
-**Tab** moves focus and **Enter** activates the focused item. Click a message and type to quote it. **Tab** from a clicked reply focuses the composer, so you can type a reply starting with **y**. Press **y** on the selected Agent reply to send a thumbs-up.
+**Enter** sends from the composer or opens a focused conversation from Home. **Tab** moves focus. Click a message and type to quote it. Press **y** on a selected Agent reply to send a thumbs-up, or **Tab** first to type a reply starting with **y**.
 
-With a queued message focused, **Enter** edits it and **Esc** opens a deletion confirmation. In the composer, **Esc** cancels a reply or edit first, or stops a running conversation while keeping your draft. **Shift+Enter** or **Ctrl+J** inserts a new line. **Ctrl+C** quits.
+**Esc** clears the selection or quote, then goes Home. Running work continues when you leave. Open the conversation to **Stop** or **Continue** work. **Shift+Enter** or **Ctrl+J** inserts a new line. **Ctrl+C** quits.
 
-Set `AGENT_URL` to connect to another address, such as an SSH-forwarded port. Terminal drafts stay local to the client.
+Use the web client to manage the queue, steer work, change providers, or use reply suggestions. Set `AGENT_URL` to connect to another address, such as an SSH-forwarded port. Terminal drafts stay local to the client.
 
 ## Providers
 

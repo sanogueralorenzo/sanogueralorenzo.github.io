@@ -4,7 +4,6 @@ import { Editor, Markdown, ScrollView, VStack, stripTerminalSequences, truncateT
 const style = (open: number, close = 39) => (text: string) => `\x1b[${open}m${text}\x1b[${close}m`;
 export const bold = style(1, 22);
 export const dim = style(2, 22);
-export const green = style(32);
 export const yellow = style(33);
 const cyan = style(36);
 const underline = style(4, 24);
@@ -30,11 +29,9 @@ type Line = string | Button[];
 export class Panel {
   lines: Line[] = [];
   private hits = new Map<number, { start: number; end: number; run: () => void }[]>();
-  positions = new Map<string, number>();
 
   render(width: number) {
     this.hits.clear();
-    this.positions.clear();
     const output: string[] = [];
     for (const line of this.lines) {
       if (typeof line === "string") {
@@ -56,7 +53,6 @@ export class Panel {
         const length = visibleWidth(label);
         if (x && x + 2 + length > width) flush();
         if (x) { text += "  "; x += 2; }
-        this.positions.set(button.id, output.length);
         hits.push({ start: x, end: x + length, run: button.run });
         text += (button.focused ? bold : cyan)(label);
         x += length;
@@ -77,7 +73,7 @@ export class Panel {
   invalidate() { this.hits.clear(); }
 }
 
-type Block = { id?: string; header?: string; quote?: string; text?: string; markdown?: boolean; buttons?: Button[]; select?: () => void };
+type Block = { id?: string; header?: string; quote?: string; text?: string; markdown?: boolean; select?: (clickCount: number) => void };
 
 class Transcript {
   blocks: Block[] = [];
@@ -107,21 +103,10 @@ class Transcript {
         }
       }
       if (block.select) {
-        for (let index = start; index < lines.length; index++) this.hits[index] = () => {
-          block.select!();
+        for (let index = start; index < lines.length; index++) this.hits[index] = event => {
+          block.select!(event.clickCount ?? 1);
           return { handled: true };
         };
-      }
-      if (block.buttons?.length) {
-        const panel = new Panel();
-        panel.lines = [block.buttons];
-        const start = lines.length;
-        const controls = panel.render(width);
-        for (const [id, line] of panel.positions) this.positions.set(id, start + line);
-        for (const [index, line] of controls.entries()) {
-          lines.push(line);
-          this.hits[start + index] = event => panel.handleMouse({ ...event, y: index });
-        }
       }
       lines.push("");
     }
@@ -150,8 +135,6 @@ export function terminalView(tui: TuiAltScreen, compose: () => void) {
     borderColor: dim,
     selectList: { selectedPrefix: cyan, selectedText: cyan, description: dim, scrollInfo: dim, noMatch: dim },
   }, { paddingX: 1 });
-  let composerVisible = true;
-  tui.setLayoutRoot(new VStack([top, { component: scroll, basis: 0, grow: 1 }, footer,
-    { component: editor, visible: () => composerVisible }]));
-  return { top, footer, transcript, scroll, editor, showComposer(visible: boolean) { composerVisible = visible; } };
+  tui.setLayoutRoot(new VStack([top, { component: scroll, basis: 0, grow: 1 }, footer, editor]));
+  return { top, footer, transcript, scroll, editor };
 }

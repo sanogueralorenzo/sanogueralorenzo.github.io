@@ -7,9 +7,6 @@ export type Row = Target & {
   detail?: string;
   quote?: Target;
   replyable?: boolean;
-  editable?: boolean;
-  resume?: string;
-  turn?: Turn;
 };
 export type Feed = {
   data: Data;
@@ -18,7 +15,7 @@ export type Feed = {
   view: string;
 };
 
-export function replyTarget(feed: Feed, id?: string): Target | undefined {
+function replyTarget(feed: Feed, id?: string): Target | undefined {
   if (!id) return;
   const message = feed.data.messages.find(item => item.id === id);
   if (message) return {
@@ -29,15 +26,13 @@ export function replyTarget(feed: Feed, id?: string): Target | undefined {
     const update = entry.updates.find(item => item.id === id);
     if (update) return { id, text: update.text, role: "Agent", sessionId: entry.sessionId };
   }
-  const reply = feed.conversation?.messages.find(item => item.id === id && item.role === "assistant");
-  if (reply) return { id, text: reply.text, role: "Agent", sessionId: feed.view };
 }
 
-export function sessionTurns(feed: Feed) {
+function sessionTurns(feed: Feed) {
   return feed.data.turns.filter(turn => turn.sessionId === feed.view);
 }
 
-export function dependencies(data: Data, turn?: Turn) {
+function dependencies(data: Data, turn?: Turn) {
   return turn?.dependsOn?.map(id => data.messages.find(message => message.id === id)?.text || "earlier task").join(", ");
 }
 
@@ -67,9 +62,6 @@ function homeRows(feed: Feed): Row[] {
         working: progress.get(message.id) || "Working…", ready: "", failed: "Failed",
         interrupted: "Stopped", cancelled: "Cancelled",
       }[status],
-      resume: status === "interrupted" ? entry?.id : undefined,
-      editable: turn?.status === "running",
-      turn: turn?.status === "queued" ? turn : undefined,
     };
   };
   for (const message of data.messages) {
@@ -79,7 +71,7 @@ function homeRows(feed: Feed): Row[] {
     rows.push({
       id: message.id, text: message.text, role: "You", createdAt: message.createdAt,
       sessionId: entry?.sessionId, title: entry?.title, quote: replyTarget(feed, message.replyToId),
-      replyable: !!entry?.sessionId && !status.editable && !status.turn, ...status,
+      replyable: !!entry?.sessionId, ...status,
     });
   }
   const reactions = new Map(data.messages.filter(message => message.reaction).map(message => [message.replyToId, message]));
@@ -93,7 +85,6 @@ function homeRows(feed: Feed): Row[] {
       quote: update.quoteSource ? source.reaction ? replyTarget(feed, source.replyToId)
         : { id: source.id, role: "You", text: source.text } : undefined,
       detail: reaction ? activity(reaction, entry).detail : undefined,
-      resume: reaction ? activity(reaction, entry).resume : undefined,
     });
   }
   return rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
@@ -119,23 +110,13 @@ export function conversationRows(feed: Feed): Row[] {
   return rows;
 }
 
-export function suggestionTarget(feed: Feed) {
-  const { data, view } = feed;
-  let sessionId: string | null = view;
-  let replyId: string | undefined;
-  if (view === "home") {
-    if (data.turns.length || data.messages.some(message => message.status === "routing")) return;
-    const last = data.entries.flatMap(entry => entry.updates.filter(update => update.kind !== "progress")
-      .map(update => ({ ...update, sessionId: entry.sessionId })))
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt)).at(-1);
-    if (last?.kind !== "result" || data.messages.some(message => message.createdAt > last.createdAt)) return;
-    ({ id: replyId, sessionId } = last);
-  } else {
-    const last = feed.conversation?.messages.at(-1);
-    if (!last?.completed) return;
-    replyId = last.id;
-  }
-  if (!sessionId || !replyId || data.sessions.find(session => session.id === sessionId)?.status !== "idle" ||
-      data.turns.some(turn => turn.sessionId === sessionId)) return;
-  return { sessionId, replyId };
+export function queuedRows(feed: Feed) {
+  if (feed.view === "home") return [];
+  return sessionTurns(feed).filter(turn => turn.status === "queued").map(turn => {
+    const waiting = dependencies(feed.data, turn);
+    return {
+      text: feed.data.messages.find(message => message.id === turn.sourceId)?.reaction ? "👍 Go ahead" : turn.text,
+      detail: waiting ? `Waiting for ${waiting}` : "Queued",
+    };
+  });
 }
