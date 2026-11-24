@@ -23,6 +23,7 @@ final class BrowserStore {
     let sidebarFolders = BrowserSidebarFolderVisibility()
     var sidebarSpaceStep: Int?
     var sidebarSpaceTransitioning = false
+    var sidebarSpacePreviewID: UUID?
     @ObservationIgnored var sidebarScrollOffsets: [UUID: CGFloat] = [:]
     var recentSwitcherPresented = false
     var recentSwitcherIndex = 0

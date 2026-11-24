@@ -14,16 +14,17 @@ struct BrowserSpaceSwitcher: View {
         let tabs = spaces.map { (space: $0, width: BrowserSpaceTabLabel.width(for: $0.name)) }
         let contentWidth = tabs.reduce(2 * inset) { $0 + $1.width } + CGFloat(max(0, tabs.count - 1)) * spacing
         let width = min(contentWidth, store.sidebarWidth - 2 * SidebarGeometry.contentInset)
+        let highlightedSpaceID = store.sidebarSpacePreviewID ?? store.activeSpace.id
         ScrollViewReader { reader in
             ScrollView(.horizontal) {
                 HStack(spacing: spacing) {
                     ForEach(tabs, id: \.space.id) { tab in
                         let space = tab.space
-                        let selected = store.activeSpace.id == space.id
+                        let highlighted = highlightedSpaceID == space.id
                         let label = space.isPrivate ? "\(space.name), Private Space" : space.name
                         Button {
                             guard !store.owner.sidebarDrag.suppressesActivation else { return }
-                            if selected {
+                            if store.activeSpace.id == space.id {
                                 withAnimation(BrowserMotion.scrollAlignment.unlessReducingMotion(reduceMotion)) {
                                     reader.scrollTo(space.id, anchor: .center)
                                 }
@@ -31,11 +32,11 @@ struct BrowserSpaceSwitcher: View {
                                 store.selectSpace(space.id)
                             }
                         } label: {
-                            BrowserSpaceTabLabel(name: space.name, width: tab.width, selected: selected)
+                            BrowserSpaceTabLabel(name: space.name, width: tab.width, selected: highlighted)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(label)
-                        .accessibilityAddTraits(selected ? .isSelected : [])
+                        .accessibilityAddTraits(highlighted ? .isSelected : [])
                         .help(label)
                         .contextMenu {
                             if let index = spaces.firstIndex(where: { $0.id == space.id }) {
@@ -114,8 +115,9 @@ struct BrowserSpaceSwitcher: View {
             .modifier(BrowserDropArea(store: store, spaceID: store.activeSpace.id, isSpaceRail: true))
             .contextMenu { Button("New Space") { edit(nil) } }
             .onAppear { reader.scrollTo(store.activeSpace.id, anchor: .center) }
-            .onChange(of: store.activeSpace.id) { _, id in
-                let motion = store.sidebarSpaceStep == nil ? BrowserMotion.scrollAlignment : BrowserMotion.spaceSwitch
+            .onChange(of: highlightedSpaceID) { _, id in
+                let motion = store.sidebarSpacePreviewID != nil || store.sidebarSpaceStep == nil
+                    ? BrowserMotion.scrollAlignment : BrowserMotion.spaceSwitch
                 withAnimation(store.owner.sidebarDrag.payload == nil ? motion.unlessReducingMotion(reduceMotion) : nil) {
                     reader.scrollTo(id, anchor: .center)
                 }

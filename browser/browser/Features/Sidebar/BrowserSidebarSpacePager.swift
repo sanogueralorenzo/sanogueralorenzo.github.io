@@ -101,7 +101,10 @@ final class BrowserSidebarSpaceViewport: NSView {
         store: BrowserStore, spaces: [BrowserSpace], selectedSpaceID id: UUID, step: Int?, interactionLocked: Bool,
         reduceMotion: Bool, layoutDirection: LayoutDirection
     ) {
-        if self.store !== store, self.store?.sidebarSpaceViewport === self { self.store?.sidebarSpaceViewport = nil }
+        if self.store !== store, self.store?.sidebarSpaceViewport === self {
+            previewSpace(nil)
+            self.store?.sidebarSpaceViewport = nil
+        }
         self.store = store
         store.sidebarSpaceViewport = self
         let previous = selectedSpaceID
@@ -188,6 +191,7 @@ final class BrowserSidebarSpaceViewport: NSView {
         motion = Motion(origin: origin.key, initialOffset: offset, offset: offset)
         isMoving = true
         store.sidebarSpaceTransitioning = true
+        previewSpace(origin.key)
         return epoch
     }
 
@@ -217,6 +221,7 @@ final class BrowserSidebarSpaceViewport: NSView {
             }
         }
         CATransaction.commit()
+        previewSpace(current.offset * current.direction > bounds.width / 2 ? current.target : current.origin)
         var required: Set<UUID> = [current.origin]
         if let target = current.target { required.insert(target) }
         if let selectedSpaceID { required.insert(selectedSpaceID) }
@@ -231,8 +236,10 @@ final class BrowserSidebarSpaceViewport: NSView {
             max(travel, current.offset * current.direction)
             + (cancelled || travel == 0 || !velocity.isFinite ? 0 : velocity * current.direction * 0.15)
         let completes = !cancelled && travel > 0 && projection >= bounds.width / 2
+        let destination = completes ? current.target ?? current.origin : current.origin
+        previewSpace(destination)
         animate(
-            from: current.origin, to: completes ? current.target ?? current.origin : current.origin,
+            from: current.origin, to: destination,
             step: current.step, layoutDirection: rightToLeft ? .rightToLeft : .leftToRight,
             commitSelection: true)
     }
@@ -245,6 +252,11 @@ final class BrowserSidebarSpaceViewport: NSView {
 
     func stepSpace(_ step: Int) { store?.adjacentSpace(step) }
 
+    private func previewSpace(_ id: UUID?) {
+        guard let store, store.sidebarSpacePreviewID != id else { return }
+        store.sidebarSpacePreviewID = id
+    }
+
     private func stopAtPresentationPositions() {
         epoch += 1
         for host in hosts.values {
@@ -254,6 +266,7 @@ final class BrowserSidebarSpaceViewport: NSView {
         }
         isMoving = false
         motion = nil
+        previewSpace(nil)
     }
 
     private func animate(
@@ -291,6 +304,7 @@ final class BrowserSidebarSpaceViewport: NSView {
 
     private func settle() {
         isMoving = false
+        previewSpace(nil)
         for (id, host) in hosts {
             let hidden = id != selectedSpaceID
             if host.isHidden != hidden { host.isHidden = hidden }
