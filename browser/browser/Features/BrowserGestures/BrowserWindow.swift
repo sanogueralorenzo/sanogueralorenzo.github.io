@@ -29,8 +29,9 @@ extension BrowserStore {
     func handleSpaceScroll(_ event: NSEvent) -> NSEvent? {
         guard event.window === window, let sidebarSpaceViewport else { return event }
         let enabled = allowsPointerNavigation && utility == nil && session.spaces.count > 1
+        let isInside = sidebarContains(event, excludingTitlebar: true) && !spaceSwitcherContains(event)
         return sidebarSpaceViewport.handleScroll(
-            event, isInside: sidebarContains(event, excludingTitlebar: true), enabled: enabled)
+            event, isInside: isInside, enabled: enabled)
     }
 
     func handleUnhandledSwipe(_ event: NSEvent) -> Bool {
@@ -40,6 +41,7 @@ extension BrowserStore {
         else { return false }
         let backward = event.deltaX > 0
         if sidebarContains(event) {
+            guard !spaceSwitcherContains(event) else { return false }
             adjacentSpace(backward ? -1 : 1)
             return true
         }
@@ -57,5 +59,10 @@ extension BrowserStore {
         else { return false }
         if backward { page.webView.goBack() } else { page.webView.goForward() }
         return true
+    }
+
+    private func spaceSwitcherContains(_ event: NSEvent) -> Bool {
+        guard let content = window?.contentView else { return false }
+        return sidebarReorder.spaceViewport.contains(content.convert(event.locationInWindow, from: nil))
     }
 }
