@@ -73,7 +73,7 @@ export class Panel {
   invalidate() { this.hits.clear(); }
 }
 
-type Block = { id?: string; header?: string; quote?: string; text?: string; markdown?: boolean; select?: (clickCount: number) => void };
+type Block = { id?: string; header?: string; quote?: string; text?: string; markdown?: boolean; select?: (event: TuiMouseEvent) => void };
 
 class Transcript {
   blocks: Block[] = [];
@@ -104,7 +104,7 @@ class Transcript {
       }
       if (block.select) {
         for (let index = start; index < lines.length; index++) this.hits[index] = event => {
-          block.select!(event.clickCount ?? 1);
+          block.select!(event);
           return { handled: true };
         };
       }
