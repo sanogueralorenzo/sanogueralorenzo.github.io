@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import type { ImageContent, JsonObject, Message, TextContent, Tool, ToolCall, ToolResultMessage } from "@earendil-works/pi-ai";
 import { startCli } from "./process.ts";
 import type { CliUsage, Turn } from "./turn.ts";
@@ -14,13 +15,15 @@ type Request = Omit<Turn, "cwd" | "transcript" | "images"> & {
 
 type Reply = { text: string; calls: ToolCall[]; id?: string; usage?: CliUsage };
 
-type PendingCall = { requestId: number | string; callId: string };
+type CliEvents = ReturnType<ReturnType<typeof startCli>["events"]>;
+type PendingCalls = Map<string, number | string>;
 type Process = {
   cli: ReturnType<typeof startCli>;
-  events: ReturnType<ReturnType<typeof startCli>["events"]>;
+  events: CliEvents;
+  nextEvent?: ReturnType<CliEvents["next"]>;
   directory: string;
   settings: string;
-  call?: PendingCall;
+  calls: PendingCalls;
   idle?: NodeJS.Timeout;
   closing?: Promise<void>;
   thread?: string;
@@ -63,12 +66,15 @@ function history(messages: Message[]) {
   return items;
 }
 
-function continuation(messages: Message[], call: PendingCall | undefined): ToolResultMessage | undefined {
-  if (!call) return;
+function continuation(messages: Message[], calls: PendingCalls): ToolResultMessage[] | undefined {
+  if (!calls.size) return;
+  const results = new Map<string, ToolResultMessage>();
   for (let index = messages.length - 1; index >= 0; index--) {
     const message = messages[index];
     if (message.role === "system") continue;
-    return message.role === "toolResult" && message.toolCallId === call.callId ? message : undefined;
+    if (message.role !== "toolResult" || !calls.has(message.toolCallId) || results.has(message.toolCallId)) return;
+    results.set(message.toolCallId, message);
+    if (results.size === calls.size) return [...results.values()].reverse();
   }
 }
 
@@ -115,10 +121,10 @@ export class CodexTurns {
     try {
       const settings = JSON.stringify([turn.model, turn.effort, turn.fast, turn.search, turn.instructions, turn.tools]);
       const existing = this.processes.get(key);
-      const result = existing?.settings === settings ? continuation(turn.messages, existing.call) : undefined;
+      const results = existing?.settings === settings ? continuation(turn.messages, existing.calls) : undefined;
       if (existing) {
-        if (result) {
-          try { return await this.advance(key, existing, turn, result); }
+        if (results) {
+          try { return await this.advance(key, existing, turn, results); }
           catch (error) { if (turn.signal.aborted || this.closed) throw error; }
         } else await this.stop(key, existing);
       }
@@ -128,7 +134,7 @@ export class CodexTurns {
     } finally { this.running.delete(key); }
   }
 
-  private async advance(key: string, process: Process, turn: Request, result?: ToolResultMessage): Promise<Reply> {
+  private async advance(key: string, process: Process, turn: Request, results: ToolResultMessage[] = []): Promise<Reply> {
     this.processes.set(key, process);
     clearTimeout(process.idle);
     const abort = () => { void this.stop(key, process); };
@@ -136,13 +142,13 @@ export class CodexTurns {
     try {
       if (this.closed) throw new Error("Codex is shutting down");
       turn.signal.throwIfAborted();
-      if (result && process.call) {
-        process.cli.send({ id: process.call.requestId, result: { success: !result.isError, contentItems: result.content.map(part =>
+      for (const result of results) {
+        process.cli.send({ id: process.calls.get(result.toolCallId), result: { success: !result.isError, contentItems: result.content.map(part =>
           part.type === "text" ? { type: "inputText", text: part.text } : { type: "inputImage", imageUrl: imageUrl(part) }) } });
-        process.call = undefined;
       }
+      process.calls.clear();
       const response = await this.receive(process, turn);
-      if (process.call && key === turn.sessionId) {
+      if (process.calls.size && key === turn.sessionId) {
         process.idle = setTimeout(() => { void this.stop(key, process); }, 120_000).unref();
       } else await this.stop(key, process);
       return response;
@@ -159,7 +165,7 @@ export class CodexTurns {
       cli.send({ id: 1, method: "initialize", params: {
         clientInfo: { name: "sanogueralorenzo_agent", title: "Agent", version: "0.1.0" }, capabilities: { experimentalApi: true },
       } });
-      return { cli, events: cli.events(), directory, settings, sources: [] };
+      return { cli, events: cli.events(), directory, settings, calls: new Map(), sources: [] };
     } catch (error) {
       await rm(directory, { recursive: true, force: true });
       throw error;
@@ -170,11 +176,17 @@ export class CodexTurns {
     const { cli, events } = process;
     const send = (id: number, method: string, params: object) => cli.send({ id, method, params });
     const allowed = new Set(turn.tools.map(tool => tool.name));
+    const calls: ToolCall[] = [];
+    const batchReady = Symbol();
+    let flushBatch: Promise<typeof batchReady> | undefined;
     let answer = "";
     let id: string | undefined;
     let usage: CliUsage | undefined;
     for (;;) {
-      const next = await events.next();
+      const eventPromise = process.nextEvent ??= events.next();
+      const next = flushBatch ? await Promise.race([eventPromise, flushBatch]) : await eventPromise;
+      if (next === batchReady) return { text: answer, calls, usage };
+      process.nextEvent = undefined;
       if (next.done) break;
       const event = next.value;
       const { params } = event;
@@ -182,10 +194,11 @@ export class CodexTurns {
         if (event.method === "item/tool/call" && params.threadId === process.thread && allowed.has(params.tool)) {
           const actual = params.arguments;
           const valid = actual && typeof actual === "object" && !Array.isArray(actual);
-          const nativeCall: ToolCall = { type: "toolCall", id: params.callId, name: params.tool,
-            arguments: valid ? actual as JsonObject : {}, ...(!valid && { argumentsError: "Tool arguments must be a JSON object" }) };
-          process.call = { requestId: event.id, callId: nativeCall.id };
-          return { text: answer, calls: [nativeCall], usage };
+          calls.push({ type: "toolCall", id: params.callId, name: params.tool,
+            arguments: valid ? actual as JsonObject : {}, ...(!valid && { argumentsError: "Tool arguments must be a JSON object" }) });
+          process.calls.set(params.callId, event.id);
+          flushBatch ??= delay<typeof batchReady>(10, batchReady, { ref: false });
+          continue;
         }
         cli.send({ id: event.id, error: { code: -32601, message: "Tool unavailable in Agent" } });
       } else if (event.error) {
