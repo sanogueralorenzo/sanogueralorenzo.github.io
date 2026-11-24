@@ -4,6 +4,7 @@ import WebKit
 enum BrowserWebKitDefaults {
     static func apply(to preferences: WKPreferences) {
         preferences.inactiveSchedulingPolicy = .suspend
+        preferences.isElementFullscreenEnabled = true
 
         // Use Crest's WebKit preference while keeping the other defaults.
         let featuresSelector = NSSelectorFromString("_features")
