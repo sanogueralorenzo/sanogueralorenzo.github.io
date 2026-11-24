@@ -22,7 +22,8 @@
     "@earendil-works/pi-durable": "1.4.0",
     "@earendil-works/pi-mcp": "1.4.0",
     "@earendil-works/pi-tui": "1.4.0",
-    "typebox": "1.3.27"
+    "typebox": "1.3.27",
+    "undici": "8.10.2"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

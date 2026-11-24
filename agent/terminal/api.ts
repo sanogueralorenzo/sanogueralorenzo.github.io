@@ -1,4 +1,5 @@
 import { setTimeout as delay } from "node:timers/promises";
+import { Agent as Dispatcher, fetch as fetchEvents } from "undici";
 import type { Agent } from "../src/agent.ts";
 import type { Data } from "../src/state.ts";
 
@@ -22,27 +23,33 @@ export function agentClient(url: URL, signal: AbortSignal) {
   }
 
   async function follow(receive: (event: Event) => void, connected: (online: boolean) => void) {
-    while (!signal.aborted) {
-      try {
-        const response = await fetch(new URL("/api/events", url), { signal });
-        if (!response.ok || !response.body) throw new Error(`Event stream unavailable (${response.status})`);
-        connected(true);
-        let buffer = "";
-        const stream = response.body.pipeThrough(new TextDecoderStream());
-        for await (const chunk of stream) {
-          buffer += chunk;
-          const frames = buffer.split("\n\n");
-          buffer = frames.pop() ?? "";
-          for (const frame of frames) {
-            if (frame.startsWith("data: ")) receive(JSON.parse(frame.slice(6)) as Event);
+    const dispatcher = new Dispatcher({ bodyTimeout: 0 });
+    try {
+      while (!signal.aborted) {
+        try {
+          const response = await fetchEvents(new URL("/api/events", url), { signal, dispatcher });
+          if (!response.ok || !response.body) {
+            await response.body?.cancel();
+            throw new Error(`Event stream unavailable (${response.status})`);
           }
-        }
-      } catch {
+          connected(true);
+          const decoder = new TextDecoder();
+          let buffer = "";
+          for await (const chunk of response.body) {
+            buffer += decoder.decode(chunk, { stream: true });
+            const frames = buffer.split("\n\n");
+            buffer = frames.pop() ?? "";
+            for (const frame of frames) {
+              if (frame.startsWith("data: ")) receive(JSON.parse(frame.slice(6)) as Event);
+            }
+          }
+        } catch {}
         if (signal.aborted) return;
+        connected(false);
+        await delay(1000, undefined, { signal }).catch(() => {});
       }
-      if (signal.aborted) return;
-      connected(false);
-      await delay(1000, undefined, { signal }).catch(() => {});
+    } finally {
+      await dispatcher.destroy();
     }
   }
 
