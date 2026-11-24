@@ -122,7 +122,7 @@ export class PiService {
     if (!options.models) await providers.refresh();
     let service: PiService | undefined;
     const codex = options.models ? undefined : new CodexTurns();
-    const models = providerModels(options.models || cliModels(provider => providers.fastEnabled(provider), codex));
+    const models = providerModels(options.models || cliModels(provider => providers.fastEnabled(provider), codex, provider => providers.recheck(provider)));
     const computers = new Map<number, ComputerUseClient>();
     const computer = new ComputerUseClient().tool();
     const computerTool = defineTool({ ...computer,
@@ -142,15 +142,18 @@ export class PiService {
       models, registry, settings: { extensions: [], steeringMode: "one-at-a-time", followUpMode: "one-at-a-time", toolExecution: "parallel", progress: { partialIntervalMs: 16, outputIntervalMs: 16 } },
     }, BACKGROUND_CONTEXT);
     service = new PiService(harness, models, providers, options.model, roles, computers, codex);
+    if (!options.models) providers.startPolling();
     return service;
   }
   get model(): ModelRef { return this.fixedModel || this.providers.model; }
   async availableModel(preferred?: ModelRef) {
     if (this.fixedModel) return preferred || this.fixedModel;
-    await this.providers.refresh();
-    if (preferred && this.providers.usable(preferred)) return preferred;
-    const model = this.model;
-    if (!this.providers.usable(model)) throw new Error("Sign in to Codex, Claude Code, or Google Antigravity on the Agent host");
+    let model = this.providers.connectedModel(preferred);
+    if (!model) {
+      await this.providers.refresh();
+      model = this.providers.connectedModel(preferred);
+    }
+    if (!model) throw new Error("Sign in to Codex, Claude Code, or Google Antigravity on the Agent host");
     return model;
   }
   agent(role: AgentRole, cwd: string) {
@@ -158,7 +161,7 @@ export class PiService {
     return { ...(utility ? utilityAgent(this.model) : { model: this.model, thinkingLevel: "high" as const }), cwd, extensions: [this.roles[role]] };
   }
   async utility(role: "router" | "dispatcher", input: string, cwd: string, customTools: ToolRegistration[] = [], acceptedResult?: () => string | undefined, context: TaskContext = BACKGROUND_CONTEXT) {
-    await this.availableModel();
+    const model = await this.availableModel();
     const tools = customTools.map((tool) => defineTool({ name: tool.name, description: tool.description, parameters: tool.parameters,
       execute: async (args, api, context) => {
         const result = await tool.execute(args, api, context);
@@ -171,7 +174,7 @@ export class PiService {
     const harness = await Harness.open(new MemoryStorage(), { models: this.models, registry }, context);
     let rootId: ConversationId | undefined;
     try {
-      const root = await harness.root(context, { agent: { ...this.agent(role, cwd), extensions: [extension] } });
+      const root = await harness.root(context, { agent: { ...utilityAgent(model), cwd, extensions: [extension] } });
       rootId = root.id;
       const settled = await (await root.submit({ type: "input", content: input }, context)).wait(context);
       if (acceptedResult?.()) return acceptedResult()!;

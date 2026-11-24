@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ModelThinkingLevel } from "@earendil-works/pi-ai";
 import type { ModelRef } from "@earendil-works/pi-durable";
-import { cliConnection, cliProvider, cliProviders, defaultModel, fastSupported } from "./cli/catalog.ts";
+import { cliConnection, cliProvider, cliProviders, defaultModel, fastSupported, type CliProvider } from "./cli/catalog.ts";
 
 export function utilityAgent(selected: ModelRef): { model: ModelRef; thinkingLevel: ModelThinkingLevel } {
   const provider = cliProvider(selected.provider);
@@ -36,9 +36,8 @@ export class Providers {
   private readonly probe: typeof cliConnection;
   private readonly controller = new AbortController();
   private readonly listeners = new Set<() => void>();
-  private statuses = new Map<string, CliStatus>();
-  private checking?: Promise<void>;
-  private checkedAt = 0;
+  private readonly statuses = new Map<string, { status: CliStatus; checkedAt: number }>();
+  private readonly checking = new Map<string, Promise<void>>();
   private timer?: NodeJS.Timeout;
 
   constructor(dataDir: string, probe = cliConnection) {
@@ -51,13 +50,18 @@ export class Providers {
   }
 
   get model(): ModelRef {
-    if (this.usable(this.selected)) return { ...this.selected };
-    const provider = cliProviders.find(item => this.statuses.get(item.id)?.connected);
-    return provider ? { provider: provider.id, modelId: provider.defaultModel } : { ...defaultModel };
+    return this.connectedModel() ?? { ...defaultModel };
   }
 
-  usable(ref: ModelRef) {
-    return this.statuses.get(ref.provider)?.connected === true &&
+  connectedModel(preferred?: ModelRef): ModelRef | undefined {
+    if (preferred && this.usable(preferred)) return preferred;
+    if (this.usable(this.selected)) return { ...this.selected };
+    const provider = cliProviders.find(item => this.statuses.get(item.id)?.status.connected);
+    if (provider) return { provider: provider.id, modelId: provider.defaultModel };
+  }
+
+  private usable(ref: ModelRef) {
+    return this.statuses.get(ref.provider)?.status.connected === true &&
       cliProvider(ref.provider)?.models.some(([id]) => id === ref.modelId) === true;
   }
 
@@ -65,34 +69,42 @@ export class Providers {
 
   private changed() { for (const listener of this.listeners) listener(); }
 
-  refresh() {
-    if (Date.now() - this.checkedAt < 5000 || this.controller.signal.aborted) return Promise.resolve();
-    return this.checking ||= Promise.all(cliProviders.map(async provider =>
-      [provider.id, await this.probe(provider, this.controller.signal)] as const)).then(entries => {
-      this.checkedAt = Date.now();
-      const different = entries.some(([id, status]) => {
-        const old = this.statuses.get(id);
-        return old?.connected !== status.connected || old?.installed !== status.installed;
-      });
-      this.statuses = new Map(entries);
-      if (different && !this.controller.signal.aborted) this.changed();
-    }).finally(() => { this.checking = undefined; });
+  private refreshProvider(provider: CliProvider, force = false) {
+    const pending = this.checking.get(provider.id);
+    if (pending) return pending;
+    const previous = this.statuses.get(provider.id);
+    if (this.controller.signal.aborted || (!force && previous && Date.now() - previous.checkedAt < 5000)) return Promise.resolve();
+    const checking = this.probe(provider, this.controller.signal).then(status => {
+      if (this.controller.signal.aborted) return;
+      this.statuses.set(provider.id, { status, checkedAt: Date.now() });
+      if (previous?.status.connected !== status.connected || previous?.status.installed !== status.installed) this.changed();
+    }).finally(() => { this.checking.delete(provider.id); });
+    this.checking.set(provider.id, checking);
+    return checking;
+  }
+
+  async refresh() {
+    await Promise.all(cliProviders.map(provider => this.refreshProvider(provider)));
+  }
+
+  recheck(provider: CliProvider) {
+    void this.refreshProvider(provider, true).catch(() => {});
+  }
+
+  startPolling() {
+    this.timer ||= setInterval(() => { void this.refresh().catch(() => {}); }, 15_000).unref();
   }
 
   subscribe(listener: () => void) {
     this.listeners.add(listener);
-    this.timer ||= setInterval(() => { void this.refresh().catch(() => {}); }, 15_000).unref();
-    return () => {
-      this.listeners.delete(listener);
-      if (!this.listeners.size) { clearInterval(this.timer); this.timer = undefined; }
-    };
+    return () => { this.listeners.delete(listener); };
   }
 
   async snapshot() {
     await this.refresh();
     return { selected: this.model, providers: cliProviders.map(provider => ({
       id: provider.id, name: provider.name, loginCommand: provider.login,
-      ...(this.statuses.get(provider.id) ?? offline),
+      ...(this.statuses.get(provider.id)?.status ?? offline),
       fastSupported: provider.models.some(([id]) => fastSupported(provider.id, id)),
       fastEnabled: this.fastEnabled(provider.id),
       models: provider.models.map(([id, name]) => ({ id, name })),
@@ -104,7 +116,7 @@ export class Providers {
     if (!provider) throw new Error("Choose a provider from the list");
     const model = { provider: provider.id, modelId: modelId || provider.defaultModel };
     if (!provider.models.some(([id]) => id === model.modelId)) throw new Error("Choose a model from this provider's list");
-    await this.refresh();
+    await this.refreshProvider(provider);
     if (!this.usable(model)) throw new Error(`Sign in to ${provider.name} on the Agent host`);
     writeSettings(this.path, model);
     this.selected = model;
@@ -114,8 +126,8 @@ export class Providers {
   async setFastMode(providerId: string, enabled: boolean) {
     const provider = cliProvider(providerId);
     if (!provider?.models.some(([id]) => fastSupported(providerId, id))) throw new Error("This CLI does not support fast mode");
-    await this.refresh();
-    if (!this.statuses.get(provider.id)?.connected) throw new Error(`Sign in to ${provider.name} on the Agent host`);
+    await this.refreshProvider(provider);
+    if (!this.statuses.get(provider.id)?.status.connected) throw new Error(`Sign in to ${provider.name} on the Agent host`);
     const fast = { ...this.fast, [providerId]: enabled };
     writeSettings(this.fastPath, fast);
     this.fast = fast;
@@ -125,6 +137,6 @@ export class Providers {
   async close() {
     this.controller.abort();
     clearInterval(this.timer);
-    await this.checking;
+    await Promise.allSettled(this.checking.values());
   }
 }

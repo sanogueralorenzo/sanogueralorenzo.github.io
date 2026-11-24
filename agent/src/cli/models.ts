@@ -62,7 +62,8 @@ function structuredReply(response: TurnResult, provider: string): Reply {
   return { text: result.text, calls, usage: response.usage, totalCost: response.totalCost, id: response.id };
 }
 
-function cliStream(codex: CodexTurns, provider: CliProvider, model: Model<Api>, context: TranscriptContext, fast: boolean, options?: SimpleStreamOptions) {
+function cliStream(codex: CodexTurns, provider: CliProvider, model: Model<Api>, context: TranscriptContext, fast: boolean,
+  recheckConnection?: (provider: CliProvider) => void, options?: SimpleStreamOptions) {
   const stream = createAssistantMessageEventStream();
   const signal = AbortSignal.any([AbortSignal.timeout(15 * 60_000), ...(options?.signal ? [options.signal] : [])]);
   const message: AssistantMessage = { role: "assistant", content: [], api: model.api, provider: model.provider, model: model.id,
@@ -130,6 +131,7 @@ function cliStream(codex: CodexTurns, provider: CliProvider, model: Model<Api>, 
       if (search) sources.append(message);
       stream.push({ type: "done", reason: message.stopReason, message });
     } catch (error) {
+      if (!signal.aborted) recheckConnection?.(provider);
       message.stopReason = options?.signal?.aborted ? "aborted" : "error";
       message.errorMessage = signal.aborted && !options?.signal?.aborted ? `${provider.name} timed out` : error instanceof Error ? error.message : String(error);
       stream.push({ type: "error", reason: message.stopReason, error: message });
@@ -141,11 +143,11 @@ function cliStream(codex: CodexTurns, provider: CliProvider, model: Model<Api>, 
   return stream;
 }
 
-export function cliModels(fastEnabled: (provider: string) => boolean, codex = new CodexTurns()) {
+export function cliModels(fastEnabled: (provider: string) => boolean, codex = new CodexTurns(), recheckConnection?: (provider: CliProvider) => void) {
   const runtime = createModels();
   for (const provider of cliProviders) {
     const stream = (model: Model<Api>, context: TranscriptContext, options?: SimpleStreamOptions) =>
-      cliStream(codex, provider, model, context, fastEnabled(provider.id) && fastSupported(provider.id, model.id), options);
+      cliStream(codex, provider, model, context, fastEnabled(provider.id) && fastSupported(provider.id, model.id), recheckConnection, options);
     runtime.setProvider(createProvider({
       id: provider.id, name: provider.name,
       auth: { apiKey: { name: provider.name, resolve: async () => ({ auth: {} }) } },
