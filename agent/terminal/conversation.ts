@@ -33,15 +33,33 @@ function homeStatus(message: HomeMessage, entry: HomeEntry | undefined, turn?: T
   return message.status === "routed" ? "queued" : message.status;
 }
 
+function requestQuotes(messages: HomeMessage[], entries: HomeEntry[], edited: Set<string | undefined>) {
+  const replies = new Map(entries.flatMap(entry => entry.updates.map(update => [update.id, {
+    text: update.text, sourceId: update.sourceId || entry.sourceId, createdAt: update.createdAt,
+  }] as const)));
+  const older = new Map<string, { newerAt: string; text?: string }>();
+  let newerAt: string | undefined;
+  for (const message of [...messages].reverse()) {
+    if (newerAt) older.set(message.id, {
+      newerAt, text: message.reaction && message.replyToId ? replies.get(message.replyToId)?.text : message.text,
+    });
+    if (!message.reaction && !edited.has(message.id)) newerAt = message.createdAt;
+  }
+  function quote(sourceId?: string, answeredAt?: string) {
+    const prior = sourceId ? older.get(sourceId) : undefined;
+    return prior && (!answeredAt || prior.newerAt <= answeredAt) ? prior.text : undefined;
+  }
+  return { replies, quote };
+}
+
 function homeRows(feed: Feed): Row[] {
   const { data, progress } = feed;
   const edited = new Set(data.messages.map(message => message.editOfId));
   const entries = new Map(data.entries.map(entry => [entry.id, entry]));
   const sources = new Map(data.messages.map(message => [message.id, message]));
   const turns = new Map(data.turns.map(turn => [turn.sourceId, turn]));
-  const texts = new Map(data.messages.map(message => [message.id, message.text]));
-  for (const entry of data.entries) for (const update of entry.updates) texts.set(update.id, update.text);
-  const rows: (Row & { createdAt: string; sourceId?: string })[] = [];
+  const { replies, quote } = requestQuotes(data.messages, data.entries, edited);
+  const rows: (Row & { createdAt: string; replyToId?: string })[] = [];
   const activity = (message: HomeMessage, entry?: HomeEntry) => {
     const turn = turns.get(message.id);
     const status = homeStatus(message, entry, turn);
@@ -60,7 +78,7 @@ function homeRows(feed: Feed): Row[] {
     const status = activity(message, entry);
     rows.push({
       id: message.id, text: message.text, role: "You", createdAt: message.createdAt,
-      sessionId: entry?.sessionId, sourceId: message.replyToId,
+      sessionId: entry?.sessionId, replyToId: message.replyToId,
       replyable: !!entry?.sessionId, ...status,
     });
   }
@@ -72,32 +90,36 @@ function homeRows(feed: Feed): Row[] {
     rows.push({
       id: update.id, role: "Agent", text: update.text, createdAt: update.createdAt,
       sessionId: entry.sessionId, title: entry.title, replyable: !!entry.sessionId,
-      sourceId: source.reaction ? source.replyToId : source.id,
+      quote: quote(source.id, update.createdAt),
       detail: reaction ? activity(reaction, entry).detail : undefined,
     });
   }
-  return rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt)).map(({ sourceId, ...row }, index) => ({
-    ...row, quote: sourceId && rows[index - 1]?.id !== sourceId ? texts.get(sourceId) : undefined,
+  return rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt)).map(({ replyToId, ...row }, index) => ({
+    ...row, quote: replyToId && rows[index - 1]?.id !== replyToId
+      ? sources.get(replyToId)?.text ?? replies.get(replyToId)?.text : row.quote,
   }));
 }
 
 export function conversationRows(feed: Feed): Row[] {
   if (feed.view === "home") return homeRows(feed);
+  const entries = feed.data.entries.filter(entry => entry.sessionId === feed.view);
+  const entryIds = new Set(entries.map(entry => entry.id));
+  const requests = feed.data.messages.filter(message => message.entryId && entryIds.has(message.entryId));
+  const { replies, quote } = requestQuotes(requests, entries, new Set(requests.map(message => message.editOfId)));
   const messages = (feed.conversation?.messages ?? []).filter(message => !message.reaction);
-  const rows: Row[] = messages.map((message, index) => {
-    const preceding = messages[index - 1];
+  const rows: Row[] = messages.map(message => {
+    const reply = replies.get(message.id);
     return {
       id: message.id, role: message.role === "user" ? "You" : "Agent", text: message.text,
       sessionId: feed.view, replyable: message.role === "assistant" && message.replyable,
-      quote: preceding?.role === "user" && preceding.text === message.request ? undefined : message.request,
+      quote: quote(reply?.sourceId, reply?.createdAt),
     };
   });
   for (const turn of sessionTurns(feed)) {
     const progress = turn.sourceId && feed.progress.get(turn.sourceId);
-    const preceding = rows.at(-1);
     if (turn.status === "running" && progress) rows.push({
       id: `progress:${turn.id}`, role: "Agent", text: progress,
-      quote: preceding?.role === "You" && preceding.text === turn.text ? undefined : turn.text,
+      quote: quote(turn.sourceId),
     });
   }
   if (feed.conversation?.streaming && !rows.some(row => row.id.startsWith("progress:"))) {
