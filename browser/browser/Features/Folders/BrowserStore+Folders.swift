@@ -71,7 +71,6 @@ extension BrowserStore {
         guard let s = session.spaces.firstIndex(where: { $0.folders.contains { $0.id == id } }),
             let folder = session.spaces[s].folders.first(where: { $0.id == id })
         else { return }
-        if (folder.placement ?? .saved) == .saved { expandedSavedSpaces.insert(session.spaces[s].id) }
         var parent = folder.parentID
         var visited = Set<UUID>()
         while let id = parent, visited.insert(id).inserted,

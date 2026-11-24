@@ -137,11 +137,11 @@ struct BrowserTabRow: View {
             if tab.placement != .pinned {
                 Button("Pin Tab") { store.placeTabs(store.actionTabs(tab.id), as: .pinned) }
             }
-            if tab.placement != .saved || tab.folderID != nil {
-                Button("Move to Saved Tabs") { store.placeTabs(store.actionTabs(tab.id), as: .saved) }
+            if tab.placement != .saved {
+                Button("Move to Saved") { store.placeTabs(store.actionTabs(tab.id), as: .saved) }
             }
             if tab.placement != .current {
-                Button(tab.placement == .pinned ? "Unpin Tab" : "Move to Current Tabs") {
+                Button(tab.placement == .pinned ? "Unpin Tab" : "Move to Tabs") {
                     store.placeTabs(store.actionTabs(tab.id), as: .current)
                 }
             }
@@ -149,7 +149,7 @@ struct BrowserTabRow: View {
                 if let selected = store.selectedTab?.id { store.split(selected, with: tab.id) }
             }.disabled(store.selectedTab?.id == tab.id || store.selectedTab?.isSettings != false)
             if tab.placement == .current {
-                Menu("Add to Current Tabs Folder", systemImage: "folder.badge.plus") {
+                Menu("Move to Folder in Tabs", systemImage: "folder.badge.plus") {
                     Button("New Folder") {
                         store.createSidebarFolder(
                             containing: BrowserDragPayload(
@@ -169,10 +169,12 @@ struct BrowserTabRow: View {
             if tab.folderID != nil {
                 Button("Remove from Folder") { store.placeTabs(store.actionTabs(tab.id), as: tab.placement) }
             }
-            Menu("Save in Folder") {
-                Button("Saved Tabs") { store.placeTabs(store.actionTabs(tab.id), as: .saved) }
-                ForEach(space.folders.filter { $0.kind == .regular && ($0.placement ?? .saved) == .saved }) { folder in
-                    Button(folder.title) { store.placeTabs(store.actionTabs(tab.id), as: .saved, folderID: folder.id) }
+            let savedFolders = space.folders.filter { $0.kind == .regular && ($0.placement ?? .saved) == .saved }
+            if !savedFolders.isEmpty {
+                Menu("Move to Folder in Saved") {
+                    ForEach(savedFolders) { folder in
+                        Button(folder.title) { store.placeTabs(store.actionTabs(tab.id), as: .saved, folderID: folder.id) }
+                    }
                 }
             }
         }
@@ -203,7 +205,7 @@ struct BrowserTabRow: View {
         Divider()
         Button("Duplicate Tab") { store.duplicateTab(tab.id) }
         Button(tab.placement == .current ? "Close Tab" : "Delete Tab", role: .destructive) {
-            store.requestDeleteTabs(store.actionTabs(tab.id))
+            store.requestDeleteTabs([tab.id])
         }
     }
 }

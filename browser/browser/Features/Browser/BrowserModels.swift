@@ -16,6 +16,7 @@ struct BrowserTab: Codable, Identifiable, Equatable {
     var customTitle: String?
     var favicon: Data?
     var isSettings = false
+    var isCurrentBrowsingTab: Bool { placement == .current && !isSettings }
     var interactionState: Data?
     var documentState: BrowserDocumentState?
     var lastUsed = Date()

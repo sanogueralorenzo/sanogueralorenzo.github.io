@@ -108,7 +108,7 @@ extension BrowserStore {
         changed()
     }
 
-    func clearCurrentTabs() { requestDeleteTabs(activeSpace.tabs.filter { $0.placement == .current }.map(\.id)) }
+    func clearCurrentTabs() { requestDeleteTabs(activeSpace.tabs.filter(\.isCurrentBrowsingTab).map(\.id)) }
 
     func requestDeleteTabs(_ ids: [UUID]) {
         guard let first = ids.first, let (source, _) = tabIndex(first) else { return }

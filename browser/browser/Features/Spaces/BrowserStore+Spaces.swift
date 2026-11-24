@@ -74,7 +74,6 @@ extension BrowserStore {
             let fallback = session.spaces.first(where: { !$0.isPrivate })!.id
             for context in owner.contexts.values {
                 context.sidebarScrollOffsets[id] = nil
-                context.expandedSavedSpaces.remove(id)
                 if context.windowState.spaceID == id {
                     context.dismissAddress()
                     context.sidebarSpaceStep = nil

@@ -9,8 +9,6 @@ struct BrowserSidebarSpacePage: View {
     @State private var position: ScrollPosition
     @State private var restoring = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private var savedExpanded: Bool { store.expandedSavedSpaces.contains(spaceID) }
-    private var hasSavedItems: Bool { space.hasRootSidebarItems(in: .saved) }
     private var isDraggingItems: Bool {
         guard let payload = store.owner.sidebarDrag.payload else { return false }
         return payload.kind != .space
@@ -76,9 +74,6 @@ struct BrowserSidebarSpacePage: View {
             }
         }
         .animation(BrowserMotion.collection.unlessReducingMotion(reduceMotion), value: space.orderedSidebarIDs)
-        .onChange(of: hasSavedItems, initial: true) { _, hasItems in
-            if !hasItems { store.expandedSavedSpaces.remove(spaceID) }
-        }
     }
 
     private var scrollingSections: some View {
@@ -93,8 +88,14 @@ struct BrowserSidebarSpacePage: View {
                 }
                 Divider()
             }
-            if hasSavedItems || isDraggingItems {
-                savedSection
+            if space.hasRootSidebarItems(in: .saved) || isDraggingItems {
+                VStack(spacing: 4) {
+                    sectionTitle("Saved")
+                        .padding(.horizontal, 4)
+                        .frame(height: BrowserLayout.minimumHitTarget)
+                    BrowserSidebarList(store: store, placement: .saved)
+                }
+                .modifier(BrowserDropArea(store: store, placement: .saved))
                 Divider()
             }
             VStack(spacing: 4) {
@@ -110,40 +111,6 @@ struct BrowserSidebarSpacePage: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
-    }
-
-    private var savedSection: some View {
-        VStack(spacing: 4) {
-            Button {
-                guard !store.owner.sidebarDrag.suppressesActivation else { return }
-                store.clearSidebarSelection()
-                withAnimation(BrowserMotion.disclosure.unlessReducingMotion(reduceMotion)) {
-                    if savedExpanded {
-                        store.expandedSavedSpaces.remove(spaceID)
-                    } else {
-                        store.expandedSavedSpaces.insert(spaceID)
-                    }
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "bookmark").foregroundStyle(.secondary)
-                    Text("Saved").font(.headline)
-                    Spacer(minLength: 0)
-                    Image(systemName: savedExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 4)
-                .frame(height: 34)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(BrowserChromeButtonStyle(controlSize: nil, cornerRadius: SidebarGeometry.panelRadius))
-            .accessibilityLabel("Saved")
-            .accessibilityValue(savedExpanded ? "Expanded" : "Collapsed")
-            if savedExpanded {
-                BrowserSidebarList(store: store, placement: .saved)
-            }
-        }
-        .modifier(BrowserDropArea(store: store, placement: .saved))
     }
 
     private func sectionTitle(_ title: String) -> some View {
@@ -177,7 +144,7 @@ struct BrowserSidebarSpacePage: View {
     private var tabsHeader: some View {
         HStack(spacing: 8) {
             sectionTitle("Tabs")
-            if space.tabs.lazy.filter({ $0.placement == .current && !$0.isSettings }).prefix(2).count == 2 {
+            if space.tabs.lazy.filter(\.isCurrentBrowsingTab).prefix(2).count == 2 {
                 Button {
                     store.clearCurrentTabs()
                 } label: {

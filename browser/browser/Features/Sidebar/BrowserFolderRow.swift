@@ -73,7 +73,7 @@ struct BrowserFolderRow: View {
                             Menu("Live Folder Options") { GitHubFolderMenu(folder: folder, store: store) }
                         } else {
                             Button("New Nested Folder") { store.addFolder(parentID: folder.id) }
-                            Button(folder.placement == .current ? "Move to Saved Tabs" : "Move to Current Tabs") {
+                            Button(folder.placement == .current ? "Move to Saved" : "Move to Tabs") {
                                 store.moveFolderLocally(
                                     folder.id, into: nil, placement: folder.placement == .current ? .saved : .current)
                             }

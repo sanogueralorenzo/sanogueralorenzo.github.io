@@ -30,17 +30,14 @@ struct BrowserSidebarBatchMenu: View {
             }
         }
         if hasFolders || !pinnedOnly {
-            Button("Move to Current Tabs", systemImage: "rectangle.stack") { store.fileSidebarSelection(as: .current) }
+            Button("Move to Tabs", systemImage: "rectangle.stack") { store.fileSidebarSelection(as: .current) }
                 .disabled(includesLiveFolder)
         }
-        if hasFolders {
-            Button("Move to Saved Tabs", systemImage: "bookmark") { store.fileSidebarSelection(as: .saved) }
-                .disabled(includesLiveFolder)
-        }
+        Button("Move to Saved", systemImage: "bookmark") { store.fileSidebarSelection(as: .saved) }
+            .disabled(includesLiveFolder)
         Menu("Move to Folder", systemImage: "folder") {
-            Button("New Current Tabs Folder") { fileInNewFolder(.current) }
-            Button("New Saved Folder") { fileInNewFolder(.saved) }
-            if !hasFolders { Button("Saved Tabs") { store.fileSidebarSelection(as: .saved) } }
+            Button("New Folder in Tabs") { fileInNewFolder(.current) }
+            Button("New Folder in Saved") { fileInNewFolder(.saved) }
             ForEach(
                 store.activeSpace.folders.filter { folder in
                     folder.kind == .regular && !store.selectedFolders.contains(folder.id)
