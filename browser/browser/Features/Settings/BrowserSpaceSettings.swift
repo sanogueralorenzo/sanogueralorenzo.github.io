@@ -132,11 +132,8 @@ struct BrowserSpaceSettings: View {
             if !space.permissions.isEmpty { Button("Reset All…", role: .destructive) { confirmsReset = true } }
         }
         Section("Browsing data") {
-            Button("Clear History in This Space…", role: .destructive) {
-                store.confirmClearing(.visitedHistory, in: spaceID)
-            }
-            Button("Clear Website Data in This Space…", role: .destructive) {
-                store.confirmClearing(.websiteData, in: spaceID)
+            Button("Clear Browsing Data…", role: .destructive) {
+                store.presentClearBrowsingData(in: spaceID)
             }
         }
     }

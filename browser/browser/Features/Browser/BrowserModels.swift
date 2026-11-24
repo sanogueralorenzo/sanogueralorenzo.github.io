@@ -105,7 +105,8 @@ struct BrowserVisit: Codable, Identifiable {
     var title: String
     var url: URL
     var date = Date()
-    var count = 1
+    var earlierDates: [Date]?
+    var count: Int { 1 + (earlierDates?.count ?? 0) }
 }
 
 struct BrowserArchiveEntry: Codable, Identifiable {

@@ -141,6 +141,7 @@
 		B8107F8F81E1775ED81F02E5 /* BrowserGitHubPullRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = D68B9561922F74DCA0710FB8 /* BrowserGitHubPullRequest.swift */; };
 		B901F695F15198CC69406C3A /* BrowserStore+TabClosing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 509E28A5BFA1157F05BE98D6 /* BrowserStore+TabClosing.swift */; };
 		BB0721D6A9219779B43055B2 /* BrowserSidebarDropDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F2CFC8DC27DF440CA52C303 /* BrowserSidebarDropDestination.swift */; };
+		BBECC235974EB32A317BEEF7 /* BrowserClearBrowsingData.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE70D792AD46C779117847AB /* BrowserClearBrowsingData.swift */; };
 		BE8174D3E4B27C1F1BC750EE /* BrowserPageLoading.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15511711A2ADC70110415536 /* BrowserPageLoading.swift */; };
 		BF1E2DC6F2FD20A245FE1517 /* BrowserWindowTitleBarSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15F45E35814677BBA0B40A05 /* BrowserWindowTitleBarSurface.swift */; };
 		C17259BA235C237F7CECF806 /* SpaceEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6A4F3829894CF85C96C3BD5 /* SpaceEditor.swift */; };
@@ -349,6 +350,7 @@
 		D9B8CB94023E422F4CAAC56B /* BrowserRadius.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserRadius.swift; sourceTree = "<group>"; };
 		DA424086994CFD0F1102AF20 /* GitHubFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubFolder.swift; sourceTree = "<group>"; };
 		DD0BB4B163B2B214A1610DA9 /* BrowserSidebarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSidebarItem.swift; sourceTree = "<group>"; };
+		DE70D792AD46C779117847AB /* BrowserClearBrowsingData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserClearBrowsingData.swift; sourceTree = "<group>"; };
 		DEC4B9B88A7EEA0A5B6566B0 /* BrowserPage+Recovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserPage+Recovery.swift"; sourceTree = "<group>"; };
 		E04E246B2F7E6CD1D833530F /* BrowserRecentSwitcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserRecentSwitcher.swift; sourceTree = "<group>"; };
 		E0FCD43329B572D3A8A7EEA1 /* BrowserStore+Keyboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Keyboard.swift"; sourceTree = "<group>"; };
@@ -643,6 +645,7 @@
 		8D789EC719A4993D55657320 /* BrowsingData */ = {
 			isa = PBXGroup;
 			children = (
+				DE70D792AD46C779117847AB /* BrowserClearBrowsingData.swift */,
 				1D015C06FFF9CEEAD517150D /* BrowserDataRetention.swift */,
 				591E131E5E1D5082E30D72EE /* BrowserStore+BrowsingData.swift */,
 			);
@@ -983,6 +986,7 @@
 				F84CD9EEC055491295E7CD03 /* BrowserCalculation.swift in Sources */,
 				04E69A66F4D564BF92F86317 /* BrowserChromeButtonStyle.swift in Sources */,
 				B3ABE15CE1570CF1E7B8B430 /* BrowserChromeSymbolLabel.swift in Sources */,
+				BBECC235974EB32A317BEEF7 /* BrowserClearBrowsingData.swift in Sources */,
 				7D11D099685D813746540E68 /* BrowserCollapsedSidebarHoverTracker.swift in Sources */,
 				2204133666E807642E788D73 /* BrowserCollapsedSidebarHoverTrackingView.swift in Sources */,
 				D2BAB2504324BDDF2F87196B /* BrowserColor.swift in Sources */,

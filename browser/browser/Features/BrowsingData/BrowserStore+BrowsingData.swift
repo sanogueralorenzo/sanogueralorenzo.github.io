@@ -1,13 +1,9 @@
-import AppKit
 import Foundation
 import WebKit
 
-enum BrowserBrowsingData {
-    case visitedHistory, websiteData
-
-    var title: String {
-        self == .visitedHistory ? "History" : "Website Data"
-    }
+struct BrowserBrowsingDataTarget: Identifiable {
+    let id: UUID
+    let name: String
 }
 
 extension BrowserStore {
@@ -34,28 +30,20 @@ extension BrowserStore {
         selectTab(tab.id)
     }
 
-    func confirmClearing(_ data: BrowserBrowsingData, in spaceID: UUID) {
+    func presentClearBrowsingData(in spaceID: UUID) {
         guard !isClosed, let space = session.spaces.first(where: { $0.id == spaceID }) else { return }
-        let alert = NSAlert()
-        alert.messageText = "Clear \(data.title.lowercased()) in “\(space.name)”?"
-        alert.informativeText = data == .visitedHistory
-            ? "This removes all visited history in this Space."
-            : "This removes cookies and other site data in this Space and may sign you out."
-        alert.addButton(withTitle: "Cancel")
-        alert.addButton(withTitle: "Clear \(data.title)")
-        Task { [weak self] in
-            guard let self, await BrowserDialogs.ask(alert, in: window) == .alertSecondButtonReturn,
-                !isClosed, session.spaces.contains(where: { $0.id == spaceID })
-            else { return }
-            switch data {
-            case .visitedHistory:
-                session.history.removeAll { $0.spaceID == spaceID }
-                changed()
-            case .websiteData:
-                await profile(for: spaceID).removeData(
-                    ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
-                if !isClosed { showNotice("Website data cleared") }
-            }
+        clearingBrowsingData = BrowserBrowsingDataTarget(id: space.id, name: space.name)
+    }
+
+    func clearBrowsingData(in spaceID: UUID, since cutoff: Date, history: Bool, websiteData: Bool) async {
+        guard !isClosed, session.spaces.contains(where: { $0.id == spaceID }) else { return }
+        if history, session.removeVisits(in: spaceID, where: { $0 >= cutoff }) {
+            changed()
+        }
+        if websiteData {
+            await profile(for: spaceID).removeData(
+                ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: cutoff)
+            if !isClosed { showNotice("Website data cleared") }
         }
     }
 
@@ -70,11 +58,40 @@ extension BrowserSessionOwner {
         guard !session.spaces.contains(where: { $0.id == page.spaceID && $0.isPrivate }),
             let url = page.url, ["https", "http"].contains(url.scheme ?? "")
         else { return }
-        let count = session.history.first { $0.spaceID == page.spaceID && $0.url == url }?.count ?? 0
-        session.history.removeAll { $0.spaceID == page.spaceID && $0.url == url }
-        var visit = BrowserVisit(spaceID: page.spaceID, title: page.title, url: url)
-        visit.count = count + 1
-        session.history.insert(visit, at: 0)
+        session.recordVisit(to: url, in: page.spaceID, title: page.title)
         changed()
+    }
+}
+
+extension BrowserSession {
+    mutating func recordVisit(to url: URL, in spaceID: UUID, title: String, at date: Date = Date()) {
+        var visit = BrowserVisit(spaceID: spaceID, title: title, url: url, date: date)
+        if let index = history.firstIndex(where: { $0.spaceID == spaceID && $0.url == url }) {
+            visit = history.remove(at: index)
+            visit.earlierDates = (visit.earlierDates ?? []) + [visit.date]
+            visit.date = date
+            visit.title = title
+        }
+        history.insert(visit, at: 0)
+    }
+
+    mutating func removeVisits(in spaceID: UUID, where shouldRemove: (Date) -> Bool) -> Bool {
+        var removed = false
+        let remaining = history.compactMap { entry -> BrowserVisit? in
+            guard entry.spaceID == spaceID else { return entry }
+            var visit = entry
+            visit.earlierDates?.removeAll(where: shouldRemove)
+            if shouldRemove(visit.date) {
+                removed = true
+                guard let earlier = visit.earlierDates?.popLast() else { return nil }
+                visit.date = earlier
+                visit.title = visit.url.absoluteString
+            }
+            if visit.earlierDates?.isEmpty == true { visit.earlierDates = nil }
+            removed = removed || visit.count != entry.count
+            return visit
+        }
+        if removed { history = remaining.sorted { $0.date > $1.date } }
+        return removed
     }
 }

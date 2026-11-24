@@ -51,6 +51,7 @@ final class BrowserStore {
     var findMatch: Bool?
     @ObservationIgnored var findRequest = UUID()
     var siteSettingsPresented = false
+    var clearingBrowsingData: BrowserBrowsingDataTarget?
     var notice: String?
     var settingsTabs: [UUID: BrowserSettingsTabState] = [:]
     var settingsState: BrowserSettingsTabState {

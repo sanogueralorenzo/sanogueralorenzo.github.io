@@ -42,6 +42,9 @@ struct BrowserRoot: View {
         .sheet(isPresented: Binding(get: { store.siteSettingsPresented }, set: { store.siteSettingsPresented = $0 })) {
             BrowserSiteSettings(store: store)
         }
+        .sheet(item: Binding(get: { store.clearingBrowsingData }, set: { store.clearingBrowsingData = $0 })) { target in
+            BrowserClearBrowsingData(store: store, target: target)
+        }
         .frame(minWidth: 700, minHeight: 480)
         .ignoresSafeArea()
         .tint(BrowserBrandTheme.textDisplay)

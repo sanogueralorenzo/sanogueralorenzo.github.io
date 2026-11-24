@@ -25,11 +25,12 @@ extension BrowserSessionOwner {
     func sweepExpiredRecords(now: Date = Date(), force: Bool = false) {
         guard force || now.timeIntervalSince(lastRetentionSweep) >= 60 else { return }
         lastRetentionSweep = now
-        let oldCount = session.history.count + session.archive.count + session.downloads.count
+        let oldCount = session.archive.count + session.downloads.count
+        var historyChanged = false
         for space in session.spaces {
             guard let preferences = space.browsingPreferences else { continue }
             if let cutoff = preferences.historyRetention.cutoff(at: now) {
-                session.history.removeAll { $0.spaceID == space.id && $0.date < cutoff }
+                if session.removeVisits(in: space.id, where: { $0 < cutoff }) { historyChanged = true }
             }
             if let cutoff = preferences.archiveRetention.cutoff(at: now) {
                 session.archive.removeAll { $0.spaceID == space.id && $0.date < cutoff }
@@ -44,6 +45,6 @@ extension BrowserSessionOwner {
                 }
             }
         }
-        if session.history.count + session.archive.count + session.downloads.count != oldCount { changed() }
+        if historyChanged || session.archive.count + session.downloads.count != oldCount { changed() }
     }
 }

@@ -18,11 +18,11 @@ struct BrowserUtilityList: View {
                 .accessibilityLabel("Back to Tabs")
                 Text(utility.rawValue).font(.headline)
                 Spacer()
-                if utility == .history && !showsRecentlyClosed {
-                    Button("Clear…") { store.confirmClearing(.visitedHistory, in: store.activeSpace.id) }
+                if utility == .history && !showsRecentlyClosed && search.isEmpty {
+                    Button("Clear…") { store.presentClearBrowsingData(in: store.activeSpace.id) }
                         .buttonStyle(.plain)
                         .foregroundStyle(.secondary)
-                        .accessibilityLabel("Clear History")
+                        .accessibilityLabel("Clear Browsing Data")
                 }
             }
             if utility == .history {
