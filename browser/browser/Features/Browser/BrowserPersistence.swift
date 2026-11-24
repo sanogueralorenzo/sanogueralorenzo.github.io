@@ -17,15 +17,17 @@ final class BrowserPersistence: Sendable {
     private var pending: URL { directory.appendingPathComponent(".session-pending") }
     private let writes = DispatchQueue(label: "com.itsbrowser.session-checkpoint", qos: .utility)
 
-    init() throws {
-        let support = try FileManager.default.url(
-            for: .applicationSupportDirectory, in: .userDomainMask,
-            appropriateFor: nil, create: true)
+    static func dataDirectory() throws -> URL {
         if let review = ProcessInfo.processInfo.environment["BROWSER_REVIEW_DATA_DIRECTORY"] {
-            directory = URL(fileURLWithPath: review, isDirectory: true)
-        } else {
-            directory = support.appendingPathComponent("Browser/SwiftSession", isDirectory: true)
+            return URL(fileURLWithPath: review, isDirectory: true)
         }
+        return try FileManager.default.url(
+            for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
+        ).appendingPathComponent("Browser/SwiftSession", isDirectory: true)
+    }
+
+    init() throws {
+        directory = try Self.dataDirectory()
         try FileManager.default.createDirectory(
             at: directory, withIntermediateDirectories: true,
             attributes: [.posixPermissions: 0o700])

@@ -42,5 +42,19 @@ Browser checks for blocker updates when it opens and applies downloaded updates 
 To publish a blocker update, run `python3 scripts/update-ublock-origin-lite.py [VERSION]`
 from this directory and commit the two updated feed files. Omitting the version selects the latest upstream release.
 
+## Command line
+
+With Browser open, symlink its executable to `browser` in a directory on your `PATH`
+or invoke `/Applications/Browser.app/Contents/MacOS/Browser --cli`.
+
+```sh
+ln -s /Applications/Browser.app/Contents/MacOS/Browser ~/.local/bin/browser
+browser spaces create Research Reading Travel
+browser tabs open https://example.com --space Research
+browser --help
+```
+
+Commands return JSON and work with regular Spaces. Tab close requests use Browser’s usual closing safeguards.
+
 Source is [MPL-2.0](LICENSE), derived from [Crest](https://github.com/pauljoda/Crest).
 See [third-party notices](THIRD_PARTY_NOTICES.md) and [trademark terms](TRADEMARKS.md).

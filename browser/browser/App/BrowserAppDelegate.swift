@@ -13,6 +13,7 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     private var contentStartup: BrowserContentStartup?
     private var launchTask: Task<Void, Never>?
     private var browserReady = false
+    private var cliServer: BrowserCLIServer?
     private var pointerMonitor: Any?
     private var keyboardMonitor: Any?
     private let usesReviewProfile = ProcessInfo.processInfo.environment["BROWSER_REVIEW_DATA_DIRECTORY"] != nil
@@ -60,6 +61,16 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
             openURLs(urls)
         }
         owner.startMaintenance()
+        do {
+            cliServer = try BrowserCLIServer(directory: owner.persistence.directory) { [weak self, weak owner] arguments in
+                guard let self, let owner, !self.preparingQuit else {
+                    return BrowserCLIResponse(error: "Browser is closing.")
+                }
+                return BrowserCLICommands.execute(arguments, owner: owner, store: self.store)
+            }
+        } catch {
+            NSLog("The Browser CLI could not start: %@", error.localizedDescription)
+        }
         pointerMonitor = NSEvent.addLocalMonitorForEvents(matching: [
             .mouseMoved, .leftMouseDown, .scrollWheel,
         ]) { [weak self] event in
@@ -168,6 +179,7 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        cliServer?.stop()
         launchTask?.cancel()
         owner?.media?.stop()
         if browserReady { owner?.flush() }
