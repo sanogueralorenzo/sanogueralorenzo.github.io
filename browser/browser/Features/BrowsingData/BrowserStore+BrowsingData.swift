@@ -35,16 +35,19 @@ extension BrowserStore {
         clearingBrowsingData = BrowserBrowsingDataTarget(id: space.id, name: space.name)
     }
 
-    func clearBrowsingData(in spaceID: UUID, since cutoff: Date, history: Bool, websiteData: Bool) async {
+    func clearBrowsingData(
+        in spaceID: UUID, since cutoff: Date, history: Bool, websiteData: Bool, cache: Bool
+    ) async {
         guard !isClosed, session.spaces.contains(where: { $0.id == spaceID }) else { return }
         if history, session.removeVisits(in: spaceID, where: { $0 >= cutoff }) {
             changed()
         }
-        if websiteData {
-            await profile(for: spaceID).removeData(
-                ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: cutoff)
-            if !isClosed { showNotice("Website data cleared") }
-        }
+        guard websiteData || cache else { return }
+        let cacheTypes: Set<String> = [WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeMemoryCache]
+        var types = websiteData ? WKWebsiteDataStore.allWebsiteDataTypes().subtracting(cacheTypes) : []
+        if cache { types.formUnion(cacheTypes) }
+        await profile(for: spaceID).removeData(ofTypes: types, modifiedSince: cutoff)
+        if !isClosed { showNotice(websiteData ? "Website data cleared" : "Cache cleared") }
     }
 
     func reopenClosedTab() {

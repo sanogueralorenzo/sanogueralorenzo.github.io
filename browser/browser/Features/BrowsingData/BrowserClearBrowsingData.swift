@@ -27,6 +27,7 @@ struct BrowserClearBrowsingData: View {
     @State private var range = BrowserDataClearRange.hour
     @State private var history = true
     @State private var websiteData = false
+    @State private var cache = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -41,6 +42,7 @@ struct BrowserClearBrowsingData: View {
             VStack(alignment: .leading, spacing: 8) {
                 Toggle("History", isOn: $history)
                 Toggle("Logins and website data", isOn: $websiteData)
+                Toggle("Cached images and files", isOn: $cache)
             }
             .toggleStyle(.checkbox)
             HStack {
@@ -48,7 +50,7 @@ struct BrowserClearBrowsingData: View {
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
                 Button("Clear", role: .destructive, action: clear)
-                    .disabled(!history && !websiteData)
+                    .disabled(!history && !websiteData && !cache)
             }
         }
         .padding(20)
@@ -59,9 +61,11 @@ struct BrowserClearBrowsingData: View {
         let cutoff = range.cutoff(at: Date())
         let history = history
         let websiteData = websiteData
+        let cache = cache
         dismiss()
         Task {
-            await store.clearBrowsingData(in: target.id, since: cutoff, history: history, websiteData: websiteData)
+            await store.clearBrowsingData(
+                in: target.id, since: cutoff, history: history, websiteData: websiteData, cache: cache)
         }
     }
 }
