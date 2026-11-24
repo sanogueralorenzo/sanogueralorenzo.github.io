@@ -45,16 +45,7 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
             }
             if !usesReviewProfile { NSApp.activate(ignoringOtherApps: true) }
         } catch {
-            if usesReviewProfile && !NSApp.isActive {
-                NSLog("The browsing session could not be opened: %@", error.localizedDescription)
-                NSApp.terminate(nil)
-                return
-            }
-            let alert = NSAlert()
-            alert.messageText = "The browsing session could not be opened"
-            alert.informativeText = error.localizedDescription + " Your existing files have been preserved."
-            alert.addButton(withTitle: "Quit")
-            alert.runModal()
+            NSLog("The browsing session could not be opened: %@", error.localizedDescription)
             NSApp.terminate(nil)
         }
     }

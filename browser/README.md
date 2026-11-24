@@ -34,8 +34,8 @@ and **⌥⌘←/→** to switch Spaces. Swipe over a page to go back or forward,
 or over the sidebar to switch Spaces.
 
 Settings controls page zoom, content blocking, and data retention.
-Sessions are saved in `~/Library/Application Support/Browser/SwiftSession`, with a previous
-checkpoint for recovery. For isolated review builds, set `BROWSER_REVIEW_DATA_DIRECTORY`
+Browser saves the session atomically to `~/Library/Application Support/Browser/SwiftSession/session.json`.
+For isolated review builds, set `BROWSER_REVIEW_DATA_DIRECTORY`
 to a disposable directory and use a distinct bundle identifier.
 
 Browser checks for blocker updates when it opens and applies downloaded updates on the next launch.

@@ -26,14 +26,10 @@ struct BrowserRoot: View {
                 }
                 if store.recentSwitcherPresented { BrowserRecentSwitcher(store: store) }
                 if let notice = store.notice ?? store.owner.storageError {
-                    banner(Text(notice)).allowsHitTesting(false)
-                } else if store.owner.showsRecoveryNotice, !store.addressPresented {
-                    banner(
-                        HStack(spacing: 12) {
-                            Text("Recovered the previous saved session. The damaged file has been preserved.")
-                            Button("Dismiss") { store.owner.showsRecoveryNotice = false }
-                                .buttonStyle(.borderless)
-                        })
+                    Text(notice).font(.callout).padding(.horizontal, 16).padding(.vertical, 10)
+                        .background(BrowserBrandTheme.surface, in: Capsule())
+                        .padding(.top, 12).frame(maxHeight: .infinity, alignment: .top)
+                        .allowsHitTesting(false)
                 }
             }
             .overlay { BrowserSidebarDropDestination(store: store).accessibilityHidden(true) }
@@ -49,12 +45,6 @@ struct BrowserRoot: View {
         .frame(minWidth: 700, minHeight: 480)
         .ignoresSafeArea()
         .tint(BrowserBrandTheme.textDisplay)
-    }
-
-    private func banner(_ content: some View) -> some View {
-        content.font(.callout).padding(.horizontal, 16).padding(.vertical, 10)
-            .background(BrowserBrandTheme.surface, in: Capsule())
-            .padding(.top, 12).frame(maxHeight: .infinity, alignment: .top)
     }
 
     @ViewBuilder private var pageContent: some View {

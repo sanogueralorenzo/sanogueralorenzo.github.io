@@ -11,7 +11,7 @@ final class BrowserPersistence: Sendable {
     let directory: URL
     private let lockDescriptor: Int32
     private var file: URL { directory.appendingPathComponent("session.json") }
-    private var backup: URL { directory.appendingPathComponent("session.recovery.json") }
+    private var pending: URL { directory.appendingPathComponent(".session-pending") }
     private let writes = DispatchQueue(label: "com.itsbrowser.session-checkpoint", qos: .utility)
 
     init() throws {
@@ -32,6 +32,7 @@ final class BrowserPersistence: Sendable {
             if lockDescriptor >= 0 { Darwin.close(lockDescriptor) }
             throw CocoaError(.fileLocking)
         }
+        _ = unlink(pending.path)
     }
 
     deinit {
@@ -39,20 +40,15 @@ final class BrowserPersistence: Sendable {
         Darwin.close(lockDescriptor)
     }
 
-    func load() throws -> (session: BrowserSession, recovered: Bool) {
-        if FileManager.default.fileExists(atPath: file.path) {
-            do { return (try readCheckpoint(file).session, false) } catch {
-                guard FileManager.default.fileExists(atPath: backup.path) else { throw error }
-                let state = try readCheckpoint(backup).session
-                try FileManager.default.copyItem(
-                    at: file, to: directory.appendingPathComponent("unreadable-session-\(UUID().uuidString).json"))
-                return (state, true)
-            }
+    func load() throws -> BrowserSession {
+        guard FileManager.default.fileExists(atPath: file.path) else { return BrowserSession() }
+        do {
+            return try readSession()
+        } catch {
+            try FileManager.default.moveItem(
+                at: file, to: directory.appendingPathComponent("unreadable-session-\(UUID().uuidString).json"))
+            return BrowserSession()
         }
-        if FileManager.default.fileExists(atPath: backup.path) {
-            return (try readCheckpoint(backup).session, true)
-        }
-        return (BrowserSession(), false)
     }
 
     func save(_ value: BrowserSession) throws {
@@ -72,18 +68,15 @@ final class BrowserPersistence: Sendable {
         guard payload.count <= 256 * 1_024 * 1_024 else { throw CocoaError(.fileWriteOutOfSpace) }
         let envelope = Envelope(
             checksum: SHA256.hash(data: payload).map { String(format: "%02x", $0) }.joined(), payload: payload)
-        let bytes = try encoder.encode(envelope)
-        // Never rotate damaged data over a known-good recovery copy.
-        if let previous = try? readCheckpoint(file) { try durableReplace(previous.bytes, at: backup) }
-        try durableReplace(bytes, at: file)
+        try durableReplace(encoder.encode(envelope))
     }
 
-    private func readCheckpoint(_ url: URL) throws -> (session: BrowserSession, bytes: Data) {
-        let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+    private func readSession() throws -> BrowserSession {
+        let size = try file.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         guard size <= 350 * 1_024 * 1_024 else { throw CocoaError(.fileReadTooLarge) }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .millisecondsSince1970
-        let data = try Data(contentsOf: url)
+        let data = try Data(contentsOf: file)
         let envelope = try decoder.decode(Envelope.self, from: data)
         guard SHA256.hash(data: envelope.payload).map({ String(format: "%02x", $0) }).joined() == envelope.checksum
         else {
@@ -91,11 +84,11 @@ final class BrowserPersistence: Sendable {
         }
         let session = try decoder.decode(BrowserSession.self, from: envelope.payload)
         try session.validate()
-        return (session, data)
+        return session
     }
 
-    private func durableReplace(_ data: Data, at target: URL) throws {
-        let temporary = directory.appendingPathComponent(".checkpoint-\(UUID().uuidString)")
+    private func durableReplace(_ data: Data) throws {
+        let temporary = pending
         let descriptor = Darwin.open(temporary.path, O_CREAT | O_EXCL | O_WRONLY, 0o600)
         guard descriptor >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         defer {
@@ -114,7 +107,7 @@ final class BrowserPersistence: Sendable {
         guard fsync(descriptor) == 0 else { throw POSIXError(.EIO) }
         // F_FULLFSYNC also flushes the drive cache.
         if fcntl(descriptor, F_FULLFSYNC) != 0, errno != ENOTSUP, errno != EINVAL { throw POSIXError(.EIO) }
-        guard Darwin.rename(temporary.path, target.path) == 0 else { throw POSIXError(.EIO) }
+        guard Darwin.rename(temporary.path, file.path) == 0 else { throw POSIXError(.EIO) }
         let parent = Darwin.open(directory.path, O_RDONLY)
         guard parent >= 0 else { throw POSIXError(.EIO) }
         defer { Darwin.close(parent) }

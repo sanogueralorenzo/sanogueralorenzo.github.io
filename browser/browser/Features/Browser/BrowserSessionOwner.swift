@@ -19,7 +19,6 @@ final class BrowserSessionOwner {
     var runtimeRevision = 0
     var lastRetentionSweep = Date.distantPast
     var storageError: String?
-    var showsRecoveryNotice = false
     var activeWindowID: UUID?
     let sidebarDrag = BrowserSidebarDragSession()
     @ObservationIgnored private var saveTask: Task<Void, Never>?
@@ -32,8 +31,7 @@ final class BrowserSessionOwner {
     init() throws {
         persistence = try BrowserPersistence()
         contentExtension = BrowserContentExtension(profile: persistence.directory)
-        let saved = try persistence.load()
-        session = saved.session
+        session = try persistence.load()
         session.normalizeLiveFolders()
         session.windows.removeAll { !$0.isOpen }
         for index in session.spaces.indices { session.spaces[index].limitPinnedTabs() }
@@ -43,7 +41,6 @@ final class BrowserSessionOwner {
             session.downloads[i].status = session.downloads[i].resumeData == nil ? .failed : .paused
             session.downloads[i].error = "The previous download was interrupted."
         }
-        showsRecoveryNotice = saved.recovered
     }
 
     func startMaintenance() {
@@ -218,7 +215,7 @@ final class BrowserSessionOwner {
         guard flush() else {
             let alert = NSAlert()
             alert.messageText = "The session could not be saved"
-            alert.informativeText = storageError ?? "The previous saved session is intact."
+            alert.informativeText = storageError ?? ""
             alert.addButton(withTitle: "Keep Browsing")
             alert.addButton(withTitle: "Quit Without Saving")
             return await BrowserDialogs.ask(alert) == .alertSecondButtonReturn && isCurrent()
