@@ -133,7 +133,7 @@ struct BrowserSidebar: View {
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                Text(url?.host ?? url?.absoluteString ?? "Search or enter URL")
+                Text(url?.host ?? url?.absoluteString ?? "Search")
                     .lineLimit(1)
             }
             .padding(.horizontal, 8)
