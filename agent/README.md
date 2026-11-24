@@ -12,7 +12,7 @@ npm ci --ignore-scripts
 npm start
 ```
 
-Install and sign in to at least one CLI on the Agent host with `codex login`, `claude auth login`, or `agy acp --login`. Open `http://127.0.0.1:4180` and click the status dot to check connections and choose a model.
+Install and sign in to at least one CLI on the Agent host with `codex login`, `claude auth login`, or `agy acp --login`. Open `http://127.0.0.1:4180` or run `npm run terminal` from `agent` while the service is running. Both clients share conversations and provider settings.
 
 For native app control, install Codex Computer Use in the desktop app. On macOS, `service/install.sh` starts Agent after login; `service/uninstall.sh` removes the service.
 

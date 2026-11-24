@@ -1,6 +1,6 @@
 # Usage
 
-Open `http://127.0.0.1:4180`. Send a message from Home to start or continue a conversation, or send it inside a conversation to bypass routing. With no saved conversations, the first Home message starts a session immediately.
+Open `http://127.0.0.1:4180` or run `npm run terminal` from `agent`. Send a message from Home to start or continue a conversation, or send it inside a conversation to bypass routing. With no saved conversations, the first Home message starts a session immediately.
 
 Independent requests can run concurrently in one conversation. Follow-ups that need earlier results wait for those tasks. Research, implementation, and review are examples of focused worker assignments, not fixed stages.
 
@@ -15,9 +15,15 @@ Ask to switch folders within a conversation. Agent validates and saves the direc
 
 Conversations and workers use provider-hosted web search first. Browser interaction is a fallback for inaccessible content, authenticated sites, or tasks that require interaction. Native app control requires Codex Computer Use in the desktop app; Agent automatically accepts its approval requests.
 
+## Terminal
+
+Click a message to select it. Type to quote it in a reply, or press **y** on a selected Agent reply to send a thumbs-up. Press **Tab** before typing a reply that starts with **y**. Use **Option+↑/↓** to select messages by keyboard and **Enter** to open the selected Home conversation.
+
+Press **Ctrl+P** for Accounts, **Ctrl+G** for Home, and **Ctrl+C** to quit. Use **Shift+Enter** or **Ctrl+J** for a new line. Set `AGENT_URL` to connect to a different address, such as an SSH-forwarded port. Terminal drafts stay local to the client.
+
 ## Providers
 
-Click the status dot to see Codex, Claude Code, and Google Antigravity. A provider is green when its official CLI is installed and authenticated on the Agent host. The main dot is green when at least one provider is connected.
+Open Accounts to see Codex, Claude Code, and Google Antigravity. A provider is green when its official CLI is installed and authenticated on the Agent host. The main dot is green when at least one provider is connected.
 
 Sign in from the host terminal with `codex login`, `claude auth login`, or `agy acp --login`. Click a connected provider to select a model for new conversations. Existing conversations keep their model while its CLI is connected and use an available provider if it disconnects.
 

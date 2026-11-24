@@ -1,0 +1,152 @@
+import { Editor, Markdown, ScrollView, VStack, stripTerminalSequences, truncateToWidth, visibleWidth, wrapTextWithAnsi,
+  type MarkdownTheme, type TuiAltScreen, type TuiMouseEvent } from "@earendil-works/pi-tui";
+
+const style = (open: number, close = 39) => (text: string) => `\x1b[${open}m${text}\x1b[${close}m`;
+export const bold = style(1, 22);
+export const dim = style(2, 22);
+export const green = style(32);
+export const yellow = style(33);
+const cyan = style(36);
+const underline = style(4, 24);
+
+const markdownTheme: MarkdownTheme = {
+  heading: bold, link: cyan, linkUrl: dim, code: cyan, codeBlock: cyan, codeBlockBorder: dim,
+  quote: dim, quoteBorder: dim, hr: dim, listBullet: cyan, bold, italic: style(3, 23),
+  strikethrough: style(9, 29), underline,
+};
+
+export function clean(text: string) {
+  return stripTerminalSequences(text).replace(/\r\n?/g, "\n").replaceAll("\t", "    ")
+    .replace(/[\x00-\x09\x0b-\x1f\x7f-\x9f]/g, "");
+}
+
+export function compact(text: string) {
+  return clean(text).replace(/\s+/g, " ").trim();
+}
+
+export type Button = { label: string; run: () => void };
+type Line = string | Button[];
+
+export class Panel {
+  lines: Line[] = [];
+  private hits = new Map<number, { start: number; end: number; run: () => void }[]>();
+
+  render(width: number) {
+    this.hits.clear();
+    const output: string[] = [];
+    for (const line of this.lines) {
+      if (typeof line === "string") {
+        output.push(truncateToWidth(line, width));
+        continue;
+      }
+      let text = "";
+      let x = 0;
+      let hits: { start: number; end: number; run: () => void }[] = [];
+      const flush = () => {
+        this.hits.set(output.length, hits);
+        output.push(text);
+        text = "";
+        x = 0;
+        hits = [];
+      };
+      for (const button of line) {
+        const label = truncateToWidth(`[${button.label}]`, width);
+        const length = visibleWidth(label);
+        if (x && x + 2 + length > width) flush();
+        if (x) { text += "  "; x += 2; }
+        hits.push({ start: x, end: x + length, run: button.run });
+        text += cyan(label);
+        x += length;
+      }
+      if (text) flush();
+    }
+    return output;
+  }
+
+  handleMouse(event: TuiMouseEvent) {
+    if (event.type !== "click" || event.button !== "left") return;
+    const hit = this.hits.get(event.y)?.find(item => event.x >= item.start && event.x < item.end);
+    if (!hit) return;
+    hit.run();
+    return { handled: true };
+  }
+
+  invalidate() { this.hits.clear(); }
+}
+
+type Block = { id?: string; header?: string; quote?: string; text?: string; markdown?: boolean; buttons?: Button[]; select?: () => void };
+
+class Transcript {
+  blocks: Block[] = [];
+  positions = new Map<string, number>();
+  private hits: ((event: TuiMouseEvent) => ReturnType<Panel["handleMouse"]>)[] = [];
+  private markdown = new Map<string, Markdown>();
+
+  render(width: number) {
+    const lines: string[] = [];
+    const markdown = new Map<string, Markdown>();
+    this.positions.clear();
+    this.hits = [];
+    for (const block of this.blocks) {
+      if (block.id) this.positions.set(block.id, lines.length);
+      const start = lines.length;
+      if (block.header) lines.push(truncateToWidth(block.header, width));
+      if (block.quote) lines.push(truncateToWidth(block.quote, width));
+      if (block.text) {
+        const text = clean(block.text);
+        if (block.markdown && block.id) {
+          const content = this.markdown.get(block.id) ?? new Markdown(text, 0, 0, markdownTheme);
+          content.setText(text);
+          markdown.set(block.id, content);
+          lines.push(...content.render(width));
+        } else {
+          lines.push(...wrapTextWithAnsi(text, width));
+        }
+      }
+      if (block.select) {
+        for (let index = start; index < lines.length; index++) this.hits[index] = () => {
+          block.select!();
+          return { handled: true };
+        };
+      }
+      if (block.buttons?.length) {
+        const panel = new Panel();
+        panel.lines = [block.buttons];
+        const start = lines.length;
+        for (const [index, line] of panel.render(width).entries()) {
+          lines.push(line);
+          this.hits[start + index] = event => panel.handleMouse({ ...event, y: index });
+        }
+      }
+      lines.push("");
+    }
+    this.markdown = markdown;
+    return lines;
+  }
+
+  handleMouse(event: TuiMouseEvent) {
+    if (event.type === "click" && event.button === "left") return this.hits[event.y]?.(event);
+  }
+
+  invalidate() { this.markdown.clear(); }
+}
+
+export function terminalView(tui: TuiAltScreen, compose: () => void) {
+  const top = new Panel();
+  const footer = new Panel();
+  const transcript = new Transcript();
+  const scroll = new ScrollView(transcript, { primary: true, follow: "end" });
+  const editor = new class extends Editor {
+    handleMouse(event: TuiMouseEvent) {
+      if (event.type === "click" && event.button === "left") compose();
+      return super.handleMouse(event);
+    }
+  }(tui, {
+    borderColor: dim,
+    selectList: { selectedPrefix: cyan, selectedText: cyan, description: dim, scrollInfo: dim, noMatch: dim },
+  }, { paddingX: 1 });
+  let accountsOpen = false;
+  tui.setLayoutRoot(new VStack([top, { component: scroll, basis: 0, grow: 1 }, footer,
+    { component: editor, visible: () => !accountsOpen }]));
+  return { top, footer, transcript, scroll, editor, showAccounts(open: boolean) { accountsOpen = open; } };
+}
