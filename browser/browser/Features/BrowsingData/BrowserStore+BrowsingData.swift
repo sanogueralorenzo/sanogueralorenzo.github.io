@@ -63,7 +63,6 @@ extension BrowserSessionOwner {
         else { return }
         session.recordVisit(to: url, in: page.spaceID, title: page.title)
         changed()
-        prepareNextWebView(after: page)
     }
 }
 
