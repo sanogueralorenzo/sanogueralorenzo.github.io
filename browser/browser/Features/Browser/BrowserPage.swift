@@ -61,16 +61,9 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
     @ObservationIgnored private(set) var isRetired = false
     @ObservationIgnored var refreshingPageState = false
 
-    init(
-        id: UUID, spaceID: UUID, configuration: WKWebViewConfiguration, owner: BrowserStore,
-        showsLoadingBackground: Bool = true
-    ) {
-        self.id = id
-        self.spaceID = spaceID
-        self.owner = owner
-        sessionOwner = owner.owner
-        loading = BrowserPageLoading(showsBackground: showsLoadingBackground)
-        contentBlocker = owner.contentBlocker(for: spaceID)
+    static func makeWebView(
+        configuration: WKWebViewConfiguration, contentBlocker: BrowserContentBlocking
+    ) -> BrowserNativeWebView {
         configuration.webExtensionController = contentBlocker.controller
         // Popups inherit the opener configuration and need their own document handlers.
         configuration.userContentController = WKUserContentController()
@@ -79,7 +72,19 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         configuration.applicationNameForUserAgent = BrowserPlatformUserAgent.applicationName
         BrowserDesktopPictureInPictureAccess.enable(in: configuration.preferences)
         BrowserPictureInPictureContentBridge.shared.install(in: configuration.userContentController)
-        let webView = BrowserNativeWebView(frame: .zero, configuration: configuration)
+        return BrowserNativeWebView(frame: .zero, configuration: configuration)
+    }
+
+    init(
+        id: UUID, spaceID: UUID, webView: BrowserNativeWebView, owner: BrowserStore,
+        showsLoadingBackground: Bool = true
+    ) {
+        self.id = id
+        self.spaceID = spaceID
+        self.owner = owner
+        sessionOwner = owner.owner
+        loading = BrowserPageLoading(showsBackground: showsLoadingBackground)
+        contentBlocker = owner.contentBlocker(for: spaceID)
         self.webView = webView
         documentActivity = BrowserDocumentActivity(webView: webView)
         super.init()
@@ -111,7 +116,7 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
             hasPictureInPicture = pictureInPicture?.isPictureInPictureActive == true
         }
         siteController = BrowserSiteController(page: self)
-        configuration.userContentController.addUserScript(
+        webView.configuration.userContentController.addUserScript(
             WKUserScript(
                 source: Self.mediaActionScript,
                 injectionTime: .atDocumentStart, forMainFrameOnly: false))

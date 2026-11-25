@@ -192,6 +192,7 @@ final class BrowserStore {
             let origin = session.spaces.firstIndex(where: { $0.id == activeSpace.id }),
             let destination = session.spaces.firstIndex(where: { $0.id == id })
         else { return }
+        if owner.activeWindowID == self.id { owner.discardNextWebView() }
         sidebarSpaceStep = step ?? (abs(destination - origin) == 1 ? destination - origin : nil)
         sidebarSpaceTransitioning =
             sidebarSpaceStep != nil && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -218,10 +219,18 @@ final class BrowserStore {
         if let page = pages[id] { return page }
         guard let (s, t) = tabIndex(id) else { return nil }
         let tab = session.spaces[s].tabs[t]
-        guard !tab.isSettings, tab.url != nil else { return nil }
-        let configuration = WKWebViewConfiguration()
-        configuration.websiteDataStore = profile(for: session.spaces[s].id)
-        let page = BrowserPage(id: id, spaceID: session.spaces[s].id, configuration: configuration, owner: self)
+        guard !tab.isSettings, let url = tab.url else { return nil }
+        let spaceID = session.spaces[s].id
+        let webView: BrowserNativeWebView
+        if tab.interactionState == nil, ["http", "https"].contains(url.scheme ?? ""),
+            let prepared = owner.takeNextWebView(in: spaceID) {
+            webView = prepared
+        } else {
+            let configuration = WKWebViewConfiguration()
+            configuration.websiteDataStore = profile(for: spaceID)
+            webView = BrowserPage.makeWebView(configuration: configuration, contentBlocker: contentBlocker(for: spaceID))
+        }
+        let page = BrowserPage(id: id, spaceID: spaceID, webView: webView, owner: self)
         page.hostingWindowID = self.id
         pages[id] = page
         page.contentBlocker.controller.didOpenTab(page)

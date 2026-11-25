@@ -55,8 +55,9 @@ extension BrowserStore {
         let index = spaceIndex(spaceID)
         session.spaces[index].tabs.append(tab)
         let loadsPage = tab.url.map { $0.scheme != "about" || $0.path != "blank" } ?? false
+        let webView = BrowserPage.makeWebView(configuration: configuration, contentBlocker: contentBlocker(for: spaceID))
         let page = BrowserPage(
-            id: tab.id, spaceID: spaceID, configuration: configuration, owner: self, showsLoadingBackground: loadsPage)
+            id: tab.id, spaceID: spaceID, webView: webView, owner: self, showsLoadingBackground: loadsPage)
         page.webView.pageZoom = tab.zoom
         page.scriptMayClose = true
         pages[tab.id] = page

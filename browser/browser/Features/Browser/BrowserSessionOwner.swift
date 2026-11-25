@@ -19,7 +19,9 @@ final class BrowserSessionOwner {
     var runtimeRevision = 0
     var lastRetentionSweep = Date.distantPast
     var storageError: String?
-    var activeWindowID: UUID?
+    var activeWindowID: UUID? {
+        didSet { if oldValue != activeWindowID { discardNextWebView() } }
+    }
     let sidebarDrag = BrowserSidebarDragSession()
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var savingRevision: UInt64?
@@ -27,6 +29,9 @@ final class BrowserSessionOwner {
     @ObservationIgnored private var pageMaintenance: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored var openWindow: ((BrowserWindowState?) -> Void)?
     @ObservationIgnored var media: BrowserSystemMedia?
+    @ObservationIgnored private var nextWebView: (spaceID: UUID, view: BrowserNativeWebView)?
+    @ObservationIgnored private weak var adoptedWebView: BrowserNativeWebView?
+    @ObservationIgnored private var webViewPreparation: Task<Void, Never>?
 
     init() throws {
         persistence = try BrowserPersistence()
@@ -107,6 +112,42 @@ final class BrowserSessionOwner {
         guard tab != session.spaces[s].tabs[t] else { return }
         session.spaces[s].tabs[t] = tab
         changed()
+    }
+
+    func prepareNextWebView(after page: BrowserPage) {
+        guard webViewPreparation == nil, adoptedWebView == nil, let windowID = activeWindowID,
+            contexts[windowID]?.activePage === page
+        else { return }
+        let spaceID = page.spaceID
+        webViewPreparation = Task { [weak self] in
+            defer { if !Task.isCancelled { self?.discardNextWebView() } }
+            do {
+                try await Task.sleep(for: .milliseconds(100))
+                guard let profile = self?.profiles[spaceID], profile.isPersistent,
+                    let blocker = self?.contentBlockers[spaceID]
+                else { return }
+                let configuration = WKWebViewConfiguration()
+                configuration.websiteDataStore = profile
+                let view = BrowserPage.makeWebView(configuration: configuration, contentBlocker: blocker)
+                _ = try await view.evaluateJavaScript("true")
+                try Task.checkCancellation()
+                self?.nextWebView = (spaceID, view)
+                try await Task.sleep(for: .seconds(30))
+            } catch {}
+        }
+    }
+
+    func takeNextWebView(in spaceID: UUID) -> BrowserNativeWebView? {
+        guard let nextWebView, nextWebView.spaceID == spaceID else { return nil }
+        discardNextWebView()
+        adoptedWebView = nextWebView.view
+        return nextWebView.view
+    }
+
+    func discardNextWebView() {
+        webViewPreparation?.cancel()
+        webViewPreparation = nil
+        nextWebView = nil
     }
 
     func unload(_ id: UUID) {

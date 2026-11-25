@@ -61,6 +61,7 @@ extension BrowserStore {
             else { return }
             for tab in space.tabs { unload(tab.id) }
             integrations.removeValue(forKey: id)?.invalidate()
+            owner.discardNextWebView()
             profiles[id] = nil
             var blocker = owner.contentBlockers.removeValue(forKey: id)
             session.spaces.removeAll { $0.id == id }
