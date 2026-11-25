@@ -28,8 +28,10 @@ final class BrowserPageLoading {
         let paintID = UUID()
         pendingPaint = (navigation, paintID)
         showsBackground = true
-        webView.callAsyncJavaScript(Self.waitForPaint, arguments: [:], in: nil, in: .defaultClient) { [weak self] result in
-            if case .success = result { self?.reveal(after: paintID) }
+        webView.callAsyncJavaScript(Self.waitForPaint, arguments: [:], in: nil, in: .defaultClient) {
+            [weak self, weak webView] result in
+            guard case .success(let value) = result, value as? Bool == true, let webView else { return }
+            self?.revealAfterPresentation(after: paintID, in: webView)
         }
     }
 
@@ -61,6 +63,17 @@ final class BrowserPageLoading {
         stop()
     }
 
+    private func revealAfterPresentation(after paintID: UUID, in webView: WKWebView) {
+        let selector = NSSelectorFromString("_doAfterNextPresentationUpdate:")
+        guard pendingPaint?.id == paintID, webView.responds(to: selector) else { return }
+        typealias Completion = @convention(block) () -> Void
+        typealias Schedule = @convention(c) (AnyObject, Selector, @escaping Completion) -> Void
+        let schedule = unsafeBitCast(webView.method(for: selector), to: Schedule.self)
+        schedule(webView, selector) { [weak self] in
+            MainActor.assumeIsolated { self?.reveal(after: paintID) }
+        }
+    }
+
     private func reveal(after paintID: UUID) {
         guard let paint = pendingPaint, paint.id == paintID else { return }
         pendingPaint = nil
@@ -74,22 +87,15 @@ final class BrowserPageLoading {
     }
 
     private static let waitForPaint = #"""
+        if (performance.getEntriesByName("first-contentful-paint", "paint").length) return true;
+        if (!globalThis.PerformanceObserver?.supportedEntryTypes?.includes("paint")) return false;
         return new Promise(resolve => {
-            let observer;
-            const painted = () => {
-                observer?.disconnect();
-                removeEventListener("load", painted);
-                requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)));
-            };
-            if (document.readyState === "complete") {
-                painted();
-                return;
-            }
-            if (PerformanceObserver.supportedEntryTypes.includes("paint")) {
-                observer = new PerformanceObserver(painted);
-                observer.observe({type: "paint", buffered: true});
-            }
-            addEventListener("load", painted, {once: true});
+            const observer = new PerformanceObserver(list => {
+                if (!list.getEntries().some(entry => entry.name === "first-contentful-paint")) return;
+                observer.disconnect();
+                resolve(true);
+            });
+            observer.observe({type: "paint", buffered: true});
         });
         """#
 }
