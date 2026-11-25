@@ -10,6 +10,7 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
     let spaceID: UUID
     private weak var owner: BrowserSessionOwner?
     private let privateSpace: Bool
+    private let isRuleSeed: Bool
     private var context: WKWebExtensionContext?
     private var operation: Task<Void, Error>?
     private var enabled: Bool?
@@ -19,19 +20,21 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
     private let cache: BrowserContentRuleCache?
     private var cacheBuild: Task<Void, Never>?
     private var cachedRulesets: [String]?
+    private var seedRulesets: [String]?
     private var nativeRules: WKContentRuleList?
     private let contentControllers = NSHashTable<WKUserContentController>.weakObjects()
 
     private static let rulePermissions: [WKWebExtension.Permission] = [
         .declarativeNetRequest, .declarativeNetRequestWithHostAccess,
     ]
-    init(spaceID: UUID, owner: BrowserSessionOwner, dataStore: WKWebsiteDataStore) {
+    init(spaceID: UUID, owner: BrowserSessionOwner, dataStore: WKWebsiteDataStore, isRuleSeed: Bool = false) {
         self.spaceID = spaceID
         self.owner = owner
-        privateSpace = !dataStore.isPersistent
+        self.isRuleSeed = isRuleSeed
+        privateSpace = !dataStore.isPersistent && !isRuleSeed
         extensionPackage = owner.contentExtension
         cache = dataStore.isPersistent ? owner.contentExtension.package.flatMap {
-            BrowserContentRuleCache(spaceID: spaceID, profile: owner.persistence.directory, packageHash: $0.manifest.sha256)
+            BrowserContentRuleCache(profile: owner.persistence.directory, packageHash: $0.manifest.sha256, spaceID: spaceID)
         } : nil
         let configuration: WKWebExtensionController.Configuration =
             privateSpace ? .nonPersistent() : .init(identifier: spaceID)
@@ -60,7 +63,11 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
 
     private func load() async throws {
         if context?.isLoaded == true { return }
-        if let (rules, rulesets) = await cache?.load() {
+        var cached = await cache?.load()
+        if cached == nil, !isRuleSeed, !privateSpace, let owner, BrowserContentRuleCache.canUseDefaultRules(in: spaceID) {
+            cached = await extensionPackage.prepareDefaultRules(for: owner)
+        }
+        if let (rules, rulesets) = cached {
             do {
                 cachedRulesets = rulesets
                 try await loadExtension(cached: true)
@@ -130,20 +137,33 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
         if let nativeRules { content.add(nativeRules) }
     }
 
-    private func buildCache(snapshot: String?) {
-        guard let cache, let snapshot,
-            let rulesets = try? JSONDecoder().decode([String].self, from: Data(snapshot.utf8)),
-            !rulesets.isEmpty
-        else { return }
+    func buildDefaultRules(in cache: BrowserContentRuleCache) async -> BrowserContentRuleCache.Entry? {
+        defer {
+            try? unload()
+            BrowserContentRuleCache.removeSeed(spaceID)
+        }
+        do {
+            try await setEnabled(true)
+            try Task.checkCancellation()
+            guard let seedRulesets else { return nil }
+            _ = try await extensionPackage.prepareCachedCopy()
+            return try await cache.build(rulesets: seedRulesets, from: spaceID)
+        } catch {
+            return nil
+        }
+    }
+
+    private func buildCache(rulesets: [String]) {
+        guard let cache else { return }
         let previous = cacheBuild
         previous?.cancel()
-        cacheBuild = Task { [extensionPackage] in
+        cacheBuild = Task { [extensionPackage, spaceID] in
             await previous?.value
             do {
                 try await Task.sleep(for: .seconds(2))
                 _ = try await extensionPackage.prepareCachedCopy()
                 try Task.checkCancellation()
-                try await cache.build(rulesets: rulesets)
+                _ = try await cache.build(rulesets: rulesets, from: spaceID)
             } catch {}
         }
     }
@@ -196,7 +216,11 @@ final class BrowserContentBlocking: NSObject, WKWebExtensionControllerDelegate, 
             replyHandler(reply, nil)
             return
         case "ready":
-            if startup != nil, cachedRulesets == nil { buildCache(snapshot: message["snapshot"]) }
+            if startup != nil, cachedRulesets == nil,
+                let snapshot = message["snapshot"],
+                let rulesets = try? JSONDecoder().decode([String].self, from: Data(snapshot.utf8)), !rulesets.isEmpty {
+                if isRuleSeed { seedRulesets = rulesets } else { buildCache(rulesets: rulesets) }
+            }
             finishStartup(.success(()))
         case "invalidate":
             if startup == nil {

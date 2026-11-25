@@ -78,6 +78,7 @@ final class BrowserContentStartup {
         let space = enabled.first { $0.id == owner.session.selectedSpaceID } ?? enabled.first
         let blocker = space.map { owner.contentBlocker(for: $0.id) }
         do {
+            if blocker != nil { _ = await owner.contentExtension.prepareDefaultRules(for: owner) }
             try await blocker?.setEnabled(true)
             try Task.checkCancellation()
             try await packages.activate(package)

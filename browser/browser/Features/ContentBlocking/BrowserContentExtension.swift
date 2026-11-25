@@ -9,11 +9,14 @@ final class BrowserContentExtension {
     }
 
     private(set) var package: BrowserContentPackage?
+    private let profile: URL
     private let directory: URL
     private var extensions: [Variant: Task<WKWebExtension, Error>] = [:]
     private var cachedCopy: Task<URL, Error>?
+    private var defaultRules: Task<BrowserContentRuleCache.Entry?, Never>?
 
     init(profile: URL) {
+        self.profile = profile
         directory = profile.appendingPathComponent("ContentBlocking/Extension", isDirectory: true)
     }
 
@@ -22,6 +25,21 @@ final class BrowserContentExtension {
         extensions.removeAll()
         cachedCopy?.cancel()
         cachedCopy = nil
+        defaultRules?.cancel()
+        defaultRules = nil
+    }
+
+    func prepareDefaultRules(for owner: BrowserSessionOwner) async -> BrowserContentRuleCache.Entry? {
+        if defaultRules == nil,
+            let package, let cache = BrowserContentRuleCache(profile: profile, packageHash: package.manifest.sha256) {
+            defaultRules = Task { [weak owner] in
+                if let rules = await cache.load() { return rules }
+                guard !Task.isCancelled, let owner else { return nil }
+                let seed = BrowserContentBlocking(spaceID: UUID(), owner: owner, dataStore: .nonPersistent(), isRuleSeed: true)
+                return await seed.buildDefaultRules(in: cache)
+            }
+        }
+        return await defaultRules?.value
     }
 
     func load(_ variant: Variant) async throws -> WKWebExtension {
