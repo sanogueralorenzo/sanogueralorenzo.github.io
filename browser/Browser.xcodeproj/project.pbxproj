@@ -57,7 +57,6 @@
 		40A29E226640DF2E0654D86F /* MediaPlayer.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CDB311BAA44E6C0592D7DF57 /* MediaPlayer.framework */; };
 		40DEFBAE944ACCFF274DCC19 /* BrowserGitHubSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E3E1DCDF4335AF7C24CCD6C /* BrowserGitHubSession.swift */; };
 		4245694B2BDDBB33DD23C74A /* BrowserOpacity.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6D2343B6834EE7B0CCE660E /* BrowserOpacity.swift */; };
-		427E05E9DF242B3D8632F4EC /* ReleaseNotes.json in Resources */ = {isa = PBXBuildFile; fileRef = 1AC52D1260D217F40970092E /* ReleaseNotes.json */; };
 		42F2AA53C4B77625C37575BE /* BrowserStore+Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A3F7E92D494DB76BA70D04 /* BrowserStore+Settings.swift */; };
 		433CA909665CCDBC631A25DA /* BrowserSpacing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8269FCD911EC6B74CC9FF3D9 /* BrowserSpacing.swift */; };
 		434E28C886B09D8BE2EFD4E2 /* Translation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3B6D1B7EBD5FAA78BE6A5F9F /* Translation.framework */; };
@@ -199,7 +198,6 @@
 		19E9319AFC8D0B7A284FF2EF /* BrowserPageZoom.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserPageZoom.swift; sourceTree = "<group>"; };
 		1AAB3A687AA5B75DED82BF04 /* AddressPaletteBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressPaletteBackdrop.swift; sourceTree = "<group>"; };
 		1AC3C0A04351AACA88ED49D4 /* BrowserSidebarList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSidebarList.swift; sourceTree = "<group>"; };
-		1AC52D1260D217F40970092E /* ReleaseNotes.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ReleaseNotes.json; sourceTree = "<group>"; };
 		1B6662F5A91F8C5A8495B658 /* BrowserSidebarOutline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSidebarOutline.swift; sourceTree = "<group>"; };
 		1B7A0DE2D7D86D5BF64C7261 /* BrowserPage+Reader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserPage+Reader.swift"; sourceTree = "<group>"; };
 		1BC2EE408278091A709ED490 /* BrowserContentPackageDownload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserContentPackageDownload.swift; sourceTree = "<group>"; };
@@ -518,14 +516,6 @@
 			path = Settings;
 			sourceTree = "<group>";
 		};
-		4CE43AE22C9102E777F1BB23 /* Documentation */ = {
-			isa = PBXGroup;
-			children = (
-				1AC52D1260D217F40970092E /* ReleaseNotes.json */,
-			);
-			path = Documentation;
-			sourceTree = "<group>";
-		};
 		5A2B77991DB3D367C4DD9A9E /* Reader */ = {
 			isa = PBXGroup;
 			children = (
@@ -815,7 +805,6 @@
 				300D47C0941DBD265B0C4C3C /* THIRD_PARTY_NOTICES.md */,
 				2FCC0CECF8C656EE9F10A93F /* browser */,
 				9145051B0000A7B6999EB74A /* Config */,
-				4CE43AE22C9102E777F1BB23 /* Documentation */,
 				95316B4EA5A708C374BC7B91 /* Resources */,
 				D99BF258C97930614399FBA2 /* Frameworks */,
 				989CB76F0E5AFC0D7377F6D7 /* Products */,
@@ -964,7 +953,6 @@
 				D42053775BE8F1E5B8E28EAB /* LICENSE in Resources */,
 				094E700E433515FC5F57490F /* NOTICE in Resources */,
 				0987C9DC854EA264B630A8AE /* PrivacyInfo.xcprivacy in Resources */,
-				427E05E9DF242B3D8632F4EC /* ReleaseNotes.json in Resources */,
 				AE93E77A3045EBEE341CB002 /* THIRD_PARTY_NOTICES.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

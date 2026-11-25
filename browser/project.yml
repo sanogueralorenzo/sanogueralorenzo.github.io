@@ -30,8 +30,6 @@ targets:
         excludes:
           - uBlockOriginLite.json
           - uBlockOriginLite.zip
-      - path: Documentation/ReleaseNotes.json
-        buildPhase: resources
       - path: LICENSE
         buildPhase: resources
       - path: NOTICE
