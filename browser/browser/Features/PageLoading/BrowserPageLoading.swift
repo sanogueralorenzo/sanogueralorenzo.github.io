@@ -12,6 +12,8 @@ final class BrowserPageLoading {
 
     private(set) var showsBackground: Bool
     private(set) var indicator = Indicator.hidden
+    @ObservationIgnored var nextNavigationIsHistory = false
+    @ObservationIgnored private var possibleHistoryRestore: WKNavigation?
     @ObservationIgnored private var indicatorNavigation: WKNavigation?
     @ObservationIgnored private var pendingPaint: (navigation: WKNavigation?, id: UUID)?
 
@@ -20,11 +22,21 @@ final class BrowserPageLoading {
     }
 
     func started(_ navigation: WKNavigation?) {
+        possibleHistoryRestore = nextNavigationIsHistory ? navigation : nil
+        nextNavigationIsHistory = false
         indicatorNavigation = navigation
         indicator = .loading(since: ProcessInfo.processInfo.systemUptime)
     }
 
+    func receivedMainFrameResponse() {
+        possibleHistoryRestore = nil
+    }
+
     func committed(_ navigation: WKNavigation?, in webView: WKWebView) {
+        if let possibleHistoryRestore, possibleHistoryRestore === navigation {
+            self.possibleHistoryRestore = nil
+            guard showsBackground else { return }
+        }
         let paintID = UUID()
         pendingPaint = (navigation, paintID)
         showsBackground = true
@@ -47,6 +59,7 @@ final class BrowserPageLoading {
     }
 
     func failed(_ navigation: WKNavigation?, committed: Bool) {
+        if possibleHistoryRestore === navigation { possibleHistoryRestore = nil }
         if indicatorNavigation === navigation { stop() }
         if committed, let paint = pendingPaint, paint.navigation === navigation {
             reveal(after: paint.id)
@@ -59,6 +72,8 @@ final class BrowserPageLoading {
     }
 
     func invalidate() {
+        nextNavigationIsHistory = false
+        possibleHistoryRestore = nil
         pendingPaint = nil
         stop()
     }
