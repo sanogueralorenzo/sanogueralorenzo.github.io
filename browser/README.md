@@ -38,10 +38,9 @@ Browser saves the session atomically to `~/Library/Application Support/Browser/S
 For isolated review builds, set `BROWSER_REVIEW_DATA_DIRECTORY`
 to a disposable directory and use a distinct bundle identifier.
 
-Browser downloads and prepares ad blocking before opening on first launch.
+Browser downloads and prepares the latest stable uBlock Origin Lite release from upstream
+before opening on first launch.
 Later stable updates download in the background and apply before browsing on the next launch.
-To publish a blocker update, run `python3 scripts/update-ublock-origin-lite.py [VERSION]`
-from this directory and commit the two updated feed files. Omitting the version selects the latest upstream release.
 
 ## Command line
 

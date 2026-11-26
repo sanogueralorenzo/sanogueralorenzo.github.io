@@ -15,8 +15,8 @@ also under MPL-2.0.
 
 The downloadable [uBlock Origin Lite](https://github.com/uBlockOrigin/uBOL-home)
 Safari extension is copyright Raymond Hill and licensed GPL-3.0-or-later.
-`Resources/uBlockOriginLite.zip` includes its license, source code and filtering
-data. `Resources/uBlockOriginLite.json` records the upstream release and hashes.
+Browser downloads the official Safari release at runtime. Its archive includes
+the license, source code and filtering data.
 Browser adapts runtime detection for WebKit's extension URL scheme, selects Complete
 filtering with EasyList Spanish, and adds a native startup handshake and a
 manifest for loading page filters alongside Browser's cached network rules;
