@@ -311,7 +311,8 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         } else {
             if action.targetFrame?.isMainFrame == true && url.scheme != "javascript" {
                 if !action.shouldPerformDownload {
-                    loading.nextNavigationIsHistory = action.navigationType == .backForward
+                    loading.keepsContentForNextNavigation =
+                        action.navigationType == .backForward || action.navigationType == .reload
                 }
                 pendingNavigationURL = url
                 self.url = url
@@ -325,7 +326,6 @@ final class BrowserPage: NSObject, WKNavigationDelegate, WKUIDelegate, Identifia
         _ webView: WKWebView, decidePolicyFor response: WKNavigationResponse,
         decisionHandler: @escaping @MainActor @Sendable (WKNavigationResponsePolicy) -> Void
     ) {
-        if response.isForMainFrame { loading.receivedMainFrameResponse() }
         decisionHandler(response.canShowMIMEType ? .allow : .download)
     }
 

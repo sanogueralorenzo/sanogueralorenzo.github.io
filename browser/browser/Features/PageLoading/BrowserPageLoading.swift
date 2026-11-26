@@ -12,8 +12,8 @@ final class BrowserPageLoading {
 
     private(set) var showsBackground: Bool
     private(set) var indicator = Indicator.hidden
-    @ObservationIgnored var nextNavigationIsHistory = false
-    @ObservationIgnored private var possibleHistoryRestore: WKNavigation?
+    @ObservationIgnored var keepsContentForNextNavigation = false
+    @ObservationIgnored private var navigationKeepingContent: WKNavigation?
     @ObservationIgnored private var indicatorNavigation: WKNavigation?
     @ObservationIgnored private var pendingPaint: (navigation: WKNavigation?, id: UUID)?
 
@@ -22,19 +22,15 @@ final class BrowserPageLoading {
     }
 
     func started(_ navigation: WKNavigation?) {
-        possibleHistoryRestore = nextNavigationIsHistory ? navigation : nil
-        nextNavigationIsHistory = false
+        navigationKeepingContent = keepsContentForNextNavigation ? navigation : nil
+        keepsContentForNextNavigation = false
         indicatorNavigation = navigation
         indicator = .loading(since: ProcessInfo.processInfo.systemUptime)
     }
 
-    func receivedMainFrameResponse() {
-        possibleHistoryRestore = nil
-    }
-
     func committed(_ navigation: WKNavigation?, in webView: WKWebView) {
-        if let possibleHistoryRestore, possibleHistoryRestore === navigation {
-            self.possibleHistoryRestore = nil
+        if let navigationKeepingContent, navigationKeepingContent === navigation {
+            self.navigationKeepingContent = nil
             guard showsBackground else { return }
         }
         let paintID = UUID()
@@ -59,7 +55,7 @@ final class BrowserPageLoading {
     }
 
     func failed(_ navigation: WKNavigation?, committed: Bool) {
-        if possibleHistoryRestore === navigation { possibleHistoryRestore = nil }
+        if navigationKeepingContent === navigation { navigationKeepingContent = nil }
         if indicatorNavigation === navigation { stop() }
         if committed, let paint = pendingPaint, paint.navigation === navigation {
             reveal(after: paint.id)
@@ -72,8 +68,8 @@ final class BrowserPageLoading {
     }
 
     func invalidate() {
-        nextNavigationIsHistory = false
-        possibleHistoryRestore = nil
+        keepsContentForNextNavigation = false
+        navigationKeepingContent = nil
         pendingPaint = nil
         stop()
     }
