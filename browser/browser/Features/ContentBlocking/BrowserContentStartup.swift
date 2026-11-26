@@ -1,21 +1,24 @@
-import AppKit
+import Foundation
 
 @MainActor
 final class BrowserContentStartup {
+    enum Phase {
+        case downloading
+        case preparing
+        case failed
+    }
+
     private let owner: BrowserSessionOwner
     private let packages: BrowserContentPackages
     private let download = BrowserContentPackageDownload()
-    private let present: (NSWindow?) -> Void
-    private var window: BrowserContentStartupWindow?
     private var checkedUpstream = false
 
-    init(owner: BrowserSessionOwner, present: @escaping (NSWindow?) -> Void) {
+    init(owner: BrowserSessionOwner) {
         self.owner = owner
         packages = BrowserContentPackages(profile: owner.persistence.directory)
-        self.present = present
     }
 
-    func prepare() async -> Bool {
+    func prepare(report: (Phase) -> Void) async -> Bool {
         do {
             let available = await packages.available()
             let candidate: BrowserContentPackage
@@ -25,11 +28,12 @@ final class BrowserContentStartup {
                 owner.contentExtension.select(active)
                 return true
             } else {
-                show(.downloading)
+                report(.downloading)
                 checkedUpstream = true
                 let release = try await download.latest()
                 candidate = try await stage(release)
             }
+            report(.preparing)
             do {
                 try await activate(candidate)
             } catch {
@@ -41,7 +45,7 @@ final class BrowserContentStartup {
         } catch {
             if !Task.isCancelled {
                 NSLog("Content blocking could not be prepared: %@", error.localizedDescription)
-                show(.failed)
+                report(.failed)
             }
             return false
         }
@@ -61,8 +65,6 @@ final class BrowserContentStartup {
         }
     }
 
-    func showWindow() { present(window?.window) }
-
     private func stage(_ release: BrowserContentRelease) async throws -> BrowserContentPackage {
         let data = try await download.fetch(release)
         try Task.checkCancellation()
@@ -70,7 +72,6 @@ final class BrowserContentStartup {
     }
 
     private func activate(_ package: BrowserContentPackage) async throws {
-        show(.preparing)
         owner.contentExtension.select(package)
         _ = try await owner.contentExtension.load(.full)
         let enabled = owner.session.spaces.filter { $0.browsingPreferences?.blocksContent ?? owner.session.preferences.blocksContent }
@@ -81,7 +82,6 @@ final class BrowserContentStartup {
             try await blocker?.setEnabled(true)
             try Task.checkCancellation()
             try await packages.activate(package)
-            close()
         } catch {
             if let blocker, let space {
                 await blocker.cancelPreparation()
@@ -89,16 +89,5 @@ final class BrowserContentStartup {
             }
             throw error
         }
-    }
-
-    private func show(_ phase: BrowserContentStartupWindow.Phase) {
-        if window == nil { window = BrowserContentStartupWindow(phase: phase) }
-        window?.state.phase = phase
-        showWindow()
-    }
-
-    private func close() {
-        window?.window?.orderOut(nil)
-        window = nil
     }
 }

@@ -10,7 +10,7 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     private var preparingCloses: Set<UUID> = []
     private var preparingQuit = false
     private var pendingLaunchURLs: [URL] = []
-    private var contentStartup: BrowserContentStartup?
+    private var startupWindow: BrowserWindow?
     private var launchTask: Task<Void, Never>?
     private var browserReady = false
     private var cliServer: BrowserCLIServer?
@@ -36,11 +36,12 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
             owner.openWindow = { [weak self] state in self?.createWindow(restoring: state) }
             owner.media = BrowserSystemMedia(owner: owner)
             UNUserNotificationCenter.current().delegate = self
-            let startup = BrowserContentStartup(owner: owner) { [weak self] in self?.presentWindow($0) }
-            contentStartup = startup
+            let startup = BrowserContentStartup(owner: owner)
             installMenu()
             launchTask = Task { [weak self] in
-                guard await startup.prepare(), !Task.isCancelled, let self else { return }
+                guard await startup.prepare(report: { self?.showStartup($0) }),
+                    !Task.isCancelled, let self
+                else { return }
                 finishLaunching(owner)
                 await startup.checkForUpdate()
             }
@@ -93,13 +94,43 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         guard browserReady, let owner else { return }
         let store = owner.makeStore(restoring: state)
         owner.prewarmContentBlocking(in: store.activeSpace.id)
+        let setupWindow = startupWindow
+        let window = setupWindow ?? makeWindow(restoring: state)
+        startupWindow = nil
+        windows[store.id] = window
+        store.window = window
+        window.store = store
+        store.isFullScreen = window.styleMask.contains(.fullScreen)
+        let content = NSHostingView(rootView: BrowserRoot(store: store))
+        content.safeAreaRegions = []
+        window.contentView = content
+        window.contentView?.superview?.clipsToBounds = true
+        if !store.isFullScreen { owner.setWindowFrame(store.id, frame: window.frame) }
+        if setupWindow == nil { presentWindow(window) }
+        owner.activeWindowID = store.id
+        owner.changed()
+    }
+
+    private func showStartup(_ phase: BrowserContentStartup.Phase) {
+        let setup = BrowserContentStartupView(phase: phase)
+        if let content = startupWindow?.contentView as? NSHostingView<BrowserContentStartupView> {
+            content.rootView = setup
+            return
+        }
+        let window = makeWindow(restoring: owner?.session.windows.first)
+        let content = NSHostingView(rootView: setup)
+        content.safeAreaRegions = []
+        window.contentView = content
+        window.contentView?.superview?.clipsToBounds = true
+        startupWindow = window
+        presentWindow(window)
+    }
+
+    private func makeWindow(restoring state: BrowserWindowState?) -> BrowserWindow {
         let window = BrowserWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1440, height: 900),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered,
             defer: false)
-        windows[store.id] = window
-        store.window = window
-        window.store = store
         window.title = "Browser"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
@@ -108,10 +139,6 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         window.isReleasedWhenClosed = false
         window.acceptsMouseMovedEvents = true
         window.collectionBehavior = [.fullScreenPrimary]
-        let content = NSHostingView(rootView: BrowserRoot(store: store))
-        content.safeAreaRegions = []
-        window.contentView = content
-        window.contentView?.superview?.clipsToBounds = true
         window.delegate = self
         if let value = state?.frame, let frame = Optional(NSRectFromString(value)),
             NSScreen.screens.contains(where: {
@@ -122,17 +149,15 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
             window.setFrame(frame, display: false)
         } else {
             window.center()
-            if windows.count > 1 {
+            if !windows.isEmpty {
                 window.cascadeTopLeft(from: NSPoint(x: window.frame.minX + 24, y: window.frame.maxY - 24))
             }
         }
-        presentWindow(window)
-        owner.activeWindowID = store.id
-        owner.changed()
+        return window
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows visible: Bool) -> Bool {
-        if !browserReady { contentStartup?.showWindow() }
+        if !browserReady { presentWindow(startupWindow) }
         else if !visible { createWindow() } else { presentWindow(window) }
         return true
     }
@@ -193,6 +218,10 @@ final class BrowserAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if sender === startupWindow {
+            NSApp.terminate(nil)
+            return false
+        }
         guard let context = context(for: sender) else { return true }
         if approvedCloses.remove(context.id) != nil { return true }
         guard preparingCloses.insert(context.id).inserted else { return false }
