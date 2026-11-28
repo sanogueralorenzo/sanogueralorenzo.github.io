@@ -56,10 +56,12 @@ public static partial class EnvironmentArt3D
         float scale = kind == 0 ? prisonScale : kind >= 2 ? MathF.Min(art.Sizes.ForKind(kind), best / footprint)
             : MathF.Min(MathF.Min(r * .48f, 3f), best / (footprint * art.HeightScale));
         float spread = kind == 6 ? Mathf.Clamp((best / scale - footprint) / .62f, 0, 1) : 0;
-        float bluff = kind == 6 ? Mathf.Clamp((best / scale - 1.71f) / .74f, 0, 1) : 0;
         var old = art.PlaceProp(anchor, footprint * scale);
         art.Transform *= new Transform3D(Basis.FromEuler(new(0, kind == 0 ? -.32f : kind == 8 ? .12f : -.55f, 0)).Scaled(Vector3.One * scale), Vector3.Zero);
         var building = art.Transform;
+        float size = building.Basis.X.Length();
+        art.LandmarkSpace = (new(building.Origin.X, building.Origin.Z), (footprint + .62f * spread) * size);
+        bool raisedPalm = false;
         switch (kind)
         {
             case 0: Prison(art); break;
@@ -67,18 +69,20 @@ public static partial class EnvironmentArt3D
             case 2: PirateTavern(art); break;
             case 4: SeaCave(art, seed); break;
             case 5: AncientArch(art, seed); break;
-            case 6: Lighthouse(art, seed, spread, bluff); break;
+            case 6:
+                LighthousePier(art, building);
+                raisedPalm = LighthouseHeadland(art, seed, spread);
+                Lighthouse(art, spread);
+                break;
             case 7: MarketStall(art); break;
             case 8: Windmill(art); break;
         }
         art.EndProp(old);
         art.HeightScale = vegetationScale;
-        float size = building.Basis.X.Length();
-        art.LandmarkSpace = (new(building.Origin.X, building.Origin.Z), (footprint + .62f * spread) * size);
         if (kind == 0) PrisonJetty(art, building);
         if (kind == 6)
         {
-            LighthouseGrounds(art, building, r, seed, bluff > .48f);
+            LighthouseGrounds(art, size, r, seed, raisedPalm);
             return true;
         }
 
@@ -95,18 +99,20 @@ public static partial class EnvironmentArt3D
         return true;
     }
 
-    private static void LighthouseGrounds(Sculptor art, Transform3D building, float radius, uint seed, bool raisedPalm)
+    private static void LighthouseGrounds(Sculptor art, float scale, float radius, uint seed, bool raisedPalm)
     {
-        LighthousePier(art, building);
-
-        float scale = building.Basis.X.Length(), height = scale * 1.42f;
+        float height = scale * 1.42f;
         float vegetation = art.HeightScale;
         var reserve = art.LandmarkSpace!.Value;
+        var jetty = art.JettySpace;
+        if (jetty is { } pier) art.JettySpace = (pier.Start, pier.End, pier.Width + LighthouseInletShoulder);
         art.HeightScale = 1;
         art.LandmarkSpace = (reserve.Center, scale * .82f);
-        Palm(art, new(-radius * .72f, .14f, -radius * .17f), height, seed + 31, .40f);
+        Palm(art, new(-radius * .60f, .14f, -radius * .17f), height, seed + 31, .40f);
         Palm(art, new(radius * .43f, .14f, -radius * .64f), height * 1.11f, seed + 48, .40f);
-        Shrub(art, new(-radius * .70f, .13f, -radius * .10f), scale * .24f, seed + 84);
+        Shrub(art, new(-radius * .58f, .13f, -radius * .10f), scale * .24f, seed + 84);
+        Shrub(art, new(radius * .40f, .14f, -radius * .59f), scale * .17f, seed + 116);
+        Shrub(art, new(radius * .44f, .14f, -radius * .57f), scale * .12f, seed + 147);
 
         if (!raisedPalm)
         {
@@ -117,11 +123,13 @@ public static partial class EnvironmentArt3D
 
         float rockWidth = Math.Min(scale * .88f, radius * .24f);
         LighthouseShoreFoot(art, 1.26f, rockWidth, seed + 85);
+        LighthouseShoreFoot(art, 1.40f, rockWidth * .45f, seed + 72);
         LighthouseShoreFoot(art, 1.67f, rockWidth * .63f, seed + 112);
         ShoreOutcrop(art, new Vector2(.59f, -.56f) * radius, rockWidth * .92f, seed + 98);
         Pennants(art, new(-radius * .64f, .16f, radius * .41f), scale * .57f, .45f);
         art.HeightScale = vegetation;
         art.LandmarkSpace = reserve;
+        art.JettySpace = jetty;
     }
 
     private static void LighthouseShoreFoot(Sculptor art, float angle, float width, uint seed)
@@ -172,6 +180,7 @@ public static partial class EnvironmentArt3D
             art.Quad(Point(rim[next], -.05f), Point(rim[i], -.05f), a, b, side.Lightened(i % 3 * .04f));
             art.Face(Point(new(-.055f, -.04f), width * .385f), b, a, cap);
         }
+        art.ShoreFoam.Add((center, new(width * .36f, width * .57f), outward.Angle(), Math.Clamp(width * .031f, .018f, .041f)));
         art.EndProp(old);
     }
 
@@ -210,21 +219,23 @@ public static partial class EnvironmentArt3D
         art.EndProp(old);
     }
 
+    private const float LighthousePierApproach = .36f;
+    private const float LighthouseInletShoulder = .46f;
+
     private static void LighthousePier(Sculptor art, Transform3D building)
     {
         var shape = art.Footprint!;
         float scale = building.Basis.X.Length(), halfWidth = Math.Clamp(scale * .22f, .17f, .38f);
         float length = Math.Clamp(scale * .67f, .43f, 1.16f);
-        const float approachLength = .36f;
         const float shorePadding = 24;
         var landmark = art.LandmarkSpace!.Value;
-        foreach (float angle in new[] { .59f, .33f, .91f, .13f, 1.23f, 1.55f, 1.87f, 2.19f })
+        foreach (float angle in new[] { .13f, .33f, .59f, .91f, 1.23f, 1.55f, 1.87f, 2.19f })
         {
             var p = shape.Point(angle) * .01032f;
             var direction = Vector2.FromAngle(angle);
             var end = new Vector2(p.X, p.Y) + direction * .19f;
             var start = end - direction * length;
-            var approach = start - direction * approachLength;
+            var approach = start - direction * LighthousePierApproach;
             if (landmark.Center.DistanceTo(Geometry2D.GetClosestPointToSegment(landmark.Center, approach, end)) < landmark.Radius + halfWidth * .5f)
                 continue;
             if (art.TreasureSpace is { } treasure &&
@@ -242,8 +253,8 @@ public static partial class EnvironmentArt3D
             for (int i = 0; i < 3; i++)
             {
                 float t = (i + .5f) / 3f;
-                art.Transform = pier * new Transform3D(Basis.FromEuler(new(-Mathf.Atan2(.12f, approachLength), 0, 0)),
-                    new(0, .202f + t * .12f, approachLength * (t - 1)));
+                art.Transform = pier * new Transform3D(Basis.FromEuler(new(-Mathf.Atan2(.12f, LighthousePierApproach), 0, 0)),
+                    new(0, .202f + t * .12f, LighthousePierApproach * (t - 1)));
                 art.RoundedBox(Vector3.Zero, new(halfWidth * 2, .060f, .12f), .006f, top.Lightened(i * .023f));
             }
             art.Transform = pier;
@@ -256,9 +267,14 @@ public static partial class EnvironmentArt3D
                 art.RoundedBox(new(side * halfWidth * .72f, .267f, length * .5f), new(.07f, .07f, length), .008f, beam);
                 for (int i = 0; i < 2; i++)
                 {
-                    var foot = new Vector3(side * halfWidth * .82f, -.085f, length * (i == 0 ? .10f : .93f));
+                    var foot = new Vector3(side * halfWidth * .82f, -.085f, length * (i == 0 ? .23f : .93f));
                     art.Tube(foot, foot + Vector3.Up * .71f, .049f, .043f, beam, 5);
                     art.Tube(foot + Vector3.Up * .70f, foot + Vector3.Up * .745f, .045f, .045f, cut, 5);
+                    if (i == 1)
+                    {
+                        var world = pier * foot;
+                        art.ShoreFoam.Add((new(world.X, world.Z), new(.10f, .13f), angle - side * .44f, .025f));
+                    }
                 }
             }
             art.Tube(new(-halfWidth * .82f, .145f, length * .93f), new(halfWidth * .82f, .22f, length * .93f),

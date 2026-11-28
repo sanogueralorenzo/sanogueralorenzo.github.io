@@ -25,7 +25,7 @@ public partial class ArtSample : Node3D
     LandmarkSizes landmarkSizes = new();
     // Fixed production seeds cover the eight coastline families.
     static readonly uint[] IslandStyles = [4, 6, 1, 2, 12, 32, 33, 34, 29, 5, 14, 15, 17, 197, 620, 95, 282];
-    static readonly float[] IslandSizes = [95, 200, 330, 565, OceanWorld.MaxIslandRadius];
+    static readonly float[] IslandSizes = [95, 200, 330, 595, OceanWorld.MaxIslandRadius];
     public override void _Ready()
     {
         var settings = new ConfigFile();
@@ -48,8 +48,8 @@ public partial class ArtSample : Node3D
         stage = new(); AddChild(stage);
         home = EnvironmentArt3D.Build(new Place("sample", PlaceKind.Harbor, default, 140, 147));
         AddChild(home); home.Position = new(-3.2f, 0, -1.4f);
-        shoal = EnvironmentArt3D.Build(new Place("sample-shoal", PlaceKind.Island, default, 225, 64));
-        AddChild(shoal); shoal.Position = new(8.27f, 0, 4.60f);
+        shoal = EnvironmentArt3D.Build(new Place("sample-shoal", PlaceKind.Island, default, 360, 4));
+        AddChild(shoal); shoal.Position = new(9.55f, 0, 5.28f); shoal.Rotation = new(0, 2.45f, 0);
         boat = ActorArt3D.Boat(boatKind, [1, 0, 0, 0, 0, 0]);
         AddChild(boat); boat.Rotation = new(0, -.7f, 0);
         crab = ActorArt3D.Creature(EnemyKind.Crab); AddChild(crab); crab.Position = new(-2,0,1.6f); crab.Rotation = new(0,2.2f,0);
@@ -90,12 +90,17 @@ public partial class ArtSample : Node3D
         bool lighthouse = scenery == "Lighthouse";
         bool giant = place.Radius > 360;
         // Keep the normal camera and boat scale; make room for the giant footprint.
-        rocky.Position = lighthouse ? new(-4.94f, 0, -.87f) : giant ? new(1, 0, 0) : new(4, 0, .4f);
+        rocky.Position = lighthouse ? new(-4.56f, 0, -.82f) : giant ? new(1, 0, 0) : new(4, 0, .4f);
+        if (lighthouse)
+        {
+            rocky.Rotation = new(0, .19f, 0);
+            if (!close && place.Shape is { } coast) AddOutcrop(coast);
+        }
         stage.SetWhirlpools(rocky is Whirlpool3D vortex ? new[] { vortex } : System.Array.Empty<Whirlpool3D>());
-        boat.Position = lighthouse ? new(.49f, 0, 3.94f) : giant ? new(-6.3f, 0, 4.6f) : Vector3.Zero;
-        boat.Rotation = new(0, lighthouse ? -.73f : -.7f, 0);
-        crab.Position = lighthouse ? new(6.10f, 0, 4.75f) : new(-2, 0, 1.6f);
-        crab.Rotation = new(0, lighthouse ? 3.05f : 2.2f, 0);
+        boat.Position = lighthouse ? new(.37f, 0, 4.39f) : giant ? new(-6.3f, 0, 4.6f) : Vector3.Zero;
+        boat.Rotation = new(0, lighthouse ? -.93f : -.7f, 0);
+        crab.Position = lighthouse ? new(6.12f, 0, 4.78f) : new(-2, 0, 1.6f);
+        crab.Rotation = new(0, lighthouse ? 3.12f : 2.2f, 0);
         home.Visible = !giant && !lighthouse;
         shoal.Visible = lighthouse && !close;
         crab.Visible = shoal.Visible || (!giant && !lighthouse);
@@ -106,6 +111,15 @@ public partial class ArtSample : Node3D
             + "Q islands · W prison · E tower · R lighthouse · T tavern · Y market · U mill · O cave · P arch\nA reference · S whirlpool · F island size · G seed · H smaller · J larger · K crew · L boat\nZ turn left · X turn right · C view · V refresh";
         GD.Print($"ISLAND SAMPLE scenery={scenery} profile={place.Shape?.Profile.ToString() ?? "Open water"} radius={place.Radius} style={place.Style}");
     }
+    void AddOutcrop(IslandShape coast)
+    {
+        const float angle = -.54f;
+        var shore = NauticalPalette.G(coast.Point(angle)) * .0104f + Vector2.FromAngle(angle) * .78f;
+        var rock = EnvironmentArt3D.Build(new Place("sample-outcrop", PlaceKind.Rock, default, 65, 73));
+        rocky.AddChild(rock);
+        rock.Position = new(shore.X, 0, shore.Y);
+    }
+
     void UpdateWake()
     {
         if (wake != null) { RemoveChild(wake); wake.QueueFree(); wake = null; }

@@ -8,25 +8,23 @@ public static partial class ActorArt3D
     // Crew shares the cached boat mesh, so every member follows its rocking deck.
     static void BoatCrew(ActorGeometry b)
     {
-        Crewmate(b, new(-.105f, .34f, .394f), 0);
+        Crewmate(b, new(-.114f, .34f, .407f), 0);
         Crewmate(b, new(.157f, .222f, .115f), 1);
         Crewmate(b, new(-.162f, .222f, .145f), 2);
-        // A small upright helm in front of the navigator.
-        var hub = new Vector3(-.105f, .467f, .304f);
-        b.Tube(new[] { hub - Vector3.Up * .13f, hub }, .012f, DarkWood, 6);
-        var rim = new Vector3[9];
+        var hub = new Vector3(-.077f, .477f, .305f);
+        Vector3 Wheel(float angle, float radius) => hub + new Vector3(MathF.Cos(angle), MathF.Sin(angle), MathF.Cos(angle) * .19f) * radius;
+        b.Tube([hub - Vector3.Up * .151f, hub], [.029f, .017f], DarkWood, 7);
+        var rim = new Vector3[13];
         for (int i = 0; i < rim.Length; i++)
-        {
-            float angle = i * Mathf.Tau / 8;
-            rim[i] = hub + new Vector3(MathF.Cos(angle), MathF.Sin(angle), 0) * .050f;
-        }
-        b.Tube(rim, .006f, Wood, 6);
+            rim[i] = Wheel(i * Mathf.Tau / (rim.Length - 1), .066f);
+        b.Tube(rim, .009f, new("b87543"), 6);
         for (int i = 0; i < 6; i++)
         {
             float angle = i * Mathf.Tau / 6;
-            b.Tube(new[] { hub, hub + new Vector3(MathF.Cos(angle), MathF.Sin(angle), 0) * .064f }, .005f, Brass, 5);
+            b.Tube([hub, Wheel(angle, .082f)], .007f, DarkWood, 5);
+            b.Tube([Wheel(angle, .072f), Wheel(angle, .085f)], .009f, Brass, 5);
         }
-        b.Sphere(hub, new(.013f, .013f, .009f), Brass, 8, 4);
+        b.Sphere(hub, new(.020f, .020f, .017f), Brass, 8, 4);
     }
 
     static void Crewmate(ActorGeometry b, Vector3 feet, int role)
@@ -37,9 +35,9 @@ public static partial class ActorArt3D
         Color hair = new(role == 1 ? "302d2a" : "523729");
         Color coat = role == 0 ? navy : role == 1 ? new("80472e") : new("62478c");
         // Different builds, not a uniform body with interchangeable hats.
-        float hip = role == 1 ? .040f : .030f, shoulder = role == 1 ? .061f : role == 0 ? .052f : .041f;
-        float waist = role == 1 ? .092f : .106f, neck = role == 0 ? .210f : role == 1 ? .175f : .206f;
-        float head = neck + .047f, headWidth = role == 1 ? .051f : role == 0 ? .046f : .041f;
+        float hip = role == 1 ? .040f : role == 0 ? .035f : .030f, shoulder = role == 1 ? .061f : role == 0 ? .058f : .041f;
+        float waist = role == 1 ? .092f : .106f, neck = role == 0 ? .218f : role == 1 ? .175f : .206f;
+        float head = neck + .047f, headWidth = role == 1 ? .051f : role == 0 ? .052f : .041f;
         for (int side = -1; side <= 1; side += 2)
         {
             float spread = side * (role == 1 ? .034f : .023f);
@@ -63,7 +61,7 @@ public static partial class ActorArt3D
         {
             float reach = role == 1 ? .079f : .065f;
             var elbow = P(side * reach, neck - .075f, -.009f);
-            var hand = role == 0 ? P(side * .047f, .127f, -.074f)
+            var hand = role == 0 ? P(.036f + side * .061f, .137f, -.10f + side * .012f)
                 : role == 2 && side < 0 ? P(-.066f, .160f, -.030f)
                 : P(side * (role == 1 ? .057f : .046f), waist + .019f, -.038f);
             b.Tube(new[] { P(side * shoulder, neck - .035f, 0), elbow },
@@ -89,7 +87,6 @@ public static partial class ActorArt3D
         }
         if (role == 0)
         {
-            // Long naval coat, angular beard and an oversized gold-edged tricorn.
             for (int side = -1; side <= 1; side += 2)
             {
                 b.Polygon([P(side * .007f, waist, .037f), P(side * .044f, waist + .010f, .032f),
@@ -98,11 +95,14 @@ public static partial class ActorArt3D
             }
             b.Sphere(P(0, head - .028f, -.016f), new(.045f, .033f, .039f), hair, 7, 4);
             b.Tube(new[] { P(-.030f, head - .009f, -.048f), P(0, head - .016f, -.052f), P(.030f, head - .009f, -.048f) }, .007f, hair, 5);
-            b.Sphere(P(0, head + .059f, 0), new(.057f, .041f, .049f), navy, 8, 5);
-            var brim = new[] { P(-.107f, head + .038f, .022f), P(0, head + .094f, -.074f),
-                P(.107f, head + .038f, .022f), P(0, head + .060f, .072f) };
-            b.Polygon(brim, navy, Vector3.Up); b.Polygon(brim, navy, Vector3.Down);
-            b.ClosedTube(brim, .005f, Brass, 5);
+            Color hat = new("1b2f43"), gold = new("f7ca76");
+            b.Sphere(P(0, head + .033f, .007f), new(.059f, .017f, .048f), Coral, 8, 5);
+            b.Sphere(P(0, head + .066f, 0), new(.066f, .046f, .053f), hat, 8, 5);
+            var brim = new[] { P(-.125f, head + .041f, .018f), P(-.071f, head + .068f, -.054f),
+                P(0, head + .105f, -.083f), P(.071f, head + .068f, -.054f), P(.125f, head + .041f, .018f),
+                P(.055f, head + .100f, .075f), P(0, head + .082f, .082f), P(-.055f, head + .100f, .075f) };
+            b.Polygon(brim, hat, Vector3.Up); b.Polygon(brim, hat, Vector3.Down);
+            b.ClosedTube(brim, .007f, gold, 5);
             b.Sphere(P(0, head + .068f, -.054f), new(.010f, .014f, .005f), cream, 6, 4);
         }
         else if (role == 1)

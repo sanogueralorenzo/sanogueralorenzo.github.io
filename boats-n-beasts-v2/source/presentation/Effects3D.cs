@@ -8,7 +8,7 @@ public partial class Effects3D : Node3D
 {
     static readonly Color Foam = new("bbdad2"), Aqua = new("68c4bc"), Coral = new("ef785d"), Cream = new("ffe0a3"), Magic = new("b59aed");
     static readonly Color WakeIvory = new("fff5e0"), CannonGold = new("ffc45f"), HostileOrange = new("ff8758");
-    const float PlayerWakeLife = 1.9f, WakeSternOffset = .74f;
+    const float PlayerWakeLife = 1.9f, PlayerWakeWidth = .34f, WakeSternOffset = .80f;
     const float HullFlashLife = .26f;
     readonly List<Sample> wake = new(80);
     readonly Dictionary<Shot, List<Sample>> trails = new();
@@ -76,7 +76,7 @@ public partial class Effects3D : Node3D
         }
         SyncEncounters(voyage);
         foam.Begin(); solid.Begin(); ballCount = 0;
-        DrawWake(foam, wake, time, .31f, PlayerWakeLife, 1, WakeIvory);
+        DrawWake(foam, wake, time, PlayerWakeWidth, PlayerWakeLife, 1, WakeIvory);
         float speed = voyage.Velocity.Length();
         if (speed > 20)
             DrawHullFoam(foam, World(voyage.Position), Forward(voyage.Heading), Mathf.SmoothStep(20, 155, speed));
@@ -159,7 +159,7 @@ public partial class Effects3D : Node3D
             history.Add(new(point, heading, PlayerWakeLife * (1 - age)));
         }
         mesh.Begin();
-        DrawWake(mesh, history, PlayerWakeLife, .31f, PlayerWakeLife, 1, WakeIvory);
+        DrawWake(mesh, history, PlayerWakeLife, PlayerWakeWidth, PlayerWakeLife, 1, WakeIvory);
         DrawHullFoam(mesh, boatPosition + Vector3.Up * .035f, forward, 1);
         mesh.End();
         return root;
@@ -172,10 +172,11 @@ public partial class Effects3D : Node3D
         {
             Vector3 Point(float along, float across) => position + forward * along + side * (across * sign);
             Color white = Fade(WakeIvory, strength * (sign < 0 ? .97f : .78f));
-            mesh.Ribbon(Point(-.81f, .19f), Point(-.57f, .35f), .035f, .055f, white);
-            mesh.Ribbon(Point(-.57f, .35f), Point(-.20f, .46f), .055f, .008f, white);
-            mesh.Ribbon(Point(.26f, .43f), Point(.63f, .34f), .009f, .028f, white);
-            mesh.Ribbon(Point(.63f, .34f), Point(.88f, .18f), .028f, .006f, white);
+            mesh.Ribbon(Point(-.94f, .19f), Point(-.81f, .37f), .035f, .053f, white);
+            mesh.Ribbon(Point(-.81f, .37f), Point(-.55f, .49f), .053f, .051f, white);
+            mesh.Ribbon(Point(-.55f, .49f), Point(-.20f, .53f), .051f, .008f, white);
+            mesh.Ribbon(Point(.26f, .47f), Point(.63f, .35f), .009f, .028f, white);
+            mesh.Ribbon(Point(.63f, .35f), Point(.88f, .18f), .028f, .006f, white);
         }
     }
 

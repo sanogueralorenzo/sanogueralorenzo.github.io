@@ -16,6 +16,10 @@ public static partial class EnvironmentArt3D
         float r = place.Radius * .01f;
         if (place.Kind == PlaceKind.Rock)
         {
+            float heading = .28f + place.Style % 11 * .17f;
+            art.ShoreFoam.Add((Vector2.Zero, new(r * .93f, r * .87f), heading, Math.Clamp(r * .052f, .014f, .040f)));
+            art.ShoreFoam.Add((new(-r * .48f, r * .50f), new(r * .43f, r * .40f), heading + 1.9f,
+                Math.Clamp(r * .034f, .013f, .031f)));
             Land(art, r * .88f, place.Style, true);
             Rock(art, new(0, .04f, 0), new(r * 1.7f, r * 1.65f, r * 1.5f), place.Style);
             Rock(art, new(-r * .48f, .01f, r * .5f), new(r * .8f, r * .65f, r * .7f), place.Style + 21);
@@ -24,7 +28,6 @@ public static partial class EnvironmentArt3D
         {
             bool lighthouse = place.Kind == PlaceKind.Island && SettlementKind(r, place.Style) == 6;
             bool sandbank = place.Kind == PlaceKind.Island && IsSandbank(place.Radius, place.Style);
-            Land(art, r, place.Style, false, place.Shape, lighthouse || sandbank);
             art.Footprint = place.Shape;
             art.BeachReserve = BeachWidth(r, place.Style);
             art.HeightScale = place.Shape == null ? 1 : MathF.Min(1, 2.1f / r) * .78f;
@@ -53,20 +56,24 @@ public static partial class EnvironmentArt3D
                     ShoreRocks(art, r, place.Style);
                 }
             }
+            var old = art.BeginWorldProp();
+            Land(art, r, place.Style, false, art.Footprint, lighthouse, sandbank);
+            art.EndProp(old);
         }
         return art.Finish("Environment_" + place.Kind);
     }
 
     private static bool IsSandbank(float radius, uint seed) =>
-        radius < 135 || (radius < 240 && seed % 5 == 4 && SettlementKind(radius * .01f, seed) < 0);
+        radius < 135 || ((radius < 240 && seed % 5 == 4 || radius < 410 && seed % 11 == 4) && SettlementKind(radius * .01f, seed) < 0);
 
     private static void SandbankRocks(Sculptor art, float radius, uint seed)
     {
         var rng = new SeedRandom(seed ^ 0xbf47u);
         var slope = new Vector2(.29f, .08f).Rotated(rng.Range(0, Mathf.Tau)) * radius;
-        Rock(art, new(slope.X, .13f, slope.Y), new Vector3(.68f, .39f, .62f) * radius, rng.Next());
+        float size = MathF.Min(radius, 2.40f);
+        Rock(art, new(slope.X, .13f, slope.Y), new Vector3(.68f, .39f, .62f) * size, rng.Next());
         Rock(art, new(slope.X * .44f, .13f, slope.Y * .44f - radius * .29f),
-            new Vector3(.34f, .23f, .36f) * radius, rng.Next());
+            new Vector3(.34f, .23f, .36f) * size, rng.Next());
     }
 
     // Unit-scale cottage with its origin at floor level.
@@ -91,7 +98,7 @@ public static partial class EnvironmentArt3D
             ? depth * .01f * dryCoast : 0;
     }
 
-    private static void IslandLand(Sculptor art, IslandShape shape, float r, uint seed, bool sandy)
+    private static void IslandLand(Sculptor art, IslandShape shape, float r, uint seed, bool sandy, float[]? inlet)
     {
         int layers = Math.Max(24, (int)MathF.Ceiling(r / .12f));
         var points = new Vector3[layers + 1, IslandShape.Sides];
@@ -101,8 +108,11 @@ public static partial class EnvironmentArt3D
         for (int layer = 0; layer <= layers; layer++) for (int i = 0; i < IslandShape.Sides; i++)
         {
             float reach = layer / (float)layers * 1.02f;
-            var p = shape.Shore[i] * (.01f * reach);
-            float d = InlandClearance(shape, new(p.X, p.Y));
+            float inset = inlet?[i] ?? 0;
+            var shore = shape.Shore[i];
+            var p = shore * (.01f * reach);
+            if (inset > 0) p -= System.Numerics.Vector2.Normalize(shore) * (inset * reach / .98f);
+            float d = MathF.Max(0, InlandClearance(shape, new(p.X, p.Y)) - inset * Mathf.SmoothStep(.52f, .965f, reach));
             clearance[layer, i] = d;
             float height = reach > .965f ? Mathf.Lerp(.018f, .007f, (reach - .965f) / .055f)
                 : Mathf.Lerp(.018f, .20f, Mathf.SmoothStep(0, beach + .28f, d));
@@ -137,7 +147,62 @@ public static partial class EnvironmentArt3D
                 Vector3.Up, Vector3.Up, Vector3.Up, "ground", GroundUv(la, ia), GroundUv(lb, ib), GroundUv(lc, ic)));
     }
 
-    private static void Land(Sculptor art, float r, uint seed, bool rock, IslandShape? shape = null, bool sandy = false)
+    private static float[]? LighthouseInlet(Sculptor art, Vector2[] coast)
+    {
+        if (art.JettySpace is not { } pier) return null;
+        var direction = (pier.End - pier.Start).Normalized();
+        float length = pier.Start.DistanceTo(pier.End) - LighthousePierApproach;
+        float cutback = Math.Clamp(length * .74f, .28f, .84f);
+        var inset = new float[coast.Length];
+        for (int i = 0; i < coast.Length; i++)
+        {
+            var point = coast[i];
+            float station = (point - pier.Start).Dot(direction) - LighthousePierApproach;
+            float across = MathF.Abs((point - pier.End).Cross(direction));
+            var ray = point.Normalized();
+            float depth = cutback * (1 - Mathf.SmoothStep(pier.Width, pier.Width + LighthouseInletShoulder, across));
+            float room = (station - length * .12f) / MathF.Max(.1f, ray.Dot(direction));
+            inset[i] = Math.Clamp(depth, 0, MathF.Max(0, room));
+            if (inset[i] > 0 && art.TreasureSpace is { } treasure &&
+                new Vector2(treasure.X, treasure.Y).DistanceTo(Geometry2D.GetClosestPointToSegment(new(treasure.X, treasure.Y), point, point - ray * inset[i])) < .55f)
+                return null;
+        }
+        return inset;
+    }
+
+    private static void PaintShoreFoam(Sculptor art, Vector2[]? coast, float[]? inlet)
+    {
+        if (art.ShoreFoam.Count == 0) return;
+        var dry = coast?.Select((point, i) => (point - point.Normalized() * (inlet?[i] ?? 0)) * (.99f / .98f)).ToArray();
+        Color cream = new("fff5d8");
+        const int segments = 10;
+        bool Wet(Vector3 point) => dry == null || !Geometry2D.IsPointInPolygon(new(point.X, point.Z), dry);
+        foreach (var arc in art.ShoreFoam)
+        {
+            var outward = Vector2.FromAngle(arc.Heading);
+            var tangent = new Vector2(-outward.Y, outward.X);
+            Vector3 Point(int segment, float edge)
+            {
+                float t = segment / (float)segments;
+                float angle = Mathf.Lerp(-1.23f, 1.23f, t);
+                float taper = MathF.Sin(Mathf.Pi * t) * (.94f + .17f * Mathf.Sin(t * 7 + arc.Heading));
+                float thickness = arc.Width * MathF.Max(0, taper) * edge;
+                var point = arc.Center + outward * (Mathf.Cos(angle) * (arc.Radii.X + thickness)) +
+                    tangent * (Mathf.Sin(angle) * (arc.Radii.Y + thickness));
+                return new(point.X, .025f, point.Y);
+            }
+            for (int i = 0; i < segments; i++)
+            {
+                var a = Point(i, -.5f); var b = Point(i + 1, -.5f);
+                var c = Point(i + 1, .5f); var d = Point(i, .5f);
+                if (!Wet(a) || !Wet(b) || !Wet(c) || !Wet(d) || !Wet((a + b + c + d) * .25f)) continue;
+                art.Triangle(a, b, d, cream, cream, cream, Vector3.Up, Vector3.Up, Vector3.Up, "shoreFoam");
+                art.Triangle(b, c, d, cream, cream, cream, Vector3.Up, Vector3.Up, Vector3.Up, "shoreFoam");
+            }
+        }
+    }
+
+    private static void Land(Sculptor art, float r, uint seed, bool rock, IslandShape? shape = null, bool lighthouse = false, bool sandbank = false)
     {
         const int sides = IslandShape.Sides;
         float[] radii = [0, .43f, .66f, .82f, .965f, 1.02f];
@@ -157,7 +222,6 @@ public static partial class EnvironmentArt3D
             float reach = radii[layer] * inland;
             return CoastPoint(a, reach, heights[layer]);
         }
-        if (!rock && shape != null) IslandLand(art, shape, r, seed, sandy);
         if (!rock && shape == null) for (int layer = 0; layer < radii.Length - 1; layer++)
             for (int i = 0; i < sides; i++)
             {
@@ -172,8 +236,11 @@ public static partial class EnvironmentArt3D
             var p = CoastPoint(i * Mathf.Tau / sides, .98f, .014f);
             return new Vector2(p.X, p.Z);
         }).ToArray();
+        var inlet = lighthouse ? LighthouseInlet(art, coast) : null;
+        if (shape != null) IslandLand(art, shape, r, seed, lighthouse || sandbank, inlet);
         float shelfWidth = Math.Clamp(r * .60f, .50f, 2.8f)
             * new SeedRandom(seed ^ 0x4ee7u).Range(.90f, 1.10f);
+        if (sandbank && r >= 2.4f) shelfWidth *= 1.30f;
         var shelf = new Vector3[9, sides];
         for (int layer = 0; layer <= 8; layer++)
         {
@@ -226,7 +293,13 @@ public static partial class EnvironmentArt3D
             i %= sides;
             float at = layer * widths[i];
             int inner = (int)at;
-            return shelf[inner, i].Lerp(shelf[Math.Min(8, inner + 1), i], at - inner);
+            var point = shelf[inner, i].Lerp(shelf[Math.Min(8, inner + 1), i], at - inner);
+            if (inlet != null && inlet[i] > 0 && layer < 4)
+            {
+                var shift = coast[i].Normalized() * (inlet[i] * (1 - layer * .25f));
+                point -= new Vector3(shift.X, 0, shift.Y);
+            }
+            return point;
         }
         float CoastAngle(int i) => (i == sides ? 1 : alongCoast[i] / perimeter) * Mathf.Tau;
         for (int layer = 0; layer < 8; layer++) for (int i = 0; i < sides; i++)
@@ -238,6 +311,7 @@ public static partial class EnvironmentArt3D
             art.Triangle(a,b,d,color,color,color,Vector3.Up,Vector3.Up,Vector3.Up,"shelf",U(layer,i),U(layer,i+1),U(layer+1,i));
             art.Triangle(b,c,d,color,color,color,Vector3.Up,Vector3.Up,Vector3.Up,"shelf",U(layer,i+1),U(layer+1,i+1),U(layer+1,i));
         }
+        PaintShoreFoam(art, rock ? null : coast, inlet);
     }
 
     private static void ShoreRocks(Sculptor art, float r, uint seed)
@@ -444,22 +518,30 @@ public static partial class EnvironmentArt3D
     private static void Palm(Sculptor art, Vector3 at, float height, uint seed, float setback = .84f)
     {
         var old = art.PlaceProp(at, height * setback);
-        at = Vector3.Zero;
-        float lean = (.11f + seed % 7 * .014f) * height;
-        float yaw = seed % 29;
-        var bend = new Vector3(Mathf.Cos(yaw), 0, Mathf.Sin(yaw)) * lean;
+        var rng = new SeedRandom(seed ^ 0x91b4u);
+        float yaw = rng.Range(0, Mathf.Tau);
+        var bend = new Vector3(Mathf.Cos(yaw), 0, Mathf.Sin(yaw)) * (rng.Range(.16f, .23f) * height);
+        Vector3 Stem(float t) => bend * (t * (.35f + .65f * t)) + Vector3.Up * height * t;
+        Vector3 Bark(int side, float t)
+        {
+            float angle = side * Mathf.Tau / 5 + yaw;
+            return Stem(t) + new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)) * (height * (.055f - t * .026f));
+        }
+        Color trunk = new("905a42");
         for (int i = 0; i < 4; i++)
         {
             float t = i / 4f, t1 = (i + 1) / 4f;
-            art.Tube(at + bend * t * t + Vector3.Up * height * t, at + bend * t1 * t1 + Vector3.Up * height * t1,
-                height * (.046f - t * .020f), height * (.046f - t1 * .020f), new Color("946048").Lightened(i % 2 * .055f), 5);
+            for (int side = 0; side < 5; side++)
+                art.Quad(Bark(side + 1, t), Bark(side, t), Bark(side, t1), Bark(side + 1, t1), trunk.Lightened(i % 2 * .07f));
         }
-        Vector3 crown = at + bend + Vector3.Up * height;
+        Vector3 crown = Stem(1);
+        float rotation = rng.Range(0, Mathf.Tau);
         for (int i = 0; i < 7; i++)
         {
-            float a = i * Mathf.Tau / 7 + seed % 23;
-            Frond(art, crown, a, height * (.55f + .08f * Mathf.Sin(i * 4.7f)), height * .165f, height * (.085f + i % 3 * .030f),
-                Leaf.Lerp(new Color("aabc4d"), .20f + (i % 4) * .18f));
+            float a = i * Mathf.Tau / 7 + rotation + rng.Range(-.16f, .16f);
+            float sweep = rng.Range(-.15f, .20f);
+            Frond(art, crown, a, height * rng.Range(.44f, .67f), height * rng.Range(.12f, .17f),
+                height * rng.Range(.095f, .17f), new Color("78a43e").Lerp(new Color("b3c952"), rng.Range(0, .65f)), sweep);
         }
         art.Boulder(crown - Vector3.Up * height * .035f, Vector3.One * height * .094f, new("865742"), seed);
         art.EndProp(old);
@@ -476,21 +558,24 @@ public static partial class EnvironmentArt3D
         art.EndProp(old);
     }
 
-    private static void Frond(Sculptor art, Vector3 at, float angle, float length, float width, float lift, Color color)
+    private static void Frond(Sculptor art, Vector3 at, float angle, float length, float width, float lift, Color color, float sweep = 0)
     {
         Vector3 forward = new(Mathf.Cos(angle), 0, Mathf.Sin(angle)), side = new(-forward.Z, 0, forward.X);
-        (Vector3 Left, Vector3 Spine, Vector3 Right) Section(float t)
+        (Vector3 Left, Vector3 Spine, Vector3 Right) Section(float t, float widthScale)
         {
-            float w = width * Mathf.Sin(Mathf.Pi * t) * (1 - t * .24f);
-            var center = at + forward * length * t + Vector3.Up * (Mathf.Sin(Mathf.Pi * t) * lift - length * .24f * t * t);
-            return (center - side * w, center + Vector3.Up * w * .36f, center + side * w);
+            float w = width * widthScale;
+            var center = at + forward * length * t + side * (length * sweep * t * t) +
+                Vector3.Up * (Mathf.Sin(Mathf.Pi * t) * lift - length * .26f * t * t);
+            return (center - side * w - forward * w * .13f, center + Vector3.Up * w * .42f,
+                center + side * w * .82f + forward * w * .17f);
         }
-        float[] sections = [0, .29f, .56f, .78f, 1];
+        Vector2[] sections = [new(0, 0), new(.30f, .68f), new(.55f, 1), new(.79f, .48f), new(1, 0)];
         for (int i = 0; i < sections.Length - 1; i++)
         {
-            var a = Section(sections[i]); var b = Section(sections[i + 1]);
-            art.Quad(a.Left, a.Spine, b.Spine, b.Left, color.Darkened(.085f));
-            art.Quad(a.Spine, a.Right, b.Right, b.Spine, color.Lightened(.12f));
+            var a = Section(sections[i].X, sections[i].Y);
+            var b = Section(sections[i + 1].X, sections[i + 1].Y);
+            art.Quad(a.Left, a.Spine, b.Spine, b.Left, color.Darkened(.13f));
+            art.Quad(a.Spine, a.Right, b.Right, b.Spine, color.Lightened(.10f));
         }
     }
 
@@ -506,6 +591,7 @@ public static partial class EnvironmentArt3D
         public System.Numerics.Vector2? TreasureSpace;
         public (Vector2 Center, float Radius)? LandmarkSpace;
         public (Vector2 Start, Vector2 End, float Width)? JettySpace;
+        public readonly List<(Vector2 Center, Vector2 Radii, float Heading, float Width)> ShoreFoam = [];
         private int propDepth;
         private int hiddenPropDepth;
         public Transform3D BeginWorldProp()
@@ -673,14 +759,14 @@ public static partial class EnvironmentArt3D
                     material = key switch
                     {
                         "shelf" => new ShaderMaterial { Shader = GD.Load<Shader>("res://source/presentation/EnvironmentShallows.gdshader"), RenderPriority = -1 },
-                        "lantern" => new StandardMaterial3D { VertexColorUseAsAlbedo = true, VertexColorIsSrgb = true, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, CullMode = BaseMaterial3D.CullModeEnum.Disabled },
+                        "lantern" or "shoreFoam" => new StandardMaterial3D { VertexColorUseAsAlbedo = true, VertexColorIsSrgb = true, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, CullMode = BaseMaterial3D.CullModeEnum.Disabled },
                         "ground" => new ShaderMaterial { Shader = GD.Load<Shader>("res://source/presentation/island-ground.gdshader") },
                         _ => DioramaSurface.Material
                     };
                     Materials.Add(key, material);
                 }
                 surface.SetMaterial(material); surface.Index();
-                root.AddChild(new MeshInstance3D { Name = key, Mesh = surface.Commit(), CastShadow = key == "shelf" ? GeometryInstance3D.ShadowCastingSetting.Off : GeometryInstance3D.ShadowCastingSetting.On });
+                root.AddChild(new MeshInstance3D { Name = key, Mesh = surface.Commit(), CastShadow = key is "shelf" or "shoreFoam" ? GeometryInstance3D.ShadowCastingSetting.Off : GeometryInstance3D.ShadowCastingSetting.On });
                 surface.Dispose();
             }
             return root;

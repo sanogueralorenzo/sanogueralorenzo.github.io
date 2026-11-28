@@ -5,46 +5,18 @@ namespace BoatsNBeasts;
 
 public static partial class EnvironmentArt3D
 {
-    private static void Lighthouse(Sculptor art, uint seed, float spread, float bluff)
+    private static Vector2 LighthouseBase(float spread) => new(-.04f - spread * .22f, -.10f - spread * .15f);
+    private static float LighthouseBaseHeight(float spread) => .55f + spread * .09f;
+
+    private static void Lighthouse(Sculptor art, float spread)
     {
-        Color coral = new("eb624d"), cream = new("f8e1b0"), frame = new("323848"), rail = new("a96747");
+        Color coral = new("ec634e"), cream = new("f8e1b0"), frame = new("283d4a");
+        Color wood = new("87523f"), brass = new("c58455"), roof = new("f56e52");
         var origin = art.Transform;
-        Vector2[] shoreLedge = [
-            new(-1.06f, -.27f), new(-.80f, -.77f), new(-.26f, -.99f), new(.26f, -.91f),
-            new(.51f + spread * .18f, -.72f), new(.78f + spread * .40f, -.67f - spread * .12f),
-            new(1.05f + spread * .54f, -.32f), new(1.08f + spread * .55f, .16f),
-            new(.81f + spread * .54f, .66f), new(.39f + spread * .27f, .85f), new(-.18f, 1.06f),
-            new(-.57f, .86f), new(-.99f, .44f)
-        ];
-        float ledgeHeight = .28f + spread * .075f;
-        SandstoneShelf(art, Vector2.Zero, shoreLedge, -.11f, ledgeHeight, seed);
-        if (spread > .55f)
-        {
-            Vector2[] apron = [new(-.40f, -.16f), new(.06f, -.28f), new(.39f, -.14f),
-                new(.41f, .15f), new(.11f, .33f), new(-.26f, .32f), new(-.42f, .11f)];
-            SandstoneShelf(art, new(-.28f, .98f), apron, -.11f, .19f + spread * .025f, seed + 30);
-        }
-        if (bluff > .48f) LighthouseBluff(art, bluff, seed);
-
-        var terrace = new Vector2(-.04f - spread * .22f, -.10f - spread * .15f);
-        float terraceHeight = .55f + spread * .09f;
-        Vector2 terraceSize = new(1 + spread * .15f, 1 + spread * .08f);
-        Vector2[] upperLedge = [
-            new(-.89f, -.28f), new(-.63f, -.70f), new(-.17f, -.86f), new(.45f, -.75f), new(.79f, -.46f),
-            new(.93f, .10f), new(.71f, .58f), new(.29f, .78f), new(-.25f, .88f), new(-.69f, .65f), new(-.88f, .24f)
-        ];
-        for (int i = 0; i < upperLedge.Length; i++) upperLedge[i] *= terraceSize;
-        SandstoneShelf(art, terrace, upperLedge, -.11f, terraceHeight, seed + 17);
-
-        Shrub(art, new(-.29f, ledgeHeight - .02f, .79f), .20f, seed + 65);
-        if (spread > .52f)
-        {
-            Shrub(art, new(1.06f * spread + .20f, ledgeHeight - .02f, .22f), .24f, seed + 24);
-            Shrub(art, new(.88f * spread + .20f, ledgeHeight - .02f, -.34f), .15f, seed + 61);
-        }
-
+        var terrace = LighthouseBase(spread);
         float widthScale = 1 + spread * .18f;
-        art.Transform *= new Transform3D(Basis.Identity.Scaled(new(widthScale, 1, widthScale)), new(terrace.X, terraceHeight - .005f, terrace.Y));
+        art.Transform *= new Transform3D(Basis.Identity.Scaled(new(widthScale, 1, widthScale)),
+            new(terrace.X, LighthouseBaseHeight(spread) - .005f, terrace.Y));
         Vector3 RingPoint(int side, float y, float radius)
         {
             float angle = (side + .5f) * Mathf.Tau / 8;
@@ -61,44 +33,51 @@ public static partial class EnvironmentArt3D
             }
         }
 
-        Band(0, .15f, .66f, .66f, coral, true);
+        Band(0, .15f, .69f, .69f, coral, true);
         Band(.15f, .50f, .60f, .55f, cream);
         Band(.50f, .93f, .55f, .48f, coral);
         Band(.93f, 1.30f, .48f, .42f, cream);
-        Band(1.30f, 1.53f, .42f, .38f, coral);
-        Band(1.53f, 1.61f, .39f, .58f, rail);
-        Band(1.61f, 1.68f, .58f, .58f, cream, true);
-        Band(1.68f, 1.73f, .39f, .39f, frame);
+        Band(1.30f, 1.48f, .42f, .38f, coral);
+        Band(1.48f, 1.57f, .39f, .51f, wood);
+        Band(1.57f, 1.63f, .51f, .55f, brass);
+        Band(1.63f, 1.67f, .55f, .55f, cream, true);
+        Band(1.67f, 1.73f, .37f, .37f, brass);
+        Band(1.73f, 1.76f, .354f, .354f, frame);
 
         for (int i = 0; i < 8; i++)
         {
-            var a = RingPoint(i, 1.73f, .38f);
-            var b = RingPoint(i + 1, 1.73f, .38f);
-            var rise = Vector3.Up * .41f;
+            var a = RingPoint(i, 1.75f, .341f);
+            var b = RingPoint(i + 1, 1.75f, .341f);
+            var rise = Vector3.Up * .38f;
             var normal = (a - b).Cross(rise).Normalized();
-            Color glass = new Color("a4dfd5").Lerp(new Color("75bcbc"), i % 3 * .28f);
+            Color glass = new Color("b7ecdc").Lerp(new Color("79c1be"), i % 3 * .29f);
             art.Triangle(b, a, a + rise, glass, glass, glass, normal, normal, normal, "lantern");
             art.Triangle(b, a + rise, b + rise, glass, glass, glass, normal, normal, normal, "lantern");
-            art.Tube(a, a + rise, .020f, .020f, frame, 5);
+            art.Tube(a, a + rise, .023f, .023f, frame, 5);
 
-            var post = RingPoint(i, 1.67f, .55f);
-            var railHeight = Vector3.Up * .14f;
-            art.Tube(post, post + railHeight, .023f, .023f, rail, 4);
-            art.Tube(post + railHeight, RingPoint(i + 1, 1.81f, .55f), .023f, .023f, rail, 4);
+            var post = RingPoint(i, 1.66f, .505f);
+            var next = RingPoint(i + 1, 1.66f, .505f);
+            var railHeight = Vector3.Up * .19f;
+            var upright = (post + next) * .5f;
+            art.Tube(post, post + railHeight, .027f, .025f, wood, 4);
+            art.Tube(upright, upright + railHeight, .018f, .018f, wood, 4);
+            art.Tube(post + railHeight, next + railHeight, .026f, .026f, brass, 4);
+            art.Tube(post + Vector3.Up * .066f, next + Vector3.Up * .066f, .013f, .013f, wood, 4);
         }
-
-        Band(2.14f, 2.22f, .45f, .49f, coral.Darkened(.15f));
-        Band(2.22f, 2.48f, .49f, .16f, coral, true);
-        Band(2.48f, 2.56f, .13f, .10f, rail, true);
-        art.Tube(new(0, 2.54f, 0), new(0, 3.19f, 0), .018f, .018f, rail, 5);
+        Band(2.10f, 2.15f, .37f, .37f, frame);
+        Band(2.15f, 2.20f, .385f, .437f, roof.Darkened(.31f));
+        Band(2.20f, 2.245f, .437f, .448f, roof.Darkened(.11f));
+        Band(2.245f, 2.56f, .448f, .125f, roof, true);
+        Band(2.56f, 2.64f, .125f, .094f, brass, true);
+        art.Tube(new(0, 2.62f, 0), new(0, 3.19f, 0), .018f, .018f, wood, 5);
         art.Tube(new(0, 3.18f, 0), new(0, 3.22f, 0), .028f, .028f, cream, 5);
-        art.Quad(new(0, 3.16f, 0), new(.21f, 3.19f, .04f), new(.19f, 3.01f, .04f), new(0, 2.99f, 0), coral);
-        art.Quad(new(.21f, 3.19f, .04f), new(.40f, 3.14f, -.02f), new(.38f, 3.00f, -.02f), new(.19f, 3.01f, .04f), coral.Lightened(.05f));
-        art.Face(new(.40f, 3.14f, -.02f), new(.56f, 3.17f, 0), new(.38f, 3.00f, -.02f), coral);
+        art.Quad(new(0, 3.16f, 0), new(.20f, 3.19f, .055f), new(.18f, 2.98f, .055f), new(0, 2.96f, 0), coral);
+        art.Quad(new(.20f, 3.19f, .055f), new(.38f, 3.12f, -.028f), new(.36f, 2.99f, -.028f), new(.18f, 2.98f, .055f), coral.Lightened(.08f));
+        art.Face(new(.38f, 3.12f, -.028f), new(.59f, 3.16f, 0), new(.36f, 2.99f, -.028f), coral);
 
         var tower = art.Transform;
-        Opening(0, .155f, .560f, .16f, .22f);
-        Opening(Mathf.Pi / 4, .975f, .444f, .12f, .17f);
+        Opening(0, .155f, .560f, .135f, .28f);
+        Opening(Mathf.Pi / 4, .975f, .444f, .095f, .19f);
         art.Transform = origin;
 
         void Opening(float yaw, float baseHeight, float depth, float width, float height)
@@ -115,39 +94,149 @@ public static partial class EnvironmentArt3D
         }
     }
 
-    private static void LighthouseBluff(Sculptor art, float reach, uint seed)
+    private static bool LighthouseHeadland(Sculptor art, uint seed, float spread)
     {
-        var crest = new Vector2(.96f + .34f * reach, -.48f - .28f * reach);
-        float height = .37f + .065f * reach;
-        Vector2[] shoulder = [
-            new(-.66f, -.18f), new(-.47f, -.57f), new(.04f, -.65f), new(.48f, -.55f), new(.70f, -.39f),
-            new(.88f, -.13f), new(.74f, .16f), new(.47f, .27f), new(.19f, .44f), new(-.18f, .34f), new(-.56f, .45f)
+        Vector2[] lowerRim = [
+            new(-1.05f, -.27f), new(-.78f, -.68f), new(-.27f, -.96f), new(.29f, -.90f),
+            new(.68f, -.70f), new(1.02f, -.39f), new(1.08f, .18f), new(.87f, .44f),
+            new(.80f, .70f), new(.37f, .90f), new(-.13f, 1.06f), new(-.53f, .93f),
+            new(-.64f, .72f), new(-.96f, .52f), new(-1.10f, .18f)
         ];
-        for (int i = 0; i < shoulder.Length; i++) shoulder[i] *= .68f + .32f * reach;
-        SandstoneShelf(art, crest, shoulder, -.11f, height, seed + 26);
-        Palm(art, new(crest.X + .30f, height - .015f, crest.Y - .10f), 1.19f, seed + 53);
-        Shrub(art, new(crest.X + .46f, height - .025f, crest.Y - .06f), .20f, seed + 103);
-        Pennants(art, new(crest.X + .13f, height - .013f, crest.Y + .19f), .65f, -.25f);
+        Vector2[] extensions = [
+            new(-.19f, -.15f), new(-.03f, -.20f), new(.18f, -.18f), new(.10f, -.26f),
+            new(.68f, -.36f), new(.80f, -.21f), new(1.15f, .10f), new(.84f, .16f),
+            new(.74f, .32f), new(.37f, .32f), new(.10f, .43f), new(-.20f, .39f),
+            new(-.28f, .05f), new(-.36f, .11f), new(-.28f, -.02f)
+        ];
+        float extension = 0;
+        for (float trial = spread; trial > .1f; trial -= .20f)
+        {
+            var widerRim = lowerRim.Select((point, i) => point + extensions[i] * trial).ToArray();
+            if (!FitsShelf(art, Vector2.Zero, widerRim)) continue;
+            lowerRim = widerRim;
+            extension = trial;
+            break;
+        }
+        float ledgeHeight = .28f + extension * .065f;
+        var lower = SandstoneShelf(art, Vector2.Zero, lowerRim, -.13f, ledgeHeight, seed);
+
+        var terrace = LighthouseBase(spread);
+        Vector2[] upperRim = [
+            new(-.82f, -.36f), new(-.56f, -.69f), new(-.13f, -.87f), new(.39f, -.73f),
+            new(.74f, -.49f), new(.86f, -.15f), new(.81f, .30f), new(.59f, .60f),
+            new(.20f, .74f), new(-.38f, .82f), new(-.67f, .62f), new(-.91f, .20f)
+        ];
+        for (int i = 0; i < upperRim.Length; i++) upperRim[i] *= 1 + spread * .16f;
+        if (!FitsShelf(art, terrace, upperRim))
+            for (int i = 0; i < upperRim.Length; i++) upperRim[i] *= .94f;
+        SandstoneShelf(art, terrace, upperRim, -.13f, LighthouseBaseHeight(spread), seed + 17);
+
+        Shrub(art, ShelfPlant(lower, new(-.38f, .73f), .15f), .22f, seed + 65);
+        if (extension > .4f)
+        {
+            Shrub(art, ShelfPlant(lower, new(.96f, .64f), .17f), .25f, seed + 24);
+            Shrub(art, ShelfPlant(lower, new(1.12f, .66f), .10f), .14f, seed + 61);
+            Shrub(art, ShelfPlant(lower, new(-.53f, .96f), .09f), .13f, seed + 74);
+            var spur = new Vector2(-.44f, .92f + extension * .36f);
+            Vector2[] toe = [new(-.36f, -.12f), new(-.14f, -.25f), new(.26f, -.23f),
+                new(.39f, .04f), new(.18f, .28f), new(-.18f, .26f), new(-.34f, .11f)];
+            if (FitsShelf(art, spur, toe))
+                SandstoneShelf(art, spur, toe, -.13f, .15f, seed + 30);
+        }
+
+        var shoulder = new Vector2(.99f, -.76f);
+        Vector2[] shoulderRim = [
+            new(-.67f, -.28f), new(-.35f, -.66f), new(.06f, -.74f), new(.42f, -.64f),
+            new(.81f, -.53f), new(.75f, -.27f), new(.59f, .06f), new(.43f, .28f),
+            new(.23f, .49f), new(-.07f, .35f), new(-.41f, .43f), new(-.68f, .16f)
+        ];
+        if (extension < .4f || !FitsShelf(art, shoulder, shoulderRim)) return false;
+
+        var raised = SandstoneShelf(art, shoulder, shoulderRim, -.13f, .49f, seed + 26);
+        Palm(art, ShelfPlant(raised, new(1.36f, -.93f), .09f), 1.33f, seed + 53);
+        Shrub(art, ShelfPlant(raised, new(1.48f, -.77f), .16f), .23f, seed + 103);
+        Shrub(art, ShelfPlant(raised, new(1.56f, -.91f), .09f), .13f, seed + 134);
+        Pennants(art, ShelfPlant(raised, new(1.15f, -.67f), .29f), .54f, -.25f);
+        return true;
     }
 
-    private static void SandstoneShelf(Sculptor art, Vector2 center, Vector2[] rim, float bottom, float top, uint seed)
+    private static Vector3 ShelfPlant((Vector3 Center, Vector2[] Outline) shelf, Vector2 preferred, float radius)
+    {
+        var (center, outline) = shelf;
+        var origin = new Vector2(center.X, center.Z);
+        for (int step = 0; step < 8; step++)
+        {
+            var point = preferred.Lerp(origin, step / 8f);
+            if (!Geometry2D.IsPointInPolygon(point, outline)) continue;
+            bool supported = true;
+            for (int i = 0; i < outline.Length; i++)
+            {
+                var edge = Geometry2D.GetClosestPointToSegment(point, outline[i], outline[(i + 1) % outline.Length]);
+                if (point.DistanceSquaredTo(edge) >= radius * radius) continue;
+                supported = false;
+                break;
+            }
+            if (supported) return new(point.X, center.Y - .026f, point.Y);
+        }
+        return center - Vector3.Up * .026f;
+    }
+
+    private static bool FitsShelf(Sculptor art, Vector2 center, Vector2[] rim)
+    {
+        var outline = rim.Select(point =>
+        {
+            var world = art.Transform * new Vector3(center.X + point.X, 0, center.Y + point.Y);
+            return new Vector2(world.X, world.Z);
+        }).ToArray();
+        Vector2? chest = art.TreasureSpace is { } treasure ? new Vector2(treasure.X, treasure.Y) : null;
+        var jetty = art.JettySpace;
+        if (chest is { } chestPoint && Geometry2D.IsPointInPolygon(chestPoint, outline) ||
+            jetty is { } pier && (Geometry2D.IsPointInPolygon(pier.Start, outline) || Geometry2D.IsPointInPolygon(pier.End, outline)))
+            return false;
+        float beach = MathF.Max(.13f, art.BeachReserve);
+        for (int i = 0; i < outline.Length; i++)
+        {
+            var start = outline[i];
+            var end = outline[(i + 1) % outline.Length];
+            int slices = Math.Max(1, (int)MathF.Ceiling(start.DistanceTo(end) / .14f));
+            for (int j = 0; j < slices; j++)
+            {
+                var point = start.Lerp(end, j / (float)slices);
+                if (InlandClearance(art.Footprint!, point) < beach ||
+                    chest is { } reserved && point.DistanceTo(reserved) < .55f ||
+                    jetty is { } dock && point.DistanceTo(Geometry2D.GetClosestPointToSegment(point, dock.Start, dock.End)) < dock.Width + .10f)
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    private static (Vector3 Center, Vector2[] Outline) SandstoneShelf(Sculptor art, Vector2 center, Vector2[] rim, float bottom, float top, uint seed)
     {
         var rng = new SeedRandom(seed ^ 0x67b3u);
-        for (int i = 0; i < rim.Length; i++) rim[i] *= rng.Range(.96f, 1f);
-
-        Color face = new("e5a27a"), cap = new("f8d69d");
-        Vector3 Point(int side, float y, float scale)
-        {
-            var p = center + rim[side % rim.Length] * scale;
-            return new(p.X, y, p.Y);
-        }
+        var foot = new Vector3[rim.Length];
+        var crest = new Vector3[rim.Length];
+        var outline = new Vector2[rim.Length];
+        var capCenter = new Vector3(center.X, top, center.Y);
         for (int i = 0; i < rim.Length; i++)
         {
-            var a = Point(i, top, .95f);
-            var b = Point(i + 1, top, .95f);
-            art.Quad(Point(i + 1, bottom, 1), Point(i, bottom, 1), a, b, face.Lightened(i % 3 * .035f));
-            art.Face(new(center.X, top, center.Y), b, a, cap);
+            var basePoint = center + rim[i] * rng.Range(.94f, 1);
+            var topPoint = center + rim[i] * rng.Range(.84f, .96f);
+            foot[i] = new(basePoint.X, bottom, basePoint.Y);
+            crest[i] = new(topPoint.X, top + rng.Range(-.020f, .012f), topPoint.Y);
+            outline[i] = topPoint;
         }
+
+        Color face = new("dd986f"), cap = new("f6d49b");
+        for (int i = 0; i < rim.Length; i++)
+        {
+            int next = (i + 1) % rim.Length;
+            var tone = face.Lerp(cap, rng.Range(0, .22f)).Darkened(rng.Range(0, .065f));
+            art.Face(foot[next], foot[i], crest[i], tone);
+            art.Face(foot[next], crest[i], crest[next], i % 4 == 1 ? tone.Lightened(.10f) : tone);
+            art.Face(capCenter, crest[next], crest[i], cap);
+        }
+        return (capCenter, outline);
     }
 
     private static void MarketStall(Sculptor art)

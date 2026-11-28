@@ -32,29 +32,27 @@ void fragment() {
     float broad = field(water*.107);
     float pockets = field(vec2(water.x*.14 - water.y*.11, water.x*.11 + water.y*.14) + 17.3);
     float tone = smoothstep(.14,.86,mix(broad,pockets,.27));
-    vec3 color = mix(vec3(.012,.425,.493), vec3(.021,.510,.557), tone);
-    vec2 axis = vec2(.97,-.24);
+    vec3 color = mix(vec3(.008,.467,.522), vec3(.015,.485,.539), tone);
+    vec2 axis = vec2(.95,-.31);
     vec2 tile = vec2(dot(world.xz, axis), dot(world.xz, vec2(-axis.y, axis.x))) / vec2(2.9, 2.4);
     float aa = max(fwidth(tile.y) * 1.44, .006);
     vec2 cell = floor(tile);
     float seed = hash(cell);
     float length_seed = hash(cell + 23.7);
-    float span = mix(.16,.65,length_seed*length_seed);
-    float margin = (span + .17) / 2.9;
+    float span = mix(.25,.70,length_seed);
+    float margin = (span + .20) / 2.9;
     vec2 center = vec2(mix(margin,1.0-margin,hash(cell + 8.4)), mix(.15,.85,hash(cell + 17.3)));
     vec2 p = (fract(tile) - center) * vec2(2.9, 2.4);
     p.x -= .12 * sin(clock*.35 + seed*6.283);
     p.y += .055 * sin(clock*.61 + seed*6.283) + p.x * (hash(cell + 40.2)-.5)*.33;
-    float width = mix(.018,.050,hash(cell + 9.7));
+    float width = mix(.028,.058,hash(cell + 9.7));
     float glint = stroke(p, span, width, mix(-.065,.10,seed), aa);
-    vec2 companion = vec2(-span*.44,mix(.095,.14,seed));
-    glint = max(glint, stroke(p - companion, span*.50, width*.52, -.04, aa) * step(.93,seed));
-    float threshold = mix(.50,.23,tone);
-    float presence = smoothstep(threshold-.07,threshold+.07,seed);
-    float ivory = smoothstep(.47,.80,hash(cell + 31.6));
-    vec3 reflection = mix(vec3(.28,.67,.67),vec3(.97,.96,.88),ivory);
-    float shimmer = mix(.76,1.0,.5+.5*sin(clock*.52+seed*9.0));
-    ALBEDO = linear_color(mix(color, reflection, glint * presence * shimmer * mix(.62,1.0,ivory)));
+    vec2 companion = vec2(-span*.61,mix(.075,.14,seed));
+    glint = max(glint, stroke(p - companion, span*.46, width*.56, -.04, aa) * step(.76,seed));
+    float presence = smoothstep(.48,.64,seed);
+    float shimmer = .98 + .02*sin(clock*.52+seed*9.0);
+    vec3 ivory = vec3(.965,.965,.918);
+    ALBEDO = linear_color(mix(color, ivory, glint * presence * shimmer));
 }
 
 void light() {

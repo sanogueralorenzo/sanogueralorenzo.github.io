@@ -387,7 +387,7 @@ public partial class Game : Node2D
             Bar(healthPosition, new(48, 6), r.Health / r.MaxHealth, new Color("ed4b55"));
             foreach (var enemy in r.Enemies.Where(e => e.Health < e.MaxHealth && e.Kind != EnemyKind.Leviathan))
             {
-                float height = enemy.Kind switch { EnemyKind.Crab => .96f, EnemyKind.Serpent => 1.1f, _ => .55f };
+                float height = enemy.Kind switch { EnemyKind.Crab => 1.07f, EnemyKind.Serpent => 1.1f, _ => .55f };
                 var at = Game.ocean.ElevatedScreen(enemy.Position, height) + new Vector2(-17, -8);
                 Bar(at, new(34, 4), enemy.Health / enemy.MaxHealth, NauticalPalette.Coral);
             }

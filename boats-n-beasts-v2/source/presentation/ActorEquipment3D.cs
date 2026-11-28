@@ -46,11 +46,28 @@ public static partial class ActorArt3D
             case 0:
                 b.Sphere(P(0, .074f, .01f), R(.094f, .085f, .115f), iron);
                 b.Tube(new[] { P(-.12f, .065f, .008f), P(.12f, .065f, .008f) }, .032f * s, Brass, 10);
-                b.Tube(new[] { P(0, .088f, -.025f), P(0, .108f, -.255f) }, new[] { .058f * s, .042f * s }, iron, 14);
-                b.Tube(new[] { P(0, .105f, -.218f), P(0, .111f, -.269f) }, .054f * s, new("63777a"), 14);
-                b.Sphere(P(0, .112f, -.274f), R(.037f, .037f, .004f), Pupil, 14, 8);
+                var breech = P(0, .088f, -.025f);
+                var muzzle = P(0, .114f, -.219f);
+                var forward = (muzzle - breech).Normalized();
+                var up = Vector3.Right.Cross(forward).Normalized();
+                b.Tube([breech, muzzle - forward * .025f * s], [.060f * s, .046f * s], iron, 12);
+                b.Tube([muzzle - forward * .058f * s, muzzle - forward * .016f * s], .060f * s, new("596d73"), 12);
+                var rim = new Vector3[13];
+                var bore = new Vector3[12];
+                for (int i = 0; i < rim.Length; i++)
+                {
+                    float angle = i * Mathf.Tau / bore.Length;
+                    var radial = Vector3.Right * MathF.Cos(angle) + up * MathF.Sin(angle);
+                    rim[i] = muzzle + radial * .054f * s;
+                    if (i < bore.Length) bore[i] = muzzle + (radial * .048f - forward * .010f) * s;
+                }
+                b.Tube(rim, .012f * s, new("8f9e9e"), 7);
+                b.Polygon(bore, Pupil, forward);
                 for (int i = 0; i < Math.Min(4, rank); i++)
-                    b.Tube(new[] { P(0, .091f + i * .0023f, -.05f - i * .027f), P(0, .092f + i * .0023f, -.062f - i * .027f) }, (.059f - i * .002f) * s, Brass, 14);
+                {
+                    var band = breech + forward * (.025f + i * .027f) * s;
+                    b.Tube([band, band + forward * .012f * s], (.060f - i * .002f) * s, Brass, 12);
+                }
                 break;
             case 1:
                 b.RoundBox(P(0, .051f, -.035f), R(.13f, .095f, .235f), .016f * s, Wood);
