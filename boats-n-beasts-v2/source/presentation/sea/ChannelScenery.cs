@@ -13,7 +13,8 @@ static class ChannelScenery
         {
             var b=new ActorGeometry();
             Color earth=new(country.Shadow), tint=new(country.Accent),wood=new("956746"),brass=new("ecc57d"),chalk=new("f4e1bf");
-            switch(country.Climate)
+            if(country.Climate>=SeaClimate.Salt)WalkingScenery.Draw(b,country,bank:true);
+            else switch(country.Climate)
             {
                 case SeaClimate.Cinder:
                     for(int j=0;j<5;j++)

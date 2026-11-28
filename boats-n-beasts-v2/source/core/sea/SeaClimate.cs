@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace BoatsNBeasts.Core;
 
-public enum SeaClimate { Cinder, Delta, Orchard, Shelf, Loom, Choir, Court, Storm }
+public enum SeaClimate { Cinder, Delta, Orchard, Shelf, Loom, Choir, Court, Storm, Salt, Bottle, Wax, Sleep, Tin, Drum, Pitch, Calving }
 
 public sealed record SeaCountry(SeaClimate Climate, string Watermark, string Anchorage, string Accent, string Shadow)
 {
@@ -20,6 +20,14 @@ public sealed record SeaCountry(SeaClimate Climate, string Watermark, string Anc
     }
     static SeaCountry Mainland(string region) => region switch
     {
+        "The Saltstep Terraces" => new(SeaClimate.Salt,"Rising salt pan","Brine stair","e8c1a2","745a71"),
+        "Bottlebrush Reach" => new(SeaClimate.Bottle,"Breathing bottle","Root glass landing","8ecbb4","3f6868"),
+        "Waxwing Roads" => new(SeaClimate.Wax,"Courier stream","Red seal roost","eb9f71","624b61"),
+        "The Sleeping Narrows" => new(SeaClimate.Sleep,"Sleeper’s breath","Folding ward","a8bdab","4c5c6b"),
+        "Tinmoon Anchorage" => new(SeaClimate.Tin,"Moon pull","Diving bell pier","afbed4","51516d"),
+        "Drumskin Gulf" => new(SeaClimate.Drum,"Drumhead ripple","Taut cord pier","e6b178","634964"),
+        "Pitchwake Strait" => new(SeaClimate.Pitch,"Tar slick","Anchor steps","dba372","53495c"),
+        "The Calving Sea" => new(SeaClimate.Calving,"Nursery wake","First-light strand","aaceac","596179"),
         "Reedglass Delta" => new(SeaClimate.Delta, "Millrace", "Reedcutters’ steps", "b3d581", "354860"),
         "Hanging Orchard" => new(SeaClimate.Orchard, "Pollen fall", "Lantern bower", "e48f9d", "673d59"),
         "Whitewake Shelf" => new(SeaClimate.Shelf, "Breaking floe", "Glass spring", "badceb", "4b496a"),
@@ -31,7 +39,7 @@ public sealed record SeaCountry(SeaClimate Climate, string Watermark, string Anc
     };
 }
 
-public sealed class SeaWeather(SeaCountry country)
+public sealed partial class SeaWeather(SeaCountry country)
 {
     public float Clock { get; private set; }
     public Vector2 Center { get; private set; }
@@ -59,6 +67,11 @@ public sealed class SeaWeather(SeaCountry country)
         if (offset.LengthSquared() > 820 * 820) { Marked = false; return; }
         cycle += dt;
         float period = Math.Max(3.7f, 6.8f - tier * .18f);
+        if(WalkingWater(ship,dt,period))
+        {
+            if(cycle>=period)cycle=0;
+            return;
+        }
         switch (country.Climate)
         {
             case SeaClimate.Delta:

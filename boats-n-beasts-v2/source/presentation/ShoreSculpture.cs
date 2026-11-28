@@ -61,6 +61,7 @@ internal static class ShoreSculpture
 
     public static MeshInstance3D Keeper(bool warden)
     {
+        if(warden)return BellPlateArt.Build();
         var b = new ActorGeometry();
         var rim = Ring(.74f, .62f);
         b.Loft([rim, Ring(.78f, .71f), Ring(.68f, .81f), Ring(.55f, 1.43f), Ring(.42f, 1.54f)],
@@ -99,7 +100,7 @@ internal static class ShoreSculpture
         }
         b.Tube([new(-.16f, 1.32f, -.56f), new(.035f, 1.21f, -.61f), new(-.06f, 1.13f, -.64f), new(.12f, .87f, -.67f)], .026f, Gold, 5);
         var result = Bake(b);
-        result.Scale = Vector3.One * (warden ? 1.04f : .49f);
+        result.Scale = Vector3.One * .49f;
         return result;
     }
 

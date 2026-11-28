@@ -20,7 +20,16 @@ static class BluewaterArt
             {
                 case "convoy":
                 case "prize":
-                    Boat(b, dye, kind == "prize");
+                    Boat(b, dye, kind == "prize",style.Climate);
+                    break;
+                case "picket":
+                    Boat(b,dye,true,style.Climate);
+                    for(int i=-1;i<=1;i+=2)
+                    {
+                        b.Tube([new(i*.30f,.54f,-.40f),new(i*.43f,.60f,-.89f)],[.12f,.085f],Iron);
+                        b.RoundBox(new(i*.52f,.29f,.16f),new(.20f,.37f,.91f),.06f,shade);
+                    }
+                    Signal(b,new(0,.36f,.24f),1.03f,new("f67d59"));
                     break;
                 case "refuge":
                 case "port":
@@ -79,19 +88,118 @@ static class BluewaterArt
         {
             var b = new ActorGeometry();
             var dye = new Color(style.Accent); var shade = new Color(style.Shadow);
-            Barge(b,shade,dye);
-            b.Sphere(new(0,.55f,0),new(.89f,.51f,1.12f),dye);
-            for(int i=-1;i<=1;i+=2)
+            string name=order.Boss.ToLowerInvariant();
+            bool creature(params string[] words)=>words.Any(word=>name.Contains(word,StringComparison.Ordinal));
+            bool winged=creature("gull","kite","tern","bat","gannet","moth","hornet","petrel","wing","egret","swallow","heron","rook","bee","wren","jay","hawk");
+            bool swimmer=creature("ray","skate","squid","fish","eel","shark","lamprey","fin","whale","turtle","porpoise","sturgeon","pike","carp");
+            bool vessel=creature("hull","office","sledge","cutter","headwind","gate tender","bell","monitor","bailiff","clerk","oarsman","boat","lighter","wheel","standing order","port shear","barge","scow","engine","winch","spindle");
+            if(order.Boss=="The Old Breakwater")
             {
-                for(int j=0;j<3;j++)
+                b.Sphere(new(0,.30f,.08f),new(1.02f,.39f,1.47f),shade);
+                for(int k=0;k<6;k++)
                 {
-                    float z=-.63f+j*.61f;
-                    b.Tube([new(i*.69f,.40f,z),new(i*1.12f,.48f,z+.10f),new(i*1.37f,.02f,z+.29f)],[.14f,.18f,.035f],shade);
+                    float z=-1.03f+k*.43f,h=.43f+.22f*MathF.Sin(k*.71f);
+                    b.RoundBox(new(k%2==0?.10f:-.09f,h,z),new(1.57f,.43f,.51f),.115f,k%3==0?dye:Honey);
+                    for(int j=-1;j<=1;j+=2)
+                    {
+                        b.Tube([new(j*.65f,.31f,z),new(j*1.05f,.30f,z+.06f),new(j*1.25f,.01f,z+.22f)],[.19f,.13f,.051f],shade);
+                        if(k%2==0)b.Sphere(new(j*.48f,h+.24f,z),new(.14f,.12f,.17f),new("72976c"));
+                    }
                 }
-                b.Sphere(new(i*.48f,.71f,-.86f),new(.16f,.14f,.14f),Bone);
-                b.Sphere(new(i*.5f,.73f,-.95f),Vector3.One*.074f,Iron);
+                b.Sphere(new(0,.35f,-1.35f),new(.53f,.32f,.49f),shade);
+                for(int k=-1;k<=1;k+=2)b.Sphere(new(k*.29f,.46f,-1.67f),new(.10f,.055f,.081f),Bone);
             }
-            if (order.Duty is SeaDuty.Convoy or SeaDuty.Blockade)
+            else if(order.Boss=="The Bottle Train")
+            {
+                for(int wagon=0;wagon<4;wagon++)
+                {
+                    float z=-1.18f+wagon*.72f,x=MathF.Sin(wagon*.99f)*.20f;
+                    b.RoundBox(new(x,.18f,z),new(.88f,.25f,.73f),.09f,shade);
+                    b.Tube([new(x,.29f,z),new(x,.66f,z),new(x,.83f,z),new(x,1.03f,z)],[.31f,.34f,.14f,.12f],dye,8);
+                    b.Ring(new(x,1.02f,z),.139f,.032f,Bone);
+                    for(int wheel=-1;wheel<=1;wheel+=2)b.Sphere(new(x+wheel*.46f,.17f,z),new(.16f,.18f,.20f),Honey);
+                }
+            }
+            else if(order.Boss=="The Alarm Clock")
+            {
+                b.Sphere(new(0,.72f,.14f),new(.88f,.86f,.32f),dye);
+                foreach(int face in new[]{-1,1})
+                {
+                    b.Sphere(new(0,.74f,.14f+face*.28f),new(.71f,.71f,.105f),Bone);
+                    var pivot=new Vector3(0,.73f,.14f+face*.40f);
+                    b.Tube([pivot+new Vector3(face*.35f,.39f,.01f),pivot,pivot+new Vector3(-face*.28f,-.12f,0)],[.043f,.072f,.057f],shade);
+                    for(int numeral=0;numeral<8;numeral++)
+                    {
+                        float a=numeral*Mathf.Tau/8;
+                        b.Sphere(pivot+new Vector3(MathF.Cos(a)*.53f,MathF.Sin(a)*.53f,-face*.021f),new(.037f,.050f,.023f),Honey);
+                    }
+                }
+                for(int bell=-1;bell<=1;bell+=2)
+                {
+                    b.Sphere(new(bell*.53f,1.44f,.16f),new(.34f,.21f,.31f),Honey);
+                    b.Tube([new(bell*.42f,.44f,.16f),new(bell*.71f,.06f,-.22f)],[.17f,.072f],shade);
+                }
+            }
+            else if(winged)
+            {
+                b.Sphere(new(0,.63f,.07f),new(.45f,.54f,.89f),shade);
+                b.Sphere(new(0,.95f,-.65f),new(.35f,.32f,.39f),dye);
+                b.Tube([new(0,.95f,-.93f),new(0,.82f,-1.51f)],[.17f,.018f],Honey);
+                for(int wing=-1;wing<=1;wing+=2)
+                {
+                    var shoulder=new Vector3(wing*.26f,.83f,-.25f);
+                    var wrist=new Vector3(wing*1.11f,1.18f,-.67f);
+                    b.Tube([shoulder,wrist,new(wing*1.90f,.85f,.04f)],[.15f,.12f,.035f],shade);
+                    for(int j=0;j<4;j++)
+                    {
+                        float t=j*.23f;
+                        var start=shoulder.Lerp(wrist,t);
+                        var tip=new Vector3(wing*(1.23f+t),.56f+.21f*t,.92f-t);
+                        b.Polygon([start,start.Lerp(wrist,.34f),tip,tip+new Vector3(-wing*.19f,.04f,.04f)],j%2==0?dye:Bone,Vector3.Up);
+                    }
+                    b.Sphere(new(wing*.27f,1.04f,-.81f),Vector3.One*.075f,Honey);
+                }
+            }
+            else if(swimmer)
+            {
+                b.Sphere(new(0,.39f,-.06f),new(.63f,.34f,1.18f),dye);
+                b.Tube([new(0,.34f,.62f),new(.17f,.53f,1.24f),new(.61f,.56f,1.68f),new(.47f,.85f,2.09f)],[.31f,.21f,.12f,.016f],shade);
+                for(int fin=-1;fin<=1;fin+=2)
+                {
+                    b.Polygon([new(fin*.21f,.53f,-.74f),new(fin*1.53f,.38f,-.42f),new(fin*1.83f,.19f,.51f),new(fin*.43f,.39f,.63f)],shade,Vector3.Up);
+                    b.Tube([new(fin*.41f,.53f,-.70f),new(fin*1.51f,.39f,-.4f),new(fin*1.79f,.21f,.40f)],[.068f,.045f,.013f],Honey);
+                    b.Sphere(new(fin*.32f,.57f,-.87f),Vector3.One*.10f,Bone);
+                }
+            }
+            else if(vessel)
+            {
+                Boat(b,dye,true,style.Climate);
+                for(int side=-1;side<=1;side+=2)
+                {
+                    b.Tube([new(side*.53f,.32f,-.64f),new(side*.68f,.28f,.13f),new(side*.56f,.3f,.83f)],.12f,shade);
+                    for(int j=0;j<3;j++)b.Tube([new(side*.46f,.47f,-.52f+.43f*j),new(side*.89f,.45f,-.49f+.43f*j)],.12f,Iron);
+                }
+                b.Tube([new(0,.27f,.25f),new(0,1.91f,.11f)],[.094f,.042f],Honey);
+                b.Polygon([new(-.77f,1.77f,.12f),new(.77f,1.77f,.12f),new(.68f,.91f,-.15f),new(.18f,.81f,-.23f),new(-.69f,.93f,-.17f)],dye,Vector3.Back);
+                b.Polygon([new(-.94f,1.18f,.05f),new(-.20f,1.29f,.06f),new(-.23f,.69f,-.21f),new(-.88f,.70f,-.10f)],Bone,Vector3.Back);
+            }
+            else
+            {
+                b.Sphere(new(0,.55f,0),new(.89f,.51f,1.12f),dye);
+                for(int i=-1;i<=1;i+=2)
+                {
+                    for(int j=0;j<3;j++)
+                    {
+                        float z=-.63f+j*.61f;
+                        b.Tube([new(i*.69f,.40f,z),new(i*1.12f,.48f,z+.10f),new(i*1.37f,.02f,z+.29f)],[.14f,.18f,.035f],shade);
+                    }
+                    b.Sphere(new(i*.48f,.71f,-.86f),new(.16f,.14f,.14f),Bone);
+                    b.Sphere(new(i*.5f,.73f,-.95f),Vector3.One*.074f,Iron);
+                }
+            }
+            if (order.Boss=="The Old Breakwater" || order.Boss=="The Bottle Train" || order.Boss=="The Alarm Clock")
+                Signal(b,new(.45f,.62f,.31f),.62f,Honey);
+            else if (order.Duty is SeaDuty.Convoy or SeaDuty.Blockade)
             {
                 for(int i=-1;i<=1;i+=2)
                 {
@@ -131,7 +239,7 @@ static class BluewaterArt
         return root;
     }
 
-    static void Boat(ActorGeometry b, Color dye, bool cargo)
+    static void Boat(ActorGeometry b, Color dye, bool cargo,SeaClimate climate)
     {
         Vector3[] Rim(float width,float length,float height) =>
         [new(0,height+.12f,-length),new(width*.87f,height,-length*.55f),new(width,height,length*.37f),
@@ -145,7 +253,68 @@ static class BluewaterArt
             for(int i=0;i<3;i++)
             {
                 var p = new Vector3(0,.27f,-.56f+i*.44f);
-                b.Ring(p,.225f,.046f,dye); b.Sphere(p+Vector3.Up*.015f,new(.175f,.055f,.17f),Hull);
+                switch(climate)
+                {
+                    case SeaClimate.Salt:
+                        b.RoundBox(p+Vector3.Up*.09f,new(.65f,.17f,.31f),.05f,Hull);
+                        for(int sprout=-1;sprout<=1;sprout++)b.Sphere(p+new Vector3(sprout*.19f,.20f,0),new(.11f,.10f,.13f),new("789a68"));
+                        break;
+                    case SeaClimate.Bottle:
+                        b.Tube([p,p+Vector3.Up*.22f,p+Vector3.Up*.31f,p+Vector3.Up*.42f],[.15f,.16f,.069f,.06f],dye,7);
+                        b.Ring(p+Vector3.Up*.41f,.07f,.015f,Bone);
+                        break;
+                    case SeaClimate.Wax:
+                        b.RoundBox(p+Vector3.Up*.10f,new(.54f,.20f,.35f),.06f,Honey);
+                        for(int bar=-1;bar<=1;bar++)b.Tube([p+new Vector3(bar*.17f,.14f,-.14f),p+new Vector3(bar*.17f,.37f,0),p+new Vector3(bar*.17f,.14f,.14f)],.021f,dye);
+                        b.Sphere(p+new Vector3(.08f,.19f,0),new(.07f,.07f,.09f),new("bf6552"));
+                        break;
+                    case SeaClimate.Tin:
+                        b.Sphere(p+Vector3.Up*.10f,new(.21f,.25f,.17f),dye);
+                        b.Sphere(p+new Vector3(.01f,.16f,-.14f),new(.066f,.071f,.02f),Iron);
+                        break;
+                    case SeaClimate.Drum:
+                        b.Tube([p,p+Vector3.Up*.25f],[.21f,.20f],Hull,9);
+                        b.Sphere(p+Vector3.Up*.26f,new(.21f,.034f,.21f),dye);
+                        break;
+                    case SeaClimate.Pitch:
+                        for(int chain=-1;chain<=1;chain++)b.Ring(p+new Vector3(chain*.15f,.10f,0),.11f,.037f,Iron);
+                        break;
+                    case SeaClimate.Calving:
+                        b.Sphere(p+Vector3.Up*.10f,new(.22f,.12f,.16f),dye);
+                        b.Sphere(p+new Vector3(.17f,.13f,-.03f),new(.11f,.081f,.10f),dye);
+                        b.Sphere(p+new Vector3(.23f,.16f,-.08f),new(.025f,.024f,.02f),Iron);
+                        break;
+                    case SeaClimate.Cinder:
+                        b.Ring(p,.225f,.046f,dye); b.Sphere(p+Vector3.Up*.015f,new(.175f,.055f,.17f),Hull);
+                        break;
+                    case SeaClimate.Delta:
+                        for(int n=-1;n<=1;n++)b.Tube([p+new Vector3(-.33f,.09f,n*.065f),p+new Vector3(.31f,.16f,n*.065f)],[.045f,.031f],new("9eaf72"));
+                        break;
+                    case SeaClimate.Orchard:
+                        b.RoundBox(p+Vector3.Up*.08f,new(.63f,.16f,.36f),.02f,Hull);
+                        for(int n=-1;n<=1;n++)b.Sphere(p+new Vector3(n*.18f,.22f,0),new(.11f,.16f,.11f),n==0?dye:Honey);
+                        break;
+                    case SeaClimate.Shelf:
+                        b.RoundBox(p+Vector3.Up*.11f,new(.57f,.29f,.32f),.09f,Bone);
+                        b.RoundBox(p+Vector3.Up*.26f,new(.09f,.04f,.31f),.01f,Hull);
+                        break;
+                    case SeaClimate.Loom:
+                        b.Tube([p+new Vector3(-.26f,.15f,0),p+new Vector3(.28f,.15f,0)],.14f,i%2==0?dye:Bone);
+                        break;
+                    case SeaClimate.Sleep:
+                    case SeaClimate.Choir:
+                        b.RoundBox(p+Vector3.Up*.10f,new(.65f,.12f,.34f),.02f,Iron);
+                        b.RoundBox(p+Vector3.Up*.20f,new(.59f,.13f,.31f),.045f,i==0?Bone:dye);
+                        break;
+                    case SeaClimate.Court:
+                        b.RoundBox(p+Vector3.Up*.12f,new(.46f,.21f,.35f),.018f,Hull);
+                        b.RoundBox(p+Vector3.Up*.24f,new(.50f,.04f,.37f),.018f,dye);
+                        break;
+                    default:
+                        b.Crystal(p+Vector3.Up*.22f,new(.19f,.25f,.17f),dye);
+                        b.Ring(p+Vector3.Up*.10f,.23f,.035f,Iron);
+                        break;
+                }
             }
             Signal(b,new(.27f,.19f,.35f),.68f,Bone);
         }

@@ -33,7 +33,10 @@ void fragment() {
     float broad = field(water*.107);
     float pockets = field(vec2(water.x*.14 - water.y*.11, water.x*.11 + water.y*.14) + 17.3);
     float tone = smoothstep(.14,.86,mix(broad,pockets,.27));
-    vec3 color = mix(pigment, pigment + vec3(.006,.077,.053), tone);
+    vec3 color = mix(pigment * vec3(.83,.86,.92), pigment + vec3(.008,.095,.062), tone);
+    vec2 brush = vec2(water.x*.86-water.y*.5, water.x*.5+water.y*.86);
+    float bristle = field(brush*vec2(.88,6.9)+vec2(1.4, .65*sin(brush.x*1.4)));
+    color += vec3(.004,.039,.026) * smoothstep(.42,.80,bristle) * (.34+.66*tone);
     vec2 axis = vec2(.95,-.31);
     vec2 tile = vec2(dot(world.xz, axis), dot(world.xz, vec2(-axis.y, axis.x))) / vec2(2.9, 2.4);
     float aa = max(fwidth(tile.y) * 1.44, .006);

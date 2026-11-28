@@ -7,6 +7,7 @@ namespace BoatsNBeasts;
 public partial class BluewaterVoyage : CrewRun
 {
     public CampaignOrder Order { get; set; } = FarLedger.Arcs[0].Orders[0];
+    public override bool AskShipmate(Shipmate mate) => !InMenu && Course.Ship.CallShipmate(mate);
     public override int SilverEarned => Course?.Purse ?? 0;
     internal BluewaterCourse Course { get; private set; } = null!;
     internal OceanView3D Sea { get; private set; } = null!;
@@ -14,7 +15,8 @@ public partial class BluewaterVoyage : CrewRun
     BluewaterHud hud = null!;
     CanvasLayer canvas = null!;
     Control? modal;
-    Node3D? station;
+    Node3D? station, support;
+    string supportHull="";
     Node3D mooring = null!, destination = null!, lee = null!, localFloat = null!;
     readonly Dictionary<FleetBoat,Node3D> fleet = [];
     readonly List<Action> options = [];
@@ -27,9 +29,9 @@ public partial class BluewaterVoyage : CrewRun
 
     public override void _Ready()
     {
-        Course = new(Order, Seed, Stores, Outfit);
-        Sea = new() { Name = "Ocean", Voyage = Course.Ship };
-        Sea.CustomActor = enemy => enemy == Course.Captain ? BluewaterArt.Commander(Order,Course.Country) : null;
+        Course = new(Order, Seed, Stores, Outfit, Vessel);
+        Sea = new() { Name = "Ocean", Figurehead=Figurehead,Voyage = Course.Ship };
+        Sea.CustomActor = enemy => enemy == Course.Captain ? BluewaterArt.Commander(Order,Course.Country) : enemy == Course.Picket ? BluewaterArt.Prop(Course.Country,"picket") : null;
         Sea.CustomPlace=place=>BluewaterCoast.Build(place,Course.Country,place.Id==Course.DepartureId);
         AddChild(Sea);
         Sea.PaintWater(BluewaterCoast.Water(Course.Country.Climate));
@@ -91,6 +93,7 @@ public partial class BluewaterVoyage : CrewRun
         }
         else if(key==Key.Q) hook=true;
         else if(key==Key.E) patch=true;
+        else if(key==Key.R) Course.ChangeStation();
         else return;
         viewport.SetInputAsHandled();
     }
@@ -125,6 +128,7 @@ public partial class BluewaterVoyage : CrewRun
                 SeaJob.Unload=>"refuge",SeaJob.Track or SeaJob.Sound=>"buoy",SeaJob.DriveOff=>"prize",_=>"relay"
             }
         };
+        if(Course.Field!=0)kind=Course.Field==3&&Course.FlagshipHull>0?"chain":"gate";
         if(kind!=propKind)
         {
             if(station!=null) {station.QueueFree();station=null;}
@@ -134,7 +138,7 @@ public partial class BluewaterVoyage : CrewRun
         if(station!=null)
         {
             station.Visible=!InMenu;
-            station.Position=NativeStage3D.Point(Course.Phase==ChartPhase.Boss?Course.ShieldPoint:Course.Target,MathF.Sin(clock*1.7f)*.024f);
+            station.Position=NativeStage3D.Point(Course.Field==3&&Course.FlagshipHull>0?Course.Battery:Course.Phase==ChartPhase.Boss?Course.ShieldPoint:Course.Target,MathF.Sin(clock*1.7f)*.024f);
         }
         lee.Visible=Course.Crossing;
         if(lee.Visible)lee.Position=NativeStage3D.Point(Course.Shelter);
@@ -159,6 +163,20 @@ public partial class BluewaterVoyage : CrewRun
             banks[i].Visible=Course.Phase==ChartPhase.Running && !Course.Banks[i].Broken;
             banks[i].Position=NativeStage3D.Point(Course.Banks[i].Position);
         }
+        if(Course.Field!=0 && Course.Tender is { } escort)
+        {
+            string shape=Course.GunPrize?"prize":"convoy";
+            if(support==null || supportHull!=shape)
+            {
+                support?.QueueFree();
+                support=BluewaterArt.Prop(Course.Country,shape);Sea.AddChild(support);
+                supportHull=shape;
+            }
+            support.Visible=escort.Health>0;
+            support.Position=NativeStage3D.Point(escort.Position,.02f);
+            support.Rotation=new(0,-MathF.Atan2(escort.Bow.X,-escort.Bow.Y),0);
+        }
+        else if(support!=null) support.Visible=false;
         foreach(var departed in fleet.Keys.Where(craft=>!Course.Fleet.Contains(craft)).ToArray())
         {
             fleet[departed].QueueFree();
@@ -184,6 +202,7 @@ public partial class BluewaterVoyage : CrewRun
         modal=new ColorRect {Color=new Color("081c2985"),MouseFilter=Control.MouseFilterEnum.Stop};
         canvas.AddChild(modal);modal.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         var center=new CenterContainer();modal.AddChild(center);center.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        if(Course.Phase==ChartPhase.Passage)center.AnchorLeft=.43f;
         var panel=new PanelContainer{CustomMinimumSize=new(655,0)};panel.AddThemeStyleboxOverride("panel",HarborType.Box(new("142f3a"),new(Course.Country.Accent),24,18));center.AddChild(panel);
         var box=new VBoxContainer();box.AddThemeConstantOverride("separation",10);panel.AddChild(box);
         void Text(string line,int size,bool title=false)=>box.AddChild(HarborType.Text(line,size,title?HarborType.Cream:HarborType.Brass,title));
@@ -200,8 +219,8 @@ public partial class BluewaterVoyage : CrewRun
             bool win=Course.Phase==ChartPhase.Won;
             Text(win?"A flag above the slips":"The long tow home",32,true);
             Text(win?Order.Homecoming:Course.CrewLine.Contains("convoy",StringComparison.OrdinalIgnoreCase)?Course.CrewLine:"The watch bundles the wounded into the tender and counts its purse.",19);
-            Text($"{Course.Purse} silver aboard",18);
-            Choice("Return to Last Light Quay",()=>Finish(win));
+            Text($"{CarriedSilver+Course.Purse} silver aboard",18);
+            Choice(win && LandingName!="Last Light Quay" ? "Make fast at "+LandingName : "Return to Last Light Quay",()=>Finish(win));
         }
         else if(Course.Ship.Mode==VoyageMode.Upgrade)
         {

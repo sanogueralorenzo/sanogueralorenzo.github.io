@@ -10,11 +10,12 @@ internal partial class LastLightHarbor
     void FarChart()
     {
         var log = Ledger.Campaign;
+        if (log.NeedsCharter) { Ending(); return; }
         if (log.NeedsHearing) { Listen(); return; }
         if (log.Current is { Island.Length: >0 }) { IslandRoutes(0); return; }
         if (log.Current is not { } order || log.Next is not { } route)
         {
-            if (!log.HomePortNamed) { Ending(); return; }
+            if (!log.StoryCleared) { TideEnding(); return; }
             Open("THE SHIP’S LOG", "Back in familiar water", "The crew hangs the latest keepsake over the galley. Every ship in the bay has a different story about how it came here.");
         }
         else
@@ -50,8 +51,9 @@ internal partial class LastLightHarbor
     }
     void Brief(CampaignOrder order)
     {
-        Open(order.Pilotage ? "PILOT’S SURVEY" : order.Ashore ? "LANDING PARTY" : "BLUE-WATER VOYAGE",order.Title, order.Objective + "  " + order.Brief);
-        Choice(order.Pilotage ? "Open the pilot book" : order.Ashore ? "Take the crew ashore" : "Cast off", () => AcceptOrder?.Invoke(order), true);
+        Open(order.Migration ? "NURSERY WATCH" : order.Postal ? "THE NIGHT POST" : order.Pilotage ? "PILOT’S SURVEY" : order.Ashore ? "LANDING PARTY" : "BLUE-WATER VOYAGE",order.Title, (order.Postal ? "Carry the night post through the islands on the outward passage. " : "") + order.Objective + "  " + order.Brief);
+        Choice(order.Migration ? "Join the nursery fleet" : order.Postal ? "Take the mail watch" : order.Pilotage ? "Open the pilot book" : order.Ashore ? "Take the crew ashore" : "Cast off", () => AcceptOrder?.Invoke(order), true);
+        if(Ledger.Campaign.OnWatch!=Shipmate.None)Choice("Keepsake   ·   "+Ledger.Campaign.OnWatch,()=>{Open("ON WATCH",CrewWatches.Token(Ledger.Campaign.OnWatch),CrewWatches.Help(Ledger.Campaign.OnWatch)+" Press F during play, once per run.");Choice("Back to the order",()=>Brief(order),true);});
         Choice("Back to the chart", FarChart);
     }
 

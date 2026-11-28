@@ -11,7 +11,7 @@ public partial class ShoreExpedition : CrewRun
     internal NativeStage3D Stage { get; private set; } = null!;
     internal bool Paused { get; private set; }
     internal float VoiceUntil { get; private set; }
-    Node3D captain = null!, mate = null!, skiff = null!;
+    Node3D captain = null!, mate = null!, gunner=null!, skiff = null!;
     Node3D? survivor;
     readonly MeshInstance3D[] floats = new MeshInstance3D[2];
     MeshInstance3D billet = null!, mould = null!;
@@ -56,23 +56,10 @@ public partial class ShoreExpedition : CrewRun
         billet = ShoreSculpture.BronzeBlank(); Stage.AddChild(billet);
         mould = ShoreSculpture.CastingMould(); mould.Position = Point(ShoreFight.Mould); Stage.AddChild(mould);
         metal = Voice(-17); line = Voice(-20); hit = Voice(-19); lastHealth = Fight.Health;
-        captain = ActorArt3D.LandingParty(0); Stage.AddChild(captain);
-        var body = captain.GetChild<MeshInstance3D>(0);
-        silhouette = new()
-        {
-            Mesh = body.Mesh,
-            MaterialOverride = new StandardMaterial3D
-            {
-                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-                Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-                NoDepthTest = true,
-                AlbedoColor = new("a3e9da82"),
-                RenderPriority = 3
-            },
-            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off
-        };
-        body.AddChild(silhouette);
-        mate = ActorArt3D.LandingParty(1); Stage.AddChild(mate);
+        captain = ActorArt3D.BoardingParty(0); Stage.AddChild(captain);
+        silhouette=ActorArt3D.Veil(captain);
+        mate = ActorArt3D.BoardingParty(1); Stage.AddChild(mate);
+        gunner=ActorArt3D.BoardingParty(2);Stage.AddChild(gunner);
         skiff = ActorArt3D.ShoreSkiff();
         skiff.Position = new(-3.65f, .03f, 4.46f); skiff.RotationDegrees = new(0, 24, 0);
         Stage.AddChild(skiff);
@@ -176,6 +163,15 @@ public partial class ShoreExpedition : CrewRun
         lastPosition = Fight.Player;
         SetActor(captain, Fight.Player, Fight.Facing, Fight.Dash > 0 ? .10f : step);
         SetActor(mate, Fight.Crew, Fight.Hook > 0 ? Fight.HookEnd - Fight.Crew : Fight.Player - Fight.Crew, walking ? .034f * MathF.Abs(MathF.Cos(t * 11)) : 0);
+        var varaPost=Fight.Phase switch
+        {
+            QuayPhase.Ascent or QuayPhase.Warden or QuayPhase.Rescue=>QuayPaths.Anchors[1]+new V2(.70f,.50f),
+            QuayPhase.Homeward=>QuayPaths.Dock+new V2(.42f,-.42f),
+            _=>QuayPaths.Bells[1]+new V2(1.22f,.55f)
+        };
+        var target=Fight.Foes.FirstOrDefault(f=>f.Warden)?.Position??Fight.Player;
+        SetActor(gunner,varaPost,target-varaPost,0);
+        gunner.GetChild<Node3D>(0).RotationDegrees=new(Fight.Hook*7,0,0);
         captain.Visible = Fight.Hurt <= 0 || (int)(Fight.Hurt * 27) % 2 == 0;
         captain.GetChild<Node3D>(0).RotationDegrees = new(0, Fight.Swung * 156 - Fight.Dash * 80, 0);
         silhouette.Visible = Fight.Foes.Any(f => f.Warden && Fight.Player.Y < f.Position.Y
@@ -204,6 +200,12 @@ public partial class ShoreExpedition : CrewRun
             tilt.X = f.Warning > 0 ? -.13f * MathF.Sin((1 - f.Warning / f.Winding) * Mathf.Pi * .65f) : f.Stagger * .16f;
             tilt.Z = f.Flash * .48f;
             model.Rotation = tilt;
+            if(f.Warden)
+            {
+                float winding=f.Warning>0?1-f.Warning/f.Winding:0;
+                var hammer=model.GetChild<Node3D>(0);
+                hammer.Rotation=new(-.24f+1.08f*winding-f.Strike*1.8f, -.19f-winding*.62f+f.Strike*2.5f, winding*.20f);
+            }
         }
         while (coins.Count < Fight.Coins.Count) { var c = new MeshInstance3D { Mesh = coinMesh }; Stage.AddChild(c); coins.Add(c); }
         while (coins.Count > Fight.Coins.Count) { coins[^1].QueueFree(); coins.RemoveAt(coins.Count - 1); }

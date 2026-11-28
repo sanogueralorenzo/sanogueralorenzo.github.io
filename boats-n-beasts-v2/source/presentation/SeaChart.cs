@@ -236,11 +236,9 @@ internal partial class SeaChart : Control
         }
         if (Run.HookFlash > 0)
         {
-            var a = S(Run.Hull, .55f); var b = S(Run.HookTo, .6f);
-            var mid = (a + b) * .5f + Vector2.Down * 20 * (Run.HookFlash / .58f);
-            DrawPolyline([a, mid, b], Ink, 6, true);
-            DrawPolyline([a, mid, b], Brass, 3, true);
-            DrawArc(b, 8, 0, Mathf.Tau, 12, Cream, 3, true);
+            var lineSide=new V2(-Run.Bow.Y,Run.Bow.X);
+            var hand=Run.Hull-lineSide*31-Run.Bow*9;
+            BoardingLine.Draw(this,S(hand,.66f),S(Run.HookTo,.63f),Run.HookFlash/.58f,false);
         }
     }
 

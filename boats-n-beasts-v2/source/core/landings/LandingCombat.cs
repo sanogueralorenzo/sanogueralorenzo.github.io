@@ -121,6 +121,10 @@ public sealed partial class LandingYard
         {
             Lane(b, p, p + h * 6.4f, .82f, .98f, true); b.Wait = 1.18f; return;
         }
+        if (Order.Tier >= 9 && (breed == GuardianForm.Regional || b.Pattern % 3 == 0))
+        {
+            TideAttack(b, h, side, lead, second); b.Wait = b.Enraged ? .95f : 1.35f; return;
+        }
         if (breed != GuardianForm.Regional)
         {
             switch (breed)
@@ -202,6 +206,38 @@ public sealed partial class LandingYard
                 break;
         }
         b.Wait = b.Enraged ? .86f : 1.34f;
+    }
+    void TideAttack(YardBeastState beast, Vector2 heading, Vector2 side, float lead, bool alternate)
+    {
+        var source = beast.Position; var mark = Player;
+        switch (Region.Climate)
+        {
+            case IslandClimate.Saltstep:
+                Disc(beast, mark, 1.03f, lead); Disc(beast, mark + heading * 1.6f, 1.16f, lead + .49f);
+                if (beast.Enraged) Disc(beast, mark + heading * 2.18f + side * .67f, 1.0f, lead + .92f); break;
+            case IslandClimate.Bottlebrush:
+                Lane(beast, source - side * .89f, mark + heading * 1.5f - side * .89f, .35f, lead);
+                Lane(beast, source + side * .89f, mark + heading * 1.5f + side * .89f, .35f, lead + .16f);
+                if (alternate) Ring(beast, mark, .78f, 1.82f, lead + .56f); break;
+            case IslandClimate.Waxwing:
+                var pivot = mark + side * (alternate ? 1.35f : -1.35f);
+                Lane(beast, source, pivot, .48f, lead, true); Lane(beast, pivot, pivot + heading * 2.4f - side * (alternate ? 1.6f : -1.6f), .42f, lead + .49f); break;
+            case IslandClimate.Narrows:
+                Ring(beast, source, .90f, 2.48f, lead); if (alternate || beast.Enraged) Fan(beast, 2.20f, .45f, lead + .74f); break;
+            case IslandClimate.Tinmoon:
+                Disc(beast, mark + side * 1.02f, 1.12f, lead); Disc(beast, mark - side * 1.02f, 1.12f, lead + .43f);
+                if (beast.Enraged) Lane(beast, source, mark, .42f, lead + .86f, true); break;
+            case IslandClimate.Drumskin:
+                Ring(beast, source, .34f, 1.67f, lead); Ring(beast, source, 1.67f, 3.20f, lead + .47f);
+                if (alternate) Disc(beast, mark, .87f, lead + 1.04f); break;
+            case IslandClimate.Pitchwake:
+                Lane(beast, mark - side * 2.7f, mark + side * 2.7f, .43f, lead);
+                Fan(beast, 2.32f, .28f, lead + .53f); break;
+            default:
+                var current = mark + heading * .74f;
+                Ring(beast, current, .95f, 2.13f, lead); Disc(beast, current, .87f, lead + .56f);
+                if (beast.Enraged) Lane(beast, source, mark + heading, .45f, lead + 1.05f, true); break;
+        }
     }
     void Disc(YardBeastState b, Vector2 p, float r, float lead) => Attacks.Add(new(b, AttackShape.Disc, p, p, r, 0, lead, .25f));
     void Ring(YardBeastState b, Vector2 p, float inner, float outer, float lead) => Attacks.Add(new(b, AttackShape.Ring, p, p, outer, inner, lead, .26f));

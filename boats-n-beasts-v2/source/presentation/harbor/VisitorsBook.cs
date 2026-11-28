@@ -35,15 +35,15 @@ public static partial class EnvironmentArt3D
     static void ReceivingPier(Sculptor art, CampaignLog log)
     {
         var colors = new Color[] {new("d16c42"),new("5c9b83"),new("bb8e46"),new("73a9bb"),
-            new("9b78ae"),new("ce9476"),new("587b96"),new("ae626e")};
+            new("9b78ae"),new("ce9476"),new("587b96"),new("ae626e"),new("c6a07c"),new("58b4a5"),new("e7a448"),new("8290bf"),new("85a4c4"),new("b67f50"),new("7a798a"),new("e9bd78")};
         var pine = new Color("976544");
         for (int region=0;region<FarLedger.Arcs.Count;region++)
         {
             var arc=FarLedger.Arcs[region];
             var wards=arc.Islands.Where(log.Hosted).ToArray();
             if (wards.Length==0) continue;
-            float z=1.60f+region*.40f;
-            var at=new Vector3(3.18f,.15f,z);
+            float z=1.60f+region%8*.40f;
+            var at=new Vector3(region<8?3.18f:1.10f,.15f,z);
             art.Tube(at-Vector3.Up*.4f,at+Vector3.Up*.88f,.065f,.053f,pine,8);
             for (int j=0;j<wards.Length;j++)
             {
@@ -58,7 +58,7 @@ public static partial class EnvironmentArt3D
         int built=0;
         foreach(var region in log.SettledPorts())
         {
-            float x=-2.5f+built%4*.83f,z=3.72f+built/4*.68f;
+            float x=-2.5f+built%4*.83f,z=3.72f+built/4*.64f;
             var at=new Vector3(x,.07f,z);
             for(int i=0;i<6;i++)
                 art.RoundedBox(at+new Vector3(0,.12f,i*.10f),new(.85f,.13f,.093f),.016f,pine.Lightened(.035f*(i%3)));

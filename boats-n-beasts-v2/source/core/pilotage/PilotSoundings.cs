@@ -35,10 +35,11 @@ public sealed class PilotSoundings
     float distance;
     bool[] visited;
 
-    public PilotSoundings(CampaignOrder order,int seed,int stores,Loadout outfit=Loadout.Standard)
+    public PilotSoundings(CampaignOrder order,int seed,int stores,Loadout outfit=Loadout.Standard, BoatKind vessel = BoatKind.Cutter)
     {
         Order=order; this.outfit=outfit; random=new(seed);
-        Ship=new((uint)seed,BoatKind.Cutter,1){Charted=true,HullRank=Math.Clamp(stores,0,2)};
+        Ship=new((uint)seed,vessel,1){Charted=true,HullRank=Math.Clamp(stores,0,2)};
+        Ship.Weapons[0]=Math.Max(1,Ship.Weapons[0]);
         Ship.Health=Ship.MaxHealth; Kits = outfit==Loadout.Lifeboat ? 3 : 1;
         var ocean=new OceanWorld((uint)seed);
         var edge=OceanWorld.KeyAt(Bounds);

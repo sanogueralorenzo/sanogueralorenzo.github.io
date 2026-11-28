@@ -14,18 +14,18 @@ public static partial class ActorArt3D
         if (!Cache.TryGetValue(key, out var mesh))
         {
             var b = new ActorGeometry();
-            int role = port switch { 0 or 3 or 5 => 1, _ => 2 };
+            int role = port switch { 0 or 3 or 5 or 9 or 11 or 14 => 1, _ => 2 };
             Crewmate(b,Vector3.Zero,role);
-            Color[] cloth = [new("c76f46"),new("58897b"),new("926885"),new("459eaf"),new("6080ae"),new("c48853"),new("4f737b"),new("854c60")];
+            Color[] cloth = [new("c76f46"),new("58897b"),new("926885"),new("459eaf"),new("6080ae"),new("c48853"),new("4f737b"),new("854c60"),new("72964d"),new("4b96aa"),new("c46d48"),new("737dba"),new("638c9d"),new("c48150"),new("72727d"),new("e0a44c")];
             Color shade = cloth[port];
             b.RoundBox(new(0,.146f,.022f),new(.117f,.114f,.068f),.014f,shade);
             b.RoundBox(new(0,.136f,-.046f),new(.081f,.099f,.008f),.006f,shade.Lightened(.17f));
-            if (port is 0 or 3 or 4)
+            if (port is 0 or 3 or 4 or 8 or 10 or 12 or 14)
             {
                 b.Sphere(new(0,.293f,0),new(.081f,.021f,.066f),shade.Lightened(.17f),10,4);
                 b.Sphere(new(0,.309f,0),new(.049f,.041f,.045f),port == 4 ? Cream : shade,10,5);
             }
-            if (port is 1 or 2 or 6)
+            if (port is 1 or 2 or 6 or 9 or 11 or 13 or 15)
             {
                 b.Tube([new(.063f,.052f,0),new(.068f,.196f,-.023f),new(.066f,.38f,-.047f)],.006f,Wood,6);
                 if (port == 2) b.Sphere(new(.065f,.336f,-.047f),new(.028f,.042f,.023f),new("f5b449"),8,4);
@@ -65,7 +65,15 @@ internal static class Visitors
             "Pip returns the bailiff’s hat. The roof has stopped leaking, and it was full.","Pass the biscuits"),
         new("Meret Gauge","Chart examiner","What was the name of your first boat?","“Aster. She had a blue stove. I’ve described her tonnage at a hundred hearings. Nobody ever asked me about the stove.”",
             "Gauge writes Aster in the register. Beside her name in the column for tonnage she draws a blue stove.",
-            "Gauge spreads the empty chart on the planks. A child draws a blue stove and a very tall wave.","Hand her the pencil")
+            "Gauge spreads the empty chart on the planks. A child draws a blue stove and a very tall wave.","Hand her the pencil"),
+        new("Uma Pike","Pool botanist","What made you follow the first root?","“I fell over it. We don't put that sort of thing in a scientific paper. I think we ought to.”","Uma has drawn each grower by the shape of their thumbprint in the earth.","Four sets of muddy boots stand outside the galley. Uma has been watering them out of habit.","Look under the saucer"),
+        new("Cella Wick","Glass diver","What is a bottle orchard like below the surface?","“Green on the outside, gold on the inside. Like the first apple my sister ever stole for me.”","Cella has taught a calf to blow an air bubble large enough for a bottle to fit inside.","One pale bottle washed back to the orchard with a tiny fin print on its dusty shoulder.","Hold the bottle to the light"),
+        new("Kest","Waxwing courier","What did you do with your first prize?","“We had a leak in the roof. The cup was the only thing in the house deep enough. Best use I've had out of winning.”","Kest cuts the finish ribbon and ties the two pieces where the slower wings can see them.","Kest has turned every telegram upside down. She is sketching what was under the race.","Offer her the slow chair"),
+        new("Latt Minnow","Harbor bedmaker","Do the islands dream?","“Go down to the cellar with a pillow. If you wake up in a different bay, you have been in somebody else's dream.”","Latt's new beds have runners at both ends so the patient can choose the view.","Latt stitches one pocket inside each quilt. Put a letter there and it will travel with the house.","Help turn a mattress"),
+        new("Islet Marr","Saturation diver","Why keep a rusty teapot in a diving bell?","“It sings in the key of my old front door. You would be amazed what sounds lead you home when there's nothing to see.”","Islet hangs a clean rag beside the families’ bell. Everyone has had a turn at the polishing.","The listening tube carries a spoon against a cup all the way up from the old kitchen.","Put an ear to the spout"),
+        new("Ina","Drum keeper","What do you do with the beat between words?","“I leave it for the person who hasn't got a word in yet. My mother always knew when I was going to speak by the way I drew my breath.”","Ina has made one stick for Vara and one for Oren. They do not have to play together.","Ina hangs two drumskins opposite each other. A breath between them sets both trembling.","Wait for the next beat"),
+        new("Toma Pike","Anchor captain","Is there anything you miss besides the city?","“An ordinary complaint. Somebody leaning out of a window to tell me my dinner was getting cold.”","Toma rubs the old shackle bright. There is just room for a little flowerpot in the curve.","Toma takes the evening soup around the boats in a bucket. She returns with three recipes.","Make her a place at supper"),
+        new("Pip","Nursery keeper","Where does a calf put its first foot?","“Usually on mine. I used to mind. Once I found out what a grown island weighs I decided I was lucky.”","Pip has folded the blanket on Toma's big tender into a nest. The smallest calf fits inside one corner.","Pip practices the nursery song on an old whistle. She leaves more and more room for the calf to answer.","Take the second watch")
     ];
     internal static int At(CampaignLog log)
     {

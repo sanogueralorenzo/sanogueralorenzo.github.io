@@ -9,8 +9,8 @@ public static partial class ActorArt3D
     static void BoatCrew(ActorGeometry b)
     {
         Crewmate(b, new(-.114f, .34f, .407f), 0);
-        Crewmate(b, new(.157f, .222f, .115f), 1);
-        Crewmate(b, new(-.162f, .222f, .145f), 2);
+        Crewmate(b, new(.208f, .228f, -.125f), 1);
+        Crewmate(b, new(-.208f, .229f, .073f), 2);
         var hub = new Vector3(-.077f, .477f, .305f);
         Vector3 Wheel(float angle, float radius) => hub + new Vector3(MathF.Cos(angle), MathF.Sin(angle), MathF.Cos(angle) * .19f) * radius;
         b.Tube([hub - Vector3.Up * .151f, hub], [.029f, .017f], DarkWood, 7);
@@ -27,13 +27,13 @@ public static partial class ActorArt3D
         b.Sphere(hub, new(.020f, .020f, .017f), Brass, 8, 4);
     }
 
-    static void Crewmate(ActorGeometry b, Vector3 feet, int role)
+    static void Crewmate(ActorGeometry b, Vector3 feet, int role,bool ashore=false)
     {
         Vector3 P(float x, float y, float z) => feet + new Vector3(x, y, z);
         Color navy = new("34436a"), cream = new("e8d8b2"), leather = new("65432e");
         Color skin = new(role == 0 ? "cc9969" : role == 1 ? "ac7146" : "e6b990");
         Color hair = new(role == 1 ? "302d2a" : "523729");
-        Color coat = role == 0 ? navy : role == 1 ? new("80472e") : new("62478c");
+        Color coat = role == 0 ? navy : role == 1 ? new("a95638") : new("367c7d");
         // Different builds, not a uniform body with interchangeable hats.
         float hip = role == 1 ? .040f : role == 0 ? .035f : .030f, shoulder = role == 1 ? .061f : role == 0 ? .058f : .041f;
         float waist = role == 1 ? .092f : .106f, neck = role == 0 ? .218f : role == 1 ? .175f : .206f;
@@ -128,6 +128,8 @@ public static partial class ActorArt3D
         else
         {
             // Slender stormcaller: one swept forelock, high ponytail and a split cape.
+            b.Tube([P(-.042f,head+.015f,.024f),P(-.077f,head+.033f,.085f),P(-.11f,head+.007f,.13f)],[.026f,.023f,.008f],new("f7bf59"),6);
+            b.Tube([P(-.054f,head+.034f,-.016f),P(0,head+.060f,-.031f),P(.052f,head+.033f,-.017f)],.023f,new("e9b455"),6);
             b.Tube(new[] { P(.026f, head + .059f, .009f), P(.044f, head + .096f, .033f), P(.027f, head + .088f, .061f) },
                 new[] { .025f, .026f, .011f }, cream, 6);
             b.Tube(new[] { P(.033f, head + .042f, -.005f), P(.011f, head + .048f, -.040f), P(-.027f, head + .014f, -.046f) },
@@ -143,6 +145,7 @@ public static partial class ActorArt3D
                 b.Polygon(panel, purple, Vector3.Back); b.Polygon(panel, coat, Vector3.Forward);
             }
             b.Sphere(P(-headWidth - .004f, head - .013f, -.005f), new(.007f, .012f, .005f), Brass, 6, 4);
+            if(ashore)return;
             b.Tube(new[] { P(-.067f, .014f, -.034f), P(-.067f, .324f, -.034f) }, .008f, leather, 6);
             b.Tube(new[] { P(-.067f, .285f, -.034f), P(-.067f, .315f, -.034f) }, .013f, Brass, 6);
             b.Sphere(P(-.067f, .339f, -.034f), new(.025f, .028f, .025f), new("58dcc9"), 8, 5);

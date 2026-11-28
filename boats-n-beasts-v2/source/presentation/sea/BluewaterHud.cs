@@ -25,7 +25,6 @@ internal partial class BluewaterHud : Control
         var c=Course;var ship=c.Ship;Color brass=new(c.Country.Accent);
         var target=c.Destination;
         var goal=S(target,1.05f);
-        var shipHere=S(ship.Position,.2f);
         if(c.HasMarks)
             for(int i=0;i<3;i++)
             {
@@ -41,6 +40,18 @@ internal partial class BluewaterHud : Control
                 }
             }
         if(!c.WeatherRead && c.Weather.Marked && c.Phase is ChartPhase.Running or ChartPhase.Boss) Weather(brass);
+        if(c.Phase==ChartPhase.Running)
+        {
+            var point=GetViewport().GetMousePosition();
+            foreach(var bank in c.Banks)
+            {
+                if(!bank.Breakable||bank.Broken||V2.DistanceSquared(ship.Position,bank.Shackle)>600*600)continue;
+                var clasp=S(bank.Shackle,.28f);
+                DrawArc(clasp,7,0,Mathf.Tau,14,new Color("ffd289"),1.8f,true);
+                if(clasp.DistanceSquaredTo(point)<46*46)
+                    Text(bank.Hits>0?"Shackle  ·  One hit left":"Shackle  ·  Two shots",clasp.X+12,clasp.Y,15,Cream);
+            }
+        }
         foreach(var foe in ship.Enemies)
         {
             if(foe.Role==PatrolRole.Pursuit||foe.Health<=0)continue;
@@ -50,18 +61,19 @@ internal partial class BluewaterHud : Control
             DrawColoredPolygon([pin+new Vector2(-6,-4),pin+new Vector2(6,-4),pin+new Vector2(0,5)],tint);
         }
         if(c.Phase==ChartPhase.Boss && c.Tell>0) CommanderTell();
+        var bow=new V2(MathF.Sin(ship.Heading),-MathF.Cos(ship.Heading));
+        var deckhand=S(ship.Position-new V2(-bow.Y,bow.X)*31-bow*9,.67f);
         if(c.Tether!=null)
         {
             var point=S(c.Tether.Position,.35f);
-            DrawLine(shipHere,point,new Color(Ink,.85f),5,true);
-            DrawLine(shipHere,point,c.SeamReady?brass:Mint,2,true);
+            BoardingLine.Draw(this,deckhand,point,c.SeamReady?.05f:.45f,c.SeamReady);
             if(c.SeamReady)
             {
                 DrawArc(point,17,0,Mathf.Tau,24,brass,3,true);
                 DrawLine(point-Vector2.Right*22,point+Vector2.Right*22,Cream,2,true);
             }
         }
-        if(c.HookTime>0) {DrawLine(shipHere,S(c.HookEnd,.35f),Ink,6,true);DrawLine(shipHere,S(c.HookEnd,.35f),brass,3,true);}
+        else if(c.HookTime>0)BoardingLine.Draw(this,deckhand,S(c.HookEnd,.35f),c.HookTime/.55f,false);
         var previous=ship.Position;
         foreach(var lighter in c.Fleet)
         {
@@ -74,6 +86,24 @@ internal partial class BluewaterHud : Control
         }
         float w=Size.X,h=Size.Y;
         string name=c.Crossing ? c.RedPassage ? c.PrizeName : "Sheltered gate" : c.JobName;
+        if(c.Field!=0 && c.Tender is {Health:>0} aid)
+        {
+            var p=S(aid.Position,1.12f);
+            string label=c.Field==2?$"R  ·  {(c.LooseFormation?"On the beam":"Close astern")}  {aid.Health:0}%":c.Field==3 ? $"Q  ·  {c.Squadron!.Signal}" : c.SupportName;
+            DrawPolyline(Ring(aid.Position,100),Mint,2,true);
+            if(new Rect2(new(30,115),Size-new Vector2(60,330)).HasPoint(p))
+            {
+                float tw=text.GetStringSize(label,fontSize:15).X+20;
+                Box(p.X-tw/2,p.Y-18,tw,25,Mint);Text(label,p.X-tw/2+10,p.Y,15,Mint);
+            }
+            if(c.Field==1 && c.Picket is {Health:>0} picket)
+            {
+                var foe=S(picket.Position,1.05f);
+                if(new Rect2(new(20,115),Size-new Vector2(40,320)).HasPoint(foe))
+                    Text(picket.Health<picket.MaxHealth*.70f?"Q  ·  Board prize":"Picket under way",foe.X-55,foe.Y-12,15,Red);
+            }
+            if(c.Field==3 && c.FlagshipHull>0)DrawPolyline(Ring(c.Battery,90),Red,3,true);
+        }
         if(c.Crossing)
         {
             var other=c.RedPassage?c.Shelter:c.Prize;
@@ -104,6 +134,14 @@ internal partial class BluewaterHud : Control
         int cables=(int)MathF.Round(bearing.Length()/100);
         string direction = $"{Bearing(bearing)}   ·   {cables} {(cables==1?"cable":"cables")}";
         Text(direction,anchor.X-tagW/2+10,anchor.Y+15,14,brass);
+        if(c.Phase==ChartPhase.Running && !c.Docked)
+        {
+            var berth=c.Mooring-ship.Position;
+            int nautical=Math.Max(1,(int)Math.Round(berth.Length()/100));
+            string label=$"Pilot mooring    {Bearing(berth)}   ·   {nautical} {(nautical==1?"cable":"cables")}";
+            float meter=text.GetStringSize(label,fontSize:14).X+22;
+            Box(22,104,meter,26,Mint);Text(label,33,123,14,Mint);
+        }
         if(c.Phase==ChartPhase.Running && !c.Docked && V2.Distance(ship.Position,c.Mooring)<730)
         {
             var p=S(c.Mooring,1.65f);
@@ -136,15 +174,16 @@ internal partial class BluewaterHud : Control
         Box(w-385,h-92,363,72,brass);
         Text($"WASD  Helm     Space / click  Gun     Shift  Surge",w-374,h-66,15,Cream);
         Text(c.HookCooldown>0?$"Q   Line coiling   {Math.Ceiling(c.HookCooldown)}s":"Q   Crew line ready",w-374,h-39,16,Mint);
-        string order=c.Tether!=null?(c.SeamReady?"Turn side-on and fire at the tethered seam for a raking volley.":"Sail across the tether to turn its soft side toward Vara.") : c.HelmOrder;
+        string order=c.HelmOrder;
         float orderW=text.GetStringSize(order,fontSize:17).X+34;
         Box((w-orderW)/2,h-147,orderW,39,brass);
         Text(order,(w-orderW)/2+17,h-122,17,Cream);
-        if(c.Speech>0 && c.CrewLine!=order)
+        string crew=c.Tether!=null?(c.SeamReady?"Vara    Turn side-on and fire at the brass seam!":"Lio    Sail across her bow to expose the soft side!") : c.CrewLine;
+        if((c.Tether!=null||c.Speech>0) && crew!=order)
         {
-            float talkW=text.GetStringSize(c.CrewLine,fontSize:17).X+34;
+            float talkW=text.GetStringSize(crew,fontSize:17).X+34;
             Box((w-talkW)/2,h-195,talkW,35,Mint);
-            Text(c.CrewLine,(w-talkW)/2+17,h-172,17,Mint);
+            Text(crew,(w-talkW)/2+17,h-172,17,Mint);
         }
     }
     string Bearing(V2 d)
@@ -192,7 +231,24 @@ internal partial class BluewaterHud : Control
         var climate=Course.Country.Climate;
         bool current=climate is SeaClimate.Delta or SeaClimate.Loom;
         Color tint=current||climate==SeaClimate.Orchard?dye:Red;
-        float radius=weather.Radius*(climate==SeaClimate.Choir?Math.Max(.06f,weather.Windup):1);
+        float radius=weather.Radius*(climate switch {SeaClimate.Choir=>Math.Max(.06f,weather.Windup),SeaClimate.Drum=>Math.Max(.06f,1-weather.Windup),_=>1});
+        if(climate is SeaClimate.Wax or SeaClimate.Pitch or SeaClimate.Bottle or SeaClimate.Calving)tint=dye;
+        if(climate>=SeaClimate.Salt && new Rect2(new Vector2(85,135),Size-new Vector2(170,343)).HasPoint(p))
+        {
+            string guide=climate switch
+            {
+                SeaClimate.Salt=>"Brine rim  ·  Surge across",
+                SeaClimate.Bottle=>"Air bottles  ·  Cease fire to recharge",
+                SeaClimate.Wax=>"Courier stream  ·  Follow its turn",
+                SeaClimate.Sleep=>"Breathing hollow  ·  Quiet sails",
+                SeaClimate.Tin=>"Moon pull  ·  Surge free",
+                SeaClimate.Drum=>"Returning ring  ·  Surge through",
+                SeaClimate.Pitch=>"Tar slick  ·  Draw pursuit inside",
+                _=>"Nursery wake  ·  Match its heading"
+            };
+            float tag=text.GetStringSize(guide,fontSize:14).X+20;
+            Box(p.X-tag/2,p.Y+16,tag,25,dye);Text(guide,p.X-tag/2+10,p.Y+34,14,Cream);
+        }
         var ring=Ring(weather.Center,radius);
         DrawColoredPolygon(ring[..^1],new Color(tint,.12f));
         DrawPolyline(ring,new Color(tint,.84f),3,true);

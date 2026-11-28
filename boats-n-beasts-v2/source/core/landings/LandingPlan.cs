@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace BoatsNBeasts.Core;
 
-public enum YardTerrain { Quarry, Lagoons, IceLead, ReedCourt, Ropewalk, Arcade, Spiral, Shoal }
+public enum YardTerrain { Quarry, Lagoons, IceLead, ReedCourt, Ropewalk, Arcade, Spiral, Shoal, Terraces, Windstairs, MoonBasin, Hoopwalk }
 public enum YardRoad { Planks, Stone, Rope, Shoal }
 public sealed record YardPatch(string Name, Vector2 Center, Vector2 Radius, Vector2[] Rim)
 {
@@ -67,6 +67,14 @@ public sealed class LandingPlan
         var climate = LandingRegion.From(order.Region).Climate;
         YardTerrain[] family = climate switch
         {
+            IslandClimate.Saltstep => [YardTerrain.Terraces, YardTerrain.ReedCourt, YardTerrain.Lagoons, YardTerrain.MoonBasin],
+            IslandClimate.Bottlebrush => [YardTerrain.MoonBasin, YardTerrain.ReedCourt, YardTerrain.Windstairs, YardTerrain.Quarry],
+            IslandClimate.Waxwing => [YardTerrain.Windstairs, YardTerrain.Ropewalk, YardTerrain.Terraces, YardTerrain.Spiral],
+            IslandClimate.Narrows => [YardTerrain.Hoopwalk, YardTerrain.Lagoons, YardTerrain.ReedCourt, YardTerrain.Terraces],
+            IslandClimate.Tinmoon => [YardTerrain.MoonBasin, YardTerrain.Quarry, YardTerrain.IceLead, YardTerrain.Hoopwalk],
+            IslandClimate.Drumskin => [YardTerrain.Hoopwalk, YardTerrain.Spiral, YardTerrain.Windstairs, YardTerrain.ReedCourt],
+            IslandClimate.Pitchwake => [YardTerrain.Terraces, YardTerrain.Quarry, YardTerrain.Arcade, YardTerrain.Ropewalk],
+            IslandClimate.Calving => [YardTerrain.MoonBasin, YardTerrain.Shoal, YardTerrain.Hoopwalk, YardTerrain.Lagoons],
             IslandClimate.Kiln => [YardTerrain.Quarry, YardTerrain.Arcade, YardTerrain.Lagoons, YardTerrain.Spiral],
             IslandClimate.Delta => [YardTerrain.ReedCourt, YardTerrain.Lagoons, YardTerrain.Shoal, YardTerrain.Ropewalk],
             IslandClimate.Orchard => [YardTerrain.Spiral, YardTerrain.Ropewalk, YardTerrain.ReedCourt, YardTerrain.Lagoons],
@@ -87,7 +95,7 @@ public sealed class LandingPlan
             var def = positions[i]; var center = new Vector2((mirror ? -1 : 1) * def.X + (random.NextSingle() - .5f) * 1.1f, def.Y + (random.NextSingle() - .5f) * 1.15f);
             float size = .9f + random.NextSingle() * .17f;
             Vector2 radius = new(def.Z * size, def.W * size);
-            bool paved = Terrain is YardTerrain.Arcade or YardTerrain.ReedCourt || Terrain == YardTerrain.Quarry && i % 2 == 1;
+            bool paved = Terrain is YardTerrain.Arcade or YardTerrain.ReedCourt or YardTerrain.Terraces || Terrain == YardTerrain.Quarry && i % 2 == 1;
             int n = paved ? 8 : 12;
             var rim = new Vector2[n];
             for (int k = 0; k < n; k++)
@@ -101,9 +109,9 @@ public sealed class LandingPlan
         }
         var road = Terrain switch
         {
-            YardTerrain.Arcade or YardTerrain.Quarry => YardRoad.Stone,
-            YardTerrain.Ropewalk or YardTerrain.Spiral => YardRoad.Rope,
-            YardTerrain.Shoal or YardTerrain.IceLead => YardRoad.Shoal,
+            YardTerrain.Arcade or YardTerrain.Quarry or YardTerrain.Terraces => YardRoad.Stone,
+            YardTerrain.Ropewalk or YardTerrain.Spiral or YardTerrain.Windstairs => YardRoad.Rope,
+            YardTerrain.Shoal or YardTerrain.IceLead or YardTerrain.MoonBasin => YardRoad.Shoal,
             _ => YardRoad.Planks
         };
         Passages = edges.Select((pair, index) =>
@@ -141,7 +149,7 @@ public sealed class LandingPlan
                 BrokenBridge = -1;
             }
         }
-        if (works != null) foreach (int lockIndex in new[]{2,3,4,7,8,9}) gates.Add(lockIndex);
+        if (works != null) foreach (int lockIndex in new[] { 2, 3, 4, 7, 8, 9, 10, 11 }) gates.Add(lockIndex);
         RebuildRoutes();
         Dock = Patches[0].Center + new Vector2(-.6f, Patches[0].Radius.Y * .52f);
         LandingSteps = Patches[0].Center + new Vector2(.9f, -.65f);
@@ -155,6 +163,10 @@ public sealed class LandingPlan
     }
     static (Vector4[] Positions, (int A, int B)[] Edges) Shape(YardTerrain t) => t switch
     {
+        YardTerrain.Terraces => ([new(-11, 9, 3.4f, 2.23f), new(-12, -1, 3.4f, 2.8f), new(2, 8, 3.4f, 2.7f), new(11, -12, 5.1f, 3.89f), new(0, -1, 2.8f, 2.15f), new(9, 3, 2.8f, 3.0f), new(-13, -13, 2.43f, 1.95f), new(-6, -8, 3.1f, 1.9f), new(5, -7, 2.53f, 1.92f)], [(0, 1), (0, 2), (1, 4), (2, 5), (1, 7), (7, 6), (7, 8), (8, 3), (5, 8), (5, 4), (4, 8)]),
+        YardTerrain.Windstairs => ([new(-11, 12, 3.4f, 2.8f), new(-3, 9, 3.2f, 2.65f), new(-11, -1, 3.45f, 2.8f), new(13, -7, 5.2f, 3.81f), new(0, 0, 2.8f, 2.5f), new(7, 8, 3.1f, 2.85f), new(-6, -15, 2.4f, 2.3f), new(-4, -8, 2.93f, 1.92f), new(8, 0, 2.2f, 1.83f)], [(0, 1), (0, 2), (2, 7), (7, 6), (7, 4), (7, 3), (1, 5), (5, 8), (8, 3), (1, 4), (4, 8)]),
+        YardTerrain.MoonBasin => ([new(-2, 10, 3.25f, 2.7f), new(-11, 3, 3.3f, 3.1f), new(8, 6, 3.45f, 2.7f), new(-1, -15, 5.2f, 3.70f), new(-1, -2, 2.67f, 2.10f), new(10, -4, 2.85f, 2.87f), new(18, -9, 2.13f, 1.72f), new(-10, -7, 2.6f, 2.1f), new(5, -10, 2.2f, 1.71f)], [(0, 1), (0, 2), (1, 7), (7, 3), (2, 5), (5, 6), (5, 8), (8, 3), (1, 4), (4, 5), (4, 8)]),
+        YardTerrain.Hoopwalk => ([new(1, 12, 3.3f, 2.61f), new(-9, 8, 3.51f, 2.61f), new(8, -2, 3.2f, 2.88f), new(-7, -13, 5.2f, 3.78f), new(-3, -1, 2.74f, 2.3f), new(10, 8, 2.65f, 2.94f), new(-19, 1, 2.10f, 1.77f), new(-11, -3, 2.33f, 2.13f), new(3, -9, 2.55f, 2.12f)], [(0, 1), (0, 5), (5, 2), (2, 8), (8, 3), (1, 7), (7, 3), (7, 6), (1, 4), (4, 2), (4, 8)]),
         YardTerrain.Quarry => ([new(-7, 6, 3.6f, 2.6f), new(-7, -3, 3.4f, 2.65f), new(5, 5, 3.2f, 2.65f), new(1, -15, 4.9f, 3.7f), new(-.8f, -4, 2.6f, 2.25f), new(7, -5, 2.8f, 3.4f), new(-11, -12, 2.15f, 2.1f), new(-5, -10, 1.8f, 1.65f)], [(0, 1), (0, 2), (1, 4), (2, 5), (4, 5), (1, 7), (7, 3), (5, 3), (7, 6), (4, 2)]),
         YardTerrain.IceLead => ([new(0, 6, 3.8f, 2.7f), new(-5, -4, 2.75f, 4.6f), new(4, -9, 2.9f, 4.5f), new(-2, -19, 5.0f, 3.7f), new(5, 1, 2.35f, 2.6f), new(-5, -13, 2.3f, 2.65f), new(10, -15, 2.1f, 1.5f), new(-1, -6, 1.2f, 1.9f), new(-4, 2, 1.46f, 1.45f)], [(0, 8), (8, 1), (0, 4), (4, 2), (1, 7), (7, 2), (1, 5), (2, 3), (5, 3), (2, 6)]),
         YardTerrain.ReedCourt => ([new(-5, 5, 3.2f, 3.0f), new(-7, -3, 3.4f, 3.35f), new(5, -3, 3.2f, 3.1f), new(4, -14, 5.1f, 3.7f), new(-1, -2, 2.20f, 2.35f), new(0, 5, 2.5f, 2.2f), new(-11, -9, 2, 2), new(-5, -10, 2.5f, 1.8f)], [(0, 1), (0, 5), (5, 2), (5, 4), (1, 4), (4, 2), (1, 7), (7, 3), (2, 3), (7, 6)]),
@@ -182,10 +194,10 @@ public sealed class LandingPlan
                 nextHop[i, j] = nextHop[i, k];
             }
     }
-    public void OpenDoor(int from,int to)
+    public void OpenDoor(int from, int to)
     {
-        int index=Array.FindIndex(Passages,p=>p.A==from&&p.B==to||p.A==to&&p.B==from);
-        if(index>=0&&gates.Remove(index))RebuildRoutes();
+        int index = Array.FindIndex(Passages, p => p.A == from && p.B == to || p.A == to && p.B == from);
+        if (index >= 0 && gates.Remove(index)) RebuildRoutes();
     }
     public void Splice() { BrokenBridge = -1; RebuildRoutes(); }
     public Vector2 Walkable(Vector2 p)
@@ -201,10 +213,10 @@ public sealed class LandingPlan
         }
         for (int i = 0; i < Passages.Length; i++)
         {
-            var road = Passages[i];bool closed=GateClosed(i);var at = road.Closest(p, 0, i == BrokenBridge ? .32f : closed ? .455f : 1);
-            if (i == BrokenBridge||closed)
+            var road = Passages[i]; bool closed = GateClosed(i); var at = road.Closest(p, 0, i == BrokenBridge ? .32f : closed ? .455f : 1);
+            if (i == BrokenBridge || closed)
             {
-                var far = road.Closest(p, closed?.545f:.68f, 1);
+                var far = road.Closest(p, closed ? .545f : .68f, 1);
                 if (Vector2.DistanceSquared(far, p) < Vector2.DistanceSquared(at, p)) at = far;
             }
             float d = Vector2.DistanceSquared(at, p);
@@ -213,8 +225,21 @@ public sealed class LandingPlan
         }
         return closest;
     }
+    public bool CrossesDoor(Vector2 from, Vector2 to)
+    {
+        foreach (int index in gates)
+        {
+            var span = Passages[index]; var axis = Vector2.Normalize(span.To - span.From); var mid = (span.From + span.To) * .5f;
+            float before = Vector2.Dot(from - mid, axis), after = Vector2.Dot(to - mid, axis);
+            if (before * after > 0 || MathF.Abs(before - after) < .00001f) continue;
+            var crossing = Vector2.Lerp(from, to, before / (before - after));
+            if (Vector2.DistanceSquared(crossing, mid) <= (span.Width + .12f) * (span.Width + .12f)) return true;
+        }
+        return false;
+    }
     public bool CanWalk(Vector2 a, Vector2 b)
     {
+        if (CrossesDoor(a, b)) return false;
         float distance = Vector2.Distance(a, b);
         int samples = Math.Max(1, (int)MathF.Ceiling(distance * 6));
         for (int i = 1; i < samples; i++)
@@ -227,7 +252,16 @@ public sealed class LandingPlan
     public Vector2 Waypoint(Vector2 from, Vector2 goal)
     {
         goal = Walkable(goal);
-        if (CanWalk(from, goal)) return goal;
+        bool HasRoom(Vector2 point)
+        {
+            if(!CanWalk(from,point))return false;
+            if(Vector2.DistanceSquared(from,point)<.36f)return true;
+            var axis=Vector2.Normalize(point-from);
+            var side=new Vector2(-axis.Y,axis.X)*.14f;
+            var ahead=from+axis*.17f;var behind=point-axis*.17f;
+            return CanWalk(ahead+side,behind+side)&&CanWalk(ahead-side,behind-side);
+        }
+        if(HasRoom(goal))return goal;
         var starts = Links(from); var destinations = Links(goal);
         float best = float.PositiveInfinity; int startNode = -1, endNode = -1;
         foreach (int a in starts) foreach (int b in destinations)
@@ -240,7 +274,7 @@ public sealed class LandingPlan
         while (n != endNode)
         {
             int next = nextHop[n, endNode];
-            if (next == n || !CanWalk(from, vertices[next])) break;
+            if (next == n || !HasRoom(vertices[next])) break;
             n = next;
         }
         return vertices[n];
@@ -253,10 +287,10 @@ public sealed class LandingPlan
         for (int i = 0; i < Passages.Length; i++)
         {
             var span = Passages[i]; int left = Patches.Length + i * 2;
-            if (i == BrokenBridge||GateClosed(i))
+            if (i == BrokenBridge || GateClosed(i))
             {
-                if (Vector2.DistanceSquared(span.Closest(point, 0, GateClosed(i)?.455f:.32f), point) < .001f) links.Add(left);
-                if (Vector2.DistanceSquared(span.Closest(point, GateClosed(i)?.545f:.68f, 1), point) < .001f) links.Add(left + 1);
+                if (Vector2.DistanceSquared(span.Closest(point, 0, GateClosed(i) ? .455f : .32f), point) < .001f) links.Add(left);
+                if (Vector2.DistanceSquared(span.Closest(point, GateClosed(i) ? .545f : .68f, 1), point) < .001f) links.Add(left + 1);
             }
             else if (Vector2.DistanceSquared(span.Closest(point), point) < .001f) { links.Add(left); links.Add(left + 1); }
         }

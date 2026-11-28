@@ -145,11 +145,16 @@ internal partial class PilotPlot : Control
             if(new Rect2(20,115,Size.X-135,Size.Y-245).HasPoint(p))Text(p,light.Name,18,Cream,true);
         }
         V2? target=Run.Surveyed?Run.Landing:Run.Pin;
-        string course=target is { } mark ? $"{(Run.Surveyed?"TENDER":"YOUR PIN")}    {PilotSoundings.Bearing(Run.Ship.Position,mark):000}°    ·    {V2.Distance(Run.Ship.Position,mark)/100:0} cables"
+        int cables=target is { } to?(int)MathF.Round(V2.Distance(Run.Ship.Position,to)/100):0;
+        string course=target is { } mark ? $"{(Run.Surveyed?"TENDER":"YOUR PIN")}    {PilotSoundings.Bearing(Run.Ship.Position,mark):000}°    ·    {cables} {(cables==1?"cable":"cables")}"
             : $"SECOND LIGHT    {Run.Lights[Run.Fix.Far].Name}    ·    open M to plot";
         Plate(new(Size.X-500,20,475,55));Text(new(Size.X-482,54),course,19,Teal);
         Plate(new(24,Size.Y-90,Size.X-48,63));
         Text(new(39,Size.Y-51),$"Hull {Run.Ship.Health:0}/{Run.Ship.MaxHealth:0}     {Run.Silver} silver     ·     WASD Helm   Shift Surge   Space Gun   Q Hail / hook   E Sound   R Patch ×{Run.Kits}   M Chart",17,Cream);
+        if(Run.SoundCooldown>0)
+        {
+            Plate(new(Size.X-215,87,190,39));Text(new(Size.X-202,112),$"Lead rising   {Run.SoundCooldown:0.0}s",17,Gold);
+        }
         if(Run.ReportLeft>0){Plate(new(24,Size.Y-152,Size.X-48,48));Text(new(41,Size.Y-122),Run.Report,18,Gold);}
     }
     void DrawResult()

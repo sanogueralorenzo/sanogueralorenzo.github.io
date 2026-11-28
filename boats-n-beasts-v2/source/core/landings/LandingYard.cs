@@ -3,7 +3,7 @@ using System.Numerics;
 namespace BoatsNBeasts.Core;
 
 public enum LandingJob { Weights, Nets, Mould, Escort, Capstans, Breakers }
-public enum YardPhase { Fork, BranchFight, Work, Crossroads, GateFight, Camp, Guardian, Keys, Release, Departure, Lost }
+public enum YardPhase { Approach, Fork, BranchFight, Work, Crossroads, GateFight, Camp, Guardian, Keys, Release, Departure, Lost }
 public sealed partial class LandingYard
 {
     public LandingPlan Plan { get; private set; } = null!;
@@ -39,6 +39,7 @@ public sealed partial class LandingYard
     public int Branch { get; private set; } = -1;
     public int Health { get; private set; }
     public int MaximumHealth { get; private set; }
+    public void ArriveByPost(float strength) => Health = Math.Clamp((int)MathF.Ceiling(MaximumHealth * strength), 1, MaximumHealth);
     public int Silver { get; private set; }
     public int Chits { get; private set; }
     public int Edge { get; private set; }
@@ -69,6 +70,14 @@ public sealed partial class LandingYard
     public bool ChargeHarness => Order.Id == "cinder-kiln" || Order.Id == "sable-dog";
     public string GuardFitting => Region.Climate switch
     {
+        IslandClimate.Saltstep => "root clasp",
+        IslandClimate.Bottlebrush => "cooling fin",
+        IslandClimate.Waxwing => "wing staple",
+        IslandClimate.Narrows => "hammock stay",
+        IslandClimate.Tinmoon => "plumb bracket",
+        IslandClimate.Drumskin => "tuning screw",
+        IslandClimate.Pitchwake => "hawse clamp",
+        IslandClimate.Calving => "cradle knot",
         IslandClimate.Kiln => "yoke pin",
         IslandClimate.Orchard => "wing stay",
         IslandClimate.Delta => "press peg",
@@ -101,10 +110,11 @@ public sealed partial class LandingYard
     public LandingJob Job => Options[Math.Max(0, Branch)];
     public Vector2 Workbench => Plan.Bells[Math.Max(0, Branch)];
     public Vector2 Mould => Workbench + new Vector2(1.03f, .85f);
-    public string DistrictName => Region.Districts[(District + DistrictOffset) % Region.Districts.Length];
+    public string DistrictName => Works?.Title ?? Region.Districts[(District + DistrictOffset) % Region.Districts.Length];
     int DistrictOffset => Order.Island.Length == 0 ? 0 : Math.Abs(Order.Island.Sum(c => (int)c)) % Region.Districts.Length;
     public string Objective => Phase switch
     {
+        YardPhase.Approach => WorksObjective,
         YardPhase.Fork => "Choose a yard to enter",
         YardPhase.BranchFight => "Clear the work yard",
         YardPhase.Work => Job switch
@@ -132,10 +142,12 @@ public sealed partial class LandingYard
     readonly Queue<Vector2> trail = [];
     float swingDelay, safe;
     bool fed;
+    public bool RationTaken => fed;
     public LandingYard(CampaignOrder order, int seed, int stores, Loadout outfit = Loadout.Standard)
     {
-        Order = order; Outfit = outfit; breed = order.Island.Length > 0 ? GuardianBreed.Named(order.Boss) : GuardianForm.Regional; flourish = order.Id.Sum(c => c) % 3; Region = LandingRegion.From(order.Region); contract = LandingContract.For(order); this.seed = seed;
+        Order = order; Outfit = outfit; breed = order.Island.Length > 0 || order.Tier >= 9 ? GuardianBreed.Named(order.Boss) : GuardianForm.Regional; flourish = order.Id.Sum(c => c) % 3; Region = LandingRegion.From(order.Region); contract = LandingContract.For(order); this.seed = seed;
         MaximumHealth = Health = 8 + Math.Clamp(stores, 0, 2) * 2 + (Outfit == Loadout.Lifeboat ? 4 : 0); GenerateDistrict();
+        if (HiddenWorks.For(order) is { } works) EnterWorks(works);
     }
     void GenerateDistrict()
     {
@@ -165,6 +177,7 @@ public sealed partial class LandingYard
     }
     public void Interact()
     {
+        if (Phase == YardPhase.Approach) { WorksInteract(); return; }
         if (!SpentStores && Near(Plan.Pocket, 1.4f))
         {
             FoundStores = true; Say("A cache under the signal rag. Take the field ration with 1 or the trade chits with 2."); return;
@@ -226,6 +239,7 @@ public sealed partial class LandingYard
     bool Near(Vector2 p, float range) => Vector2.DistanceSquared(Player, p) < range * range;
     public void Trade(int slot)
     {
+        if (Phase == YardPhase.Approach) { ClaimKeepsake(slot); return; }
         if (AtStores)
         {
             if (slot is not (1 or 2)) return;
@@ -250,7 +264,7 @@ public sealed partial class LandingYard
                 Quickline++; break;
             case 4:
                 if (District + 2 >= LegCount) { Say("The shortcut ends before the final gate."); return; }
-                Chits -= cost; District += 2; GenerateDistrict(); Say("The ash tender takes your chits and poles straight past one district."); return;
+                Chits -= cost; District += 2; GenerateDistrict(); Say("The district ferryman takes your chits and poles straight to the next landing."); return;
             default: return;
         }
         Chits -= cost;
@@ -272,19 +286,22 @@ public sealed partial class LandingYard
         LineClock = Decay(LineClock, dt);
         if (direction.LengthSquared() > 1) direction = Vector2.Normalize(direction);
         if (direction.LengthSquared() > .01f) Heading = direction;
-        if (dodge && DodgeWait == 0) { dashDirection = Unit(Heading); Dash = .22f; DodgeWait = Outfit == Loadout.Broadside ? 1.55f : 1.05f; safe = .28f; }
-        var desired = direction * (Carrying ? 2.35f : 2.85f);
+        if (dodge && !KeepsakeCarried && DodgeWait == 0) { dashDirection = Unit(Heading); Dash = .22f; DodgeWait = Outfit == Loadout.Broadside ? 1.55f : 1.05f; safe = .28f; }
+        var desired = direction * (Carrying || KeepsakeCarried ? 2.35f : 2.85f);
         footVelocity = Plan.Terrain == YardTerrain.IceLead ? Vector2.Lerp(footVelocity, desired, Math.Min(1, dt * 6)) : desired;
-        Player = Walkable(Player + (Dash > 0 ? dashDirection * 8.6f : footVelocity) * dt);
+        var moveTo = Walkable(Player + (Dash > 0 ? dashDirection * 8.6f : footVelocity) * dt);
+        if (!Plan.CrossesDoor(Player, moveTo)) Player = moveTo;
+        if (ShuttleInPlay && ShuttleBeat is >= 1.25f and <= 2.90f && Near(Shuttle, .49f) && safe == 0) Damage(1);
         if (LiveHazard && HazardBeat >= 1.60f && HazardBeat <= 2.75f && Near(HazardPosition, .52f) && safe == 0) Damage(1);
-        Mate = Walkable(Vector2.Lerp(Mate, Player - Heading * .67f + new Vector2(.22f, -.18f), Math.Min(1, dt * 4.6f)));
+        if (Works != null) FollowCrew(dt);
+        else Mate = Walkable(Vector2.Lerp(Mate, Player - Heading * .67f + new Vector2(.22f, -.18f), Math.Min(1, dt * 4.6f)));
         bool slashing = cut && swingDelay == 0 && Dash == 0, hooking = hook && HookWait == 0;
         if (hooking && !Repaired && BrokenBridge >= 0 && Near(RepairPost, 1.1f) && Chits > 0)
         {
             Chits--; Repaired = true; Hook = .5f; HookWait = 1; HookEnd = RepairPost; Plan.Splice();
             hooking = false; Say("The spare line holds. Both crews can cross the repaired bridge.");
         }
-        bool usedHook = Finishing ? FinishWork(dt, slashing, hooking) : Phase == YardPhase.Work && Work(dt, slashing, hooking);
+        bool usedHook = Phase == YardPhase.Approach ? WorksTurn(slashing, hooking) : Finishing ? FinishWork(dt, slashing, hooking) : Phase == YardPhase.Work && Work(dt, slashing, hooking);
         var nearest = Foes.MinBy(f => Vector2.DistanceSquared(f.Position, Player));
         if (slashing)
         {

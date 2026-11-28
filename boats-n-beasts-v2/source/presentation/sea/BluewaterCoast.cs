@@ -8,6 +8,8 @@ static class BluewaterCoast
     public static Color Water(SeaClimate climate)=>new(climate switch
     {
         SeaClimate.Cinder=>"117f83", SeaClimate.Delta=>"377f73", SeaClimate.Orchard=>"306e78", SeaClimate.Shelf=>"438f9b",
+        SeaClimate.Salt=>"488b82",SeaClimate.Bottle=>"2d9585",SeaClimate.Wax=>"3a847a",SeaClimate.Sleep=>"487a7b",
+        SeaClimate.Tin=>"3b7689",SeaClimate.Drum=>"337e81",SeaClimate.Pitch=>"397678",SeaClimate.Calving=>"4c9a90",
         SeaClimate.Loom=>"257a81", SeaClimate.Choir=>"206c78", SeaClimate.Court=>"437679", _=>"236f83"
     });
 
@@ -22,11 +24,11 @@ static class BluewaterCoast
         Color earth=new(style.Climate switch
         {
             SeaClimate.Cinder=>"ad705b",SeaClimate.Delta=>"877b55",SeaClimate.Orchard=>"94725c",
-            SeaClimate.Shelf=>"dfebde",SeaClimate.Choir=>"a98187",SeaClimate.Court=>"746579",_=>"a88b73"
+            SeaClimate.Shelf=>"dfebde",SeaClimate.Salt=>"e0c9b4",SeaClimate.Bottle=>"b78a68",SeaClimate.Tin=>"9694a3",SeaClimate.Pitch=>"776977",SeaClimate.Calving=>"c8ae95",SeaClimate.Choir=>"a98187",SeaClimate.Court=>"746579",_=>"a88b73"
         });
         Color green=new(style.Climate switch
         {
-            SeaClimate.Orchard=>"687f54",SeaClimate.Delta=>"809354",SeaClimate.Shelf=>"b9d3d5",
+            SeaClimate.Orchard=>"687f54",SeaClimate.Salt=>"dfc6ac",SeaClimate.Bottle=>"739b72",SeaClimate.Sleep=>"8c9e85",SeaClimate.Wax=>"b4a468",SeaClimate.Tin=>"8f91a0",SeaClimate.Pitch=>"8f7d6c",SeaClimate.Calving=>"91aa8b",SeaClimate.Delta=>"809354",SeaClimate.Shelf=>"b9d3d5",
             SeaClimate.Cinder=>"a87459",SeaClimate.Loom=>"84976f",SeaClimate.Court=>"776a81",_=>"8a9285"
         });
         Vector3[] Ring(float scale,float height,float fold)
@@ -70,17 +72,12 @@ static class BluewaterCoast
         {
             float a=rng.Range(0,Mathf.Tau),fraction=i==0?0:rng.Range(.28f,.62f);
             var raw=place.Shape?.Point(a)??new System.Numerics.Vector2(MathF.Cos(a)*place.Radius,MathF.Sin(a)*place.Radius);
-            var prop=SeaLandmarks.Float(style);
+            var prop=i==0&&departure?BluewaterPort.Make(style):SeaLandmarks.Float(style);
             prop.Position=new(raw.X*.01f*fraction,top+.02f,raw.Y*.01f*fraction);
-            float size = i==0?Math.Clamp(radius*.74f,.45f,2.45f):Math.Clamp(radius*.36f,.34f,1.13f);
+            float size = i==0?Math.Clamp(radius*.74f,departure?.86f:.45f,departure?1.58f:2.45f):Math.Clamp(radius*.36f,.34f,1.13f);
             prop.Scale=Vector3.One*size;
             prop.Rotation=new(0,i==0?.18f:rng.Range(0,Mathf.Tau),0);
             root.AddChild(prop);
-        }
-        if(departure && style.Climate!=SeaClimate.Shelf)
-        {
-            var roof=BluewaterArt.Prop(style,"refuge");roof.Scale=Vector3.One*.72f;
-            roof.Position=new(radius*.31f,top,-radius*.09f);root.AddChild(roof);
         }
         return root;
     }

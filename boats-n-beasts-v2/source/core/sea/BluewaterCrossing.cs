@@ -41,7 +41,7 @@ public sealed partial class BluewaterCourse
         Shelter = FindWater(center + side * 455,125);
         if (Vector2.DistanceSquared(Prize,Shelter) < 280*280)
             Shelter = FindWater(Prize + side * 460 + ahead * 130,120);
-        winchHealth = 22 + Order.Tier * 3;
+        winchHealth = 22 + BattleTier * 3;
         crossGuards = false;
         crossingClock = 0;
         Weather.Set(Prize,Leg,Station);
@@ -56,7 +56,7 @@ public sealed partial class BluewaterCourse
         {
             crossGuards = true;
             var direction = OceanWorld.Unit(Shelter-Prize);
-            Ship.DropPatrol(Order.Duty == SeaDuty.Convoy ? EnemyKind.Serpent : Raider(Station),Prize + direction*175,1+Order.Tier*.05f,false);
+            Ship.DropPatrol(Order.Duty == SeaDuty.Convoy ? EnemyKind.Serpent : Raider(Station),Prize + direction*175,1+BattleTier*.05f,false);
             if(RedPassage || Order.Tier >= 4) AddRaider(Prize - direction*220,Station+1);
         }
         if (safe < 140)

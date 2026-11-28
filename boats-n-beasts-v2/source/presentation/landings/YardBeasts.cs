@@ -15,7 +15,7 @@ internal static class YardBeasts
         {
             var b = new ActorGeometry(); Color hide = new(region.Rock), warm = new(region.Cloth), light = new(region.Trim);
             if (kind != YardBeast.Guardian) Watcher(b, kind, hide, warm, light);
-            else if (order.Island.Length > 0 && GuardianBreed.Named(name) is var breed && breed != GuardianForm.Regional)
+            else if ((order.Island.Length > 0 || order.Tier >= 9) && GuardianBreed.Named(name) is var breed && breed != GuardianForm.Regional)
             {
                 switch (breed)
                 {
@@ -37,6 +37,14 @@ internal static class YardBeasts
             else if (name == "The Brass Balance") Balance(b, hide, light);
             else switch (region.Climate)
                 {
+                    case IslandClimate.Saltstep: Serpent(b, hide, light, warm, true); break;
+                    case IslandClimate.Bottlebrush: Walrus(b, hide, warm, light); break;
+                    case IslandClimate.Waxwing: Heron(b, hide, warm, light); break;
+                    case IslandClimate.Narrows: Beetle(b, hide, warm, light); break;
+                    case IslandClimate.Tinmoon: Clockman(b, warm, light); break;
+                    case IslandClimate.Drumskin: Nautilus(b, hide, warm, light); break;
+                    case IslandClimate.Pitchwake: Hooved(b, hide, warm, light, false, true); break;
+                    case IslandClimate.Calving: Serpent(b, hide, warm, light, true); break;
                     case IslandClimate.Kiln: Hooved(b, hide, warm, light, false, false); break;
                     case IslandClimate.Delta: Heron(b, hide, Ivory, light); break;
                     case IslandClimate.Orchard: Moth(b, hide, warm, light); break;
@@ -46,6 +54,7 @@ internal static class YardBeasts
                     case IslandClimate.Court: Hooved(b, hide, warm, light, false, true); break;
                     case IslandClimate.Stars: Hooved(b, hide, warm, light, true, false); break;
                 }
+            if (kind == YardBeast.Guardian && order.Tier >= 9) TideWorkshop.Crest(b, region);
             if (kind == YardBeast.Guardian && order.Island.Length > 0)
             {
                 int signature = order.Id.Sum(c => (int)c);

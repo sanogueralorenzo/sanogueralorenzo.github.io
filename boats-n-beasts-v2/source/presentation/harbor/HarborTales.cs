@@ -15,13 +15,14 @@ internal partial class LastLightHarbor
                 : "“When the fares went up I started keeping a second book. All the names of people we turned away. Do you think Vara would want it?” She holds it out with both hands.");
             Choice(Ledger.Dedicated ? "Help her to the pier" : "Bring it to the crew", Ledger.Dedicated ? Close : Crew, true);
         }, true);
-        if (Ledger.Dedicated) Choice("Read the visitors’ book", () => VisitorsBook(0));
+        if (Ledger.Dedicated) { Choice("Read the visitors’ book", () => VisitorsBook(0)); Choice("Join the night watch",NightWatch); }
         Choice("Let her count", Close);
     }
     void Crew()
     {
         if (Ledger.Dedicated && Ledger.Campaign.NeedsHearing) { Listen(); return; }
-        if (Ledger.Dedicated && Ledger.Campaign.Next == null && !Ledger.Campaign.HomePortNamed) { Ending(); return; }
+        if (Ledger.Dedicated && Ledger.Campaign.NeedsCharter) { Ending(); return; }
+        if (Ledger.Campaign.HomePortNamed && Ledger.Campaign.Next==null && !Ledger.Campaign.StoryCleared) { TideEnding(); return; }
         if (Ledger.Dedicated && Ledger.Campaign.Voyages.Length > 0) { MessTable(); return; }
         if (Ledger.BellReleased && !Ledger.Dedicated)
         {
@@ -37,7 +38,7 @@ internal partial class LastLightHarbor
                 ? "“Heard the small ones this morning? They’ve invented a fourth signal. It means the bread is out of the oven.” Lio leaves a coil of clean rope on the lowest hook."
                 : "The list has grown. Beneath the names of the drowned, someone has begun writing the names of people who came home. Vara finds yours and laughs.");
             Choice("Stay for a bowl", Close, true);
-            Choice("Meet the visiting pilot", Guest);
+            Choice("Meet the visiting pilot", Guest); Choice("Join the night watch",NightWatch);
         }
         else if (Ledger.HasTongue && Ledger.Promise == CrewPromise.Unspoken)
         {
@@ -88,7 +89,7 @@ internal partial class LastLightHarbor
         if (last.Id == arc.Orders[^1].Id) text += " The crew has kept a souvenir. " + arc.Keepsake + ".";
         Open(arc.Title.ToUpperInvariant(), "Word from the quay", text);
         Choice("Take your watch", FarChart, true);
-        Choice("Sit with the crew", Guest);
+        Choice("Meet the visiting pilot", Guest); Choice("Join the night watch",NightWatch);
         Choice("Read the visitors’ book", () => VisitorsBook(0));
     }
 
@@ -112,9 +113,14 @@ internal partial class LastLightHarbor
             music.Ring();
             string bell = Ledger.Dedication == BellDedication.Children ? "The children hang on the rope together." : "Vara reads the names and rings for each one.";
             string signatures = crew ? "The page fills with thumbprints, flour and one wet paw." : "Pip writes LAST LIGHT in a hand big enough to read from the gangplank.";
-            Open("THE FAR LEDGER   /   END", crew ? "Room for one more" : "A name on the door", signatures + " " + bell +
+            Open("THE FAR LEDGER   /   CHART SIGNED", crew ? "Room for one more" : "A name on the door", signatures + " " + bell +
                 " Oren sets another place. Nell opens the register to a clean page and props the door open with it. On the tide outside, a strange little boat is looking for somewhere to tie up.");
-            Choice("Throw them a line", Close, true);
+            Choice("Throw them a line", () =>
+            {
+                Open("THE WALKING TIDE", "Land in the wake",
+                    "The visitor aboard the little boat holds out a flowerpot. Under its soil a baby reef is swimming in circles. Across the bay the whole lighthouse takes one quiet step to the west. Nell puts down her pen. “Fetch the bigger chart.”");
+                Choice("Open the outer chart",FarChart,true); Choice("Step onto the quay",Close);
+            }, true);
         }
         Choice("Write Last Light Quay", () => Write(false), true);
         Choice("Ask the crew to sign", () => Write(true));

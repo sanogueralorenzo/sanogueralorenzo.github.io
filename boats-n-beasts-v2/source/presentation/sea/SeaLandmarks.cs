@@ -5,17 +5,19 @@ namespace BoatsNBeasts;
 
 static class SeaLandmarks
 {
-    static readonly Dictionary<SeaClimate,ArrayMesh> cache=[];
+    static readonly Dictionary<(SeaClimate,string),ArrayMesh> cache=[];
     public static MeshInstance3D Float(SeaCountry country)
     {
-        if(!cache.TryGetValue(country.Climate,out var mesh))
+        var key=(country.Climate,country.Accent);
+        if(!cache.TryGetValue(key,out var mesh))
         {
             var b=new ActorGeometry();
             var dye=new Color(country.Accent);
             var shade=new Color(country.Shadow);
             var brass=new Color("d9a965");
             var cream=new Color("ffe9b3");
-            switch(country.Climate)
+            if(country.Climate>=SeaClimate.Salt)WalkingScenery.Draw(b,country);
+            else switch(country.Climate)
             {
                 case SeaClimate.Cinder:
                     b.Sphere(new(0,.12f,0),new(.72f,.29f,.63f),shade);
@@ -85,7 +87,7 @@ static class SeaLandmarks
                     b.Crystal(new(0,.83f,0),new(.18f,.32f,.18f),cream);
                     break;
             }
-            cache[country.Climate]=mesh=b.Mesh(DioramaSurface.Material);
+            cache[key]=mesh=b.Mesh(DioramaSurface.Material);
         }
         return new(){Mesh=mesh};
     }

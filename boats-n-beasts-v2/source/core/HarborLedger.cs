@@ -6,6 +6,10 @@ public enum BellDedication { Unrung, RollCall, Children }
 
 public sealed record HarborLedger
 {
+    public BoatKind Vessel { get; init; }
+    public BoatKind[] Hulls { get; init; } = [];
+    public int Figurehead { get; init; } = -1;
+    public int[] Carvings { get; init; } = [];
     public Loadout Outfit { get; init; }
     public Loadout[] Patterns { get; init; } = [];
     public CampaignLog Campaign { get; init; } = new();

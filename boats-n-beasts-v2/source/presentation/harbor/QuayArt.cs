@@ -40,6 +40,7 @@ public static partial class EnvironmentArt3D
             art.RoundedBox(new(.28f + t * .64f, .20f + .045f * i, .18f - t * 2.04f),
                 new(.98f, .13f + .09f * i, .36f), .038f, new Color("dfa876").Lightened(.03f * (i % 3)));
         }
+        Boatyard(art);
         QuayStones(art);
         Dock(art, 3.92f);
         var carving = new SeedRandom(416);
@@ -85,6 +86,7 @@ public static partial class EnvironmentArt3D
             for (int i = 0; i < 3; i++)
                 art.Ellipsoid(new(-.23f + i * .21f, .599f, .11f * Mathf.Cos(i * 2)), new(.07f,.012f,.046f), new("549994"), 8, 3);
         });
+        MessAwning(art);
         var frame = new Vector3(.32f,.16f,1.22f);
         Place(frame, -.18f, 1, () =>
         {

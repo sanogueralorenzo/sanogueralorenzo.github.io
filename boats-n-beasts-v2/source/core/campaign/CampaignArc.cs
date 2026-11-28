@@ -14,7 +14,7 @@ public sealed record CampaignArc(string Region, string Title, string Lead, strin
 
     internal static CampaignArc Create(string region, string title, string lead, string keepsake, Hearing hearing,
         int tier, CampaignOrder[] orders, CampaignOrder alternate) => new(region,title,lead,keepsake,hearing,
-        orders.Select(o => o with { Region = region, Tier = tier }).ToArray(), alternate with { Region = region, Tier = tier });
+        orders.Select((o,index) => o with { Region = region, Tier = tier, Postal=index==orders.Length-2 }).ToArray(), alternate with { Region = region, Tier = tier });
 }
 
 public static partial class FarLedger
@@ -30,7 +30,15 @@ public static partial class FarLedger
         Tangleloom() with { Islands = TangleloomIsles() },
         Choir() with { Islands = ChoirIsles() },
         Sable() with { Islands = SableIsles() },
-        Unnumbered() with { Islands = UnnumberedIsles() }
+        Unnumbered() with { Islands = UnnumberedIsles() },
+        Saltstep() with { Islands=SaltstepIsles() },
+        Bottlebrush() with { Islands=BottlebrushIsles() },
+        Waxwing() with { Islands=WaxwingIsles() },
+        Sleeping() with { Islands=SleepingIsles() },
+        Tinmoon() with { Islands=TinmoonIsles() },
+        Drumskin() with { Islands=DrumskinIsles() },
+        Pitchwake() with { Islands=PitchwakeIsles() },
+        Calving() with { Islands=CalvingIsles() }
     ];
     public static int Count => Arcs.Sum(arc => arc.Length);
     public static CampaignOrder Find(string id) => Arcs.SelectMany(arc =>

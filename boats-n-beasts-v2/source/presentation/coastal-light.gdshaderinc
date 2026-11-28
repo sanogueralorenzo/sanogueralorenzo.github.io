@@ -3,7 +3,7 @@ instance uniform float light_through_surface : hint_range(0.0, 1.0) = 0.0;
 varying vec3 pigment_position;
 
 float brush_mark(vec3 p) {
-    float line = dot(p, vec3(22.0, -17.0, 12.0));
+    float line = dot(p, vec3(10.8, -10.2, 6.8));
     line += .24 * sin(dot(p, vec3(5.0, 3.0, -4.0)));
     float filter_width = clamp(fwidth(line), .04, .48);
     float groove = 1.0 - smoothstep(.07, .07 + filter_width, abs(fract(line) - .5));
@@ -25,7 +25,7 @@ void light() {
     vec3 transmitted_shadow = mix(cast_shadow, daylight, light_through_surface);
     vec3 lit = mix(transmitted_shadow, local_light, ATTENUATION);
     float shade = 1.0 - sunlight * ATTENUATION;
-    float ink = brush_mark(pigment_position) * (.08 + .30 * shade);
+    float ink = brush_mark(pigment_position) * (.13 + .43 * shade);
     float edge = pow(1.0 - abs(dot(NORMAL, VIEW)), 3.8) * max(facing, 0.0) * ATTENUATION;
-    DIFFUSE_LIGHT += lit * mix(vec3(1.0), vec3(.58,.46,.69), ink) + edge * vec3(.24,.13,.04);
+    DIFFUSE_LIGHT += lit * mix(vec3(1.0), vec3(.58,.46,.69), ink) + edge * vec3(.34,.20,.065);
 }

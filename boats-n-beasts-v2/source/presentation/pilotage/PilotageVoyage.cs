@@ -7,6 +7,7 @@ namespace BoatsNBeasts;
 public partial class PilotageVoyage : CrewRun
 {
     public CampaignOrder Order { get; set; } = FarLedger.Arcs[0].Islands[0].Outings[0];
+    public override bool AskShipmate(Shipmate mate) => !ChartOpen && !Sights.Won && Sights.Ship.CallShipmate(mate);
     public override int SilverEarned => Sights?.Silver ?? 0;
     internal PilotSoundings Sights { get; private set; } = null!;
     internal OceanView3D Ocean { get; private set; } = null!;
@@ -17,9 +18,10 @@ public partial class PilotageVoyage : CrewRun
 
     public override void _Ready()
     {
-        Sights=new(Order,Seed,Stores,Outfit);
-        Ocean=new(){Voyage=Sights.Ship};AddChild(Ocean);Ocean.OpenChart();
+        Sights=new(Order,Seed,Stores,Outfit,Vessel);
         var country=SeaCountry.At(Order.Region,Order.Island);
+        Ocean=new(){Figurehead=Figurehead,Voyage=Sights.Ship,CustomPlace=p=>BluewaterCoast.Build(p,country,false)};
+        AddChild(Ocean);Ocean.PaintWater(BluewaterCoast.Water(country.Climate));Ocean.OpenChart();
         foreach(var light in Sights.Lights)
         {
             var beacon=Light(light,country);

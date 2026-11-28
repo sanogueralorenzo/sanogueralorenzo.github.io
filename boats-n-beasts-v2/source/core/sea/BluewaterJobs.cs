@@ -71,8 +71,12 @@ public sealed partial class BluewaterCourse
         if (HasGunneryTarget && Vector2.Distance(Ship.Position,CannonTarget) < 645) return CannonTarget;
         var nearest = Ship.Enemies.Where(e => e.Health > 0 && Vector2.DistanceSquared(Ship.Position,e.Position) < 630 * 630)
             .MinBy(e => Vector2.DistanceSquared(Ship.Position,e.Position));
-        if (nearest == null) return null;
-        return nearest.Position;
+        if(nearest!=null)return nearest.Position;
+        if(Phase!=ChartPhase.Running)return null;
+        var bow=new Vector2(MathF.Sin(Ship.Heading),-MathF.Cos(Ship.Heading));
+        return banks.Where(bank=>bank.Breakable&&!bank.Broken && Vector2.DistanceSquared(Ship.Position,bank.Shackle)<525*525 &&
+                Vector2.Dot(OceanWorld.Unit(bank.Shackle-Ship.Position),bow)>.88f)
+            .MinBy(bank=>Vector2.DistanceSquared(Ship.Position,bank.Shackle))?.Shackle;
     }
 
     Enemy? pennant;
@@ -187,9 +191,9 @@ public sealed partial class BluewaterCourse
     {
         e.Role=(Country.Climate,(slot+Leg+islandPattern)%3) switch
         {
-            (SeaClimate.Choir or SeaClimate.Orchard,0)=>PatrolRole.Caller,
-            (SeaClimate.Shelf or SeaClimate.Court or SeaClimate.Cinder,1)=>PatrolRole.Mortar,
-            (SeaClimate.Loom or SeaClimate.Delta,0)=>PatrolRole.Flanker,
+            (SeaClimate.Choir or SeaClimate.Orchard or SeaClimate.Sleep or SeaClimate.Bottle or SeaClimate.Calving,0)=>PatrolRole.Caller,
+            (SeaClimate.Shelf or SeaClimate.Court or SeaClimate.Cinder or SeaClimate.Tin or SeaClimate.Pitch or SeaClimate.Drum,1)=>PatrolRole.Mortar,
+            (SeaClimate.Loom or SeaClimate.Delta or SeaClimate.Wax or SeaClimate.Salt,0)=>PatrolRole.Flanker,
             (_,2) when Order.Tier>2 || RedPassage=>PatrolRole.Flanker,
             (_,0) when Order.Tier>=6=>PatrolRole.Caller,
             _=>PatrolRole.Pursuit
@@ -198,9 +202,9 @@ public sealed partial class BluewaterCourse
 
     EnemyKind Raider(int index) => (Country.Climate, (index + Leg + (int)Order.Duty) % 3) switch
     {
-        (SeaClimate.Orchard or SeaClimate.Court, 0) => EnemyKind.Ray,
-        (SeaClimate.Shelf or SeaClimate.Choir, 0) => EnemyKind.Puffer,
-        (SeaClimate.Delta or SeaClimate.Loom, 1) => EnemyKind.Serpent,
+        (SeaClimate.Orchard or SeaClimate.Court or SeaClimate.Wax or SeaClimate.Calving, 0) => EnemyKind.Ray,
+        (SeaClimate.Shelf or SeaClimate.Choir or SeaClimate.Bottle or SeaClimate.Drum or SeaClimate.Salt, 0) => EnemyKind.Puffer,
+        (SeaClimate.Delta or SeaClimate.Loom or SeaClimate.Tin or SeaClimate.Pitch or SeaClimate.Sleep, 1) => EnemyKind.Serpent,
         (_, 0) => EnemyKind.Crab,
         (_, 1) => RedPassage || Order.Duty == SeaDuty.Hunt ? EnemyKind.Serpent : EnemyKind.Ray,
         _ => EnemyKind.Puffer
@@ -268,7 +272,7 @@ public sealed partial class BluewaterCourse
     {
         if (Alarm > 0) return;
         Alarm = cadence;
-        Ship.Lob(origin,target,12+Order.Tier,108,1.65f);
+        Ship.Lob(origin,target,12+BattleTier,108,1.65f);
     }
 
     void TickCaptain(bool hook,float dt)
@@ -330,7 +334,7 @@ public sealed partial class BluewaterCourse
         Captain!.Armor = 1;
         var side = new Vector2(-course.Y,course.X);
         ShieldPoint = FindWater(Captain.Position + side * (Seals == 0 ? 310 : -360),110);
-        GateHealth = 34 + Order.Tier * 5;
+        GateHealth = 34 + BattleTier * 5;
         if (Seals > 0) Ship.Spawn(Raider(Seals));
         Say(HelmOrder);
     }

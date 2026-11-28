@@ -5,6 +5,11 @@ public sealed record CampaignLog
     public string[] Voyages { get; init; } = [];
     public Dictionary<string, bool> Decisions { get; init; } = [];
     public bool? CrewSigned { get; init; }
+    public Dictionary<string,bool> NightWatches { get; init; } = [];
+    public Shipmate OnWatch { get; init; }
+    public bool? FreeMigration { get; init; }
+    public bool StoryCleared => FreeMigration.HasValue;
+    public bool NeedsCharter => !HomePortNamed && FarLedger.Arcs.Take(8).All(arc => FiledIn(arc)==arc.Length);
     public bool HomePortNamed => CrewSigned.HasValue;
 
     int FiledIn(CampaignArc arc) => arc.Orders.Select((order,i) => arc.OrderAt(i,Decisions.GetValueOrDefault(arc.Region)))
@@ -26,7 +31,7 @@ public sealed record CampaignLog
         && pos.Arc.Orders.Take(CampaignArc.Fork).All(order=>Voyages.Contains(order.Id));
     public IEnumerable<CampaignOrder> Available()
     {
-        if (Next is not { } pos) yield break;
+        if (Next is not { } pos || NeedsCharter) yield break;
         var arc = pos.Arc;
         bool second = Decisions.GetValueOrDefault(arc.Region);
         for(int i=0;i<=CampaignArc.Fork;i++)

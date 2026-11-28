@@ -17,19 +17,27 @@ internal partial class QuayView : Node3D
     Vector2 position = new(.77f, 2.58f);
     WharfStop? destination;
     float clock;
+    Node3D? calf, houseboat;
 
     internal IEnumerable<WharfStop> OpenStations => Enum.GetValues<WharfStop>().Where(stop => stop != WharfStop.Belfry || Ledger.BellReleased);
     public override void _Ready()
     {
         stage = new(); AddChild(stage);
         AddChild(EnvironmentArt3D.HomePort(Ledger));
-        boat = ActorArt3D.Boat(BoatKind.Cutter, [1, 0, 0, 0, 0, 0]);
+        boat = ActorArt3D.Boat(Ledger.Vessel, [1, 0, 0, 0, Ledger.Vessel==BoatKind.Trawler?1:0, Ledger.Vessel==BoatKind.Mage?1:0]);
+        ActorArt3D.MountCarving(boat,Ledger.Figurehead);
         boat.Position = new(3.77f, 0, 4.72f);
         boat.Rotation = new(0,-.46f,0);
         AddChild(boat);
-        var reef = EnvironmentArt3D.Build(new Place("breakwater",PlaceKind.Rock, default, 111, 197));
-        reef.Position = new(6.55f,0,-2.60f);
-        AddChild(reef);
+        var reef=EnvironmentArt3D.QuayArch();
+        reef.Position=new(5.85f,0,-2.67f);reef.RotationDegrees=new(0,-22,0);AddChild(reef);
+        if(Ledger.Campaign.HomePortNamed)
+        {
+            houseboat=EnvironmentArt3D.FloatingKitchen();AddChild(houseboat);
+            houseboat.Position=new(-5.10f,0,.36f);houseboat.RotationDegrees=new(0,-31,0);
+            calf=ReefHerdArt.Calf(Ledger.Campaign.StoryCleared?7:1);AddChild(calf);
+            calf.Scale=Vector3.One*(Ledger.Campaign.StoryCleared?1.55f:.84f);
+        }
         captain = ActorArt3D.LandingParty(0);
         captain.Scale = Vector3.One * 1.18f; captain.RotationDegrees = new(0, -138, 0);
         AddChild(captain);
@@ -57,7 +65,8 @@ internal partial class QuayView : Node3D
         Frame();
         PoseCaptain();
     }
-    void Frame() => stage.Follow(new(35, 28), 9.9f);
+    const float CameraYaw = -.23f;
+    void Frame() => stage.Follow(new(61, -8), 9.88f, CameraYaw, .66f);
     void PoseCaptain() => captain.Position = new(position.X, position.X < 1.8f && position.Y < 2.80f ? .243f : .202f, position.Y);
     internal Vector2 Marker(WharfStop stop)
     {
@@ -72,11 +81,17 @@ internal partial class QuayView : Node3D
         clock += dt;
         Frame(); stage.Advance(clock);
         ActorArt3D.AnimateBoat(boat, clock, 0, 0);
+        if(houseboat!=null)houseboat.Position=new(-5.10f,.04f*Mathf.Sin(clock*.62f),.36f);
+        if(calf!=null)
+        {
+            calf.Position=new(4.96f+Mathf.Cos(clock*.22f)*.68f,.055f*Mathf.Sin(clock*1.51f),1.23f+Mathf.Sin(clock*.22f)*.76f);
+            calf.Rotation=new(0,-clock*.22f+Mathf.Pi,0);
+        }
         if (!Exploring) return;
         var move = new Vector2(
             (Input.IsPhysicalKeyPressed(Key.D) || Input.IsPhysicalKeyPressed(Key.Right) ? 1 : 0) - (Input.IsPhysicalKeyPressed(Key.A) || Input.IsPhysicalKeyPressed(Key.Left) ? 1 : 0),
             (Input.IsPhysicalKeyPressed(Key.S) || Input.IsPhysicalKeyPressed(Key.Down) ? 1 : 0) - (Input.IsPhysicalKeyPressed(Key.W) || Input.IsPhysicalKeyPressed(Key.Up) ? 1 : 0)).Normalized();
-        if (move != Vector2.Zero) destination = null;
+        if (move != Vector2.Zero) { move=move.Rotated(-CameraYaw); destination=null; }
         if (destination is WharfStop target)
         {
             var offset = Stations[(int)target] - position;

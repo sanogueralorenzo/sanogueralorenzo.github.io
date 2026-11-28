@@ -4,7 +4,7 @@ namespace BoatsNBeasts.Core;
 
 public sealed partial class LandingYard
 {
-    public string JobTitle(LandingJob job) => job switch
+    public string JobTitle(LandingJob job) => Region.WorkNames?[(int)job] ?? job switch
     {
         LandingJob.Weights => "Seal room",
         LandingJob.Nets => "Drift berth",
@@ -35,7 +35,7 @@ public sealed partial class LandingYard
         Billet = Workbench + new Vector2(-.9f, -.4f); Passenger = Mark(Branch == 0 ? 2 : 0);
         Say(Job switch
         {
-            LandingJob.Weights => "Read the three seals on the register. Press E at each matching clay tablet.",
+            LandingJob.Weights => $"Read the three marks on the {Region.Tally}. Press E at each matching station.",
             LandingJob.Nets => "The tide has carried three corked lines out. Follow the rim and call Lio’s hook with K.",
             LandingJob.Mould => $"Position behind the {Region.Pin}. J knocks it into the striped seat. K draws it back.",
             LandingJob.Escort => $"One {Region.Castaway} is stranded on the slip. Help them up with E and lead them to the lower wharf.",
@@ -88,14 +88,20 @@ public sealed partial class LandingYard
                 if (Vector2.Distance(Billet, FinalSite) < .40f) AdvanceFinal();
                 break;
             case LandingAction.Guide when PassengerFree:
-                FollowWorker(dt);
+                FollowWorker(dt, DeliverTo);
                 if (Vector2.Distance(Passenger, DeliverTo) < 1.25f) { RescuedPassenger = true; AdvanceFinal(); }
                 break;
         }
         return used;
     }
-    void FollowWorker(float dt)
+    void FollowWorker(float dt, Vector2 destination)
     {
+        if (Near(destination, 1.35f) && Vector2.DistanceSquared(Passenger, destination) < 5.76f)
+        {
+            var step = Plan.Waypoint(Passenger, destination) - Passenger;
+            Passenger = Walkable(Passenger + Unit(step) * Math.Min(step.Length(), dt * 3.6f));
+            trail.Clear(); lastTrail = Player; return;
+        }
         if (Vector2.DistanceSquared(lastTrail, Player) > .055f) { lastTrail = Player; trail.Enqueue(Player); }
         if (trail.TryPeek(out var next) && Vector2.Distance(Passenger, Player) > .82f)
         {
@@ -121,10 +127,10 @@ public sealed partial class LandingYard
                 Billet += billetVelocity * dt; billetVelocity *= MathF.Exp(-5 * dt);
                 var norm = (Billet - Workbench) / new Vector2(1.7f, 1.48f);
                 if (norm.LengthSquared() > 1) Billet = Workbench + Vector2.Normalize(norm) * new Vector2(1.7f, 1.48f);
-                if (Vector2.Distance(Billet, Mould) < .43f) { Carrying = true; Say("The bronze is seated. Take the finished casting to the upper slip."); }
+                if (Vector2.Distance(Billet, Mould) < .43f) { Carrying = true; Say($"The {Region.Pin} is seated. Carry it to the upper slip."); }
                 break;
             case LandingJob.Escort when PassengerFree:
-                FollowWorker(dt);
+                FollowWorker(dt, PassengerDock);
                 if (!Intercept && Vector2.Distance(Passenger, Workbench) > 2.45f)
                 {
                     Intercept = true; SpawnWatch(PassengerDock, false);

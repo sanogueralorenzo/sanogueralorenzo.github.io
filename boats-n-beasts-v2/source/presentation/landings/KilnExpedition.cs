@@ -7,6 +7,7 @@ namespace BoatsNBeasts;
 public partial class KilnExpedition : CrewRun
 {
     public CampaignOrder Order { get; set; } = FarLedger.Arcs[0].Orders.First(o => o.Ashore);
+    public override bool AskShipmate(Shipmate mate) => !ChartOpen && Yard.CallShipmate(mate);
     public override int SilverEarned => Yard.Silver;
     internal int ChartTarget { get; private set; }
     internal bool ChartOpen { get; private set; }
@@ -29,7 +30,10 @@ public partial class KilnExpedition : CrewRun
     YardHud hud = null!;
     YardWorkProps workProps = null!;
     AudioStreamPlayer cue = null!, hit = null!;
-    int districtIndex = -1, pattern, oldHealth, oldSilver;
+    DungeonDiorama? dungeon;
+    LandingPlan? shownPlan;
+    Node3D? gunner;
+    int pattern, oldHealth, oldSilver;
     bool repaired;
     float oldSwing, oldHook;
     N2 lastPlayer;
@@ -40,22 +44,8 @@ public partial class KilnExpedition : CrewRun
         Stage = new(); AddChild(Stage);
         var overlay = new MeshInstance3D { Mesh = brush, ExtraCullMargin = 40, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }; Stage.AddChild(overlay);
         workProps = new(Stage, Point);
-        captain = ActorArt3D.LandingParty(0); mate = ActorArt3D.LandingParty(1); Stage.AddChild(captain); Stage.AddChild(mate);
-        var body = captain.GetChild<MeshInstance3D>(0);
-        silhouette = new()
-        {
-            Mesh = body.Mesh,
-            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
-            MaterialOverride = new StandardMaterial3D
-            {
-                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-                NoDepthTest = true,
-                Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-                AlbedoColor = new("8be2d385"),
-                RenderPriority = 3
-            }
-        };
-        body.AddChild(silhouette);
+        captain = ActorArt3D.BoardingParty(0); mate = ActorArt3D.BoardingParty(1); Stage.AddChild(captain); Stage.AddChild(mate);
+        silhouette=ActorArt3D.Veil(captain);
         var canvas = new CanvasLayer(); AddChild(canvas); hud = new() { Trip = this }; canvas.AddChild(hud); hud.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         cue = new() { VolumeDb = -18 }; hit = new() { VolumeDb = -17 }; AddChild(cue); AddChild(hit); oldHealth = Yard.Health;
         Render();
@@ -82,6 +72,7 @@ public partial class KilnExpedition : CrewRun
         if (k == Key.E && Yard.Phase == YardPhase.Lost) { Settle(false); return; }
         if (Yard.Phase == YardPhase.Lost) return;
         if (k == Key.E) { var phase = Yard.Phase; Yard.Interact(); if (phase != Yard.Phase) Play(cue, 67, true); }
+        else if (k == Key.F && Yard.Phase == YardPhase.Approach) Yard.CallVara();
         else if (k == Key.Space) dodge = true;
         else if (k == Key.K) hook = true;
         else if (k is Key.Key1 or Key.Key2 or Key.Key3 or Key.Key4) Yard.Trade((int)k - (int)Key.Key1 + 1);
@@ -108,13 +99,25 @@ public partial class KilnExpedition : CrewRun
     void Render()
     {
         float t = Yard.Clock;
-        if (districtIndex != Yard.District || repaired != Yard.Repaired)
+        if (shownPlan != Yard.Plan || repaired != Yard.Repaired)
         {
             district?.QueueFree(); district = YardScenery.District(Yard); Stage.AddChild(district);
             clayFleet.Clear();
             foreach (Node n in district.GetChildren())
                 if (n is Node3D boat && boat.Name.ToString().StartsWith("ClayFerry", StringComparison.Ordinal)) clayFleet.Add((boat, boat.Position));
-            districtIndex = Yard.District; repaired = Yard.Repaired;
+            shownPlan = Yard.Plan; repaired = Yard.Repaired;
+            dungeon = Yard.Works == null ? null : new DungeonDiorama(district, Yard);
+        }
+        if(gunner==null){gunner=ActorArt3D.BoardingParty(2);Stage.AddChild(gunner);}
+        if(Yard.Works!=null)
+        {
+            dungeon!.Sync(Yard);Pose(gunner,Yard.Vara,Yard.Player-Yard.Vara);
+        }
+        else
+        {
+            var berth=Yard.Phase is YardPhase.Guardian or YardPhase.Keys or YardPhase.Release ? Yard.Plan.Walkable(Yard.Locks[1]+new N2(.82f,.76f)): Yard.Camp+new N2(.49f,-.69f);
+            var aim=Yard.Foes.FirstOrDefault(f=>f.Kind==YardBeast.Guardian)?.Position??Yard.Player;
+            Pose(gunner,berth,aim-berth);
         }
         var center = Yard.Player; Stage.Advance(t); Stage.Follow(new Vector2(center.X * 95, center.Y * 100 - 58), 8.65f);
         bool moving = N2.DistanceSquared(lastPlayer, Yard.Player) > .00001f; lastPlayer = Yard.Player;
@@ -159,6 +162,12 @@ public partial class KilnExpedition : CrewRun
     }
     internal IEnumerable<(N2 Position, string Name)> Locations()
     {
+        if (Yard.Works != null)
+        {
+            foreach (var goal in Yard.WorksGoals()) yield return goal;
+            foreach (var side in Yard.SideRooms()) if (ChartOpen || Yard.KeepsakeCarried || N2.DistanceSquared(side.Position, Yard.Player) < 38) yield return side;
+            yield break;
+        }
         if (!Yard.SpentStores && N2.DistanceSquared(Yard.Player, Yard.Plan.Pocket) < 10) yield return (Yard.Plan.Pocket, "E  Supply cache");
         if (Yard.BrokenBridge >= 0 && !Yard.Repaired && N2.DistanceSquared(Yard.Player, Yard.RepairPost) < 3f)
             yield return (Yard.RepairPost, "K  Splice bridge · 1 chit");
@@ -230,6 +239,11 @@ public partial class KilnExpedition : CrewRun
                 Arc(Yard.Billet, 0, .19f, 0, Mathf.Tau, new("d99053"), .12f);
                 Arc(Yard.Mould, .23f, .39f, 0, Mathf.Tau, green);
             }
+        }
+        if (Yard.ShuttleInPlay && Yard.ShuttleBeat < 2.90f)
+        {
+            Stroke(Yard.ShuttleStart, Yard.ShuttleEnd, .053f, rim);
+            Arc(Yard.Shuttle, .29f, .48f, 0, Mathf.Tau, Yard.ShuttleBeat < 1.25f ? gold : new Color("ed755b"));
         }
         if (Yard.LiveHazard && Yard.HazardBeat < 2.76f)
         {

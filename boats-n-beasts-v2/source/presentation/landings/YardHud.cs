@@ -25,7 +25,7 @@ internal partial class YardHud : Control
         if (y.CanTrade)
         {
             Box(new(22, 138, 414, 145)); Text(39, 165, $"TRADE TARP   ·   {y.Chits} chits", 17, Gold);
-            Text(39, 192, "1   Hot ration  +5 vitality   ·   1 chit", 18, Parchment);
+            Text(39, 192, y.RationTaken ? "1   Rations served" : "1   Hot ration  +5 vitality   ·   1 chit", 18, Parchment);
             Text(39, 217, $"2   Temper blade  {y.Edge}/3   ·   2 chits", 18, Parchment);
             Text(39, 242, $"3   Shorten hook reel  {y.Quickline}/3   ·   2 chits", 18, Parchment);
             Text(39, 267, y.District + 2 < y.LegCount ? "4   Charter bypass  ·  4 chits" : "Last ferry takes the marked gate", 17, Mint);
@@ -44,8 +44,10 @@ internal partial class YardHud : Control
         }
         Box(new(22, h - 58, 466, 40));
         Text(39, h - 32, $"Vitality   {y.Health}/{y.MaximumHealth}       {y.Silver} silver       {y.Chits} chits", 18, Mint);
-        Box(new(w - 696, h - 58, 674, 40));
-        Text(w - 682, h - 32, $"WASD  Move     J  Cut     K  {(y.HookWait > 0 ? $"Hook {y.HookWait:0.0}s" : "Hook")}     Space  Dodge     E  Work     M  Chart", 18, Parchment);
+        string controls = $"WASD  Move    J  Cut    K  {(y.HookWait > 0 ? $"Hook {y.HookWait:0.0}s" : "Hook")}    Space  Dodge    {(y.Works != null ? "F  Vara    " : "")}E  Work    M  Chart";
+        float controlsWidth = font.GetStringSize(controls, fontSize: 18).X + 28;
+        Box(new(w - 22 - controlsWidth, h - 58, controlsWidth, 40));
+        Text(w - 8 - controlsWidth, h - 32, controls, 18, Parchment);
         if (y.LineClock > 0 && y.Phase != YardPhase.Lost)
         {
             const float max = 940;
@@ -59,7 +61,7 @@ internal partial class YardHud : Control
         {
             DrawRect(new(0, 0, w, h), new Color("0e2433bd"));
             DrawString(font, new(0, h * .45f), "The crew rows for home", HorizontalAlignment.Center, w, 38, Parchment);
-            DrawString(font, new(0, h * .45f + 53), $"E   Return with {y.Silver} silver", HorizontalAlignment.Center, w, 22, Gold);
+            DrawString(font, new(0, h * .45f + 53), $"E   Return with {Trip.CarriedSilver + y.Silver} silver", HorizontalAlignment.Center, w, 22, Gold);
         }
     }
     void Chart()
@@ -77,7 +79,7 @@ internal partial class YardHud : Control
         for (int i = 0; i < plan.Passages.Length; i++)
         {
             var lane = plan.Passages[i]; var a = P(lane.From); var b = P(lane.To);
-            if (i == plan.BrokenBridge)
+            if (i == plan.BrokenBridge || plan.GateClosed(i))
             {
                 DrawLine(a, a.Lerp(b, .34f), Gold, 5); DrawLine(a.Lerp(b, .66f), b, Gold, 5);
                 var mid = (a + b) * .5f; DrawLine(mid - new Vector2(4, 4), mid + new Vector2(4, 4), new("ef8b74"), 3); DrawLine(mid - new Vector2(-4, 4), mid + new Vector2(-4, 4), new("ef8b74"), 3);
@@ -89,8 +91,8 @@ internal partial class YardHud : Control
             var patch = plan.Patches[i]; var points = patch.Rim.Select(P).ToArray();
             DrawColoredPolygon(points, new Color(y.Region.Ground).Darkened(.27f));
             DrawPolyline([.. points, points[0]], new("ceb993"), 1.4f, true);
-            if (i > 5) continue;
-            string label = i switch { 0 => "Landing", 1 => y.JobTitle(y.Options[0]), 2 => y.JobTitle(y.Options[1]), 3 => "Gate and trade", 4 => "Weigh house", _ => "Workers’ hall" };
+            if (i > 5 && y.Works == null) continue;
+            string label = y.Works != null ? patch.Name : i switch { 0 => "Landing", 1 => y.JobTitle(y.Options[0]), 2 => y.JobTitle(y.Options[1]), 3 => "Gate and trade", 4 => "Weigh house", _ => "Workers’ hall" };
             var pos = P(patch.Center); float width = font.GetStringSize(label, fontSize: 15).X + 13;
             DrawRect(new(pos.X - width / 2, pos.Y - 10, width, 22), Deep); Text(pos.X - width / 2 + 6, pos.Y + 6, label, 15, Parchment);
         }
@@ -113,7 +115,7 @@ internal partial class YardHud : Control
             var p = P(spot.Position); DrawCircle(p, 6, Gold); DrawArc(p, 8, 0, Mathf.Tau, 20, Gold, 1.5f, true);
         }
         var here = P(y.Player); DrawCircle(here, 7, Mint); DrawArc(here, 11, 0, Mathf.Tau, 24, Mint, 2, true);
-        Text(w * .11f, h * .86f, "Green   Crew       Gold   Work       Cross   Broken passage", 18, Mint);
+        Text(w * .11f, h * .86f, "Green   Crew       Gold   Work       Cross   Closed passage", 18, Mint);
         Text(w * .75f, h * .86f, "M   Close chart", 18, Parchment);
     }
     void Beacon(System.Numerics.Vector2 p, string name, int index, int count)

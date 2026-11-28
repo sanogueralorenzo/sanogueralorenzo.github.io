@@ -16,7 +16,7 @@ internal partial class LastLightHarbor : Node
     Control ui = null!;
     PanelContainer? sheet;
     RouteChart? chartMap;
-    HBoxContainer choices = null!;
+    HFlowContainer choices = null!;
     Label money = null!, direction = null!;
     readonly Dictionary<WharfStop, Button> markers = [];
     int crewLine;
@@ -73,7 +73,9 @@ internal partial class LastLightHarbor : Node
     void RefreshLedger()
     {
         money.Text = $"{Ledger.Silver} silver   ·   Bank";
-        direction.Text = Ledger.Dedicated ? Ledger.Campaign.NeedsHearing ? "Hear the witnesses at the crew table."
+        direction.Text = Ledger.Dedicated ? Ledger.Campaign.NeedsCharter ? "Bring the Far Ledger to the crew table for its signatures."
+            : Ledger.Campaign.HomePortNamed && Ledger.Campaign.Next==null && !Ledger.Campaign.StoryCleared ? "The nursery fleet has gathered. Join them at the crew table."
+            : Ledger.Campaign.NeedsHearing ? "Hear the witnesses at the crew table."
             : Ledger.Campaign.Current is { } next ? $"At the chart   ·   {next.Region}, {next.Title}" : "The quay rings again." : Ledger.BellReleased ? "Join the crew at the table for the first ringing."
             : Ledger.HasTongue ? "Carry the bell tongue ashore at Bellwether." : "Three skiffs went into the fog. Two came home. Ask the crew.";
     }
@@ -121,8 +123,8 @@ internal partial class LastLightHarbor : Node
         col.AddChild(Text(byline, 16, Teal));
         col.AddChild(Text(heading, 31, Brass, true));
         col.AddChild(Text(body, 22, Cream));
-        choices = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, Alignment = BoxContainer.AlignmentMode.Begin };
-        choices.AddThemeConstantOverride("separation", 12); col.AddChild(choices);
+        choices = new HFlowContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+        choices.AddThemeConstantOverride("h_separation", 12); choices.AddThemeConstantOverride("v_separation",6); col.AddChild(choices);
     }
     void Choice(string text, Action action, bool primary = false)
     {
@@ -178,7 +180,7 @@ internal partial class LastLightHarbor : Node
                 UpdateLedger(next); status = "The new fitting is ready."; Galley();
             }, true);
         }
-        if (Ledger.Dedicated) Choice("Visit the outfitter", Outfitter);
+        if (Ledger.Dedicated) { Choice("Visit the outfitter", Outfitter); Choice("Visit the dry dock",DryDock); }
         Choice("Back to the quay", Close);
     }
 

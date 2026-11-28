@@ -36,11 +36,11 @@ public partial class NativeStage3D : Node3D
         sea = new MeshInstance3D { Mesh = new PlaneMesh { Size = new(160, 160) }, MaterialOverride = water, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
         AddChild(sea); Follow(Vector2.Zero);
     }
-    public void Follow(Vector2 center, float sizeOverride = 0)
+    public void Follow(Vector2 center, float sizeOverride = 0, float yaw = 0, float tilt = Foreshortening)
     {
         var target = new Vector3(center.X * Unit, 0, center.Y * Unit);
         Lens.Size = sizeOverride > 0 ? sizeOverride : GetViewport().GetVisibleRect().Size.Y / (Zoom / Unit);
-        Lens.Position = target + new Vector3(0, Foreshortening * 32, Mathf.Sqrt(1 - Foreshortening * Foreshortening) * 32);
+        Lens.Position = target + new Vector3(0, tilt * 32, Mathf.Sqrt(1 - tilt * tilt) * 32).Rotated(Vector3.Up,yaw);
         Lens.LookAt(target); sea.Position = target;
     }
     public void PaintWater(Color tint) => water.SetShaderParameter("pigment", new Vector3(tint.R,tint.G,tint.B));

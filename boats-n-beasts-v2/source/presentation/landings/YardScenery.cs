@@ -76,6 +76,7 @@ internal static class YardScenery
         var tip = arrival.Center + new N2(-.6f, arrival.Radius.Y + .53f);
         root.AddChild(ShoreSculpture.Causeway(start, tip));
         var boat = ActorArt3D.ShoreSkiff(); Place(boat, tip + new N2(-1.26f, .59f), .03f);
+        if (yard.Works != null) return root;
         Place(Workshop(region, yard.District), arrival.Center + new N2(arrival.Radius.X * .57f, -arrival.Radius.Y * .46f));
         Place(Workshop(region, yard.District + 1), yard.Plan.Summit + new N2(.5f, -2.91f));
         Place(Workshop(region, yard.District + 2), yard.Plan.Ledger + new N2(.6f, -1.1f));
@@ -183,6 +184,7 @@ internal static class YardScenery
     }
     static MeshInstance3D Workshop(LandingRegion region, int variant)
     {
+        if (region.Climate >= IslandClimate.Saltstep) return TideWorkshop.Make(region, variant);
         var b = new ActorGeometry(); Color rock = new(region.Rock), trim = new(region.Trim), cloth = new(region.Cloth);
         if (region.Climate == IslandClimate.Kiln)
         {

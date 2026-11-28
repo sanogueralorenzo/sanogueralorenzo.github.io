@@ -1,6 +1,6 @@
 # Boats ’n’ Beasts V2
 
-An original Godot pirate roguelike. Last Light Quay loses its bell in **The Silent Watch**. Join Lio and Vara to recover it, dock at Bellwether and bring its keeper home. **The Far Ledger** follows the crew across eight regions, from Cinder Narrows to the Unnumbered Sea. The crew’s hearings decide which orders and witnesses appear. Cleared orders can be replayed from the ship’s log.
+An original Godot pirate roguelike. Last Light Quay loses its bell in **The Silent Watch**. Join Lio and Vara to recover it, dock at Bellwether and bring its keeper home. **The Far Ledger** follows the crew across eight regions, from Cinder Narrows to the Unnumbered Sea. **The Walking Tide** takes the signed chart into eight outer regions where islands migrate and a nursery fleet needs shelter. The crew’s hearings decide which orders and witnesses appear. Cleared orders can be replayed from the ship’s log.
 
 ## Play
 
@@ -11,7 +11,7 @@ Requires .NET 10 and Godot **4.7.2 .NET** with Forward+. Set `GODOT_BIN` to the 
 ./run.command --preview --once
 ```
 
-In the harbor, click a station or walk with WASD and press E. Use the crew table for conversations, the galley for permanent provisions and the berth for departures. The chart shows four island stories per region. Plot a safe approach in the pilot book, then take local orders in any available island chain. Nell keeps the gifts from completed islands in the visitors’ book. The outfitter opens after the first bell ringing. Escape pauses a run. Defeat and retreat bank the silver collected that run. Victory can open a landing, bring someone home or change the quay. Progress saves locally.
+In the harbor, click a station or walk with WASD and press E. Use the crew table for conversations, the galley for permanent provisions and the berth for departures. The chart shows four island stories per region. Plot a safe approach in the pilot book, then take local orders in any available island chain. Nell keeps the gifts from completed islands in the visitors’ book. The outfitter and dry dock open after the first bell ringing. Commission two additional ship classes and mount regional figureheads as the ports settle. Sit with Lio, Vara or Nell between watches to learn their stories and earn a keepsake. Press F to call on the equipped shipmate once per charted run. Escape pauses a run. Defeat and retreat bank the silver collected that run. Victory can open a landing, bring someone home or change the quay. Progress saves locally.
 
 | At sea | Ashore |
 | --- | --- |
@@ -20,7 +20,9 @@ In the harbor, click a station or walk with WASD and press E. Use the crew table
 | Q to grapple, Shift to surge | K to call Lio’s hook, Space to dodge |
 | E to use a repair kit, number keys to choose routes and refits | E to work, open gates or board. Use 1–4 to trade at camp |
 
-On a pilot survey, open the chart with M, sail to the second light and hail it with Q. Pin the crossing of the two bearings, sail there and cast the lead with E. Use R for a hull patch and hail the tender to file the survey. Press M or Tab for a district map on charted landings.
+On a pilot survey, open the chart with M, sail to the second light and hail it with Q. Pin the crossing of the two bearings, sail there and cast the lead with E. Use R for a hull patch and hail the tender to file the survey. Press M for a district map on charted landings and Tab to cycle its targets.
+
+On the Night Post, choose a lane on the packet chart, carry the letter through sea crossings and on-foot towpaths, and keep the cutter and crew fit for the final assignment. On a nursery watch, answer a calf’s song with 1–3 and guide it to the mother. Use Q to soothe, E to gather kelp or feed, and M to consult the chart.
 
 ## Art preview
 

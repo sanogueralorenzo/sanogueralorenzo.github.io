@@ -13,6 +13,7 @@ internal partial class RouteChart : Control
     static readonly Vector2[] Ports = [new(55,189),new(149,210),new(201,141),new(284,172),
         new(346,108),new(434,153),new(495,83),new(578,97),new(618,40)];
     static readonly string[] Names = ["Last Light","Cinder","Reedglass","Orchard","Whitewake","Tangleloom","Choir","Sable","Unnumbered"];
+    static readonly string[] OuterNames = ["Last Light","Saltstep","Bottlebrush","Waxwing","Sleeping","Tinmoon","Drumskin","Pitchwake","Calving"];
     static readonly Color Ink = new("364d54"), Faded = new("ad9f7f"), Water = new("dbd6b5"), Marker = new("a3483b");
     static readonly Font ChartFont = new SystemFont {FontNames = ["Baskerville","Georgia","serif"]};
     public override void _Draw()
@@ -30,8 +31,8 @@ internal partial class RouteChart : Control
             DrawCoast(Coast);
             return;
         }
-        DrawString(ChartFont,new(23,39),"The Far Ledger",HorizontalAlignment.Left,-1,26,Ink);
-        int current = Math.Min(8,1 + Log.SettledPorts().Count());
+        DrawString(ChartFont,new(23,39),Log.HomePortNamed?"The Walking Tide":"The Far Ledger",HorizontalAlignment.Left,-1,26,Ink);
+        int current = Math.Clamp(1+Log.SettledPorts().Count()-(Log.HomePortNamed?8:0),0,8);
         for (int i=0; i<Ports.Length; i++)
         {
             var p = Ports[i];
@@ -47,7 +48,7 @@ internal partial class RouteChart : Control
             DrawColoredPolygon(rim,i<=current?new("78998c"):new("b0b2a0"));
             DrawCircle(p,i==current?4:2.5f,i==current?Marker:Ink,true,-1,true);
             if (i==current) DrawArc(p,16,0,Mathf.Tau,48,Marker,1.6f,true);
-            DrawString(ChartFont,p+new Vector2(-39,i%2==0?24:-16),Names[i],HorizontalAlignment.Center,78,15,i<=current?Ink:new("6e766b"));
+            DrawString(ChartFont,p+new Vector2(-39,i%2==0?24:-16),(Log.HomePortNamed?OuterNames:Names)[i],HorizontalAlignment.Center,78,15,i<=current?Ink:new("6e766b"));
         }
     }
 

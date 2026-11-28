@@ -18,6 +18,7 @@ public sealed class FleetBoat(Vector2 position, float hitPoints, bool prize = fa
 public sealed partial class BluewaterCourse
 {
     public CampaignOrder Order { get; }
+    int BattleTier => Math.Min(10,Order.Tier);
     public Loadout Outfit { get; }
     public SeaWrit Writ { get; }
     public string DepartureId { get; }
@@ -70,7 +71,7 @@ public sealed partial class BluewaterCourse
     float patrolDistance, repairCooldown;
     Vector2 beforeTravel;
 
-    public BluewaterCourse(CampaignOrder order, int seed, int stores, Loadout outfit = Loadout.Standard)
+    public BluewaterCourse(CampaignOrder order, int seed, int stores, Loadout outfit = Loadout.Standard, BoatKind vessel = BoatKind.Cutter)
     {
         Order = order;
         Outfit = outfit;
@@ -81,8 +82,9 @@ public sealed partial class BluewaterCourse
         Country = SeaCountry.At(order.Region, order.Island);
         Weather = new(Country);
         random = new((uint)seed ^ 0xd30061u);
-        Ship = new((uint)seed, BoatKind.Cutter, 1) { Charted = true, BroadsideRig = outfit == Loadout.Broadside };
+        Ship = new((uint)seed, vessel, 1) { Charted = true, BroadsideRig = outfit == Loadout.Broadside };
         Ship.HullRank = Math.Clamp(stores, 0, 2);
+        Ship.Weapons[0]=Math.Max(1,Ship.Weapons[0]);
         Ship.Health = Ship.MaxHealth;
         Kits = 1 + Math.Clamp(stores, 0, 2) + (outfit == Loadout.Lifeboat ? 2 : 0);
         pilot = new(Ship.World.Seed);
@@ -178,7 +180,7 @@ public sealed partial class BluewaterCourse
         Target = FindWater(Ship.Position + course * distance + side * (bend + random.Range(-250,250)), Job == SeaJob.Guide ? 240 : 145);
         guardsSent = false;
         Alarm = 0;
-        GateHealth = 28 + Order.Tier * 4;
+        GateHealth = 28 + BattleTier * 4;
         patrolDistance = 0;
         beforeTravel = Ship.Position;
         Weather.Set(Target,Leg,Station);
@@ -223,9 +225,10 @@ public sealed partial class BluewaterCourse
         if(Phase==ChartPhase.Running)TickBanks(dt);
         WorkLine(dt,input);
         AlertQuietWater(input.Fire,dt);
+        if (Phase != ChartPhase.Port && !WeatherRead) Weather.Tick(dt,Ship,BattleTier);
+        if (Ship.Health <= 0) { Phase=ChartPhase.Lost; return; }
         TickFleet(dt);
         if (Phase == ChartPhase.Lost) return;
-        if (Phase != ChartPhase.Port && !WeatherRead) Weather.Tick(dt,Ship,Order.Tier);
         if (Phase == ChartPhase.Running)
         {
             if (!Docked && hook && Vector2.Distance(Ship.Position,Mooring) < 160)
@@ -239,7 +242,11 @@ public sealed partial class BluewaterCourse
             else if (Crossing) NavigateCrossing(dt,hook);
             else TickJob(hook);
         }
-        else if (Phase == ChartPhase.Boss) TickCaptain(hook, dt);
+        else if (Phase == ChartPhase.Boss)
+        {
+            TickCaptain(hook,dt);
+            if(Ship.Health<=0)Phase=ChartPhase.Lost;
+        }
         else if (Phase == ChartPhase.Port && hook && Vector2.Distance(Ship.Position,Target) < 235)
         {
             Purse += 7 + Order.Tier * 2;

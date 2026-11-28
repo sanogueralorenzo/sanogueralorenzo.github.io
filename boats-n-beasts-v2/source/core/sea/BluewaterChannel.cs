@@ -41,7 +41,7 @@ public sealed partial class BluewaterCourse
         var forward=OceanWorld.Unit(Target-Ship.Position,course);
         var side=new Vector2(-forward.Y,forward.X);
         var climate=Country.Climate;
-        bool floating=climate is SeaClimate.Delta or SeaClimate.Shelf or SeaClimate.Loom or SeaClimate.Court;
+        bool floating=climate is SeaClimate.Delta or SeaClimate.Shelf or SeaClimate.Loom or SeaClimate.Court or SeaClimate.Bottle or SeaClimate.Wax or SeaClimate.Sleep or SeaClimate.Calving;
         int rows=Order.Tier>=5 || RedPassage ? 3 : 2;
         for(int row=0;row<rows;row++)
         {
@@ -51,15 +51,15 @@ public sealed partial class BluewaterCourse
             int stagger=(row+islandPattern+Leg)%2==0?1:-1;
             for(int bank=-1;bank<=1;bank+=2)
             {
-                float gap=climate switch {SeaClimate.Shelf=>215,SeaClimate.Loom=>179,SeaClimate.Delta=>205,_=>235};
+                float gap=climate switch {SeaClimate.Shelf or SeaClimate.Salt=>215,SeaClimate.Loom or SeaClimate.Pitch=>179,SeaClimate.Delta or SeaClimate.Drum=>205,SeaClimate.Calving=>290,_=>235};
                 var p=center+side*(bank*gap+stagger*(65+islandPattern%65))+forward*(bank*stagger*78);
                 if(!pilot.IsWater(p,130)||Vector2.DistanceSquared(p,Target)<315*315||
                     Crossing&&(Vector2.DistanceSquared(p,Shelter)<205*205||Vector2.DistanceSquared(p,Prize)<205*205))continue;
                 float turn=(bank*stagger)*(.19f + islandPattern%7*.07f);
                 var axis=Vector2.TransformNormal(forward,Matrix3x2.CreateRotation(turn));
-                bool breaks=bank*stagger>0 || climate is SeaClimate.Shelf or SeaClimate.Loom;
+                bool breaks=bank*stagger>0 || climate is SeaClimate.Shelf or SeaClimate.Loom or SeaClimate.Bottle or SeaClimate.Tin;
                 banks.Add(new(p,axis,78 + (climate==SeaClimate.Loom ? 52 : islandPattern%38),
-                    climate==SeaClimate.Shelf ? 66 : 41,breaks,floating ? stagger*(22+Order.Tier*2) : 0));
+                    climate is SeaClimate.Shelf or SeaClimate.Sleep or SeaClimate.Calving ? 66 : 41,breaks,floating ? stagger*(22+BattleTier*2) : 0));
             }
         }
     }

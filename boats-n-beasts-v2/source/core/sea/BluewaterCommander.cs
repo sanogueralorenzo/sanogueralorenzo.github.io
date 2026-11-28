@@ -71,6 +71,47 @@ public sealed partial class BluewaterCourse
         }
         switch(Country.Climate)
         {
+            case SeaClimate.Salt:
+                AttackName="Terrace steps";
+                for(int i=-1;i<=1;i++)threats.Add(new(aim+side*(i*135)-dir*190,aim+side*(i*135)+dir*(i*115),41));
+                break;
+            case SeaClimate.Bottle:
+                AttackName="Burst the stoppered roots";
+                for(int i=0;i<3;i++)
+                {
+                    var cork=aim+side*((i-1)*140)+dir*((i%2)*105);
+                    threats.Add(new(cork,cork,113,48));
+                }
+                break;
+            case SeaClimate.Wax:
+                AttackName="Sealwing scissors";
+                threats.Add(new(aim-side*260-dir*195,aim+side*35+dir*185,44));
+                threats.Add(new(aim+side*260-dir*195,aim-side*35+dir*185,44));
+                break;
+            case SeaClimate.Sleep:
+                AttackName="The island turns";
+                threats.Add(new(aim-side*190,aim+side*255,135));
+                threats.Add(new(from,from,165,75));
+                break;
+            case SeaClimate.Tin:
+                AttackName="Crescent trawl";
+                threats.Add(new(aim-dir*174,aim-dir*174,319,205));
+                threats.Add(new(aim+dir*232,aim+dir*232,74));
+                break;
+            case SeaClimate.Drum:
+                AttackName="Call and answer";
+                threats.Add(new(from,from,315,221));
+                threats.Add(new(aim+side*123,aim+side*123,219,147));
+                break;
+            case SeaClimate.Pitch:
+                AttackName="The anchor spread";
+                for(int i=-1;i<=1;i++)threats.Add(new(from+side*(i*90),aim+side*(i*191),37));
+                break;
+            case SeaClimate.Calving:
+                AttackName="The mothers wheel";
+                threats.Add(new(aim-side*170-dir*210,aim-side*160+dir*135,76));
+                threats.Add(new(aim+side*170+dir*185,aim+side*155-dir*155,76));
+                break;
             case SeaClimate.Cinder:
                 AttackName="Three furnace mouths";
                 for(int i=-1;i<=1;i++)
@@ -133,19 +174,27 @@ public sealed partial class BluewaterCourse
         bool hit=threats.Any(zone=>zone.Covers(Ship.Position));
         if(hit && !Ship.IsBoosting)
         {
-            Ship.HullHit(12+Order.Tier);
+            Ship.HullHit(12+BattleTier);
             if(localMove)
             {
                 switch(Country.Climate)
                 {
+                    case SeaClimate.Wax:
+                    case SeaClimate.Tin:
+                    case SeaClimate.Calving:
                     case SeaClimate.Delta:
                     case SeaClimate.Loom:
                         Ship.Velocity+=OceanWorld.Unit(Captain!.Position-Ship.Position)*185;
                         Ship.Boost=Math.Max(0,Ship.Boost-18);
                         break;
+                    case SeaClimate.Pitch:
+                    case SeaClimate.Salt:
                     case SeaClimate.Shelf:
                         Ship.Boost=Math.Max(0,Ship.Boost-32);
                         break;
+                    case SeaClimate.Drum:
+                    case SeaClimate.Sleep:
+                    case SeaClimate.Bottle:
                     case SeaClimate.Orchard:
                     case SeaClimate.Court:
                         if(Ship.Enemies.Count<8)AddRaider(Ship.Position+course*445,beat);
@@ -158,10 +207,10 @@ public sealed partial class BluewaterCourse
         foreach(var craft in fleet)
         {
             if(craft.HitCooldown>0 || !threats.Any(t=>t.Covers(craft.Position)))continue;
-            craft.Health=Math.Max(0,craft.Health-9-Order.Tier);
+            craft.Health=Math.Max(0,craft.Health-9-BattleTier);
             craft.HitCooldown=2.8f;
             if(craft.Health==0){Phase=ChartPhase.Lost;Say("Lio    The last line's parted! Take that crew off!");}
         }
-        nextAttack= Math.Max(2.55f,4.8f-Order.Tier*.19f);
+        nextAttack= Math.Max(2.55f,4.8f-BattleTier*.19f);
     }
 }

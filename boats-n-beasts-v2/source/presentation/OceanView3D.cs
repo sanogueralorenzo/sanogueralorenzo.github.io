@@ -7,6 +7,7 @@ namespace BoatsNBeasts;
 public partial class OceanView3D : Node3D
 {
     public Voyage Voyage = null!;
+    public int Figurehead { get; set; } = -1;
     public bool Menu;
     public Func<Enemy, Node3D?>? CustomActor;
     public Func<Place, Node3D?>? CustomPlace;
@@ -64,6 +65,7 @@ public partial class OceanView3D : Node3D
         DepartureTime = 3;
         Camera = new(Voyage.Position.X, Voyage.Position.Y);
         stage.Follow(Camera);
+        SyncScenery(12);
     }
     public void BeginSailing() { Menu = false; DepartureTime = 0; }
     public void Effect(GameEvent ev) => effects.Effect(ev);
@@ -86,7 +88,7 @@ public partial class OceanView3D : Node3D
         effects.Sync(Voyage, Clock, dt);
         DrawMs = DrawMs * .95 + System.Diagnostics.Stopwatch.GetElapsedTime(start).TotalMilliseconds * .05;
     }
-    void SyncScenery()
+    void SyncScenery(int budget=1)
     {
         var size = GetViewport().GetVisibleRect().Size / Projection;
         var visible = Voyage.World.Places.Where(p => (OceanWorld.IsSolid(p) || p.Kind == PlaceKind.Whirlpool) &&
@@ -94,9 +96,8 @@ public partial class OceanView3D : Node3D
             Math.Abs(p.Position.Y - Camera.Y) < size.Y * .5f + p.Radius + 500).ToArray();
         var keep = visible.Select(p => p.Id).ToHashSet();
         foreach (var id in scenery.Keys.Where(id => !keep.Contains(id)).ToArray()) { scenery[id].QueueFree(); scenery.Remove(id); }
-        // Build at most one incoming island per frame, ahead of the visible edge during sailing.
-        var incoming = visible.Where(p => !scenery.ContainsKey(p.Id)).OrderBy(p => V2.DistanceSquared(p.Position, new(Camera.X, Camera.Y))).FirstOrDefault();
-        if (incoming != null)
+        var incomingPlaces = visible.Where(p => !scenery.ContainsKey(p.Id)).OrderBy(p => V2.DistanceSquared(p.Position, new(Camera.X, Camera.Y))).Take(budget);
+        foreach(var incoming in incomingPlaces)
         {
             var root = CustomPlace?.Invoke(incoming) ?? EnvironmentArt3D.Build(incoming); AddChild(root);
             root.Position = NativeStage3D.Point(incoming.Position); scenery.Add(incoming.Id, root);
@@ -108,7 +109,11 @@ public partial class OceanView3D : Node3D
         string signature = Voyage.Boat + ":" + string.Join(',', Voyage.Weapons);
         if (signature != boatSignature)
         {
-            boat?.QueueFree(); boat = ActorArt3D.Boat(Voyage.Boat, Voyage.Weapons); AddChild(boat); boatSignature = signature;
+            boat?.QueueFree();
+            boat = ActorArt3D.Boat(Voyage.Boat,Voyage.Weapons);
+            ActorArt3D.MountCarving(boat,Figurehead);
+            if(Voyage.Charted)boat.AddChild(KeelwidowArt.Foam(.60f,1.01f));
+            AddChild(boat); boatSignature = signature;
         }
         boat!.Position = NativeStage3D.Point(Voyage.Position);
         boat.Rotation = new(0, -Voyage.Heading, 0);

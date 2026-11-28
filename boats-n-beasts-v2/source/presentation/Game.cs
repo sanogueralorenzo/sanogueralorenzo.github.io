@@ -11,7 +11,7 @@ public partial class Game : Node
     Passage passage;
     CampaignOrder? order;
     CanvasLayer? pause;
-    bool returning;
+    bool returning, usedKeepsake;
 
     public override void _Ready()
     {
@@ -45,7 +45,7 @@ public partial class Game : Node
     void Harbor(string heading = "", string message = "")
     {
         ClearLocation(); order = null;
-        GetWindow().Title = ledger.Dedicated ? "Boats ’n’ Beasts  ·  The Far Ledger" : "Boats ’n’ Beasts  ·  The Silent Watch";
+        GetWindow().Title = ledger.Campaign.HomePortNamed ? "Boats ’n’ Beasts  ·  The Walking Tide" : ledger.Dedicated ? "Boats ’n’ Beasts  ·  The Far Ledger" : "Boats ’n’ Beasts  ·  The Silent Watch";
         location = new LastLightHarbor { Ledger = ledger, Changed = Save, Depart = Embark, AcceptOrder = Embark,
             ReturnHeading = heading, ReturnMessage = message };
         AddChild(location); returning = false;
@@ -65,13 +65,16 @@ public partial class Game : Node
     {
         if (location is not LastLightHarbor || !ledger.Dedicated) return;
         if (!ledger.Campaign.Available().Any(o => o.Id == requested.Id) && !ledger.Campaign.Voyages.Contains(requested.Id)) return;
-        order = requested;
+        usedKeepsake=false;order = requested;
         int seed = Random.Shared.Next();
         ClearLocation();
-        location = requested.Pilotage ? new PilotageVoyage { Order=requested, Seed=seed, Stores=ledger.Stores, Outfit=ledger.Outfit, Returned=Land } :
+        location = requested.Postal ? new NightPostWatch { Order=requested, Seed=seed, Stores=ledger.Stores, Outfit=ledger.Outfit, Returned=Land } :
+            requested.Migration ? new MigrationWatch { Order=requested, Seed=seed, Stores=ledger.Stores, Outfit=ledger.Outfit, Returned=Land } :
+            requested.Pilotage ? new PilotageVoyage { Order=requested, Seed=seed, Stores=ledger.Stores, Outfit=ledger.Outfit, Returned=Land } :
             requested.Ashore
             ? new KilnExpedition { Order = requested, Seed = seed, Stores = ledger.Stores, Outfit = ledger.Outfit, Returned = Land }
             : new BluewaterVoyage { Order = requested, Seed = seed, Stores = ledger.Stores, Outfit = ledger.Outfit, Returned = Land };
+        var crew=(CrewRun)location;crew.Vessel=ledger.Vessel;crew.Figurehead=ledger.Figurehead;
         AddChild(location);
     }
     int Purse => location is CrewRun run ? run.SilverEarned : 0;
@@ -112,6 +115,13 @@ public partial class Game : Node
     }
     public override void _UnhandledKeyInput(InputEvent input)
     {
+        if(input is InputEventKey { Keycode: Key.F, Pressed:true, Echo:false } && !returning && pause==null && order!=null &&
+            !usedKeepsake && ledger.Campaign.OnWatch!=Shipmate.None && location is CrewRun watch)
+        {
+            usedKeepsake=watch.AskShipmate(ledger.Campaign.OnWatch);
+            if(usedKeepsake)GetViewport().SetInputAsHandled();
+            return;
+        }
         if (input is not InputEventKey { Keycode: Key.Escape, Pressed: true, Echo: false } || returning ||
             location is not CrewRun) return;
         if (pause == null) Hold(); else Resume();
@@ -142,6 +152,8 @@ public partial class Game : Node
         var column = new VBoxContainer(); column.AddThemeConstantOverride("separation",12); panel.AddChild(column);
         column.AddChild(HarborType.Text("At anchor", 36, HarborType.Cream, true));
         column.AddChild(HarborType.Text($"{Purse} silver aboard", 20, HarborType.Brass));
+        if(order!=null && ledger.Campaign.OnWatch is not Shipmate.None)
+            column.AddChild(HarborType.Text(CrewWatches.Token(ledger.Campaign.OnWatch)+(usedKeepsake?"   ·   Used this run":"   ·   Press F during play"),17,HarborType.Teal));
         var resume = HarborType.Button("Resume", Resume, true); column.AddChild(resume);
         column.AddChild(HarborType.Button("Retreat and bank the silver", () => { int earned = Purse; Resume(); Land(false, earned); }));
         resume.GrabFocus();

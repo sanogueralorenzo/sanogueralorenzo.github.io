@@ -8,6 +8,8 @@ public sealed record CampaignOrder(string Id, string Region, string Title, strin
     public LandingStep[]? LandingSteps { get; init; }
     public SeaJob[]? SeaStations { get; init; }
     public string Island { get; init; } = "";
+    public bool Postal { get; init; }
+    public bool Migration { get; init; }
     public bool Pilotage { get; init; }
     public bool Ashore => Duty == SeaDuty.Landing;
 }

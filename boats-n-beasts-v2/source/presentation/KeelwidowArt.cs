@@ -65,33 +65,43 @@ static class KeelwidowArt
         return root;
     }
 
+    static readonly Dictionary<(float,float),ArrayMesh> wakePrints=[];
     public static Node3D Foam(float width, float depth)
     {
+        if(wakePrints.TryGetValue((width,depth),out var cached))
+            return new MeshInstance3D {Mesh=cached,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off};
         var foam = new ActorGeometry();
-        for (int k = 0; k < 2; k++)
+        Color wash=new("49a7a1"),mint=new("98d9c4"),ivory=new("f6e9be");
+        void Stroke(float start,float sweep,float radius,float thick,float y,Color paint)
         {
-            int strokes = k == 0 ? 13 : 9;
-            for (int i = 0; i < strokes; i++)
+            const int sections=17;
+            Vector3 Point(float t,float side)
             {
-                float start = (i + k * .42f) * Mathf.Tau / strokes;
-                float arc = (.42f + .29f * MathF.Sin(i * 4.1f + k)) * Mathf.Tau / strokes;
-                float spread = k == 0 ? 1 : 1.14f;
-                for (int j = 0; j < 7; j++)
-                {
-                    Vector3 Point(float t, float edge)
-                    {
-                        float a = start + t * arc;
-                        float ripple = spread + .030f * MathF.Sin(a * 7) +
-                            edge * (.004f + (k == 0 ? .052f : .029f) * MathF.Sin(MathF.PI * t));
-                        return new(MathF.Cos(a) * width * ripple, .022f, MathF.Sin(a) * depth * ripple);
-                    }
-                    float u = j / 7f, v = (j + 1) / 7f;
-                    foam.Polygon([Point(u, -1), Point(u, 1), Point(v, 1), Point(v, -1)],
-                        k == 0 ? new("b6e8d5") : new("72c8c2"), Vector3.Up);
-                }
+                float a=start+t*sweep;
+                float curl=.031f*MathF.Sin(7*a+.5f)+.020f*MathF.Sin(11*a+radius*3.2f);
+                float brush=MathF.Pow(Math.Max(0,MathF.Sin(t*Mathf.Pi)),.68f);
+                float edge=radius+curl+side*thick*brush*(.77f+.22f*MathF.Sin(4*a+start));
+                return new(MathF.Cos(a)*width*edge, y, MathF.Sin(a)*depth*edge);
+            }
+            for(int j=0;j<sections;j++)
+            {
+                float t=j/(float)sections,u=(j+1f)/sections;
+                foam.Polygon([Point(t,-1),Point(t,1),Point(u,1),Point(u,-1)],paint,Vector3.Up);
             }
         }
-        return new MeshInstance3D { Mesh = foam.Mesh(DioramaSurface.Material), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+        float[] starts=[-.27f,1.22f,2.88f,4.36f,5.38f];
+        float[] reaches=[1.07f,1.25f,1.04f,.76f,.42f];
+        for(int i=0;i<starts.Length;i++)
+        {
+            float a=starts[i],span=reaches[i];
+            Stroke(a-.14f,span+.19f,1.005f,.137f,.017f,wash);
+            Stroke(a-.06f,span+.13f,1.015f,.083f,.024f,mint);
+            Stroke(a,span,1.048f,.058f,.030f,ivory);
+            Stroke(a+.22f,span*.48f,1.164f,.028f,.024f,mint);
+            if(i%2==0)Stroke(a+.11f,span*.50f,1.184f,.020f,.031f,ivory);
+        }
+        wakePrints[(width,depth)]=cached=foam.Mesh(DioramaSurface.Material);
+        return new MeshInstance3D { Mesh = cached, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
     }
 
     public static Node3D Buoy(bool repair)
