@@ -254,14 +254,14 @@ public sealed class LandingPlan
         goal = Walkable(goal);
         bool HasRoom(Vector2 point)
         {
-            if(!CanWalk(from,point))return false;
-            if(Vector2.DistanceSquared(from,point)<.36f)return true;
-            var axis=Vector2.Normalize(point-from);
-            var side=new Vector2(-axis.Y,axis.X)*.14f;
-            var ahead=from+axis*.17f;var behind=point-axis*.17f;
-            return CanWalk(ahead+side,behind+side)&&CanWalk(ahead-side,behind-side);
+            if (!CanWalk(from, point)) return false;
+            if (Vector2.DistanceSquared(from, point) < .36f) return true;
+            var axis = Vector2.Normalize(point - from);
+            var side = new Vector2(-axis.Y, axis.X) * .14f;
+            var ahead = from + axis * .17f; var behind = point - axis * .17f;
+            return CanWalk(ahead + side, behind + side) && CanWalk(ahead - side, behind - side);
         }
-        if(HasRoom(goal))return goal;
+        if (HasRoom(goal)) return goal;
         var starts = Links(from); var destinations = Links(goal);
         float best = float.PositiveInfinity; int startNode = -1, endNode = -1;
         foreach (int a in starts) foreach (int b in destinations)

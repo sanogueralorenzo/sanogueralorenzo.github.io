@@ -164,15 +164,15 @@ public sealed partial class LandingYard
         switch (PassageStage)
         {
             case WorksStage.Mouth: yield return (Chamber(1), "K  " + w.SafeRoom + " · vitality"); yield return (Chamber(2), "J  " + w.RiskRoom + " · 3 chits"); break;
-            case WorksStage.Transfer: yield return (Chamber(7), "F  Vara · turn lift wheel"); break;
+            case WorksStage.Transfer: yield return (Chamber(7), "L  Vara · turn lift wheel"); break;
             case WorksStage.Sentries: if (Foes.Count == 0) yield return (Chamber(2), "E  Take watch pass"); break;
             case WorksStage.Archive: yield return (Chamber(4), "E  Inspect " + w.Archive); break;
             case WorksStage.TwoHands when HandsSet == 2: yield return (Chamber(8), "Paired shutters · crew at work"); break;
-            case WorksStage.TwoHands: yield return (Chamber(NextDrum), NextDrum == 5 ? "F  Vara · brace drum" : "K  Lio · hook bracket"); break;
+            case WorksStage.TwoHands: yield return (Chamber(NextDrum), NextDrum == 5 ? "L  Vara · brace drum" : "K  Lio · hook bracket"); break;
             case WorksStage.KeyRoom:
                 if (Machinery >= 2) { yield return (w.Mechanism == InnerWork.Counterpoise ? MachinePoint(2) : Chamber(8), "E  Release " + w.Key); break; }
                 if (w.Mechanism == InnerWork.Casting) { yield return (Forging, "J  Push · K  pull shoe"); yield return (MachinePoint(1), "Casting bed"); }
-                else yield return (MachinePoint(Machinery), w.Mechanism switch { InnerWork.Loom => Machinery == 0 ? "J  Cut first stay" : "J  Cut second stay", InnerWork.Floodgate => Machinery == 0 ? "K  Raise first float" : "K  Raise second float", _ => Machinery == 0 ? "K  Hang Lio’s weight" : "F  Call Vara to the pan" });
+                else yield return (MachinePoint(Machinery), w.Mechanism switch { InnerWork.Loom => Machinery == 0 ? "J  Cut first stay" : "J  Cut second stay", InnerWork.Floodgate => Machinery == 0 ? "K  Raise first float" : "K  Raise second float", _ => Machinery == 0 ? "K  Hang Lio’s weight" : "L  Call Vara to the pan" });
                 break;
             case WorksStage.Stairs: yield return (Chamber(3), "E  Use " + w.Key + " · upper stair"); break;
         }

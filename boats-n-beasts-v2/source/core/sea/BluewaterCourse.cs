@@ -13,6 +13,8 @@ public sealed class FleetBoat(Vector2 position, float hitPoints, bool prize = fa
     public float HitCooldown;
     public Vector2 LastLead = position;
     public Queue<Vector2> Wake { get; } = new();
+    internal Queue<Vector2> Detour { get; } = new();
+    internal float Pinned;
 }
 
 public sealed partial class BluewaterCourse
@@ -287,16 +289,22 @@ public sealed partial class BluewaterCourse
             boat.LastLead = lead;
         }
         while (boat.Wake.TryPeek(out var passed) && Vector2.DistanceSquared(boat.Position,passed)<80*80) boat.Wake.Dequeue();
-        var waypoint = boat.Wake.TryPeek(out var next) ? next : lead;
-        var desired = OceanWorld.Unit(waypoint-boat.Position);
-        var steer = desired;
+        while(boat.Detour.TryPeek(out var passedTurn)&&Vector2.DistanceSquared(boat.Position,passedTurn)<28*28)boat.Detour.Dequeue();
+        var waypoint = boat.Detour.TryPeek(out var turn) ? turn : boat.Wake.TryPeek(out var next) ? next : lead;
+        var steer = OceanWorld.Unit(waypoint-boat.Position);
         float towSpeed = Math.Min(Ship.Speed * 1.75f, (distance - 86) * 3.1f);
-        boat.Bow = OceanWorld.Unit(Vector2.Lerp(boat.Bow, steer, Math.Min(1,dt * 4)),desired);
+        boat.Bow = OceanWorld.Unit(Vector2.Lerp(boat.Bow, steer, Math.Min(1,dt * 4)),steer);
         float step=Math.Min(towSpeed*dt,Vector2.Distance(boat.Position,waypoint));
-        var nextPosition=Ship.World.Slide(boat.Position,boat.Position+steer*step,24);
-        if(Vector2.DistanceSquared(boat.Position,nextPosition)<step*step*.04f && boat.Wake.Count>1)
-            boat.Wake.Dequeue();
+        var origin=boat.Position;
+        var nextPosition=Ship.World.Slide(origin,origin+steer*step,24);
         boat.Position=Phase==ChartPhase.Running?FloatAroundBanks(nextPosition):nextPosition;
+        bool pinned=step>.025f && Vector2.Dot(boat.Position-origin,steer)<step*.17f;
+        boat.Pinned=pinned?boat.Pinned+dt:Math.Max(0,boat.Pinned-dt*.28f);
+        if(boat.Pinned>.55f)
+        {
+            boat.Pinned=0;
+            RouteAroundShoal(boat,lead);
+        }
     }
 
     public float Notice { get; private set; }

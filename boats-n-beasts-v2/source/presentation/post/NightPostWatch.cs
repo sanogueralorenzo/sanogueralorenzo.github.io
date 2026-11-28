@@ -11,6 +11,7 @@ public partial class NightPostWatch : CrewRun
     public override int SilverEarned => watch.Purse+(stage?.SilverEarned??0);
     PostalCircuit watch=null!;
     CrewRun? stage;
+    internal CrewRun? OnDeck=>stage;
     CanvasLayer? desk;
     VBoxContainer copy=null!;
     PostMap map=null!;
@@ -47,7 +48,7 @@ public partial class NightPostWatch : CrewRun
     void AddButton(string name,Action action,bool primary=false)
     {
         var button=Button(name,action,primary);copy.AddChild(button);
-        if(!copy.GetChildren().OfType<Button>().Skip(1).Any())button.CallDeferred(Control.MethodName.GrabFocus);
+        if(!copy.GetChildren().OfType<Button>().Skip(1).Any())button.GrabFocus();
     }
     void AtPort()
     {

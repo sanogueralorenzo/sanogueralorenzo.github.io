@@ -61,7 +61,7 @@ internal static class ShoreSculpture
 
     public static MeshInstance3D Keeper(bool warden)
     {
-        if(warden)return BellPlateArt.Build();
+        if (warden) return BellPlateArt.Build();
         var b = new ActorGeometry();
         var rim = Ring(.74f, .62f);
         b.Loft([rim, Ring(.78f, .71f), Ring(.68f, .81f), Ring(.55f, 1.43f), Ring(.42f, 1.54f)],
@@ -113,6 +113,7 @@ internal static class ShoreSculpture
         var top = new Vector3[sides];
         for (int i = 0; i < sides; i++) top[i] = Ellipse(i * Mathf.Tau / sides, 5.45f, 4.07f, Floor);
         b.Polygon(top, new("bd8463"), Vector3.Up);
+        ShoreBeach.Paint(b, top, new("b97563"), new("e4aa76"), seed);
         Color[] wall = [new("c77257"), new("ac6255"), new("db9062"), new("b97861")];
         var middle = Enumerable.Range(0, sides).Select(i => Ellipse(i * Mathf.Tau / sides, 5.65f + rng.NextSingle() * .30f, 4.27f + rng.NextSingle() * .29f, .14f + rng.NextSingle() * .10f)).ToArray();
         for (int i = 0; i < sides; i++)
@@ -163,7 +164,16 @@ internal static class ShoreSculpture
             b.Tube([p, p + Vector3.Up * .76f], .077f, Planks.Darkened(.27f), 7);
             b.Ring(p + Vector3.Up * .66f, .078f, .021f, Gold);
         }
-        if (belfry) Arch(b);
+        if (belfry)
+        {
+            Arch(b);
+            for (int step = 0; step < 5; step++)
+            {
+                var p = new Vector3(0, Floor + .040f + step * .048f, -2.93f - step * .20f);
+                b.RoundBox(p, new(1.87f - step * .072f, .077f + step * .094f, .28f), .026f, step % 2 == 0 ? new("c29a85") : new("b79689"));
+                b.RoundBox(p + new Vector3(0, .043f + step * .046f, .121f), new(1.79f - step * .072f, .022f, .040f), .009f, new("e0b18f"));
+            }
+        }
         for (int i = 0; i < 26; i++)
         {
             float a = Mathf.Pi + .10f + i * (Mathf.Pi - .2f) / 25;
@@ -311,6 +321,18 @@ internal static class ShoreSculpture
             b.Polygon(front, tint, Vector3.Back);
             for (int j = 0; j < 4; j++) b.Polygon([front[j], front[(j + 1) % 4], back[(j + 1) % 4], back[j]], tint.Lightened(j == 1 ? .08f : 0), j == 1 ? Vector3.Up : Vector3.Right);
         }
+        b.Polygon([new(-1.12f, Floor - .03f, -4.22f), new(1.12f, Floor - .03f, -4.22f), new(.99f, Floor + 1.24f, -4.22f), new(.60f, Floor + 1.59f, -4.22f), new(0, Floor + 1.68f, -4.22f), new(-.59f, Floor + 1.60f, -4.22f), new(-1.02f, Floor + 1.24f, -4.22f)], new("434a5b"), Vector3.Back);
+        foreach (int side in new[] { -1, 1 })
+        {
+            b.Polygon([new(side * 1.04f, Floor, -3.58f), new(side * .79f, Floor + .31f, -4.20f), new(side * .79f, Floor + 1.12f, -4.20f), new(side * 1.04f, Floor + .74f, -3.58f)], new("695d6d"), Vector3.Back);
+            for (int j = 0; j < 4; j++)
+            {
+                var p = new Vector3(side * (1.38f + j * .54f), Floor + .35f, -4.30f + MathF.Sin(j * .7f) * .14f);
+                b.Sphere(p, new(.64f, .69f - (j % 3) * .09f, .63f), j % 2 == 0 ? new("ac7265") : new("c48264"), 7, 4);
+                var edge = p + new Vector3(-.19f, .40f, .39f);
+                b.Polygon([edge, edge + new Vector3(.26f, .07f, -.11f), edge + new Vector3(.32f, .05f, -.12f), edge + new Vector3(.095f, -.016f, .022f)], new("e3a975"), Vector3.Back);
+            }
+        }
         foreach (int sign in new[] { -1, 1 }) for (int j = 0; j < 2; j++)
             b.RoundBox(new(sign * 1.19f, Floor + .16f + j * .325f, -3.61f), new(.45f, .315f, .56f), .035f, masonry[(j + 1) % 4]);
     }
@@ -331,6 +353,18 @@ internal static class ShoreSculpture
             var leaf = new Color(i % 3 == 0 ? "a2ad45" : "769848");
             b.Polygon([crown, mid + side * .18f, tip, mid], leaf, Vector3.Up);
             b.Polygon([crown, mid, tip, mid - side * .17f], leaf.Darkened(.19f), Vector3.Up);
+            b.Tube([crown + Vector3.Up * .008f, mid + Vector3.Up * .009f, tip], [.018f, .012f, .002f], leaf.Lightened(.32f), 5);
+            for (int frond = 1; frond <= 5; frond++)
+            {
+                float t = frond / 7f; var axis = t < .5f ? crown.Lerp(mid, t * 2) : mid.Lerp(tip, (t - .5f) * 2);
+                float span = .19f * MathF.Sin(t * Mathf.Pi);
+                foreach (float sign in new[] { -1f, 1f })
+                {
+                    var start = axis + side * span * .55f * sign + Vector3.Up * .006f;
+                    var end = start + dir * (.12f + .08f * t) + side * span * .70f * sign - Vector3.Up * .058f;
+                    b.Polygon([start, start + dir * .084f, end], sign > 0 ? leaf.Lightened(.14f) : leaf.Darkened(.13f), Vector3.Up);
+                }
+            }
         }
     }
     public static MeshInstance3D SignalBell(bool rung)

@@ -10,8 +10,10 @@ internal partial class LastLightHarbor : Node
     internal Action<Passage>? Depart;
     internal Action<HarborLedger>? Changed;
     internal string ReturnHeading = "", ReturnMessage = "";
+    internal CampaignOrder? Delivered;
     QuayView quay = null!;
-    QuayMusic music = null!;
+    internal TideScore? Score;
+    AudioStreamPlayer bell = null!;
     CanvasLayer canvas = null!;
     Control ui = null!;
     PanelContainer? sheet;
@@ -25,7 +27,7 @@ internal partial class LastLightHarbor : Node
     public override void _Ready()
     {
         AddQuay();
-        music = new(); AddChild(music);
+        bell=new(){VolumeDb=-16};AddChild(bell);
         canvas = new(); AddChild(canvas);
         ui = new Control { MouseFilter = Control.MouseFilterEnum.Ignore };
         canvas.AddChild(ui); ui.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
@@ -56,6 +58,7 @@ internal partial class LastLightHarbor : Node
         {
             Open("SHIP’S LOG", ReturnHeading, ReturnMessage);
             Choice("Step onto the quay", Close, true);
+            if(Delivered is {} delivery)WelcomeHome(delivery);
         }
     }
 
@@ -130,7 +133,7 @@ internal partial class LastLightHarbor : Node
     {
         var button = Button(text, action, primary);
         button.SizeFlagsVertical = Control.SizeFlags.ShrinkEnd; choices.AddChild(button);
-        if (choices.GetChildCount() == 1) button.CallDeferred(Control.MethodName.GrabFocus);
+        if (choices.GetChildCount() == 1) button.GrabFocus();
     }
     void Visit(WharfStop stop)
     {
@@ -181,6 +184,8 @@ internal partial class LastLightHarbor : Node
             }, true);
         }
         if (Ledger.Dedicated) { Choice("Visit the outfitter", Outfitter); Choice("Visit the dry dock",DryDock); }
+        if(Clockbook!=null)Choice("Hours on watch",HoursAtSea);
+        if(Score!=null)Choice(Score.Quiet?"Music off":"Music on",()=>{Score.Toggle();Galley();});
         Choice("Back to the quay", Close);
     }
 

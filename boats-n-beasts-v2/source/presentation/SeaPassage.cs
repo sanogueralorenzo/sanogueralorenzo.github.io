@@ -18,7 +18,7 @@ public partial class SeaPassage : CrewRun
     Node3D work = null!, tender = null!, tongue = null!, tow = null!, swivel = null!;
     readonly List<MeshInstance3D> floats = [];
     double wakeTimer;
-    float beastHeading;
+    float beastHeading, framing;
     Vector2 center;
     bool hooked, surged, patched, done;
 
@@ -172,10 +172,17 @@ public partial class SeaPassage : CrewRun
     void Render(float dt)
     {
         Clock += dt;
-        var goal = new Vector2(Run.Hull.X * .10f, Run.Center.Y + (Run.Hull.Y - Run.Center.Y) * .14f);
-        if (!Run.Battle) goal = new(Run.Hull.X * .85f, Run.Hull.Y);
-        center = center.Lerp(goal, 1 - MathF.Exp(-3 * dt));
-        Stage.Follow(center);
+        var screen=GetViewport().GetVisibleRect().Size;
+        float cruise=screen.Y*NativeStage3D.Unit/NativeStage3D.Zoom;
+        var focus=Run.Battle?V2.Lerp(Run.Hull,Run.Beast,.47f):Run.Hull+Run.Velocity*.17f;
+        var goal=new Vector2(focus.X,focus.Y-18);
+        var span=Run.Beast-Run.Hull;
+        float fit=Math.Max((Math.Abs(span.X)*.01f+4.1f)*screen.Y/screen.X,
+            Math.Abs(span.Y)*.01f*NativeStage3D.Foreshortening+3.5f);
+        float desired=Run.Battle?Math.Clamp(fit,5.85f,cruise):cruise;
+        center=dt==0?goal:center.Lerp(goal,1-MathF.Exp(-3.8f*dt));
+        framing=dt==0?desired:Mathf.Lerp(framing,desired,1-MathF.Exp(-2.4f*dt));
+        Stage.Follow(center,framing);
         Stage.Advance(Clock);
         boat.Position = NativeStage3D.Point(Run.Hull);
         float heading = MathF.Atan2(Run.Bow.X, -Run.Bow.Y);

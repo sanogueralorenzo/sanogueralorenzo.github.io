@@ -35,12 +35,14 @@ public sealed partial class BluewaterCourse
     public float FlagshipHull { get; private set; }
     public bool GunPrize { get; private set; }
     public bool LooseFormation { get; private set; }
+    public bool Regroup {get;private set;}
     public Enemy? Picket { get; private set; }
     public string SupportName => GunPrize ? Squadron!.Picket : Squadron!.Tender;
     public string FleetTitle => Field switch { 1 => "Two ships in irons", 2 => "Run the van", _ => "Reduce the shore battery" };
     public Vector2 FleetDestination => Field switch
     {
         1 => Tender!.Position,
+        2 when Regroup => Tender!.Position,
         2 when Tender is { Health: <= 0 } && Picket is { Health: > 0 } => Picket.Position,
         3 when FlagshipHull > 0 => Battery,
         _ => Target
@@ -48,6 +50,7 @@ public sealed partial class BluewaterCourse
     public string FleetOrder => Field switch
     {
         1 => $"Q rescues {Squadron!.Tender}, or board the damaged {Squadron.Picket} with Q.",
+        2 when Regroup => $"Go back alongside {SupportName}. R orders close station behind your wake.",
         2 when Tender!.Health <= 0 => "The aid boat is down. Break the enemy pennant, then reach the gate.",
         2 => $"Escort {SupportName} through {Squadron!.Road}. R changes its station.",
         3 when FlagshipHull <= 0 => $"Battery silent. Carry the all-clear to the exit and press Q.",
@@ -61,7 +64,7 @@ public sealed partial class BluewaterCourse
     {
         if (Field != 2 || Tender == null || Tender.Health <= 0) return;
         LooseFormation = !LooseFormation;
-        Tender.Wake.Clear(); Tender.LastLead = Tender.Position;
+        Tender.Wake.Clear(); Tender.Detour.Clear(); Tender.LastLead = Tender.Position;
         Say(LooseFormation ? "Vara    Out on the beam! She’ll draw their shot clear of our wake." :
             "Lio    Form close astern! Bring her in reach of the carpenter.");
     }
@@ -74,7 +77,7 @@ public sealed partial class BluewaterCourse
         var dir = OceanWorld.Unit(Target - Ship.Position, course);
         screenAxis = new(-dir.Y, dir.X);
         Battery = FindWater(Target - screenAxis * 300, 115);
-        deployed = false; gunClock = 2; freshScreen = 0; sortieSignal = false; escortClock = 0;
+        Regroup=false; deployed = false; gunClock = 2; freshScreen = 0; sortieSignal = false; escortClock = 0;
         Picket = null;
         if (Field == 1) Tender = new(FindWater(Target + screenAxis * 245, 85), 100);
         else if (Tender != null)
@@ -178,7 +181,7 @@ public sealed partial class BluewaterCourse
                 if (Vector2.DistanceSquared(tender.Position, lead) > 86 * 86) FollowWake(tender, lead, dt);
                 if (Vector2.DistanceSquared(tender.Position, ship) > 850 * 850)
                 {
-                    tender.Wake.Clear(); tender.LastLead = tender.Position;
+                    if(tender.Detour.Count==0 && tender.Pinned>.30f)RouteAroundShoal(tender,ship);
                     Say("Lio    Ease the sheets. The aid boat is falling behind!");
                 }
                 if (Ship.Events.Any(e => e.Kind == "bossExplosion" && Vector2.DistanceSquared(e.Position, tender.Position) < e.Value * e.Value))
@@ -199,6 +202,8 @@ public sealed partial class BluewaterCourse
                 }
             }
             float distance = Vector2.Distance(ship, Target);
+            if(tender.Health<=0 || Vector2.DistanceSquared(ship,tender.Position)<245*245 || Vector2.DistanceSquared(tender.Position,Target)<505*505)Regroup=false;
+            else if(distance<220 && Vector2.DistanceSquared(tender.Position,Target)>590*590)Regroup=true;
             if (freshScreen == 0 && distance < 1800 || freshScreen == 1 && distance < 720) FleetScreen(Vector2.Lerp(ship, Target, .43f));
             if (gunClock <= 0 && Picket is { Health: > 0 } picket && tender.Health > 0)
             {

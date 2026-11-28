@@ -23,24 +23,25 @@ public static partial class FarLedger
         string boss, string homecoming, int legs) => new(id, "", title, brief, objective, boss, homecoming, duty, 0, legs);
 
     public static IReadOnlyList<CampaignArc> Arcs { get; } = [
-        Cinder() with { Islands = CinderIsles() },
-        Reedglass() with { Islands = ReedglassIsles() },
-        Orchard() with { Islands = OrchardIsles() },
-        Whitewake() with { Islands = WhitewakeIsles() },
-        Tangleloom() with { Islands = TangleloomIsles() },
-        Choir() with { Islands = ChoirIsles() },
-        Sable() with { Islands = SableIsles() },
-        Unnumbered() with { Islands = UnnumberedIsles() },
-        Saltstep() with { Islands=SaltstepIsles() },
-        Bottlebrush() with { Islands=BottlebrushIsles() },
-        Waxwing() with { Islands=WaxwingIsles() },
-        Sleeping() with { Islands=SleepingIsles() },
-        Tinmoon() with { Islands=TinmoonIsles() },
-        Drumskin() with { Islands=DrumskinIsles() },
-        Pitchwake() with { Islands=PitchwakeIsles() },
-        Calving() with { Islands=CalvingIsles() }
+        DeepRoutes.Open(Cinder(),CinderIsles()),
+        DeepRoutes.Open(Reedglass(),ReedglassIsles()),
+        DeepRoutes.Open(Orchard(),OrchardIsles()),
+        DeepRoutes.Open(Whitewake(),WhitewakeIsles()),
+        DeepRoutes.Open(Tangleloom(),TangleloomIsles()),
+        DeepRoutes.Open(Choir(),ChoirIsles()),
+        DeepRoutes.Open(Sable(),SableIsles()),
+        DeepRoutes.Open(Unnumbered(),UnnumberedIsles()),
+        DeepRoutes.Open(Saltstep(),SaltstepIsles()),
+        DeepRoutes.Open(Bottlebrush(),BottlebrushIsles()),
+        DeepRoutes.Open(Waxwing(),WaxwingIsles()),
+        DeepRoutes.Open(Sleeping(),SleepingIsles()),
+        DeepRoutes.Open(Tinmoon(),TinmoonIsles()),
+        DeepRoutes.Open(Drumskin(),DrumskinIsles()),
+        DeepRoutes.Open(Pitchwake(),PitchwakeIsles()),
+        DeepRoutes.Open(Calving(),CalvingIsles())
     ];
     public static int Count => Arcs.Sum(arc => arc.Length);
-    public static CampaignOrder Find(string id) => Arcs.SelectMany(arc =>
-        arc.Orders.Append(arc.Alternate).Concat(arc.Islands.SelectMany(i => i.Outings))).First(order => order.Id == id);
+    static readonly Dictionary<string,CampaignOrder> ById=Arcs.SelectMany(arc=>arc.Orders.Append(arc.Alternate)
+        .Concat(arc.Islands.SelectMany(island=>island.Outings))).ToDictionary(order=>order.Id,StringComparer.Ordinal);
+    public static CampaignOrder Find(string id)=>ById[id];
 }

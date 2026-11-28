@@ -9,6 +9,7 @@ internal partial class RouteChart : Control
     internal CampaignArc? Coast;
     internal string Selected = "";
     internal Action<string>? Plot;
+    internal Action<int>? Port;
     static readonly Vector2[] Islands = [new(99,109), new(242,197), new(396,106), new(539,174)];
     static readonly Vector2[] Ports = [new(55,189),new(149,210),new(201,141),new(284,172),
         new(346,108),new(434,153),new(495,83),new(578,97),new(618,40)];
@@ -60,7 +61,7 @@ internal partial class RouteChart : Control
             var island=coast.Islands[i];
             var p=Islands[i%Islands.Length];
             if (i>0) DrawDashedLine(Islands[(i-1)%Islands.Length],p,Faded,1.5f,6);
-            int filed=island.Outings.Count(o=>Log.Voyages.Contains(o.Id));
+            int filed=island.Outings.Count(o=>Log.Contains(o.Id));
             bool here=island.Island==Selected;
             Vector2[] rim = new Vector2[19];
             for (int k=0;k<rim.Length;k++)
@@ -82,7 +83,17 @@ internal partial class RouteChart : Control
     }
     public override void _GuiInput(InputEvent input)
     {
-        if(Coast==null || input is not InputEventMouseButton {Pressed:true, ButtonIndex:MouseButton.Left} click) return;
+        if(input is not InputEventMouseButton {Pressed:true, ButtonIndex:MouseButton.Left} click)return;
+        if(Coast==null)
+        {
+            int offset=Log.HomePortNamed?8:0;
+            for(int j=1;j<Ports.Length;j++)
+                if(click.Position.DistanceSquaredTo(Ports[j])<34*34 && Log.FiledIn(FarLedger.Arcs[offset+j-1])>0)
+                {
+                    Port?.Invoke(offset+j-1);AcceptEvent();return;
+                }
+            return;
+        }
         for(int i=0;i<Coast.Islands.Length;i++)
         {
             var hit=new Rect2(Islands[i%Islands.Length]-new Vector2(75,31),new(150,91));

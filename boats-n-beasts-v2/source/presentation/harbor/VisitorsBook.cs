@@ -5,11 +5,27 @@ namespace BoatsNBeasts;
 
 internal partial class LastLightHarbor
 {
+    (IslandStory Island,CampaignArc Arc)[] VisitingIslands()=>FarLedger.Arcs
+        .SelectMany(arc=>arc.Islands.Where(Ledger.Campaign.Hosted).Select(island=>(island,arc))).ToArray();
+    void WelcomeHome(CampaignOrder delivery)
+    {
+        var arc=FarLedger.Arcs[delivery.Tier-1];
+        if(delivery.Island.Length>0)
+        {
+            var visitors=VisitingIslands();
+            int page=Array.FindIndex(visitors,entry=>entry.Island.Outings[^1].Id==delivery.Id);
+            if(page>=0)Choice("Unwrap the gift from "+delivery.Island,()=>VisitorsBook(page));
+        }
+        else if(arc.Orders[^1].Id==delivery.Id)
+        {
+            if(Ledger.Campaign.NeedsCharter || Ledger.Campaign.Next==null)
+                Choice("Join the crew for the signing",Crew);
+            if(CrewWatches.Thresholds.Contains(delivery.Tier))Choice("Stay for the night watch",NightWatch);
+        }
+    }
     void VisitorsBook(int page)
     {
-        var log = Ledger.Campaign;
-        var visits = FarLedger.Arcs.SelectMany(arc => arc.Islands.Where(log.Hosted)
-            .Select(island => (Island:island, Arc:arc))).ToArray();
+        var visits = VisitingIslands();
         if (visits.Length == 0)
         {
             Open("NELL SPINDLE", "The visitors’ book", "Nell has sewn a pocket inside the cover for things that do not lie flat. “When an island has finished telling us its story, we ought to have somewhere to put what they send.”");

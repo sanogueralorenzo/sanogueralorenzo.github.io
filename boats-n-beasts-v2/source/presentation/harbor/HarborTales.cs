@@ -72,7 +72,7 @@ internal partial class LastLightHarbor
     }
     void Dedicate(bool names)
     {
-        music.Ring();
+        bell.Stream=QuayTone.Note(74,true);bell.Play();
         UpdateLedger(Ledger with { Dedication = names ? BellDedication.RollCall : BellDedication.Children });
         Open("CHAPTER I   /   THE SILENT WATCH", "A sound across the teeth", names
             ? "They read until Vara’s spoon goes cold. From the fog comes a ragged answering note. The third skiff rows into the light with a kettle tied to the mast."
@@ -110,10 +110,10 @@ internal partial class LastLightHarbor
         void Write(bool crew)
         {
             UpdateLedger(Ledger with { Campaign = log with { CrewSigned = crew } });
-            music.Ring();
-            string bell = Ledger.Dedication == BellDedication.Children ? "The children hang on the rope together." : "Vara reads the names and rings for each one.";
+            bell.Stream=QuayTone.Note(74,true);bell.Play();
+            string ringing = Ledger.Dedication == BellDedication.Children ? "The children hang on the rope together." : "Vara reads the names and rings for each one.";
             string signatures = crew ? "The page fills with thumbprints, flour and one wet paw." : "Pip writes LAST LIGHT in a hand big enough to read from the gangplank.";
-            Open("THE FAR LEDGER   /   CHART SIGNED", crew ? "Room for one more" : "A name on the door", signatures + " " + bell +
+            Open("THE FAR LEDGER   /   CHART SIGNED", crew ? "Room for one more" : "A name on the door", signatures + " " + ringing +
                 " Oren sets another place. Nell opens the register to a clean page and props the door open with it. On the tide outside, a strange little boat is looking for somewhere to tie up.");
             Choice("Throw them a line", () =>
             {

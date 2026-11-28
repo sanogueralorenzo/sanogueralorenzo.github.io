@@ -9,7 +9,14 @@ internal partial class LastLightHarbor
     {
         string equipped=Ledger.Campaign.OnWatch==Shipmate.None ? "" : $" {Ledger.Campaign.OnWatch} has the next watch with you.";
         Open("THE CREW TABLE","Between watches","Lio coils a dry line, Vara turns the broth down, and Nell has put her pencil away. Even the bell is quiet."+equipped);
-        foreach(var mate in new[]{Shipmate.Lio,Shipmate.Vara,Shipmate.Nell})Choice(mate.ToString(),()=>ShipmateWatch(mate));
+        int ports=Ledger.Campaign.SettledPorts().Count();
+        foreach(var mate in new[]{Shipmate.Lio,Shipmate.Vara,Shipmate.Nell})
+        {
+            int index=Watches(mate);
+            var evenings=CrewWatches.For(mate);
+            string title=index<evenings.Length && CrewWatches.Thresholds[index]<=ports?$"{mate}   ·   {evenings[index].Title}":mate.ToString();
+            Choice(title,()=>ShipmateWatch(mate));
+        }
         Choice("Back to the quay",Close);
     }
     void ShipmateWatch(Shipmate mate)

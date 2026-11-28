@@ -7,6 +7,7 @@ namespace BoatsNBeasts;
 public partial class KilnExpedition : CrewRun
 {
     public CampaignOrder Order { get; set; } = FarLedger.Arcs[0].Orders.First(o => o.Ashore);
+    internal LandingYard? SuppliedYard { get; init; }
     public override bool AskShipmate(Shipmate mate) => !ChartOpen && Yard.CallShipmate(mate);
     public override int SilverEarned => Yard.Silver;
     internal int ChartTarget { get; private set; }
@@ -40,12 +41,12 @@ public partial class KilnExpedition : CrewRun
     bool hook, dodge, returned;
     public override void _Ready()
     {
-        Yard = new(Order, Seed, Stores, Outfit);
+        Yard = SuppliedYard ?? new(Order, Seed, Stores, Outfit);
         Stage = new(); AddChild(Stage);
         var overlay = new MeshInstance3D { Mesh = brush, ExtraCullMargin = 40, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }; Stage.AddChild(overlay);
         workProps = new(Stage, Point);
         captain = ActorArt3D.BoardingParty(0); mate = ActorArt3D.BoardingParty(1); Stage.AddChild(captain); Stage.AddChild(mate);
-        silhouette=ActorArt3D.Veil(captain);
+        silhouette = ActorArt3D.Veil(captain);
         var canvas = new CanvasLayer(); AddChild(canvas); hud = new() { Trip = this }; canvas.AddChild(hud); hud.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         cue = new() { VolumeDb = -18 }; hit = new() { VolumeDb = -17 }; AddChild(cue); AddChild(hit); oldHealth = Yard.Health;
         Render();
@@ -72,7 +73,7 @@ public partial class KilnExpedition : CrewRun
         if (k == Key.E && Yard.Phase == YardPhase.Lost) { Settle(false); return; }
         if (Yard.Phase == YardPhase.Lost) return;
         if (k == Key.E) { var phase = Yard.Phase; Yard.Interact(); if (phase != Yard.Phase) Play(cue, 67, true); }
-        else if (k == Key.F && Yard.Phase == YardPhase.Approach) Yard.CallVara();
+        else if (k == Key.L && Yard.Phase == YardPhase.Approach) Yard.CallVara();
         else if (k == Key.Space) dodge = true;
         else if (k == Key.K) hook = true;
         else if (k is Key.Key1 or Key.Key2 or Key.Key3 or Key.Key4) Yard.Trade((int)k - (int)Key.Key1 + 1);
@@ -108,16 +109,16 @@ public partial class KilnExpedition : CrewRun
             shownPlan = Yard.Plan; repaired = Yard.Repaired;
             dungeon = Yard.Works == null ? null : new DungeonDiorama(district, Yard);
         }
-        if(gunner==null){gunner=ActorArt3D.BoardingParty(2);Stage.AddChild(gunner);}
-        if(Yard.Works!=null)
+        if (gunner == null) { gunner = ActorArt3D.BoardingParty(2); Stage.AddChild(gunner); }
+        if (Yard.Works != null)
         {
-            dungeon!.Sync(Yard);Pose(gunner,Yard.Vara,Yard.Player-Yard.Vara);
+            dungeon!.Sync(Yard); Pose(gunner, Yard.Vara, Yard.Player - Yard.Vara);
         }
         else
         {
-            var berth=Yard.Phase is YardPhase.Guardian or YardPhase.Keys or YardPhase.Release ? Yard.Plan.Walkable(Yard.Locks[1]+new N2(.82f,.76f)): Yard.Camp+new N2(.49f,-.69f);
-            var aim=Yard.Foes.FirstOrDefault(f=>f.Kind==YardBeast.Guardian)?.Position??Yard.Player;
-            Pose(gunner,berth,aim-berth);
+            var berth = Yard.Phase is YardPhase.Guardian or YardPhase.Keys or YardPhase.Release ? Yard.Plan.Walkable(Yard.Locks[1] + new N2(.82f, .76f)) : Yard.Camp + new N2(.49f, -.69f);
+            var aim = Yard.Foes.FirstOrDefault(f => f.Kind == YardBeast.Guardian)?.Position ?? Yard.Player;
+            Pose(gunner, berth, aim - berth);
         }
         var center = Yard.Player; Stage.Advance(t); Stage.Follow(new Vector2(center.X * 95, center.Y * 100 - 58), 8.65f);
         bool moving = N2.DistanceSquared(lastPlayer, Yard.Player) > .00001f; lastPlayer = Yard.Player;

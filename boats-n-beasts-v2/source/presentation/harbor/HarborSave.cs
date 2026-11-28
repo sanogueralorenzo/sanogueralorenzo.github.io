@@ -10,6 +10,8 @@ internal sealed class HarborSave : IDisposable
     static string Path => ProjectSettings.GlobalizePath("user://quay-log.json");
 
     FileStream? writer;
+    public int Recovered {get;private set;}
+    public bool Interrupted {get;private set;}
 
     public HarborLedger Open()
     {
@@ -18,8 +20,8 @@ internal sealed class HarborSave : IDisposable
         if (!File.Exists(Path)) return new();
         var ledger = JsonSerializer.Deserialize<HarborLedger>(File.ReadAllText(Path))
             ?? throw new InvalidDataException("The harbor log is empty.");
-        if (ledger.AtSea == 0) return ledger;
-        ledger = ledger.Bank(ledger.AtSea);
+        if (ledger.AtSea == 0 && !ledger.Hours.Away) return ledger;
+        Interrupted=true;Recovered=ledger.AtSea;ledger = ledger.Bank(Recovered) with{Hours=ledger.Hours.MakePort(false)};
         Write(ledger);
         return ledger;
     }

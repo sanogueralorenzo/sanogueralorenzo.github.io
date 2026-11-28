@@ -11,24 +11,68 @@ public partial class Game : Node
     Passage passage;
     CampaignOrder? order;
     CanvasLayer? pause;
-    bool returning, usedKeepsake;
+    bool returning, usedKeepsake, logUnavailable;
+    TideScore score=null!;
+    int harborRegion;
+    ulong closingAfter;
+    WatchClock? watchClock;
 
     public override void _Ready()
     {
+        GetTree().AutoAcceptQuit=false;
         GetWindow().Title = "Boats ’n’ Beasts  ·  The Silent Watch";
         try { ledger = journal.Open(); }
         catch (Exception error) { ShowError(error); return; }
-        Harbor();
+        watchClock=new(ledger.Hours);
+        score=new(){Hear=ListenToWatch};AddChild(score);
+        if(journal.Interrupted)Harbor("The night tender made it home",$"Nell brought {journal.Recovered} silver ashore from the interrupted run. The crew has put the unfinished order back on the chart.");
+        else Harbor();
     }
-    public override void _ExitTree() => journal.Dispose();
+    (int Region,WatchTempo Tempo) ListenToWatch()
+    {
+        var where=location switch { NightPostWatch post=>post.OnDeck, PrizeWatch prize when prize.Child!=null=>prize.Child, _=>location };
+        var tempo = pause!=null ? WatchTempo.Harbor : where switch
+        {
+            BluewaterVoyage sea when sea.Course.Phase==ChartPhase.Boss => WatchTempo.Danger,
+            KilnExpedition foot when foot.Yard.Phase==YardPhase.Guardian => WatchTempo.Danger,
+            UnderwaysExpedition crawl when crawl.Crawl.Surface?.Phase==YardPhase.Guardian ||
+                crawl.Crawl.Surface==null && crawl.Crawl.Room.Trial==UnderTrial.Keeper && !crawl.Crawl.Quiet => WatchTempo.Danger,
+            PrizeWatch prize when prize.Board!=null => WatchTempo.Landing,
+            ShoreExpedition shore when shore.Fight.Phase==QuayPhase.Warden => WatchTempo.Danger,
+            SeaPassage sails when sails.Run.Leg==PassageLeg.Keelwidow => WatchTempo.Danger,
+            KilnExpedition or ShoreExpedition or UnderwaysExpedition => WatchTempo.Landing,
+            CrewRun => WatchTempo.Sailing,
+            _ => WatchTempo.Harbor
+        };
+        return (order==null ? harborRegion : order.Tier-1,tempo);
+    }
+    public override void _ExitTree()
+    {
+        try { if(watchClock!=null && !logUnavailable)journal.Write(ledger with{Hours=watchClock.Hours}); }
+        finally { journal.Dispose(); }
+    }
+    public override void _Input(InputEvent input)
+    {
+        if(input is InputEventKey { Pressed:true } or InputEventMouseButton { Pressed:true } or InputEventMouseMotion
+            or InputEventJoypadButton {Pressed:true} or InputEventJoypadMotion)watchClock?.Touch();
+    }
 
     void Save(HarborLedger next)
     {
-        try { journal.Write(next); ledger = next; }
+        try
+        {
+            if(watchClock!=null)
+            {
+                if(next.Campaign.StoryCleared)watchClock.Finish();
+                next=next with{Hours=watchClock.Hours};
+            }
+            journal.Write(next);ledger=next;watchClock?.Filed();
+        }
         catch (Exception error) { ShowError(error); throw; }
     }
     void ShowError(Exception error)
     {
+        logUnavailable=true;
         GD.PushError(error.Message);
         GetTree().Paused = true;
         var warning = new AcceptDialog { Title = "Harbor log unavailable",
@@ -42,18 +86,19 @@ public partial class Game : Node
         if (location == null) return;
         RemoveChild(location); location.QueueFree(); location = null;
     }
-    void Harbor(string heading = "", string message = "")
+    void Harbor(string heading = "", string message = "",CampaignOrder? delivered = null)
     {
         ClearLocation(); order = null;
+        harborRegion=ledger.Campaign.Next?.Arc.Orders[0].Tier-1 ?? 15;
         GetWindow().Title = ledger.Campaign.HomePortNamed ? "Boats ’n’ Beasts  ·  The Walking Tide" : ledger.Dedicated ? "Boats ’n’ Beasts  ·  The Far Ledger" : "Boats ’n’ Beasts  ·  The Silent Watch";
-        location = new LastLightHarbor { Ledger = ledger, Changed = Save, Depart = Embark, AcceptOrder = Embark,
-            ReturnHeading = heading, ReturnMessage = message };
+        location = new LastLightHarbor { Ledger = ledger, Changed = Save, Depart = Embark, AcceptOrder = Embark, Score=score, Clockbook=watchClock,
+            ReturnHeading = heading, ReturnMessage = message, Delivered = delivered };
         AddChild(location); returning = false;
     }
     void Embark(Passage route)
     {
         if (location is not LastLightHarbor || route == Passage.BellwetherQuay && !ledger.HasTongue) return;
-        passage = route;
+        watchClock?.Depart();Save(ledger);passage = route;
         int seed = Random.Shared.Next();
         ClearLocation();
         location = route == Passage.LanternSound
@@ -64,50 +109,64 @@ public partial class Game : Node
     void Embark(CampaignOrder requested)
     {
         if (location is not LastLightHarbor || !ledger.Dedicated) return;
-        if (!ledger.Campaign.Available().Any(o => o.Id == requested.Id) && !ledger.Campaign.Voyages.Contains(requested.Id)) return;
-        usedKeepsake=false;order = requested;
+        if (!ledger.Campaign.Available().Any(o => o.Id == requested.Id) && !ledger.Campaign.Contains(requested.Id)) return;
+        watchClock?.Depart();Save(ledger);usedKeepsake=false;order = requested;
         int seed = Random.Shared.Next();
         ClearLocation();
-        location = requested.Postal ? new NightPostWatch { Order=requested, Seed=seed, Stores=ledger.Stores, Outfit=ledger.Outfit, Returned=Land } :
-            requested.Migration ? new MigrationWatch { Order=requested, Seed=seed, Stores=ledger.Stores, Outfit=ledger.Outfit, Returned=Land } :
-            requested.Pilotage ? new PilotageVoyage { Order=requested, Seed=seed, Stores=ledger.Stores, Outfit=ledger.Outfit, Returned=Land } :
-            requested.Ashore
-            ? new KilnExpedition { Order = requested, Seed = seed, Stores = ledger.Stores, Outfit = ledger.Outfit, Returned = Land }
-            : new BluewaterVoyage { Order = requested, Seed = seed, Stores = ledger.Stores, Outfit = ledger.Outfit, Returned = Land };
-        var crew=(CrewRun)location;crew.Vessel=ledger.Vessel;crew.Figurehead=ledger.Figurehead;
-        AddChild(location);
+        CrewRun run=requested switch
+        {
+            { PrizeWatch:true }=>new PrizeWatch {Order=requested},
+            { Underways:true }=>new UnderwaysExpedition {Order=requested},
+            { Postal:true }=>new NightPostWatch {Order=requested},
+            { Migration:true }=>new MigrationWatch {Order=requested},
+            { Pilotage:true }=>new PilotageVoyage {Order=requested},
+            { Ashore:true }=>new KilnExpedition {Order=requested},
+            _=>new BluewaterVoyage {Order=requested}
+        };
+        run.Seed=seed;run.Stores=ledger.Stores;run.Outfit=ledger.Outfit;run.Returned=Land;
+        run.Vessel=ledger.Vessel;run.Figurehead=ledger.Figurehead;
+        location=run;AddChild(run);
     }
     int Purse => location is CrewRun run ? run.SilverEarned : 0;
     public override void _Process(double delta)
     {
-        if (location is not CrewRun || returning) return;
+        if(closingAfter!=0)
+        {
+            if(Time.GetTicksMsec()>=closingAfter)GetTree().Quit();
+            return;
+        }
+        if(Input.IsAnythingPressed())watchClock?.Touch();
+        watchClock?.Tick(location is CrewRun,location!=null && pause==null && GetWindow().HasFocus());
+        if (location is not CrewRun || returning) {if(watchClock?.Due==true)Save(ledger);return;}
         CheckpointPurse();
     }
     void CheckpointPurse()
     {
         int earned = Purse;
-        if (earned != ledger.AtSea) Save(ledger with { AtSea = earned });
+        if (earned != ledger.AtSea || watchClock?.Due==true) Save(ledger with { AtSea = earned });
     }
     void Land(bool won, int earned)
     {
         if (returning || location is not CrewRun) return;
-        returning = true;
+        returning = true;watchClock?.Land(won);
+        var missed=won ? default : ReturnWatch.Unfinished((CrewRun)location,order);
         if (order != null)
         {
-            bool recollection = ledger.Campaign.Voyages.Contains(order.Id);
+            bool recollection = ledger.Campaign.Contains(order.Id);
             var next = ledger.Bank(earned);
             if (won) next = next with { Campaign = next.Campaign.File(order) };
             Save(next);
-            string report = recollection ? "The crew folds away the old chart and counts the salvage." : won ? order.Homecoming : $"The crew makes it back with the purse. The order for {order.Region} is still on the chart.";
-            string title = won ? order.Title : "The unfinished crossing";
-            Callable.From(() => Harbor(title, $"{report}   Banked {earned} silver.")).CallDeferred();
+            string report = !won ? missed.Story : recollection ? "The crew folds away the old chart and counts the salvage." : order.Homecoming;
+            string title = won ? order.Title : missed.Heading;
+            var delivered=won && !recollection ? order : null;
+            Callable.From(() => Harbor(title, $"{report}   Banked {earned} silver.",delivered)).CallDeferred();
             return;
         }
         bool newTongue = won && passage == Passage.LanternSound && !ledger.HasTongue;
         bool newBell = won && passage == Passage.BellwetherQuay && !ledger.BellReleased;
         Save(ledger.Land(passage, won, earned));
-        string heading = !won ? "Back on the planks" : newTongue ? "Bronze in the bilge" : newBell ? "The last keeper comes home" : "Safe in the lee";
-        string story = !won ? "Lio counts heads first. The crew dries its gear for another attempt."
+        string heading = !won ? missed.Heading : newTongue ? "Bronze in the bilge" : newBell ? "The last keeper comes home" : "Safe in the lee";
+        string story = !won ? missed.Story
             : newTongue ? "Vara lifts the tongue from its sling. The tide marks cut into the bronze lead to Bellwether Quay. Its landing is open."
             : newBell ? "Nell Spindle steps onto the planks, her ledger wrapped in oilcloth. Vara and Lio lift the bell onto its waiting frame. Meet them at the crew table."
             : "The crew splits the watch while you tally the salvage.";
@@ -129,8 +188,18 @@ public partial class Game : Node
     }
     public override void _Notification(int what)
     {
-        if (location is not CrewRun || returning) return;
-        if (what == NotificationWMCloseRequest) CheckpointPurse();
+        if(what==NotificationWMCloseRequest)
+        {
+            if(closingAfter!=0)return;
+            if(watchClock==null || logUnavailable){GetTree().Quit();return;}
+            if(location is CrewRun && !returning)CheckpointPurse();
+            closingAfter=Time.GetTicksMsec()+110;
+            if(location!=null)location.ProcessMode=ProcessModeEnum.Disabled;
+            foreach(var voice in FindChildren("*","AudioStreamPlayer",true,false).OfType<AudioStreamPlayer>())voice.Stop();
+            if(score!=null)score.SetProcess(false);
+            return;
+        }
+        if (location is not CrewRun || returning || closingAfter!=0) return;
         if (what == NotificationApplicationFocusOut && pause == null)
         {
             var interrupted = location;
@@ -140,7 +209,7 @@ public partial class Game : Node
             }).CallDeferred();
         }
     }
-    void Hold()
+    void Hold(bool instructions=false)
     {
         if (location == null) return;
         location.ProcessMode = ProcessModeEnum.Disabled;
@@ -150,13 +219,21 @@ public partial class Game : Node
         var center = new CenterContainer(); shade.AddChild(center); center.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         var panel = new PanelContainer(); panel.AddThemeStyleboxOverride("panel", HarborType.Box(new("17323f"), HarborType.Brass, 28, 22)); center.AddChild(panel);
         var column = new VBoxContainer(); column.AddThemeConstantOverride("separation",12); panel.AddChild(column);
-        column.AddChild(HarborType.Text("At anchor", 36, HarborType.Cream, true));
+        column.AddChild(HarborType.Text(instructions?"Orders and controls":"At anchor",36,HarborType.Cream,true));
+        if(instructions)
+        {
+            panel.CustomMinimumSize=new(580,0);
+            column.AddChild(HarborType.Text(WatchInstructions.For(location as CrewRun),21,HarborType.Cream));
+            var again=HarborType.Button("Back",()=>{Resume();Hold();},true);column.AddChild(again);again.GrabFocus();return;
+        }
         column.AddChild(HarborType.Text($"{Purse} silver aboard", 20, HarborType.Brass));
         if(order!=null && ledger.Campaign.OnWatch is not Shipmate.None)
             column.AddChild(HarborType.Text(CrewWatches.Token(ledger.Campaign.OnWatch)+(usedKeepsake?"   ·   Used this run":"   ·   Press F during play"),17,HarborType.Teal));
         var resume = HarborType.Button("Resume", Resume, true); column.AddChild(resume);
         column.AddChild(HarborType.Button("Retreat and bank the silver", () => { int earned = Purse; Resume(); Land(false, earned); }));
-        resume.GrabFocus();
+        column.AddChild(HarborType.Button("Orders and controls",()=>{Resume();Hold(true);}));
+        var music=HarborType.Button(score.Quiet?"Music off":"Music on",()=>{score.Toggle();Resume();Hold();});
+        column.AddChild(music);resume.GrabFocus();
     }
     void Resume()
     {

@@ -26,13 +26,21 @@ internal static class YardScenery
                 top[i] = P(1.038f, Level); low[i] = P(1.06f + variation, .24f + random.NextSingle() * .07f); foot[i] = P(1.13f + variation, -.19f);
             }
             b.Polygon(top, sand, Vector3.Up);
+            ShoreBeach.Paint(b, top, rock, sand, yard.Plan.Seed + (int)(center.X * 31 + center.Y * 17));
             for (int i = 0; i < count; i++)
             {
                 int k = (i + 1) % count; var outward = (top[i] with { Y = 0 }).Normalized(); var tint = rock.Lightened(random.NextSingle() * .10f);
                 b.Polygon([top[i], top[k], low[k], low[i]], tint.Lightened(.10f), outward + Vector3.Up * .55f);
                 b.Polygon([low[i], low[k], foot[k], foot[i]], tint, outward);
             }
-            int n = large ? 80 : 28;
+            var rimTone = sand.Lerp(trim, .30f);
+            for (int i = 0; i < count; i++)
+            {
+                var a = top[i]; var c = top[(i + 1) % count]; var insideA = a * .95f; var insideC = c * .95f;
+                float y = Level + .009f;
+                if ((i + yard.District) % 3 != 0) b.Polygon([a with { Y = y }, c with { Y = y }, insideC with { Y = y }, insideA with { Y = y }], rimTone, Vector3.Up);
+            }
+            int n = large ? 90 : 33;
             for (int i = 0; i < n; i++)
             {
                 float a = random.NextSingle() * Mathf.Tau, d = MathF.Sqrt(random.NextSingle()) * .92f;
@@ -78,7 +86,13 @@ internal static class YardScenery
         var boat = ActorArt3D.ShoreSkiff(); Place(boat, tip + new N2(-1.26f, .59f), .03f);
         if (yard.Works != null) return root;
         Place(Workshop(region, yard.District), arrival.Center + new N2(arrival.Radius.X * .57f, -arrival.Radius.Y * .46f));
-        Place(Workshop(region, yard.District + 1), yard.Plan.Summit + new N2(.5f, -2.91f));
+        if (region.Climate >= IslandClimate.Saltstep)
+        {
+            var hall = TideHall.Build(region); hall.RotationDegrees = new(0, -17, 0);
+            Place(hall, yard.Plan.Summit + new N2(.48f, -yard.Plan.Patches[3].Radius.Y * .75f));
+            Place(Workshop(region, yard.District + 1), yard.Plan.Summit + new N2(-1.7f, -2.12f));
+        }
+        else Place(Workshop(region, yard.District + 1), yard.Plan.Summit + new N2(.5f, -2.91f));
         Place(Workshop(region, yard.District + 2), yard.Plan.Ledger + new N2(.6f, -1.1f));
         Place(Tarp(new(region.Cloth)), yard.Plan.Wayhouse + new N2(.85f, -1.03f));
         Place(YardWorkProps.Item("sealed"), yard.Plan.Pocket);

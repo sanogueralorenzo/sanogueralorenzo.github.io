@@ -12,7 +12,7 @@ internal partial class LastLightHarbor
         void Finish(bool free)
         {
             UpdateLedger(Ledger with { Campaign=log with { FreeMigration=free } });
-            music.Ring();
+            bell.Stream=QuayTone.Note(74,true);bell.Play();
             string choice=free ? "The last buoy slips its mooring. Chartmakers leave a generous margin beside every island. The first message from the herd is a pressed flower with a wet postmark."
                 : "The fleet meets on the turning of the warm current. The charts mark a season in place of a latitude. Toma brings dinner for four and finds herself laying places for forty.";
             string family=Ledger.Dedication==BellDedication.Children ? "The children ring the bell until a young reef answers from the dark." : "Vara rings once for those still at sea. Oren stands beside her for the last name.";

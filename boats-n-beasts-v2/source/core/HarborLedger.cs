@@ -6,6 +6,7 @@ public enum BellDedication { Unrung, RollCall, Children }
 
 public sealed record HarborLedger
 {
+    public WatchHours Hours { get; init; } = new();
     public BoatKind Vessel { get; init; }
     public BoatKind[] Hulls { get; init; } = [];
     public int Figurehead { get; init; } = -1;

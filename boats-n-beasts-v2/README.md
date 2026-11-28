@@ -11,7 +11,9 @@ Requires .NET 10 and Godot **4.7.2 .NET** with Forward+. Set `GODOT_BIN` to the 
 ./run.command --preview --once
 ```
 
-In the harbor, click a station or walk with WASD and press E. Use the crew table for conversations, the galley for permanent provisions and the berth for departures. The chart shows four island stories per region. Plot a safe approach in the pilot book, then take local orders in any available island chain. Nell keeps the gifts from completed islands in the visitors’ book. The outfitter and dry dock open after the first bell ringing. Commission two additional ship classes and mount regional figureheads as the ports settle. Sit with Lio, Vara or Nell between watches to learn their stories and earn a keepsake. Press F to call on the equipped shipmate once per charted run. Escape pauses a run. Defeat and retreat bank the silver collected that run. Victory can open a landing, bring someone home or change the quay. Progress saves locally.
+In the harbor, click a station or walk with WASD and press E. Use the crew table for conversations, the galley for provisions and the berth for departures. The chart shows four island stories per region. Plot an approach in the pilot book, then take local orders in any available island chain. Nell keeps the gifts from completed islands in the visitors’ book. After the first bell ringing, visit the outfitter and dry dock for ship classes, equipment and regional figureheads. Sit with Lio, Vara or Nell between watches to earn a keepsake. Press F to call on the equipped shipmate once per charted run.
+
+Escape pauses a run. Defeat, retreat and an interrupted watch bank the silver collected on that attempt. Completing an order can open a landing, bring someone home or change the quay. Progress saves locally. The galley log records active hours ashore and afloat, total attempts and time to the first main-story clear.
 
 | At sea | Ashore |
 | --- | --- |
@@ -23,6 +25,8 @@ In the harbor, click a station or walk with WASD and press E. Use the crew table
 On a pilot survey, open the chart with M, sail to the second light and hail it with Q. Pin the crossing of the two bearings, sail there and cast the lead with E. Use R for a hull patch and hail the tender to file the survey. Press M for a district map on charted landings and Tab to cycle its targets.
 
 On the Night Post, choose a lane on the packet chart, carry the letter through sea crossings and on-foot towpaths, and keep the cutter and crew fit for the final assignment. On a nursery watch, answer a calf’s song with 1–3 and guide it to the mother. Use Q to soothe, E to gather kelp or feed, and M to consult the chart.
+
+Prize Watch uses sail markings, close inspection and on-deck crew work to identify and extract a prize. The Underways lead through connected rooms, evidence chambers and surface sorties to an island guardian. Escape opens the controls for the current watch.
 
 ## Art preview
 

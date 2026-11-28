@@ -43,8 +43,8 @@ internal partial class YardHud : Control
             DrawRect(new(at.X - 20, at.Y, 40, 5), Deep); DrawRect(new(at.X - 20, at.Y, 40f * b.Health / b.Maximum, 5), Gold);
         }
         Box(new(22, h - 58, 466, 40));
-        Text(39, h - 32, $"Vitality   {y.Health}/{y.MaximumHealth}       {y.Silver} silver       {y.Chits} chits", 18, Mint);
-        string controls = $"WASD  Move    J  Cut    K  {(y.HookWait > 0 ? $"Hook {y.HookWait:0.0}s" : "Hook")}    Space  Dodge    {(y.Works != null ? "F  Vara    " : "")}E  Work    M  Chart";
+        Text(39, h - 32, $"Vitality   {y.Health}/{y.MaximumHealth}       {Trip.CarriedSilver+y.Silver} silver       {y.Chits} chits", 18, Mint);
+        string controls = $"WASD  Move    J  Cut    K  {(y.HookWait > 0 ? $"Hook {y.HookWait:0.0}s" : "Hook")}    Space  Dodge    {(y.Works != null ? "L  Vara    " : "")}E  Work    M  Chart";
         float controlsWidth = font.GetStringSize(controls, fontSize: 18).X + 28;
         Box(new(w - 22 - controlsWidth, h - 58, controlsWidth, 40));
         Text(w - 8 - controlsWidth, h - 32, controls, 18, Parchment);

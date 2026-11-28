@@ -11,7 +11,7 @@ public partial class ShoreExpedition : CrewRun
     internal NativeStage3D Stage { get; private set; } = null!;
     internal bool Paused { get; private set; }
     internal float VoiceUntil { get; private set; }
-    Node3D captain = null!, mate = null!, gunner=null!, skiff = null!;
+    Node3D captain = null!, mate = null!, gunner = null!, skiff = null!;
     Node3D? survivor;
     readonly MeshInstance3D[] floats = new MeshInstance3D[2];
     MeshInstance3D billet = null!, mould = null!;
@@ -57,9 +57,9 @@ public partial class ShoreExpedition : CrewRun
         mould = ShoreSculpture.CastingMould(); mould.Position = Point(ShoreFight.Mould); Stage.AddChild(mould);
         metal = Voice(-17); line = Voice(-20); hit = Voice(-19); lastHealth = Fight.Health;
         captain = ActorArt3D.BoardingParty(0); Stage.AddChild(captain);
-        silhouette=ActorArt3D.Veil(captain);
+        silhouette = ActorArt3D.Veil(captain);
         mate = ActorArt3D.BoardingParty(1); Stage.AddChild(mate);
-        gunner=ActorArt3D.BoardingParty(2);Stage.AddChild(gunner);
+        gunner = ActorArt3D.BoardingParty(2); Stage.AddChild(gunner);
         skiff = ActorArt3D.ShoreSkiff();
         skiff.Position = new(-3.65f, .03f, 4.46f); skiff.RotationDegrees = new(0, 24, 0);
         Stage.AddChild(skiff);
@@ -163,15 +163,15 @@ public partial class ShoreExpedition : CrewRun
         lastPosition = Fight.Player;
         SetActor(captain, Fight.Player, Fight.Facing, Fight.Dash > 0 ? .10f : step);
         SetActor(mate, Fight.Crew, Fight.Hook > 0 ? Fight.HookEnd - Fight.Crew : Fight.Player - Fight.Crew, walking ? .034f * MathF.Abs(MathF.Cos(t * 11)) : 0);
-        var varaPost=Fight.Phase switch
+        var varaPost = Fight.Phase switch
         {
-            QuayPhase.Ascent or QuayPhase.Warden or QuayPhase.Rescue=>QuayPaths.Anchors[1]+new V2(.70f,.50f),
-            QuayPhase.Homeward=>QuayPaths.Dock+new V2(.42f,-.42f),
-            _=>QuayPaths.Bells[1]+new V2(1.22f,.55f)
+            QuayPhase.Ascent or QuayPhase.Warden or QuayPhase.Rescue => QuayPaths.Anchors[1] + new V2(.70f, .50f),
+            QuayPhase.Homeward => QuayPaths.Dock + new V2(.42f, -.42f),
+            _ => QuayPaths.Bells[1] + new V2(1.22f, .55f)
         };
-        var target=Fight.Foes.FirstOrDefault(f=>f.Warden)?.Position??Fight.Player;
-        SetActor(gunner,varaPost,target-varaPost,0);
-        gunner.GetChild<Node3D>(0).RotationDegrees=new(Fight.Hook*7,0,0);
+        var target = Fight.Foes.FirstOrDefault(f => f.Warden)?.Position ?? Fight.Player;
+        SetActor(gunner, varaPost, target - varaPost, 0);
+        gunner.GetChild<Node3D>(0).RotationDegrees = new(Fight.Hook * 7, 0, 0);
         captain.Visible = Fight.Hurt <= 0 || (int)(Fight.Hurt * 27) % 2 == 0;
         captain.GetChild<Node3D>(0).RotationDegrees = new(0, Fight.Swung * 156 - Fight.Dash * 80, 0);
         silhouette.Visible = Fight.Foes.Any(f => f.Warden && Fight.Player.Y < f.Position.Y
@@ -200,11 +200,11 @@ public partial class ShoreExpedition : CrewRun
             tilt.X = f.Warning > 0 ? -.13f * MathF.Sin((1 - f.Warning / f.Winding) * Mathf.Pi * .65f) : f.Stagger * .16f;
             tilt.Z = f.Flash * .48f;
             model.Rotation = tilt;
-            if(f.Warden)
+            if (f.Warden)
             {
-                float winding=f.Warning>0?1-f.Warning/f.Winding:0;
-                var hammer=model.GetChild<Node3D>(0);
-                hammer.Rotation=new(-.24f+1.08f*winding-f.Strike*1.8f, -.19f-winding*.62f+f.Strike*2.5f, winding*.20f);
+                float winding = f.Warning > 0 ? 1 - f.Warning / f.Winding : 0;
+                var hammer = model.GetChild<Node3D>(0);
+                hammer.Rotation = new(-.24f + 1.08f * winding - f.Strike * 1.8f, -.19f - winding * .62f + f.Strike * 2.5f, winding * .20f);
             }
         }
         while (coins.Count < Fight.Coins.Count) { var c = new MeshInstance3D { Mesh = coinMesh }; Stage.AddChild(c); coins.Add(c); }
@@ -252,9 +252,18 @@ public partial class ShoreExpedition : CrewRun
             float a = MathF.Atan2(f.Aim.Y, f.Aim.X), spread = f.Stroke == BellStroke.Sweep ? MathF.Acos(f.SweepCos) : Mathf.Pi;
             float outer = f.Stroke switch { BellStroke.Fall => 1.32f, BellStroke.Toll => 3.5f, _ => f.Reach };
             float inner = f.Stroke == BellStroke.Toll ? 1.48f : .015f;
-            var color = f.Strike > 0 ? new Color("ffdf89ae") : new Color("f04d4e76");
+            var color = f.Strike > 0 ? new Color("ffdf89ae") : new Color("ec51478e");
             Arc(center, inner, outer, a - spread, 2 * spread, color);
+            Arc(center, outer - .072f, outer - .044f, a - spread, 2 * spread, new Color("df805b"));
             Arc(center, outer - .042f, outer, a - spread, 2 * spread, chalk);
+            if (f.Stroke == BellStroke.Sweep)
+            {
+                foreach (float edge in new[] { a - spread, a + spread })
+                {
+                    var dir = new V2(MathF.Cos(edge), MathF.Sin(edge)); var side = new V2(-dir.Y, dir.X) * .016f;
+                    Quad(center + side, center + dir * outer + side, center + dir * outer - side, center - side, chalk, .046f);
+                }
+            }
             if (inner > 1) Arc(center, inner, inner + .042f, a - spread, 2 * spread, chalk);
             float fill = Mathf.Lerp(inner, outer, 1 - f.Warning / f.Winding);
             Arc(center, MathF.Max(inner, fill - .042f), fill, a - spread, 2 * spread, amber);

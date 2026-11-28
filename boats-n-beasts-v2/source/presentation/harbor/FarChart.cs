@@ -21,11 +21,11 @@ internal partial class LastLightHarbor
         else
         {
             string place = route.Stop == 0 ? route.Arc.Lead : order.Brief;
-            Open($"{order.Region.ToUpperInvariant()}   /   {route.Arc.Title}", order.Title, place);
+            Open($"{order.Region.ToUpperInvariant()}   /   {route.Arc.Title}   /   {route.Stop+1} OF {route.Arc.Length}", order.Title, place);
             Choice("Read the order", () => Brief(order), true);
         }
         chartMap = new RouteChart { Log = log, AnchorLeft = 1, AnchorRight = 1, OffsetLeft = -718,
-            OffsetRight = -25, OffsetTop = 103, OffsetBottom = 370, MouseFilter = Godot.Control.MouseFilterEnum.Ignore };
+            OffsetRight = -25, OffsetTop = 103, OffsetBottom = 370, Port=index=>LogRegion(FarLedger.Arcs[index]) };
         ui.AddChild(chartMap);
         if (log.Voyages.Length > 0) Choice("Leaf through the log", () => { logPage = log.Voyages.Length - 1; ShipLog(); });
         Choice("Crew recollections", Recollections);
@@ -39,9 +39,9 @@ internal partial class LastLightHarbor
         var order = offers[page];
         var island = log.Next!.Value.Arc.Islands.First(i => i.Island == order.Island);
         string body = order.Id == island.Outings[0].Id ? island.Opening : order.Brief;
-        Open($"{order.Region.ToUpperInvariant()}   /   {island.Speaker}", island.Island, body);
+        Open($"{order.Region.ToUpperInvariant()}   /   {island.Speaker}   /   {island.Outings.Count(o=>log.Contains(o.Id))+1} OF {island.Outings.Length}", island.Island, body);
         chartMap = new RouteChart { Log=log, Coast=log.Next.Value.Arc, Selected=island.Island,
-            Plot=name=>{int i=Array.FindIndex(offers,o=>o.Island==name); if(i>=0)IslandRoutes(i);},
+            Plot=name=>{int i=Array.FindIndex(offers,o=>o.Island==name); if(i>=0)IslandRoutes(i);else IslandLog(log.Next.Value.Arc,name,0);},
             AnchorLeft=1,AnchorRight=1,OffsetLeft=-718,OffsetRight=-25,OffsetTop=103,OffsetBottom=383 };
         ui.AddChild(chartMap);
         Choice("Read the order", () => Brief(order), true);
@@ -51,8 +51,8 @@ internal partial class LastLightHarbor
     }
     void Brief(CampaignOrder order)
     {
-        Open(order.Migration ? "NURSERY WATCH" : order.Postal ? "THE NIGHT POST" : order.Pilotage ? "PILOT’S SURVEY" : order.Ashore ? "LANDING PARTY" : "BLUE-WATER VOYAGE",order.Title, (order.Postal ? "Carry the night post through the islands on the outward passage. " : "") + order.Objective + "  " + order.Brief);
-        Choice(order.Migration ? "Join the nursery fleet" : order.Postal ? "Take the mail watch" : order.Pilotage ? "Open the pilot book" : order.Ashore ? "Take the crew ashore" : "Cast off", () => AcceptOrder?.Invoke(order), true);
+        Open(order.Underways ? "THE UNDERWAYS" : order.PrizeWatch ? "PRIZE WATCH" : order.Migration ? "NURSERY WATCH" : order.Postal ? "THE NIGHT POST" : order.Pilotage ? "PILOT’S SURVEY" : order.Ashore ? "LANDING PARTY" : "BLUE-WATER VOYAGE",order.Title, (order.Postal ? "Carry the night post through the islands on the outward passage. " : "") + order.Objective + "  " + order.Brief);
+        Choice(order.Underways ? "Enter the underways" : order.PrizeWatch ? "Stand the prize watch" : order.Migration ? "Join the nursery fleet" : order.Postal ? "Take the mail watch" : order.Pilotage ? "Open the pilot book" : order.Ashore ? "Take the crew ashore" : "Cast off", () => AcceptOrder?.Invoke(order), true);
         if(Ledger.Campaign.OnWatch!=Shipmate.None)Choice("Keepsake   ·   "+Ledger.Campaign.OnWatch,()=>{Open("ON WATCH",CrewWatches.Token(Ledger.Campaign.OnWatch),CrewWatches.Help(Ledger.Campaign.OnWatch)+" Press F during play, once per run.");Choice("Back to the order",()=>Brief(order),true);});
         Choice("Back to the chart", FarChart);
     }
@@ -81,6 +81,7 @@ internal partial class LastLightHarbor
         Choice("Relive this crossing", () => AcceptOrder?.Invoke(order));
         if (logPage > 0) Choice("Previous entry", () => { logPage--; ShipLog(); });
         if (logPage < log.Voyages.Length - 1) Choice("Next entry", () => { logPage++; ShipLog(); });
+        Choice("Find a region",()=>LogRegions(order.Tier>8?1:0));
         Choice("Close the log", FarChart, true);
     }
     void Recollections()
