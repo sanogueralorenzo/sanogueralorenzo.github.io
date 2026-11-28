@@ -33,7 +33,7 @@ internal partial class LastLightHarbor
         var entries=log.Voyages.Select(FarLedger.Find).Where(o=>o.Region==arc.Region && o.Island==name).ToArray();
         if(entries.Length==0){LogRegion(arc);return;}
         var order=entries[Math.Clamp(page,0,entries.Length-1)];
-        Open($"{arc.Region.ToUpperInvariant()}   /   {(name.Length>0?name:"REGIONAL ORDERS")}   /   {page+1} OF {entries.Length}",order.Title,order.Homecoming);
+        Open($"{arc.Region.ToUpperInvariant()}   /   {(name.Length>0?name:"REGIONAL ORDERS")}   /   {page+1} OF {entries.Length}",order.Title,log.Homecoming(order));
         Choice("Sail this recollection",()=>AcceptOrder?.Invoke(order),true);
         if(page>0)Choice("Previous",()=>IslandLog(arc,name,page-1));
         if(page<entries.Length-1)Choice("Next",()=>IslandLog(arc,name,page+1));

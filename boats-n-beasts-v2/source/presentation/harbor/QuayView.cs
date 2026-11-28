@@ -28,7 +28,7 @@ internal partial class QuayView : Node3D
         ActorArt3D.MountCarving(boat,Ledger.Figurehead);
         boat.Position = new(3.77f, 0, 4.72f);
         boat.Rotation = new(0,-.46f,0);
-        AddChild(boat);
+        AddChild(boat);MoorFleet();
         var reef=EnvironmentArt3D.QuayArch();
         reef.Position=new(5.85f,0,-2.67f);reef.RotationDegrees=new(0,-22,0);AddChild(reef);
         if(Ledger.Campaign.HomePortNamed)
@@ -80,7 +80,7 @@ internal partial class QuayView : Node3D
         float dt = (float)Math.Min(.10, delta);
         clock += dt;
         Frame(); stage.Advance(clock);
-        ActorArt3D.AnimateBoat(boat, clock, 0, 0);
+        ActorArt3D.AnimateBoat(boat, clock, 0, 0);RideMoorings();
         if(houseboat!=null)houseboat.Position=new(-5.10f,.04f*Mathf.Sin(clock*.62f),.36f);
         if(calf!=null)
         {

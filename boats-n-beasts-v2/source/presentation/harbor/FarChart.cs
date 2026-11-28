@@ -51,8 +51,8 @@ internal partial class LastLightHarbor
     }
     void Brief(CampaignOrder order)
     {
-        Open(order.Underways ? "THE UNDERWAYS" : order.PrizeWatch ? "PRIZE WATCH" : order.Migration ? "NURSERY WATCH" : order.Postal ? "THE NIGHT POST" : order.Pilotage ? "PILOT’S SURVEY" : order.Ashore ? "LANDING PARTY" : "BLUE-WATER VOYAGE",order.Title, (order.Postal ? "Carry the night post through the islands on the outward passage. " : "") + order.Objective + "  " + order.Brief);
-        Choice(order.Underways ? "Enter the underways" : order.PrizeWatch ? "Stand the prize watch" : order.Migration ? "Join the nursery fleet" : order.Postal ? "Take the mail watch" : order.Pilotage ? "Open the pilot book" : order.Ashore ? "Take the crew ashore" : "Cast off", () => AcceptOrder?.Invoke(order), true);
+        Open(order.Flotilla ? "THE FREE FLEET" : order.Underways ? "THE UNDERWAYS" : order.PrizeWatch ? "PRIZE WATCH" : order.Migration ? "NURSERY WATCH" : order.Postal ? "THE NIGHT POST" : order.Pilotage ? "PILOT’S SURVEY" : order.Ashore ? "LANDING PARTY" : "BLUE-WATER VOYAGE",order.Title, (order.Postal ? "Carry the night post through the islands on the outward passage. " : "") + order.Objective + "  " + order.Brief);
+        Choice(order.Flotilla ? "Convene the captains" : order.Underways ? "Enter the underways" : order.PrizeWatch ? "Stand the prize watch" : order.Migration ? "Join the nursery fleet" : order.Postal ? "Take the mail watch" : order.Pilotage ? "Open the pilot book" : order.Ashore ? "Take the crew ashore" : "Cast off", () => AcceptOrder?.Invoke(order), true);
         if(Ledger.Campaign.OnWatch!=Shipmate.None)Choice("Keepsake   ·   "+Ledger.Campaign.OnWatch,()=>{Open("ON WATCH",CrewWatches.Token(Ledger.Campaign.OnWatch),CrewWatches.Help(Ledger.Campaign.OnWatch)+" Press F during play, once per run.");Choice("Back to the order",()=>Brief(order),true);});
         Choice("Back to the chart", FarChart);
     }
@@ -77,7 +77,7 @@ internal partial class LastLightHarbor
         var log = Ledger.Campaign;
         if (logPage < 0 || logPage >= log.Voyages.Length) { FarChart(); return; }
         var order = FarLedger.Find(log.Voyages[logPage]);
-        Open($"SHIP’S LOG   /   {order.Region.ToUpperInvariant()}", order.Title,order.Homecoming);
+        Open($"SHIP’S LOG   /   {order.Region.ToUpperInvariant()}", order.Title,log.Homecoming(order));
         Choice("Relive this crossing", () => AcceptOrder?.Invoke(order));
         if (logPage > 0) Choice("Previous entry", () => { logPage--; ShipLog(); });
         if (logPage < log.Voyages.Length - 1) Choice("Next entry", () => { logPage++; ShipLog(); });

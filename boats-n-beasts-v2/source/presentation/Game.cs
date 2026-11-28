@@ -30,10 +30,12 @@ public partial class Game : Node
     }
     (int Region,WatchTempo Tempo) ListenToWatch()
     {
-        var where=location switch { NightPostWatch post=>post.OnDeck, PrizeWatch prize when prize.Child!=null=>prize.Child, _=>location };
+        var where=location is CrewRun run?run.InPlay:location;
         var tempo = pause!=null ? WatchTempo.Harbor : where switch
         {
             BluewaterVoyage sea when sea.Course.Phase==ChartPhase.Boss => WatchTempo.Danger,
+            FlotillaCommand fleet when fleet.Battle.Field==FleetField.Captain=>WatchTempo.Danger,
+            MusterLanding muster when muster.Muster.Phase==MusterPhase.Guard=>WatchTempo.Danger,
             KilnExpedition foot when foot.Yard.Phase==YardPhase.Guardian => WatchTempo.Danger,
             UnderwaysExpedition crawl when crawl.Crawl.Surface?.Phase==YardPhase.Guardian ||
                 crawl.Crawl.Surface==null && crawl.Crawl.Room.Trial==UnderTrial.Keeper && !crawl.Crawl.Quiet => WatchTempo.Danger,
@@ -41,6 +43,8 @@ public partial class Game : Node
             ShoreExpedition shore when shore.Fight.Phase==QuayPhase.Warden => WatchTempo.Danger,
             SeaPassage sails when sails.Run.Leg==PassageLeg.Keelwidow => WatchTempo.Danger,
             KilnExpedition or ShoreExpedition or UnderwaysExpedition => WatchTempo.Landing,
+            MusterLanding=>WatchTempo.Landing,
+            NightPostWatch or FlotillaWatch=>WatchTempo.Harbor,
             CrewRun => WatchTempo.Sailing,
             _ => WatchTempo.Harbor
         };
@@ -115,6 +119,7 @@ public partial class Game : Node
         ClearLocation();
         CrewRun run=requested switch
         {
+            { Flotilla:true }=>new FlotillaWatch{Order=requested},
             { PrizeWatch:true }=>new PrizeWatch {Order=requested},
             { Underways:true }=>new UnderwaysExpedition {Order=requested},
             { Postal:true }=>new NightPostWatch {Order=requested},
@@ -154,9 +159,9 @@ public partial class Game : Node
         {
             bool recollection = ledger.Campaign.Contains(order.Id);
             var next = ledger.Bank(earned);
-            if (won) next = next with { Campaign = next.Campaign.File(order) };
+            if (won) next = next with { Campaign = next.Campaign.File(order,(location as FlotillaWatch)?.Passage.Pledge) };
             Save(next);
-            string report = !won ? missed.Story : recollection ? "The crew folds away the old chart and counts the salvage." : order.Homecoming;
+            string report = !won ? missed.Story : recollection ? "The crew folds away the old chart and counts the salvage." : next.Campaign.Homecoming(order);
             string title = won ? order.Title : missed.Heading;
             var delivered=won && !recollection ? order : null;
             Callable.From(() => Harbor(title, $"{report}   Banked {earned} silver.",delivered)).CallDeferred();

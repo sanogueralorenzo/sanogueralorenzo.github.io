@@ -219,7 +219,7 @@ public partial class BluewaterVoyage : CrewRun
             bool win=Course.Phase==ChartPhase.Won;
             Text(win?"A flag above the slips":"The long tow home",32,true);
             Text(win?Order.Homecoming:Course.CrewLine.Contains("convoy",StringComparison.OrdinalIgnoreCase)?Course.CrewLine:"The watch bundles the wounded into the tender and counts its purse.",19);
-            Text($"{CarriedSilver+Course.Purse} silver aboard",18);
+            Text($"{SilverAboard} silver aboard",18);
             Choice(win && LandingName!="Last Light Quay" ? "Make fast at "+LandingName : "Return to Last Light Quay",()=>Finish(win));
         }
         else if(Course.Ship.Mode==VoyageMode.Upgrade)
@@ -233,7 +233,7 @@ public partial class BluewaterVoyage : CrewRun
         else if(Course.Phase==ChartPhase.Refit)
         {
             Text("A watch at anchor",32,true);
-            Text($"Hull {Course.Ship.Health:0}/{Course.Ship.MaxHealth:0}    ·    {Course.Kits} kits    ·    {Course.Purse} silver",18);
+            Text($"Hull {Course.Ship.Health:0}/{Course.Ship.MaxHealth:0}    ·    {Course.Kits} kits    ·    {SilverAboard} silver",18);
             for(int i=0;i<3;i++){int fit=i;Choice($"{Course.RefitName(i)}   ·   {Course.RefitDetail(i)}",()=>Course.Refit(fit));}
         }
         else

@@ -6,6 +6,11 @@ internal static class ReturnWatch
 {
     internal static (string Heading,string Story) Unfinished(CrewRun location,CampaignOrder? order)
     {
+        if(location is FlotillaWatch fleet)
+        {
+            var passage=fleet.Passage;
+            return ("The company in the lee",$"The crew of {passage.Papers.Vessel} brings the purse to Nell. The crews made {passage.Stage} of their six watches. Their two flags go back to their own piers until the next muster.");
+        }
         if(location is NightPostWatch post)
         {
             if(post.OnDeck is {} active)

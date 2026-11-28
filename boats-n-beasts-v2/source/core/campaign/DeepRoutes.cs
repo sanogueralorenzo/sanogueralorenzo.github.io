@@ -20,6 +20,6 @@ internal static partial class DeepRoutes
             var special=Build(i,story.Outings[0].Id,story.Island);
             return story with{ Outings=[..story.Outings[..^1],special,story.Outings[^1]] };
         }).ToArray();
-        return arc with {Islands=extended,Orders=[..arc.Orders[..^1],Build(4,arc.Orders[^1].Id,""),arc.Orders[^1]]};
+        return FreeFleet.Charter(arc with {Islands=extended,Orders=[..arc.Orders[..^1],Build(4,arc.Orders[^1].Id,""),arc.Orders[^1]]});
     }
 }

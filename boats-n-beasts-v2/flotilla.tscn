@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://source/presentation/flotilla/FlotillaWatch.cs" id="1"]
+
+[node name="FreeFleet" type="Node"]
+script = ExtResource("1")

@@ -29,10 +29,11 @@ public sealed partial class UnderwayRun
     public Vector2 Winch=>new(0,-2.05f);
     public bool Quiet=>Room.Foes.Count==0;
     float cutWait,safe;Vector2 dashDirection;
-    public UnderwayRun(CampaignOrder order,int seed,int stores,Loadout outfit=Loadout.Standard)
+    public UnderwayRun(CampaignOrder order,int seed,int stores,Loadout outfit=Loadout.Standard,float startingCondition=1)
     {
         Order=order;Seed=seed;Outfit=outfit;Biome=UnderProfile.For(order);
-        Floors=Math.Max(1,order.Legs);Maximum=Vitality=12+Math.Clamp(stores,0,2)*2+(outfit==Loadout.Lifeboat?3:0);
+        Floors=Math.Max(1,order.Legs);Maximum=12+Math.Clamp(stores,0,2)*2+(outfit==Loadout.Lifeboat?3:0);
+        Vitality=Math.Max(1,(int)MathF.Ceiling(Maximum*Math.Clamp(startingCondition,0,1)));
         Rations=2+Math.Clamp(stores,0,2);LoadFloor();
     }
     void LoadFloor()

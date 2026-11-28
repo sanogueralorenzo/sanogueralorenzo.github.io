@@ -167,7 +167,7 @@ internal partial class BluewaterHud : Control
         }
         Box(22,h-92,271,72,brass);
         Text($"Hull   {Math.Ceiling(ship.Health)} / {ship.MaxHealth:0}",37,h-65,18,Cream);
-        Text($"{c.Purse} silver",195,h-65,16,brass);
+        Text($"{Scene.SilverAboard} silver",195,h-65,16,brass);
         DrawRect(new(37,h-54,240,7),new Color("455863"));
         DrawRect(new(37,h-54,240*Math.Clamp(ship.Health/ship.MaxHealth,0,1),7),ship.Health<35?Red:Mint);
         Text($"E  Patch ×{c.Kits}    ·    Surge {ship.Boost:0}%",37,h-29,14,Mint);

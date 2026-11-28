@@ -27,7 +27,13 @@ public sealed class PostalCircuit
     public string Message { get; private set; } = "";
     public string Heading => Public ? "The public packet" : Mail(Island).Contents;
     public string Letter => Public ? PostLetters.PublicMail[Order.Tier-1] : Mail(Island).Letter;
-    PostLetter Mail(int island) => Arc.Islands[island].Mail ?? PostLetters.Islands[Order.Tier-1][island];
+    PostLetter Mail(int island)
+    {
+        if(Order.Articles is {} p && island==Island)
+            return new($"Sailing articles for {p.Vessel}",$"To our partners aboard {p.ConsortVessel} at {p.ConsortHome}. We sail with {p.Cargo}. Look for {p.Signal} and lead us to {p.Refuge}. Leave the depth beside your signature. Signed for {p.Home} by {p.Captain}.",
+                $"The charter comes back in an oilskin. Under the signature of {p.Consort} is a pencilled sounding and the message, “We have saved your berth.”");
+        return Arc.Islands[island].Mail ?? PostLetters.Islands[Order.Tier-1][island];
+    }
     public string Reply(int port) => Mail(port-1).Answer;
     public string Counter => Public ? $"{Signatures} of 4 seals" : Posted ? "Reply aboard" : Sorted ? "Countersealed" : Collected ? "Letter aboard" : "Awaiting pickup";
     public string Instructions => Ready ? $"The packet is ready. Muster the crew for {Order.Title}."
@@ -39,8 +45,9 @@ public sealed class PostalCircuit
     public readonly PostLane[] Lanes;
     readonly bool[] arrived=new bool[7], serviced=new bool[7];
 
-    public PostalCircuit(CampaignOrder order,int seed)
+    public PostalCircuit(CampaignOrder order,int seed,float hull=1,float crew=1)
     {
+        Hull=Math.Clamp(hull,.01f,1);Crew=Math.Clamp(crew,.01f,1);
         Order=order; Arc=FarLedger.Arcs[order.Tier-1];
         Island=Array.FindIndex(Arc.Islands,island=>island.Island==order.Island);
         Pickup=Island<0?0:1+(Island+1+(order.Tier%2))%4;

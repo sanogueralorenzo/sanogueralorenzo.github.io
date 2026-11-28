@@ -10,6 +10,7 @@ public sealed record CampaignLog
         init{voyages=value;filed=new(value,StringComparer.Ordinal);}
     }
     public bool Contains(string id)=>filed.Contains(id);
+    public Dictionary<string,bool> FleetPacts { get; init; }=[];
     public Dictionary<string, bool> Decisions { get; init; } = [];
     public bool? CrewSigned { get; init; }
     public Dictionary<string,bool> NightWatches { get; init; } = [];
@@ -65,8 +66,19 @@ public sealed record CampaignLog
         if (!NeedsHearing || Next is not { } pos) return this;
         return this with { Decisions = new(Decisions) { [pos.Arc.Region] = second } };
     }
-    public CampaignLog File(CampaignOrder order) =>
-        Available().Any(o => o.Id == order.Id) ? this with { Voyages = [..Voyages, order.Id] } : this;
+    public CampaignLog File(CampaignOrder order,bool? shoreBerth=null)
+    {
+        if(!Available().Any(o=>o.Id==order.Id))return this;
+        var next=this with{Voyages=[..Voyages,order.Id]};
+        return order.Flotilla && shoreBerth.HasValue
+            ?next with{FleetPacts=new(FleetPacts){[order.Id]=shoreBerth.Value}}:next;
+    }
+    public string Homecoming(CampaignOrder order)
+    {
+        if(order.Articles is {} fleet && FleetPacts.TryGetValue(order.Id,out bool shore))
+            return order.Homecoming+" "+(shore?fleet.Pledge:fleet.Berth);
+        return order.Homecoming;
+    }
     public bool Hosted(IslandStory island) => island.Outings.All(order => Contains(order.Id));
     public IEnumerable<CampaignArc> SettledPorts() => FarLedger.Arcs.Where(arc=>FiledIn(arc)==arc.Length);
 }

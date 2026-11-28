@@ -99,7 +99,7 @@ internal partial class PrizeHud : Control
             Word(clue, new(33, 122), 15, Mint);
         }
         Box(new(20, Size.Y - 87), new(315, 65), Gold);
-        Word($"Hull {s.Health:0} / {s.MaxHealth:0}     {Game.SilverEarned} silver", new(34, Size.Y - 60), 18, Cream);
+        Word($"Hull {s.Health:0} / {s.MaxHealth:0}     {Game.SilverAboard} silver", new(34, Size.Y - 60), 18, Cream);
         Word($"E  Patch ×{w.Kits}    ·    Shift  Surge {s.Boost:0}%    ·    Alarm {w.Alarm}", new(34, Size.Y - 35), 14, Mint);
         Box(new(Size.X - 366, Size.Y - 87), new(346, 65), Gold);
         Word("WASD   Helm      Space / click   Guns", new(Size.X - 352, Size.Y - 61), 17, Cream);
@@ -154,7 +154,7 @@ internal partial class PrizeHud : Control
         }
         if (b.MateAtBrake) DrawPolyline(Loop(b.Hitch, .49f), Mint, 2, true);
         Box(new(20, Size.Y - 87), new(298, 65), Gold);
-        Word($"Crew {b.Health}/{b.MaxHealth}     {Game.SilverEarned} silver", new(34, Size.Y - 60), 18, Cream);
+        Word($"Crew {b.Health}/{b.MaxHealth}     {Game.SilverAboard} silver", new(34, Size.Y - 60), 18, Cream);
         Word($"Room {b.Room} of {b.Rooms}    ·    R  Dressing ×{b.Salves}", new(34, Size.Y - 35), 15, Mint);
         Box(new(Size.X - 370, Size.Y - 87), new(350, 65), Gold);
         Word("WASD  Move      Space / J  Strike      Shift  Roll", new(Size.X - 358, Size.Y - 61), 15, Cream);

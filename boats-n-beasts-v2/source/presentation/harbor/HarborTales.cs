@@ -84,13 +84,14 @@ internal partial class LastLightHarbor
     {
         var log = Ledger.Campaign;
         var last = FarLedger.Find(log.Voyages[^1]);
-        string text = last.Homecoming;
+        string text = log.Homecoming(last);
         var arc = FarLedger.Arcs.First(region => region.Region == last.Region);
         if (last.Id == arc.Orders[^1].Id) text += " The crew has kept a souvenir. " + arc.Keepsake + ".";
         Open(arc.Title.ToUpperInvariant(), "Word from the quay", text);
         Choice("Take your watch", FarChart, true);
         Choice("Meet the visiting pilot", Guest); Choice("Join the night watch",NightWatch);
         Choice("Read the visitors’ book", () => VisitorsBook(0));
+        if(log.Voyages.Any(id=>FarLedger.Find(id).Flotilla))Choice("Read the fleet register",()=>FleetRegister(int.MaxValue));
     }
 
     void Guest()

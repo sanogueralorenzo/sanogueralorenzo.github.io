@@ -1,6 +1,6 @@
 # Boats ’n’ Beasts V2
 
-An original Godot pirate roguelike. Last Light Quay loses its bell in **The Silent Watch**. Join Lio and Vara to recover it, dock at Bellwether and bring its keeper home. **The Far Ledger** follows the crew across eight regions, from Cinder Narrows to the Unnumbered Sea. **The Walking Tide** takes the signed chart into eight outer regions where islands migrate and a nursery fleet needs shelter. The crew’s hearings decide which orders and witnesses appear. Cleared orders can be replayed from the ship’s log.
+An original Godot pirate roguelike. Last Light Quay loses its bell in **The Silent Watch**. Join Lio and Vara to recover it, dock at Bellwether and bring its keeper home. **The Far Ledger** follows the crew across eight regions, from Cinder Narrows to the Unnumbered Sea. **The Walking Tide** takes the signed chart into eight outer regions where islands migrate and a nursery fleet needs shelter. The crew’s hearings decide which orders and witnesses appear. A main-story clear spans 560 charted orders after the opening chapter, with a first-playthrough pacing target of 100+ active hours including failed runs. Cleared orders can be replayed from the ship’s log.
 
 ## Play
 
@@ -26,7 +26,9 @@ On a pilot survey, open the chart with M, sail to the second light and hail it w
 
 On the Night Post, choose a lane on the packet chart, carry the letter through sea crossings and on-foot towpaths, and keep the cutter and crew fit for the final assignment. On a nursery watch, answer a calf’s song with 1–3 and guide it to the mother. Use Q to soothe, E to gather kelp or feed, and M to consult the chart.
 
-Prize Watch uses sail markings, close inspection and on-deck crew work to identify and extract a prize. The Underways lead through connected rooms, evidence chambers and surface sorties to an island guardian. Escape opens the controls for the current watch.
+Prize Watch uses sail markings, close inspection and on-deck crew work to identify and extract a prize. The Underways lead through connected rooms, evidence chambers and surface sorties to an island guardian.
+
+When four island stories meet, their captains form **the Free Fleet**. Choose who gets the first berth, lead the crews through six linked watches, and bring the company to its refuge. Ships take damage at sea and landing parties carry their wounds ashore. Spend provisions at the captains’ table. Successful charters enter the fleet register with the promise you made. Escape opens the controls for the current watch.
 
 ## Art preview
 

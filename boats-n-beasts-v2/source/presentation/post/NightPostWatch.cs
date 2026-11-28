@@ -12,13 +12,18 @@ public partial class NightPostWatch : CrewRun
     PostalCircuit watch=null!;
     CrewRun? stage;
     internal CrewRun? OnDeck=>stage;
+    public override CrewRun? ActiveWatch=>stage;
+    public float StartingHull {get;set;}=1;
+    public float StartingCrew {get;set;}=1;
+    public float HullCondition=>stage is BluewaterVoyage sea?sea.Course.Ship.Health/sea.Course.Ship.MaxHealth:watch.Hull;
+    public float CrewCondition=>stage is KilnExpedition foot?(float)foot.Yard.Health/foot.Yard.MaximumHealth:watch.Crew;
     CanvasLayer? desk;
     VBoxContainer copy=null!;
     PostMap map=null!;
     bool inTransit;
     public override void _Ready()
     {
-        watch=new(Order,Seed);
+        watch=new(Order,Seed,StartingHull,StartingCrew);
         Desk();
     }
     void Desk()
@@ -37,7 +42,7 @@ public partial class NightPostWatch : CrewRun
         row.AddChild(scroll);
         var outer=new MarginContainer{SizeFlagsHorizontal=Control.SizeFlags.ExpandFill};outer.AddThemeConstantOverride("margin_right",7);scroll.AddChild(outer);
         copy=new VBoxContainer{SizeFlagsHorizontal=Control.SizeFlags.ExpandFill};copy.AddThemeConstantOverride("separation",8);outer.AddChild(copy);
-        body.AddChild(Text($"Hull {watch.Hull:P0}    ·    Crew {watch.Crew:P0}    ·    {watch.Provisions} provisions    ·    {SilverEarned} silver aboard    ·    Escape to anchor",18,Teal));
+        body.AddChild(Text($"Hull {watch.Hull:P0}    ·    Crew {watch.Crew:P0}    ·    {watch.Provisions} provisions    ·    {SilverAboard} silver aboard    ·    Escape to anchor",18,Teal));
         AtPort();
     }
     void Clear()
@@ -119,7 +124,7 @@ public partial class NightPostWatch : CrewRun
         stage=leg.Ashore ? new KilnExpedition{Order=leg} : new BluewaterVoyage{Order=leg};
         stage.Seed=unchecked(Seed+watch.Legs*7919+(watch.Final?9929:31));stage.Stores=Stores;stage.Outfit=Outfit;
         stage.Vessel=Vessel;stage.Figurehead=Figurehead;
-        stage.CarriedSilver=watch.Purse;stage.LandingName=watch.Final?"Last Light Quay":watch.Name(watch.Destination);
+        stage.CarriedSilver=CarriedSilver+watch.Purse;stage.LandingName=watch.Final?LandingName:watch.Name(watch.Destination);
         stage.Returned=Arrive;AddChild(stage);
         if(stage is KilnExpedition landing)landing.Yard.ArriveByPost(watch.Crew);
         if(stage is BluewaterVoyage crossing)crossing.Course.Ship.Health=crossing.Course.Ship.MaxHealth*watch.Hull;

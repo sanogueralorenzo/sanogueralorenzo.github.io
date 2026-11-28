@@ -8,6 +8,8 @@ public sealed record CampaignOrder(string Id, string Region, string Title, strin
     public LandingStep[]? LandingSteps { get; init; }
     public SeaJob[]? SeaStations { get; init; }
     public string Island { get; init; } = "";
+    public bool Flotilla { get; init; }
+    public FleetArticles? Articles { get; init; }
     public CaseEvidence? Evidence { get; init; }
     public bool PrizeWatch { get; init; }
     public bool Underways { get; init; }

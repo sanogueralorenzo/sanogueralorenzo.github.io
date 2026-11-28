@@ -7,10 +7,12 @@ namespace BoatsNBeasts;
 public partial class UnderwaysExpedition:CrewRun
 {
     public CampaignOrder Order {get;set;}=FarLedger.Arcs.SelectMany(a=>a.Orders.Concat(a.Islands.SelectMany(i=>i.Outings))).First(o=>o.Underways);
+    public float StartingCondition {get;set;}=1;
     public UnderwayRun Crawl {get;private set;}=null!;
     public override int SilverEarned=>Crawl?.Silver??0;
     public override bool AskShipmate(Shipmate mate)=>port?.AskShipmate(mate)??Crawl.Call(mate);
     internal KilnExpedition? Port=>port;
+    public override CrewRun? ActiveWatch=>port;
     KilnExpedition? port;
     internal NativeStage3D Stage=null!;internal UnderHud Hud=null!;internal int Selected,NotePage;internal bool NotesOpen;
     readonly Dictionary<YardBeastState,Node3D> foes=[];
@@ -23,7 +25,7 @@ public partial class UnderwaysExpedition:CrewRun
     static bool Down(Key key)=>Input.IsPhysicalKeyPressed(key);
     public override void _Ready()
     {
-        region=LandingRegion.From(Order.Region);Crawl=new(Order,Seed,Stores,Outfit);Stage=new();AddChild(Stage);Stage.PaintWater(new("355860"));
+        region=LandingRegion.From(Order.Region);Crawl=new(Order,Seed,Stores,Outfit,StartingCondition);Stage=new();AddChild(Stage);Stage.PaintWater(new("355860"));
         captain=ActorArt3D.BoardingParty(0);lio=ActorArt3D.BoardingParty(1);vara=ActorArt3D.BoardingParty(2);
         Stage.AddChild(captain);Stage.AddChild(lio);Stage.AddChild(vara);veil=ActorArt3D.Veil(captain);
         marks=new();Stage.AddChild(marks);

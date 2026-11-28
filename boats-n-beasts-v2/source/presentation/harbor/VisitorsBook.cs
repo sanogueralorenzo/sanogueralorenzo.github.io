@@ -10,7 +10,8 @@ internal partial class LastLightHarbor
     void WelcomeHome(CampaignOrder delivery)
     {
         var arc=FarLedger.Arcs[delivery.Tier-1];
-        if(delivery.Island.Length>0)
+        if(delivery.Flotilla)Choice("Enter the vessel in the register",()=>FleetRegister(int.MaxValue));
+        else if(delivery.Island.Length>0)
         {
             var visitors=VisitingIslands();
             int page=Array.FindIndex(visitors,entry=>entry.Island.Outings[^1].Id==delivery.Id);

@@ -10,6 +10,7 @@ public partial class PrizeWatch : CrewRun
     public PrizeTheater Watch { get; private set; } = null!;
     public PrizeBoarding? Board { get; private set; }
     public CrewRun? Child { get; private set; }
+    public override CrewRun? ActiveWatch=>Child;
     public override int SilverEarned => (Watch?.Purse ?? 0) + (Child?.SilverEarned ?? Board?.Silver ?? 0);
     public override bool AskShipmate(Shipmate mate) => Child?.AskShipmate(mate) ?? Board?.CallShipmate(mate) ?? (!MenuUp && Watch.Ship.CallShipmate(mate));
     internal OceanView3D Sea = null!;
@@ -132,7 +133,7 @@ public partial class PrizeWatch : CrewRun
             2 => new KilnExpedition { Order = Watch.CommissionPort(hard) },
             _ => Watch.Phase == PrizePhase.Landfall ? MakeFort(hard) : MakeCrossing(hard)
         };
-        Child.Seed = Seed + 197 * Watch.Index; Child.Outfit = Outfit; Child.Stores = Stores; Child.Vessel = Vessel; Child.Figurehead = Figurehead; Child.LandingName = "the watch roads"; Child.Returned = FinishChild; AddChild(Child);
+        Child.CarriedSilver=CarriedSilver+Watch.Purse; Child.Seed = Seed + 197 * Watch.Index; Child.Outfit = Outfit; Child.Stores = Stores; Child.Vessel = Vessel; Child.Figurehead = Figurehead; Child.LandingName = "the watch roads"; Child.Returned = FinishChild; AddChild(Child);
         if (Child is KilnExpedition foot) foot.Yard.ArriveByPost(Math.Max(.45f, 1 - Watch.Strain / 95f));
         if (Child is BluewaterVoyage sea)
         {
@@ -268,7 +269,7 @@ public partial class PrizeWatch : CrewRun
         if (state == "result")
         {
             bool win = Watch.Phase == PrizePhase.Won; Text(win ? "The prize makes harbor" : "The watch comes home", 32, true);
-            Text(win ? Order.Homecoming : Watch.Dispatch); if (win && Watch.Found) Text(Watch.Exhibit.Finding); Text($"{SilverEarned} silver aboard"); Pick("Return to " + LandingName, () => { exiting = true; if (Returned != null) Returned(win, SilverEarned); else GetTree().ChangeSceneToFile("res://main.tscn"); }); return;
+            Text(win ? Order.Homecoming : Watch.Dispatch); if (win && Watch.Found) Text(Watch.Exhibit.Finding); Text($"{SilverAboard} silver aboard"); Pick("Return to " + LandingName, () => { exiting = true; if (Returned != null) Returned(win, SilverEarned); else GetTree().ChangeSceneToFile("res://main.tscn"); }); return;
         }
         if (state == "Muster")
         {
@@ -312,7 +313,7 @@ public partial class PrizeWatch : CrewRun
             Text($"Evidence {Watch.Evidence}   ·   People brought out {Watch.Prisoners}   ·   Allied boats {Watch.Allies}   ·   Alarm {Watch.Alarm}");
             Pick("Return to the helm", () => manualChart = false); Pick("Withdraw with this watch’s silver", () => { manualChart = false; Watch.Withdraw(); }); return;
         }
-        Text(Watch.WatchName + " is clear", 27, true); Text($"Hull {Watch.Ship.Health:0} / {Watch.Ship.MaxHealth:0}     Crew strain {Watch.Strain}     Earned silver {SilverEarned}");
+        Text(Watch.WatchName + " is clear", 27, true); Text($"Hull {Watch.Ship.Health:0} / {Watch.Ship.MaxHealth:0}     Crew strain {Watch.Strain}     Silver aboard {SilverAboard}");
         Pick("Mend the cutter and tend the watch   ·   +29 hull, a kit and rest", () => Watch.Refit(0));
         Pick("Fit a second purchase   ·   Faster gun and line, louder squadron", () => Watch.Refit(1));
         Pick("Recruit pilots   ·   More witnesses, lower alarm", () => Watch.Refit(2));
