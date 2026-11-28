@@ -5,6 +5,7 @@ A small collection of things I'm building and experimenting with.
 ## Games
 
 - [Boats ’n’ Beasts](./boats-n-beasts/README.md) — a procedural sailing prototype.
+- [Boats ’n’ Beasts V2](./boats-n-beasts-v2/README.md) — a separate version with more graphic lighting and coastlines.
 
 ## Tools
 

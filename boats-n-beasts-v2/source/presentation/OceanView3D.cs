@@ -1,0 +1,141 @@
+using Godot;
+using BoatsNBeasts.Core;
+using V2 = System.Numerics.Vector2;
+namespace BoatsNBeasts;
+
+// Read-only voyage presentation; owns bounded native scene resources.
+public partial class OceanView3D : Node3D
+{
+    public Voyage Voyage = null!;
+    public bool Menu;
+    public Vector2 Camera;
+    public float Clock;
+    public float DepartureTime { get; private set; }
+    public double DrawMs;
+    public V2? Destination;
+    public Vector2 Projection => new(NativeStage3D.Zoom, NativeStage3D.Zoom * NativeStage3D.Foreshortening);
+    public int CachedScenery => scenery.Count;
+    public int CachedEncounters => effects.CachedEncounters;
+    public int TrailSamples => effects.TrailSamples;
+    readonly Dictionary<string, Node3D> scenery = new();
+    readonly Dictionary<int, (Node3D Root, MeshInstance3D? Marker)> creatures = new();
+    readonly QuadMesh markerMesh = new() { Size = new(.39f, .30f) };
+    NativeStage3D stage = null!;
+    Effects3D effects = null!;
+    ShaderMaterial markerMaterial = null!;
+    Node3D? boat;
+    string boatSignature = "";
+    public override void _Ready()
+    {
+        stage = new(); AddChild(stage);
+        effects = new(); AddChild(effects);
+        markerMaterial = new ShaderMaterial
+        {
+            Shader = GD.Load<Shader>("res://source/presentation/crab-occlusion.gdshader"),
+            RenderPriority = 1
+        };
+        Reset();
+    }
+    public Vector2 Screen(V2 p) => stage.Screen(p);
+    public Vector2 ElevatedScreen(V2 p, float height) => stage.Screen(p, height);
+    public V2 WorldPoint(Vector2 screen) => stage.WorldPoint(screen);
+    public void Reset()
+    {
+        foreach (var root in scenery.Values) root.QueueFree(); scenery.Clear();
+        foreach (var creature in creatures.Values) creature.Root.QueueFree(); creatures.Clear();
+        boat?.QueueFree(); boat = null; boatSignature = "";
+        ActorArt3D.ResetCache();
+        effects.Reset(); Clock = 0; DepartureTime = 0; Camera = HomeCamera();
+        stage.Follow(Camera); stage.SetWhirlpools(System.Array.Empty<Whirlpool3D>());
+    }
+    Vector2 HomeCamera() => new Vector2(StartingArea.Harbor.X, StartingArea.Harbor.Y) +
+        GetViewport().GetVisibleRect().Size * new Vector2(.28f, .19f) / Projection;
+    public void BeginSailing() { Menu = false; DepartureTime = 0; }
+    public void Effect(GameEvent ev) => effects.Effect(ev);
+    public void Advance(float dt)
+    {
+        var start = System.Diagnostics.Stopwatch.GetTimestamp();
+        if (Menu || Voyage.IsActive) Clock += dt;
+        if (Menu) Camera = HomeCamera();
+        else if (Voyage.Mode == VoyageMode.Sailing && (Voyage.Velocity.LengthSquared() > .01f || DepartureTime > 0))
+        {
+            DepartureTime += dt;
+            var target = new Vector2(Voyage.Position.X + Voyage.Velocity.X * .16f, Voyage.Position.Y + Voyage.Velocity.Y * .16f);
+            // Keep the dock framing until the player moves, then ease into tracking.
+            float follow = Mathf.SmoothStep(0, 1, Mathf.Clamp((DepartureTime - .8f) / 2, 0, 1));
+            Camera = Camera.Lerp(target, 1 - Mathf.Exp(-dt * 5 * follow));
+        }
+        stage.Follow(Camera); stage.Advance(Clock);
+        SyncScenery(); SyncActors();
+        effects.Destination = Destination;
+        effects.Sync(Voyage, Clock, dt);
+        DrawMs = DrawMs * .95 + System.Diagnostics.Stopwatch.GetElapsedTime(start).TotalMilliseconds * .05;
+    }
+    void SyncScenery()
+    {
+        var size = GetViewport().GetVisibleRect().Size / Projection;
+        var visible = Voyage.World.Places.Where(p => (OceanWorld.IsSolid(p) || p.Kind == PlaceKind.Whirlpool) &&
+            Math.Abs(p.Position.X - Camera.X) < size.X * .5f + p.Radius + 400 &&
+            Math.Abs(p.Position.Y - Camera.Y) < size.Y * .5f + p.Radius + 500).ToArray();
+        var keep = visible.Select(p => p.Id).ToHashSet();
+        foreach (var id in scenery.Keys.Where(id => !keep.Contains(id)).ToArray()) { scenery[id].QueueFree(); scenery.Remove(id); }
+        // Build at most one incoming island per frame, ahead of the visible edge during sailing.
+        var incoming = visible.Where(p => !scenery.ContainsKey(p.Id)).OrderBy(p => V2.DistanceSquared(p.Position, new(Camera.X, Camera.Y))).FirstOrDefault();
+        if (incoming != null)
+        {
+            var root = EnvironmentArt3D.Build(incoming); AddChild(root);
+            root.Position = NativeStage3D.Point(incoming.Position); scenery.Add(incoming.Id, root);
+        }
+        stage.SetWhirlpools(scenery.Values.OfType<Whirlpool3D>());
+    }
+    void SyncActors()
+    {
+        string signature = Voyage.Boat + ":" + string.Join(',', Voyage.Weapons);
+        if (signature != boatSignature)
+        {
+            boat?.QueueFree(); boat = ActorArt3D.Boat(Voyage.Boat, Voyage.Weapons); AddChild(boat); boatSignature = signature;
+        }
+        boat!.Position = NativeStage3D.Point(Voyage.Position);
+        boat.Rotation = new(0, -Voyage.Heading, 0);
+        var target = Voyage.Enemies.Where(e => e.Health > 0 && V2.DistanceSquared(e.Position, Voyage.Position) < 570 * 570).OrderBy(e => V2.DistanceSquared(e.Position, Voyage.Position)).FirstOrDefault();
+        var aim = target == null ? 0 : Voyage.Heading - MathF.Atan2(target.Position.X - Voyage.Position.X, Voyage.Position.Y - target.Position.Y);
+        ActorArt3D.AnimateBoat(boat, Clock, Voyage.Velocity.Length() * .01f, aim);
+        var live = Voyage.Enemies.Select(e => e.Id).ToHashSet();
+        foreach (var id in creatures.Keys.Where(id => !live.Contains(id)).ToArray()) { creatures[id].Root.QueueFree(); creatures.Remove(id); }
+        foreach (var enemy in Voyage.Enemies)
+        {
+            if (!creatures.TryGetValue(enemy.Id, out var creature))
+            {
+                var created = ActorArt3D.Creature(enemy.Kind); AddChild(created);
+                var mesh = created.GetChild<MeshInstance3D>(0);
+                mesh.SetInstanceShaderParameter("creature_kind", enemy.Kind switch { EnemyKind.Crab or EnemyKind.Leviathan => 1, EnemyKind.Puffer => 2, EnemyKind.Serpent => 3, _ => 4 });
+                mesh.SetInstanceShaderParameter("creature_scale", enemy.Kind == EnemyKind.Leviathan ? 2.65f : 1);
+                mesh.SetInstanceShaderParameter("phase", enemy.Id * .73f);
+                mesh.SetInstanceShaderParameter("movement_rate", enemy.SpeedMultiplier);
+                MeshInstance3D? marker = null;
+                if (enemy.Kind == EnemyKind.Crab)
+                {
+                    marker = new MeshInstance3D
+                    {
+                        Mesh = markerMesh, MaterialOverride = markerMaterial, Position = new(0, .25f, 0),
+                        CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, ExtraCullMargin = 1.1f, Visible = false
+                    };
+                    created.AddChild(marker);
+                }
+                creature = (created, marker);
+                creatures.Add(enemy.Id, creature);
+            }
+            var root = creature.Root;
+            if (creature.Marker is { } occlusion)
+                occlusion.Visible = !enemy.Emerging && !Voyage.World.IsWater(enemy.Position, 360);
+            float swelling = enemy.Fuse > 0 ? 1 - enemy.Fuse / Enemy.PufferFuseDuration : 0;
+            root.Scale = Vector3.One * (1 + swelling * .55f);
+            root.GetChild<MeshInstance3D>(0).SetInstanceShaderParameter("swelling", swelling);
+            float emergence = Mathf.Clamp(enemy.Time / Enemy.EmergenceDuration, 0, 1);
+            root.Position = NativeStage3D.Point(enemy.Position, -(1 - emergence) * (enemy.Kind == EnemyKind.Leviathan ? 1.2f : .6f));
+            var toward = Voyage.Position - enemy.Position;
+            root.Rotation = new(0, -MathF.Atan2(toward.X, -toward.Y), 0);
+            ActorArt3D.Animate(root, Clock + enemy.Id * .73f, enemy.Dash > 0 ? 3 : 1);
+        }
+    }
+}
