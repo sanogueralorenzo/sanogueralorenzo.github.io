@@ -9,6 +9,7 @@ public partial class OceanView3D : Node3D
     public Voyage Voyage = null!;
     public bool Menu;
     public Func<Enemy, Node3D?>? CustomActor;
+    public Func<Place, Node3D?>? CustomPlace;
     public Vector2 Camera;
     public float Clock;
     public float DepartureTime { get; private set; }
@@ -51,6 +52,12 @@ public partial class OceanView3D : Node3D
     }
     Vector2 HomeCamera() => new Vector2(StartingArea.Harbor.X, StartingArea.Harbor.Y) +
         GetViewport().GetVisibleRect().Size * new Vector2(.28f, .19f) / Projection;
+    public void PaintWater(Color water)
+    {
+        foreach(var island in scenery.Values) island.QueueFree();
+        scenery.Clear();
+        stage.PaintWater(water);
+    }
     public void OpenChart()
     {
         Menu = false;
@@ -91,7 +98,7 @@ public partial class OceanView3D : Node3D
         var incoming = visible.Where(p => !scenery.ContainsKey(p.Id)).OrderBy(p => V2.DistanceSquared(p.Position, new(Camera.X, Camera.Y))).FirstOrDefault();
         if (incoming != null)
         {
-            var root = EnvironmentArt3D.Build(incoming); AddChild(root);
+            var root = CustomPlace?.Invoke(incoming) ?? EnvironmentArt3D.Build(incoming); AddChild(root);
             root.Position = NativeStage3D.Point(incoming.Position); scenery.Add(incoming.Id, root);
         }
         stage.SetWhirlpools(scenery.Values.OfType<Whirlpool3D>());

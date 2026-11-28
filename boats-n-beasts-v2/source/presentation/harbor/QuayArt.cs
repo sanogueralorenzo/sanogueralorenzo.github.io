@@ -104,6 +104,7 @@ public static partial class EnvironmentArt3D
         });
         if (ledger.Dedicated)
             for (int i = 0; i < 4; i++) Pennants(art,new(-2.74f+i*1.10f,.20f,2.98f),1.1f,-.08f);
+        if (ledger.Dedicated) ReceivingPier(art, ledger.Campaign);
         return art.Finish("LastLightQuay");
     }
 

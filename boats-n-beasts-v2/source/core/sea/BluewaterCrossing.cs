@@ -57,7 +57,7 @@ public sealed partial class BluewaterCourse
             crossGuards = true;
             var direction = OceanWorld.Unit(Shelter-Prize);
             Ship.DropPatrol(Order.Duty == SeaDuty.Convoy ? EnemyKind.Serpent : Raider(Station),Prize + direction*175,1+Order.Tier*.05f,false);
-            if(RedPassage || Order.Tier >= 4) Ship.DropPatrol(EnemyKind.Ray,Prize - direction*220,1,false);
+            if(RedPassage || Order.Tier >= 4) AddRaider(Prize - direction*220,Station+1);
         }
         if (safe < 140)
         {

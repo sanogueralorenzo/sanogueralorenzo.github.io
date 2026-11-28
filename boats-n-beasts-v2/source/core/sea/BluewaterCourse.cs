@@ -20,6 +20,7 @@ public sealed partial class BluewaterCourse
     public CampaignOrder Order { get; }
     public Loadout Outfit { get; }
     public SeaWrit Writ { get; }
+    public string DepartureId { get; }
     public string Region { get; private set; }
     public SeaCountry Country { get; private set; }
     public SeaWeather Weather { get; private set; }
@@ -45,8 +46,8 @@ public sealed partial class BluewaterCourse
     public bool SalvageTow => fleet.Any(b=>b.Prize);
     public float GateHealth { get; private set; }
     public Enemy? Captain { get; private set; }
-    public Vector2 CannonTarget => Crossing ? Prize : Phase == ChartPhase.Boss && BossCovered ? ShieldPoint : Target;
-    public bool HasGunneryTarget => Phase == ChartPhase.Running && (Crossing ? Order.Duty == SeaDuty.Blockade : Job == SeaJob.Cut) || Phase == ChartPhase.Boss && BossCovered && Order.Duty == SeaDuty.Blockade;
+    public Vector2 CannonTarget => Field == 3 ? Battery : Crossing ? Prize : Phase == ChartPhase.Boss && BossCovered ? ShieldPoint : Target;
+    public bool HasGunneryTarget => Field == 3 && FlagshipHull>0 || Field==0 && (Phase == ChartPhase.Running && (Crossing ? Order.Duty == SeaDuty.Blockade : Job == SeaJob.Cut) || Phase == ChartPhase.Boss && BossCovered && Order.Duty == SeaDuty.Blockade);
     public bool BossCovered { get; private set; }
     public Vector2 ShieldPoint { get; private set; }
     public int Seals { get; private set; }
@@ -74,6 +75,8 @@ public sealed partial class BluewaterCourse
         Order = order;
         Outfit = outfit;
         Writ = SeaWrit.For(order);
+        Squadron = FleetAction.For(order.Id);
+        foreach(char c in string.IsNullOrEmpty(order.Island)?order.Id:order.Island) islandPattern=(islandPattern*31+c)%977;
         Region = order.Region;
         Country = SeaCountry.At(order.Region, order.Island);
         Weather = new(Country);
@@ -82,10 +85,24 @@ public sealed partial class BluewaterCourse
         Ship.HullRank = Math.Clamp(stores, 0, 2);
         Ship.Health = Ship.MaxHealth;
         Kits = 1 + Math.Clamp(stores, 0, 2) + (outfit == Loadout.Lifeboat ? 2 : 0);
-        int atBerth = order.Id switch { "cinder-float" => 3, "cinder-pilots" => 1, _ => 0 };
-        if(order.Duty == SeaDuty.Convoy && order.SeaStations is {Length:>0} jobs && !jobs.Contains(SeaJob.Tow)) atBerth=Math.Max(1,atBerth);
-        for (int i=0; i<atBerth; i++) fleet.Add(new(Ship.Position + new Vector2(80 + i*60, 65 + i*85),118));
         pilot = new(Ship.World.Seed);
+        var sector = new Vector2(11000 + (int)Country.Climate * 3600, -6200 - order.Tier * 1850);
+        pilot.Stream(sector);
+        var island = pilot.Places.Where(p=>p.Kind==PlaceKind.Island && p.Radius>=145 && p.Radius<820)
+            .MinBy(p=>Vector2.DistanceSquared(p.Position,sector));
+        island ??= pilot.Places.Where(OceanWorld.IsSolid).MinBy(p=>Vector2.DistanceSquared(p.Position,sector));
+        DepartureId = island?.Id ?? "";
+        if(island!=null)
+        {
+            var side = new Vector2(.83f,.56f);
+            var shore=island.Shape?.Point(MathF.Atan2(side.Y,side.X))??side*island.Radius;
+            Ship.Position=FindWater(island.Position+shore*1.07f+side*185,80);
+            Ship.World.Stream(Ship.Position);
+        }
+        int atBerth = order.Id switch { "cinder-float" => 3, "cinder-pilots" => 1, _ => 0 };
+        if(order.SeaStations is {Length:>0} local && !local.Contains(SeaJob.Tow) &&
+            (order.Duty == SeaDuty.Convoy || local.Contains(SeaJob.Guide))) atBerth=Math.Max(1,atBerth);
+        for (int i=0; i<atBerth; i++) fleet.Add(new(FindWater(Ship.Position + new Vector2(80 + i*60, 65 + i*85),60),118));
         float angle = random.Range(-.94f,.94f);
         course = new(MathF.Sin(angle), -MathF.Cos(angle));
     }
@@ -166,6 +183,8 @@ public sealed partial class BluewaterCourse
         beforeTravel = Ship.Position;
         Weather.Set(Target,Leg,Station);
         SetCrossing();
+        SetFleetField();
+        LayBanks();
     }
 
     public void Refit(int choice)
@@ -201,6 +220,8 @@ public sealed partial class BluewaterCourse
         Ship.EscortPosition = fleet.Count > 0 ? fleet[^1].Position : null;
         Ship.Tick(dt,input);
         if (Ship.Mode == VoyageMode.Defeat) { Phase = ChartPhase.Lost; return; }
+        if(Phase==ChartPhase.Running)TickBanks(dt);
+        WorkLine(dt,input);
         AlertQuietWater(input.Fire,dt);
         TickFleet(dt);
         if (Phase == ChartPhase.Lost) return;
@@ -214,7 +235,9 @@ public sealed partial class BluewaterCourse
                 Say("Lio    Drinking water, spare canvas and a sling for the next watch.");
                 return;
             }
-            if (Crossing) NavigateCrossing(dt,hook); else TickJob(hook);
+            if (Field != 0) WorkFleetField(dt,hook);
+            else if (Crossing) NavigateCrossing(dt,hook);
+            else TickJob(hook);
         }
         else if (Phase == ChartPhase.Boss) TickCaptain(hook, dt);
         else if (Phase == ChartPhase.Port && hook && Vector2.Distance(Ship.Position,Target) < 235)
@@ -234,18 +257,7 @@ public sealed partial class BluewaterCourse
             boat.HitCooldown -= dt;
             if (distance > 105)
             {
-                if (Vector2.DistanceSquared(lead,boat.LastLead) > 56*56)
-                {
-                    boat.Wake.Enqueue(lead);
-                    boat.LastLead = lead;
-                }
-                while (boat.Wake.TryPeek(out var passed) && Vector2.DistanceSquared(boat.Position,passed)<80*80) boat.Wake.Dequeue();
-                var waypoint = boat.Wake.TryPeek(out var next) ? next : lead;
-                var desired = OceanWorld.Unit(waypoint-boat.Position);
-                var steer = Ship.World.Avoid(boat.Position, desired, 27, 3);
-                float towSpeed = Math.Min(Ship.Speed * 1.75f, (distance - 86) * 3.1f);
-                boat.Bow = OceanWorld.Unit(Vector2.Lerp(boat.Bow, steer, Math.Min(1,dt * 4)),desired);
-                boat.Position = Ship.World.Slide(boat.Position, boat.Position + steer * towSpeed * dt,26);
+                FollowWake(boat,lead,dt);
                 if (distance > 1900) { Phase = ChartPhase.Lost; Say("Lio    The convoy's beyond hailing distance. We must turn back for her crew."); return; }
             }
             bool blasted = Ship.Events.Any(e => e.Kind is "bossExplosion" or "pufferExplosion" && Vector2.Distance(e.Position,boat.Position) < e.Value);
@@ -257,6 +269,27 @@ public sealed partial class BluewaterCourse
             }
             lead = boat.Position;
         }
+    }
+
+    void FollowWake(FleetBoat boat,Vector2 lead,float dt)
+    {
+        float distance=Vector2.Distance(lead,boat.Position);
+        if (Vector2.DistanceSquared(lead,boat.LastLead) > 56*56)
+        {
+            boat.Wake.Enqueue(lead);
+            boat.LastLead = lead;
+        }
+        while (boat.Wake.TryPeek(out var passed) && Vector2.DistanceSquared(boat.Position,passed)<80*80) boat.Wake.Dequeue();
+        var waypoint = boat.Wake.TryPeek(out var next) ? next : lead;
+        var desired = OceanWorld.Unit(waypoint-boat.Position);
+        var steer = desired;
+        float towSpeed = Math.Min(Ship.Speed * 1.75f, (distance - 86) * 3.1f);
+        boat.Bow = OceanWorld.Unit(Vector2.Lerp(boat.Bow, steer, Math.Min(1,dt * 4)),desired);
+        float step=Math.Min(towSpeed*dt,Vector2.Distance(boat.Position,waypoint));
+        var nextPosition=Ship.World.Slide(boat.Position,boat.Position+steer*step,24);
+        if(Vector2.DistanceSquared(boat.Position,nextPosition)<step*step*.04f && boat.Wake.Count>1)
+            boat.Wake.Dequeue();
+        boat.Position=Phase==ChartPhase.Running?FloatAroundBanks(nextPosition):nextPosition;
     }
 
     public float Notice { get; private set; }

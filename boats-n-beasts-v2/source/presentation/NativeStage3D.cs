@@ -43,6 +43,7 @@ public partial class NativeStage3D : Node3D
         Lens.Position = target + new Vector3(0, Foreshortening * 32, Mathf.Sqrt(1 - Foreshortening * Foreshortening) * 32);
         Lens.LookAt(target); sea.Position = target;
     }
+    public void PaintWater(Color tint) => water.SetShaderParameter("pigment", new Vector3(tint.R,tint.G,tint.B));
     public void SetWhirlpools(System.Collections.Generic.IEnumerable<Whirlpool3D> surfaces)
     {
         int count = 0;

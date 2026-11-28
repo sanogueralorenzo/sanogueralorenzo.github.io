@@ -8,23 +8,26 @@ public sealed partial class BluewaterCourse
     public int RequiredMark => (Leg + Station + Sample + Order.Tier) % 3;
     static readonly string[] Signs = ["split fin", "ring", "fork"];
     public string Sign => Signs[RequiredMark];
-    public bool HasMarks => !Crossing && Phase == ChartPhase.Running && Job is SeaJob.Sound or SeaJob.Track;
+    public bool HasMarks => Field==0 && !Crossing && Phase == ChartPhase.Running && Job is SeaJob.Sound or SeaJob.Track;
     public Vector2 Mark(int number)
     {
         float a = (number - 1) * MathF.Tau / 3;
         return Target + new Vector2(MathF.Cos(a), MathF.Sin(a)) * 155;
     }
-    public Vector2 Destination => Crossing ? RedPassage ? Prize : Shelter : Phase == ChartPhase.Boss ? BossCovered ? ShieldPoint : Captain?.Position ?? Target :
+    public Vector2 Destination => Field!=0 ? FleetDestination : Crossing ? RedPassage ? Prize : Shelter : Phase == ChartPhase.Boss ? BossCovered ? ShieldPoint : Captain?.Position ?? Target :
         HasMarks && Vector2.Distance(Target,Ship.Position) < 790 ? Mark(RequiredMark) : Target;
-    public string JobName => Crossing ? "Choose a crossing" : Phase switch
+    public string JobName => Field!=0 ? FleetTitle : Crossing ? "Choose a crossing" : Phase switch
     {
         ChartPhase.Boss => BossCovered ? "Open the armor" : Order.Boss,
         ChartPhase.Port => Order.Id == "north-return" ? "Light the home lamp" : Order.Duty == SeaDuty.Convoy ? "Signal the fleet" : "Make your report",
         _ => Job switch
         {
+            SeaJob.Tow when fleet.Count >= Writ.Lighters && Writ.Lighters > 0 => "Change the tow watch",
             SeaJob.Tow => $"Tow the {Writ.Cargo}",
             SeaJob.Guide => "Thread the gate",
+            SeaJob.Salvage when Leg < Order.Legs => (Leg%3) switch {1=>"Haul the lifting float",2=>"Raise the sling weights",_=>"Collect the tackle block"},
             SeaJob.Salvage => $"Raise the {Writ.Cargo}",
+            SeaJob.Unload when Leg < Order.Legs => "Deliver the lifting gear",
             SeaJob.Unload => $"Land the {Writ.Cargo}",
             SeaJob.Track => "Read the trail",
             SeaJob.Bait => "Lay the scent pot",
@@ -35,12 +38,12 @@ public sealed partial class BluewaterCourse
             _ => "Bring in the watch"
         }
     };
-    public string HelmOrder => Crossing ? CrossingOrder : Phase switch
+    public string HelmOrder => Field!=0 ? FleetOrder : Crossing ? CrossingOrder : Phase switch
     {
         ChartPhase.Port => $"Come alongside {Writ.Berth} and press Q.",
         ChartPhase.Boss when BossCovered => Order.Duty switch
         {
-            SeaDuty.Convoy => "Bring the convoy inside the signal ring. Q orders a clay-boat volley.",
+            SeaDuty.Convoy => "Bring the convoy inside the signal ring. Q orders a fleet volley.",
             SeaDuty.Salvage => "Hook the yellow wreck sling with Q to tear the plating away.",
             SeaDuty.Hunt => "Wait for the quarry to wind up. Q catches it in the charge.",
             SeaDuty.Sounding => "Set Lio over the sounding float and press Q to break the echo.",
@@ -51,6 +54,7 @@ public sealed partial class BluewaterCourse
         {
             SeaJob.Tow => "Sail alongside the waiting lighter. Q passes its painter to Lio.",
             SeaJob.Guide => "Bring the convoy through the beacon ring together.",
+            SeaJob.Salvage when Leg < Order.Legs => $"Hook lifting gear with Q. Deliver it to rig the {Writ.Cargo}.",
             SeaJob.Salvage => $"Q hooks the {Writ.Cargo}. Protect it all the way to its berth.",
             SeaJob.Unload => "Bring the lighter alongside the gantry and press Q.",
             SeaJob.Track => $"Trace the {Writ.Cargo} to the {Sign} marker with Q.",
@@ -82,7 +86,12 @@ public sealed partial class BluewaterCourse
         if (patrolDistance > (RedPassage ? 830 : 1270))
         {
             patrolDistance = 0;
-            if (Ship.Enemies.Count < 4 + Math.Min(Order.Tier,6)) Ship.Spawn(Raider(alertCount++));
+            if (Ship.Enemies.Count < 4 + Math.Min(Order.Tier,6))
+            {
+                var ahead=OceanWorld.Unit(Ship.Velocity,course);
+                var flank=new Vector2(-ahead.Y,ahead.X)*(alertCount%2==0?1:-1);
+                AddRaider(Ship.Position+ahead*450+flank*280,alertCount++);
+            }
         }
         if (Ship.Kills >= bountyKills + 4)
         {
@@ -100,6 +109,7 @@ public sealed partial class BluewaterCourse
                 bool named = j == 0 && Job == SeaJob.DriveOff;
                 var raider = Ship.DropPatrol(named ? EnemyKind.Serpent : Raider(j+Station),spawn, 1 + Math.Min(Order.Tier,8)*.06f,named);
                 if (named) pennant = raider;
+                else if(raider!=null) GiveOrders(raider,j+Station);
             }
         }
         if (Job == SeaJob.Cut && distance < 590)
@@ -139,7 +149,11 @@ public sealed partial class BluewaterCourse
             HookAt(Target);
             if (Job is SeaJob.Tow or SeaJob.Salvage)
             {
-                if (fleet.Count < 3) fleet.Add(new(Target, 110 + 7 * Order.Tier, Job == SeaJob.Salvage));
+                if(Job==SeaJob.Tow && Writ.Lighters>0 && fleet.Count>=Writ.Lighters)
+                {
+                    foreach(var craft in fleet)craft.Health=Math.Min(craft.Maximum,craft.Health+15);
+                }
+                else if (fleet.Count < 3) fleet.Add(new(Target, 110 + 7 * Order.Tier, Job == SeaJob.Salvage));
                 else
                 {
                     var exchanged=fleet.MinBy(b=>b.Health)!;
@@ -163,6 +177,25 @@ public sealed partial class BluewaterCourse
         HookEnemy();
     }
 
+    void AddRaider(Vector2 at,int slot)
+    {
+        var e=Ship.DropPatrol(Raider(slot),at,1+Math.Min(8,Order.Tier)*.045f,false);
+        if(e!=null)GiveOrders(e,slot);
+    }
+
+    void GiveOrders(Enemy e,int slot)
+    {
+        e.Role=(Country.Climate,(slot+Leg+islandPattern)%3) switch
+        {
+            (SeaClimate.Choir or SeaClimate.Orchard,0)=>PatrolRole.Caller,
+            (SeaClimate.Shelf or SeaClimate.Court or SeaClimate.Cinder,1)=>PatrolRole.Mortar,
+            (SeaClimate.Loom or SeaClimate.Delta,0)=>PatrolRole.Flanker,
+            (_,2) when Order.Tier>2 || RedPassage=>PatrolRole.Flanker,
+            (_,0) when Order.Tier>=6=>PatrolRole.Caller,
+            _=>PatrolRole.Pursuit
+        };
+    }
+
     EnemyKind Raider(int index) => (Country.Climate, (index + Leg + (int)Order.Duty) % 3) switch
     {
         (SeaClimate.Orchard or SeaClimate.Court, 0) => EnemyKind.Ray,
@@ -175,6 +208,7 @@ public sealed partial class BluewaterCourse
 
     void Step()
     {
+        Field=0;
         Purse += RedPassage ? 4 : 2;
         Ship.Xp += 4 + Math.Min(5,Order.Tier);
         Sample = 0;
@@ -205,6 +239,7 @@ public sealed partial class BluewaterCourse
         if (target == null) return;
         HookAt(target.Position);
         Ship.Grapple(target);
+        AttachLine(target);
         HookCooldown = Math.Max(1.5f, 5.4f - lineRank * .55f - (Outfit == Loadout.Longline ? 1 : 0));
     }
 
@@ -233,9 +268,7 @@ public sealed partial class BluewaterCourse
     {
         if (Alarm > 0) return;
         Alarm = cadence;
-        float flight = 1.65f;
-        Ship.Shots.Add(new() { Hostile = true, Position = origin, Previous = origin, Target = target,
-            Velocity = (target-origin)/flight, FlightDuration = flight, Damage = 12 + Order.Tier, Life = flight, Radius = 108 });
+        Ship.Lob(origin,target,12+Order.Tier,108,1.65f);
     }
 
     void TickCaptain(bool hook,float dt)

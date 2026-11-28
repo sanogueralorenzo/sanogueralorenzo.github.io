@@ -6,16 +6,34 @@ public sealed record CampaignLog
     public Dictionary<string, bool> Decisions { get; init; } = [];
     public bool? CrewSigned { get; init; }
     public bool HomePortNamed => CrewSigned.HasValue;
-    public (CampaignArc Arc,int Stop)? Next => FarLedger.Locate(Voyages.Length);
-    public bool NeedsHearing => Next is { } pos && pos.Stop == CampaignArc.Fork && !Decisions.ContainsKey(pos.Arc.Region);
+
+    int FiledIn(CampaignArc arc) => arc.Orders.Select((order,i) => arc.OrderAt(i,Decisions.GetValueOrDefault(arc.Region)))
+        .Concat(arc.Islands.SelectMany(island=>island.Outings)).Count(order=>Voyages.Contains(order.Id));
+
+    public (CampaignArc Arc,int Stop)? Next
+    {
+        get
+        {
+            foreach(var arc in FarLedger.Arcs)
+            {
+                int filed=FiledIn(arc);
+                if(filed<arc.Length)return (arc,filed);
+            }
+            return null;
+        }
+    }
+    public bool NeedsHearing => Next is { } pos && !Decisions.ContainsKey(pos.Arc.Region)
+        && pos.Arc.Orders.Take(CampaignArc.Fork).All(order=>Voyages.Contains(order.Id));
     public IEnumerable<CampaignOrder> Available()
     {
-        if (Next is not { } pos || NeedsHearing) yield break;
+        if (Next is not { } pos) yield break;
         var arc = pos.Arc;
         bool second = Decisions.GetValueOrDefault(arc.Region);
-        if (pos.Stop <= CampaignArc.Fork)
+        for(int i=0;i<=CampaignArc.Fork;i++)
         {
-            yield return arc.OrderAt(pos.Stop,second);
+            var order=arc.OrderAt(i,second);
+            if(Voyages.Contains(order.Id))continue;
+            if(i<CampaignArc.Fork || Decisions.ContainsKey(arc.Region))yield return order;
             yield break;
         }
         bool open = false;
@@ -26,11 +44,8 @@ public sealed record CampaignLog
             open = true;
             yield return next;
         }
-        if (!open)
-        {
-            int backbone = pos.Stop - (arc.Length-arc.Orders.Length);
-            yield return arc.OrderAt(backbone,second);
-        }
+        if (!open && arc.Orders.Skip(CampaignArc.Fork+1).FirstOrDefault(order=>!Voyages.Contains(order.Id)) is { } backbone)
+            yield return backbone;
     }
     public CampaignOrder? Current => Available().FirstOrDefault();
     public CampaignLog Sign(bool second)
@@ -40,14 +55,6 @@ public sealed record CampaignLog
     }
     public CampaignLog File(CampaignOrder order) =>
         Available().Any(o => o.Id == order.Id) ? this with { Voyages = [..Voyages, order.Id] } : this;
-    public IEnumerable<CampaignArc> SettledPorts()
-    {
-        int end = 0;
-        foreach (var arc in FarLedger.Arcs)
-        {
-            end += arc.Length;
-            if (end > Voyages.Length) yield break;
-            yield return arc;
-        }
-    }
+    public bool Hosted(IslandStory island) => island.Outings.All(order => Voyages.Contains(order.Id));
+    public IEnumerable<CampaignArc> SettledPorts() => FarLedger.Arcs.Where(arc=>FiledIn(arc)==arc.Length);
 }

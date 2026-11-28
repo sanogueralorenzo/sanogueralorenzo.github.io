@@ -18,6 +18,8 @@ public partial class BluewaterVoyage : CrewRun
     Node3D mooring = null!, destination = null!, lee = null!, localFloat = null!;
     readonly Dictionary<FleetBoat,Node3D> fleet = [];
     readonly List<Action> options = [];
+    readonly List<Node3D> banks=[];
+    int laneRevision=-1;
     AudioStreamPlayer bell = null!;
     string shown = "", propKind = "", coast = "";
     bool hook, patch, done;
@@ -28,7 +30,9 @@ public partial class BluewaterVoyage : CrewRun
         Course = new(Order, Seed, Stores, Outfit);
         Sea = new() { Name = "Ocean", Voyage = Course.Ship };
         Sea.CustomActor = enemy => enemy == Course.Captain ? BluewaterArt.Commander(Order,Course.Country) : null;
+        Sea.CustomPlace=place=>BluewaterCoast.Build(place,Course.Country,place.Id==Course.DepartureId);
         AddChild(Sea);
+        Sea.PaintWater(BluewaterCoast.Water(Course.Country.Climate));
         Sea.OpenChart();
         mooring = BluewaterArt.Prop(Course.Country,"refuge");
         mooring.Name = "FriendlyMooring"; Sea.AddChild(mooring);
@@ -104,6 +108,7 @@ public partial class BluewaterVoyage : CrewRun
         if(coast!=Course.Region)
         {
             coast=Course.Region;
+            Sea.PaintWater(BluewaterCoast.Water(Course.Country.Climate));
             mooring.QueueFree();lee.QueueFree();localFloat.QueueFree();
             mooring=BluewaterArt.Prop(Course.Country,"refuge");Sea.AddChild(mooring);
             lee=BluewaterArt.Prop(Course.Country,"gate");Sea.AddChild(lee);
@@ -138,6 +143,22 @@ public partial class BluewaterVoyage : CrewRun
         mooring.Visible=Course.Phase==ChartPhase.Running&&!Course.Docked;
         mooring.Position=NativeStage3D.Point(Course.Mooring);
         destination.Position=NativeStage3D.Point(Course.Destination);
+        if(laneRevision!=Course.ChannelRevision)
+        {
+            foreach(var old in banks)old.QueueFree();
+            banks.Clear();
+            foreach(var bank in Course.Banks)
+            {
+                var scenery=ChannelScenery.Make(Course.Country,bank);
+                Sea.AddChild(scenery);banks.Add(scenery);
+            }
+            laneRevision=Course.ChannelRevision;
+        }
+        for(int i=0;i<banks.Count;i++)
+        {
+            banks[i].Visible=Course.Phase==ChartPhase.Running && !Course.Banks[i].Broken;
+            banks[i].Position=NativeStage3D.Point(Course.Banks[i].Position);
+        }
         foreach(var departed in fleet.Keys.Where(craft=>!Course.Fleet.Contains(craft)).ToArray())
         {
             fleet[departed].QueueFree();

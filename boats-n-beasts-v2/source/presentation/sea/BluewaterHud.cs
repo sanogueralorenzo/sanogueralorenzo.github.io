@@ -41,7 +41,26 @@ internal partial class BluewaterHud : Control
                 }
             }
         if(!c.WeatherRead && c.Weather.Marked && c.Phase is ChartPhase.Running or ChartPhase.Boss) Weather(brass);
+        foreach(var foe in ship.Enemies)
+        {
+            if(foe.Role==PatrolRole.Pursuit||foe.Health<=0)continue;
+            var pin=S(foe.Position,.76f);
+            if(!new Rect2(Vector2.Zero,Size).HasPoint(pin))continue;
+            Color tint=foe.Role==PatrolRole.Caller?Mint:foe.Role==PatrolRole.Mortar?Red:Cream;
+            DrawColoredPolygon([pin+new Vector2(-6,-4),pin+new Vector2(6,-4),pin+new Vector2(0,5)],tint);
+        }
         if(c.Phase==ChartPhase.Boss && c.Tell>0) CommanderTell();
+        if(c.Tether!=null)
+        {
+            var point=S(c.Tether.Position,.35f);
+            DrawLine(shipHere,point,new Color(Ink,.85f),5,true);
+            DrawLine(shipHere,point,c.SeamReady?brass:Mint,2,true);
+            if(c.SeamReady)
+            {
+                DrawArc(point,17,0,Mathf.Tau,24,brass,3,true);
+                DrawLine(point-Vector2.Right*22,point+Vector2.Right*22,Cream,2,true);
+            }
+        }
         if(c.HookTime>0) {DrawLine(shipHere,S(c.HookEnd,.35f),Ink,6,true);DrawLine(shipHere,S(c.HookEnd,.35f),brass,3,true);}
         var previous=ship.Position;
         foreach(var lighter in c.Fleet)
@@ -104,7 +123,7 @@ internal partial class BluewaterHud : Control
             const int bar=260;
             Box(w-bar-28,18,bar,76,brass);
             Text(c.Order.Boss,w-bar-13,50,23,Cream,true);
-            Text(c.BossCovered?"ARMORED":"EXPOSED",w-bar-13,71,12,c.BossCovered?brass:Mint);
+            Text(c.Tell>0?c.AttackName.ToUpperInvariant():c.BossCovered?"ARMORED":"EXPOSED",w-bar-13,71,12,c.BossCovered?brass:Mint);
             DrawRect(new(w-bar-13,80,bar-30,5),new Color("455863"));
             DrawRect(new(w-bar-13,80,(bar-30)*Math.Clamp(captain.Health/captain.MaxHealth,0,1),5),Red);
         }
@@ -117,7 +136,7 @@ internal partial class BluewaterHud : Control
         Box(w-385,h-92,363,72,brass);
         Text($"WASD  Helm     Space / click  Gun     Shift  Surge",w-374,h-66,15,Cream);
         Text(c.HookCooldown>0?$"Q   Line coiling   {Math.Ceiling(c.HookCooldown)}s":"Q   Crew line ready",w-374,h-39,16,Mint);
-        string order=c.HelmOrder;
+        string order=c.Tether!=null?(c.SeamReady?"Turn side-on and fire at the tethered seam for a raking volley.":"Sail across the tether to turn its soft side toward Vara.") : c.HelmOrder;
         float orderW=text.GetStringSize(order,fontSize:17).X+34;
         Box((w-orderW)/2,h-147,orderW,39,brass);
         Text(order,(w-orderW)/2+17,h-122,17,Cream);
@@ -146,22 +165,22 @@ internal partial class BluewaterHud : Control
     void CommanderTell()
     {
         var c=Course;
-        if(c.Order.Duty is SeaDuty.Convoy or SeaDuty.Sounding)
+        foreach(var zone in c.Threats)
         {
-            bool chord=c.Order.Duty==SeaDuty.Sounding;
-            var center=chord?c.AttackFrom:c.AttackTo;
-            float radius=chord?310:151;
-            DrawPolyline(Ring(center,radius),Red,4,true);
-            DrawPolyline(Ring(center,Math.Max(6,radius*c.WarningProgress)),Cream,2,true);
-            if(chord)DrawPolyline(Ring(center,137),Mint,3,true);
-        }
-        else
-        {
-            var axis=OceanWorld.Unit(c.AttackTo-c.AttackFrom);
-            var side=new V2(-axis.Y,axis.X)*98;
-            Vector2[] corners=[S(c.AttackFrom-side),S(c.AttackFrom+side),S(c.AttackTo+side),S(c.AttackTo-side)];
-            DrawColoredPolygon(corners,new Color(Red,.19f+c.WarningProgress*.19f));
-            DrawPolyline([..corners,corners[0]],Red,3,true);
+            if(V2.DistanceSquared(zone.Start,zone.End)<1)
+            {
+                DrawPolyline(Ring(zone.Start,zone.Radius),Red,3,true);
+                if(zone.Eye>0)DrawPolyline(Ring(zone.Start,zone.Eye),Mint,3,true);
+                else DrawPolyline(Ring(zone.Start,Math.Max(6,zone.Radius*c.WarningProgress)),Cream,2,true);
+            }
+            else
+            {
+                var axis=OceanWorld.Unit(zone.End-zone.Start);
+                var side=new V2(-axis.Y,axis.X)*zone.Radius;
+                Vector2[] corners=[S(zone.Start-side),S(zone.Start+side),S(zone.End+side),S(zone.End-side)];
+                DrawColoredPolygon(corners,new Color(Red,.18f+c.WarningProgress*.16f));
+                DrawPolyline([..corners,corners[0]],Red,3,true);
+            }
         }
     }
 

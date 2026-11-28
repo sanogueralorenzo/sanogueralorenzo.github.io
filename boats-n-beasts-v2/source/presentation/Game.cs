@@ -68,7 +68,8 @@ public partial class Game : Node
         order = requested;
         int seed = Random.Shared.Next();
         ClearLocation();
-        location = requested.Ashore
+        location = requested.Pilotage ? new PilotageVoyage { Order=requested, Seed=seed, Stores=ledger.Stores, Outfit=ledger.Outfit, Returned=Land } :
+            requested.Ashore
             ? new KilnExpedition { Order = requested, Seed = seed, Stores = ledger.Stores, Outfit = ledger.Outfit, Returned = Land }
             : new BluewaterVoyage { Order = requested, Seed = seed, Stores = ledger.Stores, Outfit = ledger.Outfit, Returned = Land };
         AddChild(location);

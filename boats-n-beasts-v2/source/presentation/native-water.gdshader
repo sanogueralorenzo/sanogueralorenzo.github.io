@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode cull_disabled, ambient_light_disabled, specular_disabled;
 uniform float clock = 0.0;
+uniform vec3 pigment = vec3(.012,.394,.449);
 uniform int whirlpool_count = 0;
 uniform vec4 whirlpools[32];
 varying vec3 world;
@@ -32,7 +33,7 @@ void fragment() {
     float broad = field(water*.107);
     float pockets = field(vec2(water.x*.14 - water.y*.11, water.x*.11 + water.y*.14) + 17.3);
     float tone = smoothstep(.14,.86,mix(broad,pockets,.27));
-    vec3 color = mix(vec3(.012,.394,.449), vec3(.018,.471,.502), tone);
+    vec3 color = mix(pigment, pigment + vec3(.006,.077,.053), tone);
     vec2 axis = vec2(.95,-.31);
     vec2 tile = vec2(dot(world.xz, axis), dot(world.xz, vec2(-axis.y, axis.x))) / vec2(2.9, 2.4);
     float aa = max(fwidth(tile.y) * 1.44, .006);

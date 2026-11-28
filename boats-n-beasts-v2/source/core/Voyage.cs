@@ -11,6 +11,8 @@ public sealed class Enemy
     public float Health, MaxHealth, Time, AttackClock, Telegraph, Dash, HitFlash, Pull, Fuse;
     public float SpeedMultiplier = 1, Stunned, Armor, HoldAt;
     public bool Marked;
+    public PatrolRole Role;
+    public float RoleClock=2;
     public const float PufferFuseDuration = 1.05f, PufferTriggerRadius = 125, PufferBlastRadius = 155;
     public const float EmergenceDuration = .45f;
     public bool Emerging => Time < EmergenceDuration;
@@ -189,11 +191,12 @@ public sealed partial class Voyage
                 if (distance > 1200) e.Position = Position - dir * 1000;
                 if (e.AttackClock <= 0)
                 {
-                    ThrowBossBombs(e);
+                    if (!Charted || !e.Marked) ThrowBossBombs(e);
                     e.AttackClock = e.Health < e.MaxHealth * .5f ? 3.2f : 4.2f;
                 }
                 if (distance < 220) motion *= .2f;
             }
+            if (e.Role != PatrolRole.Pursuit) WorkFormation(e,dt,dir,distance,ref motion,ref speed);
             foreach (var other in Enemies)
             {
                 if (other == e || other.Health <= 0) continue;

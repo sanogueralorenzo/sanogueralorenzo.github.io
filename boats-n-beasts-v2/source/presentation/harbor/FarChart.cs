@@ -44,14 +44,14 @@ internal partial class LastLightHarbor
             AnchorLeft=1,AnchorRight=1,OffsetLeft=-718,OffsetRight=-25,OffsetTop=103,OffsetBottom=383 };
         ui.AddChild(chartMap);
         Choice("Read the order", () => Brief(order), true);
-        if (offers.Length > 1) Choice("Another island", () => IslandRoutes((page+1)%offers.Length));
+        if (offers.Length > 1) Choice($"Another island   ·   {page+1}/{offers.Length}", () => IslandRoutes((page+1)%offers.Length));
         if (log.Voyages.Length > 0) Choice("Ship’s log", () => { logPage = log.Voyages.Length-1; ShipLog(); });
         Choice("Leave the chart",Close);
     }
     void Brief(CampaignOrder order)
     {
-        Open(order.Ashore ? "LANDING PARTY" : "BLUE-WATER VOYAGE",order.Title, order.Objective + "  " + order.Brief);
-        Choice(order.Ashore ? "Take the crew ashore" : "Cast off", () => AcceptOrder?.Invoke(order), true);
+        Open(order.Pilotage ? "PILOT’S SURVEY" : order.Ashore ? "LANDING PARTY" : "BLUE-WATER VOYAGE",order.Title, order.Objective + "  " + order.Brief);
+        Choice(order.Pilotage ? "Open the pilot book" : order.Ashore ? "Take the crew ashore" : "Cast off", () => AcceptOrder?.Invoke(order), true);
         Choice("Back to the chart", FarChart);
     }
 
@@ -73,7 +73,7 @@ internal partial class LastLightHarbor
     void ShipLog()
     {
         var log = Ledger.Campaign;
-        if (FarLedger.Locate(logPage) is not { } pos) { FarChart(); return; }
+        if (logPage < 0 || logPage >= log.Voyages.Length) { FarChart(); return; }
         var order = FarLedger.Find(log.Voyages[logPage]);
         Open($"SHIP’S LOG   /   {order.Region.ToUpperInvariant()}", order.Title,order.Homecoming);
         Choice("Relive this crossing", () => AcceptOrder?.Invoke(order));

@@ -15,6 +15,7 @@ internal partial class LastLightHarbor
                 : "“When the fares went up I started keeping a second book. All the names of people we turned away. Do you think Vara would want it?” She holds it out with both hands.");
             Choice(Ledger.Dedicated ? "Help her to the pier" : "Bring it to the crew", Ledger.Dedicated ? Close : Crew, true);
         }, true);
+        if (Ledger.Dedicated) Choice("Read the visitors’ book", () => VisitorsBook(0));
         Choice("Let her count", Close);
     }
     void Crew()
@@ -81,13 +82,14 @@ internal partial class LastLightHarbor
     void MessTable()
     {
         var log = Ledger.Campaign;
-        if (FarLedger.Locate(log.Voyages.Length - 1) is not { } pos) return;
         var last = FarLedger.Find(log.Voyages[^1]);
         string text = last.Homecoming;
-        if (pos.Stop == pos.Arc.Length - 1) text += " The crew has kept a souvenir. " + pos.Arc.Keepsake + ".";
-        Open(pos.Arc.Title.ToUpperInvariant(), "Word from the quay", text);
+        var arc = FarLedger.Arcs.First(region => region.Region == last.Region);
+        if (last.Id == arc.Orders[^1].Id) text += " The crew has kept a souvenir. " + arc.Keepsake + ".";
+        Open(arc.Title.ToUpperInvariant(), "Word from the quay", text);
         Choice("Take your watch", FarChart, true);
         Choice("Sit with the crew", Guest);
+        Choice("Read the visitors’ book", () => VisitorsBook(0));
     }
 
     void Guest()

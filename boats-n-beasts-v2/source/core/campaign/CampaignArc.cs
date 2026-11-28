@@ -22,18 +22,17 @@ public static partial class FarLedger
     internal static CampaignOrder Order(string id, SeaDuty duty, string title, string brief, string objective,
         string boss, string homecoming, int legs) => new(id, "", title, brief, objective, boss, homecoming, duty, 0, legs);
 
-    public static IReadOnlyList<CampaignArc> Arcs { get; } = [Cinder() with { Islands = CinderIsles() }, Reedglass(), Orchard(), Whitewake(), Tangleloom(), Choir(), Sable(), Unnumbered() with { Islands = UnnumberedIsles() }];
+    public static IReadOnlyList<CampaignArc> Arcs { get; } = [
+        Cinder() with { Islands = CinderIsles() },
+        Reedglass() with { Islands = ReedglassIsles() },
+        Orchard() with { Islands = OrchardIsles() },
+        Whitewake() with { Islands = WhitewakeIsles() },
+        Tangleloom() with { Islands = TangleloomIsles() },
+        Choir() with { Islands = ChoirIsles() },
+        Sable() with { Islands = SableIsles() },
+        Unnumbered() with { Islands = UnnumberedIsles() }
+    ];
     public static int Count => Arcs.Sum(arc => arc.Length);
     public static CampaignOrder Find(string id) => Arcs.SelectMany(arc =>
         arc.Orders.Append(arc.Alternate).Concat(arc.Islands.SelectMany(i => i.Outings))).First(order => order.Id == id);
-    public static (CampaignArc Arc, int Stop)? Locate(int completed)
-    {
-        if (completed < 0) return null;
-        foreach (var arc in Arcs)
-        {
-            if (completed < arc.Length) return (arc, completed);
-            completed -= arc.Length;
-        }
-        return null;
-    }
 }

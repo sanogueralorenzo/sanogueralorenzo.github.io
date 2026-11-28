@@ -114,7 +114,9 @@ internal partial class LastLightHarbor : Node
         sheet = new PanelContainer { AnchorTop = 1, AnchorBottom = 1, AnchorRight = 1,
             GrowVertical = Control.GrowDirection.Begin, OffsetLeft = 24, OffsetRight = -24, OffsetTop = -232, OffsetBottom = -22 };
         sheet.AddThemeStyleboxOverride("panel", Box(new("112c39fd"), new("d8ad76"), 25, 12)); ui.AddChild(sheet);
-        var col = new VBoxContainer(); sheet.AddChild(col);
+        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation",20); sheet.AddChild(row);
+        if (CrewPortrait.For(byline) is { } portrait) row.AddChild(portrait);
+        var col = new VBoxContainer { SizeFlagsHorizontal=Control.SizeFlags.ExpandFill }; row.AddChild(col);
         col.AddThemeConstantOverride("separation", 5);
         col.AddChild(Text(byline, 16, Teal));
         col.AddChild(Text(heading, 31, Brass, true));

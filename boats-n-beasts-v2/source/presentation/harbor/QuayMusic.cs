@@ -15,6 +15,14 @@ internal partial class QuayMusic : Node
     {
         strings = Player(-24,3); low = Player(-27,2); bronze = Player(-16,3);
     }
+    public override void _ExitTree()
+    {
+        foreach (var voice in new[] { strings, low, bronze })
+        {
+            if (!GodotObject.IsInstanceValid(voice)) continue;
+            voice.Stop(); voice.Stream=null;
+        }
+    }
     AudioStreamPlayer Player(float volume, int voices)
     {
         var player = new AudioStreamPlayer { VolumeDb = volume, MaxPolyphony = voices };
