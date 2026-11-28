@@ -40,7 +40,7 @@ void vertex() {
     }
 }
 float sail_ink(vec2 point) {
-    vec2 p = (point - vec2(0.0, 1.07)) / vec2(.174, .165);
+    vec2 p = (point - vec2(.07, .925)) / vec2(.174, .165);
     float head = (length((p - vec2(0.0, .28)) / vec2(.53, .48)) - 1.0) * .48;
     float jaw = max(abs(p.x) - .31, abs(p.y + .02) - .24);
     float eyes = (length((vec2(abs(p.x), p.y) - vec2(.22, .26)) / vec2(.125, .145)) - 1.0) * .125;

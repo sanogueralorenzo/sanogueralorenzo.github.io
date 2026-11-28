@@ -182,7 +182,7 @@ public static partial class ActorArt3D
         Vector3 Cloth(float u, float v) => new(
             (u - .5f) * WidthAt(v),
             .68f + v * .72f - .025f * MathF.Sin(u * Mathf.Pi) * (1 - v),
-            .015f + .30f * MathF.Sin(u * Mathf.Pi) * MathF.Sin(v * Mathf.Pi));
+            .015f - .18f * MathF.Sin(u * Mathf.Pi) * MathF.Sin(v * Mathf.Pi));
         for (int y = 0; y < 8; y++) for (int x = 0; x < 8; x++)
         {
             var patch = new[] { Cloth(x / 8f, y / 8f), Cloth((x + 1) / 8f, y / 8f),
