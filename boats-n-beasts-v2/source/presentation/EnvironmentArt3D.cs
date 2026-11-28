@@ -98,7 +98,7 @@ public static partial class EnvironmentArt3D
             ? depth * .01f * dryCoast : 0;
     }
 
-    private static void IslandLand(Sculptor art, IslandShape shape, float r, uint seed, bool sandy, float[]? inlet)
+    private static void IslandLand(Sculptor art, IslandShape shape, float r, uint seed, bool sandy)
     {
         int layers = Math.Max(24, (int)MathF.Ceiling(r / .12f));
         var points = new Vector3[layers + 1, IslandShape.Sides];
@@ -108,11 +108,8 @@ public static partial class EnvironmentArt3D
         for (int layer = 0; layer <= layers; layer++) for (int i = 0; i < IslandShape.Sides; i++)
         {
             float reach = layer / (float)layers * 1.02f;
-            float inset = inlet?[i] ?? 0;
-            var shore = shape.Shore[i];
-            var p = shore * (.01f * reach);
-            if (inset > 0) p -= System.Numerics.Vector2.Normalize(shore) * (inset * reach / .98f);
-            float d = MathF.Max(0, InlandClearance(shape, new(p.X, p.Y)) - inset * Mathf.SmoothStep(.52f, .965f, reach));
+            var p = shape.Shore[i] * (.01f * reach);
+            float d = InlandClearance(shape, new(p.X, p.Y));
             clearance[layer, i] = d;
             float height = reach > .965f ? Mathf.Lerp(.018f, .007f, (reach - .965f) / .055f)
                 : Mathf.Lerp(.018f, .20f, Mathf.SmoothStep(0, beach + .28f, d));
@@ -147,33 +144,10 @@ public static partial class EnvironmentArt3D
                 Vector3.Up, Vector3.Up, Vector3.Up, "ground", GroundUv(la, ia), GroundUv(lb, ib), GroundUv(lc, ic)));
     }
 
-    private static float[]? LighthouseInlet(Sculptor art, Vector2[] coast)
-    {
-        if (art.JettySpace is not { } pier) return null;
-        var direction = (pier.End - pier.Start).Normalized();
-        float length = pier.Start.DistanceTo(pier.End) - LighthousePierApproach;
-        float cutback = Math.Clamp(length * .74f, .28f, .84f);
-        var inset = new float[coast.Length];
-        for (int i = 0; i < coast.Length; i++)
-        {
-            var point = coast[i];
-            float station = (point - pier.Start).Dot(direction) - LighthousePierApproach;
-            float across = MathF.Abs((point - pier.End).Cross(direction));
-            var ray = point.Normalized();
-            float depth = cutback * (1 - Mathf.SmoothStep(pier.Width, pier.Width + LighthouseInletShoulder, across));
-            float room = (station - length * .12f) / MathF.Max(.1f, ray.Dot(direction));
-            inset[i] = Math.Clamp(depth, 0, MathF.Max(0, room));
-            if (inset[i] > 0 && art.TreasureSpace is { } treasure &&
-                new Vector2(treasure.X, treasure.Y).DistanceTo(Geometry2D.GetClosestPointToSegment(new(treasure.X, treasure.Y), point, point - ray * inset[i])) < .55f)
-                return null;
-        }
-        return inset;
-    }
-
-    private static void PaintShoreFoam(Sculptor art, Vector2[]? coast, float[]? inlet)
+    private static void PaintShoreFoam(Sculptor art, Vector2[]? coast)
     {
         if (art.ShoreFoam.Count == 0) return;
-        var dry = coast?.Select((point, i) => (point - point.Normalized() * (inlet?[i] ?? 0)) * (.99f / .98f)).ToArray();
+        var dry = coast?.Select(point => point * (.99f / .98f)).ToArray();
         Color cream = new("fff5d8");
         const int segments = 10;
         bool Wet(Vector3 point) => dry == null || !Geometry2D.IsPointInPolygon(new(point.X, point.Z), dry);
@@ -236,8 +210,7 @@ public static partial class EnvironmentArt3D
             var p = CoastPoint(i * Mathf.Tau / sides, .98f, .014f);
             return new Vector2(p.X, p.Z);
         }).ToArray();
-        var inlet = lighthouse ? LighthouseInlet(art, coast) : null;
-        if (shape != null) IslandLand(art, shape, r, seed, lighthouse || sandbank, inlet);
+        if (shape != null) IslandLand(art, shape, r, seed, lighthouse || sandbank);
         float shelfWidth = Math.Clamp(r * .60f, .50f, 2.8f)
             * new SeedRandom(seed ^ 0x4ee7u).Range(.90f, 1.10f);
         if (sandbank && r >= 2.4f) shelfWidth *= 1.30f;
@@ -293,13 +266,7 @@ public static partial class EnvironmentArt3D
             i %= sides;
             float at = layer * widths[i];
             int inner = (int)at;
-            var point = shelf[inner, i].Lerp(shelf[Math.Min(8, inner + 1), i], at - inner);
-            if (inlet != null && inlet[i] > 0 && layer < 4)
-            {
-                var shift = coast[i].Normalized() * (inlet[i] * (1 - layer * .25f));
-                point -= new Vector3(shift.X, 0, shift.Y);
-            }
-            return point;
+            return shelf[inner, i].Lerp(shelf[Math.Min(8, inner + 1), i], at - inner);
         }
         float CoastAngle(int i) => (i == sides ? 1 : alongCoast[i] / perimeter) * Mathf.Tau;
         for (int layer = 0; layer < 8; layer++) for (int i = 0; i < sides; i++)
@@ -311,7 +278,7 @@ public static partial class EnvironmentArt3D
             art.Triangle(a,b,d,color,color,color,Vector3.Up,Vector3.Up,Vector3.Up,"shelf",U(layer,i),U(layer,i+1),U(layer+1,i));
             art.Triangle(b,c,d,color,color,color,Vector3.Up,Vector3.Up,Vector3.Up,"shelf",U(layer,i+1),U(layer+1,i+1),U(layer+1,i));
         }
-        PaintShoreFoam(art, rock ? null : coast, inlet);
+        PaintShoreFoam(art, rock ? null : coast);
     }
 
     private static void ShoreRocks(Sculptor art, float r, uint seed)

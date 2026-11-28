@@ -104,8 +104,6 @@ public static partial class EnvironmentArt3D
         float height = scale * 1.42f;
         float vegetation = art.HeightScale;
         var reserve = art.LandmarkSpace!.Value;
-        var jetty = art.JettySpace;
-        if (jetty is { } pier) art.JettySpace = (pier.Start, pier.End, pier.Width + LighthouseInletShoulder);
         art.HeightScale = 1;
         art.LandmarkSpace = (reserve.Center, scale * .82f);
         Palm(art, new(-radius * .60f, .14f, -radius * .17f), height, seed + 31, .40f);
@@ -129,7 +127,6 @@ public static partial class EnvironmentArt3D
         Pennants(art, new(-radius * .64f, .16f, radius * .41f), scale * .57f, .45f);
         art.HeightScale = vegetation;
         art.LandmarkSpace = reserve;
-        art.JettySpace = jetty;
     }
 
     private static void LighthouseShoreFoot(Sculptor art, float angle, float width, uint seed)
@@ -219,15 +216,12 @@ public static partial class EnvironmentArt3D
         art.EndProp(old);
     }
 
-    private const float LighthousePierApproach = .36f;
-    private const float LighthouseInletShoulder = .46f;
-
     private static void LighthousePier(Sculptor art, Transform3D building)
     {
         var shape = art.Footprint!;
         float scale = building.Basis.X.Length(), halfWidth = Math.Clamp(scale * .22f, .17f, .38f);
         float length = Math.Clamp(scale * .67f, .43f, 1.16f);
-        const float shorePadding = 24;
+        const float approachLength = .36f, shorePadding = 24;
         var landmark = art.LandmarkSpace!.Value;
         foreach (float angle in new[] { .13f, .33f, .59f, .91f, 1.23f, 1.55f, 1.87f, 2.19f })
         {
@@ -235,7 +229,7 @@ public static partial class EnvironmentArt3D
             var direction = Vector2.FromAngle(angle);
             var end = new Vector2(p.X, p.Y) + direction * .19f;
             var start = end - direction * length;
-            var approach = start - direction * LighthousePierApproach;
+            var approach = start - direction * approachLength;
             if (landmark.Center.DistanceTo(Geometry2D.GetClosestPointToSegment(landmark.Center, approach, end)) < landmark.Radius + halfWidth * .5f)
                 continue;
             if (art.TreasureSpace is { } treasure &&
@@ -253,8 +247,8 @@ public static partial class EnvironmentArt3D
             for (int i = 0; i < 3; i++)
             {
                 float t = (i + .5f) / 3f;
-                art.Transform = pier * new Transform3D(Basis.FromEuler(new(-Mathf.Atan2(.12f, LighthousePierApproach), 0, 0)),
-                    new(0, .202f + t * .12f, LighthousePierApproach * (t - 1)));
+                art.Transform = pier * new Transform3D(Basis.FromEuler(new(-Mathf.Atan2(.12f, approachLength), 0, 0)),
+                    new(0, .202f + t * .12f, approachLength * (t - 1)));
                 art.RoundedBox(Vector3.Zero, new(halfWidth * 2, .060f, .12f), .006f, top.Lightened(i * .023f));
             }
             art.Transform = pier;
