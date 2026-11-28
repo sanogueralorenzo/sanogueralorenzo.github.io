@@ -17,6 +17,7 @@ float sail_offset(vec2 p) {
     return weight*(.018*sin(clock*1.6)+.004*sin(clock*2.7+p.x*12.0-v*3.0));
 }
 void vertex() {
+    pigment_position = VERTEX;
     sail_point = VERTEX.xy;
     if(sail_motion) {
         float motion=sail_offset(VERTEX.xy);
@@ -58,6 +59,10 @@ void fragment() {
     if (sail_motion) {
         shell = mix(shell, vec3(.10, .17, .19), sail_ink(sail_point));
     }
+    vec3 p = pigment_position;
+    float wash = sin(dot(p, vec3(5.4, 7.1, 3.7)) + 1.3*sin(dot(p, vec3(6.9,-2.1,4.4))));
+    float dry = smoothstep(.13,.78,wash) * (.51 + .49*sin(dot(p,vec3(11.0,16.1,-3.2))));
+    shell *= mix(vec3(.986,.980,.987), vec3(1.025,1.018,1.006), dry);
     ALBEDO=linear_color(shell);
     ROUGHNESS=1.0; SPECULAR=0.0;
 }

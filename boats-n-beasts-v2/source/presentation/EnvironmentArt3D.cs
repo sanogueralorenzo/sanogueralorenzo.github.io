@@ -508,7 +508,7 @@ public static partial class EnvironmentArt3D
             float a = i * Mathf.Tau / 7 + rotation + rng.Range(-.16f, .16f);
             float sweep = rng.Range(-.15f, .20f);
             Frond(art, crown, a, height * rng.Range(.44f, .67f), height * rng.Range(.12f, .17f),
-                height * rng.Range(.095f, .17f), new Color("78a43e").Lerp(new Color("b3c952"), rng.Range(0, .65f)), sweep);
+                height * rng.Range(.095f, .17f), new Color("72a033").Lerp(new Color("c9cb40"), rng.Range(0, .86f)), sweep);
         }
         art.Boulder(crown - Vector3.Up * height * .035f, Vector3.One * height * .094f, new("865742"), seed);
         art.EndProp(old);
@@ -543,6 +543,12 @@ public static partial class EnvironmentArt3D
             var b = Section(sections[i + 1].X, sections[i + 1].Y);
             art.Quad(a.Left, a.Spine, b.Spine, b.Left, color.Darkened(.13f));
             art.Quad(a.Spine, a.Right, b.Right, b.Spine, color.Lightened(.10f));
+            if (i is 1 or 2)
+            {
+                var mid = a.Spine.Lerp(b.Spine,.60f);
+                var cut = a.Right.Lerp(b.Right,.90f) + Vector3.Up*.003f;
+                art.Face(mid + Vector3.Up*.004f, cut, cut - forward * length*.055f, color.Lightened(.29f));
+            }
         }
     }
 

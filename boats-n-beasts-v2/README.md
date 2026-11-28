@@ -1,38 +1,28 @@
 # Boats ’n’ Beasts V2
 
-A procedural sailing prototype with automatic combat, island obstacles and boat upgrades. V2 has its own save and preview settings.
+An original, story-driven Godot pirate roguelike. In **The Silent Watch**, a missing bell leaves three skiffs stranded in the fog. Sail from Last Light Quay with the diver Lio and the bellfounder Vara, recover the tongue in Lantern Sound, then dock at Bellwether and take on the Bellwarden.
 
-## Run and preview
+## Play
 
-Requires .NET 10 SDK and Godot **4.7.2 .NET** with Forward+. The preview watcher also requires Python 3.
+Requires .NET 10 and Godot **4.7.2 .NET** with Forward+. Set `GODOT_BIN` to the engine executable and `DOTNET_ROOT` to the SDK directory if needed.
 
 ```sh
-./run.command                 # Play
-./run.command --preview       # Live art preview
-./run.command --preview --once # Single preview launch
+./run.command
+./run.command --preview --once
 ```
 
-Set `GODOT_BIN` and `DOTNET_ROOT` if the launcher cannot find them. Add `--import` when resource imports need refreshing.
+In the harbor, click a station or walk with WASD and press E. Use the crew table for conversations, the galley for permanent provisions and the berth for departures. Escape pauses a run. Defeat and retreat bank the silver collected that run. Victory can open a landing, bring someone home or change the quay. Progress saves locally.
 
-On first launch, the preview opens on the lighthouse island at gameplay scale. Saving C# rebuilds the preview, while shader edits refresh without a build. Island selection and viewing scale survive restarts. Close the window or press Ctrl+C to stop.
+| At sea | Ashore |
+| --- | --- |
+| WASD or arrows to steer | WASD or arrows to walk |
+| Hold Space to fire, turn side-on for a broadside | Hold J or left click to slash |
+| Q to grapple, Shift to surge | K to call Lio’s hook, Space to dodge |
+| E to fit a patch when carrying one | E to use stations and board the skiff |
 
-Preview shortcuts follow keyboard order: **Q–P** islands and landmarks, **A–L** scenery and size/crew controls, **Z/X** turn the boat, **C** view, **V** refresh. The preview shows every binding; **Q** cycles island samples.
+## Art preview
 
-Select **R** lighthouse, **T** tavern, **Y** market stall, **U** windmill, **O** sea cave or **P** ancient arch. **H/J** adjusts the selected model’s size and remembers it across preview restarts. Production defaults and per-build overrides live in `LandmarkSizes` in `source/presentation/EnvironmentLandmarks3D.cs` (`EnvironmentArt3D.Build(place, new LandmarkSizes(Tavern: 1.6f))`).
-
-Run the focused world-generation checks with `dotnet run --project tests/WorldChecks.csproj`.
-
-## Current gameplay
-
-- Steer with WASD/arrows or click a destination; Space/Shift boosts and Escape pauses.
-- Choose Gunboat, Aura or Mage. Weapons fire automatically; two weapon slots are available.
-- Level-ups offer weapon or boat upgrades. Beach chests grant XP; floating barrels restore health.
-- Survive to defeat Crownclaw. The harbor is currently scenery.
-- The speed button cycles ×1 / ×2 / ×3 / ×10 / ×20.
-
-## Visual style
-
-Warm sandstone, crisp violet shadows and bands of turquoise shallows frame the open teal sea. Coral accents distinguish danger and landmarks, while cream sails and wakes trace the player’s course. All gameplay art is generated in code.
+All art is generated in code. Use `./run.command --preview` for the Python 3 live watcher. The preview opens on the lighthouse at gameplay scale and displays the keys for island selection, scale, crew and camera. Pass `--import` to the launcher to refresh the resource cache.
 
 ## Install on macOS
 

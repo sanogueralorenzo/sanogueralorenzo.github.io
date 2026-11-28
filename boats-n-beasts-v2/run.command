@@ -5,10 +5,23 @@ export DOTNET_ROOT="${DOTNET_ROOT:-$HOME/.dotnet}"
 export PATH="$DOTNET_ROOT:$PATH"
 if [[ -n "$GODOT_BIN" ]]; then
   engine="$GODOT_BIN"
-elif [[ -x /Applications/Godot_mono.app/Contents/MacOS/Godot ]]; then
-  engine=/Applications/Godot_mono.app/Contents/MacOS/Godot
 else
-  engine=godot-mono
+  candidates=(
+    "/Applications/Godot_mono.app/Contents/MacOS/Godot"
+    "$HOME/Applications/Godot_mono.app/Contents/MacOS/Godot"
+    "$PWD/.godot/toolchain/Godot_mono.app/Contents/MacOS/Godot"
+    "${commands[godot-mono]}" "${commands[godot]}"
+  )
+  for candidate in "${candidates[@]}"; do
+    if [[ -x "$candidate" && "$("$candidate" --version)" == *mono* ]]; then
+      engine="$candidate"
+      break
+    fi
+  done
+  if [[ -z "$engine" ]]; then
+    print -u2 'Install Godot 4.7.2 .NET or set GODOT_BIN to its executable.'
+    exit 1
+  fi
 fi
 preview_mode=false
 import_resources=false
