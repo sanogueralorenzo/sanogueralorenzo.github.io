@@ -15,6 +15,7 @@ internal partial class LastLightHarbor : Node
     CanvasLayer canvas = null!;
     Control ui = null!;
     PanelContainer? sheet;
+    RouteChart? chartMap;
     HBoxContainer choices = null!;
     Label money = null!, direction = null!;
     readonly Dictionary<WharfStop, Button> markers = [];
@@ -72,7 +73,8 @@ internal partial class LastLightHarbor : Node
     void RefreshLedger()
     {
         money.Text = $"{Ledger.Silver} silver   ·   Bank";
-        direction.Text = Ledger.Dedicated ? "The quay rings again." : Ledger.BellReleased ? "Join the crew at the table for the first ringing."
+        direction.Text = Ledger.Dedicated ? Ledger.Campaign.NeedsHearing ? "Hear the witnesses at the crew table."
+            : Ledger.Campaign.Current is { } next ? $"At the chart   ·   {next.Region}, {next.Title}" : "The quay rings again." : Ledger.BellReleased ? "Join the crew at the table for the first ringing."
             : Ledger.HasTongue ? "Carry the bell tongue ashore at Bellwether." : "Three skiffs went into the fog. Two came home. Ask the crew.";
     }
     public override void _Process(double delta)
@@ -99,6 +101,7 @@ internal partial class LastLightHarbor : Node
     }
     void Close()
     {
+        if (chartMap != null) { ui.RemoveChild(chartMap); chartMap.QueueFree(); chartMap = null; }
         if (sheet != null) { ui.RemoveChild(sheet); sheet.QueueFree(); sheet = null; }
         quay.Exploring = true;
         foreach (var marker in markers.Values) marker.Show();
@@ -109,7 +112,7 @@ internal partial class LastLightHarbor : Node
         Close(); quay.Exploring = false;
         foreach (var marker in markers.Values) marker.Hide();
         sheet = new PanelContainer { AnchorTop = 1, AnchorBottom = 1, AnchorRight = 1,
-            OffsetLeft = 24, OffsetRight = -24, OffsetTop = -218, OffsetBottom = -22 };
+            GrowVertical = Control.GrowDirection.Begin, OffsetLeft = 24, OffsetRight = -24, OffsetTop = -232, OffsetBottom = -22 };
         sheet.AddThemeStyleboxOverride("panel", Box(new("112c39fd"), new("d8ad76"), 25, 12)); ui.AddChild(sheet);
         var col = new VBoxContainer(); sheet.AddChild(col);
         col.AddThemeConstantOverride("separation", 5);
@@ -137,6 +140,7 @@ internal partial class LastLightHarbor : Node
     }
     void Chart()
     {
+        if (Ledger.Dedicated) { FarChart(); return; }
         if (Ledger.HasTongue)
         {
             Open("THE SOUNDINGS   /   CHAPTER I", "Bellwether Quay", Ledger.BellReleased
@@ -172,6 +176,27 @@ internal partial class LastLightHarbor : Node
                 UpdateLedger(next); status = "The new fitting is ready."; Galley();
             }, true);
         }
+        if (Ledger.Dedicated) Choice("Visit the outfitter", Outfitter);
         Choice("Back to the quay", Close);
+    }
+
+    void Outfitter()
+    {
+        var rig = Shipyard.Plans.First(p => p.Kit == Ledger.Outfit);
+        Open("THE OUTFITTER", "Fit out the crew", $"{rig.Name} is equipped for charted journeys. Purchased patterns can be refitted freely.");
+        foreach (var plan in Shipyard.Plans)
+            Choice(plan.Name, () =>
+            {
+                bool owned = plan.Kit == Loadout.Standard || Ledger.Patterns.Contains(plan.Kit);
+                string price = owned ? "Pattern on file." : $"Pattern costs {plan.Silver} silver.";
+                Open("CREW PATTERN",plan.Name,$"{plan.Description}  {price}");
+                if (owned || Ledger.Silver >= plan.Silver) Choice(owned ? "Equip this rig" : "Buy and equip", () =>
+                {
+                    UpdateLedger(Ledger.Equip(plan)); Outfitter();
+                },true);
+                else Choice($"Need {plan.Silver - Ledger.Silver} more silver",Outfitter);
+                Choice("Other patterns",Outfitter);
+            }, plan.Kit == Ledger.Outfit);
+        Choice("Back to the quay",Close);
     }
 }

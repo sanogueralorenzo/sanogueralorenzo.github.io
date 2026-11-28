@@ -19,7 +19,7 @@ internal sealed class HarborSave : IDisposable
         var ledger = JsonSerializer.Deserialize<HarborLedger>(File.ReadAllText(Path))
             ?? throw new InvalidDataException("The harbor log is empty.");
         if (ledger.AtSea == 0) return ledger;
-        ledger = ledger.Land(Passage.LanternSound, false, ledger.AtSea);
+        ledger = ledger.Bank(ledger.AtSea);
         Write(ledger);
         return ledger;
     }

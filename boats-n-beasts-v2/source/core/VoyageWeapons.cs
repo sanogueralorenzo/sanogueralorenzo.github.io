@@ -9,7 +9,7 @@ public sealed partial class Voyage
     public int CannonRicochets { get; private set; }
     public int HarpoonPulls { get; private set; }
 
-    void UpdateWeapons(float dt)
+    void UpdateWeapons(float dt, SailInput input)
     {
         var forward = new Vector2(MathF.Sin(Heading), -MathF.Cos(Heading));
         for (int w = 0; w < Weapons.Length; w++)
@@ -17,6 +17,7 @@ public sealed partial class Voyage
             Cooldowns[w] = Math.Max(0, Cooldowns[w] - dt * FireRateMultiplier);
             int rank = Weapons[w];
             if (rank == 0 || Cooldowns[w] > 0 || Shots.Count >= 360) continue;
+            if (w == 0 && Charted && !input.Fire) continue;
             float range = w == 4 ? WhirlpoolRadius : w == 3 ? 285 * Area : 570;
             var target = Enemies.Where(e => e.Health > 0 && Vector2.DistanceSquared(e.Position, Position) < range * range)
                 .OrderBy(e => Vector2.DistanceSquared(e.Position,Position)).FirstOrDefault();
@@ -30,11 +31,12 @@ public sealed partial class Voyage
             }
             else
             {
-                if (target == null) continue;
+                bool commanded = w == 0 && Charted && input.Aim.HasValue;
+                if (target == null && !commanded) continue;
                 float damage = (w == 0 ? 15 : w == 1 ? 13 : w == 4 ? 7 : w == 5 ? 20 : 18);
                 if (w == 5)
                 {
-                    var aim = OceanWorld.Unit(target.Position-Position);
+                    var aim = OceanWorld.Unit(target!.Position-Position);
                     for (int orb = 0; orb < rank; orb++)
                     {
                         float spread = (orb-(rank-1)/2f)*.3f;
@@ -62,7 +64,13 @@ public sealed partial class Voyage
                 else
                 {
                     var mount = Position + forward * 48;
-                    var dir = OceanWorld.Unit(target.Position-mount);
+                    var bearing = commanded ? input.Aim!.Value : target!.Position;
+                    var dir = OceanWorld.Unit(bearing - mount, forward);
+                    if (Charted && w == 0)
+                    {
+                        bool broadside = Math.Abs(Vector2.Dot(forward, dir)) < .64f;
+                        damage *= broadside ? (BroadsideRig ? 2.475f : 1.65f) : (BroadsideRig ? .75f : 1);
+                    }
                     int count = w == 0 ? rank : 1;
                     for (int i=0;i<count;i++)
                     {

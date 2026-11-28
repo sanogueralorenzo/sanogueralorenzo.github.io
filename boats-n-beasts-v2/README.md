@@ -1,6 +1,6 @@
 # Boats ’n’ Beasts V2
 
-An original, story-driven Godot pirate roguelike. In **The Silent Watch**, a missing bell leaves three skiffs stranded in the fog. Sail from Last Light Quay with the diver Lio and the bellfounder Vara, recover the tongue in Lantern Sound, then dock at Bellwether and take on the Bellwarden.
+An original Godot pirate roguelike. Last Light Quay loses its bell in **The Silent Watch**. Join Lio and Vara to recover it, dock at Bellwether and bring its keeper home. **The Far Ledger** follows the crew across eight regions, from Cinder Narrows to the Unnumbered Sea. The crew’s hearings decide which orders and witnesses appear. Cleared orders can be replayed from the ship’s log.
 
 ## Play
 
@@ -11,14 +11,14 @@ Requires .NET 10 and Godot **4.7.2 .NET** with Forward+. Set `GODOT_BIN` to the 
 ./run.command --preview --once
 ```
 
-In the harbor, click a station or walk with WASD and press E. Use the crew table for conversations, the galley for permanent provisions and the berth for departures. Escape pauses a run. Defeat and retreat bank the silver collected that run. Victory can open a landing, bring someone home or change the quay. Progress saves locally.
+In the harbor, click a station or walk with WASD and press E. Use the crew table for conversations, the galley for permanent provisions and the berth for departures. The chart shows available island stories. The outfitter opens after the first bell ringing. Escape pauses a run. Defeat and retreat bank the silver collected that run. Victory can open a landing, bring someone home or change the quay. Progress saves locally.
 
 | At sea | Ashore |
 | --- | --- |
 | WASD or arrows to steer | WASD or arrows to walk |
-| Hold Space to fire, turn side-on for a broadside | Hold J or left click to slash |
+| Hold Space to fire, turn side-on for a broadside. Click to aim on charted voyages | Hold J or left click to slash |
 | Q to grapple, Shift to surge | K to call Lio’s hook, Space to dodge |
-| E to fit a patch when carrying one | E to use stations and board the skiff |
+| E to use a repair kit, number keys to choose routes and refits | E to work, open gates or board. Use 1–4 to trade at camp |
 
 ## Art preview
 

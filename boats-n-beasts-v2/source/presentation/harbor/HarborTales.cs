@@ -19,6 +19,9 @@ internal partial class LastLightHarbor
     }
     void Crew()
     {
+        if (Ledger.Dedicated && Ledger.Campaign.NeedsHearing) { Listen(); return; }
+        if (Ledger.Dedicated && Ledger.Campaign.Next == null && !Ledger.Campaign.HomePortNamed) { Ending(); return; }
+        if (Ledger.Dedicated && Ledger.Campaign.Voyages.Length > 0) { MessTable(); return; }
         if (Ledger.BellReleased && !Ledger.Dedicated)
         {
             Open("VARA   /   AT THE BELL FRAME", "Who gets the first pull?", Ledger.Promise == CrewPromise.RememberTheMissing
@@ -33,6 +36,7 @@ internal partial class LastLightHarbor
                 ? "“Heard the small ones this morning? They’ve invented a fourth signal. It means the bread is out of the oven.” Lio leaves a coil of clean rope on the lowest hook."
                 : "The list has grown. Beneath the names of the drowned, someone has begun writing the names of people who came home. Vara finds yours and laughs.");
             Choice("Stay for a bowl", Close, true);
+            Choice("Meet the visiting pilot", Guest);
         }
         else if (Ledger.HasTongue && Ledger.Promise == CrewPromise.Unspoken)
         {
@@ -72,5 +76,45 @@ internal partial class LastLightHarbor
             ? "They read until Vara’s spoon goes cold. From the fog comes a ragged answering note. The third skiff rows into the light with a kettle tied to the mast."
             : "Three children hang from the rope together. Out beyond the reef a kettle answers, struck with an oarlock. The third skiff has found its way home.");
         Choice("Welcome them in", Close, true);
+    }
+
+    void MessTable()
+    {
+        var log = Ledger.Campaign;
+        if (FarLedger.Locate(log.Voyages.Length - 1) is not { } pos) return;
+        var last = FarLedger.Find(log.Voyages[^1]);
+        string text = last.Homecoming;
+        if (pos.Stop == pos.Arc.Length - 1) text += " The crew has kept a souvenir. " + pos.Arc.Keepsake + ".";
+        Open(pos.Arc.Title.ToUpperInvariant(), "Word from the quay", text);
+        Choice("Take your watch", FarChart, true);
+        Choice("Sit with the crew", Guest);
+    }
+
+    void Guest()
+    {
+        var log = Ledger.Campaign;
+        int port = Visitors.At(log);
+        var guest = Visitors.All[port];
+        string answer = !log.Decisions.TryGetValue(FarLedger.Arcs[port].Region, out var second) ? guest.Early : second ? guest.Second : guest.First;
+        Open(guest.Job.ToUpperInvariant(), guest.Name, guest.Question + "  " + answer);
+        Choice(guest.Reply, Close, true);
+    }
+    void Ending()
+    {
+        var log = Ledger.Campaign;
+        Open("LAST LIGHT QUAY   /   THE HOMECOMING", "Where is home on the chart?",
+            "Every pilot crowds around the table. The compass needle spins once, slowly, and points straight at the bell rope. Pip has saved room in the margin. She wants to know what to write.");
+        void Write(bool crew)
+        {
+            UpdateLedger(Ledger with { Campaign = log with { CrewSigned = crew } });
+            music.Ring();
+            string bell = Ledger.Dedication == BellDedication.Children ? "The children hang on the rope together." : "Vara reads the names and rings for each one.";
+            string signatures = crew ? "The page fills with thumbprints, flour and one wet paw." : "Pip writes LAST LIGHT in a hand big enough to read from the gangplank.";
+            Open("THE FAR LEDGER   /   END", crew ? "Room for one more" : "A name on the door", signatures + " " + bell +
+                " Oren sets another place. Nell opens the register to a clean page and props the door open with it. On the tide outside, a strange little boat is looking for somewhere to tie up.");
+            Choice("Throw them a line", Close, true);
+        }
+        Choice("Write Last Light Quay", () => Write(false), true);
+        Choice("Ask the crew to sign", () => Write(true));
     }
 }

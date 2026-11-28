@@ -6,6 +6,9 @@ public enum BellDedication { Unrung, RollCall, Children }
 
 public sealed record HarborLedger
 {
+    public Loadout Outfit { get; init; }
+    public Loadout[] Patterns { get; init; } = [];
+    public CampaignLog Campaign { get; init; } = new();
     public int Silver { get; init; }
     public int Stores { get; init; }
     public bool HasTongue { get; init; }
@@ -15,10 +18,9 @@ public sealed record HarborLedger
     public bool Dedicated => Dedication != BellDedication.Unrung;
     public int AtSea { get; init; }
     public int StoreCost => Stores == 0 ? 6 : 14;
-    public HarborLedger Land(Passage passage, bool won, int earned) => this with
+    public HarborLedger Bank(int earned) => this with { Silver = checked(Silver + Math.Max(0, earned)), AtSea = 0 };
+    public HarborLedger Land(Passage passage, bool won, int earned) => Bank(earned) with
     {
-        Silver = checked(Silver + Math.Max(0, earned)),
-        AtSea = 0,
         HasTongue = HasTongue || won && passage == Passage.LanternSound,
         BellReleased = BellReleased || won && HasTongue && passage == Passage.BellwetherQuay
     };

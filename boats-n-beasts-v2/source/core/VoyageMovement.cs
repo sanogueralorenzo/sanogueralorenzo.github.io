@@ -21,6 +21,7 @@ public sealed partial class Voyage
         if (boosting && !IsBoosting)
         {
             Boost = Math.Max(0, Boost - 8);
+            if (Charted) Invulnerable = Math.Max(Invulnerable, .27f);
             Velocity = Vector2.Lerp(Velocity, forward * Speed * 2.05f, .65f);
             BoostStarts++; Events.Add(new("boostStart", Position));
         }

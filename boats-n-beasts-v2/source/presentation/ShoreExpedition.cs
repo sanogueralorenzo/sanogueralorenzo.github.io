@@ -4,12 +4,9 @@ using V2 = System.Numerics.Vector2;
 
 namespace BoatsNBeasts;
 
-public partial class ShoreExpedition : Node
+public partial class ShoreExpedition : CrewRun
 {
-    public Action<bool, int>? Returned;
-    public int Seed { get; set; } = Random.Shared.Next();
-    public int Stores { get; set; }
-    public int SilverEarned => Fight.Silver;
+    public override int SilverEarned => Fight.Silver;
     internal ShoreFight Fight { get; private set; } = null!;
     internal NativeStage3D Stage { get; private set; } = null!;
     internal bool Paused { get; private set; }

@@ -9,6 +9,7 @@ public partial class Game : Node
     HarborLedger ledger = new();
     Node? location;
     Passage passage;
+    CampaignOrder? order;
     CanvasLayer? pause;
     bool returning;
 
@@ -43,8 +44,9 @@ public partial class Game : Node
     }
     void Harbor(string heading = "", string message = "")
     {
-        ClearLocation();
-        location = new LastLightHarbor { Ledger = ledger, Changed = Save, Depart = Embark,
+        ClearLocation(); order = null;
+        GetWindow().Title = ledger.Dedicated ? "Boats ’n’ Beasts  ·  The Far Ledger" : "Boats ’n’ Beasts  ·  The Silent Watch";
+        location = new LastLightHarbor { Ledger = ledger, Changed = Save, Depart = Embark, AcceptOrder = Embark,
             ReturnHeading = heading, ReturnMessage = message };
         AddChild(location); returning = false;
     }
@@ -59,15 +61,22 @@ public partial class Game : Node
             : new ShoreExpedition { Seed = seed, Stores = ledger.Stores, Returned = Land };
         AddChild(location);
     }
-    int Purse => location switch
+    void Embark(CampaignOrder requested)
     {
-        SeaPassage sea => sea.SilverEarned,
-        ShoreExpedition shore => shore.SilverEarned,
-        _ => 0
-    };
+        if (location is not LastLightHarbor || !ledger.Dedicated) return;
+        if (!ledger.Campaign.Available().Any(o => o.Id == requested.Id) && !ledger.Campaign.Voyages.Contains(requested.Id)) return;
+        order = requested;
+        int seed = Random.Shared.Next();
+        ClearLocation();
+        location = requested.Ashore
+            ? new KilnExpedition { Order = requested, Seed = seed, Stores = ledger.Stores, Outfit = ledger.Outfit, Returned = Land }
+            : new BluewaterVoyage { Order = requested, Seed = seed, Stores = ledger.Stores, Outfit = ledger.Outfit, Returned = Land };
+        AddChild(location);
+    }
+    int Purse => location is CrewRun run ? run.SilverEarned : 0;
     public override void _Process(double delta)
     {
-        if (location is not (SeaPassage or ShoreExpedition) || returning) return;
+        if (location is not CrewRun || returning) return;
         CheckpointPurse();
     }
     void CheckpointPurse()
@@ -77,8 +86,19 @@ public partial class Game : Node
     }
     void Land(bool won, int earned)
     {
-        if (returning || location is not (SeaPassage or ShoreExpedition)) return;
+        if (returning || location is not CrewRun) return;
         returning = true;
+        if (order != null)
+        {
+            bool recollection = ledger.Campaign.Voyages.Contains(order.Id);
+            var next = ledger.Bank(earned);
+            if (won) next = next with { Campaign = next.Campaign.File(order) };
+            Save(next);
+            string report = recollection ? "The crew folds away the old chart and counts the salvage." : won ? order.Homecoming : $"The crew makes it back with the purse. The order for {order.Region} is still on the chart.";
+            string title = won ? order.Title : "The unfinished crossing";
+            Callable.From(() => Harbor(title, $"{report}   Banked {earned} silver.")).CallDeferred();
+            return;
+        }
         bool newTongue = won && passage == Passage.LanternSound && !ledger.HasTongue;
         bool newBell = won && passage == Passage.BellwetherQuay && !ledger.BellReleased;
         Save(ledger.Land(passage, won, earned));
@@ -92,13 +112,13 @@ public partial class Game : Node
     public override void _UnhandledKeyInput(InputEvent input)
     {
         if (input is not InputEventKey { Keycode: Key.Escape, Pressed: true, Echo: false } || returning ||
-            location is not (SeaPassage or ShoreExpedition)) return;
+            location is not CrewRun) return;
         if (pause == null) Hold(); else Resume();
         GetViewport().SetInputAsHandled();
     }
     public override void _Notification(int what)
     {
-        if (location is not (SeaPassage or ShoreExpedition) || returning) return;
+        if (location is not CrewRun || returning) return;
         if (what == NotificationWMCloseRequest) CheckpointPurse();
         if (what == NotificationApplicationFocusOut && pause == null)
         {

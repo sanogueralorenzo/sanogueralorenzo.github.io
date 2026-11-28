@@ -47,6 +47,13 @@ internal partial class QuayView : Node3D
             keeper.RotationDegrees = new(0,-124,0);
             AddChild(keeper);
         }
+        if (Ledger.Dedicated)
+        {
+            var guest = ActorArt3D.Visitor(Visitors.At(Ledger.Campaign));
+            guest.Position = new(-1.46f,.24f,.64f);
+            guest.RotationDegrees = new(0,-145,0);
+            AddChild(guest);
+        }
         Frame();
         PoseCaptain();
     }

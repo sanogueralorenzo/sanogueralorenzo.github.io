@@ -1,0 +1,12 @@
+namespace BoatsNBeasts.Core;
+
+public enum SeaDuty { Convoy, Salvage, Hunt, Sounding, Blockade, Landing }
+
+public sealed record CampaignOrder(string Id, string Region, string Title, string Brief, string Objective,
+    string Boss, string Homecoming, SeaDuty Duty, int Tier, int Legs)
+{
+    public LandingStep[]? LandingSteps { get; init; }
+    public SeaJob[]? SeaStations { get; init; }
+    public string Island { get; init; } = "";
+    public bool Ashore => Duty == SeaDuty.Landing;
+}

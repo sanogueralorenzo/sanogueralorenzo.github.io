@@ -8,6 +8,7 @@ public partial class OceanView3D : Node3D
 {
     public Voyage Voyage = null!;
     public bool Menu;
+    public Func<Enemy, Node3D?>? CustomActor;
     public Vector2 Camera;
     public float Clock;
     public float DepartureTime { get; private set; }
@@ -50,6 +51,13 @@ public partial class OceanView3D : Node3D
     }
     Vector2 HomeCamera() => new Vector2(StartingArea.Harbor.X, StartingArea.Harbor.Y) +
         GetViewport().GetVisibleRect().Size * new Vector2(.28f, .19f) / Projection;
+    public void OpenChart()
+    {
+        Menu = false;
+        DepartureTime = 3;
+        Camera = new(Voyage.Position.X, Voyage.Position.Y);
+        stage.Follow(Camera);
+    }
     public void BeginSailing() { Menu = false; DepartureTime = 0; }
     public void Effect(GameEvent ev) => effects.Effect(ev);
     public void Advance(float dt)
@@ -106,7 +114,7 @@ public partial class OceanView3D : Node3D
         {
             if (!creatures.TryGetValue(enemy.Id, out var creature))
             {
-                var created = ActorArt3D.Creature(enemy.Kind); AddChild(created);
+                var created = CustomActor?.Invoke(enemy) ?? ActorArt3D.Creature(enemy.Kind); AddChild(created);
                 var mesh = created.GetChild<MeshInstance3D>(0);
                 mesh.SetInstanceShaderParameter("creature_kind", enemy.Kind switch { EnemyKind.Crab or EnemyKind.Leviathan => 1, EnemyKind.Puffer => 2, EnemyKind.Serpent => 3, _ => 4 });
                 mesh.SetInstanceShaderParameter("creature_scale", enemy.Kind == EnemyKind.Leviathan ? 2.65f : 1);

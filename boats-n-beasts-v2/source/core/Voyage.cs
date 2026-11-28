@@ -9,7 +9,8 @@ public sealed class Enemy
 {
     public int Id; public EnemyKind Kind; public Vector2 Position, Direction;
     public float Health, MaxHealth, Time, AttackClock, Telegraph, Dash, HitFlash, Pull, Fuse;
-    public float SpeedMultiplier = 1;
+    public float SpeedMultiplier = 1, Stunned, Armor, HoldAt;
+    public bool Marked;
     public const float PufferFuseDuration = 1.05f, PufferTriggerRadius = 125, PufferBlastRadius = 155;
     public const float EmergenceDuration = .45f;
     public bool Emerging => Time < EmergenceDuration;
@@ -25,13 +26,16 @@ public sealed class Shot
     public HashSet<int> Hit = new();
 }
 public readonly record struct GameEvent(string Kind, Vector2 Position, float Value = 0, Vector2 End = default);
-public readonly record struct SailInput(Vector2 Move, bool Boost);
+public readonly record struct SailInput(Vector2 Move, bool Boost, bool Fire = true, Vector2? Aim = null);
 public sealed partial class Voyage
 {
     public OceanWorld World { get; }
     public SeedRandom Random;
     SeedRandom buildRandom;
     readonly System.Random silverRandom = new();
+    public bool Charted { get; init; }
+    public bool BroadsideRig { get; init; }
+    public Vector2? EscortPosition { get; set; }
     public int SilverEarned { get; private set; }
     public float NextSilverTime { get; private set; }
     float SilverInterval() => 45 + silverRandom.NextSingle() * 45;
@@ -82,6 +86,23 @@ public sealed partial class Voyage
         CombatTime += dt; Invulnerable = Math.Max(0, Invulnerable - dt);
         UpdateMovement(dt, input);
         CollectEncounters();
+        if (!Charted) PopulateWildSea(dt);
+        UpdateAbility(dt);
+        UpdateEnemies(dt);
+        UpdateWeapons(dt, input);
+        UpdateShots(dt);
+        Enemies.RemoveAll(e => e.Health <= 0 || (!e.Marked && e.Kind != EnemyKind.Leviathan && Vector2.DistanceSquared(e.Position, Position) > 1600 * 1600));
+        Shots.RemoveAll(s => s.Life <= 0);
+        if (Mode == VoyageMode.Victory) return;
+        if (Health <= 0) { Health = 0; Mode = VoyageMode.Defeat; Events.Add(new("defeat", Position)); }
+        else
+        {
+            while (Xp >= NextXp) { Xp -= NextXp; Level++; PendingUpgrades++; Events.Add(new("level", Position)); }
+            if (PendingUpgrades > 0) PrepareNextUpgrade();
+        }
+    }
+    void PopulateWildSea(float dt)
+    {
         int spawn = Director.Tick(dt, CombatTime, Enemies.Count(e => e.Kind != EnemyKind.Leviathan), BossSpawned && !BossSlain);
         for (int i = 0; i < spawn; i++) Spawn();
         if (CombatTime >= SpawnDirector.BossArrivalSeconds && !BossSpawned)
@@ -92,19 +113,6 @@ public sealed partial class Voyage
                 foreach (var escort in Enemies.Where(e => e.Kind != EnemyKind.Leviathan && e.Health > 0).OrderBy(e => Vector2.DistanceSquared(e.Position, Position)).Skip(SpawnDirector.BossEscortCount)) escort.Health = 0;
                 Events.Add(new("boss", Enemies[^1].Position));
             }
-        }
-        UpdateAbility(dt);
-        UpdateEnemies(dt);
-        UpdateWeapons(dt);
-        UpdateShots(dt);
-        Enemies.RemoveAll(e => e.Health <= 0 || (e.Kind != EnemyKind.Leviathan && Vector2.DistanceSquared(e.Position, Position) > 1600 * 1600));
-        Shots.RemoveAll(s => s.Life <= 0);
-        if (Mode == VoyageMode.Victory) return;
-        if (Health <= 0) { Health = 0; Mode = VoyageMode.Defeat; Events.Add(new("defeat", Position)); }
-        else
-        {
-            while (Xp >= NextXp) { Xp -= NextXp; Level++; PendingUpgrades++; Events.Add(new("level", Position)); }
-            if (PendingUpgrades > 0) PrepareNextUpgrade();
         }
     }
     static float ApproachAngle(float from, float to, float amount) => from + MathF.Atan2(MathF.Sin(to - from), MathF.Cos(to - from)) * Math.Min(1, amount);
@@ -133,7 +141,9 @@ public sealed partial class Voyage
             e.Time += dt;
             if (e.Emerging) continue;
             e.AttackClock -= dt; e.HitFlash = Math.Max(0, e.HitFlash - dt);
-            Vector2 d = Position - e.Position; float distance = d.Length(); Vector2 dir = OceanWorld.Unit(d, Vector2.UnitY);
+            if (e.Stunned > 0) { e.Stunned -= dt; continue; }
+            var prey = EscortPosition is Vector2 escort && e.Id % 3 == 0 && !e.Marked ? escort : Position;
+            Vector2 d = prey - e.Position; float distance = d.Length(); Vector2 dir = OceanWorld.Unit(d, Vector2.UnitY);
             float speed = e.SwimSpeed;
             Vector2 motion = dir;
             if (e.Kind == EnemyKind.Puffer)
@@ -147,7 +157,7 @@ public sealed partial class Voyage
                         e.Health = 0;
                         PufferExplosions++;
                         Events.Add(new("pufferExplosion", e.Position, Enemy.PufferBlastRadius));
-                        if (distance < Enemy.PufferBlastRadius + 23)
+                        if (Vector2.Distance(e.Position, Position) < Enemy.PufferBlastRadius + 23)
                         {
                             float before = Health;
                             DamagePlayer(22);
@@ -197,7 +207,7 @@ public sealed partial class Voyage
             }
             motion = World.Avoid(e.Position, motion, e.Radius, e.Id);
             e.Position = World.Slide(e.Position, e.Position + motion * speed * dt, e.Radius);
-            if (e.Kind != EnemyKind.Puffer && distance < e.Radius + 23) DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : 11);
+            if (e.Kind != EnemyKind.Puffer && Vector2.Distance(e.Position, Position) < e.Radius + 23) DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : 11);
         }
     }
     void ThrowBossBombs(Enemy boss)
@@ -228,18 +238,19 @@ public sealed partial class Voyage
     }
     void Hit(Enemy e, float damage)
     {
-        e.Health -= damage; e.HitFlash = .12f; Events.Add(new("hit", e.Position, damage));
+        damage *= (1 - e.Armor) * (e.Stunned > 0 ? 1.4f : 1);
+        e.Health = Math.Max(e.HoldAt, e.Health - damage); e.HitFlash = .12f; Events.Add(new("hit", e.Position, damage));
         if (e.Health > 0) return;
         Kills++; Xp += e.Kind == EnemyKind.Leviathan ? 25 : 1;
         // Schedule from this award so idle time cannot bank silver drops.
-        if (CombatTime >= NextSilverTime)
+        if (!Charted && CombatTime >= NextSilverTime)
         {
             SilverEarned++;
             NextSilverTime = CombatTime + SilverInterval();
             Events.Add(new("silver", e.Position));
         }
         Events.Add(new("kill", e.Position, e.Kind == EnemyKind.Leviathan ? 2 : 1));
-        if (e.Kind == EnemyKind.Leviathan)
+        if (!Charted && e.Kind == EnemyKind.Leviathan)
         {
             BossSlain = true; Mode = VoyageMode.Victory;
             // Mark dead/expired rather than mutate lists being traversed by the current attack.
