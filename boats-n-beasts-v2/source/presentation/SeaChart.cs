@@ -34,7 +34,7 @@ internal partial class SeaChart : Control
         bool boss = Run.Leg == PassageLeg.Keelwidow;
         float w = Size.X, h = Size.Y;
         Plate(new(24, 20, 330, 76));
-        Words("BELLWETHER QUAY    /    VOYAGE", 42, 44, 14, Brass);
+        Words("THE SILENT WATCH    /    VOYAGE", 42, 44, 14, Brass);
         Words("Lantern Sound", 41, 79, 30, Cream, true);
         if (Run.Battle)
         {
@@ -82,24 +82,7 @@ internal partial class SeaChart : Control
         Words(line, right + 15, h - 61, 17, Run.HookCooldown > 0 ? Muted : Blue);
         Words(surge, right + 185, h - 61, 17, Run.SurgeCooldown > 0 ? Muted : Blue);
         Words("WASD   Helm     ·     Hold Space   Fire", right + 15, h - 36, 16, Cream);
-        string status = Run.TowLoose ? "Loose tow · approach the lifeboat and press Q" :
-            Run.GuardLive ? "Line up a broadside on the spring gun" :
-            !Run.Battle ? Run.Leg switch
-            {
-                PassageLeg.Salvage => "Choose a watch · sail to its flag",
-                PassageLeg.Work => Run.Rescue ? "Q rescues swimmers · keep tow clear of floats" : "Gun cut loose · Q lifts the powder",
-                PassageLeg.Delivery => "Bring the watch to the tender",
-                PassageLeg.Homeward => "Carry the bell tongue back to the tender",
-                PassageLeg.Hunt => "Sail north through the outer lights",
-                _ => "Come alongside the broken keel · Q to recover"
-            } :
-            Run.Move == HaulerMove.Throwing ? "Flying wreckage   ·   Leave the marked water" :
-            Run.Move == HaulerMove.Sounding ? "Bell shock   ·   Clear the circle or order Q" :
-            Run.Move == HaulerMove.LiningUp ? "Ram   ·   Turn aside or order Q" :
-            Run.Move == HaulerMove.Exposed ? "Seam exposed   ·   Fire!" :
-            !Run.InRange ? "Close to gun range" :
-            Run.Leg == PassageLeg.Keelwidow && Run.BeastHealth <= Run.BeastMaximum / 2 ? "Plated keel   ·   Q its windup to expose the seam" :
-            Run.Broadside ? "Broadside lined up   ·   Hold Space" : "Swivel gun   ·   Turn side-on for a broadside";
+        string status = SailingOrder();
         var tint = Run.Move is HaulerMove.Sounding or HaulerMove.LiningUp or HaulerMove.Throwing && Run.Battle ? Red : Cream;
         float statusWidth = text.GetStringSize(status, fontSize: 17).X + 36;
         float statusX = (w - statusWidth) * .5f;
@@ -113,6 +96,34 @@ internal partial class SeaChart : Control
         }
         if (Run.WoundFlash > 0)
             DrawRect(new(Vector2.Zero, Size), new Color(Red, Run.WoundFlash), false, 8);
+    }
+
+    string SailingOrder()
+    {
+        if (Run.TowLoose) return "Loose tow · approach the lifeboat and press Q";
+        if (Run.GuardLive) return "Line up a broadside on the spring gun";
+        if (!Run.Battle)
+            return Run.Leg switch
+            {
+                PassageLeg.Salvage => "Choose a watch · sail to its flag",
+                PassageLeg.Work when Run.Rescue => "Q rescues swimmers · keep tow clear of floats",
+                PassageLeg.Work => "Gun cut loose · Q lifts the powder",
+                PassageLeg.Delivery => "Bring the watch to the tender",
+                PassageLeg.Homeward => "Carry the bell tongue back to the tender",
+                PassageLeg.Hunt => "Sail north through the outer lights",
+                _ => "Come alongside the broken keel · Q to recover"
+            };
+        return Run.Move switch
+        {
+            HaulerMove.Throwing => "Flying wreckage   ·   Leave the marked water",
+            HaulerMove.Sounding => "Bell shock   ·   Clear the circle or order Q",
+            HaulerMove.LiningUp => "Ram   ·   Turn aside or order Q",
+            HaulerMove.Exposed => "Seam exposed   ·   Fire!",
+            _ when !Run.InRange => "Close to gun range",
+            _ when Run.Leg == PassageLeg.Keelwidow && Run.BeastHealth <= Run.BeastMaximum / 2 => "Plated keel   ·   Q its windup to expose the seam",
+            _ when Run.Broadside => "Broadside lined up   ·   Hold Space",
+            _ => "Swivel gun   ·   Turn side-on for a broadside"
+        };
     }
 
     void Waypoint(V2 target, string name, string detail, Color color)

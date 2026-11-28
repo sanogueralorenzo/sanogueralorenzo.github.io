@@ -5,6 +5,7 @@ namespace BoatsNBeasts;
 
 public partial class Game : Node
 {
+    readonly HarborSave journal = new();
     HarborLedger ledger = new();
     Node? location;
     Passage passage;
@@ -14,13 +15,15 @@ public partial class Game : Node
     public override void _Ready()
     {
         GetWindow().Title = "Boats ’n’ Beasts  ·  The Silent Watch";
-        try { ledger = HarborSave.Open(); }
+        try { ledger = journal.Open(); }
         catch (Exception error) { ShowError(error); return; }
         Harbor();
     }
+    public override void _ExitTree() => journal.Dispose();
+
     void Save(HarborLedger next)
     {
-        try { HarborSave.Write(next); ledger = next; }
+        try { journal.Write(next); ledger = next; }
         catch (Exception error) { ShowError(error); throw; }
     }
     void ShowError(Exception error)

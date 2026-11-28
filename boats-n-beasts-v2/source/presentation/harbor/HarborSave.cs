@@ -4,13 +4,17 @@ using Godot;
 
 namespace BoatsNBeasts;
 
-internal static class HarborSave
+internal sealed class HarborSave : IDisposable
 {
     static readonly JsonSerializerOptions Options = new() { IgnoreReadOnlyProperties = true };
     static string Path => ProjectSettings.GlobalizePath("user://quay-log.json");
 
-    public static HarborLedger Open()
+    FileStream? writer;
+
+    public HarborLedger Open()
     {
+        try { writer = new FileStream(Path + ".lock", FileMode.OpenOrCreate, System.IO.FileAccess.ReadWrite, FileShare.None); }
+        catch (IOException error) { throw new IOException("Close any other game using this harbor log and try again.", error); }
         if (!File.Exists(Path)) return new();
         var ledger = JsonSerializer.Deserialize<HarborLedger>(File.ReadAllText(Path))
             ?? throw new InvalidDataException("The harbor log is empty.");
@@ -20,7 +24,9 @@ internal static class HarborSave
         return ledger;
     }
 
-    public static void Write(HarborLedger ledger)
+    public void Dispose() => writer?.Dispose();
+
+    public void Write(HarborLedger ledger)
     {
         File.WriteAllText(Path + ".new", JsonSerializer.Serialize(ledger, Options));
         File.Move(Path + ".new", Path, true);
